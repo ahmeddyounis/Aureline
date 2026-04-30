@@ -1,0 +1,583 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/retention_matrix_row.schema.json",
+  "title": "Aureline retention/deletion matrix row",
+  "description": "Boundary schema for retention_matrix_row_record entries seeded in docs/governance/retention_deletion_matrix_contract.md. Each row binds one ownership_class (user_owned, workspace_owned, tenant_owned, imported_artifact, derived_cache) to its local-versus-hosted location posture, default retention, export path, delete path, policy owner, and the machine-readable schema notes that constrain the row. Surfaces that explain what data exists, who owns retention, and how delete behaves resolve to exactly one matrix row per affected payload class. Adding an ownership_class, location_class, retention_owner_class, export_path_class, delete_path_class, partial_blocker_class, or schema-note kind is additive-minor and bumps retention_matrix_row_schema_version; repurposing an existing value is breaking and opens a decision row. Raw payload bodies, raw credentials, raw policy bundle bytes, raw export payloads, and raw hold justifications never cross this boundary; rows carry typed ids and reviewable sentences only.",
+  "$ref": "#/$defs/retention_matrix_row_record",
+  "$defs": {
+    "retention_matrix_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the retention-matrix row vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier."
+    },
+
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$",
+      "description": "Opaque, stable reference safe to log, render, and cite. Raw payload, raw credential, raw prompt, raw policy bundle, and raw hold justification bytes never appear here."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable prose. It must not contain raw payload bodies, raw paths, raw prompts, raw credentials, or raw policy bundle bytes."
+    },
+
+    "ownership_class": {
+      "type": "string",
+      "enum": [
+        "user_owned",
+        "workspace_owned",
+        "tenant_owned",
+        "imported_artifact",
+        "derived_cache"
+      ],
+      "description": "Frozen ownership-class vocabulary. user_owned = state authored or controlled by a single end-user account (settings, profiles, local history, personal AI memory). workspace_owned = state scoped to one workspace, root, or workset and shared with collaborators of that scope (workspace launch policy, comments, review evidence). tenant_owned = state scoped to a tenant or organization and managed by an admin (policy bundles, entitlement aggregates, support archives). imported_artifact = state that originated outside Aureline (third-party import, replay capture, support bundle from another machine, migrated profile) and rides distinct provenance. derived_cache = state regeneratable from primary records (embeddings, derived caches, indexed search material, generated previews) and which deletion treats as invalidate-not-export. A row whose ownership cannot be typed denies with ownership_class_unresolved rather than collapsing to user_owned."
+    },
+
+    "location_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "local_authoritative_optional_managed_mirror",
+        "managed_authoritative_with_local_cache",
+        "managed_only_no_local_form",
+        "hybrid_local_and_managed",
+        "imported_third_party_location",
+        "generated_packet_only"
+      ],
+      "description": "Frozen location-class vocabulary describing where the row's payload actually lives. local_only = the bytes never leave the device under any normal flow. local_authoritative_optional_managed_mirror = the local copy is the truth; a managed mirror may exist when sync is enabled. managed_authoritative_with_local_cache = the managed store is the truth; the local material is replay or cache. managed_only_no_local_form = no local materialization exists outside an explicit export. hybrid_local_and_managed = both copies are first-class and surfaces must always disclose both. imported_third_party_location = the row originates from an external provider or filesystem location whose retention is not under Aureline policy. generated_packet_only = no row exists until an export action assembles it."
+    },
+
+    "default_retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger_class",
+        "duration_class",
+        "retention_floor_present",
+        "retention_ceiling_present",
+        "retention_notes"
+      ],
+      "properties": {
+        "trigger_class": {
+          "type": "string",
+          "enum": [
+            "user_action_only",
+            "session_end",
+            "workspace_close",
+            "case_close_or_policy_timer",
+            "billing_period_close_or_policy_event",
+            "packet_expiry_timer",
+            "version_replace_or_user_reset",
+            "delete_action_completion",
+            "regeneration_or_invalidate_only",
+            "import_source_drives_retention",
+            "policy_bundle_evaluation"
+          ],
+          "description": "Frozen retention-trigger vocabulary. The trigger that ordinarily moves the row toward delete eligibility. regeneration_or_invalidate_only is reserved for derived caches; import_source_drives_retention is reserved for imported_artifact rows whose retention follows their origin."
+        },
+        "duration_class": {
+          "type": "string",
+          "enum": [
+            "ephemeral_session_only",
+            "until_user_deletes",
+            "until_workspace_or_session_closes",
+            "policy_bounded_window",
+            "billing_or_contract_term",
+            "retention_floor_minimum",
+            "regenerable_cache_no_window",
+            "import_source_window",
+            "managed_only_window"
+          ],
+          "description": "Frozen duration-class vocabulary. Surfaces that need a single-line retention answer project from this enum; surfaces that need an exact bound resolve through the linked policy or service retention row."
+        },
+        "retention_floor_present": {
+          "type": "boolean",
+          "description": "Whether a retention floor exists below which the row may not be deleted (e.g. legal-minimum, billing-minimum, support-investigation minimum). True implies the row's delete path may surface a Policy retention or Legal hold state."
+        },
+        "retention_ceiling_present": {
+          "type": "boolean",
+          "description": "Whether a retention ceiling exists above which the row is auto-removed by policy. True implies the policy owner schedules destruction without further user action."
+        },
+        "retention_notes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Reviewable notes describing the retention behavior. Free-text phrasing such as 'kept securely' or 'retained as needed' is non-conforming."
+        }
+      },
+      "description": "Default retention answer for the row. The exact bound is resolved by the linked policy and service retention rows; this object names the user-visible retention answer."
+    },
+
+    "export_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_path_class",
+        "manifest_required",
+        "raw_secret_excluded_required",
+        "scriptable_without_support_ticket"
+      ],
+      "properties": {
+        "export_path_class": {
+          "type": "string",
+          "enum": [
+            "no_export",
+            "local_only_user_exports_file",
+            "user_self_serve_export_packet",
+            "admin_packaged_export",
+            "support_case_export",
+            "managed_offboarding_packet",
+            "import_source_export_only",
+            "regeneration_replaces_export"
+          ],
+          "description": "Frozen export-path vocabulary. no_export is reserved for rows whose payload is intentionally excluded (raw secrets, ephemeral session state). regeneration_replaces_export is reserved for derived caches whose 'export' is regenerating from primary records."
+        },
+        "manifest_required": {
+          "type": "boolean",
+          "description": "Whether the export must be accompanied by a manifest declaring storage mode, retention mode, and redaction posture. Embedded-only exports without a manifest are non-conforming for managed rows."
+        },
+        "raw_secret_excluded_required": {
+          "type": "boolean",
+          "description": "Whether the export MUST assert raw_secret_excluded per docs/governance/storage_and_retention_vocabulary.md. True for any row that touches credential, token, prompt, or policy-bundle byte payloads."
+        },
+        "scriptable_without_support_ticket": {
+          "type": "boolean",
+          "description": "Whether the export is reachable through a documented CLI/API path without filing a support ticket. False values MUST cite the documented support pathway in export_path_notes."
+        },
+        "export_format_floor": {
+          "type": "string",
+          "enum": [
+            "json",
+            "jsonl",
+            "yaml",
+            "markdown",
+            "csv",
+            "tar_gz_archive",
+            "manifest_bundle",
+            "signed_json",
+            "not_applicable"
+          ],
+          "description": "Minimum export format the row is contractually obliged to deliver. not_applicable is reserved for export_path_class = no_export or regeneration_replaces_export."
+        },
+        "documented_path_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative document or schema describing how the export is invoked."
+        },
+        "export_path_notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Reviewable notes about the export path (admin scope, redaction posture, partial-result causes)."
+        }
+      },
+      "description": "Export-path posture for the row. Every row that admits any export form names exactly one export_path_class; rows whose payload is intentionally non-exportable use no_export and document why."
+    },
+
+    "delete_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delete_path_class",
+        "local_and_managed_actions_are_distinct",
+        "completion_evidence",
+        "delete_request_state_schema_ref"
+      ],
+      "properties": {
+        "delete_path_class": {
+          "type": "string",
+          "enum": [
+            "local_delete_only",
+            "local_and_managed_delete_distinct",
+            "managed_delete_with_receipt",
+            "policy_held_until_release",
+            "regeneration_invalidate_only",
+            "import_source_owns_delete",
+            "not_deletable_after_export"
+          ],
+          "description": "Frozen delete-path vocabulary. local_and_managed_delete_distinct rows MUST keep the two actions as separate operations with distinct receipts. policy_held_until_release rows are subject to retention floors or legal holds that may block completion. regeneration_invalidate_only is reserved for derived caches. import_source_owns_delete is reserved for imported_artifact rows whose delete is performed at the origin. not_deletable_after_export is reserved for receipts and append-only ledgers."
+        },
+        "local_and_managed_actions_are_distinct": {
+          "type": "boolean",
+          "description": "Whether deleting the local copy is a separate action from deleting any managed copy. MUST be true for any row whose location_class is anything but local_only or managed_only_no_local_form."
+        },
+        "completion_evidence": {
+          "type": "string",
+          "enum": [
+            "not_applicable",
+            "tombstone_or_summary",
+            "destruction_receipt",
+            "destruction_receipt_with_retained_subset"
+          ],
+          "description": "Completion-evidence vocabulary. Mirrors the record-class registry's completion_evidence enum so retained subsets are surfaced rather than implied."
+        },
+        "delete_request_state_schema_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Path to the delete-request state schema that frames per-instance request progress. Surfaces rendering 'delete' or 'destroyed' MUST resolve through this schema before claiming completion."
+        },
+        "honors_legal_hold": {
+          "type": "boolean",
+          "description": "Whether the row honors legal hold and policy retention by surfacing a held / policy_retention state rather than reporting completion. True for any row whose retention_floor_present is true or whose default_trigger_class admits hold classes."
+        },
+        "delete_path_notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Reviewable notes about the delete path (hold blockers, retained-subset reasoning, propagation lag, derived-cache invalidation rules)."
+        }
+      },
+      "description": "Delete-path posture for the row. Rows that admit any delete form MUST cite the delete-request-state schema so per-instance progress is rendered through one shared vocabulary."
+    },
+
+    "policy_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_owner_class", "delete_owner_class", "owner_notes"],
+      "properties": {
+        "retention_owner_class": {
+          "type": "string",
+          "enum": [
+            "local_user",
+            "workspace_admin",
+            "tenant_admin",
+            "policy_engine",
+            "support_export",
+            "operator_admin",
+            "import_source_owner",
+            "governance_packets",
+            "system"
+          ],
+          "description": "Owner of the retention policy bound to the row. local_user is reserved for personal scope; workspace_admin / tenant_admin / operator_admin are administrative tiers; policy_engine is the policy bundle authority; import_source_owner is the upstream provider whose retention drives an imported row."
+        },
+        "delete_owner_class": {
+          "type": "string",
+          "enum": [
+            "local_user",
+            "workspace_admin",
+            "tenant_admin",
+            "policy_engine",
+            "support_export",
+            "operator_admin",
+            "import_source_owner",
+            "governance_packets",
+            "system"
+          ],
+          "description": "Owner of the delete authority for the row. The same actor classes as retention_owner_class; many rows pair a user-owned retention with admin-owned delete to surface scope mismatches honestly."
+        },
+        "owner_notes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Reviewable notes about the policy ownership (admin-vs-user split, escalation paths, fallback owners)."
+        }
+      },
+      "description": "Policy-owner posture for the row. Surfaces rendering 'who controls retention' or 'who can delete this' read these fields verbatim."
+    },
+
+    "schema_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["note_kind", "schema_ref", "summary"],
+      "properties": {
+        "note_kind": {
+          "type": "string",
+          "enum": [
+            "boundary_schema",
+            "record_class_registry",
+            "service_retention_row",
+            "storage_mode_register",
+            "policy_bundle_schema",
+            "deletion_job_schema",
+            "destruction_receipt_schema",
+            "export_manifest_schema",
+            "import_source_schema"
+          ],
+          "description": "Frozen schema-note kind vocabulary. Surfaces consume this discriminator to know whether the cited schema constrains the live record, the registry, the export manifest, or the deletion-job state."
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative path to the schema or registry artifact the row depends on."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence summary of how this schema constrains the row."
+        }
+      },
+      "description": "Machine-readable schema note. Every row carries at least one schema_note so the retention/delete posture is anchored to a typed boundary rather than narrative prose alone."
+    },
+
+    "schema_notes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/schema_note" },
+      "description": "Schema notes the row depends on. The first note SHOULD be the most specific boundary or registry that governs the row's retention and delete behavior."
+    },
+
+    "partial_blocker_class": {
+      "type": "string",
+      "enum": [
+        "policy_retention_floor",
+        "legal_hold",
+        "support_investigation",
+        "export_pending_hold",
+        "sync_backlog",
+        "provider_backlog",
+        "managed_service_unavailable",
+        "manual_local_capture_required",
+        "redaction_policy",
+        "outside_platform_scope",
+        "import_source_unreachable"
+      ],
+      "description": "Frozen partial-result blocker vocabulary. The blockers a row may surface when delete cannot complete or remains in progress. sync_backlog / provider_backlog / managed_service_unavailable distinguish three different reasons a delete may be in flight without policy or hold being active."
+    },
+
+    "honesty_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "held_or_retained_not_reported_destroyed",
+        "raw_payloads_not_embedded",
+        "local_export_copy_disclosed",
+        "policy_owner_named"
+      ],
+      "properties": {
+        "held_or_retained_not_reported_destroyed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Honesty invariant: a row with retention_floor_present or legal-hold eligibility MUST surface Policy retention or Legal hold rather than reporting Delete completed."
+        },
+        "raw_payloads_not_embedded": {
+          "type": "boolean",
+          "const": true,
+          "description": "Honesty invariant: rows carry typed ids and reviewable sentences only. Raw payload bodies, raw credentials, raw policy bundle bytes, raw prompts, and raw hold justifications never appear in the row."
+        },
+        "local_export_copy_disclosed": {
+          "type": "boolean",
+          "description": "Whether the row discloses that an exported local copy may remain after a managed delete completes. True for any row whose export_path_class can produce a file the user controls."
+        },
+        "policy_owner_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Honesty invariant: the row names the retention and delete policy owners by stable class. Anonymous 'managed by the system' phrasing is non-conforming."
+        }
+      },
+      "description": "Honesty invariants every retention_matrix_row_record MUST assert. Surfaces that consume the row inherit these assertions; a row that fails any constant=true invariant is rejected."
+    },
+
+    "retention_matrix_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_matrix_row_schema_version",
+        "record_kind",
+        "row_id",
+        "ownership_class",
+        "location_class",
+        "record_class_refs",
+        "default_retention",
+        "export_path",
+        "delete_path",
+        "policy_owner",
+        "schema_notes",
+        "partial_blockers",
+        "honesty_assertions"
+      ],
+      "properties": {
+        "retention_matrix_row_schema_version": { "$ref": "#/$defs/retention_matrix_row_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "retention_matrix_row_record",
+          "description": "Discriminator. Every row carries this value verbatim."
+        },
+        "row_id": { "$ref": "#/$defs/lower_snake_id" },
+        "row_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short human-readable label for the row. Surfaces that render a chip use this label; surfaces that render full posture read the typed fields below."
+        },
+        "ownership_class": { "$ref": "#/$defs/ownership_class" },
+        "location_class": { "$ref": "#/$defs/location_class" },
+        "record_class_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "record_class_id values from artifacts/governance/record_class_registry.yaml whose default posture this row composes over. Every row MUST cite at least one record class so retention, hold, and delete posture are inherited rather than re-declared."
+        },
+        "default_retention": { "$ref": "#/$defs/default_retention" },
+        "export_path": { "$ref": "#/$defs/export_path" },
+        "delete_path": { "$ref": "#/$defs/delete_path" },
+        "policy_owner": { "$ref": "#/$defs/policy_owner" },
+        "schema_notes": { "$ref": "#/$defs/schema_notes" },
+        "partial_blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partial_blocker_class" },
+          "description": "Frozen blocker classes the row may surface during a delete or export request. Empty array is legal for rows where no blocker can ever apply (e.g. ephemeral_session_only + regeneration_invalidate_only)."
+        },
+        "remaining_location_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "local_device_only",
+              "local_export_copy",
+              "managed_archive_held",
+              "managed_archive_policy_retained",
+              "managed_archive_replicated_pending_purge",
+              "destruction_receipt_only",
+              "import_source_origin",
+              "no_remaining_location"
+            ]
+          },
+          "description": "Frozen remaining-location vocabulary the row may project into a delete-request state's remaining_location_disclosure. local_export_copy is required when the export_path can produce a file the user controls; managed_archive_replicated_pending_purge mirrors the delete-request-state vocabulary for in-flight replica purges; destruction_receipt_only is reserved for delete_path_class = managed_delete_with_receipt or destruction_receipt_with_retained_subset; no_remaining_location is reserved for ephemeral / regenerable rows."
+        },
+        "honesty_assertions": { "$ref": "#/$defs/honesty_assertions" },
+        "row_notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "description": "Reviewable notes about the row. Free-text phrasing such as 'managed by Aureline' or 'kept secure' is non-conforming."
+        },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime row."
+        }
+      },
+      "allOf": [
+        {
+          "description": "derived_cache rows MUST use regeneration triggers and MUST NOT claim a non-empty export_format_floor outside regeneration_replaces_export.",
+          "if": {
+            "properties": { "ownership_class": { "const": "derived_cache" } },
+            "required": ["ownership_class"]
+          },
+          "then": {
+            "properties": {
+              "default_retention": {
+                "properties": {
+                  "trigger_class": { "const": "regeneration_or_invalidate_only" }
+                },
+                "required": ["trigger_class"]
+              },
+              "delete_path": {
+                "properties": {
+                  "delete_path_class": { "const": "regeneration_invalidate_only" }
+                },
+                "required": ["delete_path_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_artifact rows MUST source their retention from the import origin and MUST NOT claim local-only delete authority.",
+          "if": {
+            "properties": { "ownership_class": { "const": "imported_artifact" } },
+            "required": ["ownership_class"]
+          },
+          "then": {
+            "properties": {
+              "default_retention": {
+                "properties": {
+                  "trigger_class": { "const": "import_source_drives_retention" }
+                },
+                "required": ["trigger_class"]
+              },
+              "delete_path": {
+                "properties": {
+                  "delete_path_class": { "const": "import_source_owns_delete" }
+                },
+                "required": ["delete_path_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Rows whose location_class is anything but local_only or managed_only_no_local_form MUST keep local and managed delete actions distinct.",
+          "if": {
+            "properties": {
+              "location_class": {
+                "enum": [
+                  "local_authoritative_optional_managed_mirror",
+                  "managed_authoritative_with_local_cache",
+                  "hybrid_local_and_managed",
+                  "imported_third_party_location",
+                  "generated_packet_only"
+                ]
+              }
+            },
+            "required": ["location_class"]
+          },
+          "then": {
+            "properties": {
+              "delete_path": {
+                "properties": {
+                  "local_and_managed_actions_are_distinct": { "const": true }
+                },
+                "required": ["local_and_managed_actions_are_distinct"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Rows whose retention_floor_present is true MUST honor legal hold (delete_path.honors_legal_hold = true).",
+          "if": {
+            "properties": {
+              "default_retention": {
+                "properties": { "retention_floor_present": { "const": true } },
+                "required": ["retention_floor_present"]
+              }
+            },
+            "required": ["default_retention"]
+          },
+          "then": {
+            "properties": {
+              "delete_path": {
+                "properties": { "honors_legal_hold": { "const": true } },
+                "required": ["honors_legal_hold"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Rows whose export_path_class is no_export MUST set export_format_floor to not_applicable when present.",
+          "if": {
+            "properties": {
+              "export_path": {
+                "properties": { "export_path_class": { "const": "no_export" } },
+                "required": ["export_path_class"]
+              }
+            },
+            "required": ["export_path"]
+          },
+          "then": {
+            "properties": {
+              "export_path": {
+                "properties": {
+                  "export_format_floor": { "const": "not_applicable" }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One row of the retention/deletion matrix. Surfaces explaining what data exists, who owns retention, and how deletion behaves resolve to exactly one row per ownership class plus location combination."
+    }
+  }
+}

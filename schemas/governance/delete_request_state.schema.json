@@ -1,0 +1,742 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/delete_request_state.schema.json",
+  "title": "Aureline delete-request state record",
+  "description": "Boundary schema for delete_request_state_record entries used by retention/deletion matrix consumers, support and admin handoff flows, and the privacy-history layer to render the per-instance state of a delete request without pretending the deletion already finished. Each record names the stable delete state, expected next state-change chronology, remaining-location disclosure, partial blockers (policy, sync backlog, provider backlog, legal hold, etc.), and the export/handoff posture that lets support and admin flows share retention and delete state without exposing unrelated private payloads. Stable delete states (delete_requested, policy_retention, legal_hold, delete_completed, exported_copy_remains_local) are reused verbatim across privacy, collaboration, support, and offboarding flows so held or policy-retained data never masquerades as successful deletion. Adding a stable_delete_state, partial_blocker_class, remaining_location_class, handoff_audience, or expected_next_state_change_class is additive-minor and bumps delete_request_state_schema_version; repurposing a value is breaking and opens a decision row.",
+  "$ref": "#/$defs/delete_request_state_record",
+  "$defs": {
+    "delete_request_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the delete-request-state vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier."
+    },
+
+    "stable_ref": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/#-]*$",
+      "description": "Opaque, stable reference safe to log, render, and cite. Raw payloads, raw credentials, raw policy bundle bytes, raw prompts, and raw hold justification bytes never appear here."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable prose. It must not contain raw payload bodies, raw paths, raw prompts, raw credentials, or raw policy bundle bytes."
+    },
+
+    "chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "utc_instant",
+        "local_iso_with_offset",
+        "timezone_id",
+        "source_clock_class"
+      ],
+      "properties": {
+        "utc_instant": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "local_iso_with_offset": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "timezone_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_clock_class": {
+          "type": "string",
+          "enum": [
+            "local_wall_clock_synchronized",
+            "local_wall_clock_unsynchronized",
+            "remote_host_wall_clock",
+            "imported_external_wall_clock"
+          ]
+        }
+      },
+      "description": "Chronology packet for one timestamp. Mirrors the wall-clock/UTC/timezone shape used elsewhere in governance schemas so renderers do not re-derive offsets."
+    },
+
+    "stable_delete_state": {
+      "type": "string",
+      "enum": [
+        "delete_requested",
+        "policy_retention",
+        "legal_hold",
+        "delete_completed",
+        "exported_copy_remains_local"
+      ],
+      "description": "Frozen stable delete-state vocabulary reused verbatim across privacy, collaboration, support, and offboarding flows. delete_requested = a request was accepted; no completion is implied. policy_retention = a stricter retention floor keeps at least one managed or audit subset; this is not successful deletion. legal_hold = a hold blocks destructive lifecycle steps; this is not successful deletion. delete_completed = the requested destructive action completed for the named scope (receipts and tombstones may remain as metadata-only evidence). exported_copy_remains_local = the product produced or downloaded an export copy that remains under user/device control and is outside the managed delete job."
+    },
+
+    "stable_state_label": {
+      "type": "string",
+      "enum": [
+        "Delete requested",
+        "Policy retention",
+        "Legal hold",
+        "Delete completed",
+        "Exported copy remains local"
+      ],
+      "description": "Required user-facing label for the stable delete state. The label MUST agree with stable_delete_state; surfaces that render a chip read this string verbatim and MUST NOT substitute synonyms ('removed', 'gone', 'private', 'sent', 'complete')."
+    },
+
+    "completion_claim": {
+      "type": "string",
+      "enum": [
+        "delete_requested_not_complete",
+        "policy_retention_not_complete",
+        "legal_hold_not_complete",
+        "delete_completed_all_destroyed",
+        "delete_completed_with_retained_metadata",
+        "delete_completed_with_retained_subset",
+        "exported_copy_remains_no_managed_delete",
+        "failed_no_completion"
+      ],
+      "description": "Frozen completion-claim vocabulary. delete_completed_with_retained_metadata is reserved for receipts/tombstones that are not hidden payload copies; delete_completed_with_retained_subset is reserved when a class subset stays under policy retention or legal hold and the surface MUST surface that subset rather than reporting full destruction. exported_copy_remains_no_managed_delete is the completion claim when the request was strictly an export and no managed delete was attempted."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin",
+        "policy_engine",
+        "system",
+        "support_operator",
+        "automation"
+      ],
+      "description": "Frozen actor-class vocabulary. Mirrors export_delete_request_summary so privacy-history and matrix consumers share one actor enum."
+    },
+
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "actor_ref"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/stable_ref" },
+        "display_role": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Actor descriptor. Never carries raw emails, names, tokens, or directory identifiers."
+    },
+
+    "source_flow": {
+      "type": "string",
+      "enum": [
+        "privacy_settings",
+        "support_bundle_preview",
+        "support_case",
+        "offboarding_flow",
+        "export_delete_flow",
+        "cli_headless",
+        "admin_console",
+        "managed_control_plane",
+        "collaboration_session",
+        "ai_workspace_state"
+      ],
+      "description": "Frozen source-flow vocabulary. Names the surface or flow that produced or last updated the delete-request state."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "user_account",
+        "workspace",
+        "organization",
+        "support_case",
+        "collaboration_session",
+        "ai_workspace_state",
+        "device_local_artifacts",
+        "single_record",
+        "imported_artifact"
+      ],
+      "description": "Frozen scope vocabulary. Names what the request operates on; surfaces MUST NOT silently widen a single-record scope to user_account or organization."
+    },
+
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_refs", "matrix_row_refs"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" },
+          "description": "Stable refs for the scoped subjects. Raw subject bodies never appear here."
+        },
+        "matrix_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "row_id values from the retention/deletion matrix this request affects. Every record cites at least one row so the user-visible explanation of what data exists, who owns retention, and how delete behaves is anchored to typed posture."
+        },
+        "scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Scope of the delete request. matrix_row_refs binds the request to retention/deletion matrix rows so the answer to 'what is this delete trying to remove' is always typed."
+    },
+
+    "expected_next_state_change_class": {
+      "type": "string",
+      "enum": [
+        "definite_at_chronology",
+        "by_chronology_or_sooner",
+        "after_propagation_completes",
+        "after_provider_backlog_clears",
+        "after_sync_backlog_clears",
+        "on_hold_review_or_clear",
+        "on_policy_floor_reached",
+        "on_export_window_close",
+        "no_further_state_change_expected",
+        "indeterminate_pending_admin"
+      ],
+      "description": "Frozen expected-next-state-change vocabulary. definite_at_chronology = the next state change is scheduled and a chronology is required. by_chronology_or_sooner = a deadline by which the change MUST occur. after_*_backlog_clears = a queue or provider backlog is the gate. on_hold_review_or_clear / on_policy_floor_reached = a hold or retention floor is the gate. no_further_state_change_expected = the record is terminal for this request. indeterminate_pending_admin = an admin or operator action is required and a chronology cannot be promised; surfaces MUST render this as 'requires admin action' rather than implying a clock."
+    },
+
+    "expected_next_state_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["change_class", "summary"],
+      "properties": {
+        "change_class": { "$ref": "#/$defs/expected_next_state_change_class" },
+        "expected_at": {
+          "$ref": "#/$defs/chronology",
+          "description": "Expected chronology of the next state change. Required when change_class is definite_at_chronology or by_chronology_or_sooner; MUST NOT be present when change_class is no_further_state_change_expected or indeterminate_pending_admin."
+        },
+        "gate_ref": {
+          "$ref": "#/$defs/stable_ref",
+          "description": "Stable ref to the queue, hold, retention policy, or admin task that gates the next state change. Required when the change_class names a backlog, hold, policy floor, or export window."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Definite chronology change classes require expected_at.",
+          "if": {
+            "properties": {
+              "change_class": {
+                "enum": ["definite_at_chronology", "by_chronology_or_sooner"]
+              }
+            },
+            "required": ["change_class"]
+          },
+          "then": { "required": ["expected_at"] }
+        },
+        {
+          "description": "Backlog, hold, policy-floor, and export-window classes require gate_ref.",
+          "if": {
+            "properties": {
+              "change_class": {
+                "enum": [
+                  "after_propagation_completes",
+                  "after_provider_backlog_clears",
+                  "after_sync_backlog_clears",
+                  "on_hold_review_or_clear",
+                  "on_policy_floor_reached",
+                  "on_export_window_close"
+                ]
+              }
+            },
+            "required": ["change_class"]
+          },
+          "then": { "required": ["gate_ref"] }
+        },
+        {
+          "description": "Terminal and indeterminate classes MUST NOT carry expected_at.",
+          "if": {
+            "properties": {
+              "change_class": {
+                "enum": ["no_further_state_change_expected", "indeterminate_pending_admin"]
+              }
+            },
+            "required": ["change_class"]
+          },
+          "then": {
+            "not": { "required": ["expected_at"] }
+          }
+        }
+      ],
+      "description": "Expected next state-change disclosure. Surfaces that show 'next update' or 'expected by' text resolve through this object so dishonest 'should be quick' phrasing is structurally prevented."
+    },
+
+    "remaining_location_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "local_export_copy",
+        "managed_archive_held",
+        "managed_archive_policy_retained",
+        "managed_archive_replicated_pending_purge",
+        "destruction_receipt_only",
+        "import_source_origin",
+        "no_remaining_location"
+      ],
+      "description": "Frozen remaining-location vocabulary. local_device_only = only the originating device still holds the payload. local_export_copy = a downloaded export copy remains under user control. managed_archive_held / managed_archive_policy_retained = a managed archive still holds the payload under hold or policy retention. managed_archive_replicated_pending_purge = a managed archive is propagating delete to replicas and the request is waiting for that purge. destruction_receipt_only = only a metadata-only receipt remains. import_source_origin = the only remaining copy lives at the import origin and is outside Aureline policy. no_remaining_location = nothing remains."
+    },
+
+    "remaining_location_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["locations", "honesty_note"],
+      "properties": {
+        "locations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["location_class", "matrix_row_ref", "summary"],
+            "properties": {
+              "location_class": { "$ref": "#/$defs/remaining_location_class" },
+              "matrix_row_ref": {
+                "$ref": "#/$defs/lower_snake_id",
+                "description": "row_id from the retention/deletion matrix that owns this remaining-location explanation."
+              },
+              "artifact_refs": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/stable_ref" },
+                "description": "Stable refs to the remaining artifacts (export file id, managed archive id, replica id, receipt id). Empty when no per-artifact id is available."
+              },
+              "summary": { "$ref": "#/$defs/reviewable_sentence" }
+            }
+          }
+        },
+        "honesty_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Honesty sentence the surface MUST render verbatim alongside the location list. Free-text alternatives that imply nothing remains are non-conforming."
+        }
+      },
+      "description": "Per-location disclosure of what remains. A delete-request state of policy_retention, legal_hold, or exported_copy_remains_local MUST list at least one non-no_remaining_location entry."
+    },
+
+    "partial_blocker_class": {
+      "type": "string",
+      "enum": [
+        "policy_retention_floor",
+        "legal_hold",
+        "support_investigation",
+        "export_pending_hold",
+        "sync_backlog",
+        "provider_backlog",
+        "managed_service_unavailable",
+        "manual_local_capture_required",
+        "redaction_policy",
+        "outside_platform_scope",
+        "import_source_unreachable",
+        "user_declined",
+        "entitlement_expired"
+      ],
+      "description": "Frozen partial-blocker vocabulary. Distinguishes policy/hold blockers (policy_retention_floor, legal_hold, support_investigation, export_pending_hold) from infrastructure delays (sync_backlog, provider_backlog, managed_service_unavailable) and from out-of-scope conditions (manual_local_capture_required, outside_platform_scope, import_source_unreachable). A blocker that cannot be typed denies with partial_blocker_class_unresolved rather than collapsing to a generic 'pending'."
+    },
+
+    "partial_blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blocker_id", "blocker_class", "affected_matrix_row_refs", "note"],
+      "properties": {
+        "blocker_id": { "$ref": "#/$defs/stable_ref" },
+        "blocker_class": { "$ref": "#/$defs/partial_blocker_class" },
+        "policy_ref": { "$ref": "#/$defs/stable_ref" },
+        "hold_ref": { "$ref": "#/$defs/stable_ref" },
+        "service_surface_ref": {
+          "$ref": "#/$defs/stable_ref",
+          "description": "Service or provider surface ref when blocker_class is sync_backlog, provider_backlog, or managed_service_unavailable. Not present otherwise."
+        },
+        "expected_clear_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/chronology" }
+          ],
+          "description": "Expected clearance chronology. Null when the blocker has no scheduled clearance time (e.g. manual review, indefinite legal hold)."
+        },
+        "affected_matrix_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" }
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One partial-result blocker. Surfaces that explain why a delete is delayed, partial, or impossible right now read these rows verbatim instead of inventing 'still working on it' phrasing."
+    },
+
+    "handoff_audience": {
+      "type": "string",
+      "enum": [
+        "user_self_serve",
+        "support_operator",
+        "tenant_admin",
+        "managed_control_plane",
+        "external_compliance_reviewer"
+      ],
+      "description": "Frozen handoff-audience vocabulary. Names who the export/handoff packet is meant for so support and admin sharing cannot accidentally widen disclosure. external_compliance_reviewer rows MUST cite the redaction profile the packet is built against."
+    },
+
+    "handoff_export_class": {
+      "type": "string",
+      "enum": [
+        "no_export_emitted",
+        "matrix_state_only_packet",
+        "matrix_state_plus_redacted_summary",
+        "support_handoff_packet",
+        "admin_audit_packet",
+        "compliance_export_packet"
+      ],
+      "description": "Frozen handoff-export class vocabulary. matrix_state_only_packet exports only the typed retention/delete state and matrix row refs (no payloads). matrix_state_plus_redacted_summary adds reviewable redacted summaries. support_handoff_packet / admin_audit_packet / compliance_export_packet add the linkages each audience requires under their redaction profile."
+    },
+
+    "handoff_packet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_audience",
+        "handoff_export_class",
+        "exposes_unrelated_private_payloads",
+        "redaction_profile_ref",
+        "summary"
+      ],
+      "properties": {
+        "handoff_audience": { "$ref": "#/$defs/handoff_audience" },
+        "handoff_export_class": { "$ref": "#/$defs/handoff_export_class" },
+        "exposes_unrelated_private_payloads": {
+          "type": "boolean",
+          "const": false,
+          "description": "Honesty invariant: a handoff packet MUST NOT include payloads outside the matrix rows in scope. The constant is false; surfaces that fail this assertion are rejected."
+        },
+        "redaction_profile_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative reference to the redaction profile the packet is built against."
+        },
+        "included_matrix_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "row_id values included in this handoff packet. MUST be a subset of the request's scope.matrix_row_refs."
+        },
+        "excluded_matrix_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lower_snake_id" },
+          "description": "row_id values intentionally excluded from this handoff packet (e.g. raw secret rows excluded from a support handoff)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Export/handoff packet descriptor. Emitted when support or admin shares retention and delete state. The handoff cannot widen scope past the matrix rows in the request and MUST cite a redaction profile."
+    },
+
+    "audit_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "privacy_history_event_refs",
+        "governed_record_refs",
+        "deletion_job_refs",
+        "destruction_receipt_refs",
+        "support_bundle_refs",
+        "export_manifest_refs",
+        "policy_refs"
+      ],
+      "properties": {
+        "privacy_history_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "governed_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "deletion_job_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "destruction_receipt_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "support_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "export_manifest_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        },
+        "policy_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_ref" }
+        }
+      },
+      "description": "Audit linkage. Mirrors export_delete_request_summary's audit_linkage so a delete-request state record and its summary share the same linkage shape."
+    },
+
+    "honesty_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "held_or_retained_not_reported_destroyed",
+        "raw_payloads_not_embedded",
+        "remaining_location_disclosed_when_required",
+        "expected_next_state_change_disclosed",
+        "handoff_does_not_widen_scope"
+      ],
+      "properties": {
+        "held_or_retained_not_reported_destroyed": {
+          "type": "boolean",
+          "const": true
+        },
+        "raw_payloads_not_embedded": {
+          "type": "boolean",
+          "const": true
+        },
+        "remaining_location_disclosed_when_required": {
+          "type": "boolean",
+          "const": true
+        },
+        "expected_next_state_change_disclosed": {
+          "type": "boolean",
+          "const": true
+        },
+        "handoff_does_not_widen_scope": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "description": "Honesty invariants every delete_request_state_record MUST assert. A record that fails any constant=true invariant is rejected."
+    },
+
+    "delete_request_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delete_request_state_schema_version",
+        "record_kind",
+        "request_id",
+        "requester",
+        "source_flow",
+        "scope",
+        "stable_delete_state",
+        "stable_state_label",
+        "completion_claim",
+        "requested_at",
+        "updated_at",
+        "expected_next_state_change",
+        "remaining_location_disclosure",
+        "partial_blockers",
+        "handoff_packets",
+        "audit_linkage",
+        "honesty_assertions"
+      ],
+      "properties": {
+        "delete_request_state_schema_version": { "$ref": "#/$defs/delete_request_state_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "delete_request_state_record"
+        },
+        "request_id": { "$ref": "#/$defs/stable_ref" },
+        "requester": { "$ref": "#/$defs/actor" },
+        "source_flow": { "$ref": "#/$defs/source_flow" },
+        "source_ref": {
+          "$ref": "#/$defs/stable_ref",
+          "description": "Stable ref of the surface that owns the request (privacy delete sheet id, support case id, offboarding flow id)."
+        },
+        "scope": { "$ref": "#/$defs/scope" },
+        "stable_delete_state": { "$ref": "#/$defs/stable_delete_state" },
+        "stable_state_label": { "$ref": "#/$defs/stable_state_label" },
+        "completion_claim": { "$ref": "#/$defs/completion_claim" },
+        "requested_at": { "$ref": "#/$defs/chronology" },
+        "updated_at": { "$ref": "#/$defs/chronology" },
+        "expected_next_state_change": { "$ref": "#/$defs/expected_next_state_change" },
+        "remaining_location_disclosure": { "$ref": "#/$defs/remaining_location_disclosure" },
+        "partial_blockers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/partial_blocker" },
+          "description": "Partial-result blockers that explain why the request is delayed, partial, or impossible right now. Empty array is legal only when stable_delete_state is delete_completed and no retained subset exists, or when stable_delete_state is delete_requested and no blocker has yet applied."
+        },
+        "handoff_packets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/handoff_packet" },
+          "description": "Handoff packets emitted to share retention/delete state with support, admin, or compliance audiences. Empty array means no handoff has been emitted; surfaces MUST NOT silently emit a handoff without listing it here."
+        },
+        "audit_linkage": { "$ref": "#/$defs/audit_linkage" },
+        "honesty_assertions": { "$ref": "#/$defs/honesty_assertions" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      },
+      "allOf": [
+        {
+          "description": "stable_delete_state and stable_state_label must agree.",
+          "oneOf": [
+            {
+              "properties": {
+                "stable_delete_state": { "const": "delete_requested" },
+                "stable_state_label": { "const": "Delete requested" }
+              },
+              "required": ["stable_delete_state", "stable_state_label"]
+            },
+            {
+              "properties": {
+                "stable_delete_state": { "const": "policy_retention" },
+                "stable_state_label": { "const": "Policy retention" }
+              },
+              "required": ["stable_delete_state", "stable_state_label"]
+            },
+            {
+              "properties": {
+                "stable_delete_state": { "const": "legal_hold" },
+                "stable_state_label": { "const": "Legal hold" }
+              },
+              "required": ["stable_delete_state", "stable_state_label"]
+            },
+            {
+              "properties": {
+                "stable_delete_state": { "const": "delete_completed" },
+                "stable_state_label": { "const": "Delete completed" }
+              },
+              "required": ["stable_delete_state", "stable_state_label"]
+            },
+            {
+              "properties": {
+                "stable_delete_state": { "const": "exported_copy_remains_local" },
+                "stable_state_label": { "const": "Exported copy remains local" }
+              },
+              "required": ["stable_delete_state", "stable_state_label"]
+            }
+          ]
+        },
+        {
+          "description": "legal_hold MUST carry at least one legal_hold partial blocker and MUST NOT claim full destruction.",
+          "if": {
+            "properties": { "stable_delete_state": { "const": "legal_hold" } },
+            "required": ["stable_delete_state"]
+          },
+          "then": {
+            "properties": {
+              "partial_blockers": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": { "blocker_class": { "const": "legal_hold" } },
+                  "required": ["blocker_class"]
+                }
+              },
+              "completion_claim": {
+                "not": {
+                  "enum": [
+                    "delete_completed_all_destroyed",
+                    "delete_completed_with_retained_metadata"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_retention MUST carry at least one policy_retention_floor or support_investigation blocker and MUST NOT claim full destruction.",
+          "if": {
+            "properties": { "stable_delete_state": { "const": "policy_retention" } },
+            "required": ["stable_delete_state"]
+          },
+          "then": {
+            "properties": {
+              "partial_blockers": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "blocker_class": {
+                      "enum": ["policy_retention_floor", "support_investigation"]
+                    }
+                  },
+                  "required": ["blocker_class"]
+                }
+              },
+              "completion_claim": {
+                "not": {
+                  "enum": [
+                    "delete_completed_all_destroyed",
+                    "delete_completed_with_retained_metadata"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "exported_copy_remains_local MUST cite at least one local_export_copy remaining-location entry.",
+          "if": {
+            "properties": { "stable_delete_state": { "const": "exported_copy_remains_local" } },
+            "required": ["stable_delete_state"]
+          },
+          "then": {
+            "properties": {
+              "remaining_location_disclosure": {
+                "properties": {
+                  "locations": {
+                    "type": "array",
+                    "contains": {
+                      "properties": {
+                        "location_class": { "const": "local_export_copy" }
+                      },
+                      "required": ["location_class"]
+                    }
+                  }
+                },
+                "required": ["locations"]
+              }
+            }
+          }
+        },
+        {
+          "description": "delete_completed completion claims must align with the delete_completed state.",
+          "if": {
+            "properties": { "stable_delete_state": { "const": "delete_completed" } },
+            "required": ["stable_delete_state"]
+          },
+          "then": {
+            "properties": {
+              "completion_claim": {
+                "enum": [
+                  "delete_completed_all_destroyed",
+                  "delete_completed_with_retained_metadata",
+                  "delete_completed_with_retained_subset"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One delete-request state record. Surfaces explaining why a deletion is delayed, partial, or impossible right now resolve to exactly one record per request and re-render whenever a stable_delete_state, expected_next_state_change, remaining_location_disclosure, or partial_blocker changes."
+    }
+  }
+}

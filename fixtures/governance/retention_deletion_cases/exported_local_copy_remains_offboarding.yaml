@@ -1,0 +1,184 @@
+__fixture__:
+  name: exported_local_copy_remains_offboarding
+  scenario: >
+    A tenant admin runs an offboarding export for an off-boarded user
+    account. The download produces a local export packet on the admin
+    device that remains user-controlled even after the managed
+    portable-state copy is deleted. The request renders Exported copy
+    remains local, lists the downloaded packet under local_export_copy,
+    and emits a typed support-handoff packet that excludes raw secret
+    rows from the offboarding scope.
+  contract_sections:
+    - matrix_row:user_portable_state_offboarding_packet
+    - delete_request_state:exported_local_copy_remains
+  acceptance_refs:
+    - exported-local-copy remains case
+    - export and handoff rules
+    - typed local_export_copy remaining-location
+
+matrix_row:
+  retention_matrix_row_schema_version: 1
+  record_kind: retention_matrix_row_record
+  row_id: user_portable_state_offboarding_packet
+  row_label: User-owned portable state offboarding packet
+  ownership_class: user_owned
+  location_class: local_authoritative_optional_managed_mirror
+  record_class_refs:
+    - offboarding_exit_packet
+  default_retention:
+    trigger_class: case_close_or_policy_timer
+    duration_class: policy_bounded_window
+    retention_floor_present: true
+    retention_ceiling_present: true
+    retention_notes:
+      - Managed offboarding copies follow contract-end retention; the downloaded local export packet survives outside the managed timer.
+  export_path:
+    export_path_class: managed_offboarding_packet
+    manifest_required: true
+    raw_secret_excluded_required: true
+    scriptable_without_support_ticket: true
+    export_format_floor: manifest_bundle
+    documented_path_ref: docs/state/portable_state_package_contract.md
+    export_path_notes:
+      - Offboarding packet is the user-visible projection; raw secret material is excluded by default.
+  delete_path:
+    delete_path_class: local_and_managed_delete_distinct
+    local_and_managed_actions_are_distinct: true
+    completion_evidence: destruction_receipt_with_retained_subset
+    delete_request_state_schema_ref: schemas/governance/delete_request_state.schema.json
+    honors_legal_hold: true
+    delete_path_notes:
+      - Managed delete and the locally-downloaded export packet are distinct; deleting the managed copy does not touch the local file.
+  policy_owner:
+    retention_owner_class: tenant_admin
+    delete_owner_class: tenant_admin
+    owner_notes:
+      - Tenant admin owns the managed offboarding copy; the local user owns the downloaded local export file after delivery.
+  schema_notes:
+    - note_kind: boundary_schema
+      schema_ref: schemas/governance/delete_request_state.schema.json
+      summary: Offboarding delete progress is rendered through the shared delete-request state schema.
+    - note_kind: record_class_registry
+      schema_ref: artifacts/governance/record_class_registry.yaml
+      summary: offboarding_exit_packet row anchors the class-level packet posture this matrix row narrows.
+    - note_kind: export_manifest_schema
+      schema_ref: schemas/state/portable_state_manifest.schema.json
+      summary: The exit packet is built against the portable-state manifest schema.
+    - note_kind: storage_mode_register
+      schema_ref: artifacts/governance/storage_modes.yaml
+      summary: Storage-mode register pins the local-export and managed-mirror posture inherited by the row.
+  partial_blockers:
+    - policy_retention_floor
+    - manual_local_capture_required
+  remaining_location_classes:
+    - local_export_copy
+    - managed_archive_policy_retained
+    - destruction_receipt_only
+  honesty_assertions:
+    held_or_retained_not_reported_destroyed: true
+    raw_payloads_not_embedded: true
+    local_export_copy_disclosed: true
+    policy_owner_named: true
+  row_notes:
+    - The downloaded local export packet is outside the managed delete job and MUST be disclosed as a remaining local copy.
+
+delete_request_state:
+  delete_request_state_schema_version: 1
+  record_kind: delete_request_state_record
+  request_id: offboarding-export:acme-user:2026-04-29
+  requester:
+    actor_class: admin
+    actor_ref: actor:admin:tenant-acme:privacy
+    display_role: Tenant privacy administrator
+  source_flow: offboarding_flow
+  source_ref: offboarding:acme-user:2026-04-29
+  scope:
+    scope_class: user_account
+    scope_refs:
+      - account:acme-user:opaque
+      - tenant:acme
+    matrix_row_refs:
+      - user_portable_state_offboarding_packet
+    scope_note: Scope covers the offboarding export packet for the named user account.
+  stable_delete_state: exported_copy_remains_local
+  stable_state_label: Exported copy remains local
+  completion_claim: exported_copy_remains_no_managed_delete
+  requested_at:
+    utc_instant: "2026-04-29T20:00:00Z"
+    local_iso_with_offset: "2026-04-29T13:00:00-07:00"
+    timezone_id: America/Los_Angeles
+    source_clock_class: local_wall_clock_synchronized
+  updated_at:
+    utc_instant: "2026-04-29T20:12:00Z"
+    local_iso_with_offset: "2026-04-29T13:12:00-07:00"
+    timezone_id: America/Los_Angeles
+    source_clock_class: local_wall_clock_synchronized
+  expected_next_state_change:
+    change_class: indeterminate_pending_admin
+    summary: The next state change requires the tenant admin to invoke a separate managed delete; no clock applies to the local export file.
+  remaining_location_disclosure:
+    locations:
+      - location_class: local_export_copy
+        matrix_row_ref: user_portable_state_offboarding_packet
+        artifact_refs:
+          - local-export:offboarding-acme-user-2026-04-29.zip
+        summary: The downloaded offboarding packet remains on the admin device and is outside the managed delete job.
+      - location_class: managed_archive_policy_retained
+        matrix_row_ref: user_portable_state_offboarding_packet
+        artifact_refs:
+          - managed-archive:offboarding:acme-user:2026-04-29
+        summary: A retained subset (billing aggregate and audit linkage) remains under tenant policy retention.
+    honesty_note: A downloaded local export copy and a policy-retained managed subset both remain; this request is not Delete completed and the local copy is outside Aureline policy.
+  partial_blockers:
+    - blocker_id: blocker:policy-retention:offboarding-minimum
+      blocker_class: policy_retention_floor
+      policy_ref: policy-bundle:tenant-acme:offboarding-retention
+      expected_clear_at: null
+      affected_matrix_row_refs:
+        - user_portable_state_offboarding_packet
+      note: Tenant offboarding retention keeps audit-linkage and billing aggregates as a retained subset.
+    - blocker_id: blocker:manual-local-capture:device-history
+      blocker_class: manual_local_capture_required
+      expected_clear_at: null
+      affected_matrix_row_refs:
+        - user_portable_state_offboarding_packet
+      note: Unsynced device history is local-only and must be exported from the originating device if needed.
+  handoff_packets:
+    - handoff_audience: tenant_admin
+      handoff_export_class: admin_audit_packet
+      exposes_unrelated_private_payloads: false
+      redaction_profile_ref: docs/governance/storage_and_retention_vocabulary.md
+      included_matrix_row_refs:
+        - user_portable_state_offboarding_packet
+      excluded_matrix_row_refs: []
+      summary: Admin audit packet conveys typed retention/delete state, scope refs, and the offboarding export manifest id.
+    - handoff_audience: support_operator
+      handoff_export_class: matrix_state_only_packet
+      exposes_unrelated_private_payloads: false
+      redaction_profile_ref: docs/governance/storage_and_retention_vocabulary.md
+      included_matrix_row_refs:
+        - user_portable_state_offboarding_packet
+      excluded_matrix_row_refs: []
+      summary: Support handoff carries only the matrix row id and stable delete state; no payload bytes are shared.
+  audit_linkage:
+    privacy_history_event_refs:
+      - privacy.history.support_bundle.exported.2026_04_29_001
+    governed_record_refs:
+      - governed-record:offboarding:acme-user:2026-04-29
+    deletion_job_refs: []
+    destruction_receipt_refs: []
+    support_bundle_refs: []
+    export_manifest_refs:
+      - export-manifest:offboarding-acme-user:2026-04-29
+    policy_refs:
+      - policy-bundle:tenant-acme:offboarding-retention
+  honesty_assertions:
+    held_or_retained_not_reported_destroyed: true
+    raw_payloads_not_embedded: true
+    remaining_location_disclosed_when_required: true
+    expected_next_state_change_disclosed: true
+    handoff_does_not_widen_scope: true
+  notes: >
+    The combination of Exported copy remains local plus a retained
+    managed subset illustrates that an offboarding export is not a
+    managed delete completion; both remain visible.

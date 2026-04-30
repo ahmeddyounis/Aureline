@@ -1,0 +1,155 @@
+__fixture__:
+  name: sync_delayed_delete_workspace_comments
+  scenario: >
+    A workspace member deletes a thread of review comments. The local
+    copy is removed immediately, but the managed mirror is mid-sync;
+    the request stays in Delete requested while a sync_backlog blocker
+    gates the next state change. The remaining-location disclosure
+    names the managed mirror that is propagating the delete to
+    replicas.
+  contract_sections:
+    - matrix_row:workspace_review_comments_thread
+    - delete_request_state:sync_delayed_delete
+  acceptance_refs:
+    - sync-delayed delete fixture
+    - distinct local and managed delete actions
+    - typed sync_backlog partial blocker
+
+matrix_row:
+  retention_matrix_row_schema_version: 1
+  record_kind: retention_matrix_row_record
+  row_id: workspace_review_comments_thread
+  row_label: Workspace-owned review comment thread (collaboration evidence)
+  ownership_class: workspace_owned
+  location_class: hybrid_local_and_managed
+  record_class_refs:
+    - collaboration_evidence_packet
+  default_retention:
+    trigger_class: workspace_close
+    duration_class: until_workspace_or_session_closes
+    retention_floor_present: false
+    retention_ceiling_present: false
+    retention_notes:
+      - Local replay caches expire on workspace close; managed archive copies follow workspace retention until the archive seals.
+  export_path:
+    export_path_class: user_self_serve_export_packet
+    manifest_required: true
+    raw_secret_excluded_required: true
+    scriptable_without_support_ticket: true
+    export_format_floor: jsonl
+    documented_path_ref: docs/governance/data_portability_and_exit_matrix.md
+    export_path_notes:
+      - Workspace members may export thread evidence as a manifest-bearing packet; raw user payloads are projected through the redaction profile.
+  delete_path:
+    delete_path_class: local_and_managed_delete_distinct
+    local_and_managed_actions_are_distinct: true
+    completion_evidence: destruction_receipt
+    delete_request_state_schema_ref: schemas/governance/delete_request_state.schema.json
+    honors_legal_hold: false
+    delete_path_notes:
+      - Local removal is immediate; managed delete propagates through the workspace sync queue and emits a destruction receipt on completion.
+  policy_owner:
+    retention_owner_class: workspace_admin
+    delete_owner_class: workspace_admin
+    owner_notes:
+      - The workspace admin owns retention and delete authority; individual members request delete and the workspace policy gates completion.
+  schema_notes:
+    - note_kind: boundary_schema
+      schema_ref: schemas/governance/delete_request_state.schema.json
+      summary: Per-instance delete progress is rendered through the shared delete-request state schema.
+    - note_kind: record_class_registry
+      schema_ref: artifacts/governance/record_class_registry.yaml
+      summary: collaboration_evidence_packet row anchors the class-level managed-archive posture this matrix row narrows.
+    - note_kind: deletion_job_schema
+      schema_ref: schemas/service/deletion_job_record.schema.json
+      summary: The managed deletion job emits a destruction receipt through the deletion-job schema once propagation completes.
+  partial_blockers:
+    - sync_backlog
+    - export_pending_hold
+  remaining_location_classes:
+    - managed_archive_replicated_pending_purge
+    - destruction_receipt_only
+  honesty_assertions:
+    held_or_retained_not_reported_destroyed: true
+    raw_payloads_not_embedded: true
+    local_export_copy_disclosed: true
+    policy_owner_named: true
+  row_notes:
+    - Surfaces that say "comments deleted" before the managed sync completes are non-conforming.
+
+delete_request_state:
+  delete_request_state_schema_version: 1
+  record_kind: delete_request_state_record
+  request_id: delete-request:review-comments:thread-42
+  requester:
+    actor_class: user
+    actor_ref: actor:user:opaque-member
+    display_role: Workspace member
+  source_flow: collaboration_session
+  source_ref: review-thread:thread-42
+  scope:
+    scope_class: workspace
+    scope_refs:
+      - workspace:opaque-design-review
+    matrix_row_refs:
+      - workspace_review_comments_thread
+    scope_note: Scope covers a single review-comment thread within the design-review workspace.
+  stable_delete_state: delete_requested
+  stable_state_label: Delete requested
+  completion_claim: delete_requested_not_complete
+  requested_at:
+    utc_instant: "2026-04-29T16:00:00Z"
+    local_iso_with_offset: "2026-04-29T09:00:00-07:00"
+    timezone_id: America/Los_Angeles
+    source_clock_class: local_wall_clock_synchronized
+  updated_at:
+    utc_instant: "2026-04-29T16:00:30Z"
+    local_iso_with_offset: "2026-04-29T09:00:30-07:00"
+    timezone_id: America/Los_Angeles
+    source_clock_class: local_wall_clock_synchronized
+  expected_next_state_change:
+    change_class: after_sync_backlog_clears
+    gate_ref: workspace-sync-queue:design-review:opaque
+    summary: The next state change occurs once the workspace sync queue propagates the delete to managed replicas.
+  remaining_location_disclosure:
+    locations:
+      - location_class: managed_archive_replicated_pending_purge
+        matrix_row_ref: workspace_review_comments_thread
+        artifact_refs:
+          - managed-archive:design-review:thread-42
+        summary: The managed archive copy is propagating delete to replicas and is awaiting purge confirmation.
+    honesty_note: A managed copy of the thread still exists and is mid-purge; this request is not yet Delete completed.
+  partial_blockers:
+    - blocker_id: blocker:sync-backlog:design-review:opaque
+      blocker_class: sync_backlog
+      service_surface_ref: workspace-sync-queue:design-review:opaque
+      expected_clear_at:
+        utc_instant: "2026-04-29T17:00:00Z"
+        local_iso_with_offset: "2026-04-29T10:00:00-07:00"
+        timezone_id: America/Los_Angeles
+        source_clock_class: local_wall_clock_synchronized
+      affected_matrix_row_refs:
+        - workspace_review_comments_thread
+      note: Sync queue propagates workspace-comment deletes to managed replicas within the documented backlog window.
+  handoff_packets: []
+  audit_linkage:
+    privacy_history_event_refs: []
+    governed_record_refs:
+      - governed-record:review-comments:thread-42
+    deletion_job_refs:
+      - deletion-job:review-comments:thread-42
+    destruction_receipt_refs: []
+    support_bundle_refs: []
+    export_manifest_refs: []
+    policy_refs:
+      - policy:workspace-retention:design-review
+  honesty_assertions:
+    held_or_retained_not_reported_destroyed: true
+    raw_payloads_not_embedded: true
+    remaining_location_disclosed_when_required: true
+    expected_next_state_change_disclosed: true
+    handoff_does_not_widen_scope: true
+  notes: >
+    Renderers MUST hold Delete requested until the sync queue gate
+    clears; flipping to Delete completed before the destruction
+    receipt arrives is non-conforming.
