@@ -1,0 +1,779 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/publish_to_review_sheet.schema.json",
+  "title": "Aureline AI review-assist publish-to-review sheet vocabulary",
+  "description": "Boundary schema for the publish_to_review_sheet_record family frozen in docs/ai/review_assist_publish_contract.md. Every AI review-assist publish proposal is bound to exactly one publish_to_review_sheet_record naming the exact outbound destination class (local-keep / hosted review thread comment / hosted inline suggested patch / hosted provider check annotation / hosted summary review body / local review-workspace anchor / imported review-bundle export packet / support export packet), the outbound content kind (review comment text, inline suggestion patch preview, provider check annotation payload, summary review body text, local anchor label, bundle export packet), the attribution-state class so the user-vs-AI authorship line is explicit, the redaction-note class so a payload with redaction needs cannot publish silently, the publish / copy / export / cancel action class, and the provider-write-continuity class so the sheet refuses to publish when provider write access is missing and instead routes to keep-local / export / copy. The schema composes with (and does not replace) schemas/vcs/review_workspace.schema.json (review_workspace_source_class), schemas/integration/browser_handoff_packet.schema.json (browser_handoff_packet_record), schemas/governance/capability_lifecycle.schema.json (freshness_class, client_scope, redaction_class), and the AI review-finding contract (schemas/ai/review_finding.schema.json) that drives proposals through this sheet. Raw outbound text bodies, raw inline suggestion patch bodies, raw check annotation payloads, raw provider URLs, raw provider thread URLs, raw author identity strings, raw notebook cell text, raw terminal bytes, and raw URLs MUST NOT appear on any record emitted against this schema; every preview is a redaction-aware reviewable label or an opaque ref. The eventual review-assist crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, destination class, content kind, attribution class, redaction class, action class, provider-write-continuity class, denial reason, or audit-event id is additive-minor and bumps publish_to_review_sheet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/publish_to_review_sheet_record" },
+    { "$ref": "#/$defs/publish_to_review_audit_event_record" }
+  ],
+  "$defs": {
+    "publish_to_review_sheet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the publish-to-review-sheet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "publish_to_review_sheet_record",
+        "publish_to_review_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw outbound text bodies, raw inline suggestion patch bodies, raw check annotation payloads, raw provider URLs, raw provider thread URLs, raw author identity strings, raw notebook cell text, raw terminal bytes, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries the exact outbound preview text the user reviews before publishing; never carries the raw payload byte stream beyond what redaction admits. Exporters MUST apply broker-owned redaction (ADR-0007) before the value crosses this boundary."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Publish sheets touching credentialed flows MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "unset_pending_decision"],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the publish proposal was minted under."
+    },
+
+    "outbound_destination_class": {
+      "type": "string",
+      "enum": [
+        "local_keep_only_no_outbound",
+        "hosted_review_thread_comment",
+        "hosted_review_inline_suggested_patch",
+        "hosted_review_provider_check_annotation",
+        "hosted_review_summary_review_body",
+        "local_review_workspace_anchor_only",
+        "imported_review_bundle_export_packet",
+        "support_export_packet_only"
+      ],
+      "description": "Frozen outbound-destination vocabulary. local_keep_only_no_outbound = nothing leaves the local client; hosted_review_thread_comment = a review-thread comment on the bound provider object; hosted_review_inline_suggested_patch = an inline suggested-patch comment that the provider can apply; hosted_review_provider_check_annotation = a provider-specific check-run annotation; hosted_review_summary_review_body = the summary body of a submitted review; local_review_workspace_anchor_only = an anchored comment on the local review_workspace_record only; imported_review_bundle_export_packet = a packet exported into a review-bundle envelope (no auto re-fetch on import); support_export_packet_only = a support / portability export packet."
+    },
+
+    "outbound_content_kind": {
+      "type": "string",
+      "enum": [
+        "review_comment_text",
+        "inline_suggestion_patch_preview",
+        "provider_check_annotation_payload",
+        "summary_review_body_text",
+        "local_anchor_label_only",
+        "bundle_export_packet",
+        "support_export_packet"
+      ],
+      "description": "Frozen outbound-content kind. The content kind MUST match the destination class through an allOf gate; a mismatch denies with outbound_content_kind_does_not_match_destination."
+    },
+
+    "attribution_state_class": {
+      "type": "string",
+      "enum": [
+        "posted_as_user_with_ai_assist_disclosed",
+        "posted_as_user_with_ai_assist_disclosure_pending",
+        "posted_as_ai_review_overlay_disclosed",
+        "kept_local_no_attribution",
+        "forbidden_silent_auto_post"
+      ],
+      "description": "Frozen attribution-state vocabulary. posted_as_user_with_ai_assist_disclosed = the publish proposal carries an explicit AI-assist disclosure on the outbound preview and the user is named as the posting actor; posted_as_user_with_ai_assist_disclosure_pending = the disclosure has not yet been confirmed and the publish action MUST be blocked until the user confirms or removes the AI-assist mark; posted_as_ai_review_overlay_disclosed = the row is published from the AI review overlay (overlay-authored) and the disclosure is mandatory; kept_local_no_attribution = local-only sheet with no outbound attribution to mint; forbidden_silent_auto_post = the recording-only value emitted when a surface attempts to publish without disclosing AI assist; this value MUST coexist with action_class = block_publish_silent_auto_post_forbidden and a typed denial."
+    },
+
+    "redaction_note_class": {
+      "type": "string",
+      "enum": [
+        "no_redaction_required",
+        "internal_identifier_redacted",
+        "credential_handle_redacted_no_raw_secret",
+        "private_endpoint_redacted",
+        "personal_data_redacted",
+        "policy_blocked_field_redacted",
+        "redaction_required_user_must_review",
+        "redaction_pass_failed_publish_blocked"
+      ],
+      "description": "Frozen redaction-note vocabulary. no_redaction_required = the broker-owned redaction pass found nothing to redact; the four positive-pass values name what was redacted before the preview was rendered; redaction_required_user_must_review = the broker flagged a field but cannot decide automatically and the user MUST review before publish; redaction_pass_failed_publish_blocked = the broker pass failed and the action MUST be block_publish_redaction_failed_user_must_review."
+    },
+
+    "publish_or_copy_or_export_action_class": {
+      "type": "string",
+      "enum": [
+        "publish_to_destination",
+        "copy_only_no_outbound",
+        "export_local_packet",
+        "keep_local",
+        "cancel_no_outbound",
+        "block_publish_provider_write_missing_keep_local",
+        "block_publish_redaction_failed_user_must_review",
+        "block_publish_silent_auto_post_forbidden"
+      ],
+      "description": "Frozen action-class vocabulary. publish_to_destination is the only mutating action and MUST cite a non-null approval_ticket_ref plus provider_write_continuity_class = provider_write_admitted (or provider_write_admitted_under_browser_handoff). copy_only_no_outbound and export_local_packet and keep_local and cancel_no_outbound are non-mutating. The three block_* values are recording-only and MUST coexist with the matching denial reason on the audit stream."
+    },
+
+    "provider_write_continuity_class": {
+      "type": "string",
+      "enum": [
+        "provider_write_admitted",
+        "provider_write_admitted_under_browser_handoff",
+        "provider_write_admitted_under_browser_handoff_pending",
+        "provider_write_admitted_via_imported_bundle_export_packet",
+        "provider_write_missing_keep_local_or_export",
+        "provider_write_missing_imported_bundle_no_outbound_admitted",
+        "provider_write_missing_browser_handoff_token_only_no_outbound_admitted",
+        "provider_write_unknown_must_block"
+      ],
+      "description": "Frozen provider-write-continuity vocabulary. provider_write_admitted = a direct provider write capability is held and the destination admits an outbound publish; provider_write_admitted_under_browser_handoff = the write is admitted through an ADR-0010 browser-handoff round trip; provider_write_admitted_under_browser_handoff_pending = the handoff is in flight and publish_to_destination MUST be refused until the handoff completes; provider_write_admitted_via_imported_bundle_export_packet = the only outbound path is the bundle-export packet; provider_write_missing_keep_local_or_export = no write capability and the sheet MUST refuse publish_to_destination and admit only keep_local / copy_only_no_outbound / export_local_packet; provider_write_missing_imported_bundle_no_outbound_admitted = imported-bundle scope, no outbound; provider_write_missing_browser_handoff_token_only_no_outbound_admitted = browser-handoff scope, no outbound; provider_write_unknown_must_block = fail-closed, the action is never admitted from this state."
+    },
+
+    "publish_to_review_sheet_denial_reason": {
+      "type": "string",
+      "enum": [
+        "outbound_content_kind_does_not_match_destination",
+        "publish_destination_must_match_review_workspace_source_class",
+        "publish_target_ref_required_for_hosted_destination",
+        "imported_bundle_envelope_required_for_imported_bundle_destination",
+        "browser_handoff_packet_required_for_browser_handoff_destination",
+        "outbound_text_preview_required_for_outbound_destination",
+        "approval_ticket_required_for_publish_to_destination",
+        "provider_write_missing_publish_blocked_keep_local_or_export",
+        "redaction_pass_failed_publish_blocked",
+        "redaction_required_user_must_review_before_publish",
+        "ai_assist_disclosure_required_before_publish",
+        "silent_auto_post_forbidden_human_decision_required",
+        "auto_approve_or_request_changes_or_merge_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "publish_to_review_sheet_record_required_field_missing",
+        "publish_to_review_sheet_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the publish_to_review_sheet audit stream."
+    },
+
+    "publish_to_review_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "publish_to_review_sheet_minted",
+        "publish_to_review_sheet_outbound_preview_rendered",
+        "publish_to_review_sheet_redaction_pass_completed",
+        "publish_to_review_sheet_published_to_destination",
+        "publish_to_review_sheet_kept_local",
+        "publish_to_review_sheet_copied_only",
+        "publish_to_review_sheet_exported_local_packet",
+        "publish_to_review_sheet_cancelled",
+        "publish_to_review_sheet_provider_write_missing_observed",
+        "publish_to_review_sheet_redaction_failed_observed",
+        "publish_to_review_sheet_silent_auto_post_blocked",
+        "publish_to_review_sheet_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the publish_to_review_sheet stream. publish_to_review_sheet_audit_denial_emitted MUST cite a publish_to_review_sheet_denial_reason."
+    },
+
+    "publish_to_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_to_review_sheet_schema_version",
+        "publish_to_review_sheet_id",
+        "review_finding_id_ref",
+        "review_workspace_id_ref",
+        "review_scope_selection_id_ref",
+        "outbound_destination_class",
+        "outbound_content_kind",
+        "publish_target_ref",
+        "imported_bundle_envelope_ref",
+        "browser_handoff_packet_ref",
+        "outbound_text_preview_label",
+        "outbound_patch_preview_label",
+        "attribution_state_class",
+        "redaction_note_class",
+        "publish_or_copy_or_export_action_class",
+        "provider_write_continuity_class",
+        "approval_ticket_ref",
+        "actor_ref",
+        "command_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "minted_at",
+        "updated_at",
+        "hosted_review_inbox_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "publish_to_review_sheet_record" },
+        "publish_to_review_sheet_schema_version": { "$ref": "#/$defs/publish_to_review_sheet_schema_version" },
+        "publish_to_review_sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_finding.schema.json review_finding_record this sheet publishes. Required (non-null); a missing ref denies with publish_to_review_sheet_record_required_field_missing."
+        },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/vcs/review_workspace.schema.json review_workspace_record the sheet operates on."
+        },
+        "review_scope_selection_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_scope_selection.schema.json review_scope_selection_record the sheet's finding was produced under."
+        },
+        "outbound_destination_class": { "$ref": "#/$defs/outbound_destination_class" },
+        "outbound_content_kind": { "$ref": "#/$defs/outbound_content_kind" },
+        "publish_target_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when outbound_destination_class is hosted_review_thread_comment, hosted_review_inline_suggested_patch, hosted_review_provider_check_annotation, or hosted_review_summary_review_body. Opaque ref to the provider-side thread / inline target / check run identity. Raw provider URLs and raw provider-thread ids never appear here. Null otherwise."
+        },
+        "imported_bundle_envelope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when outbound_destination_class is imported_review_bundle_export_packet. Null otherwise."
+        },
+        "browser_handoff_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when provider_write_continuity_class is provider_write_admitted_under_browser_handoff or provider_write_admitted_under_browser_handoff_pending. Null otherwise."
+        },
+        "outbound_text_preview_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Required (non-null) for outbound_content_kind in {review_comment_text, summary_review_body_text, local_anchor_label_only}. Carries the exact preview text the user reviews before publish; never carries the raw payload byte stream beyond what redaction admits. Null otherwise."
+        },
+        "outbound_patch_preview_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Required (non-null) for outbound_content_kind = inline_suggestion_patch_preview. Carries the exact patch preview the user reviews before publish; never carries raw diff bytes beyond what redaction admits. Null otherwise."
+        },
+        "attribution_state_class": { "$ref": "#/$defs/attribution_state_class" },
+        "redaction_note_class": { "$ref": "#/$defs/redaction_note_class" },
+        "publish_or_copy_or_export_action_class": { "$ref": "#/$defs/publish_or_copy_or_export_action_class" },
+        "provider_write_continuity_class": { "$ref": "#/$defs/provider_write_continuity_class" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when publish_or_copy_or_export_action_class is publish_to_destination. Null on every non-mutating action."
+        },
+        "actor_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the actor proposing the publish. Required (non-null); a missing ref denies with publish_to_review_sheet_record_required_field_missing."
+        },
+        "command_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the command-dispatch id under which the publish proposal was minted. Required (non-null) so the row remains attributable."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null; once that contract lands, every hosted-destination sheet MUST cite the inbox row the publish target resolved through."
+        }
+      },
+      "allOf": [
+        {
+          "description": "outbound_content_kind = review_comment_text MUST pair with outbound_destination_class = hosted_review_thread_comment.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "review_comment_text" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": { "const": "hosted_review_thread_comment" }
+            }
+          }
+        },
+        {
+          "description": "outbound_content_kind = inline_suggestion_patch_preview MUST pair with outbound_destination_class = hosted_review_inline_suggested_patch.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "inline_suggestion_patch_preview" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": { "const": "hosted_review_inline_suggested_patch" }
+            }
+          }
+        },
+        {
+          "description": "outbound_content_kind = provider_check_annotation_payload MUST pair with outbound_destination_class = hosted_review_provider_check_annotation.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "provider_check_annotation_payload" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": { "const": "hosted_review_provider_check_annotation" }
+            }
+          }
+        },
+        {
+          "description": "outbound_content_kind = summary_review_body_text MUST pair with outbound_destination_class = hosted_review_summary_review_body.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "summary_review_body_text" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": { "const": "hosted_review_summary_review_body" }
+            }
+          }
+        },
+        {
+          "description": "outbound_content_kind = local_anchor_label_only MUST pair with outbound_destination_class in {local_review_workspace_anchor_only, local_keep_only_no_outbound}.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "local_anchor_label_only" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": {
+                "enum": ["local_review_workspace_anchor_only", "local_keep_only_no_outbound"]
+              }
+            }
+          }
+        },
+        {
+          "description": "outbound_content_kind = bundle_export_packet MUST pair with outbound_destination_class = imported_review_bundle_export_packet.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "bundle_export_packet" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": { "const": "imported_review_bundle_export_packet" }
+            }
+          }
+        },
+        {
+          "description": "outbound_content_kind = support_export_packet MUST pair with outbound_destination_class = support_export_packet_only.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "support_export_packet" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "properties": {
+              "outbound_destination_class": { "const": "support_export_packet_only" }
+            }
+          }
+        },
+        {
+          "description": "publish_target_ref is required (non-null) for hosted destinations and MUST be null otherwise.",
+          "if": {
+            "properties": {
+              "outbound_destination_class": {
+                "enum": [
+                  "hosted_review_thread_comment",
+                  "hosted_review_inline_suggested_patch",
+                  "hosted_review_provider_check_annotation",
+                  "hosted_review_summary_review_body"
+                ]
+              }
+            },
+            "required": ["outbound_destination_class"]
+          },
+          "then": {
+            "required": ["publish_target_ref"],
+            "properties": { "publish_target_ref": { "$ref": "#/$defs/opaque_id" } }
+          },
+          "else": {
+            "properties": { "publish_target_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "imported_bundle_envelope_ref is required (non-null) for outbound_destination_class = imported_review_bundle_export_packet and MUST be null otherwise.",
+          "if": {
+            "properties": { "outbound_destination_class": { "const": "imported_review_bundle_export_packet" } },
+            "required": ["outbound_destination_class"]
+          },
+          "then": {
+            "required": ["imported_bundle_envelope_ref"],
+            "properties": { "imported_bundle_envelope_ref": { "$ref": "#/$defs/opaque_id" } }
+          },
+          "else": {
+            "properties": { "imported_bundle_envelope_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "outbound_text_preview_label is required (non-null) for outbound_content_kind in {review_comment_text, summary_review_body_text, local_anchor_label_only} and MUST be null for inline_suggestion_patch_preview.",
+          "if": {
+            "properties": {
+              "outbound_content_kind": {
+                "enum": ["review_comment_text", "summary_review_body_text", "local_anchor_label_only"]
+              }
+            },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "required": ["outbound_text_preview_label"],
+            "properties": { "outbound_text_preview_label": { "$ref": "#/$defs/reviewable_label" } }
+          }
+        },
+        {
+          "description": "outbound_patch_preview_label is required (non-null) for outbound_content_kind = inline_suggestion_patch_preview and MUST be null otherwise.",
+          "if": {
+            "properties": { "outbound_content_kind": { "const": "inline_suggestion_patch_preview" } },
+            "required": ["outbound_content_kind"]
+          },
+          "then": {
+            "required": ["outbound_patch_preview_label"],
+            "properties": { "outbound_patch_preview_label": { "$ref": "#/$defs/reviewable_label" } }
+          },
+          "else": {
+            "properties": { "outbound_patch_preview_label": { "type": "null" } }
+          }
+        },
+        {
+          "description": "publish_or_copy_or_export_action_class = publish_to_destination MUST cite a non-null approval_ticket_ref and MUST pair with provider_write_continuity_class in {provider_write_admitted, provider_write_admitted_under_browser_handoff, provider_write_admitted_via_imported_bundle_export_packet}.",
+          "if": {
+            "properties": { "publish_or_copy_or_export_action_class": { "const": "publish_to_destination" } },
+            "required": ["publish_or_copy_or_export_action_class"]
+          },
+          "then": {
+            "required": ["approval_ticket_ref"],
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" },
+              "provider_write_continuity_class": {
+                "enum": [
+                  "provider_write_admitted",
+                  "provider_write_admitted_under_browser_handoff",
+                  "provider_write_admitted_via_imported_bundle_export_packet"
+                ]
+              },
+              "attribution_state_class": {
+                "enum": [
+                  "posted_as_user_with_ai_assist_disclosed",
+                  "posted_as_ai_review_overlay_disclosed",
+                  "kept_local_no_attribution"
+                ]
+              },
+              "redaction_note_class": {
+                "enum": [
+                  "no_redaction_required",
+                  "internal_identifier_redacted",
+                  "credential_handle_redacted_no_raw_secret",
+                  "private_endpoint_redacted",
+                  "personal_data_redacted",
+                  "policy_blocked_field_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_or_copy_or_export_action_class in {copy_only_no_outbound, export_local_packet, keep_local, cancel_no_outbound, block_publish_provider_write_missing_keep_local, block_publish_redaction_failed_user_must_review, block_publish_silent_auto_post_forbidden} MUST carry approval_ticket_ref = null.",
+          "if": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": {
+                "enum": [
+                  "copy_only_no_outbound",
+                  "export_local_packet",
+                  "keep_local",
+                  "cancel_no_outbound",
+                  "block_publish_provider_write_missing_keep_local",
+                  "block_publish_redaction_failed_user_must_review",
+                  "block_publish_silent_auto_post_forbidden"
+                ]
+              }
+            },
+            "required": ["publish_or_copy_or_export_action_class"]
+          },
+          "then": {
+            "properties": { "approval_ticket_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "provider_write_continuity_class = provider_write_missing_keep_local_or_export MUST refuse publish_to_destination and pair with action_class in {keep_local, copy_only_no_outbound, export_local_packet, block_publish_provider_write_missing_keep_local, cancel_no_outbound}.",
+          "if": {
+            "properties": { "provider_write_continuity_class": { "const": "provider_write_missing_keep_local_or_export" } },
+            "required": ["provider_write_continuity_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": {
+                "enum": [
+                  "keep_local",
+                  "copy_only_no_outbound",
+                  "export_local_packet",
+                  "block_publish_provider_write_missing_keep_local",
+                  "cancel_no_outbound"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "provider_write_continuity_class = provider_write_admitted_under_browser_handoff_pending MUST refuse publish_to_destination.",
+          "if": {
+            "properties": { "provider_write_continuity_class": { "const": "provider_write_admitted_under_browser_handoff_pending" } },
+            "required": ["provider_write_continuity_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": {
+                "enum": [
+                  "keep_local",
+                  "copy_only_no_outbound",
+                  "export_local_packet",
+                  "cancel_no_outbound",
+                  "block_publish_provider_write_missing_keep_local"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "provider_write_continuity_class = provider_write_admitted_under_browser_handoff or provider_write_admitted_under_browser_handoff_pending MUST cite a non-null browser_handoff_packet_ref.",
+          "if": {
+            "properties": {
+              "provider_write_continuity_class": {
+                "enum": [
+                  "provider_write_admitted_under_browser_handoff",
+                  "provider_write_admitted_under_browser_handoff_pending"
+                ]
+              }
+            },
+            "required": ["provider_write_continuity_class"]
+          },
+          "then": {
+            "required": ["browser_handoff_packet_ref"],
+            "properties": { "browser_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" } }
+          },
+          "else": {
+            "properties": { "browser_handoff_packet_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "redaction_note_class = redaction_pass_failed_publish_blocked MUST pair with publish_or_copy_or_export_action_class = block_publish_redaction_failed_user_must_review.",
+          "if": {
+            "properties": { "redaction_note_class": { "const": "redaction_pass_failed_publish_blocked" } },
+            "required": ["redaction_note_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": { "const": "block_publish_redaction_failed_user_must_review" }
+            }
+          }
+        },
+        {
+          "description": "redaction_note_class = redaction_required_user_must_review MUST refuse publish_to_destination.",
+          "if": {
+            "properties": { "redaction_note_class": { "const": "redaction_required_user_must_review" } },
+            "required": ["redaction_note_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": {
+                "enum": [
+                  "keep_local",
+                  "copy_only_no_outbound",
+                  "export_local_packet",
+                  "cancel_no_outbound",
+                  "block_publish_redaction_failed_user_must_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "attribution_state_class = posted_as_user_with_ai_assist_disclosure_pending MUST refuse publish_to_destination.",
+          "if": {
+            "properties": { "attribution_state_class": { "const": "posted_as_user_with_ai_assist_disclosure_pending" } },
+            "required": ["attribution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": {
+                "enum": [
+                  "keep_local",
+                  "copy_only_no_outbound",
+                  "export_local_packet",
+                  "cancel_no_outbound"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "attribution_state_class = forbidden_silent_auto_post MUST pair with publish_or_copy_or_export_action_class = block_publish_silent_auto_post_forbidden.",
+          "if": {
+            "properties": { "attribution_state_class": { "const": "forbidden_silent_auto_post" } },
+            "required": ["attribution_state_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": { "const": "block_publish_silent_auto_post_forbidden" }
+            }
+          }
+        },
+        {
+          "description": "outbound_destination_class = local_keep_only_no_outbound MUST pair with provider_write_continuity_class one of the missing / no-outbound values OR with kept_local attribution.",
+          "if": {
+            "properties": { "outbound_destination_class": { "const": "local_keep_only_no_outbound" } },
+            "required": ["outbound_destination_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_or_copy_or_export_action_class": {
+                "enum": [
+                  "keep_local",
+                  "copy_only_no_outbound",
+                  "export_local_packet",
+                  "cancel_no_outbound",
+                  "block_publish_provider_write_missing_keep_local",
+                  "block_publish_redaction_failed_user_must_review",
+                  "block_publish_silent_auto_post_forbidden"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the AI review-assist publish-to-review sheet, the matching review_finding row, and audit / support / export. Exactly one row per publish proposal."
+    },
+
+    "publish_to_review_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publish_to_review_sheet_schema_version",
+        "publish_to_review_audit_event_id_value",
+        "audit_event_record_id",
+        "publish_to_review_sheet_id_ref",
+        "review_finding_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "command_id_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "publish_to_review_audit_event_record" },
+        "publish_to_review_sheet_schema_version": { "$ref": "#/$defs/publish_to_review_sheet_schema_version" },
+        "publish_to_review_audit_event_id_value": { "$ref": "#/$defs/publish_to_review_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/publish_to_review_sheet_denial_reason" }
+          ],
+          "description": "Required (non-null) when publish_to_review_audit_event_id_value is publish_to_review_sheet_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "publish_to_review_audit_event_id_value": { "const": "publish_to_review_sheet_audit_denial_emitted" } },
+            "required": ["publish_to_review_audit_event_id_value"]
+          },
+          "then": {
+            "required": ["denial_reason"],
+            "properties": { "denial_reason": { "$ref": "#/$defs/publish_to_review_sheet_denial_reason" } }
+          },
+          "else": {
+            "properties": { "denial_reason": { "type": "null" } }
+          }
+        }
+      ],
+      "description": "Audit-event row on the publish_to_review_sheet stream."
+    }
+  }
+}

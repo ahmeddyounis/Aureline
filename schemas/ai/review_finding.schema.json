@@ -1,0 +1,698 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/review_finding.schema.json",
+  "title": "Aureline AI review-assist finding-row vocabulary",
+  "description": "Boundary schema for the review_finding_record family frozen in docs/ai/review_assist_publish_contract.md. One review_finding_record summarises one suggested concern, insight, or check observation an AI review-assist run produced against an analyzed scope. The row pins the finding class (risk_or_bug_concern / style_or_convention_drift / missing_test_coverage / dependency_or_security_concern / impact_area_hint / repo_instruction_check_fired / docs_or_comment_drift / accessibility_or_ux_concern / performance_or_complexity_concern / unknown_must_review), severity and confidence (the severity vocabulary mirrors the review-pack finding-severity classes verbatim, the confidence vocabulary mirrors the AI copy-guardrails approved labels verbatim), the analyzed scope ref (the schemas/ai/review_scope_selection.schema.json review_scope_selection_record the run was bound to), the instruction or check source class that shaped the finding (so 'AI found an issue' without scope and policy context is structurally impossible), the evidence-link rows that name affected files / hunks / cited workspace content / cited diagnostics / cited review-pack checks / cited repo-instruction bundles / cited designated policy files / cited evidence packets / cited docs excerpts / cited runbook excerpts / cited workspace search results / cited review anchors, the lifecycle state (open / dismissed / published_local_only / published_to_review_destination / outdated_diff_changed / rerun_recommended / superseded_by_rerun / suppressed_by_policy / archived_tombstone), the dismissal-rationale class so suppressed / dismissed rows record why without shaming language, the local-or-publish action class admitted on this row (keep_local / publish_to_review_destination / dismiss_with_rationale / export_local_packet / mark_outdated_pending_rerun / request_rerun / open_diff / open_source / archive_tombstone), and the attribution class so user-vs-AI-overlay authorship stays explicit. Three invariants are frozen here. First: the finding NEVER auto-approves, NEVER auto-requests-changes, and NEVER auto-merges; the lifecycle vocabulary admits no such transition. Second: the finding MUST cite the analyzed scope and the directing instruction or check source; rows without one of those denies with analyzed_scope_ref_required or instruction_or_check_source_class_required. Third: a low-confidence finding MUST NOT carry publish_to_review_destination as the proposed action; the row routes through request_rerun / keep_local / open_source / open_diff / dismiss_with_rationale / export_local_packet / mark_outdated_pending_rerun until the user lifts the confidence floor or the rerun moves it. The schema composes with (and does not replace) schemas/ai/review_scope_selection.schema.json (analyzed scope), schemas/ai/publish_to_review_sheet.schema.json (the publish path), schemas/vcs/review_workspace.schema.json (review_workspace_record / review_workspace_source_class), schemas/vcs/review_anchor.schema.json (review_anchor_record), schemas/vcs/review_pack.schema.json (review_pack_record), schemas/vcs/review_evaluation_result.schema.json (finding_severity_class), and schemas/governance/capability_lifecycle.schema.json (freshness_class, client_scope, redaction_class). Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw provider URLs, raw provider thread URLs, raw notebook cell text, raw diff bodies, raw terminal bytes, raw prompt text, and raw URLs MUST NOT appear on any record emitted against this schema; every preview is a redaction-aware reviewable label or an opaque ref. The eventual review-assist crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new record kind, finding class, severity class, confidence class, evidence-link kind, instruction-or-check-source class, lifecycle state, dismissal rationale, action class, attribution class, denial reason, or audit-event id is additive-minor and bumps review_finding_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/review_finding_record" },
+    { "$ref": "#/$defs/review_finding_audit_event_record" }
+  ],
+  "$defs": {
+    "review_finding_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the review-finding vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "review_finding_record",
+        "review_finding_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Raw absolute paths, raw branch / commit URLs, raw author identity strings, raw provider URLs, raw provider thread URLs, raw notebook cell text, raw diff bodies, raw terminal bytes, raw prompt text, and raw URLs never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary of the finding for support / audit / export; never carries the raw payload byte stream."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011). Findings touching credentialed flows MUST raise to operator_only_restricted."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": ["trusted", "restricted", "unset_pending_decision"],
+          "description": "Re-exported from ADR-0018."
+        }
+      },
+      "description": "Policy context the finding was minted under."
+    },
+
+    "finding_class": {
+      "type": "string",
+      "enum": [
+        "risk_or_bug_concern",
+        "style_or_convention_drift",
+        "missing_test_coverage",
+        "dependency_or_security_concern",
+        "impact_area_hint",
+        "repo_instruction_check_fired",
+        "docs_or_comment_drift",
+        "accessibility_or_ux_concern",
+        "performance_or_complexity_concern",
+        "unknown_must_review"
+      ],
+      "description": "Frozen finding-class vocabulary. risk_or_bug_concern is the headline 'this might be a bug' class; style_or_convention_drift covers convention deviations; missing_test_coverage covers coverage hints; dependency_or_security_concern covers dependency / security suggestions; impact_area_hint covers blast-radius hints; repo_instruction_check_fired is the explicit class when a repo-authored instruction bundle or designated policy file directly drove the finding; docs_or_comment_drift covers stale docs / comments; accessibility_or_ux_concern covers a11y / UX issues; performance_or_complexity_concern covers performance / complexity hints; unknown_must_review is the fail-closed class so an unrecognised finding routes to user review rather than silent acceptance."
+    },
+
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "severity_blocker_advisory",
+        "severity_high_advisory",
+        "severity_medium_advisory",
+        "severity_low_advisory",
+        "severity_informational"
+      ],
+      "description": "Frozen severity vocabulary. The vocabulary mirrors schemas/vcs/review_evaluation_result.schema.json finding_severity_class but every value carries the explicit _advisory suffix on every blocking-shaped class because AI review-assist findings are advisory-only — the human review decision remains explicit. severity_blocker_advisory MUST NOT be rendered as if it blocked landing on its own; the matching enforced check (if any) lives on the review-pack evaluation, not on this row."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "evidence_backed",
+        "inferred",
+        "low_confidence",
+        "validation_passed",
+        "validation_not_run",
+        "needs_review"
+      ],
+      "description": "Frozen confidence vocabulary, mirrored verbatim from artifacts/ai/approved_ai_terms.yaml and docs/ai/ai_copy_guardrails_contract.md. Numerical confidence MUST NOT be invented from model prose; rows that need a calibrated number cite a non-AI evaluator and surface that ref through evidence_link_refs."
+    },
+
+    "instruction_or_check_source_class": {
+      "type": "string",
+      "enum": [
+        "repo_instruction_bundle_authored",
+        "designated_policy_file",
+        "trusted_workspace_pinned_policy",
+        "trusted_user_profile_policy",
+        "review_pack_must_run_check",
+        "review_pack_advisory_check",
+        "provider_required_check_mirror",
+        "local_lint_or_diagnostic",
+        "ai_review_overlay_only_no_directing_source",
+        "not_applicable_no_directing_source"
+      ],
+      "description": "Frozen instruction-or-check-source vocabulary. Every finding names exactly one source so 'AI found an issue' without scope and policy context is structurally impossible. ai_review_overlay_only_no_directing_source is admissible when the finding genuinely came from the AI overlay's own reasoning with no upstream rule or check directing it (the row MUST NOT pretend a rule directed it); not_applicable_no_directing_source is the explicit value when the finding is purely informational / impact-area-hint and no directing source applies. designated_policy_file is reachable only when the matching tainted_input_source_record (schemas/ai/tainted_input_source.schema.json) carries policy_file_role_class = designated_policy_file."
+    },
+
+    "evidence_link_kind": {
+      "type": "string",
+      "enum": [
+        "affected_file_or_hunk_ref",
+        "cited_repository_workspace_content_ref",
+        "cited_workspace_diagnostic_capture_ref",
+        "cited_review_pack_check_ref",
+        "cited_repository_instruction_bundle_ref",
+        "cited_designated_policy_file_ref",
+        "cited_evidence_packet_ref",
+        "cited_docs_pack_excerpt_ref",
+        "cited_runbook_step_excerpt_ref",
+        "cited_workspace_search_result_ref",
+        "cited_review_anchor_ref",
+        "cited_review_evaluation_finding_ref"
+      ],
+      "description": "Frozen evidence-link-kind vocabulary. affected_file_or_hunk_ref pins the file or diff hunk the finding flags. cited_* values cite supporting evidence; raw bodies never appear on this row — every value is an opaque ref into the owning contract."
+    },
+
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "open",
+        "dismissed",
+        "published_local_only",
+        "published_to_review_destination",
+        "outdated_diff_changed",
+        "rerun_recommended",
+        "superseded_by_rerun",
+        "suppressed_by_policy",
+        "archived_tombstone"
+      ],
+      "description": "Frozen lifecycle-state vocabulary. open is the default starting state; dismissed records an explicit user dismissal with a typed rationale; published_local_only records a publish to the local review_workspace_record only; published_to_review_destination records a publish through the schemas/ai/publish_to_review_sheet.schema.json sheet to a hosted review destination, an imported-bundle export packet, or a support packet; outdated_diff_changed and outdated rerun states honour the matching review_scope_selection_record's scope_freshness_class; superseded_by_rerun records that a rerun produced a successor finding; suppressed_by_policy records an admin / policy bundle's suppression with rationale; archived_tombstone is the retain-as-tombstone state. The lifecycle vocabulary admits NO auto-approve, auto-request-changes, or auto-merge transitions; those actions live on schemas/vcs/merge_queue_entry.schema.json and require human approval through the merge-policy contract."
+    },
+
+    "dismissal_rationale_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_dismissal_not_recorded",
+        "dismissed_user_disagrees_evidence_insufficient",
+        "dismissed_user_acknowledges_acceptable_risk",
+        "dismissed_user_planned_in_separate_change",
+        "dismissed_duplicate_of_other_finding",
+        "dismissed_outdated_diff_changed_after_run",
+        "suppressed_by_policy_bundle_admin",
+        "suppressed_by_repo_instruction_bundle"
+      ],
+      "description": "Frozen dismissal-rationale vocabulary. Recorded without shaming or anthropomorphic copy; the row carries the typed reason class only and the rationale prose lives on the matching reviewable label. not_applicable_dismissal_not_recorded is the value carried on rows whose lifecycle is not dismissed / suppressed."
+    },
+
+    "local_or_publish_action_class": {
+      "type": "string",
+      "enum": [
+        "keep_local",
+        "publish_to_review_destination",
+        "dismiss_with_rationale",
+        "export_local_packet",
+        "mark_outdated_pending_rerun",
+        "request_rerun",
+        "open_diff",
+        "open_source",
+        "archive_tombstone"
+      ],
+      "description": "Frozen action-class vocabulary on the finding row. publish_to_review_destination is the only action class that drives the schemas/ai/publish_to_review_sheet.schema.json publish flow and MUST cite a non-null publish_to_review_sheet_id_ref. The other values are inspect / preserve / re-run / dismiss actions; none of them mutate the canonical review history outside the publish sheet's audit stream."
+    },
+
+    "attribution_class": {
+      "type": "string",
+      "enum": [
+        "posted_as_user_with_ai_assist",
+        "posted_as_ai_review_overlay",
+        "kept_local_no_attribution",
+        "forbidden_silent_auto_post"
+      ],
+      "description": "Frozen attribution vocabulary on the finding row. Mirrors the publish-to-review sheet's attribution_state_class without the disclosure-pending split (the pending split is a publish-time concern). forbidden_silent_auto_post is the recording-only value emitted when a surface attempts to mark the finding as published without disclosing AI assist; the matching publish row blocks the action with silent_auto_post_forbidden_human_decision_required."
+    },
+
+    "review_finding_denial_reason": {
+      "type": "string",
+      "enum": [
+        "analyzed_scope_ref_required",
+        "instruction_or_check_source_class_required",
+        "evidence_link_required_at_least_one",
+        "low_confidence_must_not_admit_publish_to_review_destination",
+        "severity_blocker_advisory_must_not_imply_landing_block",
+        "publish_to_review_sheet_ref_required_for_published_destination",
+        "dismissal_rationale_required_for_dismissed_or_suppressed",
+        "outdated_lifecycle_must_not_admit_publish_action",
+        "auto_approve_or_request_changes_or_merge_forbidden",
+        "designated_policy_file_source_requires_signed_policy_input",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "review_finding_record_required_field_missing",
+        "review_finding_record_unknown_value"
+      ],
+      "description": "Frozen denial-reason vocabulary on the review_finding audit stream."
+    },
+
+    "review_finding_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "review_finding_minted",
+        "review_finding_evidence_link_recorded",
+        "review_finding_lifecycle_state_changed",
+        "review_finding_published_locally",
+        "review_finding_published_to_destination",
+        "review_finding_dismissed",
+        "review_finding_suppressed_by_policy",
+        "review_finding_marked_outdated_after_diff_change",
+        "review_finding_rerun_requested",
+        "review_finding_superseded_by_rerun",
+        "review_finding_archived",
+        "review_finding_audit_denial_emitted"
+      ],
+      "description": "Frozen audit-event ids on the review_finding stream. review_finding_audit_denial_emitted MUST cite a review_finding_denial_reason."
+    },
+
+    "evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_link_kind", "evidence_link_target_ref"],
+      "properties": {
+        "evidence_link_kind": { "$ref": "#/$defs/evidence_link_kind" },
+        "evidence_link_target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the cited target (file row, hunk row, diagnostic capture row, review-pack check row, repo-instruction bundle row, designated policy file row, evidence packet row, docs-pack excerpt row, runbook step row, workspace search result row, review-anchor row, review-evaluation finding row). Raw bodies, raw paths, and raw URLs never cross this boundary."
+        }
+      },
+      "description": "Evidence-link block. Every finding row carries at least one evidence_link in evidence_link_refs."
+    },
+
+    "review_finding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_finding_schema_version",
+        "review_finding_id",
+        "review_workspace_id_ref",
+        "analyzed_scope_id_ref",
+        "finding_class",
+        "severity_class",
+        "confidence_class",
+        "instruction_or_check_source_class",
+        "instruction_or_check_source_ref",
+        "evidence_link_refs",
+        "lifecycle_state",
+        "dismissal_rationale_class",
+        "local_or_publish_action_class",
+        "attribution_class",
+        "publish_to_review_sheet_id_ref",
+        "review_anchor_id_ref",
+        "supersedes_review_finding_id_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "summary_label",
+        "rationale_label",
+        "minted_at",
+        "updated_at",
+        "archived_at",
+        "hosted_review_inbox_record_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_finding_record" },
+        "review_finding_schema_version": { "$ref": "#/$defs/review_finding_schema_version" },
+        "review_finding_id": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/vcs/review_workspace.schema.json review_workspace_record the finding belongs to."
+        },
+        "analyzed_scope_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the schemas/ai/review_scope_selection.schema.json review_scope_selection_record the run was bound to. Required (non-null); a missing ref denies with analyzed_scope_ref_required."
+        },
+        "finding_class": { "$ref": "#/$defs/finding_class" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "instruction_or_check_source_class": { "$ref": "#/$defs/instruction_or_check_source_class" },
+        "instruction_or_check_source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when instruction_or_check_source_class names a directing source (every value except ai_review_overlay_only_no_directing_source and not_applicable_no_directing_source). Cites the bundle / policy file / review-pack check / required-check mirror / local lint diagnostic the finding was directed by; raw bodies and raw paths never cross this boundary."
+        },
+        "evidence_link_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/evidence_link" },
+          "description": "Ordered set of evidence-link blocks. minItems = 1 enforces evidence_link_required_at_least_one mechanically."
+        },
+        "lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "dismissal_rationale_class": { "$ref": "#/$defs/dismissal_rationale_class" },
+        "local_or_publish_action_class": { "$ref": "#/$defs/local_or_publish_action_class" },
+        "attribution_class": { "$ref": "#/$defs/attribution_class" },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when local_or_publish_action_class is publish_to_review_destination OR lifecycle_state is published_to_review_destination OR lifecycle_state is published_local_only. Null otherwise."
+        },
+        "review_anchor_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the schemas/vcs/review_anchor.schema.json review_anchor_record this finding is anchored on (when the publish path produced a local anchor or a hosted-thread comment was anchored)."
+        },
+        "supersedes_review_finding_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a prior review_finding_record this row supersedes (used when a rerun produced a successor finding)."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "rationale_label": { "$ref": "#/$defs/reviewable_label" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "archived_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Required (non-null) when lifecycle_state is archived_tombstone. Null otherwise."
+        },
+        "hosted_review_inbox_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Forward-dependency slot reserved for the hosted-review inbox contract. Currently always null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "instruction_or_check_source_ref is required (non-null) when instruction_or_check_source_class names a directing source; MUST be null when class is ai_review_overlay_only_no_directing_source or not_applicable_no_directing_source.",
+          "if": {
+            "properties": {
+              "instruction_or_check_source_class": {
+                "enum": [
+                  "repo_instruction_bundle_authored",
+                  "designated_policy_file",
+                  "trusted_workspace_pinned_policy",
+                  "trusted_user_profile_policy",
+                  "review_pack_must_run_check",
+                  "review_pack_advisory_check",
+                  "provider_required_check_mirror",
+                  "local_lint_or_diagnostic"
+                ]
+              }
+            },
+            "required": ["instruction_or_check_source_class"]
+          },
+          "then": {
+            "required": ["instruction_or_check_source_ref"],
+            "properties": { "instruction_or_check_source_ref": { "$ref": "#/$defs/opaque_id" } }
+          },
+          "else": {
+            "properties": { "instruction_or_check_source_ref": { "type": "null" } }
+          }
+        },
+        {
+          "description": "confidence_class = low_confidence MUST NOT carry local_or_publish_action_class = publish_to_review_destination.",
+          "if": {
+            "properties": { "confidence_class": { "const": "low_confidence" } },
+            "required": ["confidence_class"]
+          },
+          "then": {
+            "properties": {
+              "local_or_publish_action_class": {
+                "enum": [
+                  "keep_local",
+                  "dismiss_with_rationale",
+                  "export_local_packet",
+                  "mark_outdated_pending_rerun",
+                  "request_rerun",
+                  "open_diff",
+                  "open_source",
+                  "archive_tombstone"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state = published_to_review_destination MUST cite a non-null publish_to_review_sheet_id_ref.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "published_to_review_destination" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": {
+              "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state = published_local_only MUST cite a non-null publish_to_review_sheet_id_ref (the local-keep / local-anchor sheet).",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "published_local_only" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": {
+              "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "local_or_publish_action_class = publish_to_review_destination MUST cite a non-null publish_to_review_sheet_id_ref.",
+          "if": {
+            "properties": { "local_or_publish_action_class": { "const": "publish_to_review_destination" } },
+            "required": ["local_or_publish_action_class"]
+          },
+          "then": {
+            "required": ["publish_to_review_sheet_id_ref"],
+            "properties": {
+              "publish_to_review_sheet_id_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state in {dismissed, suppressed_by_policy} MUST cite a dismissal_rationale_class other than not_applicable_dismissal_not_recorded.",
+          "if": {
+            "properties": {
+              "lifecycle_state": { "enum": ["dismissed", "suppressed_by_policy"] }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "dismissal_rationale_class": {
+                "enum": [
+                  "dismissed_user_disagrees_evidence_insufficient",
+                  "dismissed_user_acknowledges_acceptable_risk",
+                  "dismissed_user_planned_in_separate_change",
+                  "dismissed_duplicate_of_other_finding",
+                  "dismissed_outdated_diff_changed_after_run",
+                  "suppressed_by_policy_bundle_admin",
+                  "suppressed_by_repo_instruction_bundle"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state outside {dismissed, suppressed_by_policy} MUST carry dismissal_rationale_class = not_applicable_dismissal_not_recorded.",
+          "if": {
+            "properties": {
+              "lifecycle_state": {
+                "enum": [
+                  "open",
+                  "published_local_only",
+                  "published_to_review_destination",
+                  "outdated_diff_changed",
+                  "rerun_recommended",
+                  "superseded_by_rerun",
+                  "archived_tombstone"
+                ]
+              }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "dismissal_rationale_class": { "const": "not_applicable_dismissal_not_recorded" }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state in {outdated_diff_changed, rerun_recommended} MUST NOT admit publish_to_review_destination as the proposed action; the row routes through mark_outdated_pending_rerun / request_rerun / keep_local / dismiss_with_rationale / open_diff / open_source / export_local_packet / archive_tombstone instead.",
+          "if": {
+            "properties": {
+              "lifecycle_state": { "enum": ["outdated_diff_changed", "rerun_recommended"] }
+            },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "properties": {
+              "local_or_publish_action_class": {
+                "enum": [
+                  "keep_local",
+                  "dismiss_with_rationale",
+                  "export_local_packet",
+                  "mark_outdated_pending_rerun",
+                  "request_rerun",
+                  "open_diff",
+                  "open_source",
+                  "archive_tombstone"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "lifecycle_state = archived_tombstone MUST cite a non-null archived_at and MUST NOT admit publish_to_review_destination as the proposed action.",
+          "if": {
+            "properties": { "lifecycle_state": { "const": "archived_tombstone" } },
+            "required": ["lifecycle_state"]
+          },
+          "then": {
+            "required": ["archived_at"],
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/monotonic_timestamp" },
+              "local_or_publish_action_class": {
+                "enum": [
+                  "keep_local",
+                  "dismiss_with_rationale",
+                  "export_local_packet",
+                  "open_diff",
+                  "open_source",
+                  "archive_tombstone"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": { "archived_at": { "type": "null" } }
+          }
+        },
+        {
+          "description": "instruction_or_check_source_class = designated_policy_file MUST be carried only when an upstream tainted_input_source_record (schemas/ai/tainted_input_source.schema.json) admitted policy_file_role_class = designated_policy_file. Surfaces enforce this through the matching tainted-input-source row reachable through the assembly id; the schema records the requirement on the denial vocabulary as designated_policy_file_source_requires_signed_policy_input.",
+          "if": {
+            "properties": {
+              "instruction_or_check_source_class": { "const": "designated_policy_file" }
+            },
+            "required": ["instruction_or_check_source_class"]
+          },
+          "then": {
+            "required": ["instruction_or_check_source_ref"],
+            "properties": {
+              "instruction_or_check_source_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "attribution_class = forbidden_silent_auto_post is recording-only; it MUST coexist with lifecycle_state in {open, dismissed, suppressed_by_policy} and MUST NOT carry publish_to_review_destination as the proposed action.",
+          "if": {
+            "properties": { "attribution_class": { "const": "forbidden_silent_auto_post" } },
+            "required": ["attribution_class"]
+          },
+          "then": {
+            "properties": {
+              "local_or_publish_action_class": {
+                "enum": [
+                  "keep_local",
+                  "dismiss_with_rationale",
+                  "export_local_packet",
+                  "mark_outdated_pending_rerun",
+                  "request_rerun",
+                  "open_diff",
+                  "open_source",
+                  "archive_tombstone"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Row shape consumed by the AI review-assist finding panel, the matching review_scope_selection / publish_to_review_sheet rows, the hosted-review reader, and audit / support / export. Exactly one row per finding identity."
+    },
+
+    "review_finding_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_finding_schema_version",
+        "review_finding_audit_event_id_value",
+        "audit_event_record_id",
+        "review_finding_id_ref",
+        "review_workspace_id_ref",
+        "occurred_at",
+        "actor_ref",
+        "policy_context",
+        "redaction_class",
+        "summary_label"
+      ],
+      "properties": {
+        "record_kind": { "const": "review_finding_audit_event_record" },
+        "review_finding_schema_version": { "$ref": "#/$defs/review_finding_schema_version" },
+        "review_finding_audit_event_id_value": { "$ref": "#/$defs/review_finding_audit_event_id" },
+        "audit_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "review_finding_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "publish_to_review_sheet_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/review_finding_denial_reason" }
+          ],
+          "description": "Required (non-null) when review_finding_audit_event_id_value is review_finding_audit_denial_emitted. Null otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "review_finding_audit_event_id_value": { "const": "review_finding_audit_denial_emitted" } },
+            "required": ["review_finding_audit_event_id_value"]
+          },
+          "then": {
+            "required": ["denial_reason"],
+            "properties": { "denial_reason": { "$ref": "#/$defs/review_finding_denial_reason" } }
+          },
+          "else": {
+            "properties": { "denial_reason": { "type": "null" } }
+          }
+        }
+      ],
+      "description": "Audit-event row on the review_finding stream."
+    }
+  }
+}
