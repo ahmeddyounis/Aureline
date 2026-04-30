@@ -1,0 +1,779 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/storage_class_breakdown.schema.json",
+  "title": "Aureline storage-class breakdown row record",
+  "description": "Boundary schema for the storage_class_breakdown_row_record frozen in docs/storage/storage_inspector_contract.md. Each row projects one storage class on one inspector scope, carrying class_used_bytes, reclaimable_bytes_estimate, protected_bytes, pinned_bytes, authority_class, rebuild_cost_class, gc_policy_class, clear_cache_protection_class, quota_basis_class plus quota_ceiling_bytes, mirror_or_import_origin_class, the optional mirror_offline_artifact_row_ref into the deployment-summary contract, the pinned_consumer_breakdown[] for pinned bytes, the per-row largest_consumers[], the class_scope (value-equal to the parent card's inspector_scope), the posture (re-export of storage_posture_class), the last_class_scan_at, and the inspectable_on_surfaces[] re-export. The schema mints no new vocabulary; storage_class_id, authority_class, rebuild_cost_class, gc_policy_class, storage_posture_class, quota_basis_class, pin_source_class, inspectable_surface_class, and clear_cache_protection_class re-export verbatim from /artifacts/runtime/storage_classes.yaml and /schemas/runtime/cache_entry_manifest.schema.json. The mirror_offline_artifact_row_ref points at /schemas/deployment/deployment_summary_card.schema.json. Adding a value to a closed vocabulary is additive-minor and bumps storage_class_breakdown_row_schema_version; repurposing an existing value, weakening any §7 invariant, or relaxing the disposable / rebuildable / authoritative posture distinctions is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/storage_class_breakdown_row_record",
+  "$defs": {
+    "storage_class_breakdown_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the storage-class breakdown row payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing names but never raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, or raw secret material."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw payload bytes, raw paths, raw URLs, raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ]
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "high_rebuild_cost",
+        "medium_rebuild_cost",
+        "low_rebuild_cost"
+      ]
+    },
+    "gc_policy_class": {
+      "type": "string",
+      "enum": [
+        "never_gc_authoritative",
+        "gc_on_version_replace",
+        "gc_on_pressure_if_unpinned",
+        "gc_on_case_close",
+        "gc_on_explicit_reset_only"
+      ]
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ]
+    },
+    "quota_basis_class": {
+      "type": "string",
+      "enum": [
+        "per_workspace_quota",
+        "global_device_quota",
+        "per_class_ceiling",
+        "per_tenant_quota",
+        "policy_bound_evidence_quota",
+        "retention_policy_only",
+        "digest_store_plus_class_ceiling"
+      ]
+    },
+    "quota_ceiling_bytes": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string", "const": "not_applicable" }
+      ]
+    },
+    "clear_cache_protection_class": {
+      "type": "string",
+      "enum": [
+        "generic_clear_always_allowed",
+        "generic_clear_with_pin_exclusions",
+        "protected_requires_class_specific_review",
+        "protected_never_generic_clear"
+      ]
+    },
+    "inspectable_surface_class": {
+      "type": "string",
+      "enum": [
+        "storage_inspector",
+        "workspace_storage_detail",
+        "clear_data_review",
+        "low_disk_banner",
+        "pin_manager",
+        "cleanup_history_lane"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ]
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "class_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "scope_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "mirror_or_import_origin_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "local_disposable_cache",
+        "local_evidence_capture",
+        "mirrored_copy",
+        "offline_bundle_local",
+        "vendor_signed_offline_local",
+        "customer_signed_mirror_local",
+        "policy_protected_admin_artifact",
+        "not_applicable"
+      ]
+    },
+    "pin_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_pin_in_scope",
+        "pinned_one_source",
+        "pinned_multiple_sources",
+        "not_applicable"
+      ]
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "workspace_index_corpus",
+        "workspace_history_lane",
+        "workspace_recovery_journal",
+        "workset_session_restore_state",
+        "extension_pack",
+        "docs_pack_corpus",
+        "model_pack_blob",
+        "update_pack_blob",
+        "policy_bundle_blob",
+        "prebuild_layer_blob",
+        "template_or_archetype_pack",
+        "evidence_packet_blob",
+        "support_export_assembly_in_flight",
+        "terminal_restore_metadata_store",
+        "mirror_snapshot_segment",
+        "offline_bundle_segment",
+        "aggregated_remainder_other"
+      ]
+    },
+    "inspect_only_open_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "modal_prohibited",
+        "revalidation_on_open"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "modal_prohibited": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        }
+      }
+    },
+    "largest_consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_class",
+        "consumer_ref",
+        "consumer_label",
+        "consumer_used_bytes",
+        "authority_class",
+        "rebuild_cost_class",
+        "mirror_or_import_origin_class",
+        "pin_summary_class",
+        "inspect_only_open_action"
+      ],
+      "properties": {
+        "consumer_class": { "$ref": "#/$defs/consumer_class" },
+        "consumer_ref": { "$ref": "#/$defs/opaque_id" },
+        "consumer_label": { "$ref": "#/$defs/reviewable_label" },
+        "consumer_used_bytes": { "type": "integer", "minimum": 0 },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "mirror_or_import_origin_class": { "$ref": "#/$defs/mirror_or_import_origin_class" },
+        "pin_summary_class": { "$ref": "#/$defs/pin_summary_class" },
+        "inspect_only_open_action": { "$ref": "#/$defs/inspect_only_open_action" },
+        "linked_pin_ref_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Aggregated remainder rows carry the disposable-derived authority and not_applicable origin/pin summary.",
+          "if": {
+            "properties": { "consumer_class": { "const": "aggregated_remainder_other" } },
+            "required": ["consumer_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "disposable_derived_cache" },
+              "mirror_or_import_origin_class": { "const": "not_applicable" },
+              "pin_summary_class": { "const": "not_applicable" }
+            }
+          }
+        },
+        {
+          "description": "user_authored_durable_truth authority is never registered as a cache consumer.",
+          "not": {
+            "properties": {
+              "authority_class": { "const": "user_authored_durable_truth" }
+            },
+            "required": ["authority_class"]
+          }
+        }
+      ]
+    },
+    "pinned_consumer_breakdown_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pin_source_class",
+        "pinned_bytes",
+        "pin_ref_summary_id"
+      ],
+      "properties": {
+        "pin_source_class": { "$ref": "#/$defs/pin_source_class" },
+        "pinned_bytes": { "type": "integer", "minimum": 0 },
+        "pin_ref_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "storage_class_breakdown_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "storage_class_breakdown_row_schema_version",
+        "row_id",
+        "card_id_ref",
+        "storage_class_id",
+        "class_scope",
+        "class_used_bytes",
+        "reclaimable_bytes_estimate",
+        "protected_bytes",
+        "pinned_bytes",
+        "authority_class",
+        "rebuild_cost_class",
+        "gc_policy_class",
+        "clear_cache_protection_class",
+        "quota_basis_class",
+        "quota_ceiling_bytes",
+        "mirror_or_import_origin_class",
+        "pinned_consumer_breakdown",
+        "largest_consumers",
+        "posture",
+        "last_class_scan_at",
+        "inspectable_on_surfaces",
+        "redaction_class",
+        "export_safe",
+        "note"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "storage_class_breakdown_row_record" },
+        "storage_class_breakdown_row_schema_version": { "$ref": "#/$defs/storage_class_breakdown_row_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "card_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "class_scope": { "$ref": "#/$defs/class_scope" },
+        "class_used_bytes": { "type": "integer", "minimum": 0 },
+        "reclaimable_bytes_estimate": { "type": "integer", "minimum": 0 },
+        "protected_bytes": { "type": "integer", "minimum": 0 },
+        "pinned_bytes": { "type": "integer", "minimum": 0 },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "gc_policy_class": { "$ref": "#/$defs/gc_policy_class" },
+        "clear_cache_protection_class": { "$ref": "#/$defs/clear_cache_protection_class" },
+        "quota_basis_class": { "$ref": "#/$defs/quota_basis_class" },
+        "quota_ceiling_bytes": { "$ref": "#/$defs/quota_ceiling_bytes" },
+        "mirror_or_import_origin_class": { "$ref": "#/$defs/mirror_or_import_origin_class" },
+        "mirror_offline_artifact_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref into a mirror_offline_artifact_row_record (deployment summary contract). Required non-null when mirror_or_import_origin_class is mirrored_copy / offline_bundle_local / vendor_signed_offline_local / customer_signed_mirror_local."
+        },
+        "pinned_consumer_breakdown": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pinned_consumer_breakdown_row" }
+        },
+        "largest_consumers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/largest_consumer_row" }
+        },
+        "posture": { "$ref": "#/$defs/storage_posture_class" },
+        "last_class_scan_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "inspectable_on_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inspectable_surface_class" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_clear_cache_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_low_disk_drill_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_pin_manager_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_class_specific_review_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "allOf": [
+        {
+          "description": "user_authored_durable_truth authority may never register as a breakdown row.",
+          "not": {
+            "properties": {
+              "authority_class": { "const": "user_authored_durable_truth" }
+            },
+            "required": ["authority_class"]
+          }
+        },
+        {
+          "description": "user_owned_recovery_state class binds matching authority, protected-never-generic-clear, restricted GC policy, and authoritative_no_rebuild.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "user_owned_recovery_state" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "user_owned_recovery_state" },
+              "clear_cache_protection_class": { "const": "protected_never_generic_clear" },
+              "gc_policy_class": {
+                "enum": ["never_gc_authoritative", "gc_on_explicit_reset_only"]
+              },
+              "rebuild_cost_class": { "const": "authoritative_no_rebuild" }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "evidence_support_cache class binds protected-requires-class-specific-review and admin_or_control_artifact / user_owned_recovery_state authority.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "evidence_support_cache" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "clear_cache_protection_class": { "const": "protected_requires_class_specific_review" },
+              "gc_policy_class": {
+                "enum": ["never_gc_authoritative", "gc_on_case_close", "gc_on_explicit_reset_only"]
+              },
+              "authority_class": {
+                "enum": ["admin_or_control_artifact", "user_owned_recovery_state"]
+              }
+            },
+            "required": ["linked_class_specific_review_ref"]
+          }
+        },
+        {
+          "description": "interactive_hot_cache, knowledge_cache, prebuild_environment_cache classes bind disposable_derived_cache.",
+          "if": {
+            "properties": {
+              "storage_class_id": {
+                "enum": [
+                  "interactive_hot_cache",
+                  "knowledge_cache",
+                  "prebuild_environment_cache"
+                ]
+              }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "disposable_derived_cache" }
+            }
+          }
+        },
+        {
+          "description": "artifact_cache class admits disposable_derived_cache or admin_or_control_artifact.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "artifact_cache" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": {
+                "enum": ["disposable_derived_cache", "admin_or_control_artifact"]
+              }
+            }
+          }
+        },
+        {
+          "description": "authoritative_no_rebuild is limited to evidence_support_cache and user_owned_recovery_state.",
+          "if": {
+            "properties": { "rebuild_cost_class": { "const": "authoritative_no_rebuild" } },
+            "required": ["rebuild_cost_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "retained_for_evidence posture is limited to evidence_support_cache and user_owned_recovery_state.",
+          "if": {
+            "properties": { "posture": { "const": "retained_for_evidence" } },
+            "required": ["posture"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mirror or offline-bundle origins MUST cite a mirror_offline_artifact_row_ref and forbid generic_clear_always_allowed protection.",
+          "if": {
+            "properties": {
+              "mirror_or_import_origin_class": {
+                "enum": [
+                  "mirrored_copy",
+                  "offline_bundle_local",
+                  "vendor_signed_offline_local",
+                  "customer_signed_mirror_local"
+                ]
+              }
+            },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_offline_artifact_row_ref": { "not": { "type": "null" } },
+              "clear_cache_protection_class": {
+                "not": { "const": "generic_clear_always_allowed" }
+              }
+            },
+            "required": ["mirror_offline_artifact_row_ref"]
+          }
+        },
+        {
+          "description": "Non-mirror origins carry a null mirror_offline_artifact_row_ref.",
+          "if": {
+            "properties": {
+              "mirror_or_import_origin_class": {
+                "enum": [
+                  "local_authoritative",
+                  "local_disposable_cache",
+                  "local_evidence_capture",
+                  "policy_protected_admin_artifact",
+                  "not_applicable"
+                ]
+              }
+            },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_offline_artifact_row_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "local_authoritative origin pairs only with user_owned_recovery_state class.",
+          "if": {
+            "properties": { "mirror_or_import_origin_class": { "const": "local_authoritative" } },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "user_owned_recovery_state" }
+            }
+          }
+        },
+        {
+          "description": "local_evidence_capture origin pairs only with evidence_support_cache class.",
+          "if": {
+            "properties": { "mirror_or_import_origin_class": { "const": "local_evidence_capture" } },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": { "const": "evidence_support_cache" }
+            }
+          }
+        },
+        {
+          "description": "policy_protected_admin_artifact origin pairs with evidence_support_cache or artifact_cache.",
+          "if": {
+            "properties": { "mirror_or_import_origin_class": { "const": "policy_protected_admin_artifact" } },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "artifact_cache"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Mirrored / offline / vendor-signed / customer-signed origins pair with cache-class storage classes (artifact_cache, prebuild_environment_cache, evidence_support_cache).",
+          "if": {
+            "properties": {
+              "mirror_or_import_origin_class": {
+                "enum": [
+                  "mirrored_copy",
+                  "offline_bundle_local",
+                  "vendor_signed_offline_local",
+                  "customer_signed_mirror_local"
+                ]
+              }
+            },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "storage_class_id": {
+                "enum": [
+                  "artifact_cache",
+                  "prebuild_environment_cache",
+                  "evidence_support_cache"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "not_applicable origin forces zero bytes across the row.",
+          "if": {
+            "properties": { "mirror_or_import_origin_class": { "const": "not_applicable" } },
+            "required": ["mirror_or_import_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "class_used_bytes": { "const": 0 },
+              "reclaimable_bytes_estimate": { "const": 0 },
+              "protected_bytes": { "const": 0 },
+              "pinned_bytes": { "const": 0 },
+              "largest_consumers": { "type": "array", "maxItems": 0 },
+              "pinned_consumer_breakdown": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Protected classes have protected_bytes value-equal to class_used_bytes.",
+          "if": {
+            "properties": {
+              "storage_class_id": {
+                "enum": ["evidence_support_cache", "user_owned_recovery_state"]
+              }
+            },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "properties": {
+              "reclaimable_bytes_estimate": { "const": 0 }
+            }
+          }
+        },
+        {
+          "description": "A non-zero pinned_bytes total requires a non-empty pinned_consumer_breakdown.",
+          "if": {
+            "properties": {
+              "pinned_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["pinned_bytes"]
+          },
+          "then": {
+            "properties": {
+              "pinned_consumer_breakdown": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "A zero pinned_bytes total has no pinned_consumer_breakdown rows.",
+          "if": {
+            "properties": { "pinned_bytes": { "const": 0 } },
+            "required": ["pinned_bytes"]
+          },
+          "then": {
+            "properties": {
+              "pinned_consumer_breakdown": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "A non-zero class_used_bytes requires at least one largest-consumer row.",
+          "if": {
+            "properties": {
+              "class_used_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["class_used_bytes"]
+          },
+          "then": {
+            "properties": {
+              "largest_consumers": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Zero-byte rows carry no largest-consumer rows.",
+          "if": {
+            "properties": { "class_used_bytes": { "const": 0 } },
+            "required": ["class_used_bytes"]
+          },
+          "then": {
+            "properties": {
+              "largest_consumers": { "type": "array", "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "Exported rows preserve redaction; widening to internal_support_restricted or signing_evidence_only is non-conforming.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        },
+        {
+          "description": "missing posture forces zero class_used_bytes (the class was unscannable or absent).",
+          "if": {
+            "properties": { "posture": { "const": "missing" } },
+            "required": ["posture"]
+          },
+          "then": {
+            "properties": {
+              "class_used_bytes": { "const": 0 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

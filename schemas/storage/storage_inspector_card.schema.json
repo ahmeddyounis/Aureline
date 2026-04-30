@@ -1,0 +1,794 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/storage_inspector_card.schema.json",
+  "title": "Aureline storage-inspector card record",
+  "description": "Boundary schema for the storage_inspector_card_record frozen in docs/storage/storage_inspector_contract.md. The card projects current storage posture (total used bytes, quota-or-policy source, class breakdown row refs, largest consumers, inspector scope, scan posture, protected-class visibility, and a single inspect-only open-details action) so the storage inspector, workspace-storage detail, low-disk banner, clear-data review, pin manager, cleanup-history lane, admin storage console, support packet, About excerpt, and CLI surface read one shape. The schema mints no new storage_class_id, authority_class, rebuild_cost_class, gc_policy_class, storage_posture_class, quota_basis_class, pin_source_class, inspectable_surface_class, clear_cache_protection_class, mirror_freshness_class, signer_state_class, digest_state_class, offline_cache_posture_class, or mirror_source_class value; those re-export verbatim from /artifacts/runtime/storage_classes.yaml, /schemas/runtime/cache_entry_manifest.schema.json, /artifacts/governance/storage_modes.yaml, and /schemas/deployment/deployment_summary_card.schema.json. The card embeds largest-consumer rows whose detailed shape is frozen in /schemas/storage/storage_class_breakdown.schema.json; this schema re-uses the same vocabulary by value. Adding a value to a closed vocabulary is additive-minor and bumps storage_inspector_card_schema_version; repurposing an existing value, weakening any §7 invariant, or relaxing the scan-posture honesty rules is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/storage_inspector_card_record",
+  "$defs": {
+    "storage_inspector_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the storage-inspector card payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing names but never raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, or raw secret material."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ],
+      "description": "Re-export of storage_class_id from /artifacts/runtime/storage_classes.yaml."
+    },
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_truth",
+        "user_owned_recovery_state",
+        "admin_or_control_artifact",
+        "disposable_derived_cache"
+      ],
+      "description": "Re-export of state-authority vocabulary from docs/state/profile_and_state_map.md."
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "high_rebuild_cost",
+        "medium_rebuild_cost",
+        "low_rebuild_cost"
+      ]
+    },
+    "gc_policy_class": {
+      "type": "string",
+      "enum": [
+        "never_gc_authoritative",
+        "gc_on_version_replace",
+        "gc_on_pressure_if_unpinned",
+        "gc_on_case_close",
+        "gc_on_explicit_reset_only"
+      ]
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ]
+    },
+    "quota_basis_class": {
+      "type": "string",
+      "enum": [
+        "per_workspace_quota",
+        "global_device_quota",
+        "per_class_ceiling",
+        "per_tenant_quota",
+        "policy_bound_evidence_quota",
+        "retention_policy_only",
+        "digest_store_plus_class_ceiling"
+      ]
+    },
+    "quota_ceiling_bytes": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string", "const": "not_applicable" }
+      ],
+      "description": "Non-negative integer or the literal sentinel string 'not_applicable' when the basis carries no enforceable ceiling."
+    },
+    "quota_authority_class": {
+      "type": "string",
+      "enum": [
+        "user_local_authority",
+        "admin_policy_authority",
+        "tenant_policy_authority",
+        "device_governor_authority",
+        "not_applicable"
+      ]
+    },
+    "clear_cache_protection_class": {
+      "type": "string",
+      "enum": [
+        "generic_clear_always_allowed",
+        "generic_clear_with_pin_exclusions",
+        "protected_requires_class_specific_review",
+        "protected_never_generic_clear"
+      ]
+    },
+    "inspectable_surface_class": {
+      "type": "string",
+      "enum": [
+        "storage_inspector",
+        "workspace_storage_detail",
+        "clear_data_review",
+        "low_disk_banner",
+        "pin_manager",
+        "cleanup_history_lane"
+      ]
+    },
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "storage_inspector",
+        "workspace_storage_detail",
+        "clear_data_review",
+        "low_disk_banner",
+        "pin_manager",
+        "cleanup_history_lane",
+        "admin_storage_console",
+        "support_packet_export",
+        "about_panel_storage_excerpt",
+        "cli_text_formatter"
+      ]
+    },
+    "protected_class_visibility": {
+      "type": "string",
+      "enum": [
+        "evidence_support_cache_visible",
+        "user_owned_recovery_state_visible"
+      ]
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "inspector_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": {
+              "scope_ref": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "scope_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "quota_or_policy_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quota_basis_class",
+        "quota_ceiling_bytes",
+        "quota_authority_class",
+        "policy_source_ref"
+      ],
+      "properties": {
+        "quota_basis_class": { "$ref": "#/$defs/quota_basis_class" },
+        "quota_ceiling_bytes": { "$ref": "#/$defs/quota_ceiling_bytes" },
+        "quota_authority_class": { "$ref": "#/$defs/quota_authority_class" },
+        "policy_source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "retention_policy_only basis admits no enforceable ceiling.",
+          "if": {
+            "properties": { "quota_basis_class": { "const": "retention_policy_only" } },
+            "required": ["quota_basis_class"]
+          },
+          "then": {
+            "properties": {
+              "quota_ceiling_bytes": { "type": "string", "const": "not_applicable" }
+            }
+          }
+        },
+        {
+          "description": "Tenant-quota basis MUST be authored by tenant policy.",
+          "if": {
+            "properties": { "quota_basis_class": { "const": "per_tenant_quota" } },
+            "required": ["quota_basis_class"]
+          },
+          "then": {
+            "properties": {
+              "quota_authority_class": { "const": "tenant_policy_authority" }
+            }
+          }
+        },
+        {
+          "description": "Policy-bound evidence quota MUST be authored by admin policy.",
+          "if": {
+            "properties": { "quota_basis_class": { "const": "policy_bound_evidence_quota" } },
+            "required": ["quota_basis_class"]
+          },
+          "then": {
+            "properties": {
+              "quota_authority_class": { "const": "admin_policy_authority" }
+            }
+          }
+        },
+        {
+          "description": "Admin / tenant / device-governor authority requires a non-null policy_source_ref.",
+          "if": {
+            "properties": {
+              "quota_authority_class": {
+                "enum": [
+                  "admin_policy_authority",
+                  "tenant_policy_authority",
+                  "device_governor_authority"
+                ]
+              }
+            },
+            "required": ["quota_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_source_ref": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "User-local or not-applicable authority carries a null policy_source_ref.",
+          "if": {
+            "properties": {
+              "quota_authority_class": {
+                "enum": ["user_local_authority", "not_applicable"]
+              }
+            },
+            "required": ["quota_authority_class"]
+          },
+          "then": {
+            "properties": {
+              "policy_source_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+    "scan_freshness_class": {
+      "type": "string",
+      "enum": [
+        "scan_fresh_within_window",
+        "scan_within_extended_window",
+        "scan_past_extended_window",
+        "scan_in_flight",
+        "scan_unknown_no_scan_yet"
+      ]
+    },
+    "partial_scan_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_partial_full_scan_complete",
+        "partial_scope_filter_applied",
+        "partial_scan_in_progress",
+        "partial_due_to_low_disk",
+        "partial_due_to_quota_or_throttle"
+      ]
+    },
+    "low_privilege_scan_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_low_privilege_full_inspection",
+        "low_privilege_user_only_scan",
+        "low_privilege_managed_tenant_restriction",
+        "low_privilege_admin_consent_required",
+        "low_privilege_offline_scope_only"
+      ]
+    },
+    "scan_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scan_freshness_class",
+        "last_full_scan_at",
+        "partial_scan_reason_class",
+        "low_privilege_scan_reason_class",
+        "unscannable_class_ids"
+      ],
+      "properties": {
+        "scan_freshness_class": { "$ref": "#/$defs/scan_freshness_class" },
+        "last_full_scan_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "partial_scan_reason_class": { "$ref": "#/$defs/partial_scan_reason_class" },
+        "low_privilege_scan_reason_class": { "$ref": "#/$defs/low_privilege_scan_reason_class" },
+        "unscannable_class_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/storage_class_id" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "description": "Unknown-no-scan-yet freshness carries a null last_full_scan_at.",
+          "if": {
+            "properties": { "scan_freshness_class": { "const": "scan_unknown_no_scan_yet" } },
+            "required": ["scan_freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "last_full_scan_at": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "last_full_scan_at": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "scan_in_flight requires partial_scan_reason_class = partial_scan_in_progress.",
+          "if": {
+            "properties": { "scan_freshness_class": { "const": "scan_in_flight" } },
+            "required": ["scan_freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "partial_scan_reason_class": { "const": "partial_scan_in_progress" }
+            }
+          }
+        }
+      ]
+    },
+    "open_details_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "target_route_ref",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "revalidation_on_open",
+        "modal_prohibited"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "target_route_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        },
+        "modal_prohibited": { "type": "boolean", "const": true }
+      }
+    },
+    "consumer_class": {
+      "type": "string",
+      "enum": [
+        "workspace_index_corpus",
+        "workspace_history_lane",
+        "workspace_recovery_journal",
+        "workset_session_restore_state",
+        "extension_pack",
+        "docs_pack_corpus",
+        "model_pack_blob",
+        "update_pack_blob",
+        "policy_bundle_blob",
+        "prebuild_layer_blob",
+        "template_or_archetype_pack",
+        "evidence_packet_blob",
+        "support_export_assembly_in_flight",
+        "terminal_restore_metadata_store",
+        "mirror_snapshot_segment",
+        "offline_bundle_segment",
+        "aggregated_remainder_other"
+      ]
+    },
+    "mirror_or_import_origin_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "local_disposable_cache",
+        "local_evidence_capture",
+        "mirrored_copy",
+        "offline_bundle_local",
+        "vendor_signed_offline_local",
+        "customer_signed_mirror_local",
+        "policy_protected_admin_artifact",
+        "not_applicable"
+      ]
+    },
+    "pin_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_pin_in_scope",
+        "pinned_one_source",
+        "pinned_multiple_sources",
+        "not_applicable"
+      ]
+    },
+    "inspect_only_open_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "label",
+        "scope_class",
+        "authority_class",
+        "consent_class",
+        "side_effects",
+        "preserves_evidence_context",
+        "modal_prohibited",
+        "revalidation_on_open"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/reviewable_label" },
+        "scope_class": { "type": "string", "const": "scope_local_only" },
+        "authority_class": { "type": "string", "const": "user_local_authority" },
+        "consent_class": { "type": "string", "const": "no_consent_required_safe_default" },
+        "side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "type": "string", "const": "no_side_effect_inspect_only" }
+        },
+        "preserves_evidence_context": { "type": "boolean", "const": true },
+        "modal_prohibited": { "type": "boolean", "const": true },
+        "revalidation_on_open": {
+          "type": "string",
+          "enum": ["none_already_fresh", "snapshot_open_read_only"]
+        }
+      }
+    },
+    "largest_consumer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consumer_class",
+        "consumer_ref",
+        "consumer_label",
+        "consumer_used_bytes",
+        "authority_class",
+        "rebuild_cost_class",
+        "mirror_or_import_origin_class",
+        "pin_summary_class",
+        "inspect_only_open_action"
+      ],
+      "properties": {
+        "consumer_class": { "$ref": "#/$defs/consumer_class" },
+        "consumer_ref": { "$ref": "#/$defs/opaque_id" },
+        "consumer_label": { "$ref": "#/$defs/reviewable_label" },
+        "consumer_used_bytes": { "type": "integer", "minimum": 0 },
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "mirror_or_import_origin_class": { "$ref": "#/$defs/mirror_or_import_origin_class" },
+        "pin_summary_class": { "$ref": "#/$defs/pin_summary_class" },
+        "inspect_only_open_action": { "$ref": "#/$defs/inspect_only_open_action" },
+        "linked_pin_ref_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Aggregated remainder rows carry the disposable-derived authority and not_applicable origin/pin summary.",
+          "if": {
+            "properties": { "consumer_class": { "const": "aggregated_remainder_other" } },
+            "required": ["consumer_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_class": { "const": "disposable_derived_cache" },
+              "mirror_or_import_origin_class": { "const": "not_applicable" },
+              "pin_summary_class": { "const": "not_applicable" }
+            }
+          }
+        },
+        {
+          "description": "user_authored_durable_truth authority is never registered as a cache consumer.",
+          "not": {
+            "properties": {
+              "authority_class": { "const": "user_authored_durable_truth" }
+            },
+            "required": ["authority_class"]
+          }
+        }
+      ]
+    },
+    "storage_inspector_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "storage_inspector_card_schema_version",
+        "card_id",
+        "emitted_at",
+        "inspector_scope",
+        "total_used_bytes",
+        "quota_or_policy_source",
+        "class_breakdown_row_refs",
+        "largest_consumers",
+        "scan_posture",
+        "protected_class_visibility",
+        "open_details_action",
+        "consumer_surfaces",
+        "redaction_class",
+        "export_safe"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "storage_inspector_card_record" },
+        "storage_inspector_card_schema_version": { "$ref": "#/$defs/storage_inspector_card_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "inspector_scope": { "$ref": "#/$defs/inspector_scope" },
+        "total_used_bytes": { "type": "integer", "minimum": 0 },
+        "quota_or_policy_source": { "$ref": "#/$defs/quota_or_policy_source" },
+        "class_breakdown_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "largest_consumers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/largest_consumer_row" }
+        },
+        "scan_posture": { "$ref": "#/$defs/scan_posture" },
+        "protected_class_visibility": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/protected_class_visibility" },
+          "uniqueItems": true
+        },
+        "open_details_action": { "$ref": "#/$defs/open_details_action" },
+        "consumer_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/consumer_surface_class" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "linked_clear_cache_preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_low_disk_drill_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_deployment_summary_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "linked_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "description": "Cards covering every class on a device-total or workspace scope MUST list both protected-class visibility tokens.",
+          "if": {
+            "properties": {
+              "inspector_scope": {
+                "properties": {
+                  "scope_class": {
+                    "enum": ["device_total", "workspace_only", "tenant_only"]
+                  }
+                },
+                "required": ["scope_class"]
+              }
+            },
+            "required": ["inspector_scope"]
+          },
+          "then": {
+            "properties": {
+              "protected_class_visibility": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "const": "evidence_support_cache_visible" } },
+                  { "contains": { "const": "user_owned_recovery_state_visible" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "scan_unknown_no_scan_yet freshness forces a zero total.",
+          "if": {
+            "properties": {
+              "scan_posture": {
+                "properties": {
+                  "scan_freshness_class": { "const": "scan_unknown_no_scan_yet" }
+                },
+                "required": ["scan_freshness_class"]
+              }
+            },
+            "required": ["scan_posture"]
+          },
+          "then": {
+            "properties": {
+              "total_used_bytes": { "const": 0 }
+            }
+          }
+        },
+        {
+          "description": "A non-zero total requires at least one largest-consumer row.",
+          "if": {
+            "properties": {
+              "total_used_bytes": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["total_used_bytes"]
+          },
+          "then": {
+            "properties": {
+              "largest_consumers": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Stale (past-extended) scans cannot drive low-disk action.",
+          "if": {
+            "properties": {
+              "scan_posture": {
+                "properties": {
+                  "scan_freshness_class": { "const": "scan_past_extended_window" }
+                },
+                "required": ["scan_freshness_class"]
+              }
+            },
+            "required": ["scan_posture"]
+          },
+          "then": {
+            "properties": {
+              "consumer_surfaces": {
+                "not": { "contains": { "const": "low_disk_banner" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "Low-privilege scans requiring admin consent MUST include the admin storage console as a consumer.",
+          "if": {
+            "properties": {
+              "scan_posture": {
+                "properties": {
+                  "low_privilege_scan_reason_class": {
+                    "const": "low_privilege_admin_consent_required"
+                  }
+                },
+                "required": ["low_privilege_scan_reason_class"]
+              }
+            },
+            "required": ["scan_posture"]
+          },
+          "then": {
+            "properties": {
+              "consumer_surfaces": {
+                "contains": { "const": "admin_storage_console" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Managed-tenant restriction posture must link the deployment-summary card.",
+          "if": {
+            "properties": {
+              "scan_posture": {
+                "properties": {
+                  "low_privilege_scan_reason_class": {
+                    "const": "low_privilege_managed_tenant_restriction"
+                  }
+                },
+                "required": ["low_privilege_scan_reason_class"]
+              }
+            },
+            "required": ["scan_posture"]
+          },
+          "then": {
+            "required": ["linked_deployment_summary_card_ref"]
+          }
+        },
+        {
+          "description": "Cards exported under export_safe MUST keep redaction at metadata_safe_default or operator_only_restricted.",
+          "if": {
+            "properties": { "export_safe": { "const": true } },
+            "required": ["export_safe"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": ["metadata_safe_default", "operator_only_restricted"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Low-disk-pressure partial scan MUST link the low-disk drill that bounded the partial scope.",
+          "if": {
+            "properties": {
+              "scan_posture": {
+                "properties": {
+                  "partial_scan_reason_class": { "const": "partial_due_to_low_disk" }
+                },
+                "required": ["partial_scan_reason_class"]
+              }
+            },
+            "required": ["scan_posture"]
+          },
+          "then": {
+            "required": ["linked_low_disk_drill_ref"]
+          }
+        }
+      ]
+    }
+  }
+}
