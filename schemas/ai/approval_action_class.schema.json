@@ -1,0 +1,708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/approval_action_class.schema.json",
+  "title": "Aureline AI privileged-action approval-renewal, inspect-only-downgrade, blocked-mutation, execution-location-badge, and actor-class safeguard contract",
+  "description": "Boundary schema for the approval_action_class_record, privileged_action_disclosure_record, and approval_action_audit_event_record frozen in docs/ai/prompt_injection_and_taint_contract.md. Every privileged AI-driven follow-on action proposed during a turn (write file, run command, install, publish, commit, push, dispatch a branch agent, change provider route, widen retention, widen egress, mutate policy / trust, grant tool permission, recall cross-workspace) resolves to exactly one approval_action_class_record on this boundary, naming the action's capability class, effect classes, execution-location badge, context-priority class, approval-renewal class, downgrade class, and the actor class admitted to authorise the action. Three invariants are frozen here. First: the model NEVER authorises its own follow-on. The actor_class_for_action vocabulary names model_attempt_self_authorize_denied, tainted_input_attempt_authorize_denied, and prior_turn_response_attempt_authorize_denied as recording-only values that emit typed denials and block the action. Second: a previously granted approval ticket is INSUFFICIENT when the action capability class, effect class set, execution-location badge, actor class, policy epoch, workspace-trust state, or assembly tainted-segment count changes between approval and execution; the safeguard forces fresh_approval_required_* and the surface routes through the prompt-grammar contract's renewal family. Third: a privileged mutation is BLOCKED (no inspect-only downgrade, no fresh-approval admission) when tainted evidence drives policy / trust mutation, capability widening, retention widening, egress widening, provider-route change, approval-authority grant, or cross-workspace recall; the surface emits prompt_injection_mutation_blocked and routes through the prompt-grammar contract's denial family rather than fabricating Continue / OK / Apply copy. Raw retrieved-document bodies, raw terminal / log bodies, raw tool return bodies, raw prompt text, raw user-supplied text or file bytes, raw URLs, raw paths, and raw credential material never cross this boundary; records carry opaque refs and typed vocabulary only. The schema composes with (and does not replace) schemas/ai/tainted_input_source.schema.json (input-source / taint / prohibited-case vocabulary), schemas/ai/context_assembly.schema.json (assembly / segment / instructional-role vocabulary), schemas/ai/external_tool_registry.schema.json (tool / locus vocabulary), schemas/integration/approval_ticket.schema.json (approval lineage), and the prompt-grammar contract for rendered copy. The eventual safeguard crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new action_capability_class, action_effect_class, execution_location_badge_class, context_priority_class, approval_renewal_class, downgrade_class, actor_class_for_action, audit_event_id, or denial_reason is additive-minor and requires an approval_action_class_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/approval_action_class_record" },
+    { "$ref": "#/$defs/privileged_action_disclosure_record" },
+    { "$ref": "#/$defs/approval_action_audit_event_record" }
+  ],
+  "$defs": {
+    "approval_action_class_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this approval-action-class vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "approval_action_class_record",
+        "privileged_action_disclosure_record",
+        "approval_action_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests / evidence packets. Raw bodies, raw paths, raw URLs, raw prompt text, raw tool return bytes, raw user-supplied bytes, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "action_capability_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only_read",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "branch_agent_dispatch",
+        "commit_to_repo",
+        "external_publish_reversible",
+        "external_publish_irreversible",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "retention_widening",
+        "egress_widening",
+        "provider_route_change",
+        "approval_authority_grant",
+        "cross_workspace_recall",
+        "automation_admission_only",
+        "unknown_must_block"
+      ],
+      "description": "Frozen action-capability-class vocabulary naming the capability the proposed follow-on action exercises. inspect_only_read = no state change. local_reversible_edit = reversible edits to the local workspace (e.g. apply patch with a checkpoint). local_destructive_edit = irreversible local edits (e.g. unconditional delete). branch_agent_dispatch = dispatching a long-running background branch agent. commit_to_repo = staging + committing changes to the repo (push is external_publish_*). external_publish_reversible / _irreversible = publishing to an external provider with reversible / irreversible effect. policy_or_trust_mutation = changing admin policy or workspace-trust state. capability_widening = widening tool / extension / provider capability. retention_widening / egress_widening = widening retention / egress posture. provider_route_change = changing provider route or model identity. approval_authority_grant = granting future approval authority. cross_workspace_recall = recalling content from a different workspace. automation_admission_only = admitting an automation recipe (no spend; admission only). unknown_must_block = fail-closed; the action is never admitted from this state."
+    },
+
+    "action_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_state_change",
+        "local_state_change_reversible",
+        "local_state_change_irreversible",
+        "external_state_change_reversible",
+        "external_state_change_irreversible",
+        "trust_state_widened",
+        "policy_state_changed",
+        "permission_widened",
+        "retention_widened",
+        "egress_widened"
+      ],
+      "description": "Frozen action-effect-class vocabulary naming the consequence the action causes. Every action carries at least one effect class; an action whose effect class set is empty denies with action_effect_class_unresolved."
+    },
+
+    "execution_location_badge_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process_badge",
+        "local_subprocess_same_device_badge",
+        "local_sandboxed_container_same_device_badge",
+        "local_companion_service_loopback_badge",
+        "remote_vendor_managed_service_badge",
+        "remote_self_hosted_service_badge",
+        "enterprise_gateway_brokered_service_badge",
+        "extension_provided_locus_badge",
+        "air_gapped_signed_bundle_badge",
+        "mocked_test_locus_badge",
+        "unknown_locus_must_be_disclosed_badge"
+      ],
+      "description": "Frozen execution-location-badge vocabulary. Re-exports the locus vocabulary from schemas/ai/external_tool_registry.schema.json. unknown_locus_must_be_disclosed_badge is fail-closed and forces ambiguous_execution_locus_must_disclose."
+    },
+
+    "context_priority_class": {
+      "type": "string",
+      "enum": [
+        "system_scaffold",
+        "composer_plan_directive",
+        "designated_policy_file",
+        "platform_control_record",
+        "repo_instruction_bundle",
+        "trusted_workspace_pinned_policy",
+        "trusted_user_profile_policy",
+        "user_turn_prompt",
+        "user_prior_turn_prompt",
+        "ai_prior_turn_response",
+        "tool_call_response",
+        "retrieved_reference",
+        "attached_data",
+        "fenced_tainted_data"
+      ],
+      "description": "Frozen context-priority-class vocabulary. Strict precedence (highest to lowest) per the contract §2.4. fenced_tainted_data NEVER gains instruction authority. The action's authoring_context_priority field names the highest priority class that drove the proposal; an action authored by fenced_tainted_data can never reach a privileged capability class on its own."
+    },
+
+    "approval_renewal_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required_inspect_only",
+        "existing_session_approval_sufficient",
+        "existing_per_invocation_approval_sufficient",
+        "fresh_approval_required_consequence_widened",
+        "fresh_approval_required_locus_changed",
+        "fresh_approval_required_capability_widened",
+        "fresh_approval_required_retention_widened",
+        "fresh_approval_required_egress_widened",
+        "fresh_approval_required_actor_changed",
+        "fresh_approval_required_after_tainted_input",
+        "fresh_approval_required_after_policy_epoch_change",
+        "mutation_blocked_no_renewal_admitted"
+      ],
+      "description": "Frozen approval-renewal-class vocabulary. Names whether the existing approval ticket is sufficient or whether a fresh approval is required (and why). mutation_blocked_no_renewal_admitted is the canonical state when admin policy refuses to admit any renewal path; the action is blocked and the surface routes through the prompt-grammar contract's denial family."
+    },
+
+    "downgrade_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade_required",
+        "inspect_only_downgrade_after_tainted_input",
+        "inspect_only_downgrade_after_low_confidence",
+        "inspect_only_downgrade_after_validation_missing",
+        "inspect_only_downgrade_after_freshness_floor_unmet",
+        "inspect_only_downgrade_after_locus_unknown",
+        "mutation_blocked_no_downgrade_admitted"
+      ],
+      "description": "Frozen downgrade-class vocabulary. Names whether the proposed action is downgraded to inspect_only_read (and why) or whether mutation is blocked outright. mutation_blocked_no_downgrade_admitted is the canonical state when admin policy refuses to admit any downgrade path."
+    },
+
+    "actor_class_for_action": {
+      "type": "string",
+      "enum": [
+        "user_in_active_session",
+        "admin_via_signed_policy",
+        "platform_control_authority",
+        "automation_recipe_with_signed_grant",
+        "model_attempt_self_authorize_denied",
+        "tainted_input_attempt_authorize_denied",
+        "prior_turn_response_attempt_authorize_denied"
+      ],
+      "description": "Frozen actor-class-for-action vocabulary. Names who is admitted to authorise the action. The three *_denied values exist only to record an attempted unauthorised authorisation and emit a typed denial; an action whose actor_class_for_action resolves to one of those three is blocked with the corresponding denial_reason."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "disclosure_kind": {
+      "type": "string",
+      "enum": [
+        "action_capability_chip",
+        "action_effect_readout",
+        "execution_location_badge_chip",
+        "context_priority_chip",
+        "actor_class_chip",
+        "approval_renewal_chip",
+        "downgrade_chip",
+        "tainted_input_disclosure_chip",
+        "policy_epoch_chip",
+        "workspace_trust_chip",
+        "evidence_packet_link"
+      ],
+      "description": "Frozen pre-action disclosure-kind vocabulary. The privileged_action_disclosure_record MUST surface at minimum action_capability_chip, action_effect_readout, execution_location_badge_chip, actor_class_chip, approval_renewal_chip, and tainted_input_disclosure_chip (when an input was tainted) before the action proceeds; missing kinds deny with privileged_action_disclosure_missing_pre_action."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "approval_action_classified",
+        "execution_location_badge_disclosed",
+        "context_priority_resolved",
+        "approval_renewal_required_observed",
+        "approval_existing_ticket_admitted",
+        "inspect_only_downgrade_applied",
+        "mutation_blocked_observed",
+        "branch_agent_dispatch_blocked_observed",
+        "external_publish_blocked_observed",
+        "cross_workspace_recall_denied_observed",
+        "policy_file_self_modification_denied_observed",
+        "model_self_authorization_denied_observed",
+        "tainted_input_authorization_denied_observed",
+        "prior_turn_response_authorization_denied_observed",
+        "ambiguous_execution_locus_denied_observed",
+        "approval_path_bypass_attempted_observed",
+        "privileged_action_disclosure_minted",
+        "privileged_action_executed_after_renewal",
+        "approval_action_class_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the approval_action_class audit stream. Events MUST NOT carry raw prompt text, raw retrieved-document bodies, raw terminal / log bodies, raw tool return bodies, raw user-supplied text or file bytes, raw URLs, raw paths, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "action_capability_class_unresolved",
+        "action_effect_class_unresolved",
+        "execution_location_badge_unresolved",
+        "context_priority_unresolved",
+        "approval_renewal_class_unresolved",
+        "downgrade_class_unresolved",
+        "actor_class_for_action_unresolved",
+        "model_self_authorization_denied",
+        "tainted_input_authorization_denied",
+        "prior_turn_response_authorization_denied",
+        "repo_text_authorization_denied",
+        "approval_renewal_required_not_provided",
+        "mutation_blocked_after_tainted_input",
+        "branch_agent_dispatch_blocked_after_tainted_input",
+        "external_publish_blocked_after_tainted_input",
+        "cross_workspace_recall_denied_no_grant",
+        "policy_file_self_modification_denied",
+        "ambiguous_execution_locus_must_disclose",
+        "approval_path_bypass_attempted",
+        "privileged_action_disclosure_missing_pre_action",
+        "tainted_input_disclosure_chip_missing_when_required",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "approval_action_class_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort approval-action record is forbidden."
+    },
+
+    "approval_action_class_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_action_class_schema_version",
+        "approval_action_class_id",
+        "evaluation_ref",
+        "assembly_id_ref",
+        "action_capability_class",
+        "action_effect_classes",
+        "execution_location_badge_class",
+        "authoring_context_priority",
+        "approval_renewal_class",
+        "downgrade_class",
+        "actor_class_for_action",
+        "tainted_inputs_drove_proposal",
+        "approval_ticket_ref",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "approval_action_class_record" },
+        "approval_action_class_schema_version": { "$ref": "#/$defs/approval_action_class_schema_version" },
+        "approval_action_class_id": { "$ref": "#/$defs/opaque_id" },
+        "evaluation_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prompt_injection_evaluation_record this action belongs to."
+        },
+        "assembly_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the ai_context_assembly_record this action proposes a follow-on for."
+        },
+        "action_capability_class": { "$ref": "#/$defs/action_capability_class" },
+        "action_effect_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "description": "Effect classes the action will (or may) cause. Non-empty by construction."
+        },
+        "execution_location_badge_class": { "$ref": "#/$defs/execution_location_badge_class" },
+        "authoring_context_priority": {
+          "$ref": "#/$defs/context_priority_class",
+          "description": "The highest-priority context-priority class that drove the proposal. fenced_tainted_data here forces tainted_inputs_drove_proposal = true and forces a blocked or fresh-approval-required outcome on every privileged capability class."
+        },
+        "approval_renewal_class": { "$ref": "#/$defs/approval_renewal_class" },
+        "downgrade_class": { "$ref": "#/$defs/downgrade_class" },
+        "actor_class_for_action": { "$ref": "#/$defs/actor_class_for_action" },
+        "tainted_inputs_drove_proposal": {
+          "type": "boolean",
+          "description": "True iff a tainted_evidence input from the assembly was named as the proposal's driving rationale. Forces the approval_renewal_class / downgrade_class to a blocked / fresh-required value on every privileged capability class above local_reversible_edit (per contract §2.9)."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the approval_ticket_record (ADR-0010) admitted for this action. Required (non-null) when action_capability_class is anything other than inspect_only_read AND approval_renewal_class is one of existing_session_approval_sufficient / existing_per_invocation_approval_sufficient / fresh_approval_required_*. Null when no_approval_required_inspect_only or mutation_blocked_no_renewal_admitted."
+        },
+        "originating_provider_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when action_capability_class = provider_route_change. Names the new provider entry the action proposes to route through."
+        },
+        "originating_tool_entry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when action_capability_class is one of branch_agent_dispatch, capability_widening, automation_admission_only, OR the action invokes a specific external tool. Null otherwise."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "tainted_inputs_drove_proposal = true forces approval_renewal_class to a blocked / fresh-required value when capability is above local_reversible_edit.",
+          "if": {
+            "allOf": [
+              {
+                "properties": { "tainted_inputs_drove_proposal": { "const": true } },
+                "required": ["tainted_inputs_drove_proposal"]
+              },
+              {
+                "properties": {
+                  "action_capability_class": {
+                    "enum": [
+                      "local_destructive_edit",
+                      "branch_agent_dispatch",
+                      "commit_to_repo",
+                      "external_publish_reversible",
+                      "external_publish_irreversible",
+                      "policy_or_trust_mutation",
+                      "capability_widening",
+                      "retention_widening",
+                      "egress_widening",
+                      "provider_route_change",
+                      "approval_authority_grant",
+                      "cross_workspace_recall"
+                    ]
+                  }
+                },
+                "required": ["action_capability_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "approval_renewal_class": {
+                "enum": [
+                  "fresh_approval_required_after_tainted_input",
+                  "mutation_blocked_no_renewal_admitted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "tainted_inputs_drove_proposal = true and capability ∈ {policy_or_trust_mutation, capability_widening, retention_widening, egress_widening, provider_route_change, approval_authority_grant, cross_workspace_recall} forces mutation_blocked_no_renewal_admitted (no fresh-approval admission for those capability classes from a tainted-driven proposal).",
+          "if": {
+            "allOf": [
+              {
+                "properties": { "tainted_inputs_drove_proposal": { "const": true } },
+                "required": ["tainted_inputs_drove_proposal"]
+              },
+              {
+                "properties": {
+                  "action_capability_class": {
+                    "enum": [
+                      "policy_or_trust_mutation",
+                      "capability_widening",
+                      "retention_widening",
+                      "egress_widening",
+                      "provider_route_change",
+                      "approval_authority_grant",
+                      "cross_workspace_recall"
+                    ]
+                  }
+                },
+                "required": ["action_capability_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "approval_renewal_class": { "const": "mutation_blocked_no_renewal_admitted" },
+              "downgrade_class": { "const": "mutation_blocked_no_downgrade_admitted" }
+            }
+          }
+        },
+        {
+          "description": "actor_class_for_action ∈ {model_attempt_self_authorize_denied, tainted_input_attempt_authorize_denied, prior_turn_response_attempt_authorize_denied} forces approval_renewal_class to mutation_blocked_no_renewal_admitted and downgrade_class to mutation_blocked_no_downgrade_admitted.",
+          "if": {
+            "properties": {
+              "actor_class_for_action": {
+                "enum": [
+                  "model_attempt_self_authorize_denied",
+                  "tainted_input_attempt_authorize_denied",
+                  "prior_turn_response_attempt_authorize_denied"
+                ]
+              }
+            },
+            "required": ["actor_class_for_action"]
+          },
+          "then": {
+            "properties": {
+              "approval_renewal_class": { "const": "mutation_blocked_no_renewal_admitted" },
+              "downgrade_class": { "const": "mutation_blocked_no_downgrade_admitted" }
+            }
+          }
+        },
+        {
+          "description": "execution_location_badge_class = unknown_locus_must_be_disclosed_badge forces mutation_blocked_no_renewal_admitted.",
+          "if": {
+            "properties": {
+              "execution_location_badge_class": { "const": "unknown_locus_must_be_disclosed_badge" }
+            },
+            "required": ["execution_location_badge_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_renewal_class": { "const": "mutation_blocked_no_renewal_admitted" },
+              "downgrade_class": { "const": "mutation_blocked_no_downgrade_admitted" }
+            }
+          }
+        },
+        {
+          "description": "inspect_only_read MUST resolve to no_approval_required_inspect_only and downgrade_class no_downgrade_required (or an inspect_only_* downgrade trigger).",
+          "if": {
+            "properties": { "action_capability_class": { "const": "inspect_only_read" } },
+            "required": ["action_capability_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_renewal_class": { "const": "no_approval_required_inspect_only" },
+              "action_effect_classes": {
+                "type": "array",
+                "items": { "enum": ["no_state_change"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_or_trust_mutation targeting a designated policy file requires actor_class_for_action ∈ {admin_via_signed_policy, platform_control_authority}.",
+          "if": {
+            "properties": { "action_capability_class": { "const": "policy_or_trust_mutation" } },
+            "required": ["action_capability_class"]
+          },
+          "then": {
+            "properties": {
+              "actor_class_for_action": {
+                "enum": [
+                  "admin_via_signed_policy",
+                  "platform_control_authority",
+                  "model_attempt_self_authorize_denied",
+                  "tainted_input_attempt_authorize_denied",
+                  "prior_turn_response_attempt_authorize_denied"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "provider_route_change MUST carry a non-null originating_provider_entry_ref.",
+          "if": {
+            "properties": { "action_capability_class": { "const": "provider_route_change" } },
+            "required": ["action_capability_class"]
+          },
+          "then": {
+            "properties": { "originating_provider_entry_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["originating_provider_entry_ref"]
+          }
+        },
+        {
+          "description": "branch_agent_dispatch / capability_widening / automation_admission_only MUST carry a non-null originating_tool_entry_ref.",
+          "if": {
+            "properties": {
+              "action_capability_class": {
+                "enum": ["branch_agent_dispatch", "capability_widening", "automation_admission_only"]
+              }
+            },
+            "required": ["action_capability_class"]
+          },
+          "then": {
+            "properties": { "originating_tool_entry_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["originating_tool_entry_ref"]
+          }
+        }
+      ],
+      "description": "One classification record per privileged AI-driven follow-on action proposed during a turn. Records the capability / effect / locus / authoring-context-priority / renewal / downgrade / actor classification, the typed approval-ticket / provider / tool refs that admit (or deny) the action, and the boolean tainted_inputs_drove_proposal flag. Records that do not satisfy the per-class invariants (taint-driven privileged mutation, denied-actor admission, unknown locus, inspect-only mismatch, etc.) are denied at boundary check time."
+    },
+
+    "privileged_action_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_action_class_schema_version",
+        "privileged_action_disclosure_id",
+        "approval_action_class_ref",
+        "disclosure_kinds_surfaced",
+        "tainted_input_disclosure_required",
+        "tainted_input_disclosure_surfaced",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "privileged_action_disclosure_record" },
+        "approval_action_class_schema_version": { "$ref": "#/$defs/approval_action_class_schema_version" },
+        "privileged_action_disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "approval_action_class_ref": { "$ref": "#/$defs/opaque_id" },
+        "disclosure_kinds_surfaced": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/disclosure_kind" },
+          "description": "Set of pre-action disclosure-kinds the surface rendered. MUST contain at minimum action_capability_chip, action_effect_readout, execution_location_badge_chip, actor_class_chip, and approval_renewal_chip; missing kinds deny with privileged_action_disclosure_missing_pre_action."
+        },
+        "tainted_input_disclosure_required": {
+          "type": "boolean",
+          "description": "True iff the corresponding approval_action_class_record has tainted_inputs_drove_proposal = true. When true, disclosure_kinds_surfaced MUST contain tainted_input_disclosure_chip."
+        },
+        "tainted_input_disclosure_surfaced": {
+          "type": "boolean",
+          "description": "True iff the tainted_input_disclosure_chip was actually rendered. Required to be true when tainted_input_disclosure_required is true."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Required pre-action disclosure-kinds floor.",
+          "properties": {
+            "disclosure_kinds_surfaced": {
+              "type": "array",
+              "allOf": [
+                { "contains": { "const": "action_capability_chip" } },
+                { "contains": { "const": "action_effect_readout" } },
+                { "contains": { "const": "execution_location_badge_chip" } },
+                { "contains": { "const": "actor_class_chip" } },
+                { "contains": { "const": "approval_renewal_chip" } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "tainted_input_disclosure_required = true forces tainted_input_disclosure_surfaced = true and disclosure_kinds_surfaced to contain tainted_input_disclosure_chip.",
+          "if": {
+            "properties": { "tainted_input_disclosure_required": { "const": true } },
+            "required": ["tainted_input_disclosure_required"]
+          },
+          "then": {
+            "properties": {
+              "tainted_input_disclosure_surfaced": { "const": true },
+              "disclosure_kinds_surfaced": {
+                "type": "array",
+                "contains": { "const": "tainted_input_disclosure_chip" }
+              }
+            },
+            "required": ["tainted_input_disclosure_surfaced"]
+          }
+        }
+      ],
+      "description": "One pre-action disclosure record per privileged action proposed. The surface MUST mint this record and surface the required disclosure-kinds before the action is allowed to proceed; a disclosure record that is missing a required kind denies with privileged_action_disclosure_missing_pre_action."
+    },
+
+    "approval_action_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_action_class_schema_version",
+        "audit_event_id",
+        "approval_action_class_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "approval_action_audit_event_record" },
+        "approval_action_class_schema_version": { "$ref": "#/$defs/approval_action_class_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "approval_action_class_ref": { "$ref": "#/$defs/opaque_id" },
+        "privileged_action_disclosure_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) when audit_event_id is one of mutation_blocked_observed, branch_agent_dispatch_blocked_observed, external_publish_blocked_observed, cross_workspace_recall_denied_observed, policy_file_self_modification_denied_observed, model_self_authorization_denied_observed, tainted_input_authorization_denied_observed, prior_turn_response_authorization_denied_observed, ambiguous_execution_locus_denied_observed, approval_path_bypass_attempted_observed."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial-emitting events MUST carry a non-null denial_reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "mutation_blocked_observed",
+                  "branch_agent_dispatch_blocked_observed",
+                  "external_publish_blocked_observed",
+                  "cross_workspace_recall_denied_observed",
+                  "policy_file_self_modification_denied_observed",
+                  "model_self_authorization_denied_observed",
+                  "tainted_input_authorization_denied_observed",
+                  "prior_turn_response_authorization_denied_observed",
+                  "ambiguous_execution_locus_denied_observed",
+                  "approval_path_bypass_attempted_observed"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "One structured event on the approval_action_class audit stream. Events MUST NOT carry raw prompt text, raw retrieved-document bodies, raw terminal / log bodies, raw tool return bodies, raw user-supplied text or file bytes, raw URLs, raw paths, or raw credential material."
+    }
+  }
+}
