@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/retained_vs_overwritten_row.schema.json",
+  "title": "Aureline retained-vs-overwritten row",
+  "description": "Boundary schema for one class-level treatment row inside a restore-destination review. Each row pins a reviewable class (workspace state, profile defaults, layout topology, evidence packets, caches, machine-local assets), the destination scope it applies to, the treatment the restore would perform (retained, overwritten, merged through equivalence map, recovered as drafts, placeholder only, downgraded to compare-only, omitted, inspect-only overlay), the durability posture of the destination body, the checkpoint-before-overwrite requirement, and a plain-language summary the review surface MUST render before confirm. Rows compose into the destination-review record at /schemas/state/restore_destination_review.schema.json. See docs/state/restore_destination_review_contract.md.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/retained_vs_overwritten_row" }
+  ],
+  "$defs": {
+    "row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the retained-vs-overwritten row. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "state_retained_vs_overwritten_row",
+      "description": "Discriminator for the retained-vs-overwritten row record."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, manifests, support exports, and compare handles. Raw paths, raw URLs, credentials, source content, command lines, and live authority handles never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ],
+      "description": "Opaque handle or null when the handle is intentionally absent."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply the active redaction policy before crossing this boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "reviewable_class": {
+      "type": "string",
+      "enum": [
+        "workspace_state",
+        "profile_defaults",
+        "layout_topology",
+        "evidence_packets",
+        "caches",
+        "machine_local_assets"
+      ],
+      "description": "Closed reviewable-class vocabulary. Every retained-vs-overwritten row resolves to exactly one class so reviewers can see what a restore may replace before confirm."
+    },
+
+    "treatment_class": {
+      "type": "string",
+      "enum": [
+        "retained_unchanged",
+        "overwritten_with_source",
+        "merged_through_equivalence_map",
+        "recovered_as_drafts",
+        "placeholder_only",
+        "downgraded_to_compare_only",
+        "omitted",
+        "inspect_only_overlay"
+      ],
+      "description": "Closed treatment-class vocabulary. Free-form labels (e.g., partial, best_effort, applied_with_caveat) are non-conforming."
+    },
+
+    "durability_posture": {
+      "type": "string",
+      "enum": [
+        "durable_user_authored",
+        "authoritative_local_record",
+        "workspace_shared_truth",
+        "portable_settings",
+        "replaceable_machine_state",
+        "disposable_derived",
+        "evidence_metadata"
+      ],
+      "description": "Closed durability-posture vocabulary describing the destination body the row applies to. The vocabulary drives the checkpoint-before-overwrite gate."
+    },
+
+    "checkpoint_requirement_class": {
+      "type": "string",
+      "enum": [
+        "mandatory_before_overwrite",
+        "recommended_before_overwrite",
+        "not_applicable",
+        "not_supported"
+      ],
+      "description": "Closed checkpoint-requirement vocabulary. mandatory_before_overwrite gates confirm_overwrite on a created checkpoint; recommended_before_overwrite admits an explicit user skip with a typed acknowledgement; not_applicable applies to retained, omitted, or inspect-only rows; not_supported applies to disposable or replaceable bodies that admit no checkpointable form."
+    },
+
+    "treatment_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_round_trip",
+        "schema_translation_applied",
+        "schema_meaning_changed",
+        "schema_downgrade_refused",
+        "missing_extension",
+        "missing_remote_target",
+        "revoked_permission",
+        "stale_service_dependency",
+        "missing_workspace_authority",
+        "missing_schema_equivalence_map",
+        "compatibility_range_outside",
+        "destination_unsupported_section",
+        "policy_excluded",
+        "user_declined",
+        "redaction_floor_narrowed",
+        "source_carried_no_class",
+        "destination_already_matches",
+        "live_authority_excluded",
+        "drafts_pending_review",
+        "inspect_only_posture",
+        "machine_local_only"
+      ],
+      "description": "Closed treatment-reason vocabulary. Free-form prose substitutions are non-conforming."
+    },
+
+    "scope_target_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_authority",
+        "profile",
+        "window_topology",
+        "workset",
+        "evidence_index",
+        "cache_namespace",
+        "machine_local_asset"
+      ],
+      "description": "Closed scope-target-kind vocabulary describing what the row's destination ref points at."
+    },
+
+    "scope_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_target_kind", "scope_target_ref"],
+      "properties": {
+        "scope_target_kind": { "$ref": "#/$defs/scope_target_kind" },
+        "scope_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewable label naming the scope target. Redaction-aware."
+        }
+      },
+      "description": "One destination scope target the row applies to."
+    },
+
+    "retained_vs_overwritten_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_schema_version",
+        "row_id",
+        "reviewable_class",
+        "treatment",
+        "durability_posture",
+        "checkpoint_requirement",
+        "checkpoint_ref",
+        "preserved_prior_artifact_ref",
+        "after_apply_ref",
+        "evidence_retained",
+        "treatment_reason",
+        "destination_scope_targets",
+        "plain_language_summary"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema hint carried on worked fixtures."
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "row_schema_version": { "$ref": "#/$defs/row_schema_version" },
+        "row_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the row. Survives across compare/export and re-render."
+        },
+        "reviewable_class": { "$ref": "#/$defs/reviewable_class" },
+        "treatment": { "$ref": "#/$defs/treatment_class" },
+        "durability_posture": { "$ref": "#/$defs/durability_posture" },
+        "checkpoint_requirement": { "$ref": "#/$defs/checkpoint_requirement_class" },
+        "checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque handle for the rollback/authority checkpoint that protects this row's destination body. Mandatory when checkpoint_requirement is mandatory_before_overwrite and the row's treatment overwrites or merges durable state. Null when checkpoint_requirement is not_applicable, not_supported, or recommended_before_overwrite with an explicit acknowledged skip."
+        },
+        "preserved_prior_artifact_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref for the destination body preserved before the apply (compare/export reachable). Null when treatment is retained_unchanged, omitted, or inspect_only_overlay."
+        },
+        "after_apply_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref for what will be present at the destination after apply. Null when treatment is downgraded_to_compare_only or inspect_only_overlay (no apply will run)."
+        },
+        "compare_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque compare handle for this row. Required when treatment is overwritten_with_source, merged_through_equivalence_map, recovered_as_drafts, downgraded_to_compare_only, or inspect_only_overlay."
+        },
+        "export_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque export handle for this row. Required when treatment is overwritten_with_source, merged_through_equivalence_map, recovered_as_drafts, downgraded_to_compare_only, or inspect_only_overlay."
+        },
+        "evidence_retained": {
+          "type": "boolean",
+          "description": "Whether evidence (transcript, snapshot, metadata-only summary) for the destination body remains reachable behind the row outcome."
+        },
+        "evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the retained evidence body, when one exists."
+        },
+        "treatment_reason": { "$ref": "#/$defs/treatment_reason_class" },
+        "destination_scope_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_target_record" },
+          "description": "One or more destination scope targets the row applies to. Reviewers MUST be able to resolve every overwrite to a named target."
+        },
+        "checkpoint_skip_acknowledgement_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref for the typed acknowledgement that recorded an explicit skip of a recommended_before_overwrite checkpoint. Required when checkpoint_requirement is recommended_before_overwrite and checkpoint_ref is null; null otherwise."
+        },
+        "plain_language_summary": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Plain-language summary the review surface renders for this row before confirm. Must explain in human terms whether the destination body stays the same, will be replaced, will be merged, will be recovered as drafts, will stand in as a placeholder, will be downgraded to compare-only, or will be inspected only. Vague phrasing such as 'partial' or 'best-effort' is non-conforming on its own; the summary MUST state what stays and what changes."
+        },
+        "note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short reviewer note. Redaction-aware."
+        }
+      },
+
+      "allOf": [
+        {
+          "if": {
+            "properties": { "treatment": { "const": "retained_unchanged" } }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "not_applicable" },
+              "checkpoint_ref": { "type": "null" },
+              "preserved_prior_artifact_ref": { "type": "null" },
+              "after_apply_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "omitted" } }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "not_applicable" },
+              "checkpoint_ref": { "type": "null" },
+              "preserved_prior_artifact_ref": { "type": "null" },
+              "after_apply_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "inspect_only_overlay" } }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "not_applicable" },
+              "checkpoint_ref": { "type": "null" },
+              "after_apply_ref": { "type": "null" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "downgraded_to_compare_only" } }
+          },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "type": "null" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "placeholder_only" } }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": {
+                "enum": ["not_applicable", "recommended_before_overwrite"]
+              },
+              "after_apply_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "overwritten_with_source" } }
+          },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "merged_through_equivalence_map" } }
+          },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "treatment": { "const": "recovered_as_drafts" } }
+          },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "checkpoint_requirement": { "const": "mandatory_before_overwrite" } }
+          },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "durability_posture": {
+                "enum": ["durable_user_authored", "authoritative_local_record"]
+              },
+              "treatment": {
+                "enum": [
+                  "overwritten_with_source",
+                  "merged_through_equivalence_map",
+                  "recovered_as_drafts"
+                ]
+              }
+            },
+            "required": ["durability_posture", "treatment"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "mandatory_before_overwrite" },
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "durability_posture": { "const": "disposable_derived" }
+            },
+            "required": ["durability_posture"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": {
+                "enum": ["not_applicable", "not_supported"]
+              },
+              "checkpoint_ref": { "type": "null" }
+            }
+          }
+        }
+      ],
+
+      "description": "One class-level treatment row inside a restore-destination review. Pins reviewable class, treatment, durability posture, checkpoint requirement, before/after refs, evidence posture, treatment reason, destination scope targets, and the plain-language summary the review surface MUST render before confirm."
+    }
+  }
+}

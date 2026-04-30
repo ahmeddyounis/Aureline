@@ -1,0 +1,930 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/restore_destination_review.schema.json",
+  "title": "Aureline restore-destination review record",
+  "description": "Boundary schema for the cross-surface restore-destination review, retained-vs-overwritten classes, and checkpoint-before-overwrite contract. Captures source identity, target scope, schema/version note, retained-vs-overwritten rows by class (workspace state, profile defaults, layout topology, evidence packets, caches, machine-local assets), checkpoint-before-overwrite state, downgrade/inspect-only/partial-restore/placeholder-only outcomes, and compare/export actions every restore-review surface MUST emit before durable user state can be replaced. The closed five-class destination-review outcome (exact_restore, partial_restore, incompatible_schema_downgrade, inspect_only_imported_package, placeholder_only_overlay) is the same one used by startup, support, migration handoff, and docs/help flows. See docs/state/restore_destination_review_contract.md.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/restore_destination_review_record" }
+  ],
+  "$defs": {
+    "review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the restore-destination review record. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "state_restore_destination_review_record",
+      "description": "Discriminator for the restore-destination review record."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, manifests, support exports, and compare handles. Raw paths, raw URLs, credentials, source content, command lines, and live authority handles never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes)."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null]
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null]
+        },
+        "producer_instance_handle": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "artifact_family": {
+      "type": "string",
+      "enum": [
+        "portable_state_package",
+        "portable_profile",
+        "profile_sync_snapshot",
+        "layout_snapshot",
+        "session_restore_manifest",
+        "workspace_manifest_bundle",
+        "support_recovery_bundle",
+        "import_bridge_bundle"
+      ],
+      "description": "High-level artifact family the source belongs to. Re-export of the restore-provenance vocabulary."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "aureline_portable_state_package",
+        "aureline_portable_profile",
+        "aureline_profile_sync_snapshot",
+        "aureline_layout_snapshot",
+        "aureline_session_restore_manifest",
+        "aureline_workspace_manifest_bundle",
+        "support_recovery_bundle",
+        "imported_competitor_profile",
+        "imported_competitor_layout_bundle",
+        "mixed_state_export_bundle"
+      ],
+      "description": "Concrete source-class label. Re-export of the restore-provenance vocabulary."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ]
+    },
+
+    "source_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_family", "source_class", "source_artifact_ref"],
+      "properties": {
+        "artifact_family": { "$ref": "#/$defs/artifact_family" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "What the destination review was asked to apply or inspect."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "single_workspace",
+        "single_profile",
+        "single_window_topology",
+        "single_workset",
+        "multi_workspace_session",
+        "profile_and_workspaces_combined",
+        "evidence_index_only",
+        "inspect_only_no_target"
+      ],
+      "description": "Closed scope-class vocabulary for the destination targets the review covers."
+    },
+
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "target_machine_class"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "target_workspace_authority_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_profile_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_window_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "target_workset_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "target_evidence_index_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "target_machine_class": {
+          "type": "string",
+          "enum": [
+            "same_machine_as_producer",
+            "different_machine_same_user",
+            "different_machine_different_user",
+            "managed_cloud_target",
+            "air_gapped_target",
+            "support_review_target"
+          ],
+          "description": "Closed target-machine-class vocabulary. Drives the per-class checkpoint requirement and admits inspect-only postures for support and air-gapped targets."
+        },
+        "scope_label": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Target scope the destination review covers."
+    },
+
+    "destination_review_outcome": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "partial_restore",
+        "incompatible_schema_downgrade",
+        "inspect_only_imported_package",
+        "placeholder_only_overlay"
+      ],
+      "description": "Closed five-class destination-review outcome vocabulary. exact_restore: every class round-trips; no overwrite of durable state required. partial_restore: some classes overwritten or merged through compatibility translation; placeholder rows cover incomplete dependencies. incompatible_schema_downgrade: source schema falls outside the destination's admitted range; only compare/export actions are admitted. inspect_only_imported_package: package's import posture is inspect_only; no apply. placeholder_only_overlay: layout-only overlay where every live surface stands in as a placeholder; authority is unchanged."
+    },
+
+    "schema_migration_note_class": {
+      "type": "string",
+      "enum": [
+        "no_migration_required",
+        "schema_translation_applied",
+        "schema_meaning_changed",
+        "blocked_pending_review",
+        "producer_schema_downgrade_refused"
+      ]
+    },
+
+    "schema_migration_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_class",
+        "source_schema_version",
+        "target_schema_version",
+        "equivalence_map_ref",
+        "rollback_checkpoint_ref",
+        "preserved_prior_artifact_ref"
+      ],
+      "properties": {
+        "note_class": { "$ref": "#/$defs/schema_migration_note_class" },
+        "source_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "equivalence_map_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preserved_prior_artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "checkpoint_state_class": {
+      "type": "string",
+      "enum": [
+        "created",
+        "mandatory_pending",
+        "optional_skipped",
+        "not_applicable",
+        "not_supported",
+        "refused"
+      ],
+      "description": "Closed state vocabulary for the checkpoint-before-overwrite gate. created: a checkpoint covering every mandatory_before_overwrite row exists and the rollback path is reachable. mandatory_pending: at least one mandatory row is uncovered; confirm_overwrite MUST stay disabled. optional_skipped: only recommended rows are uncovered, and the user accepted a typed acknowledgement to skip. not_applicable: no row's treatment requires a checkpoint. not_supported: the destination scope admits no checkpointable form for the affected class; outcome MUST narrow to inspect_only_imported_package or placeholder_only_overlay. refused: the user declined to create a mandatory checkpoint; review MUST downgrade to compare-only or cancel."
+    },
+
+    "checkpoint_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authority_checkpoint",
+        "portable_profile_rollback_checkpoint",
+        "layout_snapshot_rollback_checkpoint",
+        "evidence_packet_rollback_checkpoint",
+        "mixed_scope_rollback_checkpoint"
+      ],
+      "description": "Closed checkpoint-class vocabulary used for the checkpoint-before-overwrite gate."
+    },
+
+    "checkpoint_before_overwrite_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "checkpoint_class", "scope_target_refs"],
+      "properties": {
+        "state": { "$ref": "#/$defs/checkpoint_state_class" },
+        "checkpoint_class": { "$ref": "#/$defs/checkpoint_class" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_target_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs for the scope targets the checkpoint covers. Even when state is not_applicable or not_supported, the row inventories the targets the gate evaluated."
+        },
+        "skip_acknowledgement_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "refused_reason": {
+          "type": ["string", "null"],
+          "enum": [
+            "user_declined",
+            "policy_denied",
+            "destination_unsupported",
+            "checkpoint_class_unsupported",
+            null
+          ],
+          "description": "Closed reason class when state is refused, not_supported, or optional_skipped. Free-form prose substitutions are non-conforming."
+        },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Checkpoint-before-overwrite gate state. Mandatory whenever durable user state or authoritative local records would be replaced. The gate is the only place inside this contract that may declare an overwrite is safe to confirm.",
+
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "created" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "rollback_path_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "mandatory_pending" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "optional_skipped" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "type": "null" },
+              "skip_acknowledgement_ref": { "$ref": "#/$defs/opaque_id" },
+              "refused_reason": { "enum": ["user_declined"] }
+            },
+            "required": ["skip_acknowledgement_ref"]
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "refused" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "type": "null" },
+              "refused_reason": { "enum": ["user_declined", "policy_denied"] }
+            },
+            "required": ["refused_reason"]
+          }
+        },
+        {
+          "if": { "properties": { "state": { "const": "not_supported" } }, "required": ["state"] },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "type": "null" },
+              "refused_reason": {
+                "enum": ["destination_unsupported", "checkpoint_class_unsupported"]
+              }
+            },
+            "required": ["refused_reason"]
+          }
+        }
+      ]
+    },
+
+    "review_action_id": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "compare_with_destination",
+        "export_destination_before_overwrite",
+        "export_source_before_apply",
+        "create_checkpoint_before_overwrite",
+        "downgrade_to_compare_only",
+        "downgrade_to_inspect_only",
+        "confirm_overwrite",
+        "cancel_review"
+      ],
+      "description": "Closed review-action vocabulary every restore-destination review surface MUST honor."
+    },
+
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "read_only",
+        "builds_export",
+        "creates_checkpoint",
+        "downgrades_outcome",
+        "applies_overwrite",
+        "cancels_without_mutation"
+      ],
+      "description": "Closed consequence-class vocabulary that names what an action does."
+    },
+
+    "disabled_reason_class": {
+      "type": "string",
+      "enum": [
+        "requires_checkpoint",
+        "requires_preview",
+        "requires_compare",
+        "checkpoint_refused",
+        "inspect_only_outcome",
+        "compatibility_range_outside",
+        "live_authority_excluded",
+        "policy_denied",
+        "signature_mismatch",
+        "destination_unsupported",
+        "package_still_building",
+        "no_overwrite_pending"
+      ],
+      "description": "Closed disabled-reason vocabulary. Free-form prose substitutions are non-conforming."
+    },
+
+    "review_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "enabled", "consequence_class", "disabled_reason"],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/review_action_id" },
+        "enabled": { "type": "boolean" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "disabled_reason": {
+          "anyOf": [
+            { "$ref": "#/$defs/disabled_reason_class" },
+            { "type": "null" }
+          ],
+          "description": "Closed disabled-reason class when enabled is false. Null when enabled is true."
+        },
+        "target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "enabled": { "const": true } },
+            "required": ["enabled"]
+          },
+          "then": {
+            "properties": {
+              "disabled_reason": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "enabled": { "const": false } },
+            "required": ["enabled"]
+          },
+          "then": {
+            "properties": {
+              "disabled_reason": { "$ref": "#/$defs/disabled_reason_class" }
+            }
+          }
+        }
+      ]
+    },
+
+    "row_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "row_record_kind": {
+      "type": "string",
+      "const": "state_retained_vs_overwritten_row"
+    },
+
+    "reviewable_class": {
+      "type": "string",
+      "enum": [
+        "workspace_state",
+        "profile_defaults",
+        "layout_topology",
+        "evidence_packets",
+        "caches",
+        "machine_local_assets"
+      ]
+    },
+
+    "treatment_class": {
+      "type": "string",
+      "enum": [
+        "retained_unchanged",
+        "overwritten_with_source",
+        "merged_through_equivalence_map",
+        "recovered_as_drafts",
+        "placeholder_only",
+        "downgraded_to_compare_only",
+        "omitted",
+        "inspect_only_overlay"
+      ]
+    },
+
+    "durability_posture": {
+      "type": "string",
+      "enum": [
+        "durable_user_authored",
+        "authoritative_local_record",
+        "workspace_shared_truth",
+        "portable_settings",
+        "replaceable_machine_state",
+        "disposable_derived",
+        "evidence_metadata"
+      ]
+    },
+
+    "checkpoint_requirement_class": {
+      "type": "string",
+      "enum": [
+        "mandatory_before_overwrite",
+        "recommended_before_overwrite",
+        "not_applicable",
+        "not_supported"
+      ]
+    },
+
+    "treatment_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_round_trip",
+        "schema_translation_applied",
+        "schema_meaning_changed",
+        "schema_downgrade_refused",
+        "missing_extension",
+        "missing_remote_target",
+        "revoked_permission",
+        "stale_service_dependency",
+        "missing_workspace_authority",
+        "missing_schema_equivalence_map",
+        "compatibility_range_outside",
+        "destination_unsupported_section",
+        "policy_excluded",
+        "user_declined",
+        "redaction_floor_narrowed",
+        "source_carried_no_class",
+        "destination_already_matches",
+        "live_authority_excluded",
+        "drafts_pending_review",
+        "inspect_only_posture",
+        "machine_local_only"
+      ]
+    },
+
+    "scope_target_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_authority",
+        "profile",
+        "window_topology",
+        "workset",
+        "evidence_index",
+        "cache_namespace",
+        "machine_local_asset"
+      ]
+    },
+
+    "scope_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_target_kind", "scope_target_ref"],
+      "properties": {
+        "scope_target_kind": { "$ref": "#/$defs/scope_target_kind" },
+        "scope_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "retained_vs_overwritten_row_inline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "row_schema_version",
+        "row_id",
+        "reviewable_class",
+        "treatment",
+        "durability_posture",
+        "checkpoint_requirement",
+        "checkpoint_ref",
+        "preserved_prior_artifact_ref",
+        "after_apply_ref",
+        "evidence_retained",
+        "treatment_reason",
+        "destination_scope_targets",
+        "plain_language_summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/row_record_kind" },
+        "row_schema_version": { "$ref": "#/$defs/row_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "reviewable_class": { "$ref": "#/$defs/reviewable_class" },
+        "treatment": { "$ref": "#/$defs/treatment_class" },
+        "durability_posture": { "$ref": "#/$defs/durability_posture" },
+        "checkpoint_requirement": { "$ref": "#/$defs/checkpoint_requirement_class" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preserved_prior_artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "after_apply_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compare_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_retained": { "type": "boolean" },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "treatment_reason": { "$ref": "#/$defs/treatment_reason_class" },
+        "destination_scope_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/scope_target_record" }
+        },
+        "checkpoint_skip_acknowledgement_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "plain_language_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "treatment": { "const": "retained_unchanged" } } },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "not_applicable" },
+              "checkpoint_ref": { "type": "null" },
+              "preserved_prior_artifact_ref": { "type": "null" },
+              "after_apply_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "omitted" } } },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "not_applicable" },
+              "checkpoint_ref": { "type": "null" },
+              "preserved_prior_artifact_ref": { "type": "null" },
+              "after_apply_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "inspect_only_overlay" } } },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "not_applicable" },
+              "checkpoint_ref": { "type": "null" },
+              "after_apply_ref": { "type": "null" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "downgraded_to_compare_only" } } },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "type": "null" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "placeholder_only" } } },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": {
+                "enum": ["not_applicable", "recommended_before_overwrite"]
+              },
+              "after_apply_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "overwritten_with_source" } } },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "merged_through_equivalence_map" } } },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "treatment": { "const": "recovered_as_drafts" } } },
+          "then": {
+            "properties": {
+              "after_apply_ref": { "$ref": "#/$defs/opaque_id" },
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "checkpoint_requirement": { "const": "mandatory_before_overwrite" } } },
+          "then": {
+            "properties": {
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "durability_posture": {
+                "enum": ["durable_user_authored", "authoritative_local_record"]
+              },
+              "treatment": {
+                "enum": [
+                  "overwritten_with_source",
+                  "merged_through_equivalence_map",
+                  "recovered_as_drafts"
+                ]
+              }
+            },
+            "required": ["durability_posture", "treatment"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": { "const": "mandatory_before_overwrite" },
+              "checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+              "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "durability_posture": { "const": "disposable_derived" } },
+            "required": ["durability_posture"]
+          },
+          "then": {
+            "properties": {
+              "checkpoint_requirement": {
+                "enum": ["not_applicable", "not_supported"]
+              },
+              "checkpoint_ref": { "type": "null" }
+            }
+          }
+        }
+      ]
+    },
+
+    "restore_destination_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "review_schema_version",
+        "review_id",
+        "source",
+        "target_scope",
+        "created_at",
+        "producer_build",
+        "source_schema_version",
+        "redaction_class",
+        "destination_review_outcome",
+        "schema_migration_note",
+        "retained_rows",
+        "overwritten_rows",
+        "placeholder_only_rows",
+        "downgraded_rows",
+        "omitted_rows",
+        "checkpoint_before_overwrite",
+        "review_actions",
+        "compare_ref",
+        "export_ref",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "review_schema_version": { "$ref": "#/$defs/review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "source": { "$ref": "#/$defs/source_summary" },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "source_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "destination_review_outcome": { "$ref": "#/$defs/destination_review_outcome" },
+        "schema_migration_note": { "$ref": "#/$defs/schema_migration_note" },
+        "retained_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_vs_overwritten_row_inline" },
+          "description": "Rows whose treatment is retained_unchanged. Reviewers see these as classes that stay the same after apply."
+        },
+        "overwritten_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_vs_overwritten_row_inline" },
+          "description": "Rows whose treatment is overwritten_with_source, merged_through_equivalence_map, or recovered_as_drafts. Each row inside this array MUST satisfy the per-row checkpoint rule when the durability posture is durable_user_authored or authoritative_local_record."
+        },
+        "placeholder_only_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_vs_overwritten_row_inline" },
+          "description": "Rows whose treatment is placeholder_only. The destination authority is unchanged; the source pane reopens as a placeholder card with typed recovery actions."
+        },
+        "downgraded_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_vs_overwritten_row_inline" },
+          "description": "Rows whose treatment is downgraded_to_compare_only or inspect_only_overlay. No apply will run for these rows."
+        },
+        "omitted_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_vs_overwritten_row_inline" },
+          "description": "Rows whose treatment is omitted because the source carried nothing for the class. Destination body is untouched."
+        },
+        "checkpoint_before_overwrite": { "$ref": "#/$defs/checkpoint_before_overwrite_record" },
+        "review_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/review_action_record" },
+          "minItems": 6,
+          "description": "Closed review-action set. inspect, compare_with_destination, export_destination_before_overwrite, downgrade_to_inspect_only, confirm_overwrite, and cancel_review MUST always appear; create_checkpoint_before_overwrite, export_source_before_apply, and downgrade_to_compare_only appear when the outcome admits them."
+        },
+        "restore_provenance_record_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the cross-artifact state_restore_provenance_and_placeholder_record this review composes over. Required when destination_review_outcome is partial_restore, incompatible_schema_downgrade, inspect_only_imported_package, or placeholder_only_overlay."
+        },
+        "compare_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Top-level compare handle for the resulting review. Required for every outcome above exact_restore."
+        },
+        "export_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Top-level export handle for the resulting review. Required for every outcome above exact_restore."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+
+      "allOf": [
+        {
+          "if": {
+            "properties": { "destination_review_outcome": { "const": "exact_restore" } }
+          },
+          "then": {
+            "properties": {
+              "overwritten_rows": { "type": "array", "maxItems": 0 },
+              "placeholder_only_rows": { "type": "array", "maxItems": 0 },
+              "downgraded_rows": { "type": "array", "maxItems": 0 },
+              "checkpoint_before_overwrite": {
+                "properties": {
+                  "state": { "enum": ["not_applicable"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "destination_review_outcome": { "const": "partial_restore" } }
+          },
+          "then": {
+            "properties": {
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "restore_provenance_record_ref": { "$ref": "#/$defs/opaque_id" },
+              "overwritten_rows": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "destination_review_outcome": {
+                "const": "incompatible_schema_downgrade"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "restore_provenance_record_ref": { "$ref": "#/$defs/opaque_id" },
+              "overwritten_rows": { "type": "array", "maxItems": 0 },
+              "placeholder_only_rows": { "type": "array", "maxItems": 0 },
+              "downgraded_rows": {
+                "type": "array",
+                "minItems": 1
+              },
+              "checkpoint_before_overwrite": {
+                "properties": {
+                  "state": {
+                    "enum": ["not_applicable", "not_supported"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "destination_review_outcome": {
+                "const": "inspect_only_imported_package"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "restore_provenance_record_ref": { "$ref": "#/$defs/opaque_id" },
+              "overwritten_rows": { "type": "array", "maxItems": 0 },
+              "placeholder_only_rows": { "type": "array", "maxItems": 0 },
+              "downgraded_rows": {
+                "type": "array",
+                "minItems": 1
+              },
+              "checkpoint_before_overwrite": {
+                "properties": {
+                  "state": { "enum": ["not_applicable", "not_supported"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "destination_review_outcome": { "const": "placeholder_only_overlay" }
+            }
+          },
+          "then": {
+            "properties": {
+              "compare_ref": { "$ref": "#/$defs/opaque_id" },
+              "export_ref": { "$ref": "#/$defs/opaque_id" },
+              "restore_provenance_record_ref": { "$ref": "#/$defs/opaque_id" },
+              "overwritten_rows": { "type": "array", "maxItems": 0 },
+              "placeholder_only_rows": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+
+      "description": "Restore-destination review record. Carries source identity, target scope, schema/version note, retained-vs-overwritten rows by class, checkpoint-before-overwrite gate, downgrade/inspect-only/partial-restore/placeholder-only outcomes, and compare/export actions every restore-review surface MUST emit before durable user state can be replaced."
+    }
+  }
+}
