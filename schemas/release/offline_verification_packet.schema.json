@@ -1,0 +1,697 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/offline_verification_packet.schema.json",
+  "title": "Aureline offline-verification packet record",
+  "description": "Boundary schema for the offline_verification_packet_record frozen in docs/release/mirror_integrity_and_offline_verification_contract.md. The packet is the per-bundle projection a sovereign install, an offline install, an air-gapped lab, an enterprise mirror, and a support / mirror / offline review surface quote when they need to inspect trust, revocation, freshness, and emergency-metadata provenance for an offline or mirrored install WITHOUT requiring live vendor calls. The packet carries one packet kind, one bundle source envelope (bundle ref, bundle digest, exported_at, validity window), the per-artifact-family coverage rows naming the verification rows and mirror-integrity packets covered for update metadata / policy bundles / docs packs / extensions / models / symbols / release payloads / support packets, the included emergency-metadata coverage rows naming the revocation-propagation records and manual-import receipts that prove when and how each advisory / revocation / disable bundle / channel-freeze / kill-switch / trust-root rotation arrived, the trust-root pointer block naming the rotation-state records the bundle binds to, the freshness envelope, the disclosure envelope distinguishing local / imported / stale / policy-pinned trust decisions, the refresh path class, the linkage envelope, the surface projection set, and the per-export redaction posture. Raw signature bytes, raw artifact bytes, raw advisory payloads, raw rotation policy bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, raw transparency-log payloads, and raw bundle bytes never cross this boundary; the packet carries opaque refs, typed states, and bounded reviewable summaries only. The vocabularies are aligned with /schemas/release/artifact_verification_row.schema.json (artifact_subject_class, mirror_or_offline_class, surface_class, redaction_class), /schemas/release/mirror_integrity_packet.schema.json (integrity_outcome_class), /schemas/release/revocation_propagation_record.schema.json (propagation_kind_class), /schemas/security/manual_import_receipt.schema.json (import_path_class, receipt_state_class), and /schemas/ecosystem/offline_continuity_card.schema.json (refresh_import_path) so an offline-verification packet composes onto the existing artifact-verification, mirror-integrity, revocation-propagation, manual-import, and offline-continuity records instead of minting a second offline-verification language. Adding a new packet_kind_class, validity_window_class, coverage_disclosure_class, packet_disclosure_summary_class, freshness_age_class, refresh_path_class, surface_class, projection_mode_class, redaction_class, or denial_reason_class is additive-minor and bumps offline_verification_packet_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two refusal states into one bare label is breaking and requires a new decision row in /artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "$ref": "#/$defs/offline_verification_packet_record",
+  "$defs": {
+    "offline_verification_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the offline-verification packet payload shape. Current value is 1."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, install review sheets, and offline review. Raw URLs, raw hostnames, raw absolute paths, raw signature bytes, raw key material, raw private mirror endpoints, raw tokens, raw advisory payloads, raw transparency-log payloads, and raw bundle bytes never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw signature bytes, raw artifact bytes, raw advisory payloads, raw rotation policy bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, raw transparency-log payloads, and raw bundle bytes MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+    "artifact_subject_class": {
+      "type": "string",
+      "enum": [
+        "release_payload",
+        "update_metadata",
+        "extension_package",
+        "policy_bundle",
+        "model_or_tool_pack",
+        "docs_pack",
+        "support_or_proof_packet",
+        "symbol_or_debug_sidecar"
+      ]
+    },
+    "packet_kind_class": {
+      "type": "string",
+      "enum": [
+        "offline_install_bundle",
+        "sovereign_install_snapshot",
+        "mirror_offline_export",
+        "air_gapped_evidence_pack"
+      ],
+      "description": "Closed packet-kind vocabulary. offline_install_bundle is a sealed bundle for an offline install. sovereign_install_snapshot is a snapshot frozen for a sovereign install with full-loop self-hosting. mirror_offline_export is an export from an enterprise mirror for offline review. air_gapped_evidence_pack is the per-import evidence packet a fully air-gapped target carries after a manual import."
+    },
+    "validity_window_class": {
+      "type": "string",
+      "enum": [
+        "within_validity",
+        "past_validity",
+        "unbounded_local_evidence",
+        "unknown"
+      ],
+      "description": "Closed validity-window vocabulary. within_validity is the positive class. past_validity is the explicit refusal class when the bundle's signed validity window has ended. unbounded_local_evidence is admissible only for air_gapped_evidence_pack packets that carry local evidence with no signed validity window. unknown is the explicit refusal class when validity cannot be evaluated."
+    },
+    "freshness_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "expired"
+      ]
+    },
+    "coverage_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "locally_verified",
+        "imported_publisher_asserted",
+        "mirrored_through_continuity",
+        "stale_past_validity",
+        "policy_pinned",
+        "rotating_trust_root_pending_review",
+        "advisory_affected_review_required",
+        "missing_evidence",
+        "unknown_provenance"
+      ],
+      "description": "Closed coverage-disclosure vocabulary. Mirrors the verification-summary projections from /schemas/release/artifact_verification_row.schema.json so an offline-verification packet says exactly what the bundle's evidence asserts about each artifact family without inventing a second disclosure language."
+    },
+    "packet_disclosure_summary_class": {
+      "type": "string",
+      "enum": [
+        "all_local_evidence",
+        "mixed_local_and_imported",
+        "all_imported",
+        "stale_past_validity_blocked",
+        "missing_emergency_metadata_blocked",
+        "rotating_trust_root_pending_review",
+        "policy_pinned_only"
+      ],
+      "description": "Closed packet-level disclosure-summary vocabulary. The packet rolls up its per-coverage-row disclosure into one summary class so a release / install / About / mirror / offline reviewer can see at a glance whether the bundle is fully locally verified, mixed, fully imported, or blocked. Collapsing two distinct refusal states into one bare label is non-conforming."
+    },
+    "refresh_path_class": {
+      "type": "string",
+      "enum": [
+        "direct_authoritative_origin_refresh",
+        "approved_mirror_refresh",
+        "offline_bundle_reimport",
+        "manual_file_import_refresh",
+        "removable_media_reimport",
+        "cross_domain_transfer_reimport",
+        "admin_attestation_required",
+        "no_refresh_path_blocked"
+      ],
+      "description": "Closed refresh-path vocabulary aligned with /schemas/ecosystem/offline_continuity_card.schema.json#/$defs/import_route_class plus the manual / removable-media / cross-domain transfer routes from /schemas/security/manual_import_receipt.schema.json#import_path_class."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_publication",
+        "update_center",
+        "install_review_sheet",
+        "about_provenance_panel",
+        "support_bundle",
+        "public_proof_packet",
+        "mirror_offline_review",
+        "headless_dry_run_output"
+      ],
+      "description": "Closed surface vocabulary. The required floor is mirror_offline_review plus install_review_sheet plus about_provenance_panel plus support_bundle."
+    },
+    "projection_mode_class": {
+      "type": "string",
+      "enum": [
+        "compact_row_only",
+        "compact_row_plus_proof_chain",
+        "full_review_sheet",
+        "support_export_redacted",
+        "public_proof_redacted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "public_proof_safe",
+        "support_redacted",
+        "internal_only"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "packet_kind_class_unresolved",
+        "validity_window_class_unresolved",
+        "coverage_disclosure_class_unresolved",
+        "packet_disclosure_summary_class_unresolved",
+        "refresh_path_class_unresolved",
+        "past_validity_with_local_evidence_summary",
+        "missing_revocation_propagation_record_refs",
+        "missing_trust_root_rotation_state_refs",
+        "missing_manual_import_receipt_on_imported_emergency_metadata",
+        "air_gapped_packet_claims_live_freshness",
+        "coverage_row_missing_verification_row_refs",
+        "raw_private_material_present_in_export",
+        "support_export_redaction_violation",
+        "schema_version_lagging"
+      ]
+    },
+    "bundle_source_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_label",
+        "bundle_ref",
+        "bundle_digest_ref",
+        "exported_at",
+        "evaluated_at",
+        "validity_window_class",
+        "valid_until",
+        "exporter_role_ref",
+        "bundle_disclosure"
+      ],
+      "properties": {
+        "bundle_label": { "$ref": "#/$defs/reviewable_label" },
+        "bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "exported_at": { "$ref": "#/$defs/utc_datetime" },
+        "evaluated_at": { "$ref": "#/$defs/utc_datetime" },
+        "validity_window_class": { "$ref": "#/$defs/validity_window_class" },
+        "valid_until": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp. Required when validity_window_class is within_validity or past_validity; null only when unbounded_local_evidence or unknown."
+        },
+        "exporter_role_ref": { "$ref": "#/$defs/opaque_id" },
+        "bundle_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "artifact_family_coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_class",
+        "artifact_family_ref",
+        "included_artifact_count",
+        "verification_row_refs",
+        "mirror_integrity_packet_refs",
+        "coverage_disclosure_class",
+        "coverage_note"
+      ],
+      "properties": {
+        "subject_class": { "$ref": "#/$defs/artifact_subject_class" },
+        "artifact_family_ref": { "$ref": "#/$defs/opaque_id" },
+        "included_artifact_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "verification_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "mirror_integrity_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "coverage_disclosure_class": { "$ref": "#/$defs/coverage_disclosure_class" },
+        "coverage_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "emergency_metadata_coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "propagation_kind_class",
+        "revocation_propagation_record_ref",
+        "manual_import_receipt_refs",
+        "metadata_chain_ref",
+        "authoritative_origin_ref",
+        "imported_at",
+        "coverage_note"
+      ],
+      "properties": {
+        "propagation_kind_class": {
+          "type": "string",
+          "enum": [
+            "revocation_metadata",
+            "advisory_metadata",
+            "disable_bundle_metadata",
+            "channel_freeze_metadata",
+            "kill_switch_metadata",
+            "trust_root_rotation_metadata",
+            "yank_metadata"
+          ]
+        },
+        "revocation_propagation_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into /schemas/release/revocation_propagation_record.schema.json so the packet can prove WHEN and HOW each emergency metadata kind arrived."
+        },
+        "manual_import_receipt_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into /schemas/security/manual_import_receipt.schema.json. Required to be non-empty when the metadata reached the bundle through any manual / mirrored / offline import path; empty only when the metadata reached the bundle through managed_pull_from_authoritative_origin or runtime_preload."
+        },
+        "metadata_chain_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into the metadata-chain stub on the manual_import_receipt or revocation_propagation_record so the chain back to the authoritative origin is reviewable."
+        },
+        "authoritative_origin_ref": { "$ref": "#/$defs/opaque_id" },
+        "imported_at": { "$ref": "#/$defs/utc_datetime" },
+        "coverage_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_root_pointer_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_root_rotation_state_refs",
+        "trust_root_freshness_class",
+        "trust_root_disclosure"
+      ],
+      "properties": {
+        "trust_root_rotation_state_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "trust_root_freshness_class": { "$ref": "#/$defs/freshness_age_class" },
+        "trust_root_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "freshness_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bundle_age_class",
+        "revocation_metadata_age_class",
+        "advisory_metadata_age_class",
+        "evaluated_at",
+        "freshness_evidence_refs",
+        "freshness_disclosure"
+      ],
+      "properties": {
+        "bundle_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "revocation_metadata_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "advisory_metadata_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "evaluated_at": { "$ref": "#/$defs/utc_datetime" },
+        "freshness_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "disclosure_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_disclosure_summary_class",
+        "refresh_path_class",
+        "policy_pin_refs",
+        "disclosure_note"
+      ],
+      "properties": {
+        "packet_disclosure_summary_class": { "$ref": "#/$defs/packet_disclosure_summary_class" },
+        "refresh_path_class": { "$ref": "#/$defs/refresh_path_class" },
+        "policy_pin_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs into the policy bundles that pin installable targets in this packet. Required to be non-empty when packet_disclosure_summary_class is policy_pinned_only."
+        },
+        "disclosure_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "linkage_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_verification_row_refs",
+        "mirror_integrity_packet_refs",
+        "revocation_propagation_record_refs",
+        "manual_import_receipt_refs",
+        "trust_root_rotation_state_refs",
+        "offline_continuity_card_refs",
+        "support_bundle_refs",
+        "release_evidence_packet_refs"
+      ],
+      "properties": {
+        "artifact_verification_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "mirror_integrity_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "revocation_propagation_record_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "manual_import_receipt_refs": { "$ref": "#/$defs/ref_array" },
+        "trust_root_rotation_state_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "offline_continuity_card_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "release_evidence_packet_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "projection_mode_class",
+        "required_fields",
+        "projection_note"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "projection_mode_class": { "$ref": "#/$defs/projection_mode_class" },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "packet_kind_class",
+              "validity_window_class",
+              "valid_until",
+              "packet_disclosure_summary_class",
+              "refresh_path_class",
+              "bundle_age_class",
+              "revocation_metadata_age_class",
+              "advisory_metadata_age_class",
+              "trust_root_freshness_class",
+              "evaluated_at"
+            ]
+          }
+        },
+        "projection_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "exportable_to_screenshot",
+        "exportable_to_support_bundle",
+        "exportable_to_public_proof_packet",
+        "exportable_to_offline_review",
+        "raw_private_material_excluded",
+        "omission_reasons"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "exportable_to_screenshot": { "type": "boolean" },
+        "exportable_to_support_bundle": { "type": "boolean" },
+        "exportable_to_public_proof_packet": { "type": "boolean" },
+        "exportable_to_offline_review": { "type": "boolean" },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "description": "MUST be true."
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "offline_verification_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offline_verification_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "emitted_at",
+        "packet_kind_class",
+        "bundle_source",
+        "artifact_family_coverage",
+        "emergency_metadata_coverage",
+        "trust_root_pointer_block",
+        "freshness_envelope",
+        "disclosure_envelope",
+        "linkage_envelope",
+        "surface_projections",
+        "export_envelope",
+        "contract_doc_ref",
+        "channel_matrix_ref",
+        "artifact_family_map_ref",
+        "trust_framework_rows_ref",
+        "notes"
+      ],
+      "properties": {
+        "offline_verification_packet_schema_version": { "$ref": "#/$defs/offline_verification_packet_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "offline_verification_packet_record"
+        },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^offline_verification_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "packet_kind_class": { "$ref": "#/$defs/packet_kind_class" },
+        "bundle_source": { "$ref": "#/$defs/bundle_source_envelope" },
+        "artifact_family_coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_family_coverage_row" },
+          "description": "Per-artifact-family coverage rows. The packet MUST carry at least one row; sovereign and offline_install packets typically carry rows for every family present in the bundle."
+        },
+        "emergency_metadata_coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/emergency_metadata_coverage_row" },
+          "description": "Per-emergency-metadata coverage rows. The packet MUST carry at least one row so offline review can prove WHEN and HOW emergency state arrived."
+        },
+        "trust_root_pointer_block": { "$ref": "#/$defs/trust_root_pointer_block" },
+        "freshness_envelope": { "$ref": "#/$defs/freshness_envelope" },
+        "disclosure_envelope": { "$ref": "#/$defs/disclosure_envelope" },
+        "linkage_envelope": { "$ref": "#/$defs/linkage_envelope" },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "export_envelope": { "$ref": "#/$defs/export_envelope" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/mirror_integrity_and_offline_verification_contract.md"
+        },
+        "channel_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/release/channel_matrix.yaml"
+        },
+        "artifact_family_map_ref": {
+          "type": "string",
+          "const": "artifacts/release/artifact_family_map.yaml"
+        },
+        "trust_framework_rows_ref": {
+          "type": "string",
+          "const": "artifacts/release/trust_framework_rows.yaml"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "A past_validity validity_window_class forces packet_disclosure_summary_class to stale_past_validity_blocked. A bundle whose signed validity has ended cannot render as locally verified or mixed.",
+          "if": {
+            "properties": {
+              "bundle_source": {
+                "properties": {
+                  "validity_window_class": { "const": "past_validity" }
+                },
+                "required": ["validity_window_class"]
+              }
+            },
+            "required": ["bundle_source"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_envelope": {
+                "properties": {
+                  "packet_disclosure_summary_class": { "const": "stale_past_validity_blocked" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "An air_gapped_evidence_pack packet cannot claim a fresh bundle_age_class because there is no live origin path against which to test freshness; it MUST report warm_cached, degraded_cached, stale, unverified, or expired.",
+          "if": {
+            "properties": {
+              "packet_kind_class": { "const": "air_gapped_evidence_pack" }
+            },
+            "required": ["packet_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "freshness_envelope": {
+                "properties": {
+                  "bundle_age_class": {
+                    "enum": ["warm_cached", "degraded_cached", "stale", "unverified", "expired"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A within_validity validity_window_class requires a non-null valid_until.",
+          "if": {
+            "properties": {
+              "bundle_source": {
+                "properties": {
+                  "validity_window_class": {
+                    "enum": ["within_validity", "past_validity"]
+                  }
+                },
+                "required": ["validity_window_class"]
+              }
+            },
+            "required": ["bundle_source"]
+          },
+          "then": {
+            "properties": {
+              "bundle_source": {
+                "properties": {
+                  "valid_until": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A policy_pinned_only packet_disclosure_summary_class requires a non-empty policy_pin_refs array.",
+          "if": {
+            "properties": {
+              "disclosure_envelope": {
+                "properties": {
+                  "packet_disclosure_summary_class": { "const": "policy_pinned_only" }
+                },
+                "required": ["packet_disclosure_summary_class"]
+              }
+            },
+            "required": ["disclosure_envelope"]
+          },
+          "then": {
+            "properties": {
+              "disclosure_envelope": {
+                "properties": {
+                  "policy_pin_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The required surface projection floor is mirror_offline_review, install_review_sheet, about_provenance_panel, and support_bundle.",
+          "properties": {
+            "surface_projections": {
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "mirror_offline_review" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "install_review_sheet" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "about_provenance_panel" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "support_bundle" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Every surface projection MUST list packet_kind_class, packet_disclosure_summary_class, and evaluated_at as required fields.",
+          "properties": {
+            "surface_projections": {
+              "items": {
+                "properties": {
+                  "required_fields": {
+                    "allOf": [
+                      { "contains": { "const": "packet_kind_class" } },
+                      { "contains": { "const": "packet_disclosure_summary_class" } },
+                      { "contains": { "const": "evaluated_at" } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The export envelope MUST set raw_private_material_excluded to true.",
+          "properties": {
+            "export_envelope": {
+              "properties": {
+                "raw_private_material_excluded": { "const": true }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

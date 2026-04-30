@@ -1,0 +1,908 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/revocation_propagation_record.schema.json",
+  "title": "Aureline revocation-propagation record",
+  "description": "Boundary schema for the revocation_propagation_record frozen in docs/release/mirror_integrity_and_offline_verification_contract.md. The record is the per-emergency-metadata projection that release publication, update center, install review, About panels, support exports, mirror or offline review, and offline-verification packets quote when they need to state EXACTLY how a revocation, advisory, disable bundle, channel-freeze, kill-switch, yank, or trust-root rotation has propagated from the authoritative origin onto a mirrored, offline, sovereign, or air-gapped target. The record carries one propagation kind, one subject artifact family, one authoritative origin envelope, one propagation-status class, one propagation-age class, one overlap-or-grace-window envelope, one last-imported-state envelope, the reconcile / refresh actions a target MUST take, the linkage envelope back to the emergency_action_record / revocation_record / advisory_record / manual_import_receipt / mirror continuity record / trust-root rotation state record, the surface projection set, and the per-export redaction posture. Raw signature bytes, raw artifact bytes, raw advisory payloads, raw rotation policy bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, and raw transparency-log payloads never cross this boundary; the record carries opaque refs, typed states, and bounded reviewable summaries only. The vocabularies are aligned with /schemas/security/emergency_action_record.schema.json (distribution_freshness_class, distribution_validation_state_class), /schemas/security/manual_import_receipt.schema.json (receipt_state_class, applied_state_class, signer_continuity_state_class), /schemas/release/artifact_verification_row.schema.json (artifact_subject_class, advisory_or_compromise_class, surface_class, redaction_class), and /schemas/release/trust_root_rotation_state.schema.json (rollout_epoch_class, overlap_posture_class) so a propagation record composes onto the existing emergency-action, manual-import, verification-row, and trust-root rotation records instead of minting a second propagation language. Adding a new propagation_kind_class, propagation_status_class, propagation_age_class, overlap_class, last_seen_state_class, last_imported_via_class, reconcile_action_kind_class, surface_class, projection_mode_class, redaction_class, or denial_reason_class is additive-minor and bumps revocation_propagation_record_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two refusal states into one bare label is breaking and requires a new decision row in /artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "$ref": "#/$defs/revocation_propagation_record",
+  "$defs": {
+    "revocation_propagation_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the revocation-propagation record payload shape. Current value is 1."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, install review sheets, and offline review. Raw URLs, raw hostnames, raw absolute paths, raw signature bytes, raw key material, raw private mirror endpoints, raw tokens, raw advisory payloads, and raw transparency-log payloads never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw signature bytes, raw artifact bytes, raw advisory payloads, raw rotation policy bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, and raw transparency-log payloads MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "artifact_subject_class": {
+      "type": "string",
+      "enum": [
+        "release_payload",
+        "update_metadata",
+        "extension_package",
+        "policy_bundle",
+        "model_or_tool_pack",
+        "docs_pack",
+        "support_or_proof_packet",
+        "symbol_or_debug_sidecar"
+      ],
+      "description": "Closed artifact-subject vocabulary mirroring /schemas/release/artifact_verification_row.schema.json#artifact_subject_class."
+    },
+    "propagation_kind_class": {
+      "type": "string",
+      "enum": [
+        "revocation_metadata",
+        "advisory_metadata",
+        "disable_bundle_metadata",
+        "channel_freeze_metadata",
+        "kill_switch_metadata",
+        "trust_root_rotation_metadata",
+        "yank_metadata"
+      ],
+      "description": "Closed propagation-kind vocabulary. Names exactly which kind of trust-affecting emergency or revocation metadata this record describes the propagation of. Each propagation kind composes onto the matching authoritative record in /schemas/security/ or /schemas/release/."
+    },
+    "propagation_status_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative_origin_only",
+        "propagated_to_approved_mirror",
+        "propagated_to_offline_bundle",
+        "propagated_via_manual_import",
+        "propagation_pending",
+        "propagation_blocked",
+        "propagation_superseded_by_later_metadata"
+      ],
+      "description": "Closed propagation-status vocabulary. live_authoritative_origin_only means the metadata is only available at the authoritative origin and no downstream propagation has been recorded yet. The four propagated_* classes are positive propagation outcomes. propagation_pending is the explicit refusal state when propagation has been started but has not yet completed. propagation_blocked is the explicit refusal state when propagation cannot proceed (signer continuity failure, mirror outage past grace, identity mismatch). propagation_superseded_by_later_metadata names the case where this metadata has been superseded by a later signed metadata."
+    },
+    "propagation_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "within_grace",
+        "stale_past_grace",
+        "expired",
+        "never_propagated",
+        "unknown"
+      ],
+      "description": "Closed propagation-age vocabulary. fresh, within_grace, stale_past_grace, expired, and never_propagated are distinct typed classes; collapsing two of them into one bare label is non-conforming because the support-review path differs (refresh vs. import vs. supersede vs. quarantine)."
+    },
+    "overlap_class": {
+      "type": "string",
+      "enum": [
+        "no_overlap",
+        "planned_overlap",
+        "dual_signed_overlap",
+        "cross_signed_overlap",
+        "emergency_no_overlap",
+        "legacy_grace_only"
+      ],
+      "description": "Closed overlap-class vocabulary aligned with /schemas/release/trust_root_rotation_state.schema.json#overlap_posture_class. Records the overlap or grace window that admits the propagation transition, distinct from the propagation status."
+    },
+    "last_seen_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "superseded_by_later_metadata",
+        "revoked",
+        "withdrawn",
+        "expired",
+        "never_seen",
+        "unknown"
+      ],
+      "description": "Closed last-seen-state vocabulary. Records the durable lifecycle state the target last observed for this metadata."
+    },
+    "last_imported_via_class": {
+      "type": "string",
+      "enum": [
+        "managed_pull_from_authoritative_origin",
+        "approved_mirror_sync",
+        "manual_file_import",
+        "offline_bundle_import",
+        "removable_media_import",
+        "cross_domain_transfer_import",
+        "runtime_preload",
+        "never_imported"
+      ],
+      "description": "Closed last-imported-via vocabulary. Names the channel through which the target last imported this metadata; aligned with the import_path_class vocabulary in /schemas/security/manual_import_receipt.schema.json."
+    },
+    "reconcile_action_kind_class": {
+      "type": "string",
+      "enum": [
+        "refresh_from_authoritative_origin",
+        "refresh_via_approved_mirror",
+        "re_verify_against_current_trust_root",
+        "pin_last_known_good_until_resolve",
+        "quarantine_affected_artifacts",
+        "restore_from_authoritative_origin",
+        "schedule_post_incident_review",
+        "import_successor_metadata",
+        "narrow_scope_until_superseded",
+        "no_action_required_already_current"
+      ],
+      "description": "Closed reconcile-action-kind vocabulary. Names the typed action a target MUST take to bring its last-imported state into agreement with the authoritative origin."
+    },
+    "reconcile_action_owner_class": {
+      "type": "string",
+      "enum": [
+        "end_user_with_admin_capability",
+        "local_admin",
+        "org_admin",
+        "mirror_operator",
+        "release_operator",
+        "support_operator",
+        "security_trust_review"
+      ],
+      "description": "Closed reconcile-action-owner vocabulary mirroring /schemas/security/manual_import_receipt.schema.json#operator_class so a propagation record and its receipt cannot disagree on owner attribution."
+    },
+    "deadline_semantics_class": {
+      "type": "string",
+      "enum": [
+        "no_deadline_required",
+        "soft_deadline_advisory",
+        "hard_deadline_required",
+        "block_install_until_resolved",
+        "block_update_until_resolved"
+      ],
+      "description": "Closed deadline-semantics vocabulary aligned with the deadline language in /schemas/security/emergency_action_record.schema.json so a propagation reconcile action and its emergency record cannot disagree on deadline severity."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_publication",
+        "update_center",
+        "install_review_sheet",
+        "about_provenance_panel",
+        "support_bundle",
+        "public_proof_packet",
+        "mirror_offline_review",
+        "headless_dry_run_output"
+      ],
+      "description": "Closed surface vocabulary aligned with /schemas/release/artifact_verification_row.schema.json#surface_class minus the post-install / marketplace surfaces that do not display propagation rows. The required floor is update_center plus install_review_sheet plus mirror_offline_review plus support_bundle."
+    },
+    "projection_mode_class": {
+      "type": "string",
+      "enum": [
+        "compact_row_only",
+        "compact_row_plus_proof_chain",
+        "full_review_sheet",
+        "support_export_redacted",
+        "public_proof_redacted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "public_proof_safe",
+        "support_redacted",
+        "internal_only"
+      ]
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "propagation_kind_class_unresolved",
+        "propagation_status_class_unresolved",
+        "propagation_age_class_unresolved",
+        "overlap_class_unresolved",
+        "last_seen_state_class_unresolved",
+        "last_imported_via_class_unresolved",
+        "expired_propagation_age_with_live_status",
+        "never_propagated_with_propagated_status",
+        "revoked_last_seen_state_with_live_status",
+        "trust_root_rotation_kind_missing_rotation_state_ref",
+        "emergency_kind_missing_emergency_action_ref",
+        "advisory_kind_missing_advisory_record_ref",
+        "revocation_kind_missing_revocation_record_ref",
+        "manual_import_via_missing_receipt_ref",
+        "block_install_deadline_with_no_action_required",
+        "raw_private_material_present_in_export",
+        "support_export_redaction_violation",
+        "schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary used by review tooling to refuse a propagation record that violates the schema's allOf invariants. Emitting a denial reason outside this list is non-conforming."
+    },
+    "authoritative_origin_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_label",
+        "origin_ref",
+        "signer_ref",
+        "signed_at",
+        "valid_from",
+        "valid_until",
+        "supersedes_origin_refs",
+        "origin_disclosure"
+      ],
+      "properties": {
+        "origin_label": { "$ref": "#/$defs/reviewable_label" },
+        "origin_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into the authoritative origin manifest for this metadata."
+        },
+        "signer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into the signer identity that produced the metadata."
+        },
+        "signed_at": { "$ref": "#/$defs/utc_datetime" },
+        "valid_from": { "$ref": "#/$defs/utc_datetime" },
+        "valid_until": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp. Null only for permanent revocations or trust-root rotations whose validity is open-ended."
+        },
+        "supersedes_origin_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Stable refs to the prior authoritative metadata records this record supersedes. Empty for the first metadata in a chain."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "subject_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_class",
+        "artifact_family_ref",
+        "channel_row_ref",
+        "owner_role_ref",
+        "subject_disclosure"
+      ],
+      "properties": {
+        "subject_class": { "$ref": "#/$defs/artifact_subject_class" },
+        "artifact_family_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into /artifacts/release/artifact_family_map.yaml."
+        },
+        "channel_row_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /artifacts/release/channel_matrix.yaml; null only when the metadata applies across all channels of the family."
+        },
+        "owner_role_ref": { "$ref": "#/$defs/opaque_id" },
+        "subject_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "overlap_window_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overlap_class",
+        "overlap_starts_at",
+        "overlap_ends_at",
+        "grace_until",
+        "overlap_disclosure"
+      ],
+      "properties": {
+        "overlap_class": { "$ref": "#/$defs/overlap_class" },
+        "overlap_starts_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Required when overlap_class is planned_overlap, dual_signed_overlap, or cross_signed_overlap; null otherwise."
+        },
+        "overlap_ends_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Required when overlap_class is planned_overlap, dual_signed_overlap, or cross_signed_overlap; null otherwise."
+        },
+        "grace_until": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Required when overlap_class is legacy_grace_only; null otherwise."
+        },
+        "overlap_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "last_imported_state_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "last_seen_state_class",
+        "last_seen_at",
+        "last_imported_via_class",
+        "last_import_receipt_ref",
+        "last_import_disclosure"
+      ],
+      "properties": {
+        "last_seen_state_class": { "$ref": "#/$defs/last_seen_state_class" },
+        "last_seen_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Null only when last_seen_state_class is never_seen."
+        },
+        "last_imported_via_class": { "$ref": "#/$defs/last_imported_via_class" },
+        "last_import_receipt_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /schemas/security/manual_import_receipt.schema.json. Required when last_imported_via_class is manual_file_import, offline_bundle_import, removable_media_import, or cross_domain_transfer_import; null otherwise."
+        },
+        "last_import_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "reconcile_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_kind_class",
+        "action_owner_class",
+        "deadline_semantics_class",
+        "deadline_at",
+        "action_note"
+      ],
+      "properties": {
+        "action_id": {
+          "type": "string",
+          "pattern": "^reconcile_action:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "action_kind_class": { "$ref": "#/$defs/reconcile_action_kind_class" },
+        "action_owner_class": { "$ref": "#/$defs/reconcile_action_owner_class" },
+        "deadline_semantics_class": { "$ref": "#/$defs/deadline_semantics_class" },
+        "deadline_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Required when deadline_semantics_class is hard_deadline_required, block_install_until_resolved, or block_update_until_resolved; null when no_deadline_required or soft_deadline_advisory."
+        },
+        "action_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "linkage_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emergency_action_record_refs",
+        "revocation_record_refs",
+        "advisory_record_refs",
+        "manual_import_receipt_refs",
+        "trust_root_rotation_state_refs",
+        "mirror_continuity_event_refs",
+        "mirror_integrity_packet_refs",
+        "offline_verification_packet_refs",
+        "artifact_verification_row_refs",
+        "support_bundle_refs"
+      ],
+      "properties": {
+        "emergency_action_record_refs": { "$ref": "#/$defs/ref_array" },
+        "revocation_record_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_record_refs": { "$ref": "#/$defs/ref_array" },
+        "manual_import_receipt_refs": { "$ref": "#/$defs/ref_array" },
+        "trust_root_rotation_state_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_continuity_event_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_integrity_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "offline_verification_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "artifact_verification_row_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "projection_mode_class",
+        "required_fields",
+        "projection_note"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "projection_mode_class": { "$ref": "#/$defs/projection_mode_class" },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "propagation_kind_class",
+              "propagation_status_class",
+              "propagation_age_class",
+              "overlap_class",
+              "last_seen_state_class",
+              "last_imported_via_class",
+              "valid_until",
+              "reconcile_action_kind_class",
+              "deadline_semantics_class",
+              "deadline_at"
+            ]
+          },
+          "description": "The fields the consuming surface MUST render. The propagation_kind_class, propagation_status_class, and propagation_age_class fields are the row-level floor every surface MUST render; tooling MAY add more, but MUST NOT drop one."
+        },
+        "projection_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "exportable_to_screenshot",
+        "exportable_to_support_bundle",
+        "exportable_to_public_proof_packet",
+        "exportable_to_offline_review",
+        "raw_private_material_excluded",
+        "omission_reasons"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "exportable_to_screenshot": { "type": "boolean" },
+        "exportable_to_support_bundle": { "type": "boolean" },
+        "exportable_to_public_proof_packet": { "type": "boolean" },
+        "exportable_to_offline_review": { "type": "boolean" },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "description": "MUST be true. Raw signature bytes, raw artifact bytes, raw advisory payloads, raw rotation policy bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, and raw transparency-log payloads never cross this boundary."
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "revocation_propagation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revocation_propagation_record_schema_version",
+        "record_kind",
+        "record_id",
+        "emitted_at",
+        "propagation_kind_class",
+        "subject_envelope",
+        "authoritative_origin",
+        "propagation_status_class",
+        "propagation_age_class",
+        "overlap_window",
+        "last_imported_state",
+        "reconcile_actions",
+        "linkage_envelope",
+        "surface_projections",
+        "export_envelope",
+        "contract_doc_ref",
+        "channel_matrix_ref",
+        "artifact_family_map_ref",
+        "trust_framework_rows_ref",
+        "notes"
+      ],
+      "properties": {
+        "revocation_propagation_record_schema_version": { "$ref": "#/$defs/revocation_propagation_record_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "revocation_propagation_record"
+        },
+        "record_id": {
+          "type": "string",
+          "pattern": "^revocation_propagation_record:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "propagation_kind_class": { "$ref": "#/$defs/propagation_kind_class" },
+        "subject_envelope": { "$ref": "#/$defs/subject_envelope" },
+        "authoritative_origin": { "$ref": "#/$defs/authoritative_origin_envelope" },
+        "propagation_status_class": { "$ref": "#/$defs/propagation_status_class" },
+        "propagation_age_class": { "$ref": "#/$defs/propagation_age_class" },
+        "overlap_window": { "$ref": "#/$defs/overlap_window_envelope" },
+        "last_imported_state": { "$ref": "#/$defs/last_imported_state_envelope" },
+        "reconcile_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reconcile_action" },
+          "description": "Non-empty list of typed reconcile actions a target MUST take to bring its last-imported state into agreement with the authoritative origin. The no_action_required_already_current action is admissible only when propagation_status_class is propagated_to_approved_mirror, propagated_to_offline_bundle, or propagated_via_manual_import AND propagation_age_class is fresh AND last_seen_state_class equals the authoritative state."
+        },
+        "linkage_envelope": { "$ref": "#/$defs/linkage_envelope" },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_projection" }
+        },
+        "export_envelope": { "$ref": "#/$defs/export_envelope" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/mirror_integrity_and_offline_verification_contract.md"
+        },
+        "channel_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/release/channel_matrix.yaml"
+        },
+        "artifact_family_map_ref": {
+          "type": "string",
+          "const": "artifacts/release/artifact_family_map.yaml"
+        },
+        "trust_framework_rows_ref": {
+          "type": "string",
+          "const": "artifacts/release/trust_framework_rows.yaml"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "An expired propagation_age_class forces propagation_status_class out of live_authoritative_origin_only and out of the propagated_* family. Expired metadata cannot render as live or propagated.",
+          "if": {
+            "properties": {
+              "propagation_age_class": { "const": "expired" }
+            },
+            "required": ["propagation_age_class"]
+          },
+          "then": {
+            "properties": {
+              "propagation_status_class": {
+                "enum": ["propagation_blocked", "propagation_superseded_by_later_metadata"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A never_propagated propagation_age_class forces propagation_status_class to live_authoritative_origin_only, propagation_pending, or propagation_blocked.",
+          "if": {
+            "properties": {
+              "propagation_age_class": { "const": "never_propagated" }
+            },
+            "required": ["propagation_age_class"]
+          },
+          "then": {
+            "properties": {
+              "propagation_status_class": {
+                "enum": [
+                  "live_authoritative_origin_only",
+                  "propagation_pending",
+                  "propagation_blocked"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A trust_root_rotation_metadata propagation kind requires at least one trust_root_rotation_state_ref.",
+          "if": {
+            "properties": {
+              "propagation_kind_class": { "const": "trust_root_rotation_metadata" }
+            },
+            "required": ["propagation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linkage_envelope": {
+                "properties": {
+                  "trust_root_rotation_state_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "An advisory_metadata propagation kind requires at least one advisory_record_ref.",
+          "if": {
+            "properties": {
+              "propagation_kind_class": { "const": "advisory_metadata" }
+            },
+            "required": ["propagation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linkage_envelope": {
+                "properties": {
+                  "advisory_record_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A revocation_metadata propagation kind requires at least one revocation_record_ref.",
+          "if": {
+            "properties": {
+              "propagation_kind_class": { "const": "revocation_metadata" }
+            },
+            "required": ["propagation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linkage_envelope": {
+                "properties": {
+                  "revocation_record_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A disable_bundle_metadata, channel_freeze_metadata, or kill_switch_metadata propagation kind requires at least one emergency_action_record_ref.",
+          "if": {
+            "properties": {
+              "propagation_kind_class": {
+                "enum": ["disable_bundle_metadata", "channel_freeze_metadata", "kill_switch_metadata"]
+              }
+            },
+            "required": ["propagation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linkage_envelope": {
+                "properties": {
+                  "emergency_action_record_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A propagated_via_manual_import propagation status requires at least one manual_import_receipt_ref.",
+          "if": {
+            "properties": {
+              "propagation_status_class": { "const": "propagated_via_manual_import" }
+            },
+            "required": ["propagation_status_class"]
+          },
+          "then": {
+            "properties": {
+              "linkage_envelope": {
+                "properties": {
+                  "manual_import_receipt_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When last_imported_via_class is manual_file_import, offline_bundle_import, removable_media_import, or cross_domain_transfer_import, the last_import_receipt_ref MUST be non-null.",
+          "if": {
+            "properties": {
+              "last_imported_state": {
+                "properties": {
+                  "last_imported_via_class": {
+                    "enum": [
+                      "manual_file_import",
+                      "offline_bundle_import",
+                      "removable_media_import",
+                      "cross_domain_transfer_import"
+                    ]
+                  }
+                },
+                "required": ["last_imported_via_class"]
+              }
+            },
+            "required": ["last_imported_state"]
+          },
+          "then": {
+            "properties": {
+              "last_imported_state": {
+                "properties": {
+                  "last_import_receipt_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When overlap_class is planned_overlap, dual_signed_overlap, or cross_signed_overlap, both overlap_starts_at and overlap_ends_at MUST be non-null. When overlap_class is legacy_grace_only, grace_until MUST be non-null.",
+          "anyOf": [
+            {
+              "properties": {
+                "overlap_window": {
+                  "properties": {
+                    "overlap_class": {
+                      "enum": ["no_overlap", "emergency_no_overlap"]
+                    }
+                  },
+                  "required": ["overlap_class"]
+                }
+              }
+            },
+            {
+              "properties": {
+                "overlap_window": {
+                  "properties": {
+                    "overlap_class": {
+                      "enum": ["planned_overlap", "dual_signed_overlap", "cross_signed_overlap"]
+                    },
+                    "overlap_starts_at": { "not": { "type": "null" } },
+                    "overlap_ends_at": { "not": { "type": "null" } }
+                  },
+                  "required": ["overlap_class", "overlap_starts_at", "overlap_ends_at"]
+                }
+              }
+            },
+            {
+              "properties": {
+                "overlap_window": {
+                  "properties": {
+                    "overlap_class": { "const": "legacy_grace_only" },
+                    "grace_until": { "not": { "type": "null" } }
+                  },
+                  "required": ["overlap_class", "grace_until"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "description": "A revoked last_seen_state_class forces propagation_status_class out of live_authoritative_origin_only. A target that has observed a revoked artifact MUST have recorded the propagation onto the target.",
+          "if": {
+            "properties": {
+              "last_imported_state": {
+                "properties": {
+                  "last_seen_state_class": { "const": "revoked" }
+                },
+                "required": ["last_seen_state_class"]
+              }
+            },
+            "required": ["last_imported_state"]
+          },
+          "then": {
+            "properties": {
+              "propagation_status_class": {
+                "enum": [
+                  "propagated_to_approved_mirror",
+                  "propagated_to_offline_bundle",
+                  "propagated_via_manual_import",
+                  "propagation_superseded_by_later_metadata",
+                  "propagation_blocked"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Reconcile actions whose deadline_semantics_class is hard_deadline_required, block_install_until_resolved, or block_update_until_resolved MUST carry a non-null deadline_at.",
+          "properties": {
+            "reconcile_actions": {
+              "items": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "deadline_semantics_class": {
+                        "enum": ["no_deadline_required", "soft_deadline_advisory"]
+                      }
+                    },
+                    "required": ["deadline_semantics_class"]
+                  },
+                  {
+                    "properties": {
+                      "deadline_semantics_class": {
+                        "enum": [
+                          "hard_deadline_required",
+                          "block_install_until_resolved",
+                          "block_update_until_resolved"
+                        ]
+                      },
+                      "deadline_at": { "not": { "type": "null" } }
+                    },
+                    "required": ["deadline_semantics_class", "deadline_at"]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "The required surface projection floor is update_center, install_review_sheet, mirror_offline_review, and support_bundle.",
+          "properties": {
+            "surface_projections": {
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "update_center" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "install_review_sheet" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "mirror_offline_review" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "support_bundle" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Every surface projection MUST list propagation_kind_class, propagation_status_class, and propagation_age_class as required fields so the row's positive / refusal posture and freshness always render.",
+          "properties": {
+            "surface_projections": {
+              "items": {
+                "properties": {
+                  "required_fields": {
+                    "allOf": [
+                      { "contains": { "const": "propagation_kind_class" } },
+                      { "contains": { "const": "propagation_status_class" } },
+                      { "contains": { "const": "propagation_age_class" } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The export envelope MUST set raw_private_material_excluded to true.",
+          "properties": {
+            "export_envelope": {
+              "properties": {
+                "raw_private_material_excluded": { "const": true }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

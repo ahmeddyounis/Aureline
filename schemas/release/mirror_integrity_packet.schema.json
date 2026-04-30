@@ -1,0 +1,906 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/mirror_integrity_packet.schema.json",
+  "title": "Aureline mirror-integrity packet record",
+  "description": "Boundary schema for the mirror_integrity_packet_record frozen in docs/release/mirror_integrity_and_offline_verification_contract.md. The record is the per-artifact projection a release publication, an update center, an install review sheet, an About panel, a support export, and a mirror / offline review surface quote when they need to state EXACTLY whether a mirror is serving the same artifact as the authoritative origin or a repackaged copy, under which signer continuity, against which customer-mirror identity, and at what freshness. The record carries one artifact subject, one origin source envelope, one mirror source envelope, one artifact-identity-relationship class, one digest-continuity class, one signer-continuity class, one freshness envelope, one customer-mirror-identity envelope, one integrity-outcome class, the linkage envelope back to the verification row / mirror promotion row / manual-import receipt / trust-root rotation state record / advisory / mirror continuity record, and the per-export redaction posture. Raw signature bytes, raw artifact bytes, raw mirror cache bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, and raw certificate material never cross this boundary; the record carries opaque refs, typed states, and bounded reviewable summaries only. The vocabularies are aligned with /schemas/release/artifact_verification_row.schema.json (artifact_subject_class, source_or_origin_class, mirror_or_offline_class, advisory_or_compromise_class, surface_class, redaction_class), /schemas/ecosystem/mirror_promotion_row.schema.json (artifact_identity_relationship, signer_continuity_state, signature_equivalence_class, age_class, mirror_channel_class), and /schemas/release/trust_root_rotation_state.schema.json (trust_root_state_class) so a mirror-integrity packet composes onto the existing artifact-verification, mirror-promotion, and trust-root rotation records instead of minting a second mirror-integrity language. Adding a new mirror_class, customer_mirror_identity_class, mirror_resign_kind_class, digest_continuity_class, signer_continuity_class, integrity_outcome_class, freshness_age_class, mirror_or_offline_class, surface_class, projection_mode_class, redaction_class, or denial_reason_class is additive-minor and bumps mirror_integrity_packet_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two refusal states into one bare label is breaking and requires a new decision row in /artifacts/governance/decision_index.yaml.",
+  "type": "object",
+  "$ref": "#/$defs/mirror_integrity_packet_record",
+  "$defs": {
+    "mirror_integrity_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the mirror-integrity packet payload shape. Current value is 1."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, diagnostics exports, release packets, install review sheets, and offline review. Raw URLs, raw hostnames, raw absolute paths, raw signature bytes, raw key material, raw private mirror endpoints, raw tokens, and raw artifact bytes never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label. May contain user-facing artifact names but never raw URLs, raw hostnames, raw absolute paths, raw signature bytes, raw key material, or raw artifact bytes."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw signature bytes, raw artifact bytes, raw mirror cache bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, and raw tokens MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "artifact_subject_class": {
+      "type": "string",
+      "enum": [
+        "release_payload",
+        "update_metadata",
+        "extension_package",
+        "policy_bundle",
+        "model_or_tool_pack",
+        "docs_pack",
+        "support_or_proof_packet",
+        "symbol_or_debug_sidecar"
+      ],
+      "description": "Closed artifact-subject vocabulary mirroring /schemas/release/artifact_verification_row.schema.json#artifact_subject_class. The mirror-integrity packet binds to exactly one subject so support / mirror / offline review can route to the correct evidence path."
+    },
+    "origin_source_class": {
+      "type": "string",
+      "enum": [
+        "official_release_pipeline",
+        "public_registry",
+        "private_registry",
+        "managed_authoritative_origin",
+        "third_party_origin"
+      ],
+      "description": "Closed origin-source vocabulary. Names the authoritative source the mirror is comparing itself against. official_release_pipeline covers Aureline release-pipeline payloads. public_registry covers ecosystem registries (npm, cargo, pypi, etc) when the artifact is sourced from the public registry. private_registry covers internal or managed registries serving as the authoritative origin. managed_authoritative_origin covers Aureline-managed authoritative origins for emergency, policy, or trust-root metadata. third_party_origin covers partner-published artifacts whose authoritative origin is named by a third-party publisher record."
+    },
+    "mirror_class": {
+      "type": "string",
+      "enum": [
+        "approved_mirror",
+        "customer_managed_mirror",
+        "community_mirror",
+        "private_registry_mirror",
+        "vendor_operated_regional_mirror"
+      ],
+      "description": "Closed mirror-class vocabulary. approved_mirror is an Aureline-approved enterprise mirror under a published mirror_promotion_row. customer_managed_mirror is operated by the customer and has a customer_mirror_identity. community_mirror is a community-operated mirror. private_registry_mirror is a private registry serving as a mirror to a public origin. vendor_operated_regional_mirror is a vendor-operated regional mirror serving the same artifacts as the authoritative origin."
+    },
+    "mirror_channel_class": {
+      "type": "string",
+      "enum": [
+        "quarantine",
+        "approved",
+        "production"
+      ],
+      "description": "Closed mirror-channel vocabulary mirroring /schemas/ecosystem/mirror_promotion_row.schema.json#/$defs/mirror_channel_class. quarantine is the holding lane for newly arrived artifacts. approved is the lane after promotion gates pass. production is the lane the mirror serves to clients."
+    },
+    "mirror_resign_kind_class": {
+      "type": "string",
+      "enum": [
+        "origin_signature_reused",
+        "mirror_signature_wraps_origin",
+        "mirror_resigned_repackaged_blocked",
+        "signature_missing_blocked",
+        "not_applicable"
+      ],
+      "description": "Closed mirror-resign-kind vocabulary mirroring /schemas/ecosystem/mirror_promotion_row.schema.json#/$defs/signature_equivalence_class plus a not_applicable refusal. origin_signature_reused means the mirror serves the original origin signature unmodified. mirror_signature_wraps_origin means the mirror adds a wrapping signature on top of an unmodified origin signature so the origin signature can still be verified. mirror_resigned_repackaged_blocked is the explicit refusal state when the mirror has re-signed a repackaged artifact and the origin signature is no longer present; the mirror MUST NOT serve this artifact as the origin artifact. signature_missing_blocked is the explicit refusal state when no signature is present at all."
+    },
+    "artifact_identity_relationship_class": {
+      "type": "string",
+      "enum": [
+        "same_artifact",
+        "repackaged_identity",
+        "digest_mismatch",
+        "signature_mismatch",
+        "unknown_identity"
+      ],
+      "description": "Closed artifact-identity-relationship vocabulary mirroring /schemas/ecosystem/mirror_promotion_row.schema.json#/$defs/artifact_identity_relationship. same_artifact is the only positive relationship; the four other classes are typed refusal states that block integrity. Collapsing repackaged_identity into same_artifact would let a repackaged copy masquerade as the unchanged public artifact and is non-conforming."
+    },
+    "digest_continuity_class": {
+      "type": "string",
+      "enum": [
+        "digests_match",
+        "digests_differ_repackaged",
+        "digests_unverifiable"
+      ],
+      "description": "Closed digest-continuity vocabulary. digests_match is the positive class. digests_differ_repackaged is the typed refusal state when the mirror digest differs from the origin digest because the artifact was repackaged. digests_unverifiable is the typed refusal state when one of the two digests is missing or cannot be re-computed; collapsing it into digests_match is non-conforming because the mirror cannot prove the artifact identity."
+    },
+    "signer_continuity_class": {
+      "type": "string",
+      "enum": [
+        "same_origin_signer",
+        "origin_signature_present_through_wrap",
+        "signer_continuity_under_rotation_overlap",
+        "signer_continuity_under_cross_signed_transition",
+        "signer_changed_blocked",
+        "signer_revoked_blocked",
+        "continuity_unknown_blocked"
+      ],
+      "description": "Closed signer-continuity vocabulary. same_origin_signer means the mirror signature equals the origin signature under the same signer. origin_signature_present_through_wrap means the origin signature is preserved underneath a mirror wrapping signature. signer_continuity_under_rotation_overlap means the rotation overlap admits the signer transition under a signed continuity statement. signer_continuity_under_cross_signed_transition means the signer transition is admitted under a cross-signed transition. The three blocked classes (signer_changed_blocked, signer_revoked_blocked, continuity_unknown_blocked) are typed refusal states; collapsing them into one bare label is non-conforming because the support-review path differs."
+    },
+    "freshness_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified",
+        "expired"
+      ],
+      "description": "Closed freshness-age vocabulary. fresh, warm_cached, and degraded_cached are increasingly old but still admissible classes. stale and expired are typed refusal classes for the snapshot lane. unverified is the explicit refusal state when freshness cannot be evaluated; collapsing it into stale is non-conforming because the remediation path differs (refresh vs. resolve verifier identity)."
+    },
+    "customer_mirror_identity_class": {
+      "type": "string",
+      "enum": [
+        "declared_and_pinned",
+        "declared_unpinned",
+        "undeclared",
+        "mismatched_against_pin",
+        "not_applicable"
+      ],
+      "description": "Closed customer-mirror-identity vocabulary. declared_and_pinned is the strongest positive class: the mirror identity is declared by the operator and pinned in policy. declared_unpinned means the mirror identity is declared but not yet pinned. undeclared is admissible only when the mirror_class is not customer_managed_mirror. mismatched_against_pin is the explicit refusal state when the observed mirror identity does not match the pinned identity; collapsing it into undeclared lets a wrong mirror serve traffic under another mirror's identity and is non-conforming. not_applicable is admissible only for vendor- or community-operated mirrors that do not expose a per-customer mirror identity."
+    },
+    "integrity_outcome_class": {
+      "type": "string",
+      "enum": [
+        "integrity_ok_same_artifact",
+        "integrity_ok_resigned_with_continuity",
+        "blocked_repackaged_identity",
+        "blocked_digest_mismatch",
+        "blocked_signature_mismatch",
+        "blocked_signer_continuity",
+        "blocked_stale_freshness",
+        "blocked_customer_mirror_identity_mismatch",
+        "blocked_unknown_identity",
+        "blocked_policy"
+      ],
+      "description": "Closed integrity-outcome vocabulary. integrity_ok_same_artifact is the positive outcome when the mirror serves the unchanged origin artifact. integrity_ok_resigned_with_continuity is the positive outcome when the mirror wraps the origin signature with continuity preserved. The eight blocked classes are typed refusal states; collapsing two distinct refusals into one bare blocked label is non-conforming because the recovery path differs."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "release_publication",
+        "update_center",
+        "install_review_sheet",
+        "about_provenance_panel",
+        "support_bundle",
+        "public_proof_packet",
+        "mirror_offline_review",
+        "headless_dry_run_output"
+      ],
+      "description": "Closed surface vocabulary aligned with /schemas/release/artifact_verification_row.schema.json#surface_class minus the install/marketplace-discovery surfaces that do not display mirror-integrity packets. The required floor is mirror_offline_review plus support_bundle plus install_review_sheet plus about_provenance_panel."
+    },
+    "projection_mode_class": {
+      "type": "string",
+      "enum": [
+        "compact_row_only",
+        "compact_row_plus_proof_chain",
+        "full_review_sheet",
+        "support_export_redacted",
+        "public_proof_redacted"
+      ],
+      "description": "Closed projection-mode vocabulary aligned with /schemas/release/artifact_verification_row.schema.json#projection_mode_class."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "public_proof_safe",
+        "support_redacted",
+        "internal_only"
+      ],
+      "description": "Closed redaction vocabulary aligned with /schemas/release/artifact_verification_row.schema.json#redaction_class."
+    },
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "artifact_subject_class_unresolved",
+        "origin_source_class_unresolved",
+        "mirror_class_unresolved",
+        "artifact_identity_relationship_unresolved",
+        "digest_continuity_class_unresolved",
+        "signer_continuity_class_unresolved",
+        "integrity_outcome_class_unresolved",
+        "repackaged_identity_claimed_with_integrity_ok_outcome",
+        "digest_mismatch_claimed_with_integrity_ok_outcome",
+        "signature_mismatch_claimed_with_integrity_ok_outcome",
+        "signer_continuity_blocked_with_integrity_ok_outcome",
+        "stale_freshness_with_integrity_ok_outcome",
+        "customer_mirror_identity_mismatch_with_integrity_ok_outcome",
+        "customer_managed_mirror_missing_customer_mirror_identity",
+        "mirror_resigned_repackaged_with_integrity_ok_outcome",
+        "official_release_origin_missing_signature",
+        "linked_mirror_promotion_row_ref_missing_on_approved_mirror",
+        "raw_private_material_present_in_export",
+        "support_export_redaction_violation",
+        "schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary used by review tooling to refuse a mirror-integrity packet that violates the schema's allOf invariants. Emitting a denial reason outside this list is non-conforming."
+    },
+    "artifact_subject_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_class",
+        "display_name",
+        "exact_build_identity_ref",
+        "version_or_digest_ref",
+        "artifact_family_ref",
+        "channel_row_ref",
+        "owner_role_ref"
+      ],
+      "properties": {
+        "subject_class": { "$ref": "#/$defs/artifact_subject_class" },
+        "display_name": { "$ref": "#/$defs/reviewable_label" },
+        "exact_build_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /schemas/build/exact_build_identity.schema.json; null only for third_party_origin or unknown_identity rows where no exact-build identity is available."
+        },
+        "version_or_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref into /artifacts/release/artifact_family_map.yaml so the mirror-integrity packet can be grouped with sibling artifacts of the same family on release / install / About / mirror surfaces."
+        },
+        "channel_row_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into /artifacts/release/channel_matrix.yaml; null only for third_party_origin or unknown_identity rows."
+        },
+        "owner_role_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref into the supportability ownership / role matrix; null only when the origin source is third_party_origin."
+        }
+      }
+    },
+    "origin_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_source_class",
+        "origin_label",
+        "origin_ref",
+        "origin_digest_ref",
+        "origin_signature_ref",
+        "origin_signer_ref",
+        "origin_signed_at",
+        "origin_disclosure"
+      ],
+      "properties": {
+        "origin_source_class": { "$ref": "#/$defs/origin_source_class" },
+        "origin_label": { "$ref": "#/$defs/reviewable_label" },
+        "origin_ref": { "$ref": "#/$defs/opaque_id" },
+        "origin_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "origin_signature_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref to the origin signature record. Required for official_release_pipeline, public_registry, private_registry, and managed_authoritative_origin rows; admissible null only when the origin is a third_party_origin that does not expose a signature."
+        },
+        "origin_signer_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref to the origin signer identity. Required for official_release_pipeline and managed_authoritative_origin rows; nullable for third_party_origin rows."
+        },
+        "origin_signed_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "RFC 3339 UTC timestamp of the origin signature. Null only when origin_signature_ref is null."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "mirror_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_class",
+        "mirror_label",
+        "mirror_ref",
+        "channel_class",
+        "mirror_digest_ref",
+        "mirror_signature_ref",
+        "mirror_resign_kind_class",
+        "mirror_operator_role_ref",
+        "policy_owner_ref",
+        "mirror_disclosure"
+      ],
+      "properties": {
+        "mirror_class": { "$ref": "#/$defs/mirror_class" },
+        "mirror_label": { "$ref": "#/$defs/reviewable_label" },
+        "mirror_ref": { "$ref": "#/$defs/opaque_id" },
+        "channel_class": { "$ref": "#/$defs/mirror_channel_class" },
+        "mirror_digest_ref": { "$ref": "#/$defs/opaque_id" },
+        "mirror_signature_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref to the mirror signature record (origin or wrapping). Null only when mirror_resign_kind_class is signature_missing_blocked."
+        },
+        "mirror_resign_kind_class": { "$ref": "#/$defs/mirror_resign_kind_class" },
+        "mirror_operator_role_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref to the mirror operator role. Required so a support / mirror / offline reviewer can pivot to the operator without leaking raw operator identifiers."
+        },
+        "policy_owner_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable ref to the policy owner that authorized the mirror operation."
+        },
+        "mirror_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "freshness_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_snapshot_age_class",
+        "revocation_snapshot_age_class",
+        "advisory_snapshot_age_class",
+        "computed_at",
+        "freshness_evidence_refs",
+        "freshness_disclosure"
+      ],
+      "properties": {
+        "mirror_snapshot_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "revocation_snapshot_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "advisory_snapshot_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "computed_at": { "$ref": "#/$defs/utc_datetime" },
+        "freshness_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "freshness_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "customer_mirror_identity_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "customer_mirror_identity_class",
+        "declared_identity_ref",
+        "pinned_identity_ref",
+        "mirror_identity_evidence_ref",
+        "identity_disclosure"
+      ],
+      "properties": {
+        "customer_mirror_identity_class": { "$ref": "#/$defs/customer_mirror_identity_class" },
+        "declared_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref to the operator-declared mirror identity. Required when customer_mirror_identity_class is declared_and_pinned, declared_unpinned, or mismatched_against_pin; null only when undeclared or not_applicable."
+        },
+        "pinned_identity_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Stable ref to the pinned mirror identity in policy. Required when customer_mirror_identity_class is declared_and_pinned or mismatched_against_pin; null otherwise."
+        },
+        "mirror_identity_evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "identity_disclosure": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "linkage_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_verification_row_refs",
+        "mirror_promotion_row_refs",
+        "manual_import_receipt_refs",
+        "trust_root_rotation_state_refs",
+        "advisory_or_compromise_refs",
+        "mirror_continuity_event_refs",
+        "revocation_propagation_record_refs",
+        "offline_verification_packet_refs",
+        "support_bundle_refs",
+        "release_evidence_packet_refs"
+      ],
+      "properties": {
+        "artifact_verification_row_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_promotion_row_refs": { "$ref": "#/$defs/ref_array" },
+        "manual_import_receipt_refs": { "$ref": "#/$defs/ref_array" },
+        "trust_root_rotation_state_refs": { "$ref": "#/$defs/ref_array" },
+        "advisory_or_compromise_refs": { "$ref": "#/$defs/ref_array" },
+        "mirror_continuity_event_refs": { "$ref": "#/$defs/ref_array" },
+        "revocation_propagation_record_refs": { "$ref": "#/$defs/ref_array" },
+        "offline_verification_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "release_evidence_packet_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "surface_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "projection_mode_class",
+        "required_fields",
+        "projection_note"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "projection_mode_class": { "$ref": "#/$defs/projection_mode_class" },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "artifact_identity_relationship_class",
+              "digest_continuity_class",
+              "signer_continuity_class",
+              "integrity_outcome_class",
+              "customer_mirror_identity_class",
+              "mirror_resign_kind_class",
+              "mirror_snapshot_age_class",
+              "revocation_snapshot_age_class",
+              "advisory_snapshot_age_class",
+              "origin_source_class",
+              "mirror_class",
+              "channel_class",
+              "computed_at"
+            ]
+          },
+          "description": "The fields the consuming surface MUST render. The artifact_identity_relationship_class, integrity_outcome_class, and computed_at fields are the row-level floor every surface MUST render; tooling MAY add more, but MUST NOT drop one."
+        },
+        "projection_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "exportable_to_screenshot",
+        "exportable_to_support_bundle",
+        "exportable_to_public_proof_packet",
+        "exportable_to_offline_review",
+        "raw_private_material_excluded",
+        "omission_reasons"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "exportable_to_screenshot": { "type": "boolean" },
+        "exportable_to_support_bundle": { "type": "boolean" },
+        "exportable_to_public_proof_packet": { "type": "boolean" },
+        "exportable_to_offline_review": { "type": "boolean" },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "description": "MUST be true. Raw signature bytes, raw artifact bytes, raw mirror cache bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, and raw certificate material never cross this boundary."
+        },
+        "omission_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+    "mirror_integrity_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mirror_integrity_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "emitted_at",
+        "artifact_subject",
+        "origin_envelope",
+        "mirror_envelope",
+        "artifact_identity_relationship_class",
+        "digest_continuity_class",
+        "signer_continuity_class",
+        "freshness_envelope",
+        "customer_mirror_identity_envelope",
+        "integrity_outcome_class",
+        "linkage_envelope",
+        "surface_projections",
+        "export_envelope",
+        "contract_doc_ref",
+        "channel_matrix_ref",
+        "artifact_family_map_ref",
+        "trust_framework_rows_ref",
+        "notes"
+      ],
+      "properties": {
+        "mirror_integrity_packet_schema_version": { "$ref": "#/$defs/mirror_integrity_packet_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "mirror_integrity_packet_record"
+        },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^mirror_integrity_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable mirror-integrity packet id. Quoted by release publication, update center, install review, About panels, support exports, mirror or offline review, and offline verification packets."
+        },
+        "emitted_at": { "$ref": "#/$defs/utc_datetime" },
+        "artifact_subject": { "$ref": "#/$defs/artifact_subject_envelope" },
+        "origin_envelope": { "$ref": "#/$defs/origin_envelope" },
+        "mirror_envelope": { "$ref": "#/$defs/mirror_envelope" },
+        "artifact_identity_relationship_class": { "$ref": "#/$defs/artifact_identity_relationship_class" },
+        "digest_continuity_class": { "$ref": "#/$defs/digest_continuity_class" },
+        "signer_continuity_class": { "$ref": "#/$defs/signer_continuity_class" },
+        "freshness_envelope": { "$ref": "#/$defs/freshness_envelope" },
+        "customer_mirror_identity_envelope": { "$ref": "#/$defs/customer_mirror_identity_envelope" },
+        "integrity_outcome_class": { "$ref": "#/$defs/integrity_outcome_class" },
+        "linkage_envelope": { "$ref": "#/$defs/linkage_envelope" },
+        "surface_projections": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/surface_projection" },
+          "description": "Set of surface projections this mirror-integrity packet MUST render onto. The four required floor surfaces (mirror_offline_review, support_bundle, install_review_sheet, about_provenance_panel) are mandatory; tooling MAY add more, but MUST NOT drop one."
+        },
+        "export_envelope": { "$ref": "#/$defs/export_envelope" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/mirror_integrity_and_offline_verification_contract.md"
+        },
+        "channel_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/release/channel_matrix.yaml"
+        },
+        "artifact_family_map_ref": {
+          "type": "string",
+          "const": "artifacts/release/artifact_family_map.yaml"
+        },
+        "trust_framework_rows_ref": {
+          "type": "string",
+          "const": "artifacts/release/trust_framework_rows.yaml"
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "A repackaged_identity, digest_mismatch, signature_mismatch, or unknown_identity relationship cannot pair with an integrity_ok outcome. The integrity_outcome_class MUST resolve to the matching typed refusal class.",
+          "if": {
+            "properties": {
+              "artifact_identity_relationship_class": {
+                "enum": ["repackaged_identity", "digest_mismatch", "signature_mismatch", "unknown_identity"]
+              }
+            },
+            "required": ["artifact_identity_relationship_class"]
+          },
+          "then": {
+            "properties": {
+              "integrity_outcome_class": {
+                "enum": [
+                  "blocked_repackaged_identity",
+                  "blocked_digest_mismatch",
+                  "blocked_signature_mismatch",
+                  "blocked_unknown_identity",
+                  "blocked_signer_continuity",
+                  "blocked_stale_freshness",
+                  "blocked_customer_mirror_identity_mismatch",
+                  "blocked_policy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "An integrity_ok_same_artifact outcome requires same_artifact relationship plus digests_match digest continuity plus a non-blocked signer continuity (same_origin_signer, origin_signature_present_through_wrap, signer_continuity_under_rotation_overlap, or signer_continuity_under_cross_signed_transition).",
+          "if": {
+            "properties": {
+              "integrity_outcome_class": { "const": "integrity_ok_same_artifact" }
+            },
+            "required": ["integrity_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "artifact_identity_relationship_class": { "const": "same_artifact" },
+              "digest_continuity_class": { "const": "digests_match" },
+              "signer_continuity_class": {
+                "enum": [
+                  "same_origin_signer",
+                  "origin_signature_present_through_wrap",
+                  "signer_continuity_under_rotation_overlap",
+                  "signer_continuity_under_cross_signed_transition"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "An integrity_ok_resigned_with_continuity outcome requires same_artifact relationship plus digests_match plus mirror_signature_wraps_origin resign kind plus origin_signature_present_through_wrap, signer_continuity_under_rotation_overlap, or signer_continuity_under_cross_signed_transition signer continuity.",
+          "if": {
+            "properties": {
+              "integrity_outcome_class": { "const": "integrity_ok_resigned_with_continuity" }
+            },
+            "required": ["integrity_outcome_class"]
+          },
+          "then": {
+            "properties": {
+              "artifact_identity_relationship_class": { "const": "same_artifact" },
+              "digest_continuity_class": { "const": "digests_match" },
+              "mirror_envelope": {
+                "properties": {
+                  "mirror_resign_kind_class": { "const": "mirror_signature_wraps_origin" }
+                }
+              },
+              "signer_continuity_class": {
+                "enum": [
+                  "origin_signature_present_through_wrap",
+                  "signer_continuity_under_rotation_overlap",
+                  "signer_continuity_under_cross_signed_transition"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A signer_changed_blocked, signer_revoked_blocked, or continuity_unknown_blocked signer continuity forces the integrity_outcome_class to a blocked_* class. The most-fundamental refusal class wins (a repackaged artifact under a changed signer is a blocked_repackaged_identity), so the schema admits blocked_signer_continuity, blocked_repackaged_identity, blocked_digest_mismatch, blocked_signature_mismatch, blocked_unknown_identity, blocked_stale_freshness, blocked_customer_mirror_identity_mismatch, or blocked_policy. Collapsing these into one bare label is non-conforming.",
+          "if": {
+            "properties": {
+              "signer_continuity_class": {
+                "enum": ["signer_changed_blocked", "signer_revoked_blocked", "continuity_unknown_blocked"]
+              }
+            },
+            "required": ["signer_continuity_class"]
+          },
+          "then": {
+            "properties": {
+              "integrity_outcome_class": {
+                "enum": [
+                  "blocked_signer_continuity",
+                  "blocked_repackaged_identity",
+                  "blocked_digest_mismatch",
+                  "blocked_signature_mismatch",
+                  "blocked_unknown_identity",
+                  "blocked_stale_freshness",
+                  "blocked_customer_mirror_identity_mismatch",
+                  "blocked_policy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A mismatched_against_pin customer-mirror identity forces the integrity_outcome_class to blocked_customer_mirror_identity_mismatch. A wrong mirror cannot serve traffic under another mirror's identity.",
+          "if": {
+            "properties": {
+              "customer_mirror_identity_envelope": {
+                "properties": {
+                  "customer_mirror_identity_class": { "const": "mismatched_against_pin" }
+                },
+                "required": ["customer_mirror_identity_class"]
+              }
+            },
+            "required": ["customer_mirror_identity_envelope"]
+          },
+          "then": {
+            "properties": {
+              "integrity_outcome_class": { "const": "blocked_customer_mirror_identity_mismatch" }
+            }
+          }
+        },
+        {
+          "description": "A customer_managed_mirror requires a customer_mirror_identity_class of declared_and_pinned, declared_unpinned, or mismatched_against_pin. undeclared and not_applicable are non-conforming for customer_managed_mirror.",
+          "if": {
+            "properties": {
+              "mirror_envelope": {
+                "properties": {
+                  "mirror_class": { "const": "customer_managed_mirror" }
+                },
+                "required": ["mirror_class"]
+              }
+            },
+            "required": ["mirror_envelope"]
+          },
+          "then": {
+            "properties": {
+              "customer_mirror_identity_envelope": {
+                "properties": {
+                  "customer_mirror_identity_class": {
+                    "enum": ["declared_and_pinned", "declared_unpinned", "mismatched_against_pin"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A stale or unverified or expired revocation_snapshot_age_class forces the integrity_outcome_class to blocked_stale_freshness. A mirror cannot serve a fresh-looking artifact when the revocation snapshot is stale.",
+          "if": {
+            "properties": {
+              "freshness_envelope": {
+                "properties": {
+                  "revocation_snapshot_age_class": {
+                    "enum": ["stale", "unverified", "expired"]
+                  }
+                },
+                "required": ["revocation_snapshot_age_class"]
+              }
+            },
+            "required": ["freshness_envelope"]
+          },
+          "then": {
+            "properties": {
+              "integrity_outcome_class": { "const": "blocked_stale_freshness" }
+            }
+          }
+        },
+        {
+          "description": "A mirror_resigned_repackaged_blocked or signature_missing_blocked mirror_resign_kind_class forces the integrity_outcome_class to blocked_signature_mismatch or blocked_repackaged_identity. The mirror cannot serve a re-signed repackaged artifact as the origin.",
+          "if": {
+            "properties": {
+              "mirror_envelope": {
+                "properties": {
+                  "mirror_resign_kind_class": {
+                    "enum": ["mirror_resigned_repackaged_blocked", "signature_missing_blocked"]
+                  }
+                },
+                "required": ["mirror_resign_kind_class"]
+              }
+            },
+            "required": ["mirror_envelope"]
+          },
+          "then": {
+            "properties": {
+              "integrity_outcome_class": {
+                "enum": [
+                  "blocked_repackaged_identity",
+                  "blocked_signature_mismatch"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "An official_release_pipeline origin requires a non-null origin_signature_ref plus a non-null origin_signer_ref plus a non-null origin_signed_at timestamp. Aureline-signed origin payloads always carry their signature.",
+          "if": {
+            "properties": {
+              "origin_envelope": {
+                "properties": {
+                  "origin_source_class": { "const": "official_release_pipeline" }
+                },
+                "required": ["origin_source_class"]
+              }
+            },
+            "required": ["origin_envelope"]
+          },
+          "then": {
+            "properties": {
+              "origin_envelope": {
+                "properties": {
+                  "origin_signature_ref": { "not": { "type": "null" } },
+                  "origin_signer_ref": { "not": { "type": "null" } },
+                  "origin_signed_at": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "An approved_mirror MUST carry at least one mirror_promotion_row_ref so the promotion decision is reviewable from the mirror-integrity packet.",
+          "if": {
+            "properties": {
+              "mirror_envelope": {
+                "properties": {
+                  "mirror_class": { "const": "approved_mirror" }
+                },
+                "required": ["mirror_class"]
+              }
+            },
+            "required": ["mirror_envelope"]
+          },
+          "then": {
+            "properties": {
+              "linkage_envelope": {
+                "properties": {
+                  "mirror_promotion_row_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The required surface projection floor is mirror_offline_review, support_bundle, install_review_sheet, and about_provenance_panel.",
+          "properties": {
+            "surface_projections": {
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "mirror_offline_review" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "support_bundle" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "install_review_sheet" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "surface_class": { "const": "about_provenance_panel" }
+                    },
+                    "required": ["surface_class"]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "description": "Every surface projection MUST list artifact_identity_relationship_class, integrity_outcome_class, and computed_at as required fields so the row's positive / refusal posture and freshness time always render.",
+          "properties": {
+            "surface_projections": {
+              "items": {
+                "properties": {
+                  "required_fields": {
+                    "allOf": [
+                      { "contains": { "const": "artifact_identity_relationship_class" } },
+                      { "contains": { "const": "integrity_outcome_class" } },
+                      { "contains": { "const": "computed_at" } }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "The export envelope MUST set raw_private_material_excluded to true. Raw signature bytes, raw artifact bytes, raw mirror cache bodies, raw URLs, raw hostnames, raw absolute paths, raw key material, raw private mirror endpoints, raw tokens, and raw certificate material never cross this boundary.",
+          "properties": {
+            "export_envelope": {
+              "properties": {
+                "raw_private_material_excluded": { "const": true }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
