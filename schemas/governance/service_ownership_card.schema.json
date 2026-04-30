@@ -1,0 +1,918 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/service_ownership_card.schema.json",
+  "title": "Aureline service-ownership card, escalation-route, and accountability-status contract",
+  "description": "Boundary schema for one service_ownership_card_record frozen in docs/governance/service_ownership_card_contract.md. The card is the reusable projection that the governance dashboard, the milestone scorecard, the release-evidence shiproom packet, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review quote when 'who owns this' has to be visible and exportable. Every card names a typed surface identity, a typed accountability-status token, the role-based primary owner, the role-based backup owner (or the active backup waiver), the eight-class support class, the typed escalation path and decision forum, the typed ownership-freshness class, the linked evidence packets / scorecard lanes / claim rows / fitness-function rows / waivers, the open temporary-handoff records (when a handoff is in force), the typed degraded-state label, and the typed reuse class controlling whether named accountable ownership is required, recommended, or not-applicable. A temporary-handoff lapse can never collapse into a clean active-owner card; an unresolved owner can never render as approved; a security-sensitive egress class, a compatibility claim, or a public-truth surface can never run without a card. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, and raw private meeting refs MUST NOT appear; the record carries opaque role refs, typed vocabulary, and bounded reviewable summaries only. Adding a new surface-identity class, accountability-status class, ownership-freshness class, degraded-state label, role-export class, reuse class, escalation-path class, or temporary-handoff status class is additive-minor and bumps service_ownership_card_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two distinct refusal / degraded states into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/service_ownership_card_record",
+  "$defs": {
+    "service_ownership_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the service-ownership-card payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, enterprise-review exports, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw calendar URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration (e.g. P30D)."
+    },
+    "nullable_iso_duration": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/iso_duration" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, and raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "surface_identity_class": {
+      "type": "string",
+      "enum": [
+        "subsystem",
+        "runtime_host_class",
+        "public_truth_area",
+        "supportability_family",
+        "packet_family",
+        "review_family",
+        "protected_metric_or_fitness_function",
+        "compatibility_or_certified_archetype_claim",
+        "security_sensitive_egress_class"
+      ],
+      "description": "Closed nine-class surface-identity vocabulary. Names what kind of surface the card grades so reuse rules and export rules can be resolved without parsing free-text scope copy."
+    },
+    "accountability_status_class": {
+      "type": "string",
+      "enum": [
+        "active_owner_no_handoff",
+        "active_owner_with_backup_waiver",
+        "temporary_handoff_active",
+        "temporary_handoff_nearing_expiry",
+        "temporary_handoff_expired",
+        "owner_unresolved_degraded",
+        "blocked_escalated"
+      ],
+      "description": "Closed seven-class accountability-status vocabulary. A clean active-owner card cannot ride a lapsed handoff or an unresolved role; an unresolved owner cannot render as approved; a contested ownership row MUST escalate rather than render as ambiguous."
+    },
+    "ownership_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "near_expiry",
+        "stale_by_time",
+        "stale_by_trigger",
+        "not_applicable_provisional"
+      ],
+      "description": "Closed five-class ownership-freshness vocabulary. Mirrors the evidence-freshness shape from fitness_tile.schema.json but graded against the most recent ownership reaffirmation rather than an evidence packet capture."
+    },
+    "degraded_state_label_class": {
+      "type": "string",
+      "enum": [
+        "not_degraded_active",
+        "degraded_handoff_expired",
+        "degraded_owner_unresolved",
+        "degraded_freshness_stale",
+        "degraded_blocked_escalated"
+      ],
+      "description": "Closed five-class degraded-state-label vocabulary. Mirrors the two named degraded states from decision_rights_and_signoff_matrix.md and adds the freshness and blocked-escalated states. A card cannot be active and degraded simultaneously."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "not_certified_in_this_mode",
+        "not_configured",
+        "disabled_by_policy",
+        "not_supported"
+      ],
+      "description": "Closed eight-class support-class vocabulary. Mirrors /schemas/release/support_window_badge.schema.json#support_class verbatim so an ownership card and a release-channel badge agree on what 'supported' means."
+    },
+    "escalation_path_class": {
+      "type": "string",
+      "enum": [
+        "escalate_to_dri",
+        "escalate_to_backup_owner",
+        "escalate_to_decision_forum",
+        "escalate_to_release_council",
+        "escalate_to_shiproom",
+        "escalate_to_support",
+        "no_escalation_required"
+      ],
+      "description": "Closed seven-class escalation-path vocabulary. Mirrors /schemas/governance/waiver_expiry_item.schema.json#escalation_path_class verbatim so the ownership card and the waiver-expiry queue route through the same councils."
+    },
+    "reuse_class": {
+      "type": "string",
+      "enum": [
+        "required_named_accountable_ownership",
+        "recommended_named_accountable_ownership",
+        "not_applicable_internal_tooling"
+      ],
+      "description": "Closed three-class reuse-class vocabulary. Surfaces marked required cannot run without a non-degraded card; recommended surfaces SHOULD carry one; internal-tooling lanes are exempt."
+    },
+    "role_export_class": {
+      "type": "string",
+      "enum": [
+        "role_id_only",
+        "role_id_with_decision_forum",
+        "role_id_with_named_backup_or_waiver",
+        "role_id_with_temporary_handoff_summary",
+        "redacted_role_class_only_no_role_id"
+      ],
+      "description": "Closed five-class role-export-class vocabulary. Audience-specific ceilings keep personal contact details, private schedules, and on-call calendars out of every export path."
+    },
+    "linked_evidence_kind_class": {
+      "type": "string",
+      "enum": [
+        "release_evidence_packet",
+        "governance_packet",
+        "signoff_row",
+        "certified_archetype_report",
+        "compatibility_row",
+        "claim_manifest_row",
+        "scorecard_lane",
+        "fitness_function_catalog_row",
+        "protected_metrics_row",
+        "waiver_record",
+        "decision_index_row",
+        "support_export_packet"
+      ],
+      "description": "Closed twelve-class linked-evidence kind vocabulary. Surfaces resolve refs against the catalog the kind names; mixing kinds inside one card is admissible but each entry MUST cite its kind."
+    },
+
+    "surface_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_identity_class",
+        "surface_ref",
+        "lane_ref",
+        "protected_path_ref",
+        "headline_label",
+        "surface_summary"
+      ],
+      "properties": {
+        "surface_identity_class": { "$ref": "#/$defs/surface_identity_class" },
+        "surface_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the underlying surface (subsystem id, runtime host-class id, public-truth area id, supportability family id, packet family id, review family id, fitness-function row id, compatibility row id, certified-archetype row id, claim row id, security-sensitive egress class id)."
+        },
+        "lane_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the lane (scorecard lane id, dri-map lane label) the surface sits on. Null only when the surface is not pinned to a scorecard lane (e.g. a stand-alone packet family)."
+        },
+        "protected_path_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the protected path the surface sits on (catalog row id, claim row id, compatibility-surface id, security-sensitive egress class id, runtime host-class id). Required when the surface_identity_class implies a protected-path floor (see allOf rules)."
+        },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the card. Resolves against surface_identity_class plus the lane scope; free-text 'all good' / 'needs review' copy is non-conforming."
+        },
+        "surface_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the surface and its lane scope. Names what the card grades; raw absolute paths and raw URLs do not appear."
+        }
+      }
+    },
+
+    "accountable_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_owner_role_ref",
+        "backup_owner_role_ref",
+        "co_owner_role_refs",
+        "owning_team_label",
+        "concurrence_role_refs",
+        "linked_waiver_ref",
+        "accountability_status_class",
+        "accountability_summary"
+      ],
+      "properties": {
+        "primary_owner_role_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Role id (e.g. role:chief_architect, role:release_owner, role:enterprise_support_owner). Resolves to an active person through artifacts/governance/ownership_matrix.yaml. Required."
+        },
+        "backup_owner_role_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Role id of the backup owner. Null only when accountability_status_class = active_owner_with_backup_waiver and a non-null linked_waiver_ref is cited."
+        },
+        "co_owner_role_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Role ids of co-owning roles. Empty when there is no shared ownership."
+        },
+        "owning_team_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable label naming the owning team / lane (e.g. 'benchmark lab', 'release evidence', 'support / export'). Personal handles MUST NOT appear here."
+        },
+        "concurrence_role_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Role ids of concurrence roles required by the decision-rights matrix for launch-bearing decisions on this surface. Empty for non-decision surfaces."
+        },
+        "linked_waiver_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into a waiver in artifacts/governance/ownership_matrix.yaml when accountable ownership rides on a waiver (e.g. the standing single-maintainer-backup waiver). Required to be non-null when accountability_status_class = active_owner_with_backup_waiver."
+        },
+        "accountability_status_class": { "$ref": "#/$defs/accountability_status_class" },
+        "accountability_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of who is accountable and how (active owner, backup waiver, temporary handoff, escalation). Personal handles, raw email addresses, raw phone numbers, and raw calendar URLs MUST NOT appear."
+        }
+      }
+    },
+
+    "support_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_class",
+        "support_window_badge_ref",
+        "support_posture_summary"
+      ],
+      "properties": {
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "support_window_badge_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into a support_window_badge_record on /schemas/release/support_window_badge.schema.json. Required when surface_identity_class is in { public_truth_area, compatibility_or_certified_archetype_claim, security_sensitive_egress_class } or when reuse_class = required_named_accountable_ownership."
+        },
+        "support_posture_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the support class and the badge posture. Raw policy bodies and raw release prose do not appear."
+        }
+      }
+    },
+
+    "escalation_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_path_class",
+        "decision_forum_ref",
+        "escalation_chain_role_refs",
+        "escalation_summary"
+      ],
+      "properties": {
+        "escalation_path_class": { "$ref": "#/$defs/escalation_path_class" },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into a forum id from docs/governance/forum_charters.md (architecture_council, performance_council, security_trust_review, accessibility_review, compatibility_ecosystem_review, product_scope_review, open_community_sync, release_council, shiproom_executive_scope_review). Required when escalation_path_class is in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom }. Null admissible only when escalation_path_class = no_escalation_required."
+        },
+        "escalation_chain_role_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Ordered list of role ids the escalation routes through. Empty admissible only when escalation_path_class = no_escalation_required."
+        },
+        "escalation_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming the escalation path and the decision forum. Personal handles and raw meeting refs do not appear."
+        }
+      }
+    },
+
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ownership_freshness_class",
+        "last_reaffirmed_at",
+        "stale_after",
+        "expires_at",
+        "rerun_trigger_ref",
+        "freshness_summary"
+      ],
+      "properties": {
+        "ownership_freshness_class": { "$ref": "#/$defs/ownership_freshness_class" },
+        "last_reaffirmed_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Timestamp of the most recent ownership reaffirmation (council attestation, scorecard ack, decision-row close-out). Null only for ownership_freshness_class = not_applicable_provisional."
+        },
+        "stale_after": {
+          "$ref": "#/$defs/nullable_iso_duration",
+          "description": "Declared review window (ISO 8601 duration). Null only for ownership_freshness_class = not_applicable_provisional."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Computed last_reaffirmed_at + stale_after. Null only for ownership_freshness_class = not_applicable_provisional. For stale_by_time the timestamp MUST be in the past relative to evaluated_at."
+        },
+        "rerun_trigger_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when ownership_freshness_class = stale_by_trigger; resolves into a named ownership-rerun trigger (lane re-scope, protected-path promotion, support-class change, security egress class change, decision-rights matrix update). Null otherwise."
+        },
+        "freshness_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of why the ownership card is in this freshness class. Names the time window or the named trigger; raw policy bodies do not appear."
+        }
+      }
+    },
+
+    "linked_evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linked_evidence_kind_class", "linked_evidence_id"],
+      "properties": {
+        "linked_evidence_kind_class": { "$ref": "#/$defs/linked_evidence_kind_class" },
+        "linked_evidence_id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "role_export_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard_export_class",
+        "scorecard_export_class",
+        "release_packet_export_class",
+        "support_export_class",
+        "governance_packet_export_class",
+        "claim_manifest_export_class",
+        "enterprise_review_export_class"
+      ],
+      "properties": {
+        "dashboard_export_class": { "$ref": "#/$defs/role_export_class" },
+        "scorecard_export_class": { "$ref": "#/$defs/role_export_class" },
+        "release_packet_export_class": { "$ref": "#/$defs/role_export_class" },
+        "support_export_class": { "$ref": "#/$defs/role_export_class" },
+        "governance_packet_export_class": { "$ref": "#/$defs/role_export_class" },
+        "claim_manifest_export_class": { "$ref": "#/$defs/role_export_class" },
+        "enterprise_review_export_class": { "$ref": "#/$defs/role_export_class" }
+      },
+      "description": "Per-audience role-export class. The schema enforces audience-specific ceilings: claim manifest cannot exceed redacted_role_class_only_no_role_id; support export cannot exceed role_id_with_named_backup_or_waiver or role_id_with_temporary_handoff_summary; release packet and shiproom cannot exceed role_id_with_decision_forum or role_id_with_temporary_handoff_summary; enterprise review cannot exceed role_id_with_named_backup_or_waiver or role_id_with_temporary_handoff_summary."
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest",
+        "render_on_enterprise_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" },
+        "render_on_enterprise_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the card MUST render the same surface_identity, accountable_ownership, support_posture, escalation_route, freshness, degraded_state_label_class, and reuse_class. Setting render_on_release_packet, render_on_support_export, render_on_governance_packet, render_on_claim_manifest, or render_on_enterprise_review to true signals that the card is part of public / release / support truth and MUST satisfy the per-state export rules in the schema's allOf block."
+    },
+
+    "service_ownership_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service_ownership_card_schema_version",
+        "record_kind",
+        "service_ownership_card_id",
+        "evaluated_at",
+        "surface_identity",
+        "accountable_ownership",
+        "support_posture",
+        "escalation_route",
+        "freshness",
+        "linked_evidence_refs",
+        "temporary_handoff_refs",
+        "current_accountability_status",
+        "degraded_state_label_class",
+        "degraded_state_summary",
+        "role_export_rules",
+        "reuse_class",
+        "export_fields",
+        "contract_doc_ref",
+        "temporary_handoff_record_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "service_ownership_card_schema_version": { "$ref": "#/$defs/service_ownership_card_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "service_ownership_card_record"
+        },
+        "service_ownership_card_id": {
+          "type": "string",
+          "pattern": "^service_ownership_card:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the dashboard, the milestone scorecard, the weekly governance review, the release-evidence shiproom packet, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the card was projected. Distinct from freshness.last_reaffirmed_at; the same ownership row can be reprojected when freshness windows tick or when a temporary handoff opens, lapses, or closes."
+        },
+        "surface_identity": { "$ref": "#/$defs/surface_identity" },
+        "accountable_ownership": { "$ref": "#/$defs/accountable_ownership" },
+        "support_posture": { "$ref": "#/$defs/support_posture" },
+        "escalation_route": { "$ref": "#/$defs/escalation_route" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "linked_evidence_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/linked_evidence_ref" },
+          "description": "Typed refs into release evidence packets, governance packets, signoff rows, certified-archetype reports, compatibility rows, claim-manifest rows, scorecard lanes, fitness-function catalog rows, protected-metrics rows, waiver records, decision-index rows, and support-export packets. A card whose reuse_class is required_named_accountable_ownership MUST cite at least one entry."
+        },
+        "temporary_handoff_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into temporary_handoff_records that gate the card's accountability status. Required to be non-empty when accountability_status_class is in { temporary_handoff_active, temporary_handoff_nearing_expiry, temporary_handoff_expired }."
+        },
+        "current_accountability_status": { "$ref": "#/$defs/accountability_status_class" },
+        "degraded_state_label_class": { "$ref": "#/$defs/degraded_state_label_class" },
+        "degraded_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the degraded-state label. Names the lapsed handoff, the unresolved owner, the stale freshness, or the contested escalation; raw policy bodies and raw waiver justifications do not appear."
+        },
+        "role_export_rules": { "$ref": "#/$defs/role_export_rules" },
+        "reuse_class": { "$ref": "#/$defs/reuse_class" },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/service_ownership_card_contract.md"
+        },
+        "temporary_handoff_record_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/temporary_handoff_record.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "current_accountability_status MUST equal accountable_ownership.accountability_status_class so the export-parity convenience field cannot drift from the canonical class.",
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "active_owner_no_handoff" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": { "current_accountability_status": { "const": "active_owner_no_handoff" } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "active_owner_with_backup_waiver" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "current_accountability_status": { "const": "active_owner_with_backup_waiver" },
+              "accountable_ownership": {
+                "properties": { "linked_waiver_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "temporary_handoff_active" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "current_accountability_status": { "const": "temporary_handoff_active" },
+              "temporary_handoff_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "temporary_handoff_nearing_expiry" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "current_accountability_status": { "const": "temporary_handoff_nearing_expiry" },
+              "temporary_handoff_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "temporary_handoff_expired" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "current_accountability_status": { "const": "temporary_handoff_expired" },
+              "temporary_handoff_refs": { "minItems": 1 },
+              "degraded_state_label_class": { "const": "degraded_handoff_expired" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "owner_unresolved_degraded" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "current_accountability_status": { "const": "owner_unresolved_degraded" },
+              "degraded_state_label_class": { "const": "degraded_owner_unresolved" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "accountable_ownership": {
+                "properties": { "accountability_status_class": { "const": "blocked_escalated" } },
+                "required": ["accountability_status_class"]
+              }
+            },
+            "required": ["accountable_ownership"]
+          },
+          "then": {
+            "properties": {
+              "current_accountability_status": { "const": "blocked_escalated" },
+              "degraded_state_label_class": { "const": "degraded_blocked_escalated" },
+              "escalation_route": {
+                "properties": {
+                  "escalation_path_class": {
+                    "enum": [
+                      "escalate_to_decision_forum",
+                      "escalate_to_release_council",
+                      "escalate_to_shiproom"
+                    ]
+                  },
+                  "decision_forum_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "active_owner_no_handoff plus fresh ownership requires not_degraded_active. A clean active-owner card cannot ride a stale freshness or a degraded label.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "accountable_ownership": {
+                    "properties": { "accountability_status_class": { "const": "active_owner_no_handoff" } },
+                    "required": ["accountability_status_class"]
+                  }
+                },
+                "required": ["accountable_ownership"]
+              },
+              {
+                "properties": {
+                  "freshness": {
+                    "properties": { "ownership_freshness_class": { "const": "fresh" } },
+                    "required": ["ownership_freshness_class"]
+                  }
+                },
+                "required": ["freshness"]
+              }
+            ]
+          },
+          "then": {
+            "properties": { "degraded_state_label_class": { "const": "not_degraded_active" } }
+          }
+        },
+        {
+          "description": "ownership_freshness_class in { stale_by_time, stale_by_trigger } requires a degraded label and forbids not_degraded_active.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "ownership_freshness_class": {
+                    "enum": ["stale_by_time", "stale_by_trigger"]
+                  }
+                },
+                "required": ["ownership_freshness_class"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "degraded_state_label_class": {
+                "enum": [
+                  "degraded_freshness_stale",
+                  "degraded_handoff_expired",
+                  "degraded_owner_unresolved",
+                  "degraded_blocked_escalated"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "ownership_freshness_class = stale_by_trigger requires a non-null rerun_trigger_ref so the trigger reason can be resolved against a named ownership-rerun trigger.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": { "ownership_freshness_class": { "const": "stale_by_trigger" } },
+                "required": ["ownership_freshness_class"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "properties": { "rerun_trigger_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "ownership_freshness_class = not_applicable_provisional MUST carry null last_reaffirmed_at, stale_after, and expires_at fields; the absence of reaffirmation cannot be silently filled in.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": { "ownership_freshness_class": { "const": "not_applicable_provisional" } },
+                "required": ["ownership_freshness_class"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "last_reaffirmed_at": { "type": "null" },
+                  "stale_after": { "type": "null" },
+                  "expires_at": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "escalation_path_class = no_escalation_required forces decision_forum_ref to null and escalation_chain_role_refs to empty.",
+          "if": {
+            "properties": {
+              "escalation_route": {
+                "properties": { "escalation_path_class": { "const": "no_escalation_required" } },
+                "required": ["escalation_path_class"]
+              }
+            },
+            "required": ["escalation_route"]
+          },
+          "then": {
+            "properties": {
+              "escalation_route": {
+                "properties": {
+                  "decision_forum_ref": { "type": "null" },
+                  "escalation_chain_role_refs": { "maxItems": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "escalation_path_class in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom } requires a non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "escalation_route": {
+                "properties": {
+                  "escalation_path_class": {
+                    "enum": [
+                      "escalate_to_decision_forum",
+                      "escalate_to_release_council",
+                      "escalate_to_shiproom"
+                    ]
+                  }
+                },
+                "required": ["escalation_path_class"]
+              }
+            },
+            "required": ["escalation_route"]
+          },
+          "then": {
+            "properties": {
+              "escalation_route": {
+                "properties": { "decision_forum_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "surface_identity_class in { runtime_host_class, public_truth_area, supportability_family, packet_family, review_family, protected_metric_or_fitness_function, compatibility_or_certified_archetype_claim, security_sensitive_egress_class } forces reuse_class = required_named_accountable_ownership so promotion cannot silently lose the card.",
+          "if": {
+            "properties": {
+              "surface_identity": {
+                "properties": {
+                  "surface_identity_class": {
+                    "enum": [
+                      "runtime_host_class",
+                      "public_truth_area",
+                      "supportability_family",
+                      "packet_family",
+                      "review_family",
+                      "protected_metric_or_fitness_function",
+                      "compatibility_or_certified_archetype_claim",
+                      "security_sensitive_egress_class"
+                    ]
+                  }
+                },
+                "required": ["surface_identity_class"]
+              }
+            },
+            "required": ["surface_identity"]
+          },
+          "then": {
+            "properties": { "reuse_class": { "const": "required_named_accountable_ownership" } }
+          }
+        },
+        {
+          "description": "reuse_class = required_named_accountable_ownership requires a non-empty linked_evidence_refs, a non-null primary_owner_role_ref, and a non-null decision_forum_ref so a required surface cannot run without evidence and a routing forum.",
+          "if": {
+            "properties": { "reuse_class": { "const": "required_named_accountable_ownership" } },
+            "required": ["reuse_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_evidence_refs": { "minItems": 1 },
+              "accountable_ownership": {
+                "properties": { "primary_owner_role_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "surface_identity_class in { public_truth_area, compatibility_or_certified_archetype_claim, security_sensitive_egress_class } requires a non-null support_window_badge_ref so an external claim cannot float free of a release-channel badge.",
+          "if": {
+            "properties": {
+              "surface_identity": {
+                "properties": {
+                  "surface_identity_class": {
+                    "enum": [
+                      "public_truth_area",
+                      "compatibility_or_certified_archetype_claim",
+                      "security_sensitive_egress_class"
+                    ]
+                  }
+                },
+                "required": ["surface_identity_class"]
+              }
+            },
+            "required": ["surface_identity"]
+          },
+          "then": {
+            "properties": {
+              "support_posture": {
+                "properties": { "support_window_badge_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "claim_manifest_export_class MUST be redacted_role_class_only_no_role_id so role IDs never reach a public claim manifest.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "claim_manifest_export_class": { "const": "redacted_role_class_only_no_role_id" }
+              }
+            }
+          }
+        },
+        {
+          "description": "support_export_class MUST stay inside the support-bundle ceiling.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "support_export_class": {
+                  "enum": [
+                    "role_id_only",
+                    "role_id_with_named_backup_or_waiver",
+                    "role_id_with_temporary_handoff_summary"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "release_packet_export_class MUST stay inside the shiproom / release-packet ceiling.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "release_packet_export_class": {
+                  "enum": [
+                    "role_id_only",
+                    "role_id_with_decision_forum",
+                    "role_id_with_temporary_handoff_summary"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "enterprise_review_export_class MUST stay inside the enterprise / managed-tenant ceiling.",
+          "properties": {
+            "role_export_rules": {
+              "properties": {
+                "enterprise_review_export_class": {
+                  "enum": [
+                    "role_id_only",
+                    "role_id_with_named_backup_or_waiver",
+                    "role_id_with_temporary_handoff_summary"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

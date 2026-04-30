@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/temporary_handoff_record.schema.json",
+  "title": "Aureline temporary-handoff record, expiry-window, and degraded-state-on-lapse contract",
+  "description": "Boundary schema for one temporary_handoff_record frozen in docs/governance/service_ownership_card_contract.md §11. The record is the reusable projection that the governance dashboard, the milestone scorecard, the release-evidence shiproom packet, the support bundle, the public claim manifest, the compatibility-window report, and the enterprise / managed-tenant review quote when ownership of a surface is temporarily routed to a substitute owner. Every record names the parent service-ownership card, the primary DRI's role, the temporary owner's role, the start date, the intended expiry, the optional close-out, the typed temporary-handoff status class, the linked evidence packets and waiver records that gate the handoff, the typed closure-or-renewal path, the typed escalation path, and the typed degraded-state label that surfaces MUST render when the handoff lapses. A lapsed handoff can never collapse into a clean active-owner card; an indefinite handoff can never run without a named expiry; a handoff routed under a waiver can never run without the waiver ref. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, and raw private meeting refs MUST NOT appear; the record carries opaque role refs, typed vocabulary, and bounded reviewable summaries only. Adding a new temporary-handoff status class, closure-or-renewal class, or escalation-path class is additive-minor and bumps temporary_handoff_record_schema_version; repurposing an existing value, weakening any allOf invariant, or collapsing two distinct closure paths into one bare label is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/temporary_handoff_record",
+  "$defs": {
+    "temporary_handoff_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the temporary-handoff record payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, enterprise-review exports, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw calendar URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, and raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "temporary_handoff_status_class": {
+      "type": "string",
+      "enum": [
+        "handoff_active_inside_window",
+        "handoff_nearing_expiry_within_thirty_days",
+        "handoff_nearing_expiry_within_seven_days",
+        "handoff_active_under_waiver",
+        "handoff_expired_past_due",
+        "handoff_closed_with_renewal",
+        "handoff_closed_returned_to_primary"
+      ],
+      "description": "Closed seven-class temporary-handoff status vocabulary. A handoff whose status cannot be typed denies with temporary_handoff_status_class_unresolved rather than defaulting."
+    },
+    "closure_or_renewal_path_class": {
+      "type": "string",
+      "enum": [
+        "return_to_primary_dri",
+        "renew_handoff_with_named_expiry",
+        "escalate_to_decision_forum",
+        "escalate_to_release_council",
+        "escalate_to_shiproom",
+        "retire_via_correction_program"
+      ],
+      "description": "Closed six-class closure-or-renewal-path vocabulary. Names how the handoff exits its temporary state; a card cannot ride an open-ended handoff without one of the typed exits in flight."
+    },
+    "escalation_path_class": {
+      "type": "string",
+      "enum": [
+        "escalate_to_dri",
+        "escalate_to_backup_owner",
+        "escalate_to_decision_forum",
+        "escalate_to_release_council",
+        "escalate_to_shiproom",
+        "escalate_to_support",
+        "no_escalation_required"
+      ],
+      "description": "Closed seven-class escalation-path vocabulary. Mirrors /schemas/governance/waiver_expiry_item.schema.json and /schemas/governance/service_ownership_card.schema.json verbatim."
+    },
+    "degraded_state_label_class": {
+      "type": "string",
+      "enum": [
+        "not_degraded_active",
+        "degraded_handoff_expired",
+        "degraded_owner_unresolved",
+        "degraded_freshness_stale",
+        "degraded_blocked_escalated"
+      ],
+      "description": "Closed five-class degraded-state-label vocabulary. Mirrors /schemas/governance/service_ownership_card.schema.json verbatim. A handoff cannot be active and degraded simultaneously."
+    },
+
+    "handoff_chronology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "intended_expires_at", "closed_at", "evaluated_at"],
+      "properties": {
+        "started_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the handoff opened. Required."
+        },
+        "intended_expires_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Declared expiry timestamp. Required. MUST be in the future at started_at; surfaces recompute temporary_handoff_status_class against this value."
+        },
+        "closed_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Timestamp at which the handoff closed. Null while temporary_handoff_status_class is one of { handoff_active_inside_window, handoff_nearing_expiry_within_thirty_days, handoff_nearing_expiry_within_seven_days, handoff_active_under_waiver, handoff_expired_past_due }. Non-null when the handoff closes via renewal, return-to-primary, or correction-program retirement."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the record was projected. Surfaces recompute temporary_handoff_status_class every time the record is rendered."
+        }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_enterprise_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_enterprise_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the handoff MUST render the same primary_owner_role_ref, temporary_owner_role_ref, started_at, intended_expires_at, temporary_handoff_status_class, closure_or_renewal_path_class, escalation_path_class, and degraded_state_label_class. The handoff is intentionally not exported on the public claim manifest; ownership identity at that level routes through the parent ownership card with a redacted role-class export."
+    },
+
+    "temporary_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "temporary_handoff_record_schema_version",
+        "record_kind",
+        "temporary_handoff_id",
+        "service_ownership_card_ref",
+        "primary_owner_role_ref",
+        "temporary_owner_role_ref",
+        "handoff_chronology",
+        "temporary_handoff_status_class",
+        "linked_evidence_refs",
+        "linked_waiver_refs",
+        "successor_handoff_ref",
+        "closure_or_renewal_path_class",
+        "escalation_path_class",
+        "decision_forum_ref",
+        "degraded_state_label_class",
+        "handoff_summary",
+        "export_fields",
+        "contract_doc_ref",
+        "service_ownership_card_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "temporary_handoff_record_schema_version": { "$ref": "#/$defs/temporary_handoff_record_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "temporary_handoff_record"
+        },
+        "temporary_handoff_id": {
+          "type": "string",
+          "pattern": "^temporary_handoff:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the parent service-ownership card and by every consuming surface."
+        },
+        "service_ownership_card_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the parent service_ownership_card_record. Required."
+        },
+        "primary_owner_role_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Role id of the primary DRI the handoff is replacing. Required."
+        },
+        "temporary_owner_role_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Role id of the temporary owner the handoff routes to. Required. MUST NOT equal primary_owner_role_ref; a handoff cannot route to itself."
+        },
+        "handoff_chronology": { "$ref": "#/$defs/handoff_chronology" },
+        "temporary_handoff_status_class": { "$ref": "#/$defs/temporary_handoff_status_class" },
+        "linked_evidence_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into the evidence packets that gate the handoff (council decision row, leave-coverage waiver, recused-reviewer decision packet, lab-outage incident packet). At least one entry is required so the handoff can never float free of an upstream packet."
+        },
+        "linked_waiver_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into waivers in artifacts/governance/ownership_matrix.yaml that gate the handoff. Required to be non-empty when temporary_handoff_status_class = handoff_active_under_waiver."
+        },
+        "successor_handoff_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the successor temporary_handoff_record when the handoff closes via renewal. Required to be non-null when temporary_handoff_status_class = handoff_closed_with_renewal; null otherwise."
+        },
+        "closure_or_renewal_path_class": { "$ref": "#/$defs/closure_or_renewal_path_class" },
+        "escalation_path_class": { "$ref": "#/$defs/escalation_path_class" },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the forum id from docs/governance/forum_charters.md the closure / escalation routes through. Required when escalation_path_class is in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom } or when closure_or_renewal_path_class is in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom }. Null admissible only when escalation_path_class = no_escalation_required and closure_or_renewal_path_class is in { return_to_primary_dri, renew_handoff_with_named_expiry, retire_via_correction_program }."
+        },
+        "degraded_state_label_class": { "$ref": "#/$defs/degraded_state_label_class" },
+        "handoff_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming the primary owner role, the temporary owner role, the start date, the intended expiry, and the closure / renewal path. Personal handles, raw email addresses, raw phone numbers, and raw calendar URLs MUST NOT appear."
+        },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/service_ownership_card_contract.md"
+        },
+        "service_ownership_card_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/service_ownership_card.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "handoff_active_inside_window, handoff_nearing_expiry_within_thirty_days, handoff_nearing_expiry_within_seven_days, and handoff_active_under_waiver require closed_at to be null.",
+          "if": {
+            "properties": {
+              "temporary_handoff_status_class": {
+                "enum": [
+                  "handoff_active_inside_window",
+                  "handoff_nearing_expiry_within_thirty_days",
+                  "handoff_nearing_expiry_within_seven_days",
+                  "handoff_active_under_waiver"
+                ]
+              }
+            },
+            "required": ["temporary_handoff_status_class"]
+          },
+          "then": {
+            "properties": {
+              "handoff_chronology": {
+                "properties": { "closed_at": { "type": "null" } }
+              },
+              "successor_handoff_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "handoff_expired_past_due requires closed_at to be null and degraded_state_label_class = degraded_handoff_expired so a lapsed handoff cannot collapse into a clean active-owner posture.",
+          "if": {
+            "properties": {
+              "temporary_handoff_status_class": { "const": "handoff_expired_past_due" }
+            },
+            "required": ["temporary_handoff_status_class"]
+          },
+          "then": {
+            "properties": {
+              "handoff_chronology": {
+                "properties": { "closed_at": { "type": "null" } }
+              },
+              "degraded_state_label_class": { "const": "degraded_handoff_expired" },
+              "successor_handoff_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "handoff_closed_with_renewal requires a non-null closed_at and a non-null successor_handoff_ref so the renewal can be reconstructed.",
+          "if": {
+            "properties": {
+              "temporary_handoff_status_class": { "const": "handoff_closed_with_renewal" }
+            },
+            "required": ["temporary_handoff_status_class"]
+          },
+          "then": {
+            "properties": {
+              "handoff_chronology": {
+                "properties": { "closed_at": { "not": { "type": "null" } } }
+              },
+              "successor_handoff_ref": { "not": { "type": "null" } },
+              "closure_or_renewal_path_class": { "const": "renew_handoff_with_named_expiry" }
+            }
+          }
+        },
+        {
+          "description": "handoff_closed_returned_to_primary requires a non-null closed_at, a null successor_handoff_ref, and closure_or_renewal_path_class = return_to_primary_dri.",
+          "if": {
+            "properties": {
+              "temporary_handoff_status_class": { "const": "handoff_closed_returned_to_primary" }
+            },
+            "required": ["temporary_handoff_status_class"]
+          },
+          "then": {
+            "properties": {
+              "handoff_chronology": {
+                "properties": { "closed_at": { "not": { "type": "null" } } }
+              },
+              "successor_handoff_ref": { "type": "null" },
+              "closure_or_renewal_path_class": { "const": "return_to_primary_dri" }
+            }
+          }
+        },
+        {
+          "description": "handoff_active_under_waiver requires a non-empty linked_waiver_refs array.",
+          "if": {
+            "properties": {
+              "temporary_handoff_status_class": { "const": "handoff_active_under_waiver" }
+            },
+            "required": ["temporary_handoff_status_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_waiver_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "escalation_path_class in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom } requires a non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "escalation_path_class": {
+                "enum": [
+                  "escalate_to_decision_forum",
+                  "escalate_to_release_council",
+                  "escalate_to_shiproom"
+                ]
+              }
+            },
+            "required": ["escalation_path_class"]
+          },
+          "then": {
+            "properties": { "decision_forum_ref": { "not": { "type": "null" } } }
+          }
+        },
+        {
+          "description": "closure_or_renewal_path_class in { escalate_to_decision_forum, escalate_to_release_council, escalate_to_shiproom } requires a non-null decision_forum_ref so the escalation has a routing target.",
+          "if": {
+            "properties": {
+              "closure_or_renewal_path_class": {
+                "enum": [
+                  "escalate_to_decision_forum",
+                  "escalate_to_release_council",
+                  "escalate_to_shiproom"
+                ]
+              }
+            },
+            "required": ["closure_or_renewal_path_class"]
+          },
+          "then": {
+            "properties": { "decision_forum_ref": { "not": { "type": "null" } } }
+          }
+        },
+        {
+          "description": "Active and near-expiry status classes forbid the handoff from rendering as degraded_handoff_expired; only handoff_expired_past_due may carry that label.",
+          "if": {
+            "properties": {
+              "temporary_handoff_status_class": {
+                "enum": [
+                  "handoff_active_inside_window",
+                  "handoff_nearing_expiry_within_thirty_days",
+                  "handoff_nearing_expiry_within_seven_days",
+                  "handoff_active_under_waiver",
+                  "handoff_closed_with_renewal",
+                  "handoff_closed_returned_to_primary"
+                ]
+              }
+            },
+            "required": ["temporary_handoff_status_class"]
+          },
+          "then": {
+            "properties": {
+              "degraded_state_label_class": {
+                "not": { "const": "degraded_handoff_expired" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
