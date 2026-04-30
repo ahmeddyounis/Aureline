@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=../../../schemas/recovery/recovery_scenario_card.schema.json
+__fixture__:
+  name: device_replacement
+  scenario: >
+    A managed-tenant user is hydrating a replacement device from a
+    verified authoritative backup. Workspace, profile, evidence, and
+    layout are all affected. Doctor's trust_state_probe confirms the
+    backup verification posture. The recovery-scenario card opens
+    with restore_from_authoritative_backup citing
+    authoritative_backup as the covering recovery-promise class;
+    sync_replica is non-authoritative for in-flight workspace bytes
+    and never carries evidence. Disposable-state rebuild,
+    sync-reauthorize, and restore-from-sync-replica are forbidden
+    first actions for this family.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Scenario families"
+    - "§5 First-action vocabulary"
+    - "§6 Verb vocabulary and wording rules"
+    - "§7 Destructive-risk classes"
+    - "§8 Recommended first action"
+    - "§9 Safe-first-action matrix"
+
+record_kind: recovery_scenario_card_record
+recovery_scenario_card_schema_version: 1
+card_id: rsc-device-replacement-0001
+generated_at: "mono:5803:07:01:55.0013"
+
+scenario_family_class: device_replacement
+title: Device replacement / new-device hydration from authoritative backup
+summary: >
+  New device hydrates from a verified authoritative backup that
+  covers workspace, profile, evidence, and layout. Sync replica is
+  not authoritative for in-flight workspace bytes; mirror caches
+  and convenience exports are never authoritative.
+
+deployment_profile_scope_class: managed_tenant
+
+affected_scopes:
+  - workspace
+  - profile
+  - evidence
+  - layout
+  - credentials
+
+safe_remainder:
+  - authoritative_backup_local
+  - convenience_export_local
+  - offline_bundle_readable
+
+recommended_first_action:
+  action_class: restore_from_authoritative_backup
+  verb_class: restore
+  reversibility_class: checkpoint_restore
+  destructive_risk_class: mutates_profile_state_with_checkpoint_and_export
+  covering_promise_class: authoritative_backup
+  must_precede:
+    - capture_local_checkpoint
+  summary: >
+    Restore workspace, profile, evidence, and layout from the
+    verified authoritative backup. A workspace-authority checkpoint
+    precedes the apply so the action remains reversible.
+
+destructive_risk_note:
+  risk_class: mutates_profile_state_with_checkpoint_and_export
+  reversibility_class: checkpoint_restore
+  covering_promise_class: authoritative_backup
+  requires_pre_action:
+    - capture_local_checkpoint
+  no_undo_acknowledgement_required: false
+  summary: >
+    Restore mutates profile-wide durable state. A workspace-
+    authority checkpoint precedes the apply; the authoritative
+    backup is the covering promise.
+
+approved_repair_classes:
+  - observe_only_no_repair
+  - guided_export_escalation
+  - support_bundle_export
+
+forbidden_repair_classes:
+  - disposable_state_rebuild
+  - extension_isolation
+  - extension_rollback_reinstall
+  - execution_context_reresolve
+  - remote_runtime_repair
+  - policy_entitlement_refresh
+
+linkage:
+  project_doctor:
+    probe_family_class: trust_state_probe
+    doctor_finding_code_refs:
+      - doctor.finding.device_replacement.backup_verification_posture
+      - doctor.finding.device_replacement.trust_material_missing
+    scenario_matrix_row_ref: scenario_row:trust_policy_identity_approval_block
+    summary: >
+      The trust_state_probe Doctor packet confirms backup
+      verification and detects missing trust material on the new
+      device.
+  repair_transaction_preview:
+    preview_required: false
+    summary: >
+      Restore from the authoritative backup is a recovery-action,
+      not a repair-transaction. The repair-preview is not required
+      for this row.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:trust_policy_identity_approval_block
+    escalation_packet_ref: escalation_packet:device_replacement.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake retains the device-replacement evidence row,
+      the authoritative-backup verification ref, and the recovery-
+      action ref.
+  export_before_reset:
+    export_required: false
+    summary: >
+      Restore from authoritative backup is checkpoint-reversible.
+      A separate export is not gating; the workspace-authority
+      checkpoint covers reversal.
+  continuity_status_card_ref: csc-managed-tenant-rehydrate-0042
+  recovery_action_record_ref: recovery_action:typed_repair_flow.device_replacement_authoritative_restore
+  matrix_row_ref: matrix_row:device_replacement
+
+honesty_invariants:
+  scenario_family_is_closed: true
+  safe_remainder_named: true
+  destructive_action_after_export_only: true
+  no_generic_reset_collapse: true
+  linkage_is_typed: true

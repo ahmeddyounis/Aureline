@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=../../../schemas/recovery/recovery_scenario_card.schema.json
+__fixture__:
+  name: failed_update
+  scenario: >
+    An individual-local install applied an update incompletely.
+    Doctor's toolchain_probe detected post-update helper-skew and
+    build-identity mismatch; the previous install is on disk as a
+    rollback candidate. Workspace bytes, local history, autosave,
+    and profile settings remain readable. The recovery-scenario
+    card opens with export_now_before_change so the user keeps a
+    convenience export before the rollback path runs. The
+    rebuild_disposable_state_only and restore_from_sync_replica
+    first-action classes are forbidden by the matrix for this
+    family.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Scenario families"
+    - "§5 First-action vocabulary"
+    - "§6 Verb vocabulary and wording rules"
+    - "§7 Destructive-risk classes"
+    - "§9 Safe-first-action matrix"
+    - "§10.4 Export-before-reset"
+
+record_kind: recovery_scenario_card_record
+recovery_scenario_card_schema_version: 1
+card_id: rsc-failed-update-0001
+generated_at: "mono:5701:13:42:18.0007"
+
+scenario_family_class: failed_update
+title: Failed install / update with rollback candidate available
+summary: >
+  Update applied incompletely; previous install is on disk as a
+  rollback candidate. Local work and local history remain readable.
+  Capture a local-only convenience export before the rollback path
+  runs.
+
+deployment_profile_scope_class: individual_local
+
+affected_scopes:
+  - update_install_chain
+  - workspace
+  - profile
+
+safe_remainder:
+  - workspace_bytes_local
+  - local_history_lane
+  - autosave_journal
+  - profile_settings_readable
+  - previous_install_rollback_available
+
+recommended_first_action:
+  action_class: export_now_before_change
+  verb_class: export
+  reversibility_class: exact_undo
+  destructive_risk_class: non_destructive_writes_local_evidence_only
+  summary: >
+    Capture a local-only portable-state package and a support
+    bundle before the rollback path runs. The export never leaves
+    the device by default.
+
+destructive_risk_note:
+  risk_class: non_destructive_writes_local_evidence_only
+  reversibility_class: exact_undo
+  requires_pre_action:
+    - capture_local_checkpoint
+  no_undo_acknowledgement_required: false
+  summary: >
+    The export writes only into the local evidence lane. The
+    rollback path that follows mutates the install chain only —
+    user-authored bytes stay covered by the captured checkpoint
+    and the export.
+
+approved_repair_classes:
+  - observe_only_no_repair
+  - extension_rollback_reinstall
+  - guided_export_escalation
+  - support_bundle_export
+
+forbidden_repair_classes:
+  - extension_isolation
+  - disposable_state_rebuild
+  - execution_context_reresolve
+  - remote_runtime_repair
+  - policy_entitlement_refresh
+
+linkage:
+  project_doctor:
+    probe_family_class: toolchain_probe
+    doctor_finding_code_refs:
+      - doctor.finding.update.helper_skew
+      - doctor.finding.update.build_identity_mismatch
+    scenario_matrix_row_ref: scenario_row:missing_toolchain
+    summary: >
+      The toolchain_probe Doctor packet names the helper-skew and
+      build-identity-mismatch findings; rollback decisions read
+      from those rows.
+  repair_transaction_preview:
+    preview_required: true
+    repair_transaction_ref: repair_transaction:failed_update.extension_rollback_reinstall
+    repair_preview_ref: repair_preview:failed_update.extension_rollback_reinstall
+    approved_repair_class: extension_rollback_reinstall
+    summary: >
+      Rollback is proposed via the repair-transaction preview;
+      apply only after the convenience export and the workspace-
+      authority checkpoint are captured.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:execution_context_mismatch
+    escalation_packet_ref: escalation_packet:failed_update.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake routes through the execution_context_mismatch
+      picker row; the escalation packet retains the Doctor finding,
+      the toolchain manifest row, the export ref, and the repair-
+      preview ref.
+  export_before_reset:
+    export_required: true
+    export_artifact_ref: export_artifact:failed_update.portable_state_pre_rollback
+    redaction_class: code_adjacent
+    local_only_by_default: true
+    summary: >
+      Convenience export captures the workspace, profile, and
+      evidence inventory before the rollback path runs.
+  continuity_status_card_ref: csc-individual-local-pre-rollback-0011
+  recovery_action_record_ref: recovery_action:typed_repair_flow.failed_update_rollback_after_export
+  matrix_row_ref: matrix_row:failed_update
+
+honesty_invariants:
+  scenario_family_is_closed: true
+  safe_remainder_named: true
+  destructive_action_after_export_only: true
+  no_generic_reset_collapse: true
+  linkage_is_typed: true

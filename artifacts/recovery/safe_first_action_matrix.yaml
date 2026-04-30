@@ -1,0 +1,787 @@
+# Recovery-scenario closed vocabularies and safe-first-action rows.
+#
+# Companion to docs/reliability/recovery_scenario_contract.md and
+# schemas/recovery/recovery_scenario_card.schema.json. Every recovery
+# surface (Project Doctor, repair-transaction preview, support-intake
+# scenario picker, export-before-reset path, recovery-ladder packet,
+# CLI listing, evidence packet) MUST project back to the scenario-
+# family, affected-scope, safe-remainder, first-action, verb, and
+# destructive-risk ids declared here. No surface invents a private
+# "profile failure", "index broken", or "reset" class on its own.
+
+schema_version: 1
+artifact_id: aureline.recovery.safe_first_action_matrix
+title: Recovery-scenario card vocabulary and safe-first-action matrix
+
+contract_source: docs/reliability/recovery_scenario_contract.md
+
+related_docs:
+  - docs/reliability/continuity_status_card_contract.md
+  - docs/reliability/local_history_contract.md
+  - docs/reliability/local_history_restore_preview_contract.md
+  - docs/reliability/autosave_journal_and_guided_replay_contract.md
+  - docs/state/restore_provenance_and_placeholder_contract.md
+  - docs/state/state_object_inventory.md
+  - docs/state/portable_state_package_contract.md
+  - docs/support/recovery_ladder_packet.md
+  - docs/support/repair_transaction_contract.md
+  - docs/support/project_doctor_packet.md
+  - docs/support/project_doctor_probe_contract.md
+  - docs/support/support_intake_and_escalation_contract.md
+  - docs/support/object_handoff_packet.md
+  - docs/release/update_and_rollback_contract.md
+  - docs/admin/org_admin_seat_and_fleet_contract.md
+  - docs/deployment/drill_catalog_seed.md
+
+companion_refs:
+  recovery_scenario_card_schema_ref: schemas/recovery/recovery_scenario_card.schema.json
+  recovery_scenario_cases_ref: fixtures/recovery/recovery_scenario_cases
+  backup_checkpoint_classes_ref: artifacts/recovery/backup_checkpoint_classes.yaml
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  repair_preview_schema_ref: schemas/support/repair_preview.schema.json
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  escalation_packet_schema_ref: schemas/support/escalation_packet.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  state_objects_ref: artifacts/state/state_objects.yaml
+  corruption_routing_matrix_ref: artifacts/state/corruption_routing_matrix.yaml
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Re-exported verbatim from the contract source. Adding a value is
+# additive-minor and MUST bump schema_version; repurposing a value is
+# breaking and requires a new decision row in
+# artifacts/governance/decision_index.yaml.
+# --------------------------------------------------------------------------
+
+# Closed scenario families a recovery-scenario card may resolve to.
+# These are the LARGE-FAILURE recovery families a user faces when the
+# workspace, profile, install chain, or control plane has lost its
+# normal operating posture. They are distinct from — and do not
+# replace — the support-intake scenario_family_class (which classifies
+# diagnostic intake routing); a scenario card MAY cite one intake
+# family as a linkage hint but never collapses two recovery families
+# into one card.
+recovery_scenario_family_vocabulary:
+  - profile_corruption
+  - workspace_index_corruption
+  - failed_update
+  - control_plane_outage
+  - device_replacement
+  - seat_loss
+  - credential_store_unreadable
+  - mirror_or_offline_bundle_unavailable
+
+# Closed affected-scope vocabulary. Each card lists the scopes the
+# scenario touches; surfaces never invent a private "everything broke"
+# scope. The first four mirror the restore-target vocabulary from
+# artifacts/recovery/backup_checkpoint_classes.yaml; the rest cover
+# control-plane and supply-chain scopes that are not restore targets
+# but ARE affected by large-failure recovery scenarios.
+affected_scope_vocabulary:
+  - workspace
+  - profile
+  - evidence
+  - layout
+  - credentials
+  - managed_control_plane
+  - update_install_chain
+  - mirror_or_offline_bundle
+  - remote_runtime_or_helper
+
+# Closed safe-remainder vocabulary. Each card lists what is still
+# inspectable, exportable, or operable while the failure is in scope.
+# At least one safe_remainder value is required on every card so the
+# user is never told "everything is broken" without a named anchor.
+safe_remainder_vocabulary:
+  - workspace_bytes_local
+  - local_history_lane
+  - autosave_journal
+  - authoritative_backup_local
+  - convenience_export_local
+  - mirror_cache_bytes_readable
+  - offline_bundle_readable
+  - profile_settings_readable
+  - evidence_packets_readable
+  - layout_recoverable_from_checkpoint
+  - credentials_intact
+  - managed_policy_cached_locally
+  - previous_install_rollback_available
+  - remote_session_resumable
+
+# Closed first-action vocabulary. Each card recommends exactly one
+# first action; matrix rows constrain which classes are allowed for
+# which scenario family. continue_local_work is permitted only when
+# the scenario does not threaten the workspace, profile, evidence, or
+# layout the user is currently in.
+first_action_vocabulary:
+  - investigate_with_project_doctor
+  - run_repair_transaction_preview
+  - export_now_before_change
+  - capture_local_checkpoint
+  - import_offline_bundle
+  - reauthorize_sync_after_review
+  - rebuild_disposable_state_only
+  - restore_from_authoritative_backup
+  - restore_from_sync_replica
+  - escalate_to_support_with_evidence
+  - defer_to_admin_seat_recovery
+  - continue_local_work
+
+# Closed verb vocabulary. Six verbs, each with one fixed semantic.
+# Wording rules (§wording_rules below) bind verb -> reversibility ->
+# destructive-risk-class so a card never says "reset" when it means
+# "rebuild", or "restore" when it means "investigate".
+verb_vocabulary:
+  - investigate
+  - export
+  - checkpoint
+  - rebuild
+  - restore
+  - reset
+
+# Closed reversibility vocabulary. Re-exported verbatim from the
+# recovery_action.schema.json reversal_class so cards, repair
+# transactions, and recovery-ladder rungs all label reversibility the
+# same way.
+reversibility_vocabulary:
+  - exact_undo
+  - compensating_action
+  - regeneration
+  - checkpoint_restore
+  - no_undo_export_only
+
+# Closed destructive-risk vocabulary. Every recommended action MUST
+# carry one risk class drawn from this set so the surface never
+# collapses "rebuild a cache" and "reset the profile" into one
+# generic destructive label.
+destructive_risk_vocabulary:
+  - non_destructive_read_only
+  - non_destructive_writes_local_evidence_only
+  - writes_disposable_state_only
+  - writes_user_owned_recovery_state
+  - mutates_workspace_bytes_with_checkpoint
+  - mutates_profile_state_with_checkpoint_and_export
+  - destructive_user_authored_no_undo_export_required
+
+# Closed approved-repair vocabulary. Re-exported verbatim from
+# schemas/support/scenario_picker.schema.json#approved_repair_class
+# so the safe-first-action matrix and the support-intake picker name
+# the same repair classes; adding a token requires updating both
+# schemas in the same change.
+approved_repair_class_vocabulary:
+  - observe_only_no_repair
+  - disposable_state_rebuild
+  - extension_isolation
+  - extension_rollback_reinstall
+  - execution_context_reresolve
+  - remote_runtime_repair
+  - policy_entitlement_refresh
+  - guided_export_escalation
+  - support_bundle_export
+  - trace_capture
+
+# Closed Project-Doctor probe-family vocabulary. Re-exported verbatim
+# from fixtures/support/scenario_matrix.yaml#probe_family_vocabulary
+# so the safe-first-action matrix names a probe family without
+# inventing a parallel taxonomy.
+probe_family_vocabulary:
+  - toolchain_probe
+  - trust_state_probe
+  - filesystem_watcher_probe
+  - cache_profile_probe
+  - extension_host_probe
+  - target_and_route_probe
+  - helper_attach_probe
+  - docs_mirror_probe
+
+# Closed escalation-packet completeness vocabulary. Re-exported from
+# schemas/support/escalation_packet.schema.json#completeness_outcome_class
+# so the matrix's escalation_packet_minimum names the same outcome
+# tokens.
+escalation_packet_completeness_vocabulary:
+  - complete
+  - complete_with_typed_unknowns
+  - incomplete_refused_export
+
+# --------------------------------------------------------------------------
+# Wording rules.
+#
+# Each verb binds one user-visible meaning, one allowed reversibility
+# range, and one allowed destructive-risk range. Surfaces that say
+# "reset" when they mean "rebuild" — or "restore" when they mean
+# "investigate" — are non-conforming.
+# --------------------------------------------------------------------------
+
+wording_rules:
+  - verb: investigate
+    meaning: >
+      Read-only diagnostic. The action inspects state, reads logs,
+      collects probe output, or renders evidence; it MUST NOT mutate
+      workspace bytes, profile state, evidence, layout, credentials,
+      or any managed control-plane state. Failure leaves the system
+      bit-identical.
+    allowed_reversibility:
+      - exact_undo
+    allowed_destructive_risk:
+      - non_destructive_read_only
+      - non_destructive_writes_local_evidence_only
+    typical_target_classes: []
+    forbidden_combinations:
+      - destructive_user_authored_no_undo_export_required
+      - mutates_profile_state_with_checkpoint_and_export
+      - mutates_workspace_bytes_with_checkpoint
+
+  - verb: export
+    meaning: >
+      Write a convenience-export (portable-state package, support
+      bundle, patch export, evidence packet copy) to local-only
+      storage. The action does not change authoritative state and
+      never silently leaves the device. Useful as a gate before any
+      destructive action.
+    allowed_reversibility:
+      - exact_undo
+      - compensating_action
+    allowed_destructive_risk:
+      - non_destructive_writes_local_evidence_only
+    typical_target_classes:
+      - evidence
+      - workspace
+      - profile
+    forbidden_combinations:
+      - destructive_user_authored_no_undo_export_required
+      - mutates_profile_state_with_checkpoint_and_export
+      - mutates_workspace_bytes_with_checkpoint
+
+  - verb: checkpoint
+    meaning: >
+      Capture a local-history checkpoint, autosave-journal sentinel,
+      or workspace-authority checkpoint that a later step can
+      reverse. The action MUST be a precondition for any rebuild,
+      restore, or reset that touches workspace bytes or layout.
+    allowed_reversibility:
+      - exact_undo
+      - checkpoint_restore
+    allowed_destructive_risk:
+      - non_destructive_writes_local_evidence_only
+      - writes_user_owned_recovery_state
+    typical_target_classes:
+      - workspace
+      - layout
+    forbidden_combinations:
+      - destructive_user_authored_no_undo_export_required
+      - mutates_profile_state_with_checkpoint_and_export
+
+  - verb: rebuild
+    meaning: >
+      Recreate disposable derived state (knowledge cache, artifact
+      cache, prebuild environment, search index) from authoritative
+      sources. The action MUST NOT touch user-authored durable
+      state, profile-wide durable settings, evidence packets, or
+      credentials. A rebuild is regeneration, not restoration.
+    allowed_reversibility:
+      - regeneration
+    allowed_destructive_risk:
+      - writes_disposable_state_only
+    typical_target_classes:
+      - workspace
+    forbidden_combinations:
+      - destructive_user_authored_no_undo_export_required
+      - mutates_profile_state_with_checkpoint_and_export
+      - mutates_workspace_bytes_with_checkpoint
+
+  - verb: restore
+    meaning: >
+      Bring a target back from an authoritative_backup, sync_replica,
+      or local_checkpoint into a known-good state. The action MUST
+      cite exactly one covering-promise class drawn from
+      backup_checkpoint_classes.yaml; mirror caches and convenience
+      exports MUST NOT cover a restore step.
+    allowed_reversibility:
+      - checkpoint_restore
+      - compensating_action
+    allowed_destructive_risk:
+      - mutates_workspace_bytes_with_checkpoint
+      - mutates_profile_state_with_checkpoint_and_export
+    typical_target_classes:
+      - workspace
+      - profile
+      - evidence
+      - layout
+    forbidden_combinations:
+      - destructive_user_authored_no_undo_export_required
+      - writes_disposable_state_only
+
+  - verb: reset
+    meaning: >
+      Destroy or re-initialize durable state without an authoritative
+      restore source. The action is destructive and MUST NOT run
+      before an export and a checkpoint have been captured (or
+      explicitly declined under the no-undo-export-only path). Reset
+      is the only verb permitted to carry the
+      destructive_user_authored_no_undo_export_required risk class.
+    allowed_reversibility:
+      - no_undo_export_only
+    allowed_destructive_risk:
+      - destructive_user_authored_no_undo_export_required
+    typical_target_classes:
+      - profile
+      - workspace
+      - layout
+    forbidden_combinations:
+      - non_destructive_read_only
+      - non_destructive_writes_local_evidence_only
+      - writes_disposable_state_only
+
+# --------------------------------------------------------------------------
+# Safe-first-action matrix rows.
+#
+# One row per scenario family. Each row binds preferred first-
+# diagnosis target, approved repair classes, forbidden repair
+# classes, and the minimum escalation-packet shape so a recovery
+# surface never invents per-scenario semantics that drift from the
+# governed support-intake and repair-transaction contracts.
+# --------------------------------------------------------------------------
+
+safe_first_action_rows:
+  - scenario_family_class: profile_corruption
+    display_label: Profile or durable-settings store corruption
+    affected_scopes:
+      - profile
+      - layout
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - autosave_journal
+      - evidence_packets_readable
+    preferred_first_diagnosis_target:
+      probe_family_class: cache_profile_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect schema drift, missing keys, or hash
+        mismatch in the profile-store backing file.
+    recommended_first_action_class: investigate_with_project_doctor
+    approved_repair_classes:
+      - observe_only_no_repair
+      - disposable_state_rebuild
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+    forbidden_first_actions:
+      - rebuild_disposable_state_only
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.profile.*
+      required_evidence_class_floor: environment_adjacent
+      required_repair_transaction_ref_when_repair_proposed: true
+      required_pre_action_checkpoint_ref: true
+      required_pre_action_export_ref: true
+      completeness_outcome_floor: complete_with_typed_unknowns
+    rationale: >
+      The profile-store cannot be regenerated from a local checkpoint
+      and is never covered by the local-history lane. Investigation
+      first; if a destructive repair is proposed, the user MUST see a
+      convenience export and a workspace-authority checkpoint before
+      any change. Reset is gated behind explicit
+      no_undo_export_only authorization.
+
+  - scenario_family_class: workspace_index_corruption
+    display_label: Workspace knowledge / search index corruption
+    affected_scopes:
+      - workspace
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - authoritative_backup_local
+      - profile_settings_readable
+    preferred_first_diagnosis_target:
+      probe_family_class: cache_profile_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect index integrity failure or schema
+        drift in disposable workspace caches.
+    recommended_first_action_class: rebuild_disposable_state_only
+    approved_repair_classes:
+      - observe_only_no_repair
+      - disposable_state_rebuild
+    forbidden_repair_classes:
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - restore_from_authoritative_backup
+      - restore_from_sync_replica
+      - reauthorize_sync_after_review
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.cache.*
+      required_evidence_class_floor: metadata_only
+      required_repair_transaction_ref_when_repair_proposed: true
+      required_pre_action_checkpoint_ref: false
+      required_pre_action_export_ref: false
+      completeness_outcome_floor: complete
+    rationale: >
+      Search and knowledge indexes are derived disposable state. The
+      first action is to rebuild from authoritative sources; user-
+      authored bytes are never touched. Restore verbs are forbidden
+      here because they would imply an authoritative source where
+      none exists for derived caches.
+
+  - scenario_family_class: failed_update
+    display_label: Failed install / update with rollback candidate
+    affected_scopes:
+      - update_install_chain
+      - workspace
+      - profile
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - autosave_journal
+      - profile_settings_readable
+      - previous_install_rollback_available
+    preferred_first_diagnosis_target:
+      probe_family_class: toolchain_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect post-update helper-skew, build
+        identity mismatch, or update-applied-but-not-runnable state.
+    recommended_first_action_class: export_now_before_change
+    approved_repair_classes:
+      - observe_only_no_repair
+      - extension_rollback_reinstall
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - extension_isolation
+      - disposable_state_rebuild
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - rebuild_disposable_state_only
+      - restore_from_sync_replica
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.update.*
+      required_evidence_class_floor: environment_adjacent
+      required_repair_transaction_ref_when_repair_proposed: true
+      required_pre_action_checkpoint_ref: true
+      required_pre_action_export_ref: true
+      completeness_outcome_floor: complete_with_typed_unknowns
+    rationale: >
+      A failed update preserves the previous install as an authoritative
+      rollback candidate. The first action is to export current state
+      so the rollback path can roll back without losing in-flight
+      work. Disposable-state rebuild does not address an install-chain
+      failure and is forbidden here as a first action.
+
+  - scenario_family_class: control_plane_outage
+    display_label: Managed control-plane outage / cross-plane failover pending
+    affected_scopes:
+      - managed_control_plane
+      - profile
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - autosave_journal
+      - profile_settings_readable
+      - managed_policy_cached_locally
+      - mirror_cache_bytes_readable
+      - remote_session_resumable
+    preferred_first_diagnosis_target:
+      probe_family_class: target_and_route_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect control-plane unreachability,
+        managed-policy fetch failure, or cross-plane failover-pending
+        posture.
+    recommended_first_action_class: continue_local_work
+    approved_repair_classes:
+      - observe_only_no_repair
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - disposable_state_rebuild
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - rebuild_disposable_state_only
+      - restore_from_authoritative_backup
+      - restore_from_sync_replica
+      - reauthorize_sync_after_review
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.control_plane.*
+      required_evidence_class_floor: environment_adjacent
+      required_repair_transaction_ref_when_repair_proposed: false
+      required_pre_action_checkpoint_ref: false
+      required_pre_action_export_ref: false
+      completeness_outcome_floor: complete_with_typed_unknowns
+    rationale: >
+      Local work is the safe path during a control-plane outage; the
+      cached managed policy keeps trust posture stable. Surfaces MUST
+      NOT propose a destructive repair, a profile reset, or a sync
+      reauthorization while the control-plane is unreachable.
+
+  - scenario_family_class: device_replacement
+    display_label: Device replacement / new-device hydration
+    affected_scopes:
+      - workspace
+      - profile
+      - evidence
+      - layout
+      - credentials
+    typical_safe_remainder:
+      - authoritative_backup_local
+      - convenience_export_local
+      - offline_bundle_readable
+    preferred_first_diagnosis_target:
+      probe_family_class: trust_state_probe
+      finding_code_pattern_summary: >
+        Doctor probes that confirm authoritative backup verification
+        and detect missing trust-state material on the new device.
+    recommended_first_action_class: restore_from_authoritative_backup
+    approved_repair_classes:
+      - observe_only_no_repair
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - disposable_state_rebuild
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - rebuild_disposable_state_only
+      - reauthorize_sync_after_review
+      - restore_from_sync_replica
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.device_replacement.*
+      required_evidence_class_floor: environment_adjacent
+      required_repair_transaction_ref_when_repair_proposed: true
+      required_pre_action_checkpoint_ref: false
+      required_pre_action_export_ref: false
+      completeness_outcome_floor: complete_with_typed_unknowns
+    rationale: >
+      A new device hydrates from a verified authoritative backup; sync
+      replica is non-authoritative for in-flight workspace bytes and
+      never carries evidence. Disposable-state rebuild is forbidden
+      because the new device has nothing to rebuild from.
+
+  - scenario_family_class: seat_loss
+    display_label: Seat loss / managed-tenant entitlement removed
+    affected_scopes:
+      - managed_control_plane
+      - profile
+      - credentials
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - convenience_export_local
+      - profile_settings_readable
+      - evidence_packets_readable
+    preferred_first_diagnosis_target:
+      probe_family_class: trust_state_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect entitlement revocation, seat
+        deactivation, and policy refresh failure on the local device.
+    recommended_first_action_class: export_now_before_change
+    approved_repair_classes:
+      - observe_only_no_repair
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - disposable_state_rebuild
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - rebuild_disposable_state_only
+      - reauthorize_sync_after_review
+      - restore_from_sync_replica
+      - restore_from_authoritative_backup
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.seat.*
+      required_evidence_class_floor: environment_adjacent
+      required_repair_transaction_ref_when_repair_proposed: false
+      required_pre_action_checkpoint_ref: false
+      required_pre_action_export_ref: true
+      completeness_outcome_floor: complete_with_typed_unknowns
+    rationale: >
+      Seat loss removes managed-tenant entitlements; the user MUST
+      retain a local-only convenience export of workspace, profile,
+      and evidence before any reset path runs. Repair classes that
+      assume an active managed seat are forbidden here.
+
+  - scenario_family_class: credential_store_unreadable
+    display_label: Credential store unreadable / unlock failure
+    affected_scopes:
+      - credentials
+      - remote_runtime_or_helper
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - profile_settings_readable
+      - evidence_packets_readable
+    preferred_first_diagnosis_target:
+      probe_family_class: trust_state_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect credential-store unlock failure,
+        keyring backend mismatch, or revoked OS-level access.
+    recommended_first_action_class: investigate_with_project_doctor
+    approved_repair_classes:
+      - observe_only_no_repair
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - disposable_state_rebuild
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - rebuild_disposable_state_only
+      - restore_from_sync_replica
+      - reauthorize_sync_after_review
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.credential_store.*
+      required_evidence_class_floor: environment_adjacent
+      required_repair_transaction_ref_when_repair_proposed: false
+      required_pre_action_checkpoint_ref: false
+      required_pre_action_export_ref: false
+      completeness_outcome_floor: complete_with_typed_unknowns
+    rationale: >
+      A credential-store failure is read-only diagnosable; rebuilds
+      and resets MUST NOT run before the user understands which
+      credentials are recoverable from OS-level paths and which
+      require re-authentication.
+
+  - scenario_family_class: mirror_or_offline_bundle_unavailable
+    display_label: Mirror cache or offline bundle unavailable
+    affected_scopes:
+      - mirror_or_offline_bundle
+      - workspace
+    typical_safe_remainder:
+      - workspace_bytes_local
+      - local_history_lane
+      - autosave_journal
+      - authoritative_backup_local
+      - profile_settings_readable
+    preferred_first_diagnosis_target:
+      probe_family_class: docs_mirror_probe
+      finding_code_pattern_summary: >
+        Doctor probes that detect mirror-fetch failure, offline-bundle
+        signature mismatch, or stale mirror beyond the policy window.
+    recommended_first_action_class: import_offline_bundle
+    approved_repair_classes:
+      - observe_only_no_repair
+      - disposable_state_rebuild
+      - guided_export_escalation
+      - support_bundle_export
+    forbidden_repair_classes:
+      - extension_isolation
+      - extension_rollback_reinstall
+      - execution_context_reresolve
+      - remote_runtime_repair
+      - policy_entitlement_refresh
+    forbidden_first_actions:
+      - restore_from_authoritative_backup
+      - restore_from_sync_replica
+      - reauthorize_sync_after_review
+    escalation_packet_minimum:
+      required_finding_code_pattern: doctor.finding.mirror.*
+      required_evidence_class_floor: metadata_only
+      required_repair_transaction_ref_when_repair_proposed: true
+      required_pre_action_checkpoint_ref: false
+      required_pre_action_export_ref: false
+      completeness_outcome_floor: complete
+    rationale: >
+      Mirror caches and offline bundles never carry user-authored
+      truth. Importing an offline bundle is the truthful first action;
+      restore verbs are forbidden because the mirror is not an
+      authoritative source for any restore-target class.
+
+# --------------------------------------------------------------------------
+# Cross-scenario invariants.
+#
+# Honesty rules consumed by schemas/recovery/recovery_scenario_card.schema.json
+# and by every surface that projects a recovery-scenario card. Each
+# rule is testable from the card body and the matrix row alone.
+# --------------------------------------------------------------------------
+
+cross_class_invariants:
+  - id: scenario_family_is_closed
+    statement: >
+      Every recovery-scenario card MUST resolve to exactly one
+      recovery_scenario_family_vocabulary value. Cards never collapse
+      two families into one row and never invent a private "generic
+      reset" or "broken state" family.
+
+  - id: safe_remainder_is_required
+    statement: >
+      Every recovery-scenario card MUST list at least one
+      safe_remainder_vocabulary value. The user is never told the
+      system is broken without a named anchor of what remains safe.
+
+  - id: destructive_action_after_export_only
+    statement: >
+      A card whose recommended_first_action carries
+      destructive_user_authored_no_undo_export_required MUST also
+      list export_now_before_change as a required pre-action and
+      capture_local_checkpoint where the verb table allows it.
+
+  - id: restore_requires_authoritative_covering_promise
+    statement: >
+      A card whose recommended_first_action is
+      restore_from_authoritative_backup or restore_from_sync_replica
+      MUST cite a recovery_promise_class drawn from
+      authoritative_backup or sync_replica respectively, and MUST
+      observe the per-target rules in
+      artifacts/recovery/backup_checkpoint_classes.yaml (evidence
+      only by authoritative_backup; profile only by
+      authoritative_backup or sync_replica).
+
+  - id: rebuild_only_for_disposable_state
+    statement: >
+      A card whose recommended_first_action is
+      rebuild_disposable_state_only MUST NOT name workspace, profile,
+      evidence, layout, credentials, or managed_control_plane as the
+      target of the rebuild. Rebuild is disposable-state-only.
+
+  - id: reset_is_gated
+    statement: >
+      The verb "reset" MUST NOT appear in any card before an export
+      and a checkpoint pre-action are listed (or the
+      no_undo_export_only path has been explicitly authorized). Reset
+      is the only verb permitted to carry the
+      destructive_user_authored_no_undo_export_required class.
+
+  - id: forbidden_repair_classes_are_enforced
+    statement: >
+      A card MUST NOT cite a repair_transaction whose approved_repair_class
+      appears in the matching matrix row's forbidden_repair_classes
+      list. Surfaces that bypass this rule by emitting a
+      free-text repair are non-conforming.
+
+  - id: control_plane_outage_forbids_destructive_first_action
+    statement: >
+      Cards in the control_plane_outage family MUST NOT recommend any
+      first action whose verb is reset, restore, or rebuild while the
+      managed control-plane is unreachable.
+
+  - id: linkage_is_typed
+    statement: >
+      Every card MUST cite typed linkage refs for Project Doctor
+      (probe_family_class plus optional finding_code_refs), repair-
+      transaction preview (when a repair is proposed), support intake
+      (scenario_picker_row_ref or escalation_packet_ref), and the
+      export-before-reset path (export_artifact_ref) when the verb
+      table requires an export. Free-text linkage prose is non-
+      conforming.

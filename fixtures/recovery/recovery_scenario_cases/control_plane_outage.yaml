@@ -1,0 +1,122 @@
+# yaml-language-server: $schema=../../../schemas/recovery/recovery_scenario_card.schema.json
+__fixture__:
+  name: control_plane_outage
+  scenario: >
+    A managed-tenant device facing a control-plane outage with
+    cross-plane failover pending. Doctor's target_and_route_probe
+    detected control-plane unreachability and managed-policy fetch
+    failure; the cached managed policy keeps trust posture stable.
+    Workspace bytes, local history, autosave, profile settings,
+    cached managed policy, mirror caches, and a remote session all
+    remain readable / resumable. The recovery-scenario card opens
+    with continue_local_work — verb=investigate, exact-undo,
+    non_destructive_read_only — because destructive verbs (reset,
+    restore, rebuild) are forbidden while the control-plane is
+    unreachable. Sync reauthorization is forbidden as a first
+    action.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Scenario families"
+    - "§5 First-action vocabulary"
+    - "§9 Safe-first-action matrix"
+    - "§12 Surface rules (control-plane outage forbids destructive first action)"
+
+record_kind: recovery_scenario_card_record
+recovery_scenario_card_schema_version: 1
+card_id: rsc-control-plane-outage-0001
+generated_at: "mono:5910:18:30:09.0021"
+
+scenario_family_class: control_plane_outage
+title: Managed control-plane outage with cross-plane failover pending
+summary: >
+  Managed control-plane unreachable. Cached managed policy keeps
+  trust posture stable; local work continues. No destructive verb
+  may run while the control-plane is unreachable.
+
+deployment_profile_scope_class: cross_plane_failover_pending
+
+affected_scopes:
+  - managed_control_plane
+  - profile
+
+safe_remainder:
+  - workspace_bytes_local
+  - local_history_lane
+  - autosave_journal
+  - profile_settings_readable
+  - managed_policy_cached_locally
+  - mirror_cache_bytes_readable
+  - remote_session_resumable
+
+recommended_first_action:
+  action_class: continue_local_work
+  verb_class: investigate
+  reversibility_class: exact_undo
+  destructive_risk_class: non_destructive_read_only
+  summary: >
+    Continue local work. Read the target_and_route_probe Doctor
+    packet to confirm cached managed policy is still within window;
+    do not reset, restore, or rebuild while the control-plane is
+    unreachable.
+
+destructive_risk_note:
+  risk_class: non_destructive_read_only
+  reversibility_class: exact_undo
+  no_undo_acknowledgement_required: false
+  summary: >
+    No mutation runs in this scenario. The card forbids any
+    destructive first action while the control-plane is
+    unreachable.
+
+approved_repair_classes:
+  - observe_only_no_repair
+  - guided_export_escalation
+  - support_bundle_export
+
+forbidden_repair_classes:
+  - disposable_state_rebuild
+  - extension_isolation
+  - extension_rollback_reinstall
+  - execution_context_reresolve
+  - remote_runtime_repair
+  - policy_entitlement_refresh
+
+linkage:
+  project_doctor:
+    probe_family_class: target_and_route_probe
+    doctor_finding_code_refs:
+      - doctor.finding.control_plane.unreachable
+      - doctor.finding.control_plane.managed_policy_fetch_failed
+    scenario_matrix_row_ref: scenario_row:wrong_target_or_environment
+    summary: >
+      The target_and_route_probe Doctor packet describes the
+      outage; cached-policy posture is read from the same row.
+  repair_transaction_preview:
+    preview_required: false
+    summary: >
+      No repair-transaction runs while the control-plane is
+      unreachable. Surfaces MUST NOT propose a destructive repair
+      or a sync reauthorization in this state.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:remote_route_collaboration_mismatch
+    escalation_packet_ref: escalation_packet:control_plane_outage.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake retains the outage finding, the cached-policy
+      window evidence row, and the cross-plane failover-pending
+      posture.
+  export_before_reset:
+    export_required: false
+    summary: >
+      No reset path runs in this scenario. A convenience export
+      remains available on demand but is not gating.
+  continuity_status_card_ref: csc-managed-tenant-control-plane-outage-0019
+  recovery_action_record_ref: recovery_action:typed_repair_flow.control_plane_outage_continue_local
+  matrix_row_ref: matrix_row:control_plane_outage
+
+honesty_invariants:
+  scenario_family_is_closed: true
+  safe_remainder_named: true
+  destructive_action_after_export_only: true
+  no_generic_reset_collapse: true
+  linkage_is_typed: true

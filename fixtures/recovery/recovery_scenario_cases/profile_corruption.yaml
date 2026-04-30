@@ -1,0 +1,126 @@
+# yaml-language-server: $schema=../../../schemas/recovery/recovery_scenario_card.schema.json
+__fixture__:
+  name: profile_corruption
+  scenario: >
+    A self-hosted profile whose durable-settings store has drifted.
+    Doctor's cache_profile_probe detected schema drift and a missing
+    keyring index in the profile-store backing file. Workspace bytes,
+    the local-history lane, the autosave journal, and evidence
+    packets all remain readable. The recovery-scenario card opens
+    with investigate_with_project_doctor — read-only, exact-undo,
+    non_destructive_read_only — so the user sees what remains safe
+    before any reset path runs. Forbidden repair classes from the
+    matrix (extension_isolation, extension_rollback_reinstall,
+    execution_context_reresolve, remote_runtime_repair) are explicit.
+  doc_sections:
+    - "§1 Record model"
+    - "§2 Scenario families"
+    - "§5 First-action vocabulary"
+    - "§6 Verb vocabulary and wording rules"
+    - "§9 Safe-first-action matrix"
+    - "§10 Linkage rules"
+    - "§11 Honesty invariants"
+
+record_kind: recovery_scenario_card_record
+recovery_scenario_card_schema_version: 1
+card_id: rsc-profile-corruption-0001
+generated_at: "mono:5612:09:14:02.0001"
+
+scenario_family_class: profile_corruption
+title: Profile or durable-settings store corruption
+summary: >
+  Profile-store schema drift detected by Doctor. Workspace, local
+  history, autosave, and evidence remain readable. Read-only
+  diagnosis first; export and checkpoint must precede any
+  destructive repair.
+
+deployment_profile_scope_class: self_hosted
+
+affected_scopes:
+  - profile
+  - layout
+
+safe_remainder:
+  - workspace_bytes_local
+  - local_history_lane
+  - autosave_journal
+  - evidence_packets_readable
+  - profile_settings_readable
+
+recommended_first_action:
+  action_class: investigate_with_project_doctor
+  verb_class: investigate
+  reversibility_class: exact_undo
+  destructive_risk_class: non_destructive_read_only
+  summary: >
+    Open the Doctor packet for the cache_profile_probe and read the
+    profile-store finding before any repair preview runs. No bytes
+    change.
+
+destructive_risk_note:
+  risk_class: non_destructive_read_only
+  reversibility_class: exact_undo
+  no_undo_acknowledgement_required: false
+  summary: >
+    Investigation is read-only. If a destructive repair is later
+    proposed, this card requires an export-before-change and a
+    workspace-authority checkpoint before that step runs.
+
+approved_repair_classes:
+  - observe_only_no_repair
+  - disposable_state_rebuild
+  - guided_export_escalation
+  - support_bundle_export
+
+forbidden_repair_classes:
+  - extension_isolation
+  - extension_rollback_reinstall
+  - execution_context_reresolve
+  - remote_runtime_repair
+
+linkage:
+  project_doctor:
+    probe_family_class: cache_profile_probe
+    doctor_finding_code_refs:
+      - doctor.finding.profile.schema_drift
+      - doctor.finding.profile.keyring_index_missing
+    scenario_matrix_row_ref: scenario_row:incompatible_cache_profile
+    summary: >
+      Read the cache_profile_probe Doctor packet first; the profile-
+      store finding row is the only authoritative description of
+      what drifted.
+  repair_transaction_preview:
+    preview_required: true
+    repair_transaction_ref: repair_transaction:profile_corruption.guided_export_escalation
+    repair_preview_ref: repair_preview:profile_corruption.guided_export_escalation
+    approved_repair_class: guided_export_escalation
+    summary: >
+      Any repair runs through the repair-transaction preview;
+      free-text repair recommendations are non-conforming.
+  support_intake:
+    scenario_picker_row_ref: support_scenario_picker:state_corruption_schema_drift
+    escalation_packet_ref: escalation_packet:profile_corruption.0001
+    completeness_outcome_floor: complete_with_typed_unknowns
+    summary: >
+      Support intake routes through the state_corruption_schema_drift
+      scenario picker; escalation packet retains Doctor finding,
+      profile-store evidence row, and the repair-preview ref.
+  export_before_reset:
+    export_required: true
+    export_artifact_ref: export_artifact:profile_corruption.portable_state_pre_repair
+    redaction_class: code_adjacent
+    local_only_by_default: true
+    summary: >
+      A local-only convenience export is required before any
+      destructive repair runs. The export never silently leaves the
+      device.
+  continuity_status_card_ref: csc-self-hosted-profile-pre-repair-0007
+  recovery_action_record_ref: recovery_action:typed_repair_flow.profile_corruption_investigate_first
+  matrix_row_ref: matrix_row:profile_corruption
+
+honesty_invariants:
+  scenario_family_is_closed: true
+  safe_remainder_named: true
+  destructive_action_after_export_only: true
+  no_generic_reset_collapse: true
+  linkage_is_typed: true

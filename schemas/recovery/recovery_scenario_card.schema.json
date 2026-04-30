@@ -1,0 +1,711 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/recovery_scenario_card.schema.json",
+  "title": "Aureline recovery-scenario card and safe-first-action contract",
+  "description": "Boundary schema for recovery-scenario cards frozen in docs/reliability/recovery_scenario_contract.md. Each card describes one large-failure recovery scenario (profile corruption, workspace-index corruption, failed update, control-plane outage, device replacement, seat loss, credential-store unreadable, mirror or offline bundle unavailable) so recovery copy stays scenario-coded rather than a generic reset narrative. Closed scenario-family, affected-scope, safe-remainder, first-action, verb, destructive-risk, and reversibility vocabularies are re-exported from artifacts/recovery/safe_first_action_matrix.yaml. Approved-repair classes are re-exported verbatim from schemas/support/scenario_picker.schema.json. Probe-family classes are re-exported verbatim from fixtures/support/scenario_matrix.yaml. Recovery-promise classes (authoritative_backup, local_checkpoint, sync_replica, mirror_cache, convenience_export) and restore-target classes (workspace, profile, evidence, layout) come from artifacts/recovery/backup_checkpoint_classes.yaml. Raw file bodies, raw diff hunks, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recovery_scenario_card_record" }
+  ],
+  "$defs": {
+    "recovery_scenario_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for recovery-scenario card records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "recovery_scenario_card_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in scenario cards, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "recovery_scenario_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_corruption",
+        "workspace_index_corruption",
+        "failed_update",
+        "control_plane_outage",
+        "device_replacement",
+        "seat_loss",
+        "credential_store_unreadable",
+        "mirror_or_offline_bundle_unavailable"
+      ],
+      "description": "Closed recovery-scenario family. Re-exported verbatim from artifacts/recovery/safe_first_action_matrix.yaml#recovery_scenario_family_vocabulary."
+    },
+    "affected_scope_class": {
+      "type": "string",
+      "enum": [
+        "workspace",
+        "profile",
+        "evidence",
+        "layout",
+        "credentials",
+        "managed_control_plane",
+        "update_install_chain",
+        "mirror_or_offline_bundle",
+        "remote_runtime_or_helper"
+      ]
+    },
+    "safe_remainder_class": {
+      "type": "string",
+      "enum": [
+        "workspace_bytes_local",
+        "local_history_lane",
+        "autosave_journal",
+        "authoritative_backup_local",
+        "convenience_export_local",
+        "mirror_cache_bytes_readable",
+        "offline_bundle_readable",
+        "profile_settings_readable",
+        "evidence_packets_readable",
+        "layout_recoverable_from_checkpoint",
+        "credentials_intact",
+        "managed_policy_cached_locally",
+        "previous_install_rollback_available",
+        "remote_session_resumable"
+      ]
+    },
+    "first_action_class": {
+      "type": "string",
+      "enum": [
+        "investigate_with_project_doctor",
+        "run_repair_transaction_preview",
+        "export_now_before_change",
+        "capture_local_checkpoint",
+        "import_offline_bundle",
+        "reauthorize_sync_after_review",
+        "rebuild_disposable_state_only",
+        "restore_from_authoritative_backup",
+        "restore_from_sync_replica",
+        "escalate_to_support_with_evidence",
+        "defer_to_admin_seat_recovery",
+        "continue_local_work"
+      ]
+    },
+    "verb_class": {
+      "type": "string",
+      "enum": [
+        "investigate",
+        "export",
+        "checkpoint",
+        "rebuild",
+        "restore",
+        "reset"
+      ]
+    },
+    "reversibility_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regeneration",
+        "checkpoint_restore",
+        "no_undo_export_only"
+      ],
+      "description": "Re-exported verbatim from schemas/support/recovery_action.schema.json#reversal_class."
+    },
+    "destructive_risk_class": {
+      "type": "string",
+      "enum": [
+        "non_destructive_read_only",
+        "non_destructive_writes_local_evidence_only",
+        "writes_disposable_state_only",
+        "writes_user_owned_recovery_state",
+        "mutates_workspace_bytes_with_checkpoint",
+        "mutates_profile_state_with_checkpoint_and_export",
+        "destructive_user_authored_no_undo_export_required"
+      ]
+    },
+    "approved_repair_class": {
+      "type": "string",
+      "enum": [
+        "observe_only_no_repair",
+        "disposable_state_rebuild",
+        "extension_isolation",
+        "extension_rollback_reinstall",
+        "execution_context_reresolve",
+        "remote_runtime_repair",
+        "policy_entitlement_refresh",
+        "guided_export_escalation",
+        "support_bundle_export",
+        "trace_capture"
+      ],
+      "description": "Re-exported verbatim from schemas/support/scenario_picker.schema.json#approved_repair_class."
+    },
+    "probe_family_class": {
+      "type": "string",
+      "enum": [
+        "toolchain_probe",
+        "trust_state_probe",
+        "filesystem_watcher_probe",
+        "cache_profile_probe",
+        "extension_host_probe",
+        "target_and_route_probe",
+        "helper_attach_probe",
+        "docs_mirror_probe"
+      ],
+      "description": "Re-exported verbatim from fixtures/support/scenario_matrix.yaml#probe_family_vocabulary."
+    },
+    "recovery_promise_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_backup",
+        "local_checkpoint",
+        "sync_replica",
+        "mirror_cache",
+        "convenience_export"
+      ],
+      "description": "Closed recovery-promise class. Re-exported verbatim from artifacts/recovery/backup_checkpoint_classes.yaml."
+    },
+    "completeness_outcome_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "complete_with_typed_unknowns",
+        "incomplete_refused_export"
+      ],
+      "description": "Re-exported verbatim from schemas/support/escalation_packet.schema.json#completeness_outcome_class."
+    },
+    "data_class_boundary_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "environment_adjacent",
+        "code_adjacent",
+        "high_risk"
+      ]
+    },
+    "deployment_profile_scope_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "air_gapped",
+        "managed_tenant",
+        "cross_plane_failover_pending"
+      ]
+    },
+    "preferred_first_diagnosis_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["probe_family_class", "summary"],
+      "properties": {
+        "probe_family_class": { "$ref": "#/$defs/probe_family_class" },
+        "doctor_finding_code_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Stable Doctor finding-code refs the surface should consult first. Free-form prose finding hints are non-conforming."
+        },
+        "scenario_matrix_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "recommended_first_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "verb_class",
+        "reversibility_class",
+        "destructive_risk_class",
+        "summary"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/first_action_class" },
+        "verb_class": { "$ref": "#/$defs/verb_class" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "destructive_risk_class": { "$ref": "#/$defs/destructive_risk_class" },
+        "covering_promise_class": {
+          "$ref": "#/$defs/recovery_promise_class",
+          "description": "When the action_class is restore_from_authoritative_backup or restore_from_sync_replica, the card MUST cite the covering recovery-promise class. mirror_cache and convenience_export MUST NOT appear here."
+        },
+        "must_precede": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "export_now_before_change",
+              "capture_local_checkpoint",
+              "import_offline_bundle",
+              "investigate_with_project_doctor"
+            ]
+          },
+          "uniqueItems": true,
+          "description": "Pre-actions the user MUST complete before the recommended first action runs. Required when the verb is reset, restore (with mutates_* risk), or any destructive variant."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "When the recommended first action is a restore variant, the covering_promise_class MUST be present and MUST NOT be mirror_cache or convenience_export.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "restore_from_authoritative_backup",
+                  "restore_from_sync_replica"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": {
+            "required": ["covering_promise_class"],
+            "properties": {
+              "covering_promise_class": {
+                "enum": [
+                  "authoritative_backup",
+                  "sync_replica",
+                  "local_checkpoint"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Reset-class actions (verb=reset, no_undo_export_only) MUST list export_now_before_change as a required pre-action.",
+          "if": {
+            "properties": {
+              "verb_class": { "const": "reset" }
+            },
+            "required": ["verb_class"]
+          },
+          "then": {
+            "required": ["must_precede"],
+            "properties": {
+              "must_precede": {
+                "type": "array",
+                "contains": { "const": "export_now_before_change" }
+              }
+            }
+          }
+        },
+        {
+          "description": "rebuild_disposable_state_only is the only first action permitted to carry writes_disposable_state_only risk; restoring or resetting cannot ride this risk class.",
+          "if": {
+            "properties": {
+              "destructive_risk_class": { "const": "writes_disposable_state_only" }
+            },
+            "required": ["destructive_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "verb_class": { "const": "rebuild" },
+              "action_class": { "const": "rebuild_disposable_state_only" }
+            },
+            "required": ["verb_class", "action_class"]
+          }
+        },
+        {
+          "description": "Only the verb \"reset\" may carry destructive_user_authored_no_undo_export_required.",
+          "if": {
+            "properties": {
+              "destructive_risk_class": { "const": "destructive_user_authored_no_undo_export_required" }
+            },
+            "required": ["destructive_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "verb_class": { "const": "reset" }
+            },
+            "required": ["verb_class"]
+          }
+        },
+        {
+          "description": "Read-only investigate verbs MUST carry the matching read-only risk class.",
+          "if": {
+            "properties": {
+              "verb_class": { "const": "investigate" }
+            },
+            "required": ["verb_class"]
+          },
+          "then": {
+            "properties": {
+              "destructive_risk_class": {
+                "enum": [
+                  "non_destructive_read_only",
+                  "non_destructive_writes_local_evidence_only"
+                ]
+              }
+            },
+            "required": ["destructive_risk_class"]
+          }
+        }
+      ]
+    },
+    "destructive_risk_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "risk_class",
+        "reversibility_class",
+        "summary"
+      ],
+      "properties": {
+        "risk_class": { "$ref": "#/$defs/destructive_risk_class" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "covering_promise_class": { "$ref": "#/$defs/recovery_promise_class" },
+        "requires_pre_action": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "export_now_before_change",
+              "capture_local_checkpoint",
+              "import_offline_bundle",
+              "investigate_with_project_doctor"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "no_undo_acknowledgement_required": {
+          "type": "boolean",
+          "description": "True when the action carries destructive_user_authored_no_undo_export_required. The schema enforces this in the cross-field allOf below."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_doctor",
+        "support_intake",
+        "export_before_reset"
+      ],
+      "properties": {
+        "project_doctor": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["probe_family_class", "summary"],
+          "properties": {
+            "probe_family_class": { "$ref": "#/$defs/probe_family_class" },
+            "doctor_finding_code_refs": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/opaque_id" },
+              "uniqueItems": true
+            },
+            "scenario_matrix_row_ref": { "$ref": "#/$defs/opaque_id" },
+            "summary": { "$ref": "#/$defs/short_text" }
+          }
+        },
+        "repair_transaction_preview": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["preview_required"],
+          "properties": {
+            "preview_required": {
+              "type": "boolean",
+              "description": "True when the card recommends a repair the user can apply. The repair-transaction contract requires a preview record before any apply."
+            },
+            "repair_transaction_ref": { "$ref": "#/$defs/opaque_id" },
+            "repair_preview_ref": { "$ref": "#/$defs/opaque_id" },
+            "approved_repair_class": { "$ref": "#/$defs/approved_repair_class" },
+            "summary": { "$ref": "#/$defs/short_text" }
+          }
+        },
+        "support_intake": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scenario_picker_row_ref", "summary"],
+          "properties": {
+            "scenario_picker_row_ref": { "$ref": "#/$defs/opaque_id" },
+            "escalation_packet_ref": { "$ref": "#/$defs/opaque_id" },
+            "object_handoff_packet_ref": { "$ref": "#/$defs/opaque_id" },
+            "completeness_outcome_floor": { "$ref": "#/$defs/completeness_outcome_class" },
+            "summary": { "$ref": "#/$defs/short_text" }
+          }
+        },
+        "export_before_reset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["export_required", "summary"],
+          "properties": {
+            "export_required": {
+              "type": "boolean",
+              "description": "True when the recommended action — or any approved repair class for this scenario family — may produce destructive_user_authored_no_undo_export_required risk. The schema requires export_artifact_ref when this is true."
+            },
+            "export_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+            "redaction_class": { "$ref": "#/$defs/data_class_boundary_class" },
+            "local_only_by_default": {
+              "type": "boolean",
+              "const": true,
+              "description": "Convenience exports never silently leave the device."
+            },
+            "summary": { "$ref": "#/$defs/short_text" }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "export_required": { "const": true } },
+                "required": ["export_required"]
+              },
+              "then": {
+                "required": ["export_artifact_ref", "redaction_class", "local_only_by_default"]
+              }
+            }
+          ]
+        },
+        "continuity_status_card_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id of the continuity_status_card_record this scenario card composes with."
+        },
+        "recovery_action_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "matrix_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id of the safe_first_action_rows[] row in artifacts/recovery/safe_first_action_matrix.yaml that governs this scenario family."
+        }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_family_is_closed",
+        "safe_remainder_named",
+        "destructive_action_after_export_only",
+        "no_generic_reset_collapse",
+        "linkage_is_typed"
+      ],
+      "properties": {
+        "scenario_family_is_closed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the card resolves to exactly one closed scenario family and never collapses two families into one row."
+        },
+        "safe_remainder_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the card lists at least one safe_remainder value; the user is never told the system is broken without a named anchor."
+        },
+        "destructive_action_after_export_only": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that any destructive_user_authored_no_undo_export_required action is gated behind an export_now_before_change pre-action."
+        },
+        "no_generic_reset_collapse": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the card never proposes a generic reset; reset is verb-coded with a specific scope and pre-action set."
+        },
+        "linkage_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that linkage refs are typed (probe_family_class, repair_transaction_ref, scenario_picker_row_ref, export_artifact_ref) rather than free-form prose."
+        }
+      }
+    },
+    "recovery_scenario_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recovery_scenario_card_schema_version",
+        "card_id",
+        "generated_at",
+        "scenario_family_class",
+        "title",
+        "summary",
+        "deployment_profile_scope_class",
+        "affected_scopes",
+        "safe_remainder",
+        "recommended_first_action",
+        "destructive_risk_note",
+        "linkage",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "recovery_scenario_card_schema_version": { "$ref": "#/$defs/recovery_scenario_card_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scenario_family_class": { "$ref": "#/$defs/recovery_scenario_family_class" },
+        "title": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "deployment_profile_scope_class": { "$ref": "#/$defs/deployment_profile_scope_class" },
+        "affected_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 9,
+          "items": { "$ref": "#/$defs/affected_scope_class" },
+          "uniqueItems": true,
+          "description": "One entry per affected scope. Bounded so the card cannot silently expand into an undocumented blast radius."
+        },
+        "safe_remainder": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safe_remainder_class" },
+          "uniqueItems": true,
+          "description": "What remains safe and inspectable while the failure is in scope. Required so the user is never told the system is broken without a named anchor."
+        },
+        "recommended_first_action": { "$ref": "#/$defs/recommended_first_action" },
+        "destructive_risk_note": { "$ref": "#/$defs/destructive_risk_note" },
+        "approved_repair_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/approved_repair_class" },
+          "uniqueItems": true,
+          "description": "Repair classes the matrix permits for this scenario family. The card MUST NOT cite a forbidden repair class via repair_transaction_preview.approved_repair_class."
+        },
+        "forbidden_repair_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/approved_repair_class" },
+          "uniqueItems": true,
+          "description": "Repair classes the matrix forbids for this scenario family. linkage.repair_transaction_preview.approved_repair_class MUST NOT appear in this set."
+        },
+        "linkage": { "$ref": "#/$defs/linkage_block" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "When the destructive_risk_note carries destructive_user_authored_no_undo_export_required, no_undo_acknowledgement_required MUST be true and the export-before-reset linkage MUST require an export.",
+          "if": {
+            "properties": {
+              "destructive_risk_note": {
+                "properties": {
+                  "risk_class": { "const": "destructive_user_authored_no_undo_export_required" }
+                },
+                "required": ["risk_class"]
+              }
+            },
+            "required": ["destructive_risk_note"]
+          },
+          "then": {
+            "properties": {
+              "destructive_risk_note": {
+                "properties": {
+                  "no_undo_acknowledgement_required": { "const": true },
+                  "requires_pre_action": {
+                    "type": "array",
+                    "contains": { "const": "export_now_before_change" }
+                  }
+                },
+                "required": ["no_undo_acknowledgement_required", "requires_pre_action"]
+              },
+              "linkage": {
+                "properties": {
+                  "export_before_reset": {
+                    "properties": {
+                      "export_required": { "const": true }
+                    },
+                    "required": ["export_required"]
+                  }
+                },
+                "required": ["export_before_reset"]
+              }
+            }
+          }
+        },
+        {
+          "description": "control_plane_outage cards MUST NOT recommend any first action whose verb is reset, restore, or rebuild while the control-plane is unreachable.",
+          "if": {
+            "properties": {
+              "scenario_family_class": { "const": "control_plane_outage" }
+            },
+            "required": ["scenario_family_class"]
+          },
+          "then": {
+            "properties": {
+              "recommended_first_action": {
+                "properties": {
+                  "verb_class": {
+                    "not": { "enum": ["reset", "restore", "rebuild"] }
+                  }
+                },
+                "required": ["verb_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "control_plane_outage cards MUST cite the cross_plane_failover_pending or managed_tenant deployment posture.",
+          "if": {
+            "properties": {
+              "scenario_family_class": { "const": "control_plane_outage" }
+            },
+            "required": ["scenario_family_class"]
+          },
+          "then": {
+            "properties": {
+              "deployment_profile_scope_class": {
+                "enum": ["managed_tenant", "cross_plane_failover_pending"]
+              }
+            },
+            "required": ["deployment_profile_scope_class"]
+          }
+        },
+        {
+          "description": "device_replacement cards MUST list workspace, profile, evidence, and layout as affected scopes; a new device hydrates every restore-target class.",
+          "if": {
+            "properties": {
+              "scenario_family_class": { "const": "device_replacement" }
+            },
+            "required": ["scenario_family_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_scopes": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "const": "workspace" } },
+                  { "contains": { "const": "profile" } },
+                  { "contains": { "const": "evidence" } },
+                  { "contains": { "const": "layout" } }
+                ]
+              }
+            },
+            "required": ["affected_scopes"]
+          }
+        },
+        {
+          "description": "When approved_repair_classes is present together with forbidden_repair_classes, the two sets MUST NOT intersect.",
+          "if": {
+            "required": ["approved_repair_classes", "forbidden_repair_classes"]
+          },
+          "then": {
+            "properties": {
+              "approved_repair_classes": {
+                "type": "array"
+              },
+              "forbidden_repair_classes": {
+                "type": "array"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
