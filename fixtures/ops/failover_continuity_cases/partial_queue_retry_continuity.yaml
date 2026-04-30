@@ -1,0 +1,218 @@
+__fixture__:
+  name: partial_queue_retry_continuity
+  scenario: >
+    A planned read-only window for hosted review and merge queue
+    crossed a brief broker reconciliation. The publish-later queue
+    is admitting review-comment and merge-queue intents; idempotent
+    label changes queue through the outbox; an earlier idempotent
+    label update already drained with a target-drift conflict and
+    now requires a manual rerun; AI gateway prompts wait for
+    reconnect; collaboration role-grant is refused as
+    authority-changing; the local-safe baseline records every
+    launch-critical workflow as available locally now. The banner
+    keeps queued, retryable, blocked, and manual-rerun rows visually
+    distinct so the reader can see exactly which queue an item is
+    in and which require user action.
+  contract_sections:
+    - Banner trigger kinds (frozen)
+    - Continuity-action vocabulary (frozen)
+    - When queued, retryable, blocked, and manual-rerun rows must appear distinctly
+    - Reuse rules with upstream notices (frozen)
+    - Display-copy invariants (frozen)
+
+schema_refs:
+  failover_banner: schemas/ops/failover_banner.schema.json
+  local_safe_baseline: schemas/ops/local_safe_baseline.schema.json
+
+local_safe_baseline:
+  schema_version: 1
+  record_kind: local_safe_baseline_record
+  baseline_id: baseline.ref.enterprise_online.partial_queue_retry
+  baseline_kind_class: launch_critical_local_first
+  deployment_profiles:
+    - enterprise_online
+    - managed_cloud
+  workflow_rows:
+    - workflow_class: local_editing
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Editing in open buffers continues during the read-only window.
+    - workflow_class: local_save
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Save persists to the on-device working copy.
+    - workflow_class: local_search_index_query
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: On-device search and symbol lookup remain available.
+    - workflow_class: local_git_commit_branch
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Local commit, branch, and merge against the on-disk repo continue.
+    - workflow_class: local_build_test_debug
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: On-device build, test, and debug continue.
+    - workflow_class: local_export_bundle
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Workspace and continuity bundle exports remain available.
+    - workflow_class: local_diagnostics
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Local diagnostics and the continuity packet view remain available.
+    - workflow_class: local_inspect_docs_pack
+      availability_class: available_local_safe
+      freshness_posture_class: bounded_stale
+      guidance_summary: The local docs pack remains readable; freshness reflects the last refresh.
+  composes_with:
+    local_core_continuity_packet_refs:
+      - continuity_packet.ref.enterprise_online.partial_queue_retry
+    deployment_summary_card_refs:
+      - deployment_summary.ref.enterprise_online.payments
+    connectivity_snapshot_refs:
+      - connectivity_snapshot.ref.partial_queue_retry.2026_05_04
+  summary: >
+    Launch-critical local-first workflows for the enterprise-online and
+    managed-cloud profiles during a read-only review/merge window with
+    partial broker reconciliation.
+  captured_at: "2026-05-04T08:10:00Z"
+  narrative_refs:
+    - docs/ops/failover_continuity_banner_contract.md
+    - docs/deployment/locality_and_continuity_seed.md
+
+failover_banner:
+  schema_version: 1
+  record_kind: failover_banner_record
+  banner_id: banner.ref.partial_queue_retry.2026_05_04
+  title: Hosted review and merge queue are read-only; local work continues
+  summary: >
+    Hosted review and merge queue are in a planned read-only window;
+    the broker is reconciling a small backlog. Local edits, save,
+    search, Git, build, export, and diagnostics keep working;
+    review-comment publish, merge-queue enqueue, and idempotent
+    label updates queue for replay; one earlier idempotent label
+    update drained with a target-drift conflict and requires a
+    manual rerun; collaboration role-grant is refused.
+  created_at: "2026-05-04T08:00:00Z"
+  updated_at: "2026-05-04T08:15:00Z"
+  trigger_kind_class: planned_maintenance_window
+  impairment_source:
+    source_kind_class: composite_multiple_records
+    outage_notice_ref: null
+    maintenance_notice_ref: maintenance_notice.read_only_window_publish_later
+    migration_event_ref: null
+    connectivity_snapshot_ref: connectivity_snapshot.ref.partial_queue_retry.2026_05_04
+    outage_state_class: null
+    maintenance_state_class: read_only_window
+    migration_state_class: null
+    connectivity_state_class: reconciliation_pending
+    rationale_summary: >
+      The maintenance notice tracks the read-only window for hosted
+      review and merge queue; the connectivity snapshot pins
+      managed_writes as reconciliation_pending while the publish-later
+      queue and outbox drain.
+  impacted_features:
+    control_plane_service_classes:
+      - provider_review_service
+      - merge_queue_service
+      - ai_broker_service
+    service_family_classes:
+      - managed_writes
+      - collaboration_control
+    feature_summary: >
+      Hosted review and merge queue are read-only for the planned
+      window; idempotent managed writes ride the outbox; AI gateway
+      prompts wait for the broker route to return.
+  local_safe_baseline_ref: baseline.ref.enterprise_online.partial_queue_retry
+  retained_local_safe_capabilities:
+    - continue local edits, save, search, Git, build, test, debug, export, and diagnostics
+    - read the local docs pack with its freshness label
+  continuity_action_rows:
+    - action_class: managed_review_comment_publish
+      continuity_action_state_class: queued_for_replay
+      queue_posture_class: publish_later_queue
+      required_user_step_class: wait_for_window_end
+      queue_or_intent_ref: queue.ref.publish_later.review_comments
+      idempotency_key_present: true
+      row_summary: Review-comment publish rides the publish-later queue and drains when the window ends.
+    - action_class: merge_queue_enqueue
+      continuity_action_state_class: queued_for_replay
+      queue_posture_class: publish_later_queue
+      required_user_step_class: wait_for_window_end
+      queue_or_intent_ref: queue.ref.publish_later.merge_queue
+      idempotency_key_present: true
+      row_summary: Merge-queue enqueue rides the publish-later queue and drains when the window ends.
+    - action_class: idempotent_managed_field_set
+      continuity_action_state_class: queued_for_replay
+      queue_posture_class: idempotent_outbox_queue
+      required_user_step_class: wait_for_window_end
+      queue_or_intent_ref: outbox.ref.partial_queue_retry.label_writes
+      idempotency_key_present: true
+      row_summary: Idempotent label and field updates queue through the outbox; replay drains when managed writes reopen.
+    - action_class: idempotent_managed_field_set
+      continuity_action_state_class: requires_manual_rerun
+      queue_posture_class: drained_with_conflict
+      required_user_step_class: reissue_with_fresh_freshness
+      queue_or_intent_ref: outbox.ref.partial_queue_retry.label_drift_2026_05_04
+      idempotency_key_present: true
+      row_summary: An earlier idempotent label update drained with a target-drift conflict; reissue against the current target to apply.
+    - action_class: ai_gateway_prompt_submit
+      continuity_action_state_class: blocked_pending_reconnect
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: wait_for_reconnect
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: AI gateway prompts wait for the broker route to finish reconciling before they can dispatch.
+    - action_class: support_bundle_upload
+      continuity_action_state_class: retryable_when_connected
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: wait_for_reconnect
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Support-bundle upload retries when the broker route returns; the local export remains available now.
+    - action_class: collaboration_role_grant_or_revoke
+      continuity_action_state_class: refused_authority_changing
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: no_step_required
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Collaboration role grants and revokes are refused during the read-only window; authority changes cannot queue.
+  evidence_export_action:
+    action_class: open_history
+    evidence_packet_ref: maintenance_notice.read_only_window_publish_later
+    summary: Open the maintenance notice and the publish-later queue history to inspect drained, in-flight, and conflicted intents.
+  boundary_change_note:
+    boundary_change_required: false
+    boundary_axes_summary: []
+    linked_outage_or_event_refs:
+      - maintenance_notice.read_only_window_publish_later
+    summary: No tenant, region, residency, key-ownership, or endpoint-identity change is in scope for this window.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_banner_id: null
+    superseded_by_banner_id: null
+    retained_until_at: "2026-06-04T08:30:00Z"
+    history_banner_refs: []
+  display_copy:
+    primary_status_line: Hosted review and merge queue are read-only since May 4, 2026 08:00 UTC; broker reconciling a small backlog.
+    local_safe_line: Local edits, save, search, Git, build, export, and diagnostics remain available.
+    queued_or_retry_line: Review-comment publish, merge-queue enqueue, and idempotent label updates are queued; support-bundle upload retries when the broker returns.
+    blocked_or_manual_line: One earlier label update needs a manual reissue against the current target; AI gateway prompts wait for reconnect; collaboration role grants are refused.
+    evidence_export_line: Open the maintenance notice and the publish-later queue history to inspect drained, in-flight, and conflicted intents.
+    boundary_change_line: No boundary change in scope.
+    stale_label: null
+    all_work_broken_implied: false
+    generic_unavailable_banner_used: false
+    queued_and_blocked_collapsed: false
+    local_safe_invisible: false
+    incident_language_for_planned_used: false
+  narrative_refs:
+    - docs/ops/failover_continuity_banner_contract.md
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/runtime/connectivity_and_reconciliation_contract.md
+
+expected_surface_contract:
+  separates_queued_from_retryable_from_blocked_from_manual_rerun: true
+  surfaces_local_safe_baseline_during_planned_window: true
+  uses_planned_language_not_incident_language: true

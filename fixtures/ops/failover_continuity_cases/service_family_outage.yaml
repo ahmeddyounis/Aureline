@@ -1,0 +1,200 @@
+__fixture__:
+  name: service_family_outage
+  scenario: >
+    The managed AI broker service is unavailable on the affected
+    route. The local-safe baseline remains intact: edit, save,
+    search, Git, build/test/debug, export, diagnostics, and cached
+    docs reads continue to run locally. Idempotent managed label
+    changes queue through the deferred-intent outbox; paid model
+    dispatch is refused as authority-changing; support-bundle
+    upload is retryable when connectivity returns.
+  contract_sections:
+    - Banner trigger kinds (frozen)
+    - Continuity-action vocabulary (frozen)
+    - Local-safe baseline rows (frozen)
+    - Display-copy invariants (frozen)
+
+schema_refs:
+  failover_banner: schemas/ops/failover_banner.schema.json
+  local_safe_baseline: schemas/ops/local_safe_baseline.schema.json
+
+local_safe_baseline:
+  schema_version: 1
+  record_kind: local_safe_baseline_record
+  baseline_id: baseline.ref.enterprise_online.launch_critical
+  baseline_kind_class: launch_critical_local_first
+  deployment_profiles:
+    - enterprise_online
+    - managed_cloud
+  workflow_rows:
+    - workflow_class: local_editing
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Editing in open buffers continues without managed connectivity.
+    - workflow_class: local_save
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Save persists to the on-device working copy.
+    - workflow_class: local_undo_redo
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Undo and redo continue against the in-buffer history.
+    - workflow_class: local_search_index_query
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: On-device search and symbol lookup remain available.
+    - workflow_class: local_git_commit_branch
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Local commit, branch, and merge against the on-disk repo continue.
+    - workflow_class: local_build_test_debug
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: On-device build, test, and debug continue.
+    - workflow_class: local_export_bundle
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Workspace, support, and continuity bundle exports remain available.
+    - workflow_class: local_diagnostics
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Local diagnostics and the continuity packet view remain available.
+    - workflow_class: local_inspect_docs_pack
+      availability_class: available_local_safe
+      freshness_posture_class: bounded_stale
+      guidance_summary: The local docs pack remains readable; freshness reflects the last refresh.
+    - workflow_class: local_inspect_cached_provider_snapshot
+      availability_class: available_with_freshness_label
+      freshness_posture_class: bounded_stale
+      guidance_summary: Cached provider snapshots render with a freshness label.
+  composes_with:
+    local_core_continuity_packet_refs:
+      - continuity_packet.ref.enterprise_online.launch_critical
+    deployment_summary_card_refs:
+      - deployment_summary.ref.enterprise_online.payments
+    connectivity_snapshot_refs:
+      - connectivity_snapshot.ref.ai_broker_outage.2026_05_04
+  summary: >
+    Launch-critical local-first workflows for the enterprise-online and
+    managed-cloud profiles when a managed family is unavailable.
+  captured_at: "2026-05-04T09:00:00Z"
+  narrative_refs:
+    - docs/ops/failover_continuity_banner_contract.md
+    - docs/deployment/locality_and_continuity_seed.md
+
+failover_banner:
+  schema_version: 1
+  record_kind: failover_banner_record
+  banner_id: banner.ref.ai_broker_outage.2026_05_04
+  title: Managed AI broker is unavailable; local work continues
+  summary: >
+    The managed AI broker service is unavailable on the affected route.
+    Local edits, save, search, Git, build, export, and diagnostics keep
+    working; managed label changes are queued for replay; paid model
+    dispatch is refused while the family is unavailable; support-bundle
+    upload retries when connectivity returns.
+  created_at: "2026-05-04T09:05:00Z"
+  updated_at: "2026-05-04T09:25:00Z"
+  trigger_kind_class: service_family_outage
+  impairment_source:
+    source_kind_class: composite_multiple_records
+    outage_notice_ref: notice.ref.ai_broker_outage.2026_05_04
+    maintenance_notice_ref: null
+    migration_event_ref: null
+    connectivity_snapshot_ref: connectivity_snapshot.ref.ai_broker_outage.2026_05_04
+    outage_state_class: read_only
+    maintenance_state_class: null
+    migration_state_class: null
+    connectivity_state_class: service_unavailable
+    rationale_summary: >
+      The outage notice covers the AI broker route; the connectivity
+      snapshot pins paid_model_dispatch as service_unavailable while
+      managed_writes is constrained.
+  impacted_features:
+    control_plane_service_classes:
+      - ai_broker_service
+    service_family_classes:
+      - paid_model_dispatch
+      - managed_writes
+      - upload_replication
+    feature_summary: >
+      AI broker dispatch and dependent managed-write paths are
+      unavailable; upload replication is constrained.
+  local_safe_baseline_ref: baseline.ref.enterprise_online.launch_critical
+  retained_local_safe_capabilities:
+    - continue local edits, save, undo, search, Git, build, test, debug, export, and diagnostics
+    - read the local docs pack and cached provider snapshots with their freshness labels
+  continuity_action_rows:
+    - action_class: idempotent_managed_field_set
+      continuity_action_state_class: queued_for_replay
+      queue_posture_class: idempotent_outbox_queue
+      required_user_step_class: wait_for_reconnect
+      queue_or_intent_ref: outbox.ref.ai_broker_outage.label_writes
+      idempotency_key_present: true
+      row_summary: Idempotent label and field updates queue through the outbox; replay drains when the broker route returns.
+    - action_class: ai_gateway_prompt_submit
+      continuity_action_state_class: blocked_pending_reconnect
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: wait_for_reconnect
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: AI gateway prompts wait for the broker route to return before they can dispatch.
+    - action_class: paid_model_dispatch_invocation
+      continuity_action_state_class: refused_authority_changing
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: no_step_required
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Paid model dispatch is refused while the broker is unavailable; quota-consuming calls cannot replay.
+    - action_class: support_bundle_upload
+      continuity_action_state_class: retryable_when_connected
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: wait_for_reconnect
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Support-bundle upload retries when connectivity returns; the local export remains available now.
+    - action_class: telemetry_upload
+      continuity_action_state_class: queued_for_replay
+      queue_posture_class: upload_replication_queue
+      required_user_step_class: wait_for_reconnect
+      queue_or_intent_ref: queue.ref.upload_replication.telemetry
+      idempotency_key_present: false
+      row_summary: Telemetry uploads ride the upload replication queue and drain when connectivity returns.
+  evidence_export_action:
+    action_class: export_diagnostics
+    evidence_packet_ref: evidence_packet.ref.ai_broker_outage.2026_05_04
+    summary: Export diagnostics with the AI broker outage metadata pre-populated.
+  boundary_change_note:
+    boundary_change_required: false
+    boundary_axes_summary: []
+    linked_outage_or_event_refs:
+      - notice.ref.ai_broker_outage.2026_05_04
+    summary: No tenant, region, residency, key-ownership, or endpoint-identity change is in scope for this outage.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_banner_id: null
+    superseded_by_banner_id: null
+    retained_until_at: "2026-06-04T09:25:00Z"
+    history_banner_refs: []
+  display_copy:
+    primary_status_line: AI broker is unavailable since May 4, 2026 09:05 UTC.
+    local_safe_line: Local edits, save, search, Git, build, export, and diagnostics remain available.
+    queued_or_retry_line: Idempotent label updates and telemetry uploads are queued; support-bundle upload retries when connected.
+    blocked_or_manual_line: AI gateway prompts wait for reconnect; paid model dispatch is refused.
+    evidence_export_line: Export diagnostics with the AI broker outage metadata pre-populated.
+    boundary_change_line: No boundary change in scope.
+    stale_label: null
+    all_work_broken_implied: false
+    generic_unavailable_banner_used: false
+    queued_and_blocked_collapsed: false
+    local_safe_invisible: false
+    incident_language_for_planned_used: false
+  narrative_refs:
+    - docs/ops/failover_continuity_banner_contract.md
+    - docs/runtime/connectivity_and_reconciliation_contract.md
+    - docs/ux/control_data_plane_status_contract.md
+
+expected_surface_contract:
+  separates_queued_from_blocked: true
+  surfaces_local_safe_baseline: true
+  refuses_paid_dispatch_silently: false

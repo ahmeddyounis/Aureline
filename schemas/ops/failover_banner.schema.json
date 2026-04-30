@@ -1,0 +1,718 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/failover_banner.schema.json",
+  "title": "Aureline failover-continuity banner",
+  "description": "Boundary schema for failover_banner_record, the in-product continuity banner frozen in docs/ops/failover_continuity_banner_contract.md. The banner is the surface a user reads while a service-family outage, scheduled maintenance, tenant migration, regional or control-plane failover, or a connectivity-degrade is in flight. Its purpose is to restate, at a glance, (1) which features are impacted, (2) what remains productively local-safe right now, (3) which user-mintable actions are queued for replay, retryable when connectivity returns, blocked pending reconnect or boundary recheck, blocked with no safe retry, or require a manual rerun, (4) which evidence/export path is available, and (5) whether the boundary or notice is stale or has changed. The banner does not invent a parallel incident, maintenance, migration, or connectivity vocabulary; it composes the upstream outage_notice_record / maintenance_notice_record / tenant_migration_event_record / connectivity_state_snapshot_record state vocabularies directly. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw endpoint credentials, raw policy bodies, and raw secret material never cross this boundary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "banner_id",
+    "title",
+    "summary",
+    "created_at",
+    "updated_at",
+    "trigger_kind_class",
+    "impairment_source",
+    "impacted_features",
+    "local_safe_baseline_ref",
+    "retained_local_safe_capabilities",
+    "continuity_action_rows",
+    "evidence_export_action",
+    "boundary_change_note",
+    "lifecycle",
+    "display_copy",
+    "narrative_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "failover_banner_record"
+    },
+    "banner_id": {
+      "$ref": "#/$defs/stable_token"
+    },
+    "title": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "summary": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "created_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "trigger_kind_class": {
+      "$ref": "#/$defs/trigger_kind_class"
+    },
+    "impairment_source": {
+      "$ref": "#/$defs/impairment_source"
+    },
+    "impacted_features": {
+      "$ref": "#/$defs/impacted_features"
+    },
+    "local_safe_baseline_ref": {
+      "$ref": "#/$defs/stable_token",
+      "description": "Opaque ref to the local_safe_baseline_record this banner pins. The baseline is the canonical inventory of launch-critical local-first workflows; the banner re-states retained capabilities for display but MUST NOT diverge from the baseline rows."
+    },
+    "retained_local_safe_capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "description": "At least one product-term sentence naming what still works locally right now (edit, save, search, Git, export, diagnostics, ...). Inferring local-safe capability from the absence of an impacted feature is non-conforming.",
+      "items": { "$ref": "#/$defs/reviewable_sentence" }
+    },
+    "continuity_action_rows": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Per-action continuity rows. Every user-mintable action class the banner narrates MUST resolve to exactly one continuity_action_state_class so queued, retryable, blocked, and manual-rerun actions cannot collapse into a generic unavailable state.",
+      "items": { "$ref": "#/$defs/continuity_action_row" }
+    },
+    "evidence_export_action": {
+      "$ref": "#/$defs/evidence_export_action"
+    },
+    "boundary_change_note": {
+      "$ref": "#/$defs/boundary_change_note"
+    },
+    "lifecycle": {
+      "$ref": "#/$defs/banner_lifecycle"
+    },
+    "display_copy": {
+      "$ref": "#/$defs/display_copy"
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block. Never part of the runtime record."
+    }
+  },
+  "allOf": [
+    {
+      "description": "A banner sourced from a tenant_migration_event or whose boundary_change_note marks a changed boundary MUST carry a review_new_boundary continuity row.",
+      "if": {
+        "properties": {
+          "boundary_change_note": {
+            "properties": {
+              "boundary_change_required": { "const": true }
+            },
+            "required": ["boundary_change_required"]
+          }
+        },
+        "required": ["boundary_change_note"]
+      },
+      "then": {
+        "properties": {
+          "continuity_action_rows": {
+            "contains": {
+              "properties": {
+                "continuity_action_state_class": {
+                  "enum": [
+                    "blocked_pending_boundary_recheck",
+                    "requires_manual_rerun",
+                    "refused_authority_changing"
+                  ]
+                }
+              },
+              "required": ["continuity_action_state_class"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Banners pinned to a non-active lifecycle MUST carry a stale label.",
+      "if": {
+        "properties": {
+          "lifecycle": {
+            "properties": {
+              "freshness_class": { "not": { "const": "active_current" } }
+            },
+            "required": ["freshness_class"]
+          }
+        },
+        "required": ["lifecycle"]
+      },
+      "then": {
+        "properties": {
+          "display_copy": {
+            "properties": {
+              "stale_label": { "$ref": "#/$defs/reviewable_sentence" }
+            },
+            "required": ["stale_label"]
+          }
+        }
+      }
+    },
+    {
+      "description": "Banners triggered by planned maintenance or tenant migration MUST keep incident_language_for_planned_used = false.",
+      "if": {
+        "properties": {
+          "trigger_kind_class": {
+            "enum": [
+              "planned_maintenance_window",
+              "scheduled_drain_window",
+              "scheduled_export_freeze",
+              "tenant_or_region_migration",
+              "post_event_reconciliation"
+            ]
+          }
+        },
+        "required": ["trigger_kind_class"]
+      },
+      "then": {
+        "properties": {
+          "display_copy": {
+            "properties": {
+              "incident_language_for_planned_used": { "const": false }
+            },
+            "required": ["incident_language_for_planned_used"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "stable_token": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "utc_date_time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "nullable_utc_date_time": {
+      "anyOf": [
+        { "$ref": "#/$defs/utc_date_time" },
+        { "type": "null" }
+      ]
+    },
+    "trigger_kind_class": {
+      "type": "string",
+      "enum": [
+        "service_family_outage",
+        "control_plane_failover",
+        "regional_failover",
+        "tenant_or_region_migration",
+        "planned_maintenance_window",
+        "scheduled_drain_window",
+        "scheduled_export_freeze",
+        "post_event_reconciliation",
+        "connectivity_constrained",
+        "connectivity_offline_local_safe",
+        "connectivity_reauth_required",
+        "local_safe_only_mode"
+      ],
+      "description": "Why the banner is up. Re-projects upstream notice_kind / maintenance_kind / event_kind / connectivity_state vocabulary; the banner does not invent a parallel incident family."
+    },
+    "impairment_source_kind_class": {
+      "type": "string",
+      "enum": [
+        "outage_notice_record",
+        "maintenance_notice_record",
+        "tenant_migration_event_record",
+        "connectivity_state_snapshot_record",
+        "composite_multiple_records"
+      ]
+    },
+    "outage_notice_state_class": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "read_only",
+        "drain",
+        "migration",
+        "failover",
+        "reconciling",
+        "resolved"
+      ]
+    },
+    "maintenance_state_class": {
+      "type": "string",
+      "enum": [
+        "announced",
+        "pre_window_export",
+        "scheduled_window",
+        "read_only_window",
+        "drain_window",
+        "reconciling_after_window",
+        "completed"
+      ]
+    },
+    "migration_event_state_class": {
+      "type": "string",
+      "enum": [
+        "announced",
+        "drain_before_failover",
+        "in_progress_migration",
+        "in_progress_failover",
+        "reconciling",
+        "completed_boundary_changed",
+        "completed_boundary_unchanged"
+      ]
+    },
+    "connectivity_state_class": {
+      "type": "string",
+      "enum": [
+        "connected",
+        "constrained",
+        "offline_local_safe",
+        "reauth_required",
+        "reconciliation_pending",
+        "service_unavailable",
+        "not_applicable"
+      ]
+    },
+    "impairment_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_kind_class",
+        "outage_notice_ref",
+        "maintenance_notice_ref",
+        "migration_event_ref",
+        "connectivity_snapshot_ref",
+        "outage_state_class",
+        "maintenance_state_class",
+        "migration_state_class",
+        "connectivity_state_class",
+        "rationale_summary"
+      ],
+      "description": "Typed back-pointer block. The banner re-uses upstream state vocabularies verbatim; nullable refs and nullable state-class enums let composite triggers (for example, a maintenance window that crossed a migration boundary) be expressed without minting a new banner state.",
+      "properties": {
+        "source_kind_class": { "$ref": "#/$defs/impairment_source_kind_class" },
+        "outage_notice_ref": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "maintenance_notice_ref": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "migration_event_ref": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "connectivity_snapshot_ref": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "outage_state_class": {
+          "anyOf": [{ "$ref": "#/$defs/outage_notice_state_class" }, { "type": "null" }]
+        },
+        "maintenance_state_class": {
+          "anyOf": [{ "$ref": "#/$defs/maintenance_state_class" }, { "type": "null" }]
+        },
+        "migration_state_class": {
+          "anyOf": [{ "$ref": "#/$defs/migration_event_state_class" }, { "type": "null" }]
+        },
+        "connectivity_state_class": {
+          "anyOf": [{ "$ref": "#/$defs/connectivity_state_class" }, { "type": "null" }]
+        },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "control_plane_service_class": {
+      "type": "string",
+      "enum": [
+        "sync_service",
+        "registry_service",
+        "relay_service",
+        "ai_broker_service",
+        "auth_identity_service",
+        "policy_service",
+        "docs_pack_service",
+        "catalog_service",
+        "telemetry_sink_service",
+        "workspace_control_plane_service",
+        "provider_review_service",
+        "merge_queue_service",
+        "support_ingest_service"
+      ]
+    },
+    "service_family_class": {
+      "type": "string",
+      "enum": [
+        "local_core",
+        "cached_reads",
+        "managed_writes",
+        "provider_publish",
+        "collaboration_control",
+        "remote_execution",
+        "paid_model_dispatch",
+        "background_refresh",
+        "upload_replication",
+        "auth_identity_policy"
+      ]
+    },
+    "impacted_features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_plane_service_classes",
+        "service_family_classes",
+        "feature_summary"
+      ],
+      "description": "Closed list of impacted control-plane services and impacted connectivity service families. Either list MAY be empty (for example, a connectivity-only constrained banner has no control-plane outage rows) but feature_summary MUST resolve a product-term sentence in every case.",
+      "properties": {
+        "control_plane_service_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/control_plane_service_class" }
+        },
+        "service_family_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/service_family_class" }
+        },
+        "feature_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "managed_action_class": {
+      "type": "string",
+      "enum": [
+        "managed_review_comment_publish",
+        "managed_review_approval",
+        "merge_queue_enqueue",
+        "collaboration_presence_write",
+        "collaboration_role_grant_or_revoke",
+        "remote_control_session_join",
+        "remote_execution_dispatch",
+        "profile_settings_sync_write",
+        "policy_admin_write",
+        "extension_registry_publish_or_install",
+        "managed_workspace_lifecycle_write",
+        "ai_gateway_prompt_submit",
+        "paid_model_dispatch_invocation",
+        "support_bundle_upload",
+        "telemetry_upload",
+        "idempotent_managed_field_set",
+        "provider_publish_local_draft",
+        "provider_publish_immediate",
+        "provider_publish_irreversible_release",
+        "provider_destructive_delete_or_force",
+        "auth_identity_policy_refresh"
+      ],
+      "description": "Action vocabulary the banner can narrate. Composes the maintenance_notice managed_action_class and the connectivity_and_reconciliation_contract action-class assignments so a single banner row can cite either origin without duplication."
+    },
+    "continuity_action_state_class": {
+      "type": "string",
+      "enum": [
+        "runs_locally_now",
+        "queued_for_replay",
+        "retryable_when_connected",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_no_safe_retry",
+        "requires_manual_rerun",
+        "refused_authority_changing"
+      ],
+      "description": "Closed continuity-action vocabulary. Each row resolves exactly one. queued_for_replay is the connectivity contract's outbox-admitted posture; retryable_when_connected is the rejected-but-safe-retry posture; blocked_* names a pending external condition; requires_manual_rerun maps to reconciliation outcomes that need user reapproval; refused_authority_changing maps to the never_queueable rows. A surface that cannot place a row in this matrix is non-conforming."
+    },
+    "required_user_step_class": {
+      "type": "string",
+      "enum": [
+        "no_step_required",
+        "wait_for_window_end",
+        "wait_for_reconnect",
+        "review_new_boundary",
+        "reauthenticate",
+        "reissue_with_fresh_freshness",
+        "promote_to_local_draft",
+        "open_in_provider",
+        "abandon_action",
+        "escalate_for_admin_review"
+      ]
+    },
+    "queue_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_queue_admitted",
+        "publish_later_queue",
+        "idempotent_outbox_queue",
+        "background_refresh_queue",
+        "upload_replication_queue",
+        "drained_with_conflict",
+        "expired_before_drain"
+      ]
+    },
+    "continuity_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "continuity_action_state_class",
+        "queue_posture_class",
+        "required_user_step_class",
+        "queue_or_intent_ref",
+        "idempotency_key_present",
+        "row_summary"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/managed_action_class" },
+        "continuity_action_state_class": { "$ref": "#/$defs/continuity_action_state_class" },
+        "queue_posture_class": { "$ref": "#/$defs/queue_posture_class" },
+        "required_user_step_class": { "$ref": "#/$defs/required_user_step_class" },
+        "queue_or_intent_ref": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "idempotency_key_present": { "type": "boolean" },
+        "row_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "queued_for_replay rows MUST cite a queue or intent ref and MUST resolve a non-no-queue queue posture.",
+          "if": {
+            "properties": {
+              "continuity_action_state_class": { "const": "queued_for_replay" }
+            },
+            "required": ["continuity_action_state_class"]
+          },
+          "then": {
+            "properties": {
+              "queue_or_intent_ref": { "$ref": "#/$defs/stable_token" },
+              "queue_posture_class": {
+                "enum": [
+                  "publish_later_queue",
+                  "idempotent_outbox_queue",
+                  "background_refresh_queue",
+                  "upload_replication_queue"
+                ]
+              }
+            },
+            "required": ["queue_or_intent_ref", "queue_posture_class"]
+          }
+        },
+        {
+          "description": "refused_authority_changing rows MUST NOT carry a queue ref or admit a queue posture.",
+          "if": {
+            "properties": {
+              "continuity_action_state_class": { "const": "refused_authority_changing" }
+            },
+            "required": ["continuity_action_state_class"]
+          },
+          "then": {
+            "properties": {
+              "queue_or_intent_ref": { "type": "null" },
+              "queue_posture_class": { "const": "no_queue_admitted" }
+            }
+          }
+        },
+        {
+          "description": "runs_locally_now rows MUST resolve no queue and no required user step.",
+          "if": {
+            "properties": {
+              "continuity_action_state_class": { "const": "runs_locally_now" }
+            },
+            "required": ["continuity_action_state_class"]
+          },
+          "then": {
+            "properties": {
+              "queue_posture_class": { "const": "no_queue_admitted" },
+              "required_user_step_class": { "const": "no_step_required" },
+              "queue_or_intent_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "requires_manual_rerun rows MUST resolve a non-no-step required user step.",
+          "if": {
+            "properties": {
+              "continuity_action_state_class": { "const": "requires_manual_rerun" }
+            },
+            "required": ["continuity_action_state_class"]
+          },
+          "then": {
+            "properties": {
+              "required_user_step_class": { "not": { "const": "no_step_required" } }
+            }
+          }
+        }
+      ]
+    },
+    "evidence_export_action_class": {
+      "type": "string",
+      "enum": [
+        "export_diagnostics",
+        "export_before_maintenance",
+        "open_history",
+        "open_boundary_details",
+        "open_continuity_packet",
+        "no_action_required"
+      ]
+    },
+    "evidence_export_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "evidence_packet_ref",
+        "summary"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/evidence_export_action_class" },
+        "evidence_packet_ref": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "boundary_axis_class": {
+      "type": "string",
+      "enum": [
+        "tenant",
+        "region",
+        "residency",
+        "key_ownership",
+        "endpoint_identity"
+      ]
+    },
+    "boundary_axis_state_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "changed",
+        "unknown_recheck_required",
+        "not_applicable"
+      ]
+    },
+    "boundary_change_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boundary_change_required",
+        "boundary_axes_summary",
+        "linked_outage_or_event_refs",
+        "summary"
+      ],
+      "properties": {
+        "boundary_change_required": { "type": "boolean" },
+        "boundary_axes_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/boundary_axis_summary" }
+        },
+        "linked_outage_or_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "boundary_axis_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_class",
+        "axis_state_class",
+        "summary"
+      ],
+      "properties": {
+        "axis_class": { "$ref": "#/$defs/boundary_axis_class" },
+        "axis_state_class": { "$ref": "#/$defs/boundary_axis_state_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "active_current",
+        "superseded_stale",
+        "completed_historical",
+        "imported_historical"
+      ]
+    },
+    "banner_lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "supersedes_banner_id",
+        "superseded_by_banner_id",
+        "retained_until_at",
+        "history_banner_refs"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "supersedes_banner_id": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "superseded_by_banner_id": {
+          "anyOf": [{ "$ref": "#/$defs/stable_token" }, { "type": "null" }]
+        },
+        "retained_until_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "history_banner_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" }
+        }
+      }
+    },
+    "display_copy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_status_line",
+        "local_safe_line",
+        "queued_or_retry_line",
+        "blocked_or_manual_line",
+        "evidence_export_line",
+        "boundary_change_line",
+        "stale_label",
+        "all_work_broken_implied",
+        "generic_unavailable_banner_used",
+        "queued_and_blocked_collapsed",
+        "local_safe_invisible",
+        "incident_language_for_planned_used"
+      ],
+      "properties": {
+        "primary_status_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "local_safe_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "queued_or_retry_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "blocked_or_manual_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "evidence_export_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "boundary_change_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "stale_label": {
+          "anyOf": [{ "$ref": "#/$defs/reviewable_sentence" }, { "type": "null" }]
+        },
+        "all_work_broken_implied": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. The banner cannot imply that all work is broken when local-safe baseline rows remain available."
+        },
+        "generic_unavailable_banner_used": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. The banner cannot collapse queued, retryable, blocked, and manual-rerun continuity into a single 'service unavailable' line."
+        },
+        "queued_and_blocked_collapsed": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. queued_for_replay and blocked_* rows cannot share a single display line; the banner MUST keep them visually distinct."
+        },
+        "local_safe_invisible": {
+          "type": "boolean",
+          "const": false,
+          "description": "Must remain false. The banner MUST surface the retained local-safe capabilities; it cannot only name the broken service."
+        },
+        "incident_language_for_planned_used": {
+          "type": "boolean",
+          "default": false,
+          "description": "MUST remain false when the trigger_kind_class is planned (planned_maintenance_window, scheduled_drain_window, scheduled_export_freeze, tenant_or_region_migration, post_event_reconciliation). Schema enforces via the conditional in the top-level allOf block."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,206 @@
+__fixture__:
+  name: regional_failover_changed_boundary
+  scenario: >
+    A regional failover rerouted the managed control plane through an
+    alternate region. Region, key-ownership route, and endpoint
+    identity changed at cutover; residency requires recheck. The
+    banner pins both the outage notice and the migration event,
+    surfaces the boundary axes, blocks managed lifecycle writes
+    pending boundary recheck, and refuses policy-admin writes with
+    no safe retry until the new boundary is reviewed.
+  contract_sections:
+    - Banner trigger kinds (frozen)
+    - Reuse rules with upstream notices (frozen)
+    - When queued, retryable, blocked, and manual-rerun rows must appear distinctly
+
+schema_refs:
+  failover_banner: schemas/ops/failover_banner.schema.json
+  local_safe_baseline: schemas/ops/local_safe_baseline.schema.json
+
+local_safe_baseline:
+  schema_version: 1
+  record_kind: local_safe_baseline_record
+  baseline_id: baseline.ref.managed_cloud.regional_failover
+  baseline_kind_class: hybrid_remote_attach_local_first
+  deployment_profiles:
+    - managed_cloud
+    - enterprise_online
+  workflow_rows:
+    - workflow_class: local_editing
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Editing in open buffers continues across the failover cutover.
+    - workflow_class: local_save
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Save persists to the on-device working copy.
+    - workflow_class: local_search_index_query
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: On-device search remains available.
+    - workflow_class: local_git_commit_branch
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Local Git operations continue against the on-disk repo.
+    - workflow_class: local_export_bundle
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Workspace and continuity bundle exports remain available.
+    - workflow_class: local_diagnostics
+      availability_class: available_local_safe
+      freshness_posture_class: fresh
+      guidance_summary: Local diagnostics view and continuity packet inspection remain available.
+    - workflow_class: local_inspect_policy_snapshot
+      availability_class: available_with_freshness_label
+      freshness_posture_class: bounded_stale
+      guidance_summary: Cached policy snapshot reads under the prior boundary remain inspectable; refresh waits for boundary review.
+  composes_with:
+    local_core_continuity_packet_refs:
+      - continuity_packet.ref.managed_cloud.regional_failover
+    deployment_summary_card_refs:
+      - deployment_summary.ref.managed_cloud.runtime
+    connectivity_snapshot_refs:
+      - connectivity_snapshot.ref.regional_failover.cutover
+  summary: >
+    Launch-critical local-first workflows for managed-cloud and
+    enterprise-online profiles during a regional failover cutover.
+  captured_at: "2026-04-28T18:35:00Z"
+  narrative_refs:
+    - docs/ops/failover_continuity_banner_contract.md
+    - docs/deployment/locality_and_continuity_seed.md
+
+failover_banner:
+  schema_version: 1
+  record_kind: failover_banner_record
+  banner_id: banner.ref.regional_failover.2026_04_28
+  title: Regional failover requires boundary review
+  summary: >
+    The managed control plane failed over to a new region. Region,
+    key-ownership route, and endpoint identity changed at cutover;
+    residency requires recheck. Local work continues; managed
+    lifecycle writes are blocked pending boundary recheck and
+    policy-admin writes cannot replay across the new boundary
+    until reviewed.
+  created_at: "2026-04-28T18:10:00Z"
+  updated_at: "2026-04-28T18:40:00Z"
+  trigger_kind_class: regional_failover
+  impairment_source:
+    source_kind_class: composite_multiple_records
+    outage_notice_ref: notice.regional_failover_review_boundary
+    maintenance_notice_ref: null
+    migration_event_ref: migration_event.ref.regional_failover.2026_04_28
+    connectivity_snapshot_ref: connectivity_snapshot.ref.regional_failover.cutover
+    outage_state_class: failover
+    maintenance_state_class: null
+    migration_state_class: in_progress_failover
+    connectivity_state_class: reconciliation_pending
+    rationale_summary: >
+      The outage notice tracks the failover state; the migration event
+      tracks the boundary change; the connectivity snapshot pins
+      managed_writes as reconciliation_pending while the queue drains.
+  impacted_features:
+    control_plane_service_classes:
+      - workspace_control_plane_service
+      - auth_identity_service
+      - policy_service
+    service_family_classes:
+      - managed_writes
+      - remote_execution
+      - auth_identity_policy
+    feature_summary: >
+      Managed workspace control plane, identity refresh, and policy
+      refresh are failed over; remote execution requires a fresh route.
+  local_safe_baseline_ref: baseline.ref.managed_cloud.regional_failover
+  retained_local_safe_capabilities:
+    - continue local edits, save, search, Git, export, and diagnostics
+    - inspect cached policy and provider snapshots with their freshness labels
+  continuity_action_rows:
+    - action_class: managed_workspace_lifecycle_write
+      continuity_action_state_class: blocked_pending_boundary_recheck
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: review_new_boundary
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Managed workspace lifecycle writes wait for the failed-over region, key, and endpoint identity to be reviewed before resuming.
+    - action_class: policy_admin_write
+      continuity_action_state_class: blocked_no_safe_retry
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: escalate_for_admin_review
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Policy-admin writes cannot replay across the failed-over boundary; a new boundary review is required before reissue.
+    - action_class: remote_execution_dispatch
+      continuity_action_state_class: blocked_pending_boundary_recheck
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: review_new_boundary
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Remote execution dispatch waits for endpoint identity review before a new run can land.
+    - action_class: auth_identity_policy_refresh
+      continuity_action_state_class: refused_authority_changing
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: reauthenticate
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Auth and policy refresh runs live against the new identity route after boundary review; cached tokens cannot be replayed.
+    - action_class: collaboration_role_grant_or_revoke
+      continuity_action_state_class: refused_authority_changing
+      queue_posture_class: no_queue_admitted
+      required_user_step_class: no_step_required
+      queue_or_intent_ref: null
+      idempotency_key_present: false
+      row_summary: Collaboration role grants and revokes are refused while authority routes are in failover.
+  evidence_export_action:
+    action_class: open_boundary_details
+    evidence_packet_ref: boundary_recheck_packet.regional_failover
+    summary: Open the boundary details surface to review region, residency, key ownership, and endpoint identity.
+  boundary_change_note:
+    boundary_change_required: true
+    boundary_axes_summary:
+      - axis_class: tenant
+        axis_state_class: unchanged
+        summary: Tenant boundary remains unchanged.
+      - axis_class: region
+        axis_state_class: changed
+        summary: Managed control-plane region changed under failover.
+      - axis_class: residency
+        axis_state_class: unknown_recheck_required
+        summary: Residency posture requires recheck after failover.
+      - axis_class: key_ownership
+        axis_state_class: changed
+        summary: Key ownership route changed and must be reviewed.
+      - axis_class: endpoint_identity
+        axis_state_class: changed
+        summary: Endpoint identity changed under failover.
+    linked_outage_or_event_refs:
+      - notice.regional_failover_review_boundary
+      - migration_event.ref.regional_failover.2026_04_28
+    summary: Region, key ownership route, and endpoint identity changed; residency requires recheck.
+  lifecycle:
+    freshness_class: active_current
+    supersedes_banner_id: null
+    superseded_by_banner_id: null
+    retained_until_at: "2027-04-28T19:10:00Z"
+    history_banner_refs: []
+  display_copy:
+    primary_status_line: Managed control plane is failed over since Apr 28, 2026 18:10 UTC; boundary review is required.
+    local_safe_line: Local edits, save, search, Git, export, diagnostics, and cached policy reads remain available.
+    queued_or_retry_line: No managed writes are admitted to a queue while the boundary is pending review.
+    blocked_or_manual_line: Workspace lifecycle and remote execution wait for boundary review; policy-admin writes have no safe retry; auth refresh and collaboration grants are refused.
+    evidence_export_line: Open boundary details to review region, residency, key ownership, and endpoint identity.
+    boundary_change_line: Region, key ownership route, and endpoint identity changed; residency requires recheck.
+    stale_label: null
+    all_work_broken_implied: false
+    generic_unavailable_banner_used: false
+    queued_and_blocked_collapsed: false
+    local_safe_invisible: false
+    incident_language_for_planned_used: false
+  narrative_refs:
+    - docs/ops/failover_continuity_banner_contract.md
+    - docs/ops/maintenance_migration_failover_contract.md
+    - docs/ux/control_data_plane_status_contract.md
+
+expected_surface_contract:
+  restates_every_changed_boundary_axis: true
+  blocks_authority_changing_writes: true
+  surfaces_no_safe_retry_distinct_from_pending_recheck: true

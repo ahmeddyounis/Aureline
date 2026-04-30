@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ops/local_safe_baseline.schema.json",
+  "title": "Aureline local-safe baseline record",
+  "description": "Boundary schema for local_safe_baseline_record, the inspectable list of launch-critical local-first workflows (editing, save, search, Git, export, diagnostics, build/test/debug, undo, open-recent, local docs inspect, cached provider snapshot inspect) that a deployment claims are usable now. The failover-continuity banner cites this record so outage, maintenance, migration, or connectivity-degrade copy can name what still works locally rather than only naming the broken service. The baseline mints no new deployment-profile, control-plane-service, or data-plane-capability vocabulary; it composes the launch_critical_workflow_class set with the deployment_profile_class re-export and the local_core_continuity_packet refs already frozen in /docs/deployment/locality_and_continuity_seed.md and /schemas/deployment/local_core_continuity_packet.schema.json. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw endpoint credentials, raw policy bodies, and raw secret material never cross this boundary; the record carries opaque refs and redaction-aware sentences only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "baseline_id",
+    "baseline_kind_class",
+    "deployment_profiles",
+    "workflow_rows",
+    "composes_with",
+    "summary",
+    "captured_at",
+    "narrative_refs"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this baseline record. Additive-minor changes bump this integer."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "local_safe_baseline_record"
+    },
+    "baseline_id": {
+      "$ref": "#/$defs/stable_token"
+    },
+    "baseline_kind_class": {
+      "$ref": "#/$defs/baseline_kind_class"
+    },
+    "deployment_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/deployment_profile_class" }
+    },
+    "workflow_rows": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "One row per launch-critical local-first workflow the baseline claims. The workflow_class set is closed; surfaces MAY NOT invent rows outside it.",
+      "items": { "$ref": "#/$defs/workflow_row" }
+    },
+    "composes_with": {
+      "$ref": "#/$defs/composes_with"
+    },
+    "summary": {
+      "$ref": "#/$defs/reviewable_sentence"
+    },
+    "captured_at": {
+      "$ref": "#/$defs/utc_date_time"
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "__fixture__": {
+      "type": "object",
+      "description": "Optional fixture annotation block. Never part of the runtime record."
+    }
+  },
+  "$defs": {
+    "stable_token": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "description": "Opaque stable token. Raw URLs, raw hostnames, raw tenant names, raw account ids, raw endpoint credentials, raw policy bodies, and raw secret material never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware sentence safe for UI, support export, and admin review surfaces."
+    },
+    "utc_date_time": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "RFC 3339 / ISO 8601 UTC timestamp."
+    },
+    "baseline_kind_class": {
+      "type": "string",
+      "enum": [
+        "launch_critical_local_first",
+        "mirror_backed_offline",
+        "air_gapped_offline_only",
+        "hybrid_remote_attach_local_first",
+        "managed_cloud_local_companion"
+      ],
+      "description": "Closed baseline-kind vocabulary. A baseline cannot be unspecified; the kind frames what the rows are claiming."
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ]
+    },
+    "launch_critical_workflow_class": {
+      "type": "string",
+      "enum": [
+        "local_editing",
+        "local_save",
+        "local_undo_redo",
+        "local_search_index_query",
+        "local_git_commit_branch",
+        "local_build_test_debug",
+        "local_export_bundle",
+        "local_diagnostics",
+        "local_open_recent_workspace",
+        "local_inspect_docs_pack",
+        "local_inspect_cached_provider_snapshot",
+        "local_inspect_policy_snapshot"
+      ],
+      "description": "Closed launch-critical workflow vocabulary. The list is intentionally narrow: only workflows that MUST keep working when the user opens Aureline in a degraded environment."
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "available_local_safe",
+        "available_with_freshness_label",
+        "available_mirror_backed",
+        "reduced_read_only",
+        "blocked_pending_reconnect",
+        "blocked_pending_boundary_recheck",
+        "blocked_by_policy",
+        "not_applicable"
+      ],
+      "description": "Re-export of the data-plane availability vocabulary already frozen in the locality / continuity seed plus an explicit available_with_freshness_label state for cached reads."
+    },
+    "freshness_posture_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "bounded_stale",
+        "unbounded_stale",
+        "not_applicable"
+      ],
+      "description": "Re-export of the freshness vocabulary in the local-core continuity packet."
+    },
+    "workflow_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflow_class",
+        "availability_class",
+        "freshness_posture_class",
+        "guidance_summary"
+      ],
+      "properties": {
+        "workflow_class": { "$ref": "#/$defs/launch_critical_workflow_class" },
+        "availability_class": { "$ref": "#/$defs/availability_class" },
+        "freshness_posture_class": { "$ref": "#/$defs/freshness_posture_class" },
+        "guidance_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "composes_with": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_core_continuity_packet_refs",
+        "deployment_summary_card_refs",
+        "connectivity_snapshot_refs"
+      ],
+      "description": "Opaque back-references to upstream records this baseline composes against. The baseline does not mint parallel locality, profile, or connectivity vocabulary; consumers cross-walk via these refs.",
+      "properties": {
+        "local_core_continuity_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "deployment_summary_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "connectivity_snapshot_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" }
+        }
+      }
+    }
+  }
+}
