@@ -1,0 +1,500 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/workset_switcher.schema.json",
+  "title": "Aureline workset-switcher row, scope-banner, and active-scope projection contract",
+  "description": "Boundary schema for the workset switcher (the picker that lists every workset and workspace fallback the user can activate) and the scope banner (the persistent strip that keeps the current scope visible while searching, navigating, or reviewing). Both surfaces are read-only projections of the durable workset_artifact_record (workset_artifact.schema.json) and never mint a parallel stable scope id. They quote workset_id and reuse the closed five-class scope vocabulary current_repo / selected_workset / sparse_slice / full_workspace / policy_limited_view, the closed five-class readiness vocabulary cold / warming / warm / partial / ready, and the closed five-class source vocabulary local_only / workspace_shared / profile_imported / managed / ephemeral_session. Repo, folder, hidden-result, and policy-blocked counts cross the boundary; raw absolute paths, raw glob bodies beyond the redaction-aware label budget, raw policy bodies, raw remote URLs, and raw credential material never do. Adding a new switcher row class, banner state, or offered action is additive-minor and bumps workset_switcher_schema_version; repurposing an existing enum value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workset_switcher_record" },
+    { "$ref": "#/$defs/workset_switcher_row_record" },
+    { "$ref": "#/$defs/scope_banner_record" }
+  ],
+  "$defs": {
+    "workset_switcher_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the switcher / scope-banner payload family. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "workset_switcher_record",
+        "workset_switcher_row_record",
+        "scope_banner_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in support bundles, safe in fixtures. Raw absolute paths, raw remote URLs, raw policy bodies, and raw credential material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; exporters may use any monotonic or pseudo-monotonic source."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply redaction policy before the value crosses the schema boundary."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ],
+      "description": "Re-export of the workset_artifact_record scope_class. The five classes resolve to the chip label family { 'Current repo', 'Selected workset', 'Sparse slice', 'Full workspace', 'Policy-limited view' }."
+    },
+
+    "readiness_state": {
+      "type": "string",
+      "enum": ["cold", "warming", "warm", "partial", "ready"],
+      "description": "Re-export of the workset_artifact_record readiness_state. The switcher row and the scope banner render this verbatim under the labels Cold / Warming / Warm / Partial / Ready (UI/UX spec Appendix AC.1)."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "workspace_shared",
+        "profile_imported",
+        "managed",
+        "ephemeral_session"
+      ],
+      "description": "Re-export of the workset_artifact_record source_class. Surfaces translate this to user-visible labels { 'Local', 'Workspace-shared', 'Imported', 'Managed', 'Session' }."
+    },
+
+    "narrowing_cause": {
+      "type": "string",
+      "enum": [
+        "admin_policy",
+        "trust_policy",
+        "license_or_export_control",
+        "remote_unavailable",
+        "index_not_built",
+        "user_muted"
+      ],
+      "description": "Re-export of the workset_artifact_record narrowing_cause. Surfaces never invent a sixth narrowing class."
+    },
+
+    "switcher_row_class": {
+      "type": "string",
+      "enum": [
+        "named_workset_row",
+        "current_repo_fallback_row",
+        "full_workspace_row",
+        "sparse_slice_row",
+        "policy_limited_overlay_row",
+        "managed_workset_row",
+        "imported_portable_workset_row",
+        "ephemeral_session_row"
+      ],
+      "description": "Switcher row class. The picker renders one row per class instance. policy_limited_overlay_row is rendered only when an underlying scope is layered with a narrowing policy; managed_workset_row, imported_portable_workset_row, and ephemeral_session_row align with workset_artifact source classes managed, profile_imported, and ephemeral_session."
+    },
+
+    "banner_state": {
+      "type": "string",
+      "enum": [
+        "active_narrow_safe",
+        "active_partial",
+        "active_policy_limited",
+        "active_widened",
+        "active_warming",
+        "active_outside_current_scope_disclosed"
+      ],
+      "description": "Scope-banner presentation state. active_narrow_safe = current scope is fully indexed and no hidden content is relevant; active_partial = current scope is active but the index is partial; active_policy_limited = current scope has a policy_limitation overlay; active_widened = current scope was widened past the named workset (carries an open_scope_diff action); active_warming = current scope is in cold/warming readiness and search may still be filling; active_outside_current_scope_disclosed = the banner names that the user just consumed an out-of-scope result and is offered widen/reset."
+    },
+
+    "switcher_action": {
+      "type": "string",
+      "enum": [
+        "open_workset",
+        "manage_worksets",
+        "create_new_workset",
+        "rename_workset",
+        "duplicate_workset",
+        "delete_workset",
+        "export_workset_artifact",
+        "copy_workset_id",
+        "build_missing_indexes",
+        "open_scope_diff",
+        "view_policy_overlay_admin_only",
+        "open_in_new_pane"
+      ],
+      "description": "Typed action a switcher row may offer. view_policy_overlay_admin_only is admissible only on policy_limited_overlay_row when the surface is a policy-admin surface; export_workset_artifact is forbidden on managed_workset_row (managed_provider_locked) and ephemeral_session_row."
+    },
+
+    "banner_action": {
+      "type": "string",
+      "enum": [
+        "widen_to_full_workspace",
+        "widen_with_review",
+        "narrow_to_current_repo",
+        "open_scope_diff",
+        "build_missing_indexes",
+        "keep_current_scope",
+        "reset_to_default_workset",
+        "open_workset_switcher",
+        "reveal_hidden_results_policy_admin_only"
+      ],
+      "description": "Typed action the scope banner may offer. widen_with_review is required on any banner with banner_state = active_widened or where hidden_result_summary.count_class = outside_scope_roots."
+    },
+
+    "hidden_result_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["known", "count_class"],
+      "properties": {
+        "known": {
+          "type": "boolean",
+          "description": "Whether a meaningful hidden-result count is available. False means the surface renders 'some results may be hidden' without a number."
+        },
+        "count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ]
+        },
+        "count_class": {
+          "type": "string",
+          "enum": [
+            "none_known",
+            "partial_index",
+            "outside_scope_roots",
+            "policy_hidden",
+            "warming_index",
+            "remote_unreachable"
+          ],
+          "description": "Re-export of the scope_truth_chip_record hidden_result_summary count_class. outside_scope_roots is the cue a search surface raises when results exist in roots outside the active workset."
+        }
+      },
+      "description": "Hidden-result accounting reported on a switcher row or the scope banner. Counts cross the boundary; the hidden member list never does (see workset_artifact policy_limitation.hidden_member_list_visible)."
+    },
+
+    "policy_overlay_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "narrowing_cause",
+        "visible_member_count",
+        "hidden_member_count",
+        "hidden_member_list_visible",
+        "policy_ref"
+      ],
+      "properties": {
+        "narrowing_cause": { "$ref": "#/$defs/narrowing_cause" },
+        "visible_member_count": { "type": "integer", "minimum": 0 },
+        "hidden_member_count": { "type": "integer", "minimum": 0 },
+        "hidden_member_list_visible": {
+          "type": "boolean",
+          "description": "True only when the underlying workset_artifact policy_limitation.hidden_member_list_visible is true. admin_policy and license_or_export_control narrowing causes MUST set this to false."
+        },
+        "policy_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pointer to the policy that narrows the view. Raw policy bodies never appear."
+        }
+      },
+      "description": "Policy-overlay block rendered on policy_limited_overlay_row and on banner_state = active_policy_limited. Mirrors workset_artifact_record.policy_limitation."
+    },
+
+    "trust_policy_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trust_class", "label"],
+      "properties": {
+        "trust_class": {
+          "type": "string",
+          "enum": [
+            "fully_trusted",
+            "trusted_with_caveats",
+            "restricted_managed",
+            "restricted_admin",
+            "untrusted_inspect_only",
+            "trust_unknown"
+          ],
+          "description": "Trust posture relevant to the active scope. restricted_managed and restricted_admin add the policy overlay; untrusted_inspect_only forbids open/manage actions that mutate."
+        },
+        "label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Short, redaction-aware label rendered under the scope banner. Surfaces translate to localized copy without expanding the trust_class vocabulary."
+        }
+      },
+      "description": "Trust / policy note attached to the scope banner. Distinct from policy_overlay_block: a workset can be untrusted-inspect-only without being narrowed."
+    },
+
+    "workset_switcher_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workset_switcher_schema_version",
+        "row_id",
+        "switcher_id_ref",
+        "switcher_row_class",
+        "workset_ref",
+        "workset_name",
+        "scope_class",
+        "repo_count",
+        "folder_count",
+        "source_class",
+        "readiness_state",
+        "is_active",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "workset_switcher_row_record" },
+        "workset_switcher_schema_version": { "$ref": "#/$defs/workset_switcher_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "switcher_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the parent workset_switcher_record this row belongs to."
+        },
+        "switcher_row_class": { "$ref": "#/$defs/switcher_row_class" },
+        "workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the workset_artifact_record (workset_artifact.schema.json) this row projects. The row NEVER mints a parallel stable id; it quotes workset_id."
+        },
+        "workset_name": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Human-readable workset name. Redaction-aware. For a current_repo_fallback_row this resolves to 'Current repo' plus the repo presentation label."
+        },
+        "presentation_subtitle": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Optional subtitle, e.g. 'Payments backend hot path' or '3 repos · 12 folders'."
+        },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "repo_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Distinct root_refs in the underlying workset_artifact_record. Multi-root rows have repo_count >= 2; cross-repo result grouping reads this list to label each result group."
+        },
+        "folder_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Distinct folder/module member_refs in the underlying workset_artifact_record. Zero is permitted on a current_repo_fallback_row that carries no refinement."
+        },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "is_active": {
+          "type": "boolean",
+          "description": "True for the row that matches the currently active scope. Exactly one row in a parent workset_switcher_record sets this to true (see switcher_record rules)."
+        },
+        "hidden_result_summary": {
+          "anyOf": [
+            { "$ref": "#/$defs/hidden_result_summary" },
+            { "type": "null" }
+          ]
+        },
+        "policy_overlay": {
+          "anyOf": [
+            { "$ref": "#/$defs/policy_overlay_block" },
+            { "type": "null" }
+          ],
+          "description": "Required when switcher_row_class = policy_limited_overlay_row; forbidden otherwise."
+        },
+        "trust_policy_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/trust_policy_note" },
+            { "type": "null" }
+          ]
+        },
+        "underlying_workset_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "On policy_limited_overlay_row, points at the pre-narrowing workset_artifact_record. Null on every other row class."
+        },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/switcher_action" }
+        },
+        "partial_index_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One row in the workset switcher. Each row corresponds to one workset_artifact_record; the row carries the counts, source, readiness, and action set the picker needs to render. The row is a read-only projection — opening, renaming, duplicating, or deleting a workset goes through the named action and is processed against the underlying artifact."
+    },
+
+    "workset_switcher_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workset_switcher_schema_version",
+        "switcher_id",
+        "workspace_ref",
+        "active_workset_ref",
+        "rows",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "workset_switcher_record" },
+        "workset_switcher_schema_version": { "$ref": "#/$defs/workset_switcher_schema_version" },
+        "switcher_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the active workspace this switcher lists worksets for."
+        },
+        "active_workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the currently active workset_artifact_record. The row whose workset_ref equals this value MUST set is_active = true; every other row MUST set is_active = false."
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/workset_switcher_row_record" },
+          "description": "Ordered switcher rows. Order is stable; the active row is not silently re-sorted to the top."
+        },
+        "supports_create_action": {
+          "type": "boolean",
+          "description": "Whether the switcher exposes the create_new_workset action. Managed-only worksets disable this on the corresponding row class."
+        },
+        "supports_manage_action": {
+          "type": "boolean",
+          "description": "Whether the switcher exposes the manage_worksets action."
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "The workset switcher itself: a list of switcher rows plus the active-workset highlight. Surfaces (open flow, scope banner, command palette quick-switch) read this record verbatim; they never derive a parallel ordering or invent additional rows."
+    },
+
+    "scope_banner_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workset_switcher_schema_version",
+        "banner_id",
+        "workspace_ref",
+        "active_workset_ref",
+        "scope_class",
+        "banner_state",
+        "banner_label",
+        "repo_count",
+        "folder_count",
+        "readiness_state",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "scope_banner_record" },
+        "workset_switcher_schema_version": { "$ref": "#/$defs/workset_switcher_schema_version" },
+        "banner_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the workset_artifact_record this banner projects. The banner NEVER invents a stable scope id."
+        },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "banner_state": { "$ref": "#/$defs/banner_state" },
+        "banner_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "User-visible banner label. Resolves from the closed family { 'Current repo', 'Selected workset <name>', 'Sparse slice', 'Full workspace', 'Policy-limited view' }. A scope_class = selected_workset banner MUST include the workset name."
+        },
+        "repo_count": { "type": "integer", "minimum": 1 },
+        "folder_count": { "type": "integer", "minimum": 0 },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "hidden_result_summary": {
+          "anyOf": [
+            { "$ref": "#/$defs/hidden_result_summary" },
+            { "type": "null" }
+          ]
+        },
+        "partial_index_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "policy_overlay": {
+          "anyOf": [
+            { "$ref": "#/$defs/policy_overlay_block" },
+            { "type": "null" }
+          ],
+          "description": "Required when banner_state = active_policy_limited or scope_class = policy_limited_view; forbidden otherwise."
+        },
+        "trust_policy_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/trust_policy_note" },
+            { "type": "null" }
+          ]
+        },
+        "widen_diff_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Pointer to a scope_widen_diff_record (workset_artifact.schema.json) when banner_state = active_widened. Required for active_widened; forbidden otherwise."
+        },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/banner_action" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "The persistent scope banner that keeps the current boundary visible while the user searches, navigates, reviews, or hands off to AI / refactor / export surfaces. Banner rules (frozen): (a) banner_state = active_narrow_safe is forbidden when hidden_result_summary.known = true and count > 0; the state resolves to active_partial or active_policy_limited instead; (b) banner_state = active_widened MUST carry a non-null widen_diff_ref and MUST include open_scope_diff in offered_actions; (c) hidden_result_summary.count_class = outside_scope_roots requires widen_with_review in offered_actions; (d) reveal_hidden_results_policy_admin_only is admissible only when policy_overlay.hidden_member_list_visible = true and the surface is a policy-admin surface."
+    }
+  }
+}

@@ -1,0 +1,555 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/cross_repo_result_group.schema.json",
+  "title": "Aureline cross-repo result group, in-scope vs outside-scope row marker, and topology / impact / explainer reuse contract",
+  "description": "Boundary schema for cross-repo result grouping. Search, symbol navigation, topology maps, impact explorers, AI context inspectors, cited explainers, and review-side semantic hint surfaces all read this contract. Each cross_repo_result_group_record names exactly one repo (root_ref), the active workset context, freshness, in-scope vs outside-scope marker, hidden-by-workset / hidden-by-policy / not-loaded counts, and the open-in-new-pane affordance. Each cross_repo_result_row_record names one result inside a group with its result-state class { in_scope_loaded, hidden_by_workset, outside_current_scope, imported_root, partially_loaded, evidence_missing, policy_blocked }, its lane / authority, freshness, and target identity. Cross-repo result grouping reuses the workset_artifact scope_class vocabulary and the search result_truth vocabulary so the same row can be cited on a search result group header, a topology map node tooltip, an impact explorer affected-object row, and a cited explainer evidence card without inventing surface-local labels. Raw absolute paths, raw remote URLs, raw query bodies, raw document bodies, raw symbol definitions, and raw credential material never appear; opaque refs and typed labels cross the boundary. Adding a new result-state class, group-presentation state, reuse surface class, or offered action is additive-minor and bumps cross_repo_result_group_schema_version; repurposing a value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/cross_repo_result_group_record" },
+    { "$ref": "#/$defs/cross_repo_result_row_record" }
+  ],
+  "$defs": {
+    "cross_repo_result_group_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the cross-repo result-group payload family. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "cross_repo_result_group_record",
+        "cross_repo_result_row_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in support bundles, safe in fixtures. Raw absolute paths, raw remote URLs, raw query bodies, raw document bodies, raw symbol definitions, and raw credential material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; exporters may use any monotonic or pseudo-monotonic source."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply redaction policy before the value crosses the schema boundary."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "instance_schema_hint": { "type": "string" },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ],
+      "description": "Re-export of the workset_artifact scope_class. Cross-repo grouping never invents a sixth scope class."
+    },
+
+    "in_scope_marker": {
+      "type": "string",
+      "enum": [
+        "in_current_scope",
+        "outside_current_scope",
+        "imported_root",
+        "policy_overlay_layered"
+      ],
+      "description": "Whether the group sits inside the active scope (in_current_scope), outside it (outside_current_scope), is sourced from an imported / accelerator index (imported_root), or sits inside the active scope but is layered with a policy overlay that may hide rows (policy_overlay_layered). The marker is the visible cue that distinguishes 'No results' from 'No results in this scope'."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "imported_only",
+        "unverified",
+        "unknown"
+      ],
+      "description": "Per-group freshness class. imported_only marks groups whose only available authority is an imported / accelerator index; the user is told the group is reconstructable but not live."
+    },
+
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "hot_set_only",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ],
+      "description": "Per-group index readiness, mirroring search/quick_open and search_result_truth. The group renders the lowest-confidence readiness it observed across its rows."
+    },
+
+    "result_truth_class": {
+      "type": "string",
+      "enum": ["exact", "imported", "heuristic", "hybrid"],
+      "description": "Re-export of the search result_fusion_record result_truth_class. The group never claims exact when any contributing row was imported or heuristic."
+    },
+
+    "result_state_class": {
+      "type": "string",
+      "enum": [
+        "in_scope_loaded",
+        "hidden_by_workset",
+        "outside_current_scope",
+        "imported_root",
+        "partially_loaded",
+        "evidence_missing",
+        "policy_blocked"
+      ],
+      "description": "Per-row result state. The five reserved states from the M00-503 spec — hidden_by_workset, outside_current_scope, imported_root, partially_loaded, evidence_missing — are first-class; in_scope_loaded is the default for a fully loaded in-scope row, and policy_blocked separates policy-hidden rows from workset-hidden rows so the count difference is visible."
+    },
+
+    "row_target_kind": {
+      "type": "string",
+      "enum": [
+        "file",
+        "symbol",
+        "module",
+        "directory",
+        "manifest_entry",
+        "graph_node",
+        "doc_anchor",
+        "command",
+        "review_artifact",
+        "ai_evidence_segment"
+      ],
+      "description": "What the row points at. graph_node, ai_evidence_segment, and doc_anchor cover topology / impact / cited-explainer reuse without minting a separate row class per surface."
+    },
+
+    "lane_class": {
+      "type": "string",
+      "enum": [
+        "exact_local_index",
+        "lexical_local_index",
+        "semantic_local_index",
+        "graph_overlay_local",
+        "imported_remote_index",
+        "imported_provider_index",
+        "docs_pack_index",
+        "review_index",
+        "ai_evidence_index",
+        "external_provider_index"
+      ],
+      "description": "Which shard / lane contributed the row. Imported and external lanes set imported_root on the parent group's in_scope_marker."
+    },
+
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "full_search",
+        "quick_open",
+        "command_palette",
+        "symbol_jump",
+        "docs_search",
+        "topology_map",
+        "impact_explorer",
+        "cited_explainer",
+        "ai_context_inspector",
+        "review_semantic_hint",
+        "support_export",
+        "navigation_deep_link"
+      ],
+      "description": "Which surface family is reading the cross-repo group. The five reserved-state vocabulary, the in_scope_marker, and the freshness/readiness fields are the same on every surface; surface-local labels are forbidden."
+    },
+
+    "group_presentation_state": {
+      "type": "string",
+      "enum": [
+        "loaded_complete",
+        "loaded_partial",
+        "warming",
+        "stale_disclosed",
+        "policy_overlay_disclosed",
+        "imported_only_disclosed",
+        "outside_current_scope_disclosed",
+        "evidence_missing_disclosed"
+      ],
+      "description": "Group-level presentation state. The group never collapses into 'No results' silently: an empty group with at least one excluded row resolves to loaded_partial, policy_overlay_disclosed, outside_current_scope_disclosed, or evidence_missing_disclosed depending on why rows were excluded."
+    },
+
+    "group_action": {
+      "type": "string",
+      "enum": [
+        "open_in_new_pane",
+        "open_in_current_pane",
+        "widen_to_full_workspace",
+        "widen_with_review",
+        "build_missing_indexes",
+        "fetch_missing_objects",
+        "open_scope_diff",
+        "open_topology_map_for_root",
+        "open_impact_explorer_for_root",
+        "open_cited_explainer_for_root",
+        "reveal_hidden_results_policy_admin_only",
+        "copy_workset_id",
+        "copy_root_ref"
+      ],
+      "description": "Typed action the group header may offer. open_topology_map_for_root, open_impact_explorer_for_root, and open_cited_explainer_for_root are the cross-surface jump-points so a graph-backed scope truth can stay aligned with the search row's truth without a re-query."
+    },
+
+    "row_action": {
+      "type": "string",
+      "enum": [
+        "open_in_new_pane",
+        "open_in_current_pane",
+        "open_outside_current_scope_with_review",
+        "preview_evidence",
+        "open_topology_neighbourhood",
+        "open_impact_for_target",
+        "open_cited_explainer_for_target",
+        "fetch_missing_object",
+        "build_missing_index",
+        "request_policy_review_admin_only",
+        "copy_target_ref"
+      ],
+      "description": "Typed action the row may offer. open_outside_current_scope_with_review is required on rows whose result_state_class = outside_current_scope; opening drops the user into a scope-diff review sheet (workset_artifact scope_widen_diff_record)."
+    },
+
+    "hidden_count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hidden_by_workset_known",
+        "hidden_by_workset_count",
+        "hidden_by_policy_known",
+        "hidden_by_policy_count",
+        "not_loaded_known",
+        "not_loaded_count",
+        "evidence_missing_known",
+        "evidence_missing_count"
+      ],
+      "properties": {
+        "hidden_by_workset_known": { "type": "boolean" },
+        "hidden_by_workset_count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "description": "Count of rows excluded purely by the active workset's roots / patterns. Not collapsed into hidden_by_policy."
+        },
+        "hidden_by_policy_known": { "type": "boolean" },
+        "hidden_by_policy_count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "description": "Count of rows hidden by the workset's policy_limitation overlay. Required separate from hidden_by_workset_count so admin / trust / license narrowing remains legible."
+        },
+        "not_loaded_known": { "type": "boolean" },
+        "not_loaded_count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "description": "Count of rows that exist by manifest / pointer but are not yet fetched, materialized, or hydrated. Maps onto the repo_topology_state honesty labels not_fetched / pointer_only / shallow_boundary."
+        },
+        "evidence_missing_known": { "type": "boolean" },
+        "evidence_missing_count": {
+          "anyOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "description": "Count of rows whose target identity is known but whose evidence (citation / snippet / blame) cannot be reconstructed from the current index state. AI / cited-explainer surfaces use this to disclose a citation-missing row instead of dropping the row."
+        }
+      },
+      "description": "Hidden-row accounting for one cross-repo result group. Counts cross the boundary; the hidden member list itself never does (see workset_artifact policy_limitation.hidden_member_list_visible)."
+    },
+
+    "topology_reuse_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reuse_surface_class", "preserve_caveats"],
+      "properties": {
+        "reuse_surface_class": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" },
+          "description": "Surface families that can read this group as graph-backed scope truth. topology_map, impact_explorer, and cited_explainer reuse means the same in_scope_marker, hidden_count_summary, and freshness / readiness flow through; the surfaces never invent their own scope vocabulary."
+        },
+        "preserve_caveats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "outside_current_scope",
+              "imported_root",
+              "hidden_by_workset_count",
+              "hidden_by_policy_count",
+              "not_loaded_count",
+              "evidence_missing_count",
+              "policy_overlay_layered",
+              "stale_disclosure",
+              "warming_disclosure"
+            ]
+          },
+          "description": "Closed list of caveats topology / impact / explainer surfaces MUST preserve when they re-render the group. The group never lets a graph node, an impact-explorer row, or a cited evidence card silently lose an outside-scope marker, an imported-root marker, or a hidden-result count."
+        },
+        "graph_node_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "impact_root_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "explainer_evidence_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "Reuse pointers + caveat-preservation list so topology maps, impact explorers, and cited explainers can read the same group without minting parallel scope or freshness fields."
+    },
+
+    "cross_repo_result_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "cross_repo_result_group_schema_version",
+        "group_id",
+        "query_session_ref",
+        "active_workset_ref",
+        "scope_class",
+        "root_ref",
+        "repo_label",
+        "module_or_path_label",
+        "in_scope_marker",
+        "freshness_class",
+        "readiness_state",
+        "result_truth_class",
+        "group_presentation_state",
+        "row_count_total",
+        "rows",
+        "hidden_count_summary",
+        "topology_reuse",
+        "consumer_surface_class",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "cross_repo_result_group_record"
+        },
+        "cross_repo_result_group_schema_version": {
+          "$ref": "#/$defs/cross_repo_result_group_schema_version"
+        },
+        "group_id": { "$ref": "#/$defs/opaque_id" },
+        "query_session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the search/query session this group was emitted under. Lets support / export reconstruct one authoritative search run."
+        },
+        "result_set_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional pointer to the result_fusion_record's result_set_id for this group."
+        },
+        "active_workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the workset_artifact_record that defines the active scope. Cross-repo grouping NEVER mints a parallel scope id."
+        },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "root_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the ADR-0006 filesystem-identity root the group's results live under. Each group names exactly one root_ref; results from another root render as a separate group."
+        },
+        "repo_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Human-readable repo / root label rendered on the group header (Appendix AC.3 'repo name')."
+        },
+        "module_or_path_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Human-readable module or path-cue label (Appendix AC.3 'module or path cue'). Workspace-relative form is required; raw absolute paths never appear."
+        },
+        "in_scope_marker": { "$ref": "#/$defs/in_scope_marker" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "group_presentation_state": { "$ref": "#/$defs/group_presentation_state" },
+        "row_count_total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total visible rows in this group. Distinct from hidden_count_summary, which carries the excluded-row counts."
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cross_repo_result_row_record" },
+          "description": "Ordered visible rows. Empty array is permitted only when group_presentation_state names why (loaded_partial, policy_overlay_disclosed, outside_current_scope_disclosed, evidence_missing_disclosed). An empty rows array under loaded_complete is non-conforming."
+        },
+        "hidden_count_summary": { "$ref": "#/$defs/hidden_count_summary" },
+        "topology_reuse": { "$ref": "#/$defs/topology_reuse_block" },
+        "consumer_surface_class": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" },
+          "description": "Surface families this group is admissible on. The same group record can be cited by multiple surfaces in the same query session."
+        },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/group_action" }
+        },
+        "partial_index_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One cross-repo result group. Group rules (frozen): (a) in_scope_marker = outside_current_scope MUST include widen_with_review or open_scope_diff in offered_actions; (b) in_scope_marker = imported_root MUST set freshness_class = imported_only or warm_cached and result_truth_class != exact; (c) group_presentation_state = loaded_complete MUST set every hidden_count_summary count to 0 (the group claims completeness); (d) group_presentation_state = policy_overlay_disclosed MUST set hidden_by_policy_known = true; (e) group_presentation_state = outside_current_scope_disclosed MUST set in_scope_marker = outside_current_scope; (f) row_count_total MUST equal rows.length; (g) reveal_hidden_results_policy_admin_only is admissible only on a policy-admin surface and only when the underlying workset_artifact policy_limitation.hidden_member_list_visible = true."
+    },
+
+    "cross_repo_result_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "cross_repo_result_group_schema_version",
+        "row_id",
+        "group_id_ref",
+        "active_workset_ref",
+        "root_ref",
+        "row_target_kind",
+        "presentation_label",
+        "result_state_class",
+        "lane_class",
+        "freshness_class",
+        "readiness_state",
+        "result_truth_class",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "cross_repo_result_row_record"
+        },
+        "cross_repo_result_group_schema_version": {
+          "$ref": "#/$defs/cross_repo_result_group_schema_version"
+        },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "group_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the parent cross_repo_result_group_record. Required even on standalone row payloads so audit / support can reconstruct the parent group."
+        },
+        "active_workset_ref": { "$ref": "#/$defs/opaque_id" },
+        "root_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Stable pointer to the target object the row resolves to (file id, symbol id, graph node id, evidence segment id). Null is admissible only when result_state_class = evidence_missing or partially_loaded and the resolver could not reconstruct a stable target."
+        },
+        "row_target_kind": { "$ref": "#/$defs/row_target_kind" },
+        "presentation_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "User-visible row label. Workspace-relative form for paths; raw absolute paths never appear."
+        },
+        "presentation_subtitle": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "result_state_class": { "$ref": "#/$defs/result_state_class" },
+        "lane_class": { "$ref": "#/$defs/lane_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "readiness_state": { "$ref": "#/$defs/readiness_state" },
+        "result_truth_class": { "$ref": "#/$defs/result_truth_class" },
+        "outside_scope_marker_visible": {
+          "type": "boolean",
+          "description": "True when the row is visually marked as outside the current scope (cross-repo jump preview, AI evidence segment quoted from a non-active root). MUST be true when result_state_class = outside_current_scope or imported_root."
+        },
+        "imported_root_disclosed": {
+          "type": "boolean",
+          "description": "True when the row is sourced from an imported / accelerator index. MUST be true when lane_class is imported_remote_index, imported_provider_index, or external_provider_index, or when result_state_class = imported_root."
+        },
+        "evidence_segment_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Pointer to the evidence segment a cited explainer or AI context inspector reads. Null when row_target_kind != ai_evidence_segment and the row carries no separate evidence ref."
+        },
+        "topology_node_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Pointer to the topology graph node the row corresponds to, when row_target_kind = graph_node or when a topology map needs to highlight this row's target."
+        },
+        "impact_reason_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Pointer to the impact-explorer reason that surfaced this row, when consumer_surface_class includes impact_explorer."
+        },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/row_action" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One row inside a cross-repo result group. Row rules (frozen): (a) result_state_class = outside_current_scope requires outside_scope_marker_visible = true and open_outside_current_scope_with_review in offered_actions; (b) result_state_class = imported_root requires imported_root_disclosed = true; (c) result_state_class = partially_loaded requires fetch_missing_object or build_missing_index in offered_actions; (d) result_state_class = evidence_missing forbids exact in result_truth_class and requires preview_evidence in offered_actions; (e) result_state_class = policy_blocked forbids the row from carrying open_in_new_pane or open_in_current_pane and reduces offered_actions to inspection / admin-review variants; (f) lane_class in { imported_remote_index, imported_provider_index, external_provider_index } MUST set imported_root_disclosed = true."
+    }
+  }
+}
