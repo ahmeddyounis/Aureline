@@ -1,0 +1,828 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/selection_state.schema.json",
+  "title": "Aureline UX dense-collection selection-state boundary vocabulary",
+  "description": "UX-side boundary schema for the live selection-state record every dense collection surface (search, problems / diagnostics, review queues, pipeline logs, package inventories, work-item lists, admin grids) emits before a batch action is reviewed. Each record distinguishes focus, current item, activation, checked state, selected identities, range anchor, scope label, scope counters, hidden-selected disclosure, not-loaded disclosure, and visible-to-matching escalation, and pairs to the durable schemas/collections/selection_state.schema.json record. Raw row bodies, raw query text, raw provider URLs, raw absolute paths, and raw secret-bearing literals MUST NOT appear on any record emitted against this schema; records carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and count truth only. Adding a new state class, gesture class, scope class, churn rule, denial reason, or audit-event id is additive-minor and bumps selection_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/selection_state_record" },
+    { "$ref": "#/$defs/selection_state_audit_event_record" }
+  ],
+  "$defs": {
+    "selection_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this UX selection-state vocabulary export. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "selection_state_record",
+        "selection_state_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example metadata carried on fixtures."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, journal entries, support bundles, claim manifests, and portability exports. Raw row bodies, raw query text, raw URLs, raw absolute paths never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label. Carries presentation summary copy; never carries raw row bodies, raw query text, or raw URLs."
+    },
+    "running_build_identity_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to the running build identity the artifact was minted under."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every render. A stale policy epoch denies via policy_epoch_expired."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "search_collection",
+        "problems_or_diagnostics_collection",
+        "review_collection",
+        "log_or_event_collection",
+        "package_or_inventory_grid",
+        "work_item_collection",
+        "admin_or_settings_grid"
+      ],
+      "description": "Closed dense-collection surface-family vocabulary."
+    },
+    "selection_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_item_only",
+        "visible_range",
+        "loaded_set",
+        "all_matching_query",
+        "explicit_custom_set"
+      ],
+      "description": "Closed selection-scope vocabulary, aligned with schemas/collections/selection_state.schema.json."
+    },
+    "select_action_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_item",
+        "visible_rows",
+        "loaded_rows",
+        "all_matching_items",
+        "custom_identity_set"
+      ],
+      "description": "Closed select-action scope vocabulary. Visible and loaded actions MUST NOT use unqualified Select-all language."
+    },
+    "select_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id_ref", "action_scope_class", "action_label"],
+      "properties": {
+        "action_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "action_scope_class": { "$ref": "#/$defs/select_action_scope_class" },
+        "action_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "Visible and loaded actions MUST NOT use unqualified Select-all wording.",
+          "if": {
+            "properties": {
+              "action_scope_class": {
+                "enum": ["visible_rows", "loaded_rows"]
+              }
+            },
+            "required": ["action_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "action_label": {
+                "not": { "pattern": "^[Ss]elect [Aa]ll( |$)" }
+              }
+            }
+          }
+        },
+        {
+          "description": "All-matching actions MUST quote matching scope.",
+          "if": {
+            "properties": {
+              "action_scope_class": { "const": "all_matching_items" }
+            },
+            "required": ["action_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "action_label": { "pattern": "[Mm]atching" }
+            }
+          }
+        }
+      ],
+      "description": "A selectable scope action. The label states the true scope."
+    },
+    "checked_state_class": {
+      "type": "string",
+      "enum": [
+        "selection_check_cell_mirrors_selection",
+        "independent_boolean_not_selection",
+        "tree_descendant_mixed_state"
+      ],
+      "description": "Closed checked-state vocabulary."
+    },
+    "activation_behavior_class": {
+      "type": "string",
+      "enum": [
+        "activates_current_item_without_selection_change",
+        "opens_current_item_without_selection_change",
+        "disabled_while_batch_review_open"
+      ],
+      "description": "What Enter, double-click, or the primary row action does without changing selection."
+    },
+    "semantic_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "focus_owner_id_ref",
+        "focused_item_id_ref",
+        "current_item_id_ref",
+        "activation_target_id_ref",
+        "activation_behavior_class",
+        "checked_state_class",
+        "checked_item_id_refs",
+        "focus_selection_activation_distinct"
+      ],
+      "properties": {
+        "focus_owner_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "focused_item_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "current_item_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "activation_target_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "activation_behavior_class": { "$ref": "#/$defs/activation_behavior_class" },
+        "checked_state_class": { "$ref": "#/$defs/checked_state_class" },
+        "checked_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "focus_selection_activation_distinct": {
+          "const": true,
+          "description": "The surface explicitly distinguishes focus, current item, selection, checked state, and activation."
+        }
+      },
+      "description": "Current focus, current item, checked state, and activation target."
+    },
+    "space_key_behavior_class": {
+      "type": "string",
+      "enum": [
+        "toggles_focused_selection_without_activation",
+        "toggles_focused_checked_state_without_activation",
+        "unavailable_readonly_announced"
+      ]
+    },
+    "shift_range_behavior_class": {
+      "type": "string",
+      "enum": [
+        "extends_from_visible_anchor",
+        "unavailable_no_visible_anchor",
+        "denied_dataset_identity_changed"
+      ]
+    },
+    "modifier_toggle_behavior_class": {
+      "type": "string",
+      "enum": [
+        "toggles_focused_identity",
+        "unavailable_single_select"
+      ]
+    },
+    "enter_key_behavior_class": {
+      "type": "string",
+      "enum": [
+        "activates_current_item_without_selection_change",
+        "opens_current_item_without_selection_change",
+        "denied_when_batch_scope_pending_review"
+      ]
+    },
+    "escape_key_behavior_class": {
+      "type": "string",
+      "enum": [
+        "dismisses_review_sheet_without_clearing_selection",
+        "dismisses_selection_bar_focus_returning_to_origin",
+        "no_op_no_selection_bar_or_sheet_open"
+      ]
+    },
+    "clear_selection_route_class": {
+      "type": "string",
+      "enum": [
+        "selection_bar_clear_button",
+        "command_palette_action",
+        "keyboard_shortcut",
+        "screen_reader_action",
+        "filter_chip_clear_hidden_selected",
+        "escape_when_selection_bar_focused"
+      ]
+    },
+    "keyboard_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "space_key_behavior_class",
+        "shift_range_behavior_class",
+        "modifier_toggle_behavior_class",
+        "enter_key_behavior_class",
+        "escape_key_behavior_class",
+        "clear_selection_routes",
+        "reset_path_label"
+      ],
+      "properties": {
+        "space_key_behavior_class": { "$ref": "#/$defs/space_key_behavior_class" },
+        "shift_range_behavior_class": { "$ref": "#/$defs/shift_range_behavior_class" },
+        "modifier_toggle_behavior_class": { "$ref": "#/$defs/modifier_toggle_behavior_class" },
+        "enter_key_behavior_class": { "$ref": "#/$defs/enter_key_behavior_class" },
+        "escape_key_behavior_class": { "$ref": "#/$defs/escape_key_behavior_class" },
+        "clear_selection_routes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/clear_selection_route_class" }
+        },
+        "reset_path_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Keyboard and AT contract for the current selection state."
+    },
+    "click_behavior_class": {
+      "type": "string",
+      "enum": [
+        "sets_focus_and_current_no_selection_change",
+        "sets_focus_and_toggles_selection_check_cell",
+        "blocked_read_only"
+      ]
+    },
+    "shift_click_behavior_class": {
+      "type": "string",
+      "enum": [
+        "extends_visible_range_from_anchor",
+        "unavailable_no_visible_anchor",
+        "denied_dataset_identity_changed"
+      ]
+    },
+    "modifier_click_behavior_class": {
+      "type": "string",
+      "enum": [
+        "toggles_focused_identity",
+        "unavailable_single_select"
+      ]
+    },
+    "range_drag_behavior_class": {
+      "type": "string",
+      "enum": [
+        "rubber_band_visible_range_only",
+        "blocked_no_drag_select",
+        "drag_select_disabled_under_review"
+      ]
+    },
+    "context_menu_behavior_class": {
+      "type": "string",
+      "enum": [
+        "opens_against_clicked_row_without_selection_change",
+        "opens_against_selection_when_row_in_selection",
+        "context_menu_blocked_during_review"
+      ]
+    },
+    "pointer_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "click_behavior_class",
+        "shift_click_behavior_class",
+        "modifier_click_behavior_class",
+        "range_drag_behavior_class",
+        "context_menu_behavior_class"
+      ],
+      "properties": {
+        "click_behavior_class": { "$ref": "#/$defs/click_behavior_class" },
+        "shift_click_behavior_class": { "$ref": "#/$defs/shift_click_behavior_class" },
+        "modifier_click_behavior_class": { "$ref": "#/$defs/modifier_click_behavior_class" },
+        "range_drag_behavior_class": { "$ref": "#/$defs/range_drag_behavior_class" },
+        "context_menu_behavior_class": { "$ref": "#/$defs/context_menu_behavior_class" }
+      },
+      "description": "Pointer contract for the current selection state."
+    },
+    "selection_membership_class": {
+      "type": "string",
+      "enum": [
+        "current_item_projection",
+        "visible_range_snapshot",
+        "loaded_window_snapshot",
+        "explicit_identity_set",
+        "provider_query_membership"
+      ],
+      "description": "How membership in the selected set is represented."
+    },
+    "selection_identity_class": {
+      "type": "string",
+      "enum": [
+        "stable_item_identity",
+        "provider_owned_identity_pinned",
+        "local_alias_identity_disclosed"
+      ],
+      "description": "Closed item-identity vocabulary for live selection state."
+    },
+    "churn_rule_class": {
+      "type": "string",
+      "enum": [
+        "sort_filter_preserve_by_identity",
+        "virtualized_unmount_preserves_membership",
+        "pagination_uses_identity_not_position",
+        "streaming_new_items_not_auto_selected",
+        "provider_requery_requires_review"
+      ],
+      "description": "Selection-preservation rule under collection churn."
+    },
+    "identity_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_class",
+        "membership_class",
+        "dataset_identity_ref",
+        "identity_namespace_ref",
+        "selected_item_id_refs",
+        "hidden_selected_item_id_refs",
+        "not_loaded_item_id_refs",
+        "range_anchor_item_id_ref",
+        "provider_side_selection_ref",
+        "position_based_selection_forbidden",
+        "churn_rules"
+      ],
+      "properties": {
+        "identity_class": { "$ref": "#/$defs/selection_identity_class" },
+        "membership_class": { "$ref": "#/$defs/selection_membership_class" },
+        "dataset_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "identity_namespace_ref": { "$ref": "#/$defs/opaque_id" },
+        "selected_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "hidden_selected_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "not_loaded_item_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "range_anchor_item_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_side_selection_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "position_based_selection_forbidden": { "const": true },
+        "churn_rules": {
+          "type": "array",
+          "minItems": 3,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/churn_rule_class" }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "membership_class": { "const": "provider_query_membership" }
+            },
+            "required": ["membership_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_side_selection_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ],
+      "description": "Identity and churn behavior for the selected set."
+    },
+    "collection_count_term": {
+      "type": "string",
+      "enum": [
+        "visible",
+        "loaded",
+        "matching",
+        "selected",
+        "checked",
+        "focused",
+        "current",
+        "included",
+        "excluded",
+        "blocked",
+        "unavailable",
+        "skipped",
+        "hidden_selected",
+        "not_loaded",
+        "server_side"
+      ],
+      "description": "Closed count-term vocabulary for selection state and review summaries."
+    },
+    "collection_count_status": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "approximate",
+        "provider_limited",
+        "stale",
+        "cached",
+        "partial",
+        "unknown"
+      ],
+      "description": "Closed count-status vocabulary."
+    },
+    "collection_count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status", "value"],
+          "properties": {
+            "term": { "$ref": "#/$defs/collection_count_term" },
+            "status": {
+              "type": "string",
+              "enum": [
+                "exact",
+                "approximate",
+                "provider_limited",
+                "stale",
+                "cached",
+                "partial"
+              ]
+            },
+            "value": { "type": "integer", "minimum": 0 },
+            "tolerance_label": { "$ref": "#/$defs/reviewable_label" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["term", "status"],
+          "properties": {
+            "term": { "$ref": "#/$defs/collection_count_term" },
+            "status": { "const": "unknown" },
+            "value": { "type": "null" },
+            "tolerance_label": { "$ref": "#/$defs/reviewable_label" }
+          }
+        }
+      ],
+      "description": "One count value with a typed term, typed status, and non-negative integer value, or null when unknown."
+    },
+    "hidden_selected_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_zero_hidden",
+        "visible_chip_with_reveal_and_clear",
+        "review_sheet_breakout_only"
+      ]
+    },
+    "selection_bar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_bar_visible",
+        "selected_count",
+        "scope_label_class",
+        "hidden_selected_count",
+        "not_loaded_selected_count",
+        "blocked_count",
+        "skipped_count",
+        "hidden_selected_disclosure_class",
+        "clear_selection_action_id_ref",
+        "scope_counter_label",
+        "reset_path_label"
+      ],
+      "properties": {
+        "selection_bar_visible": { "type": "boolean" },
+        "selected_count": { "$ref": "#/$defs/collection_count_value" },
+        "scope_label_class": { "$ref": "#/$defs/selection_scope_class" },
+        "hidden_selected_count": { "$ref": "#/$defs/collection_count_value" },
+        "not_loaded_selected_count": { "$ref": "#/$defs/collection_count_value" },
+        "blocked_count": { "$ref": "#/$defs/collection_count_value" },
+        "skipped_count": { "$ref": "#/$defs/collection_count_value" },
+        "hidden_selected_disclosure_class": { "$ref": "#/$defs/hidden_selected_disclosure_class" },
+        "clear_selection_action_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_counter_label": { "$ref": "#/$defs/reviewable_label" },
+        "reset_path_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Visible selection-bar state or equivalent accessible summary."
+    },
+    "scope_escalation_state": {
+      "type": "string",
+      "enum": [
+        "not_available",
+        "offered_visible_to_matching",
+        "review_pending",
+        "broadened_all_matching",
+        "cancelled_to_prior_scope"
+      ],
+      "description": "Closed visible-to-matching escalation vocabulary."
+    },
+    "scope_review_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "available_not_open",
+        "review_open",
+        "accepted",
+        "cancelled"
+      ]
+    },
+    "scope_escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_state",
+        "review_state",
+        "available_select_actions",
+        "review_sheet_id_ref",
+        "cancel_action_id_ref",
+        "broadened_scope_cancellable"
+      ],
+      "properties": {
+        "escalation_state": { "$ref": "#/$defs/scope_escalation_state" },
+        "review_state": { "$ref": "#/$defs/scope_review_state" },
+        "available_select_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/select_action" }
+        },
+        "review_sheet_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "cancel_action_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "broadened_scope_cancellable": { "const": true }
+      },
+      "description": "Visible / loaded to all-matching escalation posture."
+    },
+    "selection_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "selection_state_schema_version",
+        "selection_state_id",
+        "surface_family",
+        "collection_instance_id_ref",
+        "selection_scope_class",
+        "semantic_state",
+        "keyboard_contract",
+        "pointer_contract",
+        "identity_resolution",
+        "selection_bar",
+        "scope_escalation",
+        "count_truth",
+        "paired_collection_selection_state_record_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "selection_state_record" },
+        "selection_state_schema_version": { "$ref": "#/$defs/selection_state_schema_version" },
+        "selection_state_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "collection_instance_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "filter_ast_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "saved_view_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "paired_collection_selection_state_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the durable schemas/collections/selection_state.schema.json record this UX record projects from."
+        },
+        "paired_batch_action_review_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "selection_scope_class": { "$ref": "#/$defs/selection_scope_class" },
+        "semantic_state": { "$ref": "#/$defs/semantic_state" },
+        "keyboard_contract": { "$ref": "#/$defs/keyboard_contract" },
+        "pointer_contract": { "$ref": "#/$defs/pointer_contract" },
+        "identity_resolution": { "$ref": "#/$defs/identity_resolution" },
+        "selection_bar": { "$ref": "#/$defs/selection_bar" },
+        "scope_escalation": { "$ref": "#/$defs/scope_escalation" },
+        "count_truth": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/collection_count_value" },
+          "description": "Per-term count truth. MUST include visible, loaded, selected, and hidden_selected. all_matching_query also requires matching."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "count_truth MUST contain visible, loaded, selected, and hidden_selected terms.",
+          "properties": {
+            "count_truth": {
+              "type": "array",
+              "allOf": [
+                { "contains": { "type": "object", "properties": { "term": { "const": "visible" } }, "required": ["term"] } },
+                { "contains": { "type": "object", "properties": { "term": { "const": "loaded" } }, "required": ["term"] } },
+                { "contains": { "type": "object", "properties": { "term": { "const": "selected" } }, "required": ["term"] } },
+                { "contains": { "type": "object", "properties": { "term": { "const": "hidden_selected" } }, "required": ["term"] } }
+              ]
+            }
+          }
+        },
+        {
+          "description": "all_matching_query selection scope requires a matching count term and an escalation state of review_pending or broadened_all_matching.",
+          "if": {
+            "properties": {
+              "selection_scope_class": { "const": "all_matching_query" }
+            },
+            "required": ["selection_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "count_truth": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": { "term": { "const": "matching" } },
+                  "required": ["term"]
+                }
+              },
+              "scope_escalation": {
+                "type": "object",
+                "properties": {
+                  "escalation_state": {
+                    "enum": ["review_pending", "broadened_all_matching"]
+                  }
+                },
+                "required": ["escalation_state"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Live UX selection-state record. Raw row text, raw query text, raw URLs, and raw absolute paths never appear here."
+    },
+    "selection_state_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "selection_state_minted",
+        "selection_state_scope_escalation_offered",
+        "selection_state_scope_escalation_reviewed",
+        "selection_state_scope_escalation_cancelled",
+        "selection_state_hidden_selected_disclosed",
+        "selection_state_cleared",
+        "selection_state_audit_denial_emitted",
+        "selection_state_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the UX selection-state stream."
+    },
+    "selection_state_denial_reason": {
+      "type": "string",
+      "enum": [
+        "selection_state_unknown",
+        "focus_selection_activation_collapsed",
+        "checked_state_overclaimed_as_selection",
+        "ambiguous_select_all_label_forbidden",
+        "visible_or_loaded_scope_overclaimed",
+        "selection_scope_widened_without_review",
+        "hidden_selected_count_missing",
+        "not_loaded_count_missing",
+        "blocked_count_missing",
+        "position_based_selection_forbidden",
+        "range_anchor_moved_by_virtualization",
+        "provider_selection_basis_unresolved",
+        "review_sheet_required_for_action_class",
+        "count_status_missing",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "selection_state_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent selection loss or silent scope widening is forbidden."
+    },
+    "selection_state_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "selection_state_schema_version",
+        "audit_event_id",
+        "audit_event_class",
+        "selection_state_id_ref",
+        "running_build_identity_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "selection_state_audit_event_record" },
+        "selection_state_schema_version": { "$ref": "#/$defs/selection_state_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_class": { "$ref": "#/$defs/selection_state_audit_event_id" },
+        "selection_state_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/selection_state_denial_reason" }
+          ]
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "running_build_identity_ref": { "$ref": "#/$defs/running_build_identity_ref" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Selection-state audit event. Raw row text, raw query text, and raw URLs never appear on this record."
+    }
+  }
+}
