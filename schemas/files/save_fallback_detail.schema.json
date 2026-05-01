@@ -1,0 +1,620 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/files/save_fallback_detail.schema.json",
+  "title": "Aureline save-fallback detail row and recovery surface contract",
+  "description": "Boundary schema for save_fallback_detail_row instances frozen in docs/files/save_fallback_and_watch_fidelity_contract.md. The row is the single record every save / autosave / apply surface emits before bytes are written, alongside the save-target-token packet, capturing atomic-replace availability, metadata preservation, compare-before-write posture, crash-journal guarantee, root class, canonical object identity, presentation path, and the typed first recovery surface for the five spec scenarios (save conflict, external change, cross-root rename, archive-backed edit attempt, watch-fidelity downgrade). Raw file bodies, raw provider payloads, raw paths, secrets, and credentials never cross this boundary; the row carries opaque refs and closed vocabularies. Adding a new metadata-preservation axis or value, recovery-surface kind, typed action, or forbidden-action reason is additive-minor; repurposing one is breaking.",
+  "type": "object",
+  "$ref": "#/$defs/save_fallback_detail_row",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "$ref": "#/$defs/non_empty_string" },
+        { "type": "null" }
+      ]
+    },
+    "bounded_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "save_fallback_detail_row"
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/bounded_text" },
+        "spec_axis": {
+          "type": "string",
+          "enum": [
+            "local_atomic_write_downgrade",
+            "remote_polling_fallback",
+            "provider_backed_compare_before_write",
+            "archive_backed_edit_block",
+            "cross_root_rename_review"
+          ]
+        }
+      }
+    },
+    "root_class": {
+      "type": "string",
+      "enum": [
+        "local_posix_like",
+        "local_windows_like",
+        "remote_agent_mount",
+        "container_mount",
+        "cloud_backed_sync_root",
+        "virtual_generated_document",
+        "archive_like_view",
+        "unknown"
+      ]
+    },
+    "normalization_form": {
+      "type": "string",
+      "enum": ["none", "nfc", "nfd", "mixed_observed"]
+    },
+    "identity_token_kind": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "device_inode_generation",
+        "windows_object_id",
+        "provider_object_id_revision",
+        "remote_revision_token",
+        "etag",
+        "cloud_version_id",
+        "inode_mtime_size",
+        "content_hash",
+        "logical_document_id_source_refs",
+        "content_hash_only",
+        "unavailable"
+      ]
+    },
+    "identity_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/identity_token_kind" },
+        "value": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "presentation_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "display_label", "root_badge"],
+      "properties": {
+        "uri": { "$ref": "#/$defs/non_empty_string" },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "root_badge": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "canonical_object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_uri",
+        "root_class",
+        "normalization_form",
+        "object_identity_token"
+      ],
+      "properties": {
+        "canonical_uri": { "$ref": "#/$defs/non_empty_string" },
+        "root_class": { "$ref": "#/$defs/root_class" },
+        "normalization_form": { "$ref": "#/$defs/normalization_form" },
+        "object_identity_token": { "$ref": "#/$defs/identity_token" },
+        "fallback_identity_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/identity_token" }
+        }
+      }
+    },
+    "atomic_replace_availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "degraded_to_in_place_write",
+        "degraded_to_whole_file_rewrite",
+        "degraded_to_conditional_remote_write",
+        "unavailable_blocked"
+      ]
+    },
+    "compare_before_write_posture": {
+      "type": "string",
+      "enum": [
+        "live_token_match_required",
+        "recompare_required_each_write",
+        "provider_precondition_required",
+        "metadata_then_content_hash_recompare",
+        "unavailable_blocks"
+      ]
+    },
+    "crash_journal_guarantee": {
+      "type": "string",
+      "enum": [
+        "not_required_no_write",
+        "recovery_journal",
+        "local_history_checkpoint",
+        "workspace_checkpoint_group",
+        "provider_revision_checkpoint",
+        "metadata_only_checkpoint",
+        "unavailable_blocks"
+      ]
+    },
+    "save_guarantee_class": {
+      "type": "string",
+      "enum": [
+        "atomic_replace_preferred",
+        "in_place_write_with_review",
+        "remote_conditional_write",
+        "read_only_mount",
+        "policy_blocked",
+        "capability_uncertain"
+      ]
+    },
+    "metadata_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posix_mode_preservation",
+        "posix_owner_group_preservation",
+        "xattr_preservation",
+        "acl_preservation",
+        "alternate_data_stream_preservation",
+        "executable_bit_preservation",
+        "file_times_preservation",
+        "sparseness_preservation",
+        "resource_fork_preservation"
+      ],
+      "properties": {
+        "posix_mode_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "preserved_with_umask_clamp",
+            "preserved_via_root_capability",
+            "not_applicable_on_root",
+            "dropped_during_atomic_replace",
+            "lost_due_to_provider_rewrite",
+            "unknown"
+          ]
+        },
+        "posix_owner_group_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "preserved_via_root_capability",
+            "not_applicable_on_root",
+            "dropped_during_atomic_replace",
+            "lost_due_to_provider_rewrite",
+            "unknown"
+          ]
+        },
+        "xattr_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "partial_known_set_preserved",
+            "not_applicable_on_root",
+            "dropped_during_atomic_replace",
+            "lost_due_to_provider_rewrite",
+            "unsupported_by_root",
+            "unknown"
+          ]
+        },
+        "acl_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "preserved_via_root_capability",
+            "not_applicable_on_root",
+            "dropped_during_atomic_replace",
+            "lost_due_to_provider_rewrite",
+            "unsupported_by_root",
+            "unknown"
+          ]
+        },
+        "alternate_data_stream_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "not_applicable_on_root",
+            "dropped_during_atomic_replace",
+            "unsupported_by_root",
+            "unknown"
+          ]
+        },
+        "executable_bit_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "preserved_via_root_capability",
+            "dropped_during_atomic_replace",
+            "lost_due_to_provider_rewrite",
+            "not_applicable_on_root",
+            "unknown"
+          ]
+        },
+        "file_times_preservation": {
+          "type": "string",
+          "enum": [
+            "mtime_preserved_ctime_updated",
+            "mtime_updated_to_now",
+            "mtime_provider_assigned",
+            "unknown"
+          ]
+        },
+        "sparseness_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "densified_during_atomic_replace",
+            "not_applicable_on_root",
+            "unsupported_by_root",
+            "unknown"
+          ]
+        },
+        "resource_fork_preservation": {
+          "type": "string",
+          "enum": [
+            "preserved",
+            "not_applicable_on_root",
+            "dropped_during_atomic_replace",
+            "unsupported_by_root",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "recovery_surface_kind": {
+      "type": "string",
+      "enum": [
+        "save_conflict_review",
+        "external_change_review",
+        "cross_root_rename_review",
+        "archive_inspect_only_handoff",
+        "watch_fidelity_downgrade_review"
+      ]
+    },
+    "typed_action": {
+      "type": "string",
+      "enum": [
+        "compare",
+        "overwrite",
+        "merge",
+        "cancel",
+        "reload",
+        "retry",
+        "save_as",
+        "open_alias_details",
+        "open_save_target_review",
+        "open_external_handoff",
+        "acknowledge_degraded_guarantee",
+        "no_action_required"
+      ]
+    },
+    "forbidden_action_reason": {
+      "type": "string",
+      "enum": [
+        "silent_overwrite_forbidden",
+        "dirty_buffer_requires_explicit_discard",
+        "cross_root_overwrite_forbidden",
+        "archive_inspect_only_root",
+        "policy_blocked",
+        "watch_fidelity_unavailable_blocks_write",
+        "compare_basis_missing",
+        "binary_or_unmergeable",
+        "provider_revision_required",
+        "removable_volume_uncertain",
+        "read_only_mount"
+      ]
+    },
+    "forbidden_action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "reason"],
+      "properties": {
+        "action": { "$ref": "#/$defs/typed_action" },
+        "reason": { "$ref": "#/$defs/forbidden_action_reason" }
+      }
+    },
+    "recovery_surface_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "surface_kind",
+        "subject",
+        "preserves_object_identity",
+        "preserves_root_class",
+        "offered_actions",
+        "default_action",
+        "forbidden_actions",
+        "disclosure_text_ref",
+        "support_export"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "recovery_surface_record"
+        },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "surface_kind": { "$ref": "#/$defs/recovery_surface_kind" },
+        "subject": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "presentation_path",
+            "canonical_object_identity",
+            "root_class"
+          ],
+          "properties": {
+            "presentation_path": { "$ref": "#/$defs/presentation_path" },
+            "canonical_object_identity": { "$ref": "#/$defs/canonical_object_identity" },
+            "root_class": { "$ref": "#/$defs/root_class" },
+            "target_root_class": {
+              "oneOf": [
+                { "$ref": "#/$defs/root_class" },
+                { "type": "null" }
+              ],
+              "description": "Optional target root class. Required (non-null) on cross_root_rename_review surfaces; null elsewhere."
+            }
+          }
+        },
+        "preserves_object_identity": { "type": "boolean" },
+        "preserves_root_class": { "type": "boolean" },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/typed_action" }
+        },
+        "default_action": { "$ref": "#/$defs/typed_action" },
+        "forbidden_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/forbidden_action_entry" }
+        },
+        "disclosure_text_ref": { "$ref": "#/$defs/non_empty_string" },
+        "support_export": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["packet_family", "redaction_policy"],
+          "properties": {
+            "packet_family": {
+              "type": "string",
+              "const": "files.recovery_surface"
+            },
+            "redaction_policy": { "$ref": "#/$defs/non_empty_string" },
+            "parity_signature": { "$ref": "#/$defs/nullable_string" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "save_conflict_review" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "offered_actions": {
+                "contains": { "const": "compare" }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "external_change_review" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "offered_actions": {
+                "allOf": [
+                  { "contains": { "const": "compare" } },
+                  { "contains": { "const": "reload" } },
+                  { "contains": { "const": "cancel" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "cross_root_rename_review" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "offered_actions": {
+                "allOf": [
+                  { "contains": { "const": "save_as" } },
+                  { "contains": { "const": "cancel" } }
+                ]
+              },
+              "subject": {
+                "required": ["target_root_class"],
+                "properties": {
+                  "target_root_class": { "$ref": "#/$defs/root_class" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "archive_inspect_only_handoff" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "offered_actions": {
+                "allOf": [
+                  { "contains": { "const": "save_as" } },
+                  { "contains": { "const": "open_external_handoff" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "surface_kind": { "const": "watch_fidelity_downgrade_review" } },
+            "required": ["surface_kind"]
+          },
+          "then": {
+            "properties": {
+              "offered_actions": {
+                "allOf": [
+                  { "contains": { "const": "retry" } },
+                  { "contains": { "const": "acknowledge_degraded_guarantee" } }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "support_export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_family",
+        "redaction_policy",
+        "included_fields"
+      ],
+      "properties": {
+        "packet_family": {
+          "type": "string",
+          "const": "files.save_fallback_detail"
+        },
+        "redaction_policy": { "$ref": "#/$defs/non_empty_string" },
+        "included_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "record_id",
+              "save_target_token_ref",
+              "presentation_path",
+              "canonical_object_identity",
+              "root_class",
+              "atomic_replace_availability",
+              "metadata_preservation",
+              "compare_before_write_posture",
+              "crash_journal_guarantee",
+              "watch_fidelity_ref",
+              "save_guarantee_class",
+              "degraded_guarantee_disclosed",
+              "recovery_surface",
+              "metadata_notes"
+            ]
+          }
+        },
+        "metadata_notes": { "$ref": "#/$defs/nullable_string" },
+        "parity_signature": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "save_fallback_detail_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "schema_version",
+        "record_id",
+        "emitted_at",
+        "save_target_token_ref",
+        "presentation_path",
+        "canonical_object_identity",
+        "root_class",
+        "atomic_replace_availability",
+        "metadata_preservation",
+        "compare_before_write_posture",
+        "crash_journal_guarantee",
+        "watch_fidelity_ref",
+        "save_guarantee_class",
+        "degraded_guarantee_disclosed",
+        "recovery_surface",
+        "support_export"
+      ],
+      "properties": {
+        "fixture_metadata": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_id": { "$ref": "#/$defs/non_empty_string" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" },
+        "save_target_token_ref": { "$ref": "#/$defs/non_empty_string" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "canonical_object_identity": { "$ref": "#/$defs/canonical_object_identity" },
+        "root_class": { "$ref": "#/$defs/root_class" },
+        "atomic_replace_availability": { "$ref": "#/$defs/atomic_replace_availability" },
+        "metadata_preservation": { "$ref": "#/$defs/metadata_preservation" },
+        "compare_before_write_posture": { "$ref": "#/$defs/compare_before_write_posture" },
+        "crash_journal_guarantee": { "$ref": "#/$defs/crash_journal_guarantee" },
+        "watch_fidelity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "save_guarantee_class": { "$ref": "#/$defs/save_guarantee_class" },
+        "degraded_guarantee_disclosed": { "type": "boolean" },
+        "recovery_surface": {
+          "oneOf": [
+            { "$ref": "#/$defs/recovery_surface_record" },
+            { "type": "null" }
+          ]
+        },
+        "support_export": { "$ref": "#/$defs/support_export" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "compare_before_write_posture": { "const": "unavailable_blocks" }
+            },
+            "required": ["compare_before_write_posture"]
+          },
+          "then": {
+            "properties": {
+              "atomic_replace_availability": { "const": "unavailable_blocked" },
+              "recovery_surface": { "type": "object" }
+            },
+            "required": ["recovery_surface"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "atomic_replace_availability": { "const": "unavailable_blocked" }
+            },
+            "required": ["atomic_replace_availability"]
+          },
+          "then": {
+            "properties": {
+              "recovery_surface": { "type": "object" }
+            },
+            "required": ["recovery_surface"]
+          }
+        }
+      ]
+    }
+  }
+}
