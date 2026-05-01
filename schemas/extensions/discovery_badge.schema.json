@@ -1,0 +1,550 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/discovery_badge.schema.json",
+  "title": "Aureline marketplace discovery-badge and discovery-warning vocabulary",
+  "description": "Boundary schema for the trust / provenance / compatibility / runtime-cost / safety / bridge-state badges and the first-class warnings that render on discovery results, detail pages, and install-review sheets. Reuses the registry / mirror / offline-bundle / publisher-continuity / runtime-budget / quarantine vocabulary frozen by schemas/extensions/registry_manifest.schema.json, schemas/extensions/effective_permission.schema.json, artifacts/extensions/runtime_budget_rows.yaml, and artifacts/extensions/quarantine_rules.yaml. Discovery, details, and install-review surfaces MUST project these badge and warning records verbatim; minting marketplace-shaped badges per-surface is non-conforming. Adding a new badge_class, warning_class, severity_class, response_class, or repair_affordance class is additive-minor with a discovery_badge_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw attestation-bundle bytes, raw URLs, raw publisher-private data, raw repository paths, and raw popularity counts MUST NOT appear in any record; records carry refs and class labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/discovery_badge_record" },
+    { "$ref": "#/$defs/discovery_warning_record" }
+  ],
+  "$defs": {
+    "discovery_badge_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this discovery-badge / discovery-warning vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "discovery_badge_record",
+        "discovery_warning_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "profile_export",
+        "sync"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/redaction_class. Raw URLs, raw repository paths, raw publisher-private fields MUST NOT appear on any sink."
+    },
+
+    "badge_axis_class": {
+      "type": "string",
+      "enum": [
+        "trust_axis",
+        "provenance_axis",
+        "compatibility_axis",
+        "runtime_cost_axis",
+        "safety_policy_axis",
+        "maintainership_axis",
+        "bridge_state_axis"
+      ],
+      "description": "Closed badge-axis vocabulary. Every badge carries exactly one axis. Discovery cards group badges by axis; surfaces MUST NOT mint axes ad hoc."
+    },
+
+    "badge_class": {
+      "type": "string",
+      "enum": [
+        "trust_badge_verified_publisher",
+        "trust_badge_organisational_publisher",
+        "trust_badge_managed_approved",
+        "trust_badge_unverified_publisher",
+        "trust_badge_quarantined_cannot_inherit",
+        "provenance_badge_public_registry",
+        "provenance_badge_approved_mirror",
+        "provenance_badge_private_registry",
+        "provenance_badge_offline_bundle",
+        "provenance_badge_local_archive",
+        "provenance_badge_quarantined_local_copy",
+        "compatibility_badge_compatible_on_all_declared_targets",
+        "compatibility_badge_compatible_on_subset_of_declared_targets",
+        "compatibility_badge_compatibility_bridge_required",
+        "compatibility_badge_compatibility_unknown_pending_reverification",
+        "compatibility_badge_incompatible_blocked_on_policy",
+        "runtime_cost_badge_low_nominal",
+        "runtime_cost_badge_nominal",
+        "runtime_cost_badge_elevated",
+        "runtime_cost_badge_unknown_pending_evidence",
+        "runtime_cost_badge_quarantined",
+        "safety_policy_badge_policy_pinned",
+        "safety_policy_badge_managed_only_install",
+        "safety_policy_badge_policy_blocked",
+        "safety_policy_badge_emergency_disabled",
+        "safety_policy_badge_revoked",
+        "maintainership_badge_active",
+        "maintainership_badge_recent",
+        "maintainership_badge_unknown",
+        "maintainership_badge_abandoned",
+        "maintainership_badge_publisher_transfer_recent",
+        "bridge_state_badge_no_bridge_required",
+        "bridge_state_badge_compatibility_bridge_profile",
+        "bridge_state_badge_capability_world_subset_only",
+        "bridge_state_badge_host_contract_family_subset_only",
+        "bridge_state_badge_unsupported_blocked_on_policy"
+      ],
+      "description": "Closed badge-class vocabulary. The set is authoritative; surfaces MUST project exactly these classes. A surface that hides a non-positive badge is denied with review_disclosure_incomplete."
+    },
+
+    "badge_polarity": {
+      "type": "string",
+      "enum": ["positive", "neutral", "advisory", "negative"],
+      "description": "How the badge contributes to the rendered card. Negative and advisory badges MUST NOT be hidden by any surface; doing so denies with review_disclosure_incomplete."
+    },
+
+    "warning_class": {
+      "type": "string",
+      "enum": [
+        "typosquat_candidate",
+        "impersonation_suspected",
+        "publisher_namespace_recently_orphaned",
+        "publisher_namespace_recently_quarantined",
+        "publisher_namespace_recently_succeeded",
+        "abandoned_publisher_no_recent_activity",
+        "publisher_transfer_recent",
+        "artifact_revoked",
+        "artifact_emergency_disabled",
+        "transitive_permission_concern",
+        "transitive_permission_inheritance_widened",
+        "policy_blocked_install",
+        "quarantined_runtime_disabled",
+        "quarantined_at_runtime_crash_loop",
+        "digest_collision_suspected",
+        "rapid_version_republish",
+        "mirror_rewrite_attempted",
+        "revocation_snapshot_stale",
+        "revocation_snapshot_unverified_no_snapshot"
+      ],
+      "description": "Closed warning-class vocabulary. Every first-class discovery warning carries exactly one warning_class. Adding a warning class is additive-minor; repurposing one is breaking. A surface that hides a raised warning is denied with review_disclosure_incomplete."
+    },
+
+    "warning_severity_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "advisory",
+        "blocking_install_pending_explicit_acknowledgement",
+        "blocking_install_pending_admin_policy_exception",
+        "denial_no_install_path"
+      ],
+      "description": "Closed warning-severity vocabulary. 'denial_no_install_path' MUST NOT be downgraded to 'advisory' or 'informational' by any surface; doing so denies with review_disclosure_incomplete."
+    },
+
+    "warning_response_class": {
+      "type": "string",
+      "enum": [
+        "render_disclosure_continue",
+        "render_disclosure_with_inspectable_explanation",
+        "prompt_user_for_explicit_acknowledgement",
+        "prompt_admin_for_policy_exception",
+        "block_install_pending_review",
+        "block_install_no_recovery"
+      ],
+      "description": "Closed warning-response vocabulary. The response a surface takes when the warning is rendered. Surfaces MUST take exactly the response named here; silently downgrading 'block_install_no_recovery' to 'render_disclosure_continue' is non-conforming."
+    },
+
+    "warning_repair_affordance_class": {
+      "type": "string",
+      "enum": [
+        "open_publisher_continuity_packet",
+        "open_install_review_sheet",
+        "open_permission_inspector",
+        "open_runtime_status_pill",
+        "open_policy_pack_constraint_row",
+        "open_anti_abuse_signal_evidence",
+        "consult_workspace_admin",
+        "request_admin_policy_exception",
+        "no_recovery_review_only"
+      ],
+      "description": "Closed repair-affordance vocabulary. Every warning carries at least one repair affordance label so the user always has a typed next step; silent dead-ends are non-conforming."
+    },
+
+    "denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_denial_admissible",
+        "discovery_ranking_floor_violated",
+        "review_disclosure_incomplete",
+        "publisher_namespace_recently_quarantined",
+        "artifact_revoked",
+        "artifact_emergency_disabled",
+        "policy_blocked_install",
+        "quarantined_runtime_disabled",
+        "quarantined_at_runtime_crash_loop",
+        "transitive_permission_concern_user_review_required",
+        "typosquat_candidate_user_review_required",
+        "impersonation_suspected_user_review_required",
+        "abandoned_publisher_user_review_required",
+        "publisher_transfer_recent_user_review_required",
+        "revocation_snapshot_stale_user_review_required",
+        "digest_collision_suspected_user_review_required"
+      ],
+      "description": "Closed denial-reason vocabulary on the warning record. Silent fallback to a generic 'install blocked' chip is forbidden."
+    },
+
+    "discovery_badge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "discovery_badge_schema_version",
+        "discovery_badge_record_id",
+        "subject_discovery_result_row_ref",
+        "badge_axis_class",
+        "badge_class",
+        "polarity",
+        "rendered_label",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "discovery_badge_record" },
+        "discovery_badge_schema_version": { "$ref": "#/$defs/discovery_badge_schema_version" },
+        "discovery_badge_record_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_discovery_result_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the discovery_result_row from schemas/extensions/discovery_ranking_reason.schema.json this badge annotates."
+        },
+        "badge_axis_class": { "$ref": "#/$defs/badge_axis_class" },
+        "badge_class": { "$ref": "#/$defs/badge_class" },
+        "polarity": { "$ref": "#/$defs/badge_polarity" },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the discovery / detail / install-review surface. Raw publisher-private material forbidden."
+        },
+        "explanation_label": {
+          "type": "string",
+          "description": "Inspectable explanation rendered when the user opens the badge. Raw publisher-private material forbidden."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to the rows that justify this badge (registry_manifest_row, mirror_continuity_row, publisher_continuity_row, activation-evidence packet id, policy_pack_constraint_row, channel_promotion_row, anti_abuse_signal_entry source). Raw evidence bodies never carried."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "trust_badge_verified_publisher MUST NOT appear when subject row's trust_claim_source projects to a non-origin lane (approved_mirror_cache, offline_bundle, local_archive, quarantined_local_copy). The boundary check rides on the subject row; this schema pins the corresponding badge_axis_class so a renamed badge cannot smuggle in a verified-publisher tier.",
+          "if": {
+            "properties": {
+              "badge_class": { "const": "trust_badge_verified_publisher" }
+            },
+            "required": ["badge_class"]
+          },
+          "then": {
+            "properties": {
+              "badge_axis_class": { "const": "trust_axis" },
+              "polarity": { "enum": ["positive"] }
+            },
+            "required": ["badge_axis_class", "polarity"]
+          }
+        },
+        {
+          "description": "trust_badge_quarantined_cannot_inherit and trust_badge_unverified_publisher MUST be polarity 'advisory' or 'negative'.",
+          "if": {
+            "properties": {
+              "badge_class": {
+                "enum": [
+                  "trust_badge_quarantined_cannot_inherit",
+                  "trust_badge_unverified_publisher"
+                ]
+              }
+            },
+            "required": ["badge_class"]
+          },
+          "then": {
+            "properties": {
+              "polarity": { "enum": ["advisory", "negative"] }
+            },
+            "required": ["polarity"]
+          }
+        },
+        {
+          "description": "Every badge_class is bound to a single badge_axis_class. The mapping is enforced here so a renamed badge cannot move axes silently.",
+          "anyOf": [
+            {
+              "properties": {
+                "badge_axis_class": { "const": "trust_axis" },
+                "badge_class": {
+                  "enum": [
+                    "trust_badge_verified_publisher",
+                    "trust_badge_organisational_publisher",
+                    "trust_badge_managed_approved",
+                    "trust_badge_unverified_publisher",
+                    "trust_badge_quarantined_cannot_inherit"
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "badge_axis_class": { "const": "provenance_axis" },
+                "badge_class": {
+                  "enum": [
+                    "provenance_badge_public_registry",
+                    "provenance_badge_approved_mirror",
+                    "provenance_badge_private_registry",
+                    "provenance_badge_offline_bundle",
+                    "provenance_badge_local_archive",
+                    "provenance_badge_quarantined_local_copy"
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "badge_axis_class": { "const": "compatibility_axis" },
+                "badge_class": {
+                  "enum": [
+                    "compatibility_badge_compatible_on_all_declared_targets",
+                    "compatibility_badge_compatible_on_subset_of_declared_targets",
+                    "compatibility_badge_compatibility_bridge_required",
+                    "compatibility_badge_compatibility_unknown_pending_reverification",
+                    "compatibility_badge_incompatible_blocked_on_policy"
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "badge_axis_class": { "const": "runtime_cost_axis" },
+                "badge_class": {
+                  "enum": [
+                    "runtime_cost_badge_low_nominal",
+                    "runtime_cost_badge_nominal",
+                    "runtime_cost_badge_elevated",
+                    "runtime_cost_badge_unknown_pending_evidence",
+                    "runtime_cost_badge_quarantined"
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "badge_axis_class": { "const": "safety_policy_axis" },
+                "badge_class": {
+                  "enum": [
+                    "safety_policy_badge_policy_pinned",
+                    "safety_policy_badge_managed_only_install",
+                    "safety_policy_badge_policy_blocked",
+                    "safety_policy_badge_emergency_disabled",
+                    "safety_policy_badge_revoked"
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "badge_axis_class": { "const": "maintainership_axis" },
+                "badge_class": {
+                  "enum": [
+                    "maintainership_badge_active",
+                    "maintainership_badge_recent",
+                    "maintainership_badge_unknown",
+                    "maintainership_badge_abandoned",
+                    "maintainership_badge_publisher_transfer_recent"
+                  ]
+                }
+              }
+            },
+            {
+              "properties": {
+                "badge_axis_class": { "const": "bridge_state_axis" },
+                "badge_class": {
+                  "enum": [
+                    "bridge_state_badge_no_bridge_required",
+                    "bridge_state_badge_compatibility_bridge_profile",
+                    "bridge_state_badge_capability_world_subset_only",
+                    "bridge_state_badge_host_contract_family_subset_only",
+                    "bridge_state_badge_unsupported_blocked_on_policy"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "description": "One badge that renders on a discovery card / detail / install-review surface. Discovery, details, and install-review surfaces project the same badge record; minting per-surface badge vocabulary is non-conforming."
+    },
+
+    "discovery_warning_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "discovery_badge_schema_version",
+        "discovery_warning_record_id",
+        "subject_discovery_result_row_ref",
+        "warning_class",
+        "severity_class",
+        "response_class",
+        "repair_affordance_class_set",
+        "denial_reason_class",
+        "rendered_label",
+        "explanation_label",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "discovery_warning_record" },
+        "discovery_badge_schema_version": { "$ref": "#/$defs/discovery_badge_schema_version" },
+        "discovery_warning_record_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_discovery_result_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the discovery_result_row this warning annotates."
+        },
+        "warning_class": { "$ref": "#/$defs/warning_class" },
+        "severity_class": { "$ref": "#/$defs/warning_severity_class" },
+        "response_class": { "$ref": "#/$defs/warning_response_class" },
+        "repair_affordance_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/warning_repair_affordance_class" },
+          "description": "At least one typed repair affordance the user / admin can take. A warning with no repair affordance is non-conforming."
+        },
+        "denial_reason_class": { "$ref": "#/$defs/denial_reason_class" },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the discovery / detail / install-review surface. Raw publisher-private material forbidden."
+        },
+        "explanation_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Inspectable explanation rendered when the user opens the warning. The explanation MUST disclose the underlying registry / mirror / publisher / runtime evidence by class, never by raw bytes or raw URLs."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to the rows that justify this warning (anti_abuse_signal_entry source, publisher_continuity_row, registry_manifest_row, mirror_continuity_row, runtime quarantine_trigger_rows row id, policy_pack_constraint_row). Raw evidence bodies never carried."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "denial_no_install_path severity MUST cite a non-no_denial_admissible denial_reason_class and a 'block_install_*' response.",
+          "if": {
+            "properties": {
+              "severity_class": { "const": "denial_no_install_path" }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "not": { "const": "no_denial_admissible" }
+              },
+              "response_class": {
+                "enum": [
+                  "block_install_pending_review",
+                  "block_install_no_recovery"
+                ]
+              }
+            },
+            "required": ["denial_reason_class", "response_class"]
+          }
+        },
+        {
+          "description": "informational severity MUST be paired with no_denial_admissible and a non-blocking response.",
+          "if": {
+            "properties": {
+              "severity_class": { "const": "informational" }
+            },
+            "required": ["severity_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "const": "no_denial_admissible" },
+              "response_class": {
+                "enum": [
+                  "render_disclosure_continue",
+                  "render_disclosure_with_inspectable_explanation"
+                ]
+              }
+            },
+            "required": ["denial_reason_class", "response_class"]
+          }
+        },
+        {
+          "description": "artifact_revoked, artifact_emergency_disabled, policy_blocked_install, quarantined_runtime_disabled, and quarantined_at_runtime_crash_loop MUST be denial_no_install_path with a corresponding denial_reason_class.",
+          "if": {
+            "properties": {
+              "warning_class": {
+                "enum": [
+                  "artifact_revoked",
+                  "artifact_emergency_disabled",
+                  "policy_blocked_install",
+                  "quarantined_runtime_disabled",
+                  "quarantined_at_runtime_crash_loop"
+                ]
+              }
+            },
+            "required": ["warning_class"]
+          },
+          "then": {
+            "properties": {
+              "severity_class": { "const": "denial_no_install_path" }
+            },
+            "required": ["severity_class"]
+          }
+        },
+        {
+          "description": "block_install_no_recovery response MUST cite repair_affordance_class_set containing 'no_recovery_review_only' (the user / admin still gets a typed next step, even if it is review-only).",
+          "if": {
+            "properties": {
+              "response_class": { "const": "block_install_no_recovery" }
+            },
+            "required": ["response_class"]
+          },
+          "then": {
+            "properties": {
+              "repair_affordance_class_set": {
+                "contains": {
+                  "type": "string",
+                  "const": "no_recovery_review_only"
+                }
+              }
+            },
+            "required": ["repair_affordance_class_set"]
+          }
+        }
+      ],
+      "description": "One first-class discovery warning. Discovery, details, and install-review surfaces project the same warning record; minting per-surface warning vocabulary is non-conforming."
+    }
+  }
+}

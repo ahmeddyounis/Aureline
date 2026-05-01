@@ -1,0 +1,617 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/discovery_ranking_reason.schema.json",
+  "title": "Aureline marketplace discovery-result, ranking-reason-chip, and ranking-floor vocabulary",
+  "description": "Boundary schema for marketplace discovery surfaces. Pins the discovery-result row, the ranking-reason chip, and the ranking-floor order used by every catalog browse, search, and install-review surface so trust, provenance, compatibility, runtime-cost, safety / policy, and bridge-state language never fragments across public, private, mirror, offline-bundle, and local-archive lanes. Reuses the registry / mirror / offline-bundle vocabulary frozen by schemas/extensions/registry_manifest.schema.json (registry_source_class, channel_class, approval_state_class, trust_claim_source, trust_badge_inheritance_rule, compatibility_claim_class, anti_abuse_signal_class, revocation_snapshot_age_class) and the runtime-budget / quarantine vocabulary frozen by artifacts/extensions/runtime_budget_rows.yaml and artifacts/extensions/quarantine_rules.yaml. Discovery surfaces project these classes into chips and a deterministic ranking-floor order; they MUST NOT mint marketplace-shaped fields ad hoc. Adding a new chip class, ranking-floor class, runtime-cost class, bridge-state class, or position class is additive-minor with a discovery_ranking_reason_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw attestation-bundle bytes, raw URLs, raw publisher-private data, raw repository paths, and raw popularity counts MUST NOT appear in any record; records carry refs and class labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/discovery_result_row" },
+    { "$ref": "#/$defs/ranking_reason_chip_record" }
+  ],
+  "$defs": {
+    "discovery_ranking_reason_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this discovery-ranking-reason vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "discovery_result_row",
+        "ranking_reason_chip_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id'. Mirrors ADR-0012 / registry_manifest.schema.json."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SemVer string the discovery row resolves to. Pinning is a policy-pack concern; this field carries the declared candidate version."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/registry_source_class verbatim. A discovery surface MUST NOT mint a parallel registry-source vocabulary."
+    },
+
+    "channel_class": {
+      "type": "string",
+      "enum": ["quarantine", "approved", "production"],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/channel_class. Discovery surfaces SHOULD only render production rows by default; approved and quarantine rows render with an explicit channel chip."
+    },
+
+    "approval_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "approved_on_quarantine",
+        "approved_on_mirror",
+        "promoted_to_production",
+        "blocked_by_policy",
+        "emergency_disabled",
+        "revoked"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/approval_state_class. revoked / emergency_disabled / blocked_by_policy rows MUST be rendered with the corresponding warning class from discovery_badge.schema.json."
+    },
+
+    "trust_claim_source": {
+      "type": "string",
+      "enum": [
+        "origin_public_registry",
+        "origin_private_registry",
+        "approved_mirror_cache",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/trust_claim_source. Discovery surfaces render this value as an explicit provenance chip; silent fallback to 'verified_publisher' for non-origin sources is forbidden."
+    },
+
+    "trust_badge_inheritance_rule": {
+      "type": "string",
+      "enum": [
+        "inherits_origin_tier",
+        "capped_at_organisational_on_private_registry",
+        "capped_at_community_on_approved_mirror",
+        "capped_at_unverified_on_local_archive",
+        "quarantined_cannot_inherit"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/trust_badge_inheritance_rule. The rendered publisher-trust badge on a discovery row reads this rule rather than the origin row's tier directly."
+    },
+
+    "compatibility_claim_class": {
+      "type": "string",
+      "enum": [
+        "compatible_on_all_declared_targets",
+        "compatible_on_subset_of_declared_targets",
+        "compatibility_bridge_required",
+        "compatibility_unknown_pending_reverification",
+        "incompatible_blocked_on_policy"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/compatibility_claim_class."
+    },
+
+    "revocation_snapshot_age_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified_no_snapshot"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/revocation_snapshot_age_class. A 'stale' or 'unverified_no_snapshot' row MUST render the corresponding warning class on discovery; silent inheritance of the origin trust tier is forbidden."
+    },
+
+    "anti_abuse_signal_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "publisher_namespace_recently_orphaned",
+        "publisher_namespace_recently_quarantined",
+        "publisher_namespace_recently_succeeded",
+        "digest_collision_suspected",
+        "typosquatting_candidate",
+        "rapid_version_republish",
+        "mirror_rewrite_attempted"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/anti_abuse_signal_class. A discovery surface that hides a raised signal is denied with review_disclosure_incomplete."
+    },
+
+    "runtime_cost_class": {
+      "type": "string",
+      "enum": [
+        "runtime_cost_low_nominal",
+        "runtime_cost_nominal",
+        "runtime_cost_elevated_warm_or_idle_polling_breach",
+        "runtime_cost_unknown_pending_evidence",
+        "runtime_cost_quarantined_under_crash_loop_or_egress_breach"
+      ],
+      "description": "Closed runtime-cost vocabulary projected from the extension-runtime budget axes (artifacts/extensions/runtime_budget_rows.yaml). 'runtime_cost_unknown_pending_evidence' is the honest default for a row that has not produced an activation-evidence packet yet; surfaces MUST NOT promote 'runtime_cost_unknown_pending_evidence' to 'runtime_cost_low_nominal' on the basis of popularity or self-reported counters alone."
+    },
+
+    "runtime_cost_evidence_class": {
+      "type": "string",
+      "enum": [
+        "activation_evidence_packet_present",
+        "activation_evidence_packet_absent_pending_first_session",
+        "benchmark_archive_present",
+        "benchmark_archive_absent",
+        "self_reported_only_unverified"
+      ],
+      "description": "Closed evidence-class vocabulary backing the runtime-cost class. self_reported_only_unverified MUST NOT credit a 'runtime_cost_low_nominal' class on its own; the supporting evidence MUST come from an activation-evidence packet or a benchmark archive."
+    },
+
+    "bridge_state_class": {
+      "type": "string",
+      "enum": [
+        "no_bridge_required_native_match",
+        "bridge_required_compatibility_bridge_profile",
+        "bridge_required_capability_world_subset_only",
+        "bridge_required_host_contract_family_subset_only",
+        "bridge_unknown_pending_reverification",
+        "bridge_unsupported_blocked_on_policy"
+      ],
+      "description": "Closed bridge-state vocabulary. Discovery and detail surfaces render exactly one bridge-state class per result; install-review reads the same value rather than minting per-surface bridge labels."
+    },
+
+    "ranking_floor_class": {
+      "type": "string",
+      "enum": [
+        "ranking_floor_safety_first",
+        "ranking_floor_compatibility_first",
+        "ranking_floor_maintainership_first",
+        "ranking_floor_runtime_cost_first",
+        "ranking_floor_policy_pinned_first",
+        "ranking_secondary_popularity",
+        "ranking_diagnostic_only_no_score"
+      ],
+      "description": "Closed ranking-floor vocabulary. The default ranking_floor_order on every discovery surface is [safety_first, compatibility_first, maintainership_first, runtime_cost_first, policy_pinned_first, secondary_popularity]; a chip on the diagnostic_only_no_score floor never moves a row up or down. Surfaces that promote popularity ahead of safety / compatibility / maintainership / runtime-cost are denied with discovery_ranking_floor_violated."
+    },
+
+    "ranking_reason_chip_class": {
+      "type": "string",
+      "enum": [
+        "compatibility_match",
+        "compatibility_subset_match",
+        "compatibility_bridge_required",
+        "compatibility_unknown_pending_reverification",
+        "incompatible_blocked_on_policy",
+        "verified_publisher",
+        "managed_approved",
+        "organisationally_published",
+        "publisher_unverified",
+        "publisher_quarantined_cannot_inherit",
+        "maintained_actively",
+        "maintained_recently",
+        "maintainership_unknown",
+        "abandoned_publisher",
+        "low_runtime_cost",
+        "nominal_runtime_cost",
+        "elevated_runtime_cost",
+        "runtime_cost_unknown_pending_evidence",
+        "runtime_cost_quarantined",
+        "policy_pinned",
+        "policy_blocked",
+        "managed_only_install",
+        "approved_mirror_provenance",
+        "private_registry_provenance",
+        "offline_bundle_provenance",
+        "local_archive_provenance",
+        "anti_abuse_warning_raised",
+        "suppressed_in_ranking",
+        "removed_from_ranking",
+        "popularity_signal_observed",
+        "popularity_signal_suppressed_due_to_quarantine",
+        "bridge_state_required",
+        "bridge_state_capability_world_subset_only",
+        "bridge_state_host_contract_family_subset_only"
+      ],
+      "description": "Closed ranking-reason chip vocabulary. The chip set is authoritative; discovery, details, and install-review surfaces project exactly these chips. Surfaces MUST NOT mint marketplace-shaped chip names ad hoc."
+    },
+
+    "chip_polarity": {
+      "type": "string",
+      "enum": ["positive", "neutral", "negative", "suppress_only"],
+      "description": "Polarity of the chip's contribution to its ranking_floor. 'suppress_only' chips never raise a row's score; they only narrow a result set or move a row out of ranking."
+    },
+
+    "discovery_position_class": {
+      "type": "string",
+      "enum": [
+        "promoted_safe_maintained_compatible_low_cost",
+        "elevated_compatibility_match",
+        "standard_compatible_match",
+        "suppressed_below_compatible_match",
+        "demoted_warning_visible",
+        "removed_from_ranking_visible_in_detail_only",
+        "not_in_ranking_review_only"
+      ],
+      "description": "Closed discovery-position vocabulary. The position is computed from the chip set and the ranking-floor order; surfaces render the position as a chip and MUST NOT silently move a row out of 'removed_from_ranking_visible_in_detail_only' or 'not_in_ranking_review_only' on the basis of popularity."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "profile_export",
+        "sync"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/redaction_class. Raw artifact bytes, raw URLs, raw repository paths, raw popularity counts, raw publisher-private fields MUST NOT appear on any sink."
+    },
+
+    "ranking_reason_chip_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chip_class",
+        "polarity",
+        "ranking_floor_class",
+        "rendered_label"
+      ],
+      "properties": {
+        "chip_class": { "$ref": "#/$defs/ranking_reason_chip_class" },
+        "polarity": { "$ref": "#/$defs/chip_polarity" },
+        "ranking_floor_class": { "$ref": "#/$defs/ranking_floor_class" },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the discovery / detail / install-review surface. Raw publisher-private material forbidden."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to the rows that justify this chip (registry_manifest_row, mirror_continuity_row, publisher_continuity_row, activation-evidence packet id, policy_pack_constraint_row, anti_abuse_signal_entry source). Raw evidence bodies never carried."
+        },
+        "explanation_label": {
+          "type": "string",
+          "description": "Inspectable explanation rendered when the user opens the chip. Raw publisher-private material forbidden."
+        }
+      },
+      "description": "One ranking-reason chip on a discovery row. Chips are inspectable: a surface that hides the explanation when the user opens the chip is denied with review_disclosure_incomplete."
+    },
+
+    "discovery_result_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "discovery_ranking_reason_schema_version",
+        "discovery_result_row_id",
+        "extension_identity",
+        "extension_version",
+        "registry_source_class",
+        "channel_class",
+        "approval_state_class",
+        "trust_claim_source",
+        "trust_badge_inheritance_rule",
+        "compatibility_claim_class",
+        "runtime_cost_class",
+        "runtime_cost_evidence_class",
+        "bridge_state_class",
+        "revocation_snapshot_age_class",
+        "ranking_floor_order",
+        "ranking_reason_chip_entries",
+        "discovery_position_class",
+        "registry_manifest_row_ref",
+        "publisher_continuity_ref",
+        "indexed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "discovery_result_row" },
+        "discovery_ranking_reason_schema_version": { "$ref": "#/$defs/discovery_ranking_reason_schema_version" },
+        "discovery_result_row_id": { "$ref": "#/$defs/opaque_id" },
+        "extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "extension_version": { "$ref": "#/$defs/semver_string" },
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "channel_class": { "$ref": "#/$defs/channel_class" },
+        "approval_state_class": { "$ref": "#/$defs/approval_state_class" },
+        "trust_claim_source": { "$ref": "#/$defs/trust_claim_source" },
+        "trust_badge_inheritance_rule": { "$ref": "#/$defs/trust_badge_inheritance_rule" },
+        "compatibility_claim_class": { "$ref": "#/$defs/compatibility_claim_class" },
+        "runtime_cost_class": { "$ref": "#/$defs/runtime_cost_class" },
+        "runtime_cost_evidence_class": { "$ref": "#/$defs/runtime_cost_evidence_class" },
+        "bridge_state_class": { "$ref": "#/$defs/bridge_state_class" },
+        "revocation_snapshot_age_class": { "$ref": "#/$defs/revocation_snapshot_age_class" },
+        "ranking_floor_order": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ranking_floor_class" },
+          "description": "Ordered list of ranking-floor classes rendered on the surface. The default order is [ranking_floor_safety_first, ranking_floor_compatibility_first, ranking_floor_maintainership_first, ranking_floor_runtime_cost_first, ranking_floor_policy_pinned_first, ranking_secondary_popularity]; a surface MAY narrow it (drop popularity, drop policy_pinned for unmanaged workspaces) but MUST NOT promote ranking_secondary_popularity above any of the four safety / compatibility / maintainership / runtime-cost floors."
+        },
+        "ranking_reason_chip_entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ranking_reason_chip_entry" },
+          "description": "At least one ranking-reason chip. A row with no chips is non-conforming; honesty demands a 'compatibility_unknown_pending_reverification' or 'runtime_cost_unknown_pending_evidence' chip over an empty list."
+        },
+        "discovery_position_class": { "$ref": "#/$defs/discovery_position_class" },
+        "registry_manifest_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the registry_manifest_row this discovery row resolves against. Raw artifact bytes, raw URLs, and raw repository paths never carried here."
+        },
+        "publisher_continuity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 publisher_continuity_row for the publisher."
+        },
+        "policy_pack_applicable_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to ADR-0012 policy_pack_constraint_row rows whose scope covers this discovery row."
+        },
+        "discovery_badge_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to discovery_badge_record / discovery_warning_record rows from schemas/extensions/discovery_badge.schema.json that render on this row's card."
+        },
+        "anti_abuse_signal_class_set_observed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anti_abuse_signal_class" },
+          "description": "Anti-abuse signal classes observed on the underlying registry_manifest_row, projected here so a discovery surface can render them as chips and warnings without re-deriving them."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "indexed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "A row whose approval_state_class is revoked / emergency_disabled / blocked_by_policy MUST NOT render in the 'promoted_safe_maintained_compatible_low_cost' or 'elevated_compatibility_match' positions; it is at most 'demoted_warning_visible', 'removed_from_ranking_visible_in_detail_only', or 'not_in_ranking_review_only'.",
+          "if": {
+            "properties": {
+              "approval_state_class": {
+                "enum": ["revoked", "emergency_disabled", "blocked_by_policy"]
+              }
+            },
+            "required": ["approval_state_class"]
+          },
+          "then": {
+            "properties": {
+              "discovery_position_class": {
+                "enum": [
+                  "demoted_warning_visible",
+                  "removed_from_ranking_visible_in_detail_only",
+                  "not_in_ranking_review_only"
+                ]
+              }
+            },
+            "required": ["discovery_position_class"]
+          }
+        },
+        {
+          "description": "A row whose trust_badge_inheritance_rule is quarantined_cannot_inherit MUST NOT render in 'promoted_safe_maintained_compatible_low_cost' and MUST carry a 'publisher_quarantined_cannot_inherit' chip in ranking_reason_chip_entries.",
+          "if": {
+            "properties": {
+              "trust_badge_inheritance_rule": { "const": "quarantined_cannot_inherit" }
+            },
+            "required": ["trust_badge_inheritance_rule"]
+          },
+          "then": {
+            "properties": {
+              "discovery_position_class": {
+                "enum": [
+                  "standard_compatible_match",
+                  "suppressed_below_compatible_match",
+                  "demoted_warning_visible",
+                  "removed_from_ranking_visible_in_detail_only",
+                  "not_in_ranking_review_only"
+                ]
+              },
+              "ranking_reason_chip_entries": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "chip_class": { "const": "publisher_quarantined_cannot_inherit" }
+                  },
+                  "required": ["chip_class"]
+                }
+              }
+            },
+            "required": ["discovery_position_class", "ranking_reason_chip_entries"]
+          }
+        },
+        {
+          "description": "A row whose runtime_cost_class is runtime_cost_quarantined_under_crash_loop_or_egress_breach MUST be removed_from_ranking_visible_in_detail_only or not_in_ranking_review_only and MUST carry a 'runtime_cost_quarantined' chip plus a 'removed_from_ranking' chip.",
+          "if": {
+            "properties": {
+              "runtime_cost_class": { "const": "runtime_cost_quarantined_under_crash_loop_or_egress_breach" }
+            },
+            "required": ["runtime_cost_class"]
+          },
+          "then": {
+            "properties": {
+              "discovery_position_class": {
+                "enum": [
+                  "removed_from_ranking_visible_in_detail_only",
+                  "not_in_ranking_review_only"
+                ]
+              },
+              "ranking_reason_chip_entries": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "chip_class": { "const": "runtime_cost_quarantined" } },
+                      "required": ["chip_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "chip_class": { "const": "removed_from_ranking" } },
+                      "required": ["chip_class"]
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["discovery_position_class", "ranking_reason_chip_entries"]
+          }
+        },
+        {
+          "description": "A row whose runtime_cost_class is runtime_cost_low_nominal MUST cite runtime_cost_evidence_class in {activation_evidence_packet_present, benchmark_archive_present}; a self-reported counter alone may not credit a low-cost chip.",
+          "if": {
+            "properties": {
+              "runtime_cost_class": { "const": "runtime_cost_low_nominal" }
+            },
+            "required": ["runtime_cost_class"]
+          },
+          "then": {
+            "properties": {
+              "runtime_cost_evidence_class": {
+                "enum": [
+                  "activation_evidence_packet_present",
+                  "benchmark_archive_present"
+                ]
+              }
+            },
+            "required": ["runtime_cost_evidence_class"]
+          }
+        },
+        {
+          "description": "A row whose channel_class is quarantine MUST be at most 'suppressed_below_compatible_match', 'demoted_warning_visible', 'removed_from_ranking_visible_in_detail_only', or 'not_in_ranking_review_only' and MUST carry a 'suppressed_in_ranking' or 'removed_from_ranking' chip.",
+          "if": {
+            "properties": { "channel_class": { "const": "quarantine" } },
+            "required": ["channel_class"]
+          },
+          "then": {
+            "properties": {
+              "discovery_position_class": {
+                "enum": [
+                  "suppressed_below_compatible_match",
+                  "demoted_warning_visible",
+                  "removed_from_ranking_visible_in_detail_only",
+                  "not_in_ranking_review_only"
+                ]
+              },
+              "ranking_reason_chip_entries": {
+                "anyOf": [
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "chip_class": { "const": "suppressed_in_ranking" } },
+                      "required": ["chip_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "chip_class": { "const": "removed_from_ranking" } },
+                      "required": ["chip_class"]
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["discovery_position_class", "ranking_reason_chip_entries"]
+          }
+        },
+        {
+          "description": "ranking_floor_order MUST start with one of the four ranking floors safety_first / compatibility_first / maintainership_first / runtime_cost_first; popularity may never be the first floor.",
+          "properties": {
+            "ranking_floor_order": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "ranking_floor_safety_first",
+                    "ranking_floor_compatibility_first",
+                    "ranking_floor_maintainership_first",
+                    "ranking_floor_runtime_cost_first"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": ["ranking_floor_order"]
+        }
+      ],
+      "description": "One ranked discovery-result row. Discovery, details, and install-review surfaces project the same row; minting per-surface ranking-reason vocabulary is non-conforming."
+    },
+
+    "ranking_reason_chip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "discovery_ranking_reason_schema_version",
+        "ranking_reason_chip_record_id",
+        "subject_discovery_result_row_ref",
+        "chip_class",
+        "polarity",
+        "ranking_floor_class",
+        "rendered_label",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "ranking_reason_chip_record" },
+        "discovery_ranking_reason_schema_version": { "$ref": "#/$defs/discovery_ranking_reason_schema_version" },
+        "ranking_reason_chip_record_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_discovery_result_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the discovery_result_row this chip annotates."
+        },
+        "chip_class": { "$ref": "#/$defs/ranking_reason_chip_class" },
+        "polarity": { "$ref": "#/$defs/chip_polarity" },
+        "ranking_floor_class": { "$ref": "#/$defs/ranking_floor_class" },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "explanation_label": {
+          "type": "string",
+          "description": "Inspectable explanation rendered when the user opens the chip."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "Standalone ranking-reason chip record. Used when a chip needs to be cited from a journal entry, support export, or claim manifest independently of the parent discovery_result_row payload."
+    }
+  }
+}

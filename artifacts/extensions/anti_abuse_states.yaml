@@ -1,0 +1,657 @@
+# Marketplace anti-abuse-state register.
+#
+# Machine-readable companion to docs/extensions/marketplace_ranking_and_trust_contract.md.
+#
+# One row per typed anti-abuse state. Each row binds the underlying
+# detector class to a discovery warning_class, a severity, a response,
+# the typed repair affordances, the discovery-position narrowing, the
+# ranking-reason chip(s) the row forces onto the discovery_result_row,
+# and the typed denial reason. The vocabulary is deliberately
+# prescriptive so discovery, details, install-review, permission-
+# inspector, support-export, claim-manifest, and runtime-status pill
+# surfaces read one register instead of inventing per-surface
+# anti-abuse vocabulary.
+#
+# Tooling (registry indexer, discovery-ranking surface, install /
+# update review sheet, permission inspector, support export,
+# moderation review surface, runtime-status pill) MAY read these rows
+# rather than mint anti-abuse vocabulary per lane.
+#
+# Conformance: every anti-abuse trip MUST cite a row id by
+# anti_abuse_state_id. Silent trip (no cited row) is non-conforming.
+# Adding a new state, severity, response, repair affordance, or
+# discovery-position narrowing is additive-minor with an
+# anti_abuse_states_schema_version bump. Repurposing an existing row is
+# breaking and requires a new decision row.
+#
+# Invariants (binding):
+#
+#   I1. Every row cites a detector_signal_class drawn from one of:
+#       (a) registry_manifest.schema.json#/$defs/anti_abuse_signal_class
+#           (registry / mirror / offline-bundle anti-abuse signals),
+#       (b) effective_permission.schema.json#/$defs/publisher_continuity
+#           (publisher_continuity_row state changes),
+#       (c) artifacts/extensions/quarantine_rules.yaml
+#           (extension-runtime quarantine triggers).
+#       A row that cites neither is non-conforming.
+#
+#   I2. Every row names a warning_class that resolves in
+#       schemas/extensions/discovery_badge.schema.json. A row that
+#       cites a missing warning_class is non-conforming.
+#
+#   I3. Every row whose response_class is block_install_pending_review
+#       or block_install_no_recovery cites a typed denial_reason_class
+#       drawn from
+#       schemas/extensions/discovery_badge.schema.json#/$defs/denial_reason_class.
+#       Silent block (no typed denial) is non-conforming.
+#
+#   I4. Every row's discovery_position_class_at_most narrows the
+#       discovery_result_row's discovery_position_class. A surface
+#       that renders the row above the cited cap is denied with
+#       discovery_ranking_floor_violated.
+#
+#   I5. Every row cites at least one ranking_reason_chip_class from
+#       schemas/extensions/discovery_ranking_reason.schema.json so the
+#       discovery_result_row carries a chip the user can inspect.
+#       Silent demotion (no chip rendered on the card) is non-
+#       conforming.
+#
+#   I6. Every row cites at least one repair_affordance_class. Silent
+#       dead-ends (raised warning, no typed next step) are non-
+#       conforming.
+#
+#   I7. An anti-abuse signal NEVER promotes or demotes the publisher-
+#       continuity row on its own. Promotion / demotion is a
+#       publisher-continuity decision; the anti-abuse register only
+#       narrows the discovery surface's rendered position and forces
+#       the warning chip and badge.
+
+schema_version: 1
+anti_abuse_states_schema_version: 1
+
+contract_doc_ref: docs/extensions/marketplace_ranking_and_trust_contract.md
+ranking_reason_schema_ref: schemas/extensions/discovery_ranking_reason.schema.json
+discovery_badge_schema_ref: schemas/extensions/discovery_badge.schema.json
+registry_manifest_schema_ref: schemas/extensions/registry_manifest.schema.json
+effective_permission_schema_ref: schemas/extensions/effective_permission.schema.json
+runtime_budget_rows_ref: artifacts/extensions/runtime_budget_rows.yaml
+quarantine_rules_ref: artifacts/extensions/quarantine_rules.yaml
+adr_refs:
+  - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+
+# -----------------------------------------------------------------------------
+# Detector-signal classes.
+#
+# Closed vocabulary for where the underlying signal originates. Each
+# row cites exactly one. Surfaces use this to locate the upstream
+# evidence; raw detector bodies never travel here.
+# -----------------------------------------------------------------------------
+detector_signal_classes:
+  - registry_anti_abuse_signal
+  - mirror_anti_abuse_signal
+  - publisher_continuity_state_change
+  - publisher_namespace_lifecycle_event
+  - extension_runtime_quarantine_trigger
+  - policy_pack_anti_abuse_constraint
+  - moderation_review_decision
+
+# -----------------------------------------------------------------------------
+# Severity classes.
+#
+# Mirrors discovery_badge.schema.json#/$defs/warning_severity_class
+# verbatim.
+# -----------------------------------------------------------------------------
+severity_classes:
+  - informational
+  - advisory
+  - blocking_install_pending_explicit_acknowledgement
+  - blocking_install_pending_admin_policy_exception
+  - denial_no_install_path
+
+# -----------------------------------------------------------------------------
+# Response classes.
+#
+# Mirrors discovery_badge.schema.json#/$defs/warning_response_class.
+# -----------------------------------------------------------------------------
+response_classes:
+  - render_disclosure_continue
+  - render_disclosure_with_inspectable_explanation
+  - prompt_user_for_explicit_acknowledgement
+  - prompt_admin_for_policy_exception
+  - block_install_pending_review
+  - block_install_no_recovery
+
+# -----------------------------------------------------------------------------
+# Repair-affordance classes.
+#
+# Mirrors discovery_badge.schema.json#/$defs/warning_repair_affordance_class.
+# -----------------------------------------------------------------------------
+repair_affordance_classes:
+  - open_publisher_continuity_packet
+  - open_install_review_sheet
+  - open_permission_inspector
+  - open_runtime_status_pill
+  - open_policy_pack_constraint_row
+  - open_anti_abuse_signal_evidence
+  - consult_workspace_admin
+  - request_admin_policy_exception
+  - no_recovery_review_only
+
+# -----------------------------------------------------------------------------
+# Discovery-position narrowing classes.
+#
+# Mirrors discovery_ranking_reason.schema.json#/$defs/discovery_position_class.
+# Every state row names the highest position class the discovery
+# surface MAY render the affected row in. Silent promotion above this
+# cap denies with discovery_ranking_floor_violated.
+# -----------------------------------------------------------------------------
+discovery_position_classes:
+  - promoted_safe_maintained_compatible_low_cost
+  - elevated_compatibility_match
+  - standard_compatible_match
+  - suppressed_below_compatible_match
+  - demoted_warning_visible
+  - removed_from_ranking_visible_in_detail_only
+  - not_in_ranking_review_only
+
+# -----------------------------------------------------------------------------
+# Anti-abuse state rows.
+#
+# One row per typed state. Every row cites the detector signal class,
+# the warning class, the severity, the response, the typed repair
+# affordances, the discovery-position narrowing, the ranking-reason
+# chips that MUST appear on the discovery_result_row, the typed
+# denial reason (if any), and a paired audit-event id from the
+# upstream stream.
+# -----------------------------------------------------------------------------
+anti_abuse_state_rows:
+  - anti_abuse_state_id: typosquat_candidate_advisory
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: typosquatting_candidate
+    warning_class: typosquat_candidate
+    severity_class: blocking_install_pending_explicit_acknowledgement
+    response_class: prompt_user_for_explicit_acknowledgement
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - open_install_review_sheet
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: demoted_warning_visible
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - suppressed_in_ranking
+    forced_badge_class: trust_badge_unverified_publisher
+    denial_reason_class: typosquat_candidate_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      A discovery row whose extension identity matches a typosquat
+      candidate detector. Raised on registry index; the row stays
+      reachable from search but is demoted to demoted_warning_visible
+      and the install path requires explicit user acknowledgement.
+
+  - anti_abuse_state_id: impersonation_suspected_advisory
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: typosquatting_candidate
+    warning_class: impersonation_suspected
+    severity_class: blocking_install_pending_explicit_acknowledgement
+    response_class: prompt_user_for_explicit_acknowledgement
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - open_install_review_sheet
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: demoted_warning_visible
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - suppressed_in_ranking
+    forced_badge_class: trust_badge_unverified_publisher
+    denial_reason_class: impersonation_suspected_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      Distinct from typosquat: impersonation suspected when the
+      publisher namespace is recently registered or copies the
+      branding of a verified publisher. The discovery row stays
+      visible but install requires explicit user acknowledgement.
+
+  - anti_abuse_state_id: publisher_namespace_recently_orphaned_advisory
+    detector_signal_class: publisher_namespace_lifecycle_event
+    upstream_signal_class: publisher_namespace_recently_orphaned
+    warning_class: publisher_namespace_recently_orphaned
+    severity_class: advisory
+    response_class: render_disclosure_with_inspectable_explanation
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: standard_compatible_match
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - publisher_unverified
+    forced_badge_class: trust_badge_organisational_publisher
+    denial_reason_class: no_denial_admissible
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The publisher namespace was recently orphaned (signing key
+      revoked, no successor record yet). Discovery surfaces render
+      the warning advisory; install is allowed but the trust badge
+      caps at organisational and the publisher-continuity packet is
+      one click away.
+
+  - anti_abuse_state_id: publisher_namespace_recently_quarantined_blocking
+    detector_signal_class: publisher_namespace_lifecycle_event
+    upstream_signal_class: publisher_namespace_recently_quarantined
+    warning_class: publisher_namespace_recently_quarantined
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - open_anti_abuse_signal_evidence
+      - consult_workspace_admin
+    discovery_position_class_at_most: removed_from_ranking_visible_in_detail_only
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - removed_from_ranking
+      - publisher_quarantined_cannot_inherit
+    forced_badge_class: trust_badge_quarantined_cannot_inherit
+    denial_reason_class: publisher_namespace_recently_quarantined
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The publisher namespace was recently quarantined. The discovery
+      row is removed from ranking and visible in detail only; install
+      is blocked pending publisher-continuity review.
+
+  - anti_abuse_state_id: publisher_namespace_recently_succeeded_advisory
+    detector_signal_class: publisher_namespace_lifecycle_event
+    upstream_signal_class: publisher_namespace_recently_succeeded
+    warning_class: publisher_namespace_recently_succeeded
+    severity_class: advisory
+    response_class: render_disclosure_with_inspectable_explanation
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: elevated_compatibility_match
+    forced_ranking_reason_chip_class_set:
+      - publisher_unverified
+    forced_badge_class: maintainership_badge_publisher_transfer_recent
+    denial_reason_class: no_denial_admissible
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The publisher namespace recently succeeded a prior publisher
+      (announced transfer / signing-key continuity record). Render
+      the maintainership transfer badge so the user knows the
+      publisher identity changed, but allow install.
+
+  - anti_abuse_state_id: abandoned_publisher_advisory
+    detector_signal_class: publisher_namespace_lifecycle_event
+    upstream_signal_class: publisher_namespace_recently_orphaned
+    warning_class: abandoned_publisher_no_recent_activity
+    severity_class: advisory
+    response_class: render_disclosure_with_inspectable_explanation
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - consult_workspace_admin
+    discovery_position_class_at_most: standard_compatible_match
+    forced_ranking_reason_chip_class_set:
+      - abandoned_publisher
+      - maintainership_unknown
+    forced_badge_class: maintainership_badge_abandoned
+    denial_reason_class: abandoned_publisher_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The publisher row has had no signing or release activity inside
+      a configured maintainer-coverage window. Render the abandoned
+      badge and demote off the maintainership_first floor; install
+      stays admitted but the user is asked to acknowledge.
+
+  - anti_abuse_state_id: publisher_transfer_recent_advisory
+    detector_signal_class: publisher_continuity_state_change
+    upstream_signal_class: publisher_namespace_recently_succeeded
+    warning_class: publisher_transfer_recent
+    severity_class: advisory
+    response_class: render_disclosure_with_inspectable_explanation
+    repair_affordance_class_set:
+      - open_publisher_continuity_packet
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: elevated_compatibility_match
+    forced_ranking_reason_chip_class_set:
+      - publisher_unverified
+    forced_badge_class: maintainership_badge_publisher_transfer_recent
+    denial_reason_class: publisher_transfer_recent_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The publisher row recorded a transfer / succession event in a
+      configured window. Render the transfer badge and ask the user
+      to confirm before install. Trust badge caps at organisational
+      until the new publisher row clears its first promotion review.
+
+  - anti_abuse_state_id: artifact_revoked_blocking
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: rapid_version_republish
+    warning_class: artifact_revoked
+    severity_class: denial_no_install_path
+    response_class: block_install_no_recovery
+    repair_affordance_class_set:
+      - open_anti_abuse_signal_evidence
+      - no_recovery_review_only
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - removed_from_ranking
+    forced_badge_class: safety_policy_badge_revoked
+    denial_reason_class: artifact_revoked
+    paired_audit_event_id: registry_manifest_signature_reverified
+    narrative: >
+      The registry_manifest_row's approval_state_class is revoked.
+      The discovery row is removed from ranking entirely; the detail
+      page renders the revocation badge and a no-recovery affordance.
+
+  - anti_abuse_state_id: artifact_emergency_disabled_blocking
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: rapid_version_republish
+    warning_class: artifact_emergency_disabled
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_install_review_sheet
+      - consult_workspace_admin
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - removed_from_ranking
+    forced_badge_class: safety_policy_badge_emergency_disabled
+    denial_reason_class: artifact_emergency_disabled
+    paired_audit_event_id: registry_manifest_signature_reverified
+    narrative: >
+      The registry_manifest_row's approval_state_class is
+      emergency_disabled. The row is removed from ranking; install is
+      blocked pending review. Distinct from revoked: a disable can be
+      cleared by review; revocation cannot.
+
+  - anti_abuse_state_id: transitive_permission_concern_advisory
+    detector_signal_class: policy_pack_anti_abuse_constraint
+    upstream_signal_class: rapid_version_republish
+    warning_class: transitive_permission_concern
+    severity_class: blocking_install_pending_explicit_acknowledgement
+    response_class: prompt_user_for_explicit_acknowledgement
+    repair_affordance_class_set:
+      - open_permission_inspector
+      - open_policy_pack_constraint_row
+      - consult_workspace_admin
+    discovery_position_class_at_most: demoted_warning_visible
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - suppressed_in_ranking
+    forced_badge_class: safety_policy_badge_managed_only_install
+    denial_reason_class: transitive_permission_concern_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The effective-permission summary widens declared permissions
+      via a transitive dependency. Discovery surfaces render the
+      transitive-permission warning and require the user to inspect
+      the permission inspector before install proceeds.
+
+  - anti_abuse_state_id: transitive_permission_inheritance_widened_blocking
+    detector_signal_class: policy_pack_anti_abuse_constraint
+    upstream_signal_class: rapid_version_republish
+    warning_class: transitive_permission_inheritance_widened
+    severity_class: blocking_install_pending_admin_policy_exception
+    response_class: prompt_admin_for_policy_exception
+    repair_affordance_class_set:
+      - open_permission_inspector
+      - open_policy_pack_constraint_row
+      - request_admin_policy_exception
+    discovery_position_class_at_most: removed_from_ranking_visible_in_detail_only
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - removed_from_ranking
+    forced_badge_class: safety_policy_badge_managed_only_install
+    denial_reason_class: transitive_permission_concern_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      A transitive dependency widens the effective-permission summary
+      past the workspace policy ceiling. Install requires an admin
+      policy exception; discovery removes the row from ranking.
+
+  - anti_abuse_state_id: policy_blocked_install_blocking
+    detector_signal_class: policy_pack_anti_abuse_constraint
+    upstream_signal_class: rapid_version_republish
+    warning_class: policy_blocked_install
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_policy_pack_constraint_row
+      - consult_workspace_admin
+      - request_admin_policy_exception
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - policy_blocked
+      - removed_from_ranking
+    forced_badge_class: safety_policy_badge_policy_blocked
+    denial_reason_class: policy_blocked_install
+    paired_audit_event_id: channel_promotion_blocked_by_policy
+    narrative: >
+      The workspace policy pack denies install for this artifact (or
+      for this publisher namespace). Discovery removes the row from
+      ranking and the detail page surfaces a typed admin-exception
+      affordance.
+
+  - anti_abuse_state_id: quarantined_runtime_disabled_blocking
+    detector_signal_class: extension_runtime_quarantine_trigger
+    upstream_signal_class: rapid_version_republish
+    warning_class: quarantined_runtime_disabled
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_runtime_status_pill
+      - open_install_review_sheet
+      - consult_workspace_admin
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - runtime_cost_quarantined
+      - removed_from_ranking
+    forced_badge_class: runtime_cost_badge_quarantined
+    denial_reason_class: quarantined_runtime_disabled
+    paired_audit_event_id: extension_quarantine_tripped
+    narrative: >
+      A previously installed copy tripped a runtime quarantine
+      (idle-polling exhaustion, egress hard-cap, memory hard-cap,
+      crash-loop window breach). Discovery removes the row from
+      ranking until the quarantine clears.
+
+  - anti_abuse_state_id: quarantined_at_runtime_crash_loop_blocking
+    detector_signal_class: extension_runtime_quarantine_trigger
+    upstream_signal_class: rapid_version_republish
+    warning_class: quarantined_at_runtime_crash_loop
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_runtime_status_pill
+      - open_install_review_sheet
+      - consult_workspace_admin
+      - open_anti_abuse_signal_evidence
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - runtime_cost_quarantined
+      - removed_from_ranking
+    forced_badge_class: runtime_cost_badge_quarantined
+    denial_reason_class: quarantined_at_runtime_crash_loop
+    paired_audit_event_id: extension_quarantine_tripped
+    narrative: >
+      Distinct from the volumetric quarantine: a crash-loop window
+      breach. Pairs with crash_loop_window_breach_trips_quarantine
+      from artifacts/extensions/quarantine_rules.yaml.
+
+  - anti_abuse_state_id: digest_collision_suspected_blocking
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: digest_collision_suspected
+    warning_class: digest_collision_suspected
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_anti_abuse_signal_evidence
+      - consult_workspace_admin
+      - open_install_review_sheet
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - removed_from_ranking
+    forced_badge_class: trust_badge_unverified_publisher
+    denial_reason_class: digest_collision_suspected_user_review_required
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      A digest collision detector raised: two distinct artifacts
+      claim the same content-address. Removed from ranking pending
+      manual review; install is blocked.
+
+  - anti_abuse_state_id: rapid_version_republish_advisory
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: rapid_version_republish
+    warning_class: rapid_version_republish
+    severity_class: advisory
+    response_class: render_disclosure_with_inspectable_explanation
+    repair_affordance_class_set:
+      - open_anti_abuse_signal_evidence
+      - open_publisher_continuity_packet
+    discovery_position_class_at_most: standard_compatible_match
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+    forced_badge_class: maintainership_badge_recent
+    denial_reason_class: no_denial_admissible
+    paired_audit_event_id: anti_abuse_signal_raised
+    narrative: >
+      The publisher republished many versions in a short window.
+      Render the chip but allow install; demote off the maintainership
+      promotion floor.
+
+  - anti_abuse_state_id: mirror_rewrite_attempted_blocking
+    detector_signal_class: mirror_anti_abuse_signal
+    upstream_signal_class: mirror_rewrite_attempted
+    warning_class: mirror_rewrite_attempted
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_anti_abuse_signal_evidence
+      - consult_workspace_admin
+      - open_install_review_sheet
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - removed_from_ranking
+    forced_badge_class: trust_badge_unverified_publisher
+    denial_reason_class: digest_collision_suspected_user_review_required
+    paired_audit_event_id: mirror_narrowing_attempted_widening
+    narrative: >
+      The mirror tried to relax the origin trust posture or rewrite
+      the artifact identity. Removed from ranking; install blocked.
+      Pairs with mirror_continuity_state_class =
+      narrowing_attempted_widening from registry_manifest.schema.json.
+
+  - anti_abuse_state_id: revocation_snapshot_stale_advisory
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: rapid_version_republish
+    warning_class: revocation_snapshot_stale
+    severity_class: blocking_install_pending_explicit_acknowledgement
+    response_class: prompt_user_for_explicit_acknowledgement
+    repair_affordance_class_set:
+      - open_anti_abuse_signal_evidence
+      - consult_workspace_admin
+    discovery_position_class_at_most: demoted_warning_visible
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - publisher_unverified
+    forced_badge_class: trust_badge_unverified_publisher
+    denial_reason_class: revocation_snapshot_stale_user_review_required
+    paired_audit_event_id: revocation_snapshot_stale_detected
+    narrative: >
+      The revocation snapshot is stale. The discovery row is
+      demoted_warning_visible; install requires explicit user
+      acknowledgement. Trust badge caps at unverified until the
+      snapshot refreshes.
+
+  - anti_abuse_state_id: revocation_snapshot_unverified_blocking
+    detector_signal_class: registry_anti_abuse_signal
+    upstream_signal_class: rapid_version_republish
+    warning_class: revocation_snapshot_unverified_no_snapshot
+    severity_class: denial_no_install_path
+    response_class: block_install_pending_review
+    repair_affordance_class_set:
+      - open_anti_abuse_signal_evidence
+      - consult_workspace_admin
+      - request_admin_policy_exception
+    discovery_position_class_at_most: not_in_ranking_review_only
+    forced_ranking_reason_chip_class_set:
+      - anti_abuse_warning_raised
+      - removed_from_ranking
+    forced_badge_class: trust_badge_unverified_publisher
+    denial_reason_class: revocation_snapshot_stale_user_review_required
+    paired_audit_event_id: revocation_snapshot_stale_detected
+    narrative: >
+      The revocation snapshot is missing entirely. The discovery row
+      is removed from ranking and install is blocked pending review.
+
+# -----------------------------------------------------------------------------
+# Default ranking-floor order.
+#
+# The default order every discovery surface MUST start from. A surface
+# MAY narrow the order (drop popularity for managed-only workspaces,
+# drop policy_pinned for unmanaged personal workspaces) but MUST NOT
+# place ranking_secondary_popularity ahead of any of the four floors
+# safety_first / compatibility_first / maintainership_first /
+# runtime_cost_first.
+# -----------------------------------------------------------------------------
+default_ranking_floor_order:
+  - ranking_floor_safety_first
+  - ranking_floor_compatibility_first
+  - ranking_floor_maintainership_first
+  - ranking_floor_runtime_cost_first
+  - ranking_floor_policy_pinned_first
+  - ranking_secondary_popularity
+
+# -----------------------------------------------------------------------------
+# Forbidden collapses.
+#
+# Tooling tests fail closed on any row that would do one of these
+# things.
+# -----------------------------------------------------------------------------
+never_permitted:
+  - silently_promote_ranking_secondary_popularity_above_safety_compat_maint_or_runtime_cost
+  - silently_promote_a_row_above_its_anti_abuse_state_position_cap
+  - hide_a_raised_warning_class_from_discovery_or_install_review
+  - render_an_unsigned_local_archive_as_trust_badge_verified_publisher
+  - render_an_approved_mirror_row_as_trust_badge_verified_publisher_when_revocation_snapshot_is_stale
+  - downgrade_denial_no_install_path_to_advisory_or_informational
+  - resolve_a_warning_with_no_repair_affordance
+  - emit_a_chip_with_no_evidence_ref_when_a_negative_polarity_chip_renders
+  - emit_a_warning_record_with_block_install_no_recovery_response_and_no_no_recovery_review_only_repair_affordance
+  - mint_a_marketplace_specific_badge_or_warning_class_outside_this_register
+  - credit_a_runtime_cost_low_nominal_chip_from_self_reported_only_unverified_evidence
+  - credit_a_runtime_cost_low_nominal_chip_for_a_row_with_an_active_extension_runtime_quarantine
+  - render_a_revoked_or_emergency_disabled_artifact_in_promoted_safe_maintained_compatible_low_cost_or_elevated_compatibility_match
+  - render_a_quarantined_local_copy_with_any_publisher_trust_tier_other_than_quarantined_cannot_inherit
+  - render_a_publisher_namespace_recently_quarantined_artifact_above_removed_from_ranking_visible_in_detail_only
+  - hide_a_compatibility_bridge_required_chip_from_discovery_or_install_review
+  - replay_a_queued_install_for_an_artifact_in_an_active_quarantine_window_without_explicit_user_or_admin_clearance
+  - emit_a_typosquat_or_impersonation_warning_without_pointing_to_an_anti_abuse_signal_evidence_ref
+  - render_an_offline_bundle_or_local_archive_row_with_provenance_badge_public_registry
+  - inflate_a_popularity_signal_for_an_extension_with_a_raised_anti_abuse_signal
+  - emit_a_block_install_pending_review_response_without_a_paired_audit_event_id
+
+# -----------------------------------------------------------------------------
+# Reserved discovery audit-event ids.
+#
+# Mirrored from registry_manifest.schema.json, runtime_budget_rows.yaml,
+# and quarantine_rules.yaml so a discovery surface that emits one of
+# these events references the upstream row directly. Raw artifact
+# bytes, raw key material, and raw payload bodies MUST NOT appear on
+# any event.
+# -----------------------------------------------------------------------------
+reserved_audit_event_ids:
+  - anti_abuse_signal_raised
+  - registry_manifest_signature_reverified
+  - mirror_continuity_broken
+  - mirror_narrowing_attempted_widening
+  - channel_promotion_blocked_by_policy
+  - channel_promotion_revoked
+  - revocation_snapshot_stale_detected
+  - extension_quarantine_tripped
+  - extension_quarantined_recovery_attempted
+  - extension_quarantine_cleared
+  - discovery_ranking_floor_violated
+  - discovery_review_disclosure_incomplete
