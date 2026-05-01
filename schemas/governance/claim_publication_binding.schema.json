@@ -1,0 +1,1085 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/claim_publication_binding.schema.json",
+  "title": "Aureline claim-publication binding, evidence-binding, and stale-claim fail-gate contract",
+  "description": "Boundary schema for one claim_publication_binding_record frozen in docs/release/claim_publication_automation_contract.md. The record is the projection that the publication generator, the publication-diff reviewer, the release-evidence packet, the docs / Help / About / service-health renderers, the support-export builder, the CLI/help text emitter, the evaluation-artifact builder, the workflow-bundle / certification-badge renderer, and the public-proof packet writer all read so the public copy that ships for one claim row is generated from the claim manifest and current evidence rather than copied by hand into each channel. Every binding pins one claim_row_ref, one claim_manifest_baseline_ref, the typed evidence-binding rule envelope (freshness floor, support-class alignment, known-limit coverage, badge downgrade, automatic narrowing), the typed evidence-resolution row set with per-row freshness, scope, and result_status state, the typed destination-publication row set with per-channel projection_kind, projected_copy_state_class, badge_state_class, support_window_state and known_limit_present, the typed publication-diff envelope with per-channel change rows, the typed gate verdict with closed blocking-failure vocabulary, and the typed audience plus matching redaction-profile class. Raw page-body bytes, raw release-note prose, raw screenshots, raw user identifiers, and raw support-case bodies MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new channel_id, projection_kind, projected_copy_state_class, badge_state_class, evidence_freshness_state, evidence_scope_state, narrowing_action_class, diff_kind_class, per_channel_change_class, gate_state_class, blocking_failure_class, audience_class, or redaction_profile_class is additive-minor and bumps claim_publication_binding_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/claim_publication_binding_record",
+  "$defs": {
+    "claim_publication_binding_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the claim-publication-binding payload. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, governance packets, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw screenshots, raw page-body bytes, raw user identifiers, raw support-case bodies, and raw waiver justifications MUST NOT appear."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "binding_id": {
+      "type": "string",
+      "pattern": "^claim_publication_binding:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable id quoted by every consuming surface."
+    },
+    "publication_run_id": {
+      "type": "string",
+      "pattern": "^claim_publication_run:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable id for the publication run that produced this binding. Every binding written against the same run cites the same publication_run_id."
+    },
+    "claim_row_id": {
+      "type": "string",
+      "pattern": "^claim_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Mirrors schemas/governance/claim_manifest.schema.json#/$defs/claim_row_id."
+    },
+    "publication_snapshot_ref": {
+      "type": "string",
+      "pattern": "^claim_publication_snapshot:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable id for a published-state snapshot. Bindings cite the previous and current snapshot so the publication-diff is reproducible."
+    },
+    "nullable_publication_snapshot_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/publication_snapshot_ref" }
+      ]
+    },
+
+    "claim_posture": {
+      "type": "string",
+      "enum": [
+        "claim_bearing",
+        "experimental",
+        "limited",
+        "policy_disabled",
+        "replacement_grade",
+        "seed_only",
+        "withdrawn"
+      ],
+      "description": "Mirrors schemas/governance/claim_manifest.schema.json#/$defs/claim_posture verbatim."
+    },
+    "support_window_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "narrowed",
+        "expired",
+        "not_applicable"
+      ],
+      "description": "Mirrors schemas/governance/claim_manifest.schema.json#/$defs/support_window_state verbatim."
+    },
+    "channel_id": {
+      "type": "string",
+      "enum": [
+        "docs_site",
+        "migration_notes",
+        "help_about",
+        "service_health",
+        "support_export",
+        "release_packet",
+        "release_notes",
+        "cli_help",
+        "evaluation_artifact",
+        "marketplace_discovery",
+        "public_proof_packet",
+        "known_limits_destination",
+        "workflow_bundle_badge",
+        "certification_badge"
+      ],
+      "description": "Closed fourteen-class channel vocabulary covering every protected publication surface a claim row can drive. Mirrors schemas/governance/claim_manifest.schema.json channel_id and extends with known_limits_destination, workflow_bundle_badge, and certification_badge for badge-bearing destinations."
+    },
+    "projection_kind": {
+      "type": "string",
+      "enum": [
+        "verbatim_claim",
+        "narrowed_summary",
+        "status_badge_only",
+        "repair_only",
+        "known_limit_link_only",
+        "packet_reference_only",
+        "badge_only",
+        "not_published_this_run"
+      ],
+      "description": "Closed eight-class projection-kind vocabulary. Mirrors schemas/governance/claim_manifest.schema.json projection_kind and extends with badge_only and not_published_this_run so badge-bearing channels and suppressed channels can be modeled in the same row set."
+    },
+    "projected_copy_state_class": {
+      "type": "string",
+      "enum": [
+        "published_verbatim",
+        "published_narrowed",
+        "published_status_only",
+        "published_known_limit_link_only",
+        "published_repair_route_only",
+        "suppressed_pending_evidence",
+        "suppressed_pending_caveat",
+        "suppressed_policy_disabled",
+        "suppressed_replacement_grade",
+        "suppressed_withdrawn",
+        "suppressed_audience_redacted"
+      ],
+      "description": "Closed eleven-class projected-copy-state vocabulary. The publication generator pins one value per destination row so the publication-diff and the gate verdict resolve mechanically."
+    },
+    "badge_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "certified_current",
+        "certified_provisional",
+        "managed_approved_current",
+        "managed_approved_provisional",
+        "workflow_bundle_current",
+        "workflow_bundle_provisional",
+        "badge_pending",
+        "badge_stale",
+        "badge_revoked",
+        "badge_withheld_pending_evidence"
+      ],
+      "description": "Closed eleven-class badge-state vocabulary covering certified, managed-approved, and workflow-bundle badge destinations plus the pending/stale/revoked downgrade postures the publication automation must publish or withhold."
+    },
+
+    "evidence_kind": {
+      "type": "string",
+      "enum": [
+        "boundary_manifest_row",
+        "release_evidence_packet",
+        "compatibility_report",
+        "benchmark_publication_pack",
+        "exact_build_identity_record",
+        "docs_help_truth_record",
+        "migration_notice_pack",
+        "known_limit_note",
+        "certified_archetype_report",
+        "evaluation_artifact",
+        "support_export_projection"
+      ],
+      "description": "Mirrors schemas/governance/claim_manifest.schema.json#/$defs/evidence_kind verbatim."
+    },
+    "evidence_result_status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "mixed",
+        "waived",
+        "seed_only",
+        "needs_review",
+        "blocked",
+        "not_applicable"
+      ],
+      "description": "Mirrors schemas/governance/claim_manifest.schema.json#/$defs/evidence_result_status verbatim."
+    },
+    "evidence_freshness_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "warm_cached",
+        "stale",
+        "missing",
+        "narrower_than_claim",
+        "not_applicable"
+      ],
+      "description": "Closed six-class freshness-state vocabulary the publication automation resolves per evidence row."
+    },
+    "evidence_scope_state": {
+      "type": "string",
+      "enum": [
+        "scope_matches_claim",
+        "scope_narrower_than_claim",
+        "scope_broader_than_claim",
+        "scope_unresolved",
+        "not_applicable"
+      ],
+      "description": "Closed five-class scope-state vocabulary. scope_narrower_than_claim and scope_broader_than_claim drive automatic narrowing or fail-closed verdicts respectively."
+    },
+
+    "freshness_floor_class": {
+      "type": "string",
+      "enum": [
+        "must_be_current",
+        "may_be_warm_cached",
+        "seed_only_allowed",
+        "not_applicable"
+      ],
+      "description": "Mirrors schemas/governance/claim_manifest.schema.json#/$defs/freshness_expectation verbatim and pins the freshness floor for the binding."
+    },
+    "support_class_alignment_class": {
+      "type": "string",
+      "enum": [
+        "aligned",
+        "narrowed_to_match_support_class",
+        "narrowed_for_replacement_grade",
+        "blocked_widening_above_support_class",
+        "support_window_expired_routes_to_replacement",
+        "not_applicable"
+      ],
+      "description": "Closed six-class support-class alignment vocabulary. Pins how the binding handles drift between declared claim posture and the lifecycle/support-class state on the claim row."
+    },
+    "known_limit_coverage_class": {
+      "type": "string",
+      "enum": [
+        "complete",
+        "missing_required_caveat",
+        "missing_support_window_language",
+        "redundant_caveat",
+        "caveat_links_unresolved",
+        "not_applicable"
+      ],
+      "description": "Closed six-class known-limit coverage vocabulary. Drives caveat-related fail-closed verdicts and routes destinations missing required language to fail or to suppress."
+    },
+    "badge_downgrade_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade",
+        "downgrade_to_provisional",
+        "downgrade_to_pending",
+        "downgrade_to_withheld",
+        "downgrade_to_stale",
+        "badge_revoked",
+        "not_applicable"
+      ],
+      "description": "Closed seven-class badge-downgrade vocabulary the publication automation applies when certified, managed-approved, or workflow-bundle evidence is stale, partial, or scoped narrower than the claim text."
+    },
+    "narrowing_action_class": {
+      "type": "string",
+      "enum": [
+        "no_narrowing_required",
+        "narrowed_to_limited",
+        "narrowed_to_experimental",
+        "narrowed_to_seed_only",
+        "narrowed_to_replacement_grade",
+        "hidden_and_routed_to_repair",
+        "withdrawn_from_public_lane"
+      ],
+      "description": "Closed seven-class automatic-narrowing vocabulary. The publication automation MUST select a narrowing action when freshness, scope, support-class, or known-limit coverage forces a downgrade."
+    },
+
+    "diff_kind_class": {
+      "type": "string",
+      "enum": [
+        "new_claim_row_published",
+        "claim_row_narrowed_in_run",
+        "claim_row_widened_in_run",
+        "claim_row_widening_blocked",
+        "claim_row_retired_in_run",
+        "badge_downgraded_in_run",
+        "badge_widened_blocked",
+        "caveat_added_in_run",
+        "caveat_removed_blocked",
+        "no_change"
+      ],
+      "description": "Closed ten-class publication-diff vocabulary. Drives the diff report so reviewers can inspect exactly what public truth would change."
+    },
+    "per_channel_change_class": {
+      "type": "string",
+      "enum": [
+        "added",
+        "removed_blocked",
+        "removed_via_narrowing",
+        "removed_via_retirement",
+        "copy_narrowed",
+        "copy_widened_blocked",
+        "badge_state_changed",
+        "caveat_added",
+        "caveat_removed_blocked",
+        "no_change"
+      ],
+      "description": "Closed ten-class per-channel change vocabulary the diff report renders. removed_blocked, copy_widened_blocked, and caveat_removed_blocked are explicit fail-closed states; the publication generator MUST emit them rather than silently widening copy."
+    },
+
+    "gate_state_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "narrowed_pass",
+        "blocked_widening",
+        "fail_closed"
+      ],
+      "description": "Closed four-class gate-state vocabulary. passed and narrowed_pass admit publication; blocked_widening and fail_closed deny."
+    },
+    "blocking_failure_class": {
+      "type": "string",
+      "enum": [
+        "orphan_claim_text",
+        "missing_evidence_row",
+        "broader_than_current_proof",
+        "stale_certified_badge",
+        "stale_managed_approved_badge",
+        "stale_workflow_bundle_badge",
+        "destination_missing_required_caveat",
+        "destination_missing_support_window_language",
+        "evidence_narrower_than_claim",
+        "support_class_widening_above_evidence",
+        "badge_revoked_for_path",
+        "evidence_freshness_below_floor",
+        "claim_row_not_in_baseline"
+      ],
+      "description": "Closed thirteen-class blocking-failure vocabulary. The fail gate emits one entry per failing row; the binding's gate_state_class is fail_closed when this list is non-empty unless every entry is permissible_under_narrowed_pass per §10."
+    },
+
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "engineering_internal",
+        "support_handoff",
+        "enterprise_audit",
+        "release_readiness",
+        "public_proof_safe"
+      ],
+      "description": "Closed five-class audience vocabulary mirroring the records-governance packet contract."
+    },
+    "redaction_profile_class": {
+      "type": "string",
+      "enum": [
+        "engineering_internal_only",
+        "support_handoff_redacted",
+        "enterprise_audit_redacted",
+        "release_readiness_summary",
+        "public_proof_safe_zero_payload"
+      ],
+      "description": "Closed five-class redaction-profile vocabulary. The schema enforces redaction_profile_class matches audience_class per §13."
+    },
+
+    "redaction_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_profile_class",
+        "redaction_profile_ref",
+        "raw_page_body_bytes_excluded",
+        "raw_screenshots_excluded",
+        "raw_user_identifiers_excluded",
+        "raw_support_case_bodies_excluded",
+        "raw_release_note_prose_excluded",
+        "redaction_profile_summary"
+      ],
+      "properties": {
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "raw_page_body_bytes_excluded": { "type": "boolean", "const": true },
+        "raw_screenshots_excluded": { "type": "boolean", "const": true },
+        "raw_user_identifiers_excluded": { "type": "boolean", "const": true },
+        "raw_support_case_bodies_excluded": { "type": "boolean", "const": true },
+        "raw_release_note_prose_excluded": { "type": "boolean", "const": true },
+        "redaction_profile_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "evidence_resolution_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_evidence_id",
+        "evidence_kind",
+        "packet_ref",
+        "evidence_id_refs",
+        "freshness_floor_class",
+        "evidence_freshness_state",
+        "evidence_scope_state",
+        "minimum_result_status",
+        "observed_result_status",
+        "link_requirement",
+        "known_limit_ref",
+        "evidence_resolution_summary"
+      ],
+      "properties": {
+        "claim_evidence_id": {
+          "type": "string",
+          "pattern": "^claim_evidence:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "evidence_kind": { "$ref": "#/$defs/evidence_kind" },
+        "packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "freshness_floor_class": { "$ref": "#/$defs/freshness_floor_class" },
+        "evidence_freshness_state": { "$ref": "#/$defs/evidence_freshness_state" },
+        "evidence_scope_state": { "$ref": "#/$defs/evidence_scope_state" },
+        "minimum_result_status": { "$ref": "#/$defs/evidence_result_status" },
+        "observed_result_status": { "$ref": "#/$defs/evidence_result_status" },
+        "link_requirement": {
+          "type": "string",
+          "enum": ["required", "advisory"]
+        },
+        "known_limit_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_resolution_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "destination_publication_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_row_id",
+        "channel_id",
+        "surface_ref",
+        "projection_kind",
+        "projected_copy_state_class",
+        "badge_state_class",
+        "support_window_state",
+        "known_limit_present",
+        "support_window_language_present",
+        "narrowed_from_declared",
+        "narrowing_action_class",
+        "destination_summary"
+      ],
+      "properties": {
+        "destination_row_id": {
+          "type": "string",
+          "pattern": "^claim_publication_destination:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "channel_id": { "$ref": "#/$defs/channel_id" },
+        "surface_ref": { "$ref": "#/$defs/opaque_id" },
+        "projection_kind": { "$ref": "#/$defs/projection_kind" },
+        "projected_copy_state_class": { "$ref": "#/$defs/projected_copy_state_class" },
+        "badge_state_class": { "$ref": "#/$defs/badge_state_class" },
+        "support_window_state": { "$ref": "#/$defs/support_window_state" },
+        "known_limit_present": { "type": "boolean" },
+        "support_window_language_present": { "type": "boolean" },
+        "narrowed_from_declared": { "type": "boolean" },
+        "narrowing_action_class": { "$ref": "#/$defs/narrowing_action_class" },
+        "destination_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "channel_id in {certification_badge, workflow_bundle_badge} requires projection_kind = badge_only and a non-not_applicable badge_state_class.",
+          "if": {
+            "properties": {
+              "channel_id": {
+                "enum": ["certification_badge", "workflow_bundle_badge"]
+              }
+            },
+            "required": ["channel_id"]
+          },
+          "then": {
+            "properties": {
+              "projection_kind": { "const": "badge_only" },
+              "badge_state_class": {
+                "not": { "const": "not_applicable" }
+              }
+            }
+          }
+        },
+        {
+          "description": "projection_kind = not_published_this_run pairs with projected_copy_state_class in the suppressed_* family.",
+          "if": {
+            "properties": {
+              "projection_kind": { "const": "not_published_this_run" }
+            },
+            "required": ["projection_kind"]
+          },
+          "then": {
+            "properties": {
+              "projected_copy_state_class": {
+                "enum": [
+                  "suppressed_pending_evidence",
+                  "suppressed_pending_caveat",
+                  "suppressed_policy_disabled",
+                  "suppressed_replacement_grade",
+                  "suppressed_withdrawn",
+                  "suppressed_audience_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "narrowed_from_declared = true requires narrowing_action_class != no_narrowing_required.",
+          "if": {
+            "properties": { "narrowed_from_declared": { "const": true } },
+            "required": ["narrowed_from_declared"]
+          },
+          "then": {
+            "properties": {
+              "narrowing_action_class": {
+                "not": { "const": "no_narrowing_required" }
+              }
+            }
+          }
+        },
+        {
+          "description": "narrowed_from_declared = false requires narrowing_action_class = no_narrowing_required.",
+          "if": {
+            "properties": { "narrowed_from_declared": { "const": false } },
+            "required": ["narrowed_from_declared"]
+          },
+          "then": {
+            "properties": {
+              "narrowing_action_class": { "const": "no_narrowing_required" }
+            }
+          }
+        }
+      ]
+    },
+
+    "evidence_binding_rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_floor_class",
+        "support_class_alignment_class",
+        "known_limit_coverage_class",
+        "badge_downgrade_class",
+        "narrowing_action_class",
+        "evidence_binding_rules_summary"
+      ],
+      "properties": {
+        "freshness_floor_class": { "$ref": "#/$defs/freshness_floor_class" },
+        "support_class_alignment_class": { "$ref": "#/$defs/support_class_alignment_class" },
+        "known_limit_coverage_class": { "$ref": "#/$defs/known_limit_coverage_class" },
+        "badge_downgrade_class": { "$ref": "#/$defs/badge_downgrade_class" },
+        "narrowing_action_class": { "$ref": "#/$defs/narrowing_action_class" },
+        "evidence_binding_rules_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "per_channel_diff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "channel_id",
+        "destination_row_id",
+        "per_channel_change_class",
+        "previous_projected_copy_state_class",
+        "current_projected_copy_state_class",
+        "previous_badge_state_class",
+        "current_badge_state_class",
+        "per_channel_diff_summary"
+      ],
+      "properties": {
+        "channel_id": { "$ref": "#/$defs/channel_id" },
+        "destination_row_id": {
+          "type": "string",
+          "pattern": "^claim_publication_destination:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "per_channel_change_class": { "$ref": "#/$defs/per_channel_change_class" },
+        "previous_projected_copy_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/projected_copy_state_class" }
+          ]
+        },
+        "current_projected_copy_state_class": { "$ref": "#/$defs/projected_copy_state_class" },
+        "previous_badge_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/badge_state_class" }
+          ]
+        },
+        "current_badge_state_class": { "$ref": "#/$defs/badge_state_class" },
+        "per_channel_diff_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "publication_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "previous_publication_snapshot_ref",
+        "current_publication_snapshot_ref",
+        "diff_kind_class",
+        "per_channel_diff_rows",
+        "publication_diff_summary"
+      ],
+      "properties": {
+        "previous_publication_snapshot_ref": { "$ref": "#/$defs/nullable_publication_snapshot_ref" },
+        "current_publication_snapshot_ref": { "$ref": "#/$defs/publication_snapshot_ref" },
+        "diff_kind_class": { "$ref": "#/$defs/diff_kind_class" },
+        "per_channel_diff_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/per_channel_diff_row" }
+        },
+        "publication_diff_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "diff_kind_class = new_claim_row_published requires previous_publication_snapshot_ref = null.",
+          "if": {
+            "properties": { "diff_kind_class": { "const": "new_claim_row_published" } },
+            "required": ["diff_kind_class"]
+          },
+          "then": {
+            "properties": { "previous_publication_snapshot_ref": { "type": "null" } }
+          }
+        }
+      ]
+    },
+
+    "blocking_failure_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocking_failure_id",
+        "blocking_failure_class",
+        "channel_ref",
+        "evidence_ref",
+        "destination_row_ref",
+        "permissible_under_narrowed_pass",
+        "blocking_failure_summary"
+      ],
+      "properties": {
+        "blocking_failure_id": {
+          "type": "string",
+          "pattern": "^claim_publication_failure:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+        },
+        "blocking_failure_class": { "$ref": "#/$defs/blocking_failure_class" },
+        "channel_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/channel_id" }
+          ]
+        },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "destination_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "permissible_under_narrowed_pass": {
+          "type": "boolean",
+          "description": "true when the failure is automatically resolved by the binding's narrowing_action_class (e.g. evidence_narrower_than_claim resolved by narrowed_to_limited). false when the failure denies publication."
+        },
+        "blocking_failure_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "gate_verdict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gate_state_class",
+        "blocking_failure_rows",
+        "automatic_narrowing_applied",
+        "narrowed_to_posture",
+        "gate_verdict_summary"
+      ],
+      "properties": {
+        "gate_state_class": { "$ref": "#/$defs/gate_state_class" },
+        "blocking_failure_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocking_failure_row" }
+        },
+        "automatic_narrowing_applied": { "type": "boolean" },
+        "narrowed_to_posture": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/claim_posture" }
+          ]
+        },
+        "gate_verdict_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "gate_state_class = passed requires blocking_failure_rows = [] and automatic_narrowing_applied = false.",
+          "if": {
+            "properties": { "gate_state_class": { "const": "passed" } },
+            "required": ["gate_state_class"]
+          },
+          "then": {
+            "properties": {
+              "blocking_failure_rows": { "maxItems": 0 },
+              "automatic_narrowing_applied": { "const": false },
+              "narrowed_to_posture": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "gate_state_class = narrowed_pass requires automatic_narrowing_applied = true and a non-null narrowed_to_posture.",
+          "if": {
+            "properties": { "gate_state_class": { "const": "narrowed_pass" } },
+            "required": ["gate_state_class"]
+          },
+          "then": {
+            "properties": {
+              "automatic_narrowing_applied": { "const": true },
+              "narrowed_to_posture": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "gate_state_class = blocked_widening or fail_closed requires non-empty blocking_failure_rows.",
+          "if": {
+            "properties": {
+              "gate_state_class": {
+                "enum": ["blocked_widening", "fail_closed"]
+              }
+            },
+            "required": ["gate_state_class"]
+          },
+          "then": {
+            "properties": {
+              "blocking_failure_rows": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "linked_artifact_families": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_manifest_row_refs",
+        "evidence_packet_refs",
+        "destination_descriptor_row_refs",
+        "whats_new_card_row_refs",
+        "help_pane_state_refs",
+        "public_proof_row_refs",
+        "support_export_packet_refs",
+        "release_packet_refs",
+        "certification_badge_refs",
+        "workflow_bundle_refs",
+        "known_limit_destination_refs",
+        "late_copy_change_packet_refs",
+        "public_drift_item_refs"
+      ],
+      "properties": {
+        "claim_manifest_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "evidence_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "destination_descriptor_row_refs": { "$ref": "#/$defs/ref_array" },
+        "whats_new_card_row_refs": { "$ref": "#/$defs/ref_array" },
+        "help_pane_state_refs": { "$ref": "#/$defs/ref_array" },
+        "public_proof_row_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "release_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "certification_badge_refs": { "$ref": "#/$defs/ref_array" },
+        "workflow_bundle_refs": { "$ref": "#/$defs/ref_array" },
+        "known_limit_destination_refs": { "$ref": "#/$defs/ref_array" },
+        "late_copy_change_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "public_drift_item_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+
+    "consuming_surface_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_publication_generator",
+        "render_on_publication_diff_review",
+        "render_on_release_evidence_packet",
+        "render_on_docs_help_about_renderer",
+        "render_on_service_health_renderer",
+        "render_on_release_notes_renderer",
+        "render_on_cli_help_renderer",
+        "render_on_evaluation_artifact_builder",
+        "render_on_workflow_bundle_badge_renderer",
+        "render_on_certification_badge_renderer",
+        "render_on_support_export_builder",
+        "render_on_public_proof_index"
+      ],
+      "properties": {
+        "render_on_publication_generator": { "type": "boolean" },
+        "render_on_publication_diff_review": { "type": "boolean" },
+        "render_on_release_evidence_packet": { "type": "boolean" },
+        "render_on_docs_help_about_renderer": { "type": "boolean" },
+        "render_on_service_health_renderer": { "type": "boolean" },
+        "render_on_release_notes_renderer": { "type": "boolean" },
+        "render_on_cli_help_renderer": { "type": "boolean" },
+        "render_on_evaluation_artifact_builder": { "type": "boolean" },
+        "render_on_workflow_bundle_badge_renderer": { "type": "boolean" },
+        "render_on_certification_badge_renderer": { "type": "boolean" },
+        "render_on_support_export_builder": { "type": "boolean" },
+        "render_on_public_proof_index": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the binding MUST render the same binding_id, claim_row_ref, claim_manifest_baseline_ref, publication_run_id, evaluated_at, declared_claim_posture, effective_claim_posture, evidence_binding_rules, evidence_resolution rows, destination_publication rows, publication_diff diff_kind_class and per_channel_diff_rows, gate_verdict gate_state_class and blocking_failure_rows, audience_class, redaction_profile_class, headline_label, and publication_binding_summary."
+    },
+
+    "claim_publication_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_publication_binding_schema_version",
+        "record_kind",
+        "binding_id",
+        "publication_run_id",
+        "claim_row_ref",
+        "claim_manifest_baseline_ref",
+        "evaluated_at",
+        "declared_claim_posture",
+        "effective_claim_posture",
+        "evidence_binding_rules",
+        "evidence_resolution_rows",
+        "destination_publication_rows",
+        "publication_diff",
+        "gate_verdict",
+        "audience_class",
+        "redaction_profile",
+        "linked_artifact_families",
+        "consuming_surface_parity",
+        "headline_label",
+        "publication_binding_summary",
+        "contract_doc_ref",
+        "claim_manifest_contract_ref",
+        "public_truth_parity_matrix_ref",
+        "ci_gate_policy_ref",
+        "notes"
+      ],
+      "properties": {
+        "claim_publication_binding_schema_version": { "$ref": "#/$defs/claim_publication_binding_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "claim_publication_binding_record"
+        },
+        "binding_id": { "$ref": "#/$defs/binding_id" },
+        "publication_run_id": { "$ref": "#/$defs/publication_run_id" },
+        "claim_row_ref": { "$ref": "#/$defs/claim_row_id" },
+        "claim_manifest_baseline_ref": { "$ref": "#/$defs/opaque_id" },
+        "evaluated_at": { "$ref": "#/$defs/utc_datetime" },
+        "declared_claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "effective_claim_posture": { "$ref": "#/$defs/claim_posture" },
+        "evidence_binding_rules": { "$ref": "#/$defs/evidence_binding_rules" },
+        "evidence_resolution_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_resolution_row" }
+        },
+        "destination_publication_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/destination_publication_row" }
+        },
+        "publication_diff": { "$ref": "#/$defs/publication_diff" },
+        "gate_verdict": { "$ref": "#/$defs/gate_verdict" },
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "redaction_profile": { "$ref": "#/$defs/redaction_profile" },
+        "linked_artifact_families": { "$ref": "#/$defs/linked_artifact_families" },
+        "consuming_surface_parity": { "$ref": "#/$defs/consuming_surface_parity" },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "publication_binding_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/release/claim_publication_automation_contract.md"
+        },
+        "claim_manifest_contract_ref": {
+          "type": "string",
+          "const": "docs/governance/claim_manifest_contract.md"
+        },
+        "public_truth_parity_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/governance/public_truth_parity_matrix.yaml"
+        },
+        "ci_gate_policy_ref": {
+          "type": "string",
+          "const": "ci/claim_publication_gate.yaml"
+        },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "audience_class = engineering_internal pairs with redaction_profile_class = engineering_internal_only.",
+          "if": {
+            "properties": { "audience_class": { "const": "engineering_internal" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "engineering_internal_only" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = support_handoff pairs with redaction_profile_class = support_handoff_redacted.",
+          "if": {
+            "properties": { "audience_class": { "const": "support_handoff" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "support_handoff_redacted" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = enterprise_audit pairs with redaction_profile_class = enterprise_audit_redacted.",
+          "if": {
+            "properties": { "audience_class": { "const": "enterprise_audit" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "enterprise_audit_redacted" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = release_readiness pairs with redaction_profile_class = release_readiness_summary.",
+          "if": {
+            "properties": { "audience_class": { "const": "release_readiness" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "release_readiness_summary" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = public_proof_safe pairs with redaction_profile_class = public_proof_safe_zero_payload.",
+          "if": {
+            "properties": { "audience_class": { "const": "public_proof_safe" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "public_proof_safe_zero_payload" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+
+        {
+          "description": "effective_claim_posture stricter than declared_claim_posture requires gate_verdict.automatic_narrowing_applied = true.",
+          "if": {
+            "properties": {
+              "declared_claim_posture": { "const": "claim_bearing" },
+              "effective_claim_posture": {
+                "enum": ["experimental", "limited", "policy_disabled", "replacement_grade", "seed_only", "withdrawn"]
+              }
+            },
+            "required": ["declared_claim_posture", "effective_claim_posture"]
+          },
+          "then": {
+            "properties": {
+              "gate_verdict": {
+                "properties": {
+                  "automatic_narrowing_applied": { "const": true }
+                }
+              }
+            }
+          }
+        },
+
+        {
+          "description": "Effective posture withdrawn requires every destination_publication_row.projected_copy_state_class in the suppressed_* family.",
+          "if": {
+            "properties": {
+              "effective_claim_posture": { "const": "withdrawn" }
+            },
+            "required": ["effective_claim_posture"]
+          },
+          "then": {
+            "properties": {
+              "destination_publication_rows": {
+                "items": {
+                  "properties": {
+                    "projected_copy_state_class": {
+                      "enum": [
+                        "suppressed_pending_evidence",
+                        "suppressed_pending_caveat",
+                        "suppressed_policy_disabled",
+                        "suppressed_replacement_grade",
+                        "suppressed_withdrawn",
+                        "suppressed_audience_redacted"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        {
+          "description": "Effective posture policy_disabled forces every destination_publication_row.projected_copy_state_class in {suppressed_policy_disabled, published_status_only, published_repair_route_only, suppressed_audience_redacted}.",
+          "if": {
+            "properties": {
+              "effective_claim_posture": { "const": "policy_disabled" }
+            },
+            "required": ["effective_claim_posture"]
+          },
+          "then": {
+            "properties": {
+              "destination_publication_rows": {
+                "items": {
+                  "properties": {
+                    "projected_copy_state_class": {
+                      "enum": [
+                        "suppressed_policy_disabled",
+                        "published_status_only",
+                        "published_repair_route_only",
+                        "suppressed_audience_redacted"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

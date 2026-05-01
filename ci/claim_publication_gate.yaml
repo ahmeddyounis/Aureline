@@ -1,0 +1,475 @@
+# Claim-publication CI gate policy.
+#
+# Machine-readable companion to
+#   docs/release/claim_publication_automation_contract.md
+#   schemas/governance/claim_publication_binding.schema.json
+#
+# This file freezes the closed fail-gate vocabulary that consumes the
+# claim-publication binding records and decides which publication runs
+# admit, which narrow under automatic-narrowing, which block widening,
+# and which fail closed. It is the gate the publication generator, the
+# publication-diff reviewer, the release-evidence packet, the docs /
+# Help / About / service-health renderers, the support-export builder,
+# the CLI/help text emitter, the evaluation-artifact builder, the
+# workflow-bundle / certification-badge renderer, and the public-proof
+# packet writer all read so they cannot publish past a fail-closed
+# verdict.
+#
+# Conformance:
+#   - Every claim-publication binding written against a publication run
+#     MUST resolve through this policy by `binding_id`.
+#   - Severity classes, blocking-failure classes, and gate-state
+#     classes MUST mirror the schema's closed vocabulary verbatim;
+#     this file does not introduce new tokens.
+#   - Adding a new merge-gate or promotion-gate row is additive-minor
+#     and lands in this file, the contract doc, and (if a new failure
+#     class) the schema in the same change. Repurposing an existing
+#     row is breaking and opens a new decision row.
+#
+# If this file disagrees with
+#   schemas/governance/claim_publication_binding.schema.json or
+#   docs/release/claim_publication_automation_contract.md
+# the schema and the contract win and this file updates in the same
+# change.
+
+claim_publication_gate_schema_version: 1
+gate_id: ci/claim_publication_gate.v1
+title: Claim-publication automation, evidence-binding, and stale-claim fail-gate policy
+
+contract_doc_ref: docs/release/claim_publication_automation_contract.md
+binding_schema_ref: schemas/governance/claim_publication_binding.schema.json
+claim_manifest_contract_ref: docs/governance/claim_manifest_contract.md
+claim_manifest_schema_ref: schemas/governance/claim_manifest.schema.json
+parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+propagation_rules_ref: artifacts/governance/claim_propagation_rules.yaml
+public_truth_audit_packet_ref: docs/public_truth/help_about_service_health_audit_packet.md
+public_drift_item_schema_ref: schemas/public_truth/public_drift_item.schema.json
+waiver_register_contract_ref: docs/governance/waiver_register_contract.md
+waiver_register_schema_ref: schemas/governance/waiver_register.schema.json
+
+# ---------------------------------------------------------------------------
+# Gate-state vocabulary mirrored from the schema. The merge-gate and
+# promotion-gate rows below cite these states by name.
+# ---------------------------------------------------------------------------
+
+gate_state_classes:
+  - id: passed
+    description: >
+      No blocking failures; no automatic narrowing applied; publication
+      admits at the declared posture.
+  - id: narrowed_pass
+    description: >
+      Automatic narrowing applied; the binding's narrowed_to_posture is
+      non-null; publication admits at the narrowed posture.
+  - id: blocked_widening
+    description: >
+      A widening attempt was blocked at the gate; the binding does not
+      advance the previously-published row but does not retire it
+      either.
+  - id: fail_closed
+    description: >
+      Publication is denied; the previously-published row remains as-is
+      and the publication run does not ship for this binding.
+
+# ---------------------------------------------------------------------------
+# Blocking-failure vocabulary mirrored from the schema. Each row pins
+# the failure class, the severity, the default fail-closed action, the
+# narrowing-action class that would resolve the failure under
+# narrowed_pass (or `none` when no narrowing resolves it), and the
+# routing target.
+# ---------------------------------------------------------------------------
+
+blocking_failures:
+
+  - id: orphan_claim_text
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: false
+    resolved_by_narrowing_action: none
+    routing:
+      - block_merge_on_protected_publication_change
+      - block_release_promotion
+      - require_owner_correction_in_same_change_set
+    description: >
+      A destination publication row carries published copy that does
+      not resolve to a claim_row_ref in the manifest baseline. The
+      owner artifact (claim manifest) must add the row before
+      publication admits.
+
+  - id: missing_evidence_row
+    severity: same_change_blocker
+    default_action: fail_closed
+    permissible_under_narrowed_pass: false
+    resolved_by_narrowing_action: none
+    routing:
+      - block_merge_on_protected_publication_change
+      - block_release_promotion
+      - require_owner_correction_in_same_change_set
+    description: >
+      A required evidence row named on the claim row is absent from
+      the binding. The publication run cannot resolve the claim row
+      without the missing evidence input.
+
+  - id: broader_than_current_proof
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_protected_publication_change
+      - admit_under_narrowed_pass_when_narrowing_action_set
+      - require_public_copy_narrowing_or_late_copy_packet
+    description: >
+      Published copy is broader than the current evidence's scope or
+      freshness state. Either the public copy narrows (in the same
+      change set or via a late-copy packet) or the binding sets a
+      narrowing_action_class in
+      {narrowed_to_limited, narrowed_to_experimental,
+      narrowed_to_seed_only}.
+
+  - id: stale_certified_badge
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_protected_badge_change
+      - admit_under_badge_downgrade_class
+      - require_badge_re_attestation_or_downgrade
+    description: >
+      A certification_badge destination's evidence is past the
+      freshness floor. The binding either re-attests the badge or
+      downgrades through badge_downgrade_class in
+      {downgrade_to_provisional, downgrade_to_pending,
+      downgrade_to_withheld, downgrade_to_stale, badge_revoked}.
+
+  - id: stale_managed_approved_badge
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_protected_badge_change
+      - admit_under_badge_downgrade_class
+      - require_badge_re_attestation_or_downgrade
+    description: >
+      A managed-approved badge destination's evidence is past the
+      freshness floor. Same resolution path as stale_certified_badge.
+
+  - id: stale_workflow_bundle_badge
+    severity: time_boxed_truth_defect
+    default_action: blocked_widening
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_protected_badge_change
+      - admit_under_badge_downgrade_class
+      - require_badge_re_attestation_or_downgrade
+    description: >
+      A workflow_bundle_badge destination's evidence is past the
+      freshness floor. Time-boxed; widening is blocked while the
+      bundle re-attestation is pending.
+
+  - id: destination_missing_required_caveat
+    severity: same_change_blocker
+    default_action: fail_closed
+    permissible_under_narrowed_pass: false
+    resolved_by_narrowing_action: none
+    routing:
+      - block_merge_on_protected_publication_change
+      - require_caveat_added_in_same_change_set
+    description: >
+      A destination publication row is missing a required known-limit
+      ref. The caveat must land in the same change set; the gate does
+      not admit narrowed_pass for missing caveats.
+
+  - id: destination_missing_support_window_language
+    severity: same_change_blocker
+    default_action: fail_closed
+    permissible_under_narrowed_pass: false
+    resolved_by_narrowing_action: none
+    routing:
+      - block_merge_on_protected_publication_change
+      - require_support_window_language_in_same_change_set
+    description: >
+      A destination publication row is missing required support-window
+      language. The language must land in the same change set; the
+      gate does not admit narrowed_pass for missing support-window
+      language.
+
+  - id: evidence_narrower_than_claim
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_protected_publication_change
+      - admit_under_narrowed_pass_when_narrowing_action_set
+      - require_public_copy_narrowing_or_claim_narrowing
+    description: >
+      A required evidence row's scope is narrower than the claim text.
+      The binding either narrows the published copy via
+      narrowing_action_class or the claim manifest narrows the claim
+      row's effective_claim_posture.
+
+  - id: support_class_widening_above_evidence
+    severity: release_blocking_overclaim
+    default_action: blocked_widening
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_support_class_widening
+      - require_support_class_alignment
+    description: >
+      A destination publication row attempts to widen above the
+      support-class state on the claim row. Widening is blocked until
+      the support-class state widens or the binding sets a narrowing
+      action.
+
+  - id: badge_revoked_for_path
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: false
+    resolved_by_narrowing_action: none
+    routing:
+      - block_merge_on_protected_badge_change
+      - block_release_promotion
+      - require_path_re_qualification
+    description: >
+      A badge destination is badge_revoked. The path no longer
+      qualifies; publication is denied at the badge state until the
+      path re-qualifies.
+
+  - id: evidence_freshness_below_floor
+    severity: time_boxed_truth_defect
+    default_action: blocked_widening
+    permissible_under_narrowed_pass: true
+    resolved_by_narrowing_action: narrowed_to_limited
+    routing:
+      - block_merge_on_protected_publication_change
+      - admit_under_narrowed_pass_when_narrowing_action_set
+      - require_evidence_refresh_or_narrowing
+    description: >
+      A required evidence row's freshness state is below the binding's
+      freshness floor (must_be_current with stale evidence, or
+      may_be_warm_cached with stale or missing evidence). Time-boxed;
+      widening is blocked while the refresh is pending.
+
+  - id: claim_row_not_in_baseline
+    severity: release_blocking_overclaim
+    default_action: fail_closed
+    permissible_under_narrowed_pass: false
+    resolved_by_narrowing_action: none
+    routing:
+      - block_merge_on_protected_publication_change
+      - block_release_promotion
+      - require_baseline_advance_or_row_removal
+    description: >
+      The binding's claim_row_ref does not resolve in the claim
+      manifest baseline. Either the baseline advances to include the
+      row, or the binding is dropped from the publication run.
+
+# ---------------------------------------------------------------------------
+# Merge-gate rows. CI fails the merge when any blocking failure on a
+# protected publication change has default_action = fail_closed and is
+# not resolved through a permissible narrowed_pass path.
+# ---------------------------------------------------------------------------
+
+merge_gates:
+
+  - gate_id: merge_gate:protected_publication_change
+    triggered_on_change_to:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/claim_propagation_rules.yaml
+      - schemas/governance/claim_manifest.schema.json
+      - schemas/governance/claim_publication_binding.schema.json
+      - schemas/docs/destination_descriptor.schema.json
+      - schemas/docs/help_pane_state.schema.json
+      - schemas/release/whats_new_card.schema.json
+      - schemas/release/release_truth_summary.schema.json
+      - docs/release/claim_publication_automation_contract.md
+      - docs/governance/claim_manifest_contract.md
+      - ci/claim_publication_gate.yaml
+    fail_closed_if_any_of:
+      - orphan_claim_text
+      - missing_evidence_row
+      - destination_missing_required_caveat
+      - destination_missing_support_window_language
+      - claim_row_not_in_baseline
+    block_widening_if_any_of:
+      - support_class_widening_above_evidence
+      - evidence_freshness_below_floor
+      - stale_workflow_bundle_badge
+    admit_narrowed_pass_if_all_of:
+      - every_blocking_failure_resolved_by_narrowing_action
+      - narrowing_action_class_in_published_set
+      - narrowed_to_posture_non_null
+    notes: >
+      Protected-publication changes block merge when any fail-closed
+      class fires. blocked_widening classes admit a narrowed_pass when
+      the binding's narrowing_action_class resolves the failure;
+      otherwise the gate denies until the underlying evidence,
+      caveat, or claim row moves.
+
+  - gate_id: merge_gate:protected_badge_change
+    triggered_on_change_to:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - schemas/release/release_candidate_card.schema.json
+      - schemas/release/whats_new_card.schema.json
+      - docs/release/certified_archetype_report_template.md
+      - docs/benchmarks/benchmark_publication_pack_template.md
+      - ci/claim_publication_gate.yaml
+    fail_closed_if_any_of:
+      - badge_revoked_for_path
+      - stale_certified_badge
+      - stale_managed_approved_badge
+    block_widening_if_any_of:
+      - stale_workflow_bundle_badge
+    admit_narrowed_pass_if_all_of:
+      - badge_downgrade_class_pinned_to_non_no_downgrade
+      - narrowing_action_class_in_published_set
+    notes: >
+      Badge changes that ride past stale or revoked evidence block
+      merge unless the binding pins a badge_downgrade_class that
+      explicitly downgrades or withholds the badge.
+
+# ---------------------------------------------------------------------------
+# Promotion-gate rows. The release council and ship-room consume these
+# when admitting a release-train widening, a preview->stable widening,
+# a support-class widening, or a public-claim widening.
+# ---------------------------------------------------------------------------
+
+promotion_gates:
+
+  - gate_id: promotion_gate:release_train_widening
+    consumed_by:
+      - release_council
+      - shiproom_executive
+    blocks_widening_if_any_of:
+      - any_binding_with_gate_state_class_in_blocked_widening
+      - any_binding_with_gate_state_class_fail_closed
+      - public_truth_audit_packet_widening_frozen_count_non_zero
+    requires_waiver_register_entry_when:
+      - widening_admitted_past_blocked_widening_binding
+      - widening_admitted_past_fail_closed_binding
+    notes: >
+      Release-train widening cannot ride past a blocked_widening or
+      fail_closed binding without a waiver register entry that names
+      the binding_id and the gating failure_class.
+
+  - gate_id: promotion_gate:public_claim_widening
+    consumed_by:
+      - claim_manifest_owner
+      - release_council
+    blocks_widening_if_any_of:
+      - any_binding_with_gate_state_class_in_blocked_widening
+      - any_binding_with_gate_state_class_fail_closed
+      - any_binding_with_diff_kind_class_claim_row_widening_blocked
+    requires_waiver_register_entry_when:
+      - widening_admitted_past_blocked_widening_binding
+      - widening_admitted_past_fail_closed_binding
+    notes: >
+      Widening a claim row's effective_claim_posture cannot ride past a
+      blocked_widening or fail_closed binding on the same row without
+      a waiver register entry.
+
+  - gate_id: promotion_gate:badge_widening
+    consumed_by:
+      - release_council
+      - claim_manifest_owner
+    blocks_widening_if_any_of:
+      - any_binding_with_diff_kind_class_badge_widened_blocked
+      - any_binding_with_blocking_failure_class_badge_revoked_for_path
+      - any_binding_with_blocking_failure_class_stale_certified_badge
+      - any_binding_with_blocking_failure_class_stale_managed_approved_badge
+      - any_binding_with_blocking_failure_class_stale_workflow_bundle_badge
+    requires_waiver_register_entry_when:
+      - widening_admitted_past_blocked_widening_binding
+    notes: >
+      Badge widening cannot ride past stale, revoked, or blocked-
+      widening badge state without a waiver register entry; the
+      waiver entry MUST name the binding_id, the failure_class, and
+      the badge id.
+
+# ---------------------------------------------------------------------------
+# Generated outputs. The publication-diff and the gate-verdict report
+# are both reproducible from the binding records alone; this section
+# pins which surfaces consume which outputs.
+# ---------------------------------------------------------------------------
+
+generated_outputs:
+
+  - output_id: publication_run_index
+    description: >
+      One JSON / YAML index per publication_run_id listing every
+      claim_publication_binding_record written by the run, keyed by
+      binding_id and claim_row_ref.
+    consumed_by:
+      - publication_generator
+      - publication_diff_review
+      - release_evidence_packet
+      - public_proof_index
+
+  - output_id: publication_diff_report
+    description: >
+      One diff report per publication_run_id projecting every binding's
+      publication_diff envelope and per_channel_diff_rows so reviewers
+      can compare old and new published claim sets in one document.
+    consumed_by:
+      - publication_diff_review
+      - release_council
+      - claim_manifest_owner
+      - shiproom_executive
+
+  - output_id: gate_verdict_report
+    description: >
+      One verdict report per publication_run_id projecting every
+      binding's gate_verdict, blocking_failure_rows, and
+      automatic_narrowing_applied state so reviewers can see exactly
+      which bindings blocked, narrowed, or admitted.
+    consumed_by:
+      - publication_diff_review
+      - release_council
+      - release_evidence_packet
+      - shiproom_executive
+
+  - output_id: per_channel_publication_projection
+    description: >
+      One projection per channel_id listing the resolved
+      destination_publication_rows and the typed projected_copy_state_class
+      and badge_state_class so each consuming surface can render the
+      same state.
+    consumed_by:
+      - docs_help_about_renderer
+      - service_health_renderer
+      - release_notes_renderer
+      - cli_help_renderer
+      - evaluation_artifact_builder
+      - workflow_bundle_badge_renderer
+      - certification_badge_renderer
+      - support_export_builder
+      - public_proof_packet_writer
+
+# ---------------------------------------------------------------------------
+# Out-of-scope reminder. M0 scope is the contract, the schema, the gate
+# vocabulary, and the fixture corpus. Wiring every publication runtime
+# surface to this gate is out of scope for this milestone; each
+# surface's own freeze / work item must reference this file as it
+# lands.
+# ---------------------------------------------------------------------------
+
+out_of_scope:
+  - implementing_a_documentation_site_or_release_note_rendering_pipeline
+  - implementing_a_help_about_or_service_health_renderer
+  - implementing_a_workflow_bundle_or_certification_badge_renderer
+  - implementing_a_public_proof_publishing_service
+  - generating_live_diff_reports_against_a_running_publication_backend
+
+notes: >
+  This file is the closed-vocabulary fail-gate policy that the claim-
+  publication binding records resolve through. It does not implement
+  the publication backend; it freezes the gate so the publication
+  generator, the publication-diff reviewer, the release-evidence
+  packet, and every other consuming surface read the same gate when
+  the runtime backends land.
