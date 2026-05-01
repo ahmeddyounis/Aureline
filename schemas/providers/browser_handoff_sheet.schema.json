@@ -1,0 +1,622 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/browser_handoff_sheet.schema.json",
+  "title": "Aureline browser-handoff sheet, local-or-cached alternative, and handoff-sheet audit-event vocabulary",
+  "description": "Boundary schema for the browser_handoff_sheet_record, local_or_cached_alternative_record, and browser_handoff_sheet_audit_event_record frozen in docs/providers/provider_link_header_and_handoff_contract.md. The sheet is the user-facing typed disclosure that mediates every browser handoff: it names destination (class plus reason), the privacy-or-data-loss consequence of leaving Aureline scope, the expected authority on the destination, the return anchor, the replay expiry, the typed local-or-cached alternative offered when full in-product parity is unavailable, and the originating provider-link header. A generic 'Open in browser' affordance is forbidden when the system can name destination class, reason code, return path, and expected authority through this sheet. The audit-event record fires on the ADR-0010 provider_handoff stream so notifications, activity-center rows, support exports, and admin reconciliation see the same shape. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, and raw provider payloads never cross this boundary; records carry opaque destination_ref, opaque alternative refs, and structured summaries only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new privacy_or_data_loss_consequence_class, alternative_class, sheet_state_class, or sheet_audit_event_id is additive-minor and requires a browser_handoff_sheet_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/browser_handoff_sheet_record" },
+    { "$ref": "#/$defs/local_or_cached_alternative_record" },
+    { "$ref": "#/$defs/browser_handoff_sheet_audit_event_record" }
+  ],
+  "$defs": {
+    "browser_handoff_sheet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this browser-handoff-sheet vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "browser_handoff_sheet_record",
+        "local_or_cached_alternative_record",
+        "browser_handoff_sheet_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on desktop, CLI, notification, provider-linked header, queue-review, support-export, activity-center, and audit-event surfaces. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "code_host_web",
+        "issue_tracker_web",
+        "ci_provider_web",
+        "docs_or_portal_web",
+        "identity_provider_web",
+        "package_registry_web",
+        "release_publisher_web",
+        "ai_provider_web",
+        "managed_admin_web",
+        "external_generic_web"
+      ],
+      "description": "Frozen destination-class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. external_generic_web is repair-only: a sheet that names external_generic_web MUST also pin reason_code = external_docs_or_runbook and MUST surface a typed local_or_cached_alternative so the user can choose to stay in scope; the rest of the destination classes name a typed surface family the system can route precisely."
+    },
+
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "mutation_not_supported_in_product",
+        "publish_requires_browser_auth",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "step_up_required"
+      ],
+      "description": "Frozen reason-for-handoff vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. Every sheet names exactly one reason; a generic 'Open in browser' affordance without a typed reason code is forbidden."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 and ADR-0010 redaction posture."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the sheet was minted under."
+    },
+
+    "replay_posture": {
+      "type": "string",
+      "enum": [
+        "single_use",
+        "bounded_reuse",
+        "read_only_resumable"
+      ],
+      "description": "Replay posture reused from schemas/integration/browser_handoff_packet.schema.json. The sheet's replay_expires_at upper-bounds when the sheet's typed handoff packet may still be presented."
+    },
+
+    "privacy_or_data_loss_consequence_class": {
+      "type": "string",
+      "enum": [
+        "none_disclosed",
+        "leaves_workspace_scope",
+        "crosses_canonical_host",
+        "provider_telemetry_disclosed",
+        "requires_provider_login_session",
+        "bypasses_local_redaction",
+        "shares_workspace_object_identity_with_provider",
+        "irreversible_external_publish"
+      ],
+      "description": "Frozen privacy-or-data-loss consequence vocabulary the sheet renders. Every sheet names exactly one class; surfaces MAY NOT collapse a leaves_workspace_scope or crosses_canonical_host transition into an undisclosed handoff. none_disclosed is reserved for read-only handoffs whose destination is contractually free of privacy-class disclosure (e.g. a public docs page on a tenantless host); every other class MUST be paired with a privacy_or_data_loss_consequence_summary."
+    },
+
+    "alternative_class": {
+      "type": "string",
+      "enum": [
+        "view_cached_read_only_shadow",
+        "inspect_only_imported_snapshot",
+        "local_draft_continue",
+        "defer_to_publish_later_queue",
+        "download_local_export",
+        "copy_handoff_summary_for_offline_use",
+        "request_admin_assisted_handoff",
+        "no_alternative_available"
+      ],
+      "description": "Frozen local-or-cached alternative vocabulary the sheet offers when full in-product parity is unavailable. A sheet MUST offer at least one alternative; no_alternative_available is repair-only and MUST be paired with a repair_hook_ref so the user has a concrete reopen path. Alternatives keep inspect / copy / export available where safe rather than presenting the handoff as a take-it-or-lose-it choice."
+    },
+
+    "sheet_state_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_user_confirmation",
+        "user_confirmed_pending_launch",
+        "launched_awaiting_callback",
+        "callback_validated",
+        "callback_rejected",
+        "user_cancelled",
+        "expired_unused",
+        "revoked_before_launch",
+        "alternative_chosen"
+      ],
+      "description": "Frozen sheet-state vocabulary the audit-event record renders. ready_for_user_confirmation is the initial state. user_confirmed_pending_launch is the transition the desktop / companion records before opening the system browser. launched_awaiting_callback is the in-flight state. callback_validated / callback_rejected mirror the ADR-0010 callback outcome. user_cancelled and alternative_chosen record opt-out paths; expired_unused and revoked_before_launch record safety paths. Silent transition between states is forbidden."
+    },
+
+    "sheet_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "browser_handoff_sheet_minted",
+        "browser_handoff_sheet_user_confirmed",
+        "browser_handoff_sheet_launched",
+        "browser_handoff_sheet_callback_validated",
+        "browser_handoff_sheet_callback_rejected",
+        "browser_handoff_sheet_user_cancelled",
+        "browser_handoff_sheet_alternative_chosen",
+        "browser_handoff_sheet_expired",
+        "browser_handoff_sheet_revoked"
+      ],
+      "description": "Frozen sheet audit-event ids that fire on the ADR-0010 provider_handoff stream alongside browser_handoff_packet_issued / browser_handoff_launched / browser_handoff_callback_validated / browser_handoff_callback_rejected / browser_handoff_revoked. The sheet records carry the user-facing intent the packet records do not (alternative chosen, sheet user-cancelled before launch, sheet expired before launch). No raw URL, raw token, raw callback body, or raw provider payload appears on these events."
+    },
+
+    "object_type_class": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "issue_or_work_item",
+        "check_run",
+        "release_artifact",
+        "docs_page",
+        "audit_entry",
+        "admin_surface",
+        "consent_flow",
+        "package_version",
+        "registry_entry",
+        "principal_subject",
+        "install_target",
+        "tenant_or_org",
+        "other"
+      ],
+      "description": "Provider-side object type the sheet targets. Aligned with object_class members in schemas/providers/effective_scope_resolution.schema.json so a single sheet can be rendered alongside its scope-resolution row and its provider-link header."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": { "$ref": "#/$defs/object_type_class" },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity of the object the sheet targets."
+    },
+
+    "return_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_kind", "anchor_ref"],
+      "properties": {
+        "anchor_kind": {
+          "type": "string",
+          "enum": [
+            "review_anchor",
+            "issue_draft_anchor",
+            "selected_diff_anchor",
+            "docs_citation_anchor",
+            "object_link_anchor",
+            "header_anchor",
+            "other"
+          ],
+          "description": "Frozen return-anchor kind reused from schemas/integration/browser_handoff_packet.schema.json, extended with header_anchor so a sheet that originates on a provider-link header can return to that header."
+        },
+        "anchor_ref": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Stable anchor for returning the user to the originating Aureline object. Round-trips independently of whether the remote system preserves query strings."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the sheet was minted under. Re-evaluated when the underlying browser_handoff_packet validates a callback."
+    },
+
+    "browser_handoff_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "browser_handoff_sheet_schema_version",
+        "sheet_id",
+        "originating_browser_handoff_packet_ref",
+        "connected_provider_record_id",
+        "destination_class",
+        "destination_summary",
+        "reason_code",
+        "reason_summary",
+        "privacy_or_data_loss_consequence_class",
+        "expected_authority_on_destination",
+        "expected_authority_summary",
+        "return_anchor",
+        "replay_posture",
+        "replay_expires_at",
+        "local_or_cached_alternative_refs",
+        "sheet_state_class",
+        "policy_context",
+        "minted_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "browser_handoff_sheet_record" },
+        "browser_handoff_sheet_schema_version": {
+          "$ref": "#/$defs/browser_handoff_sheet_schema_version"
+        },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "originating_browser_handoff_packet_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the browser_handoff_packet_record (ADR-0010) the sheet mediates. Every sheet MUST cite a typed packet; a sheet whose only handoff target is a raw URL is forbidden."
+        },
+        "originating_provider_link_header_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_link_header_record the sheet was minted from. Required when the sheet is shown adjacent to a provider-link header (the common case); empty string only for sheets minted from a CLI / activity-center surface where no header is currently rendered."
+        },
+        "connected_provider_record_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the connected_provider_record the sheet runs against."
+        },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "destination_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence naming the destination class and the typed object the user will see on the destination. A generic 'a website' / 'an external page' summary is forbidden; the system MUST name the destination class, the canonical host, and the object type (or admin surface) precisely."
+        },
+        "destination_object_identity": {
+          "$ref": "#/$defs/object_identity",
+          "description": "Provider-side identity of the destination object the sheet targets. Empty (omitted) only for admin / consent-flow handoffs that have no provider-side object identity yet."
+        },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence quoting the reason code in human-legible form. Surfaces render this sentence verbatim on notifications, activity-center rows, and support exports; flattening it into a generic 'External link' is forbidden."
+        },
+        "privacy_or_data_loss_consequence_class": {
+          "$ref": "#/$defs/privacy_or_data_loss_consequence_class"
+        },
+        "privacy_or_data_loss_consequence_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the privacy-or-data-loss consequence the user is confirming. Required for every consequence class except none_disclosed."
+        },
+        "expected_authority_on_destination": {
+          "$ref": "#/$defs/provider_actor_class"
+        },
+        "expected_authority_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence quoting the actor class the user will be acting as on the destination (you, install, bot, delegated, project-scoped grant, policy-injected service). A generic 'signed in' or 'connected' summary is forbidden."
+        },
+        "return_anchor": { "$ref": "#/$defs/return_anchor" },
+        "replay_posture": { "$ref": "#/$defs/replay_posture" },
+        "replay_expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp after which the sheet's underlying handoff packet is no longer admissible. The sheet's user-confirm action MUST refuse after this time and re-mint a fresh sheet rather than silently extending the window."
+        },
+        "local_or_cached_alternative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to local_or_cached_alternative_records the sheet offers alongside the handoff. Every sheet MUST offer at least one alternative; an empty alternative list is forbidden. no_alternative_available is repair-only and MUST cite a repair_hook_ref on the alternative record."
+        },
+        "approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the approval-ticket record admitting the underlying handoff packet. Required when the underlying packet is mutation-class (every reason except provider_consent_flow); empty string for provider_consent_flow."
+        },
+        "sheet_state_class": { "$ref": "#/$defs/sheet_state_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "sheet_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Top-level reviewable sentence the desktop, CLI, notification, support-export, and activity-center surfaces render. Names destination class, reason code, privacy-or-data-loss consequence class, expected authority, return anchor, and replay expiry together so a single 'Open in browser' affordance never substitutes for the sheet."
+        }
+      },
+      "allOf": [
+        {
+          "description": "external_generic_web destination MUST pin reason_code = external_docs_or_runbook and MUST surface a typed local_or_cached alternative.",
+          "if": {
+            "properties": {
+              "destination_class": { "const": "external_generic_web" }
+            },
+            "required": ["destination_class"]
+          },
+          "then": {
+            "properties": {
+              "reason_code": { "const": "external_docs_or_runbook" }
+            }
+          }
+        },
+        {
+          "description": "Mutation-class reason codes MUST cite an approval_ticket_ref; provider_consent_flow MAY omit one.",
+          "if": {
+            "properties": {
+              "reason_code": {
+                "enum": [
+                  "mutation_not_supported_in_product",
+                  "publish_requires_browser_auth",
+                  "license_or_portal_acceptance",
+                  "admin_only_surface",
+                  "external_docs_or_runbook",
+                  "provider_admin_delegation",
+                  "step_up_required"
+                ]
+              }
+            },
+            "required": ["reason_code"]
+          },
+          "then": {
+            "properties": {
+              "approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "Every consequence class except none_disclosed MUST carry a privacy_or_data_loss_consequence_summary.",
+          "if": {
+            "properties": {
+              "privacy_or_data_loss_consequence_class": {
+                "enum": [
+                  "leaves_workspace_scope",
+                  "crosses_canonical_host",
+                  "provider_telemetry_disclosed",
+                  "requires_provider_login_session",
+                  "bypasses_local_redaction",
+                  "shares_workspace_object_identity_with_provider",
+                  "irreversible_external_publish"
+                ]
+              }
+            },
+            "required": ["privacy_or_data_loss_consequence_class"]
+          },
+          "then": {
+            "required": ["privacy_or_data_loss_consequence_summary"]
+          }
+        },
+        {
+          "description": "irreversible_external_publish consequence MUST NOT pair with replay_posture read_only_resumable; an irreversible publish is single_use or bounded_reuse only.",
+          "if": {
+            "properties": {
+              "privacy_or_data_loss_consequence_class": {
+                "const": "irreversible_external_publish"
+              }
+            },
+            "required": ["privacy_or_data_loss_consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "replay_posture": {
+                "enum": ["single_use", "bounded_reuse"]
+              }
+            }
+          }
+        },
+        {
+          "description": "expected_authority_on_destination unknown_actor_class is repair-only and MUST pair with sheet_state_class revoked_before_launch or callback_rejected; the sheet MAY NOT advance to user_confirmed_pending_launch under an unresolved actor.",
+          "if": {
+            "properties": {
+              "expected_authority_on_destination": {
+                "const": "unknown_actor_class"
+              }
+            },
+            "required": ["expected_authority_on_destination"]
+          },
+          "then": {
+            "properties": {
+              "sheet_state_class": {
+                "enum": [
+                  "ready_for_user_confirmation",
+                  "user_cancelled",
+                  "alternative_chosen",
+                  "expired_unused",
+                  "revoked_before_launch",
+                  "callback_rejected"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "User-facing typed disclosure that mediates one browser handoff. Names destination class, reason code, privacy-or-data-loss consequence, expected authority on the destination, return anchor, replay expiry, and the typed local-or-cached alternative offered when full in-product parity is unavailable. A generic 'Open in browser' control on a protected provider-linked surface is forbidden when the system can mint this sheet; the sheet is the primary affordance, not the URL."
+    },
+
+    "local_or_cached_alternative_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "browser_handoff_sheet_schema_version",
+        "alternative_id",
+        "originating_sheet_ref",
+        "alternative_class",
+        "alternative_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "local_or_cached_alternative_record" },
+        "browser_handoff_sheet_schema_version": {
+          "$ref": "#/$defs/browser_handoff_sheet_schema_version"
+        },
+        "alternative_id": { "$ref": "#/$defs/opaque_id" },
+        "originating_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "alternative_class": { "$ref": "#/$defs/alternative_class" },
+        "alternative_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the sheet renders next to the alternative class. Names what the user gets if they take the alternative (cached snapshot freshness, queued publish window, exported evidence redaction, admin-assisted handoff posture)."
+        },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the record the alternative routes through (publish_later_queue_item_record, imported_provider_snapshot_record, provider_object_relation_record on a cached_read_only_shadow, exported_evidence_record, support-bundle handle). Required for every alternative_class except no_alternative_available."
+        },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the repair hook the surface routes the user to (admin reconciliation, account reselection, browser recovery). Required when alternative_class is no_alternative_available or request_admin_assisted_handoff."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "no_alternative_available MUST cite a repair_hook_ref so the absence of an alternative is itself routed to a repair path.",
+          "if": {
+            "properties": {
+              "alternative_class": { "const": "no_alternative_available" }
+            },
+            "required": ["alternative_class"]
+          },
+          "then": {
+            "properties": {
+              "repair_hook_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["repair_hook_ref"]
+          }
+        },
+        {
+          "description": "request_admin_assisted_handoff MUST cite a repair_hook_ref pointing at the admin-assisted-handoff queue.",
+          "if": {
+            "properties": {
+              "alternative_class": { "const": "request_admin_assisted_handoff" }
+            },
+            "required": ["alternative_class"]
+          },
+          "then": {
+            "properties": {
+              "repair_hook_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["repair_hook_ref"]
+          }
+        },
+        {
+          "description": "Every alternative class except no_alternative_available MUST cite a linked_record_ref so the user has a concrete target to land on instead of the handoff.",
+          "if": {
+            "properties": {
+              "alternative_class": {
+                "enum": [
+                  "view_cached_read_only_shadow",
+                  "inspect_only_imported_snapshot",
+                  "local_draft_continue",
+                  "defer_to_publish_later_queue",
+                  "download_local_export",
+                  "copy_handoff_summary_for_offline_use",
+                  "request_admin_assisted_handoff"
+                ]
+              }
+            },
+            "required": ["alternative_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_record_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_record_ref"]
+          }
+        }
+      ],
+      "description": "One typed local-or-cached alternative attached to a browser handoff sheet. Surfaces render alternative_class plus alternative_summary; widening to a non-frozen alternative class is forbidden. The contract requires that inspect / copy / export remain available where safe, so the sheet always offers at least one alternative and never presents a take-it-or-lose-it browser handoff."
+    },
+
+    "browser_handoff_sheet_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "browser_handoff_sheet_schema_version",
+        "sheet_audit_event_id",
+        "event_time",
+        "originating_sheet_ref",
+        "actor_class",
+        "actor_subject",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "browser_handoff_sheet_audit_event_record" },
+        "browser_handoff_sheet_schema_version": {
+          "$ref": "#/$defs/browser_handoff_sheet_schema_version"
+        },
+        "sheet_audit_event_id": { "$ref": "#/$defs/sheet_audit_event_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "originating_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_packet_record the sheet mediated. Empty string only for sheet-only events (browser_handoff_sheet_minted on a sheet that has not yet been confirmed)."
+        },
+        "originating_provider_link_header_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_link_header_record the sheet was minted from when applicable."
+        },
+        "connected_provider_record_id": {
+          "type": "string",
+          "description": "Opaque ref to the connected_provider_record the sheet ran against."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "privacy_or_data_loss_consequence_class": {
+          "$ref": "#/$defs/privacy_or_data_loss_consequence_class"
+        },
+        "alternative_class_chosen": {
+          "$ref": "#/$defs/alternative_class",
+          "description": "Frozen alternative class the user took instead of launching the handoff. Required when sheet_audit_event_id is browser_handoff_sheet_alternative_chosen; empty (omitted) on every other event."
+        },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "browser_handoff_sheet_alternative_chosen MUST carry an alternative_class_chosen.",
+          "if": {
+            "properties": {
+              "sheet_audit_event_id": {
+                "const": "browser_handoff_sheet_alternative_chosen"
+              }
+            },
+            "required": ["sheet_audit_event_id"]
+          },
+          "then": {
+            "required": ["alternative_class_chosen"]
+          }
+        }
+      ],
+      "description": "An observable event on the ADR-0010 provider_handoff audit stream that captures sheet-level intent the underlying browser_handoff_packet record cannot (alternative chosen, sheet user-cancelled before launch, sheet expired unused). Raw URLs, raw tokens, raw callback bodies, and raw provider payloads are forbidden on every audit-event record."
+    }
+  }
+}

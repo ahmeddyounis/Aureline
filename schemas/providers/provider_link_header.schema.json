@@ -1,0 +1,767 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_link_header.schema.json",
+  "title": "Aureline provider-linked object header, notification / activity-center / support-export reuse, and degradation-event vocabulary",
+  "description": "Boundary schema for the provider_link_header_record, handoff_reason_reuse_record, and header_degradation_event_record frozen in docs/providers/provider_link_header_and_handoff_contract.md. The header makes a provider-linked object render as a typed companion to local truth: provider class, canonical host, object type, local-versus-provider source, last-sync time, freshness tier, scope summary, edit mode (draft / publish / browser-only / inspect-only / blocked-for-repair), and acting identity are visible together. The reuse record keeps provider class, scope, freshness, handoff reason, and acting identity intact when a provider-linked object is rendered outside the originating panel (notifications, activity center, support exports, audit events, companion / CLI / AI capture). The degradation event names how a header degrades for stale, revoked, offline, mirror-derived, or policy-blocked transitions and which inspect / copy / export actions remain. Raw URLs, raw tokens, raw provider payloads, raw callback bodies, and raw delegated-token bodies never cross this boundary; records carry opaque refs and structured fields only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new provider_class, edit_mode_class, freshness_tier_class, local_or_provider_source_class, degradation_class, retained_action_class, removed_action_class, or reuse_surface_class is additive-minor and requires a provider_link_header_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_link_header_record" },
+    { "$ref": "#/$defs/handoff_reason_reuse_record" },
+    { "$ref": "#/$defs/header_degradation_event_record" }
+  ],
+  "$defs": {
+    "provider_link_header_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider-link-header vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "provider_link_header_record",
+        "handoff_reason_reuse_record",
+        "header_degradation_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on desktop, CLI, notification, provider-linked header, queue-review, support-export, activity-center, and audit-event surfaces. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. A generic 'Connected' state is forbidden on every product, CLI, notification, support-export, activity-center, and audit surface; 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Frozen provider-class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. Every provider-linked header names exactly one class so notifications, activity-center rows, exports, and audit events can quote the same class without a generic 'External' or 'Cloud' fallback."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the header was captured under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 and ADR-0010 redaction posture. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw policy-injector material, and raw provider payloads never cross this boundary regardless of class."
+    },
+
+    "object_type_class": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "issue_or_work_item",
+        "check_run",
+        "release_artifact",
+        "docs_page",
+        "audit_entry",
+        "admin_surface",
+        "consent_flow",
+        "package_version",
+        "registry_entry",
+        "principal_subject",
+        "install_target",
+        "tenant_or_org",
+        "other"
+      ],
+      "description": "Provider-side object type the header references. Aligned with object_class members in schemas/providers/effective_scope_resolution.schema.json so a single header can be rendered alongside its scope-resolution row."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": { "$ref": "#/$defs/object_type_class" },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity of the object the header surfaces."
+    },
+
+    "local_or_provider_source_class": {
+      "type": "string",
+      "enum": [
+        "local_authoritative",
+        "provider_authoritative",
+        "mirror_derived",
+        "imported_snapshot_only",
+        "local_draft_only_no_provider_state"
+      ],
+      "description": "Frozen vocabulary that names which side currently owns the truth the header is rendering. local_authoritative is a not-yet-published local artifact. provider_authoritative is a remote-owned object the local side is a typed companion to. mirror_derived is provider state served through a self-hosted or organisation mirror that MUST disclose its mirror posture. imported_snapshot_only is a read-only cached shadow whose source is an imported snapshot. local_draft_only_no_provider_state is a draft that has not yet been linked to any provider object."
+    },
+
+    "freshness_tier_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative",
+        "recently_synced_fresh",
+        "bounded_stale",
+        "unbounded_stale",
+        "unknown_freshness_repair_required"
+      ],
+      "description": "Frozen freshness-tier vocabulary the header renders. live_authoritative is reserved for objects whose authoritative side was reached within the freshness floor. recently_synced_fresh is a cached refresh inside the freshness floor. bounded_stale is older than the freshness floor but inside an admin-bounded staleness window. unbounded_stale is past the bounded window and MUST visibly degrade. unknown_freshness_repair_required is repair-only and MUST be paired with a header_degradation_event_record."
+    },
+
+    "edit_mode_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "publish",
+        "browser_only",
+        "inspect_only",
+        "blocked_for_repair"
+      ],
+      "description": "Frozen edit-mode vocabulary disclosed on the header. draft is a local authoring context whose mutation mode is local_draft. publish is a publish path (publish_now or deferred_publish) running under a typed approval ticket. browser_only is an open_in_provider path that routes through a typed browser_handoff_packet (a generic 'Open in browser' control without a typed packet is forbidden). inspect_only is a read-only view of imported provider state. blocked_for_repair is a repair-only state and MUST be paired with a header_degradation_event_record carrying a repair_hook_ref."
+    },
+
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Mutation mode reused from ADR-0010. The header's edit_mode_class projects exactly one mutation mode at a time; surfaces MAY NOT silently widen the mode."
+    },
+
+    "degradation_class": {
+      "type": "string",
+      "enum": [
+        "freshness_drift_to_bounded_stale",
+        "freshness_drift_to_unbounded_stale",
+        "actor_revoked",
+        "actor_suspended",
+        "provider_offline",
+        "provider_unreachable",
+        "mirror_derived_disclosure",
+        "policy_blocked",
+        "host_mismatch_detected",
+        "tenant_switch_detected",
+        "approval_ticket_revoked"
+      ],
+      "description": "Frozen header-degradation vocabulary. Every degradation event names exactly one class so the surface can render a typed downgrade rather than disappearing or silently keeping its claim of authority."
+    },
+
+    "retained_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_metadata",
+        "view_cached_snapshot",
+        "copy_link_header_summary",
+        "copy_object_identity_ref",
+        "copy_handoff_reason_summary",
+        "export_support_evidence",
+        "export_provider_link_summary",
+        "open_local_draft_view",
+        "open_imported_snapshot_view"
+      ],
+      "description": "Frozen retained-action vocabulary the header renders when it has degraded. Inspect / copy / export remain available where safe; surfaces MAY NOT remove every action and leave the header empty. Copy actions carry opaque refs only; raw URLs, raw tokens, and raw provider bodies are never exposed through these actions."
+    },
+
+    "removed_action_class": {
+      "type": "string",
+      "enum": [
+        "publish_now_blocked",
+        "deferred_publish_blocked",
+        "open_in_provider_blocked",
+        "draft_authoring_blocked",
+        "actor_acting_blocked",
+        "credential_projection_blocked"
+      ],
+      "description": "Frozen removed-action vocabulary the degradation event explicitly names. Surfaces MUST quote the removed actions so a reviewer can tell the header is degraded rather than missing data; silent removal is forbidden."
+    },
+
+    "reuse_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_provider_header",
+        "desktop_notification",
+        "activity_center_row",
+        "support_export_summary",
+        "audit_event_payload",
+        "companion_provider_header",
+        "cli_status_line",
+        "cli_command_output",
+        "ai_context_capture_label",
+        "mutation_journal_entry",
+        "review_overlay_label",
+        "queue_review_row"
+      ],
+      "description": "Frozen reuse-surface vocabulary. Every handoff_reason_reuse_record names exactly one surface so provider class, canonical host, scope, freshness tier, handoff reason, and acting actor class survive together outside the originating panel. A surface that cannot be placed in this list MUST fall through to support_export_summary or audit_event_payload rather than invent a surface-local label."
+    },
+
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "mutation_not_supported_in_product",
+        "publish_requires_browser_auth",
+        "license_or_portal_acceptance",
+        "admin_only_surface",
+        "external_docs_or_runbook",
+        "provider_consent_flow",
+        "provider_admin_delegation",
+        "step_up_required"
+      ],
+      "description": "Frozen handoff reason-code vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. Notifications, activity-center rows, exports, and audit events MUST quote this code; flattening a typed reason into a plain URL is forbidden."
+    },
+
+    "freshness_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_at", "freshness_tier"],
+      "properties": {
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "freshness_tier": { "$ref": "#/$defs/freshness_tier_class" },
+        "freshness_floor_ref": { "type": "string" },
+        "staleness_rationale": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Freshness posture for the provider-side state the header points at. bounded_stale and unbounded_stale MUST cite a staleness_rationale; live_authoritative and recently_synced_fresh MAY omit it."
+    },
+
+    "scope_summary_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_summary"],
+      "properties": {
+        "scope_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence naming the tenant / org / project scope and any narrowing the actor is acting under (project_scoped_grant, install scope, policy-injected scope). Raw provider scope tokens never appear here."
+        },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Tenant or org scope the header is bound under. Empty string only when the provider class is genuinely tenantless."
+        },
+        "project_scope_ref": {
+          "type": "string",
+          "description": "Opaque ref to the project_scoped_grant_record narrowing this header. Empty string when no narrowing is active."
+        }
+      },
+      "description": "Scope summary the header renders alongside provider class, canonical host, freshness tier, and acting identity."
+    },
+
+    "available_actions_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available_inspect_actions",
+        "available_copy_actions",
+        "available_export_actions"
+      ],
+      "properties": {
+        "available_inspect_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "inspect_metadata",
+              "view_cached_snapshot",
+              "open_local_draft_view",
+              "open_imported_snapshot_view"
+            ]
+          }
+        },
+        "available_copy_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "copy_link_header_summary",
+              "copy_object_identity_ref",
+              "copy_handoff_reason_summary"
+            ]
+          }
+        },
+        "available_export_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "export_support_evidence",
+              "export_provider_link_summary"
+            ]
+          }
+        }
+      },
+      "description": "Inspect / copy / export actions currently rendered on the header. Degradation MUST NOT empty all three arrays at once: the contract is that inspect / copy / export remain available where safe rather than disappearing. Copy and export actions carry opaque refs and structured summaries only; raw URLs, raw tokens, and raw provider bodies never enter these projections."
+    },
+
+    "provider_link_header_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_link_header_schema_version",
+        "header_id",
+        "connected_provider_record_id",
+        "provider_class",
+        "canonical_host",
+        "object_type",
+        "local_or_provider_source",
+        "freshness",
+        "scope",
+        "edit_mode",
+        "actor_class",
+        "trust_posture",
+        "available_actions",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_link_header_record" },
+        "provider_link_header_schema_version": {
+          "$ref": "#/$defs/provider_link_header_schema_version"
+        },
+        "header_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Canonical host the provider is bound to. Self-hosted and mirrored deployments substitute this host without changing the local object vocabulary; mirror_derived sources MUST also disclose mirror posture through local_or_provider_source."
+        },
+        "object_type": { "$ref": "#/$defs/object_type_class" },
+        "provider_side_object_identity": { "$ref": "#/$defs/object_identity" },
+        "local_or_provider_source": {
+          "$ref": "#/$defs/local_or_provider_source_class"
+        },
+        "last_sync_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Monotonic timestamp of the most recent authoritative refresh. Empty / absent only when local_or_provider_source is local_draft_only_no_provider_state."
+        },
+        "freshness": { "$ref": "#/$defs/freshness_block" },
+        "scope": { "$ref": "#/$defs/scope_summary_block" },
+        "edit_mode": { "$ref": "#/$defs/edit_mode_class" },
+        "current_mutation_mode": {
+          "$ref": "#/$defs/mutation_mode",
+          "description": "ADR-0010 mutation mode the header's edit_mode currently projects. draft → local_draft; publish → publish_now or deferred_publish; browser_only → open_in_provider; inspect_only → inspect_only. blocked_for_repair MAY omit a current_mutation_mode."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "actor_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the human_account_link / installation_or_app_grant / delegated_credential_binding / project_scoped_grant / policy_injected_service_identity record the header is acting under. Empty string only when actor_class is unknown_actor_class."
+        },
+        "acting_identity_badge_ref": {
+          "type": "string",
+          "description": "Opaque ref to the acting_identity_badge_record (in connected_account_record.schema.json) the surface renders alongside the header. A header that cannot cite a badge ref MUST route to actor_class = unknown_actor_class and edit_mode = blocked_for_repair."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the approval-ticket record admitting the current edit mode. Required when edit_mode is publish or browser_only and the underlying mutation mode is publish_now / open_in_provider; empty string for draft / inspect_only / blocked_for_repair."
+        },
+        "browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_packet_record the user will be routed through. Required when edit_mode is browser_only; empty string otherwise."
+        },
+        "publish_later_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_queue_item_record the header is parked under. Required when edit_mode is publish and current_mutation_mode is deferred_publish; empty string otherwise."
+        },
+        "import_session_ref": {
+          "type": "string",
+          "description": "Opaque ref to the import_session_record the header was refreshed by. Required when local_or_provider_source is provider_authoritative, mirror_derived, or imported_snapshot_only; empty string otherwise."
+        },
+        "provider_object_relation_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_object_relation_record the header is paired with so drift_state_class and next_safe_action_class survive across surfaces."
+        },
+        "available_actions": { "$ref": "#/$defs/available_actions_block" },
+        "header_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the desktop, CLI, notification, support-export, and activity-center surfaces render. Names provider class, canonical host, object type, freshness tier, scope, edit mode, and acting actor class together; the contract forbids any surface that surfaces only a subset."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp the header was minted at. Header consumers re-validate freshness against this timestamp."
+        }
+      },
+      "allOf": [
+        {
+          "description": "browser_only edit_mode MUST cite a browser_handoff_packet_ref. A generic 'Open in browser' control without a typed packet is forbidden.",
+          "if": {
+            "properties": { "edit_mode": { "const": "browser_only" } },
+            "required": ["edit_mode"]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "publish edit_mode MUST cite either an approval_ticket_ref or a publish_later_queue_item_ref so the publish path is auditable.",
+          "if": {
+            "properties": { "edit_mode": { "const": "publish" } },
+            "required": ["edit_mode"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["approval_ticket_ref"] },
+              { "required": ["publish_later_queue_item_ref"] }
+            ]
+          }
+        },
+        {
+          "description": "browser_only edit_mode MUST project current_mutation_mode = open_in_provider; draft → local_draft; inspect_only → inspect_only.",
+          "allOf": [
+            {
+              "if": {
+                "properties": { "edit_mode": { "const": "browser_only" } },
+                "required": ["edit_mode"]
+              },
+              "then": {
+                "properties": {
+                  "current_mutation_mode": { "const": "open_in_provider" }
+                },
+                "required": ["current_mutation_mode"]
+              }
+            },
+            {
+              "if": {
+                "properties": { "edit_mode": { "const": "draft" } },
+                "required": ["edit_mode"]
+              },
+              "then": {
+                "properties": {
+                  "current_mutation_mode": { "const": "local_draft" }
+                },
+                "required": ["current_mutation_mode"]
+              }
+            },
+            {
+              "if": {
+                "properties": { "edit_mode": { "const": "inspect_only" } },
+                "required": ["edit_mode"]
+              },
+              "then": {
+                "properties": {
+                  "current_mutation_mode": { "const": "inspect_only" }
+                },
+                "required": ["current_mutation_mode"]
+              }
+            },
+            {
+              "if": {
+                "properties": { "edit_mode": { "const": "publish" } },
+                "required": ["edit_mode"]
+              },
+              "then": {
+                "properties": {
+                  "current_mutation_mode": {
+                    "enum": ["publish_now", "deferred_publish"]
+                  }
+                },
+                "required": ["current_mutation_mode"]
+              }
+            }
+          ]
+        },
+        {
+          "description": "provider_authoritative, mirror_derived, and imported_snapshot_only sources MUST cite an import_session_ref so freshness, actor scope, and trust posture survive on every surface.",
+          "if": {
+            "properties": {
+              "local_or_provider_source": {
+                "enum": [
+                  "provider_authoritative",
+                  "mirror_derived",
+                  "imported_snapshot_only"
+                ]
+              }
+            },
+            "required": ["local_or_provider_source"]
+          },
+          "then": {
+            "properties": {
+              "import_session_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["import_session_ref"]
+          }
+        },
+        {
+          "description": "local_draft_only_no_provider_state MUST pair with edit_mode draft and MUST NOT cite an import_session_ref.",
+          "if": {
+            "properties": {
+              "local_or_provider_source": {
+                "const": "local_draft_only_no_provider_state"
+              }
+            },
+            "required": ["local_or_provider_source"]
+          },
+          "then": {
+            "properties": {
+              "edit_mode": { "const": "draft" }
+            }
+          }
+        },
+        {
+          "description": "Every non-local_draft source class MUST cite a provider_side_object_identity. local_draft_only_no_provider_state MAY omit it because no provider-side object exists yet.",
+          "if": {
+            "properties": {
+              "local_or_provider_source": {
+                "enum": [
+                  "local_authoritative",
+                  "provider_authoritative",
+                  "mirror_derived",
+                  "imported_snapshot_only"
+                ]
+              }
+            },
+            "required": ["local_or_provider_source"]
+          },
+          "then": {
+            "required": ["provider_side_object_identity"]
+          }
+        },
+        {
+          "description": "actor_class unknown_actor_class MUST pair with edit_mode blocked_for_repair so the header routes to a repair hook rather than continuing to publish under an unresolved actor.",
+          "if": {
+            "properties": { "actor_class": { "const": "unknown_actor_class" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "edit_mode": { "const": "blocked_for_repair" }
+            }
+          }
+        },
+        {
+          "description": "An unbounded_stale freshness tier MUST NOT pair with publish or browser_only edit modes; the header MUST degrade to inspect_only or blocked_for_repair until refreshed.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "freshness_tier": { "const": "unbounded_stale" }
+                },
+                "required": ["freshness_tier"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "edit_mode": {
+                "enum": ["inspect_only", "blocked_for_repair"]
+              }
+            }
+          }
+        },
+        {
+          "description": "unknown_freshness_repair_required freshness tier MUST pair with edit_mode blocked_for_repair.",
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "freshness_tier": {
+                    "const": "unknown_freshness_repair_required"
+                  }
+                },
+                "required": ["freshness_tier"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "edit_mode": { "const": "blocked_for_repair" }
+            }
+          }
+        }
+      ],
+      "description": "One typed provider-linked object header. Renders provider class, canonical host, object type, local-versus-provider source, last-sync time, freshness tier, scope, edit mode (draft / publish / browser-only / inspect-only / blocked-for-repair), and acting actor class together. Local draft state, imported provider state, and browser-only actions remain distinguishable on every surface; a generic 'Open in browser' control on a protected surface is forbidden when the system can name destination class, reason code, and return path through the typed browser_handoff_packet and browser_handoff_sheet records."
+    },
+
+    "handoff_reason_reuse_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_link_header_schema_version",
+        "reuse_id",
+        "originating_header_ref",
+        "reuse_surface_class",
+        "provider_class",
+        "canonical_host",
+        "freshness_tier",
+        "scope_summary",
+        "actor_class",
+        "redaction_class",
+        "reuse_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "handoff_reason_reuse_record" },
+        "provider_link_header_schema_version": {
+          "$ref": "#/$defs/provider_link_header_schema_version"
+        },
+        "reuse_id": { "$ref": "#/$defs/opaque_id" },
+        "originating_header_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_browser_handoff_sheet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_sheet_record the reuse record points back at when the reused element is a handoff (not a header-only render)."
+        },
+        "reuse_surface_class": { "$ref": "#/$defs/reuse_surface_class" },
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" },
+        "freshness_tier": { "$ref": "#/$defs/freshness_tier_class" },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "reason_code": {
+          "$ref": "#/$defs/reason_code",
+          "description": "Frozen handoff reason-code reused from schemas/integration/browser_handoff_packet.schema.json. Required when the reuse record points at a handoff; empty (omitted) for header-only reuses that do not carry a handoff reason."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "acting_identity_badge_ref": {
+          "type": "string",
+          "description": "Opaque ref to the acting_identity_badge_record so the actor class is rendered with its frozen badge label outside the originating panel."
+        },
+        "object_identity_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider-side object identity preserved across the reuse surface."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "reuse_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the reuse surface renders. Names provider class, canonical host, scope, freshness tier, handoff reason (where present), and acting actor class together; raw URLs, raw tokens, raw callback bodies, and raw provider bodies are never inlined."
+        },
+        "reused_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One reuse projection of a provider-linked header (or a handoff sheet) outside its originating panel. Notifications, activity-center rows, support exports, audit events, companion provider headers, CLI status lines, AI context captures, and mutation-journal entries read this record so provider class, canonical host, scope, freshness tier, handoff reason, and acting actor class survive together. Surfaces MAY NOT flatten a typed handoff reason into a plain URL or substitute a generic 'External' label."
+    },
+
+    "header_degradation_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_link_header_schema_version",
+        "event_id",
+        "event_time",
+        "originating_header_ref",
+        "degradation_class",
+        "retained_actions",
+        "removed_actions",
+        "rationale_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "header_degradation_event_record" },
+        "provider_link_header_schema_version": {
+          "$ref": "#/$defs/provider_link_header_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "originating_header_ref": { "$ref": "#/$defs/opaque_id" },
+        "degradation_class": { "$ref": "#/$defs/degradation_class" },
+        "originating_invalidation_event_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream account_invalidation_event_record, effective_scope_invalidation_event_record, or import-session staleness record this degradation was triggered by. Empty string only when the degradation originates locally (freshness drift detected by the local clock)."
+        },
+        "retained_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/retained_action_class" },
+          "description": "Frozen retained-action list the header continues to expose. The contract requires inspect / copy / export remain available where safe, so this array MUST contain at least one entry; an empty retained list is forbidden. Surfaces render these actions with their typed labels; a generic 'View' or 'Open' fallback is forbidden."
+        },
+        "removed_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/removed_action_class" },
+          "description": "Frozen removed-action list the header explicitly disables. Surfaces MUST quote the removed actions so reviewers can tell the header is degraded rather than missing data; silent removal is forbidden."
+        },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the repair hook the surface routes the user to (account reselection, browser recovery, step-up authenticator, admin reconciliation, freshness refresh). Required when degradation_class is actor_revoked, actor_suspended, host_mismatch_detected, tenant_switch_detected, approval_ticket_revoked, policy_blocked, freshness_drift_to_unbounded_stale, or provider_unreachable; empty string only for freshness_drift_to_bounded_stale or mirror_derived_disclosure where no admin repair is required."
+        },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Severe degradations MUST cite a repair_hook_ref so the surface routes to a concrete reopen path rather than going silent.",
+          "if": {
+            "properties": {
+              "degradation_class": {
+                "enum": [
+                  "actor_revoked",
+                  "actor_suspended",
+                  "host_mismatch_detected",
+                  "tenant_switch_detected",
+                  "approval_ticket_revoked",
+                  "policy_blocked",
+                  "freshness_drift_to_unbounded_stale",
+                  "provider_unreachable"
+                ]
+              }
+            },
+            "required": ["degradation_class"]
+          },
+          "then": {
+            "properties": {
+              "repair_hook_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["repair_hook_ref"]
+          }
+        }
+      ],
+      "description": "One observable degradation transition for a provider-linked header. Names the typed degradation class, the inspect / copy / export actions retained, the actions explicitly removed, and the repair hook for severe degradations. Silent disappearance is forbidden; the header degrades visibly to inspect_only or blocked_for_repair instead."
+    }
+  }
+}
