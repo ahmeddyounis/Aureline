@@ -1,0 +1,480 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/cross_repo_jump_event.schema.json",
+  "title": "Aureline cross-repo jump event, repo-identity preservation, and back-navigation continuity contract",
+  "description": "Boundary schema for cross-repo navigation events. A cross_repo_jump_event_record names one navigation hop the user took out of one repo / root and into another (or back into the same one), preserving the source repo identity, the destination repo identity, the path / symbol / module / graph-node / evidence-segment anchor on each side, the new-pane / split / peek / preview choice, the workset-continuity class, the optional scope-diff review reference when widening was required, the trust and policy impact, and the back-navigation block that names whether the source workset, source query session, and source anchor are preserved on Back. Cross-repo jumps NEVER flatten into an anonymous file open: the destination always carries its repo_label, root_ref, and active_workset_ref so peek, preview, split, and Back continue to read the same scope truth the user started from. Raw absolute paths, raw remote URLs, raw query bodies, raw document bodies, raw symbol definitions, and raw credential material never appear; opaque refs and typed labels cross the boundary. Adding a new jump kind, jump origin class, continuity class, anchor kind, or back-target kind is additive-minor and bumps cross_repo_jump_event_schema_version; repurposing an existing enum value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/cross_repo_jump_event_record" }
+  ],
+  "$defs": {
+    "cross_repo_jump_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the cross-repo jump-event payload family. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["cross_repo_jump_event_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in support bundles, safe in fixtures. Raw absolute paths, raw remote URLs, raw query bodies, raw document bodies, raw symbol definitions, and raw credential material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; exporters may use any monotonic or pseudo-monotonic source."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply redaction policy before the value crosses the schema boundary."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "instance_schema_hint": { "type": "string" },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ],
+      "description": "Re-export of the workset_artifact_record scope_class. Cross-repo jumps never invent a sixth scope class."
+    },
+
+    "in_scope_marker": {
+      "type": "string",
+      "enum": [
+        "in_current_scope",
+        "outside_current_scope",
+        "imported_root",
+        "policy_overlay_layered"
+      ],
+      "description": "Re-export of the cross_repo_result_group in_scope_marker. The destination of a cross-repo jump carries this marker so peek, preview, and split surfaces never land the user in a root that looks identical to an in-scope result."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "imported_only",
+        "unverified",
+        "unknown"
+      ],
+      "description": "Re-export of the cross_repo_result_group freshness_class. The destination carries the freshness it was resolved at; degraded / imported destinations are visibly disclosed, not silently substituted."
+    },
+
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "hot_set_only",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ],
+      "description": "Re-export of the cross_repo_result_group readiness_state. Destinations whose index is not_indexed, partial_index, or index_unavailable disclose that and may offer build_missing_index / fetch_missing_object follow-ups."
+    },
+
+    "anchor_kind": {
+      "type": "string",
+      "enum": [
+        "file",
+        "symbol",
+        "module",
+        "directory",
+        "manifest_entry",
+        "graph_node",
+        "doc_anchor",
+        "command",
+        "review_artifact",
+        "ai_evidence_segment"
+      ],
+      "description": "What the source / destination anchor points at. Mirrors cross_repo_result_row_record.row_target_kind so a search row, a topology node, an impact row, and an AI evidence segment can all become jump anchors without minting a separate vocabulary."
+    },
+
+    "jump_origin_class": {
+      "type": "string",
+      "enum": [
+        "search_result_row",
+        "symbol_jump",
+        "topology_neighbourhood",
+        "impact_explorer_row",
+        "cited_explainer_evidence",
+        "ai_context_inspector_excerpt",
+        "navigation_deep_link",
+        "review_semantic_hint",
+        "breadcrumb_navigation",
+        "command_palette_jump",
+        "back_navigation"
+      ],
+      "description": "Where the jump originated. back_navigation is the explicit class for a Back hop that returns into a previously visited anchor; it lets support and audit reconstruct one navigation chain without inventing a parallel surface label."
+    },
+
+    "jump_kind": {
+      "type": "string",
+      "enum": [
+        "open_in_current_pane",
+        "open_in_new_pane",
+        "open_in_split",
+        "peek_inline",
+        "preview_modal",
+        "open_in_navigation_deep_link"
+      ],
+      "description": "Closed jump-kind family. peek_inline and preview_modal are non-committing presentations that do not switch the active workset and do not require a scope-diff review even when the destination is outside the current scope; open_in_current_pane / open_in_new_pane / open_in_split are committing jumps; open_in_navigation_deep_link routes through a deep-link surface that resolves the same anchors."
+    },
+
+    "workset_continuity_class": {
+      "type": "string",
+      "enum": [
+        "same_workset",
+        "widened_with_review",
+        "peeked_outside_scope",
+        "switched_active_workset_with_review",
+        "blocked_by_active_workset_boundary"
+      ],
+      "description": "How the active workset changed (or did not change) on the jump. same_workset = source.workset_ref == destination.workset_ref and the destination is in scope; widened_with_review = the user confirmed a scope-diff review and the candidate workset is now active; peeked_outside_scope = peek_inline / preview_modal of an outside-scope destination without changing the active workset; switched_active_workset_with_review = the jump activated a different existing workset (e.g., the user accepted a switcher action) after a review; blocked_by_active_workset_boundary = the jump was denied by a continuity rule (trust, policy, or scope-boundary)."
+    },
+
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "scope_banner",
+        "workset_switcher",
+        "full_search",
+        "quick_open",
+        "symbol_jump",
+        "topology_map",
+        "impact_explorer",
+        "cited_explainer",
+        "ai_context_inspector",
+        "review_semantic_hint",
+        "refactor_preview",
+        "support_export",
+        "navigation_deep_link"
+      ],
+      "description": "Surface families that may emit / read this jump event. Cross-repo jumps surface across these families; the event record stays the same shape on every surface."
+    },
+
+    "trust_stage_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "requires_trust_review",
+        "requires_trust_uplift",
+        "blocked_by_active_trust_stage"
+      ],
+      "description": "Trust-stage impact of the destination. blocked_by_active_trust_stage forces workset_continuity_class = blocked_by_active_workset_boundary."
+    },
+
+    "policy_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "layered_policy_overlay_added",
+        "policy_overlay_active_at_destination",
+        "blocked_by_admin_policy",
+        "blocked_by_license_or_export_control"
+      ],
+      "description": "Policy-overlay impact of the destination. blocked_by_admin_policy and blocked_by_license_or_export_control force workset_continuity_class = blocked_by_active_workset_boundary."
+    },
+
+    "anchor_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workset_ref",
+        "root_ref",
+        "repo_label",
+        "scope_class",
+        "anchor_kind",
+        "presentation_label"
+      ],
+      "properties": {
+        "workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the workset_artifact_record active at this side of the jump. NEVER null; cross-repo jumps preserve workset identity on both sides even when the destination is outside the active scope."
+        },
+        "root_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the ADR-0006 filesystem-identity root the anchor lives under."
+        },
+        "repo_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-aware repo / root label. Cross-repo jumps NEVER drop this field; an anonymous file open is non-conforming."
+        },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "anchor_kind": { "$ref": "#/$defs/anchor_kind" },
+        "anchor_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Stable pointer to the anchor target (file id, symbol id, graph node id, evidence segment id). Null is admissible only when anchor_kind is directory or command and the surface had no resolvable target."
+        },
+        "presentation_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "User-visible anchor label. Workspace-relative form for paths; raw absolute paths never appear."
+        },
+        "presentation_subtitle": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "query_session_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional pointer to the search / query session this side of the jump was resolved under. Used by back-navigation to return to the same query result set."
+        },
+        "in_scope_marker": {
+          "anyOf": [
+            { "$ref": "#/$defs/in_scope_marker" },
+            { "type": "null" }
+          ],
+          "description": "Optional in-scope marker for the destination side. Source side carries it null when the source is itself in_current_scope; destination side MUST carry a non-null marker when source.root_ref != destination.root_ref."
+        },
+        "freshness_class": {
+          "anyOf": [
+            { "$ref": "#/$defs/freshness_class" },
+            { "type": "null" }
+          ]
+        },
+        "readiness_state": {
+          "anyOf": [
+            { "$ref": "#/$defs/readiness_state" },
+            { "type": "null" }
+          ]
+        },
+        "imported_root_disclosed": {
+          "type": "boolean",
+          "description": "True when the side is sourced from an imported / accelerator index. MUST be true when in_scope_marker = imported_root or freshness_class = imported_only."
+        }
+      },
+      "description": "One side of the jump (source or destination). Both sides carry workset_ref, root_ref, repo_label, scope_class, and anchor_kind; cross-repo jumps NEVER drop these fields."
+    },
+
+    "back_target_kind": {
+      "type": "string",
+      "enum": [
+        "prior_pane_focus",
+        "prior_search_result_row",
+        "prior_topology_node",
+        "prior_impact_row",
+        "prior_evidence_card",
+        "prior_command_palette_state",
+        "prior_navigation_anchor",
+        "prior_workset_switcher_row",
+        "no_back_target_available"
+      ],
+      "description": "What Back returns to. no_back_target_available is the explicit no-back row used when a deep link or session-restore landed the user without a prior anchor; the surface is required to disclose this rather than hiding the absence of Back."
+    },
+
+    "back_action_label_class": {
+      "type": "string",
+      "enum": [
+        "back_to_search_result",
+        "back_to_symbol_origin",
+        "back_to_topology_node",
+        "back_to_impact_row",
+        "back_to_evidence_card",
+        "back_to_navigation_anchor",
+        "back_to_workset_switcher",
+        "back_to_command_palette",
+        "back_to_prior_pane",
+        "no_back_action_available"
+      ],
+      "description": "Closed Back-action label family. Cross-repo jumps NEVER collapse this label into a generic 'Back' that erases the source surface; the typed label preserves the origin so the user knows what they will return to."
+    },
+
+    "back_navigation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "back_target_kind",
+        "back_action_label_class",
+        "preserves_source_workset_ref",
+        "preserves_source_query_session_ref",
+        "preserves_source_anchor_ref",
+        "can_back_to_origin"
+      ],
+      "properties": {
+        "back_target_kind": { "$ref": "#/$defs/back_target_kind" },
+        "back_action_label_class": { "$ref": "#/$defs/back_action_label_class" },
+        "preserves_source_workset_ref": {
+          "type": "boolean",
+          "description": "True when Back returns the user into the source workset. MUST be true unless workset_continuity_class = switched_active_workset_with_review."
+        },
+        "preserves_source_query_session_ref": {
+          "type": "boolean",
+          "description": "True when Back returns the user into the source query session. Cross-repo jumps preserve query session identity through peek, preview, split, and Back; setting this to false on a non-blocked jump is non-conforming."
+        },
+        "preserves_source_anchor_ref": {
+          "type": "boolean",
+          "description": "True when Back returns the user to the same source anchor (the search row, the topology node, the impact row, the evidence card). open_in_split / open_in_new_pane / peek_inline / preview_modal MUST set this to true; open_in_current_pane SHOULD set this to true and MUST disclose when it cannot."
+        },
+        "can_back_to_origin": {
+          "type": "boolean",
+          "description": "True when the surface has a Back affordance that returns to the source side. False is admissible only when back_target_kind = no_back_target_available."
+        },
+        "back_pane_target_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "back_in_same_pane",
+                "back_to_origin_pane",
+                "back_closes_split",
+                "back_closes_peek",
+                "back_closes_preview"
+              ]
+            },
+            { "type": "null" }
+          ],
+          "description": "Optional pane-level back behavior. open_in_split typically resolves to back_closes_split; peek_inline to back_closes_peek; preview_modal to back_closes_preview."
+        }
+      },
+      "description": "Back-navigation continuity block. Cross-repo jumps preserve source repo identity, source query session identity, and source anchor identity through Back; this block is the contract that says so."
+    },
+
+    "jump_action": {
+      "type": "string",
+      "enum": [
+        "confirm_jump_in_current_pane",
+        "confirm_jump_in_new_pane",
+        "confirm_jump_in_split",
+        "confirm_peek_inline",
+        "confirm_preview_modal",
+        "cancel_jump",
+        "open_scope_diff",
+        "switch_active_workset_with_review",
+        "request_trust_review",
+        "request_policy_review_admin_only",
+        "fetch_missing_object",
+        "build_missing_index",
+        "copy_target_ref",
+        "copy_workset_id"
+      ],
+      "description": "Typed action a jump record may offer. blocked_by_active_workset_boundary records reduce offered_actions to cancel_jump plus the relevant request_*_review escalation."
+    },
+
+    "cross_repo_jump_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "cross_repo_jump_event_schema_version",
+        "event_id",
+        "jump_origin_class",
+        "jump_kind",
+        "source",
+        "destination",
+        "is_cross_repo",
+        "workset_continuity_class",
+        "trust_stage_impact_class",
+        "policy_impact_class",
+        "back_navigation",
+        "consumer_surface_class",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "cross_repo_jump_event_record"
+        },
+        "cross_repo_jump_event_schema_version": {
+          "$ref": "#/$defs/cross_repo_jump_event_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "jump_origin_class": { "$ref": "#/$defs/jump_origin_class" },
+        "jump_kind": { "$ref": "#/$defs/jump_kind" },
+        "source": { "$ref": "#/$defs/anchor_block" },
+        "destination": { "$ref": "#/$defs/anchor_block" },
+        "is_cross_repo": {
+          "type": "boolean",
+          "description": "True when source.root_ref != destination.root_ref. Cross-repo jumps MUST set this to true and MUST carry a non-null destination.in_scope_marker; in-repo jumps that resolve into the same root_ref MAY set this to false."
+        },
+        "workset_continuity_class": { "$ref": "#/$defs/workset_continuity_class" },
+        "scope_diff_review_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Pointer to the scope_diff_review_record that gated this jump. MUST be non-null when workset_continuity_class is widened_with_review or switched_active_workset_with_review."
+        },
+        "trust_stage_impact_class": { "$ref": "#/$defs/trust_stage_impact_class" },
+        "policy_impact_class": { "$ref": "#/$defs/policy_impact_class" },
+        "back_navigation": { "$ref": "#/$defs/back_navigation_block" },
+        "result_group_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional pointer to the cross_repo_result_group_record this jump originated from (search rows, symbol jumps, topology / impact / explainer reuse)."
+        },
+        "result_row_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional pointer to the cross_repo_result_row_record this jump originated from."
+        },
+        "consumer_surface_class": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/jump_action" }
+        },
+        "presentation_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One cross-repo jump event. Continuity rules (frozen): (a) source.workset_ref and destination.workset_ref MUST both be non-null; cross-repo jumps NEVER drop workset identity; (b) destination.repo_label MUST be present and MUST differ from source.repo_label when is_cross_repo = true; (c) when is_cross_repo = true, destination.in_scope_marker MUST be non-null; (d) destination.in_scope_marker = outside_current_scope MUST set workset_continuity_class to one of peeked_outside_scope, widened_with_review, switched_active_workset_with_review, or blocked_by_active_workset_boundary; (e) workset_continuity_class in { widened_with_review, switched_active_workset_with_review } MUST set scope_diff_review_ref to a non-null pointer; (f) workset_continuity_class = same_workset requires source.workset_ref == destination.workset_ref AND destination.in_scope_marker in { in_current_scope, policy_overlay_layered }; (g) workset_continuity_class = peeked_outside_scope MUST set jump_kind to peek_inline or preview_modal; (h) workset_continuity_class = blocked_by_active_workset_boundary forbids confirm_jump_in_current_pane, confirm_jump_in_new_pane, confirm_jump_in_split, confirm_peek_inline, and confirm_preview_modal in offered_actions and requires cancel_jump; (i) trust_stage_impact_class = blocked_by_active_trust_stage forces workset_continuity_class = blocked_by_active_workset_boundary; (j) policy_impact_class in { blocked_by_admin_policy, blocked_by_license_or_export_control } forces workset_continuity_class = blocked_by_active_workset_boundary; (k) destination.in_scope_marker = imported_root requires destination.imported_root_disclosed = true and destination.freshness_class in { imported_only, warm_cached }; (l) back_navigation.preserves_source_query_session_ref MUST be true unless workset_continuity_class = blocked_by_active_workset_boundary; (m) back_navigation.preserves_source_workset_ref MUST be true unless workset_continuity_class = switched_active_workset_with_review; (n) jump_kind in { open_in_split, open_in_new_pane, peek_inline, preview_modal } requires back_navigation.preserves_source_anchor_ref = true; (o) back_navigation.can_back_to_origin = false requires back_navigation.back_target_kind = no_back_target_available and back_navigation.back_action_label_class = no_back_action_available; (p) jump_origin_class = back_navigation requires destination.anchor_ref to match a previously visited anchor on the same chain (the producer is responsible for chain integrity; this schema only forbids the back_navigation origin class on a record whose back_navigation.back_target_kind = no_back_target_available)."
+    }
+  }
+}

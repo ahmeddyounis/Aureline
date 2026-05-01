@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/scope_diff_review.schema.json",
+  "title": "Aureline scope-diff review-sheet, widen-cost disclosure, and continuity-rule contract",
+  "description": "Boundary schema for the scope-diff review surface. The scope_widen_diff_record (workset_artifact.schema.json) is the typed diff between two worksets; this schema is the user-visible review-sheet projection rendered before scope is widened or narrowed by a search, navigation, refactor, AI-context, or support-export surface. A scope_diff_review_record names which trigger surface raised the review, the typed list of added / removed roots and modules, the expected index and runtime cost class, the remote-fetch / cache-source breakdown, the support / availability / portability / readiness impact, the trust-stage and policy-overlay impact, and the closed confirm / cancel / trust-review / policy-review action set. Scope widening is always explicit and costed; a surface that widens scope without emitting a review record is non-conforming. Raw absolute paths, raw remote URLs, raw policy bodies, raw query bodies, raw document bodies, raw symbol definitions, and raw credential material never appear; opaque refs and typed labels cross the boundary. Adding a new trigger class, cost class, source-note class, action, or impact class is additive-minor and bumps scope_diff_review_schema_version; repurposing an existing enum value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/scope_diff_review_record" }
+  ],
+  "$defs": {
+    "scope_diff_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the scope-diff review payload family. Bumped only on breaking payload changes; additive-optional fields do not bump this value."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["scope_diff_review_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, safe on RPC, safe in support bundles, safe in fixtures. Raw absolute paths, raw remote URLs, raw policy bodies, raw query bodies, raw document bodies, raw symbol definitions, and raw credential material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema; exporters may use any monotonic or pseudo-monotonic source."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). Exporters apply redaction policy before the value crosses the schema boundary."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "instance_schema_hint": { "type": "string" },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_repo",
+        "selected_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view"
+      ],
+      "description": "Re-export of the workset_artifact_record scope_class. The scope-diff review never invents a sixth scope class."
+    },
+
+    "review_state": {
+      "type": "string",
+      "enum": [
+        "pending_user_review",
+        "in_review",
+        "confirmed",
+        "cancelled",
+        "blocked_by_trust",
+        "blocked_by_policy",
+        "blocked_by_unavailable_remote",
+        "applied"
+      ],
+      "description": "Review-sheet lifecycle. pending_user_review = sheet was just rendered, no input yet; in_review = user is interacting; confirmed = user confirmed widening but the candidate has not yet activated; cancelled = user dismissed; blocked_by_trust / blocked_by_policy / blocked_by_unavailable_remote = the review was blocked by a continuity rule and confirm_widen is forbidden; applied = the candidate workset is now active. State transitions are append-only on the record family; a single record carries a snapshot for one decision turn."
+    },
+
+    "trigger_class": {
+      "type": "string",
+      "enum": [
+        "banner_widen",
+        "switcher_open",
+        "search_widen_with_review",
+        "cross_repo_jump_widen",
+        "symbol_jump_widen",
+        "topology_widen",
+        "impact_explorer_widen",
+        "cited_explainer_widen",
+        "ai_context_widen",
+        "refactor_widen",
+        "review_semantic_hint_widen",
+        "support_export_widen",
+        "navigation_deep_link_widen"
+      ],
+      "description": "Which surface raised the review. Each trigger class names exactly one surface family; surfaces never invent surface-local widen vocabulary."
+    },
+
+    "consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "scope_banner",
+        "workset_switcher",
+        "full_search",
+        "quick_open",
+        "symbol_jump",
+        "topology_map",
+        "impact_explorer",
+        "cited_explainer",
+        "ai_context_inspector",
+        "review_semantic_hint",
+        "refactor_preview",
+        "support_export",
+        "navigation_deep_link"
+      ],
+      "description": "Surface families that may render this review record. The review surface MUST be the surface that raised the trigger (the trigger_class always corresponds to one of these). Re-rendering on a non-listed surface is non-conforming."
+    },
+
+    "added_or_removed_root_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_ref", "root_label", "change_class"],
+      "properties": {
+        "root_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the ADR-0006 filesystem-identity root being added or removed."
+        },
+        "root_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-aware repo / root label rendered on the review sheet (Appendix AC.4 'added repos' / 'removed repos')."
+        },
+        "change_class": {
+          "type": "string",
+          "enum": ["root_added", "root_removed"],
+          "description": "Whether this row is a root being added by widening or a root being dropped by narrowing."
+        },
+        "imported_root_disclosed": {
+          "type": "boolean",
+          "description": "True when the root is sourced from an imported / accelerator index. Mirrors cross_repo_result_group.in_scope_marker = imported_root so the review sheet never quietly lands the user in an imported root that looks authoritative."
+        },
+        "managed_provider_disclosed": {
+          "type": "boolean",
+          "description": "True when the root is owned by a managed provider. Combined with includes_managed_provider_refs_after_widen on the support_availability_impact block to disclose export / portability consequences."
+        },
+        "presentation_subtitle": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One typed root-level change. Multi-root widening enumerates one entry per root added or removed; a review that widens the active workset across N roots emits N entries with change_class = root_added."
+    },
+
+    "added_or_removed_module_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module_ref", "module_label", "change_class", "module_kind"],
+      "properties": {
+        "module_ref": { "$ref": "#/$defs/opaque_id" },
+        "module_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-aware module / folder / manifest-entry label rendered on the review sheet. Workspace-relative form is required; raw absolute paths never appear."
+        },
+        "module_kind": {
+          "type": "string",
+          "enum": ["folder", "module", "manifest_entry", "graph_seed"],
+          "description": "Kind of member being added or removed. Re-export of the workset_artifact member_ref ref_kind family minus the root entry (roots have their own change-row)."
+        },
+        "change_class": {
+          "type": "string",
+          "enum": ["module_added", "module_removed", "pattern_broadened", "pattern_narrowed"],
+          "description": "Why the module appears on the diff. pattern_broadened / pattern_narrowed entries reference the pattern_change_summary on the parent record."
+        },
+        "in_root_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional containing-root ref. Null is admissible only when the change is a workspace-wide pattern broaden or narrow."
+        },
+        "presentation_subtitle": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One typed module / folder / manifest-entry / graph-seed change in the diff. The review sheet renders these grouped under their containing root."
+    },
+
+    "expected_index_cost_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "cache_warm",
+        "targeted_index",
+        "full_reindex",
+        "remote_fetch_required"
+      ],
+      "description": "Re-export of the scope_widen_diff_record expected_index_cost_class. The review sheet renders a typed cost band; consumers MUST NOT promote this to a precise time estimate."
+    },
+
+    "expected_runtime_cost_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "cheap",
+        "moderate",
+        "expensive",
+        "very_expensive_remote_only"
+      ],
+      "description": "Closed runtime-impact band the active query / navigation / refactor will pay if widening is confirmed. cheap = same lane as the active query; moderate = one extra lane (lexical or semantic) lights up; expensive = full search / graph rebuild on the new scope; very_expensive_remote_only = the candidate cannot be served without a remote fetch and the user is told so."
+    },
+
+    "remote_or_cache_source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_local_cache",
+        "profile_local_cache",
+        "machine_local_cache",
+        "remote_authoritative_required",
+        "remote_authoritative_optional",
+        "imported_remote_index",
+        "imported_provider_index",
+        "external_provider_index",
+        "accelerator_index",
+        "no_external_source_required"
+      ],
+      "description": "Closed source-note class for materializing the candidate. Multiple classes may apply (e.g., workspace_local_cache + remote_authoritative_optional when the cache is partial but a fresh remote pull is offered)."
+    },
+
+    "remote_or_cache_source_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_class"],
+      "properties": {
+        "source_class": { "$ref": "#/$defs/remote_or_cache_source_class" },
+        "source_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Optional redaction-aware label for the source (e.g., 'Provider index · payments-fraud'). Raw remote URLs never appear here."
+        },
+        "remote_round_trip_disclosed": {
+          "type": "boolean",
+          "description": "True when this source contributes a remote round-trip the user is told about on the review sheet. MUST be true when source_class is remote_authoritative_required, imported_remote_index, imported_provider_index, or external_provider_index."
+        }
+      },
+      "description": "One source-note row. The review sheet enumerates the cache and remote sources widening will read from so the user can see where the new content actually comes from."
+    },
+
+    "support_availability_impact_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "changes_portability",
+        "changes_readiness",
+        "includes_managed_provider_refs_after_widen",
+        "includes_machine_local_refs_after_widen",
+        "reduces_support_export_completeness",
+        "reduces_offline_capability",
+        "support_availability_impact_disclosed"
+      ],
+      "properties": {
+        "changes_portability": {
+          "type": "boolean",
+          "description": "True when widening flips workset_artifact.portability.portability_class (e.g., a fully_portable workset that imports a managed root becomes managed_provider_locked)."
+        },
+        "changes_readiness": {
+          "type": "boolean",
+          "description": "True when widening flips workset_artifact.readiness.readiness_state (e.g., warm → partial because the new roots are not yet indexed)."
+        },
+        "includes_managed_provider_refs_after_widen": {
+          "type": "boolean",
+          "description": "True when at least one root added by widening is managed-provider-locked. Surfaces the export / portability consequence on the review sheet."
+        },
+        "includes_machine_local_refs_after_widen": {
+          "type": "boolean",
+          "description": "True when at least one root added by widening points at a machine-local device, drive, or virtual root that will not rebind on import."
+        },
+        "reduces_support_export_completeness": {
+          "type": "boolean",
+          "description": "True when widening into the candidate scope means the resulting support / export bundle would not be exportable in full (e.g., crossing into a managed-provider-locked root)."
+        },
+        "reduces_offline_capability": {
+          "type": "boolean",
+          "description": "True when widening introduces a remote-only root or remote-only index that breaks offline workflows."
+        },
+        "support_availability_impact_disclosed": {
+          "type": "boolean",
+          "description": "True when the review sheet renders the impact block to the user. MUST be true when any of changes_portability / changes_readiness / includes_managed_provider_refs_after_widen / includes_machine_local_refs_after_widen / reduces_support_export_completeness / reduces_offline_capability is true."
+        }
+      },
+      "description": "Support / portability / availability impact for the candidate. The review sheet never confirms a widening that flips portability or readiness without disclosing it; widening is explicit and costed."
+    },
+
+    "trust_stage_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "requires_trust_review",
+        "requires_trust_uplift",
+        "blocked_by_active_trust_stage"
+      ],
+      "description": "Trust-stage impact of the candidate. requires_trust_review = the new roots / members need a trust-review pass; requires_trust_uplift = the active trust stage is too low for the candidate and the user is asked to uplift; blocked_by_active_trust_stage = the candidate cannot activate at the current trust stage and the review is blocked. no_change otherwise."
+    },
+
+    "policy_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_change",
+        "layered_policy_overlay_added",
+        "policy_overlay_removed",
+        "blocked_by_admin_policy",
+        "blocked_by_license_or_export_control"
+      ],
+      "description": "Policy-overlay impact of the candidate. layered_policy_overlay_added = widening introduces a new policy_limitation block; policy_overlay_removed = narrowing removes an active policy overlay; blocked_by_admin_policy / blocked_by_license_or_export_control = the candidate is forbidden by an admin or license/export-control policy and the review is blocked. no_change otherwise."
+    },
+
+    "review_action": {
+      "type": "string",
+      "enum": [
+        "confirm_widen",
+        "confirm_narrow",
+        "cancel_widen_keep_current_scope",
+        "request_trust_review",
+        "request_policy_review_admin_only",
+        "snapshot_current_scope",
+        "copy_diff_id",
+        "open_underlying_artifact",
+        "narrow_to_current_repo",
+        "build_missing_indexes",
+        "fetch_missing_objects"
+      ],
+      "description": "Typed action the review sheet may offer. confirm_widen and confirm_narrow are mutually exclusive; cancel_widen_keep_current_scope is the cancel route; request_trust_review and request_policy_review_admin_only are the escalation routes for blocked reviews."
+    },
+
+    "pattern_change_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["broadened_count", "narrowed_count"],
+      "properties": {
+        "broadened_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of include/exclude pattern rows that were broadened in the candidate."
+        },
+        "narrowed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of include/exclude pattern rows that were narrowed in the candidate."
+        },
+        "conflicting_pattern_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of pattern rows whose interaction with another row produced a conflict the review sheet must surface (workset_artifact patterns are never silently re-ordered)."
+        }
+      },
+      "description": "Aggregate pattern-change summary. The review sheet renders these counts; the verbatim pattern bodies live on the underlying scope_widen_diff_record entries."
+    },
+
+    "scope_diff_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "scope_diff_review_schema_version",
+        "review_id",
+        "diff_ref",
+        "base_workset_ref",
+        "candidate_workset_ref",
+        "base_scope_class",
+        "candidate_scope_class",
+        "trigger_class",
+        "consumer_surface_class",
+        "review_state",
+        "added_roots",
+        "removed_roots",
+        "added_modules",
+        "removed_modules",
+        "pattern_change_summary",
+        "expected_index_cost_class",
+        "expected_runtime_cost_class",
+        "remote_fetch_required",
+        "remote_or_cache_source_notes",
+        "support_availability_impact",
+        "trust_stage_impact_class",
+        "policy_impact_class",
+        "offered_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "scope_diff_review_record"
+        },
+        "scope_diff_review_schema_version": {
+          "$ref": "#/$defs/scope_diff_review_schema_version"
+        },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "diff_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the underlying workset_artifact scope_widen_diff_record that drives this review. The diff is the typed evidence; this record is the user-visible projection."
+        },
+        "base_workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the active workset_artifact_record before widening / narrowing."
+        },
+        "candidate_workset_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Pointer to the candidate workset_artifact_record after widening / narrowing. A new workset_id MUST be minted for the candidate; identity never drifts under a diff."
+        },
+        "base_scope_class": { "$ref": "#/$defs/scope_class" },
+        "candidate_scope_class": { "$ref": "#/$defs/scope_class" },
+        "trigger_class": { "$ref": "#/$defs/trigger_class" },
+        "consumer_surface_class": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consumer_surface_class" }
+        },
+        "review_state": { "$ref": "#/$defs/review_state" },
+        "added_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/added_or_removed_root_entry" },
+          "description": "Roots added by widening. Empty array means no root-level addition; pattern broadening or module addition may still be present in added_modules. A widening review whose underlying scope_widen_diff_record carries widens_scope = true MUST emit at least one entry across added_roots / added_modules / pattern_change_summary."
+        },
+        "removed_roots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/added_or_removed_root_entry" },
+          "description": "Roots removed by narrowing. Mirror of added_roots; same constraints."
+        },
+        "added_modules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/added_or_removed_module_entry" }
+        },
+        "removed_modules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/added_or_removed_module_entry" }
+        },
+        "pattern_change_summary": { "$ref": "#/$defs/pattern_change_summary" },
+        "expected_index_cost_class": { "$ref": "#/$defs/expected_index_cost_class" },
+        "expected_runtime_cost_class": { "$ref": "#/$defs/expected_runtime_cost_class" },
+        "expected_runtime_cost_note": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ],
+          "description": "Optional short note rendered alongside the runtime-cost band. Never a precise time estimate."
+        },
+        "remote_fetch_required": {
+          "type": "boolean",
+          "description": "Re-export of the scope_widen_diff_record remote_fetch_required. True when at least one remote_or_cache_source_notes entry has source_class in { remote_authoritative_required, imported_remote_index, imported_provider_index, external_provider_index }."
+        },
+        "remote_or_cache_source_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/remote_or_cache_source_note" },
+          "description": "Ordered source-note rows the review sheet renders. At least one entry; no_external_source_required is the explicit no-source row when widening reads only local caches."
+        },
+        "support_availability_impact": { "$ref": "#/$defs/support_availability_impact_block" },
+        "trust_stage_impact_class": { "$ref": "#/$defs/trust_stage_impact_class" },
+        "policy_impact_class": { "$ref": "#/$defs/policy_impact_class" },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_action" },
+          "description": "Typed actions the review sheet offers. At least one cancel route MUST be present (cancel_widen_keep_current_scope or narrow_to_current_repo). confirm_widen / confirm_narrow are forbidden when review_state is blocked_by_trust, blocked_by_policy, or blocked_by_unavailable_remote."
+        },
+        "presentation_subtitle": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/redaction_aware_text" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "description": "One scope-diff review-sheet record. Review rules (frozen): (a) the underlying scope_widen_diff_record presentation_only path never emits this record — presentation-only diffs route through the rename / subtitle path on workset_artifact; (b) review_state in { blocked_by_trust, blocked_by_policy, blocked_by_unavailable_remote } forbids confirm_widen and confirm_narrow in offered_actions; (c) trust_stage_impact_class = blocked_by_active_trust_stage forces review_state = blocked_by_trust; (d) policy_impact_class in { blocked_by_admin_policy, blocked_by_license_or_export_control } forces review_state = blocked_by_policy; (e) trust_stage_impact_class in { requires_trust_review, requires_trust_uplift } MUST include request_trust_review in offered_actions; (f) policy_impact_class = blocked_by_admin_policy MUST include request_policy_review_admin_only in offered_actions only when the surface is a policy-admin surface; (g) expected_runtime_cost_class = very_expensive_remote_only requires remote_fetch_required = true and at least one remote_or_cache_source_notes entry with remote_round_trip_disclosed = true; (h) expected_index_cost_class = remote_fetch_required requires remote_fetch_required = true; (i) every remote_or_cache_source_notes entry whose source_class is remote_authoritative_required, imported_remote_index, imported_provider_index, or external_provider_index MUST set remote_round_trip_disclosed = true; (j) support_availability_impact_disclosed MUST be true when any impact field on the block is true; (k) at least one cancel route is required in offered_actions (cancel_widen_keep_current_scope or narrow_to_current_repo); (l) base_workset_ref MUST NOT equal candidate_workset_ref — identity never drifts under a review; (m) added_roots, removed_roots, added_modules, removed_modules, and pattern_change_summary together MUST contain at least one non-empty signal (a review with no diff signal is non-conforming)."
+    }
+  }
+}

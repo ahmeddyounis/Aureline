@@ -1,0 +1,88 @@
+__fixture__:
+  name: cross_repo_peek_outside_scope
+  scenario: >
+    Cross-repo jump event emitted when the user peeks an
+    outside_current_scope row in a search result group. Source is
+    the active payments-api current-repo fallback (workset
+    wks:payments:current_repo:2026041912); destination is the
+    payments-fraud root carrying the same payments-current-repo
+    workset_ref (peek does not switch the active workset). The
+    peek is non-committing: workset_continuity_class =
+    peeked_outside_scope, no scope_diff_review_ref is required,
+    Back closes the peek and preserves source workset, source
+    query session, and source anchor refs. Trust and policy are
+    no_change. The destination's in_scope_marker =
+    outside_current_scope and freshness_class = warm_cached on
+    a warm_index readiness.
+  doc_sections:
+    - 2. Cross-repo jump event
+    - 2.1 Anchor block
+    - 2.3 Jump kind
+    - 2.4 Workset-continuity class
+    - 2.5 Back navigation continuity
+    - 3. Continuity rules (cross-cutting)
+record_kind: cross_repo_jump_event_record
+cross_repo_jump_event_schema_version: 1
+event_id: cross_repo_jump:payments:current_to_fraud_peek:01
+jump_origin_class: search_result_row
+jump_kind: peek_inline
+source:
+  workset_ref: wks:payments:current_repo:2026041912
+  root_ref: fs-identity-root-payments-api-0
+  repo_label: payments-api
+  scope_class: current_repo
+  anchor_kind: symbol
+  anchor_ref: symbol:payments-api:checkout:settle_amount_caller
+  presentation_label: services/checkout/src/settle_amount_caller.rs
+  presentation_subtitle: "fn settle_amount_caller(...) — payments-api"
+  query_session_ref: query_session:payments:settle_amount:01
+  in_scope_marker: in_current_scope
+  freshness_class: authoritative_live
+  readiness_state: fully_indexed
+  imported_root_disclosed: false
+destination:
+  workset_ref: wks:payments:current_repo:2026041912
+  root_ref: fs-identity-root-payments-fraud-0
+  repo_label: payments-fraud
+  scope_class: current_repo
+  anchor_kind: symbol
+  anchor_ref: symbol:payments-fraud:risk_scoring:settle_amount
+  presentation_label: services/risk-scoring/src/settle_amount.rs
+  presentation_subtitle: "fn settle_amount(...) — payments-fraud (peek)"
+  query_session_ref: query_session:payments:settle_amount:01
+  in_scope_marker: outside_current_scope
+  freshness_class: warm_cached
+  readiness_state: warm_index
+  imported_root_disclosed: false
+is_cross_repo: true
+workset_continuity_class: peeked_outside_scope
+scope_diff_review_ref: null
+trust_stage_impact_class: no_change
+policy_impact_class: no_change
+back_navigation:
+  back_target_kind: prior_search_result_row
+  back_action_label_class: back_to_search_result
+  preserves_source_workset_ref: true
+  preserves_source_query_session_ref: true
+  preserves_source_anchor_ref: true
+  can_back_to_origin: true
+  back_pane_target_kind: back_closes_peek
+result_group_ref: cross_repo_group:payments:fraud:01
+result_row_ref: cross_repo_row:payments:fraud:settle_amount:01
+consumer_surface_class:
+  - full_search
+  - symbol_jump
+offered_actions:
+  - confirm_peek_inline
+  - cancel_jump
+  - open_scope_diff
+  - copy_target_ref
+  - copy_workset_id
+presentation_label: >
+  Peek payments-fraud · settle_amount (outside current scope).
+emitted_at: "mono:4812:00:11:30.0500"
+notes: >
+  Peek is non-committing; the active workset stays
+  wks:payments:current_repo:2026041912. Back closes the peek and
+  returns to the originating search row with workset, query
+  session, and anchor refs preserved.
