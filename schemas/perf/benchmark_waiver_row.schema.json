@@ -1,0 +1,1757 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/perf/benchmark_waiver_row.schema.json",
+  "title": "Aureline benchmark-waiver dashboard row, recurring-regression triage, and correction-trigger contract",
+  "description": "Boundary schema for one benchmark_waiver_row_record frozen in docs/perf/benchmark_waiver_dashboard_contract.md. The record is the perf-side projection that the benchmark-waiver dashboard, the milestone-close review, the release-candidate shiproom packet, the support escalation export, and the weekly governance review quote when a benchmark waiver, a chronic drift pattern, or a correction-trigger condition has to be visible as an operational pattern instead of an isolated nightly_report_row entry. Every row pins one protected fitness-function row and one typed metric family to one corpus / profile / hardware envelope, names the typed dashboard state, the typed waiver-cause class, the typed mitigation status, the typed expiry envelope, the typed drift-direction and noise-class triage, the integer recurrence count plus the typed recurrence-window class, the typed correction-trigger class and the typed correction-owner role, the linked release / milestone impact, and the typed review-cycle export-parity floor. A noisy isolated failure cannot collapse into 'chronic drift'; a chronic-drift cluster cannot render as 'recently noisy'; an expired waiver cannot ride into a release-candidate review as a clean pass; correction work owed by the release council cannot be filed against the lane DRI alone. Raw measurement bytes, raw waiver justifications, raw user identifiers, and raw policy bodies MUST NOT appear; the record carries opaque refs, typed vocabulary, integer counters, and bounded reviewable summaries only. Adding a new dashboard-state, waiver-cause, drift-direction, noise, recurrence-window, correction-trigger, correction-owner, metric-family, or review-cycle class is additive-minor and bumps benchmark_waiver_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/benchmark_waiver_row_record",
+  "$defs": {
+    "benchmark_waiver_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the benchmark-waiver-row payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, and screenshots. Raw URLs, raw absolute paths, raw policy bodies, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration (e.g. P14D)."
+    },
+    "nullable_iso_duration": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/iso_duration" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw measurement bytes, raw evidence bodies, raw policy bodies, raw waiver justifications, and raw user identifiers MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "dashboard_row_state_class": {
+      "type": "string",
+      "enum": [
+        "passing_no_waiver_no_drift",
+        "drift_inside_warning_band_no_waiver",
+        "drift_inside_failure_band_no_waiver",
+        "drift_breaches_release_floor_no_waiver",
+        "drift_breaches_release_floor_active_waiver",
+        "drift_breaches_release_floor_expired_waiver",
+        "evidence_stale_pending_rerun",
+        "not_run_due_to_blocker",
+        "provisional_threshold_pending_seed"
+      ],
+      "description": "Closed nine-class dashboard-state vocabulary. passing_no_waiver_no_drift = latest qualifying run met every threshold and no active waiver covers the row. drift_inside_warning_band_no_waiver = drift inside the declared warning band against the recent-baseline window. drift_inside_failure_band_no_waiver = drift past the warning band but not yet a release blocker; no active waiver. drift_breaches_release_floor_no_waiver = release-floor breach with no active waiver; the row is gated as a release blocker. drift_breaches_release_floor_active_waiver = release-floor breach held open by an active waiver; the row MUST cite a non-null waiver_envelope.waiver_record_ref. drift_breaches_release_floor_expired_waiver = release-floor breach on a row whose waiver expired without renewal; the row MUST cite the previous waiver and MUST NOT render as passing on any consuming surface. evidence_stale_pending_rerun = the recent-baseline window did not capture qualifying evidence within the freshness ceiling or a named rerun trigger fired. not_run_due_to_blocker = the recurring run did not execute because an upstream blocker (broken corpus, frozen lane, missing capability, hardware-definition drift) prevented capture. provisional_threshold_pending_seed = the protected-metrics threshold for this row is still flagged to_be_set_by_benchmark_council and the row may only warn, never fail."
+    },
+    "metric_family_class": {
+      "type": "string",
+      "enum": [
+        "latency_warm_start_to_first_paint",
+        "latency_first_paint",
+        "latency_input_to_paint",
+        "latency_buffer_operations",
+        "throughput_save_pipeline",
+        "ratio_command_parity",
+        "ratio_restore_fidelity",
+        "count_benchmark_lab_health",
+        "boolean_or_count_power_thermal_posture",
+        "structural_digest_other",
+        "other_named_in_summary"
+      ],
+      "description": "Closed eleven-class metric-family vocabulary. Mirrors the protected-path families seeded in artifacts/bench/fitness_function_catalog.yaml so dashboards, scorecards, and packets can sort by metric family without re-deriving it from a free-text label. other_named_in_summary is admissible only when the summary names the family."
+    },
+    "waiver_cause_class": {
+      "type": "string",
+      "enum": [
+        "no_active_waiver",
+        "corpus_revision_drift",
+        "hardware_definition_drift",
+        "environment_definition_drift",
+        "toolchain_pin_drift",
+        "threshold_provisional_pending_council",
+        "dependency_blocker_pending",
+        "third_party_runtime_blocker",
+        "infrastructure_outage",
+        "claim_attestation_pending",
+        "review_outcome_incomplete",
+        "single_maintainer_backup",
+        "other_named_in_summary"
+      ],
+      "description": "Closed thirteen-class waiver-cause vocabulary. Surfaces the typed reason the waiver was minted (corpus rev bump, hardware drift, lab-image drift, toolchain drift, provisional threshold, blocked dependency, third-party runtime regression, infrastructure outage, claim attestation lag, review outcome incomplete, single-maintainer backup posture, or other named in summary). no_active_waiver is admissible only when dashboard_row_state_class is in { passing_no_waiver_no_drift, drift_inside_warning_band_no_waiver, drift_inside_failure_band_no_waiver, drift_breaches_release_floor_no_waiver, evidence_stale_pending_rerun, not_run_due_to_blocker, provisional_threshold_pending_seed }."
+    },
+    "mitigation_status_class": {
+      "type": "string",
+      "enum": [
+        "no_mitigation_required",
+        "mitigation_in_flight_owner_named",
+        "mitigation_blocked_pending_decision",
+        "mitigation_not_started_pending_owner",
+        "mitigation_complete_renewal_or_retire_pending",
+        "mitigation_not_required_audit_only"
+      ],
+      "description": "Closed six-class mitigation-status vocabulary. Mirrors the governance-side waiver_expiry_item.schema.json mitigation classes plus a no_mitigation_required entry for the passing dashboard rows. Surfaces MUST NOT collapse 'blocked pending decision' and 'not started pending owner' into a single 'needs review' chip."
+    },
+    "expiry_proximity_class": {
+      "type": "string",
+      "enum": [
+        "no_active_waiver",
+        "expired_past_due",
+        "due_today_or_within_24h",
+        "nearing_expiry_within_seven_days",
+        "nearing_expiry_within_thirty_days",
+        "not_yet_due_review_window_open",
+        "no_expiry_pinned"
+      ],
+      "description": "Closed seven-class expiry-proximity vocabulary. Mirrors the governance-side waiver_expiry_item.schema.json proximity vocabulary plus a no_active_waiver entry. expired_past_due requires expires_at strictly in the past; due_today_or_within_24h, nearing_expiry_within_seven_days, nearing_expiry_within_thirty_days, and not_yet_due_review_window_open require a non-null expires_at; no_expiry_pinned requires expires_at to be null and is admissible only when waiver_cause_class is single_maintainer_backup or other_named_in_summary; no_active_waiver requires waiver_envelope.waiver_record_ref to be null."
+    },
+    "drift_direction_class": {
+      "type": "string",
+      "enum": [
+        "improving",
+        "regressing",
+        "stable_within_band",
+        "noisy_high_variance",
+        "unknown_insufficient_history",
+        "unknown_not_comparable"
+      ],
+      "description": "Closed six-class drift-direction vocabulary. Names the rolled-up trend direction over the recent-baseline window. Distinct from a per-run trend_direction class on schemas/benchmarks/run_result.schema.json: this class summarises the rolling window the dashboard renders, not the latest single run."
+    },
+    "noise_class": {
+      "type": "string",
+      "enum": [
+        "low_noise_chronic_drift",
+        "high_noise_isolated_failure",
+        "mixed_chronic_drift_with_noise",
+        "insufficient_samples_to_evaluate",
+        "not_evaluated_provisional_threshold",
+        "not_applicable_passing_row"
+      ],
+      "description": "Closed six-class noise vocabulary. Distinguishes chronic drift (consistent direction, low coefficient of variation across the baseline window) from isolated noisy failures (high variance, no consistent direction). The dashboard MUST NOT collapse the two into a single 'recurring' label; correction-trigger escalation depends on the distinction."
+    },
+    "recurrence_window_class": {
+      "type": "string",
+      "enum": [
+        "first_observation_in_window",
+        "recurring_within_milestone",
+        "recurring_across_milestones",
+        "recurring_across_release_lines",
+        "no_history_window_pending_baseline"
+      ],
+      "description": "Closed five-class recurrence-window vocabulary. Mirrors the repeated_protected_path_regression_class shape on schemas/governance/nightly_report_row.schema.json but pinned to the rolling baseline window the dashboard summarises. recurring_across_release_lines requires correction_trigger.correction_owner_role_class in { release_council, shiproom_executive }."
+    },
+    "correction_trigger_class": {
+      "type": "string",
+      "enum": [
+        "no_correction_required",
+        "correction_owed_lane_dri",
+        "correction_owed_decision_forum",
+        "correction_owed_release_council",
+        "correction_owed_shiproom_executive",
+        "correction_complete_pending_retire"
+      ],
+      "description": "Closed six-class correction-trigger vocabulary. Names whether the row has crossed the correction-trigger threshold and which authority is owed staffed correction work. Mirrors the action-class vocabulary on artifacts/governance/correction_trigger_table.yaml; resolve correction_work_refs against that table for the typed action class (rebaseline / descope / freeze_exception)."
+    },
+    "correction_owner_role_class": {
+      "type": "string",
+      "enum": [
+        "no_owner_no_correction_required",
+        "lane_dri",
+        "lane_dri_with_backup_owner",
+        "performance_council",
+        "architecture_council",
+        "release_council",
+        "shiproom_executive",
+        "benchmark_council"
+      ],
+      "description": "Closed eight-class correction-owner vocabulary. Names the role that MUST open staffed correction work when the correction-trigger threshold fires. lane_dri and lane_dri_with_backup_owner cover ownership-clear single-lane work; the four council / executive classes cover cross-lane or cross-release work. no_owner_no_correction_required is admissible only when correction_trigger_class = no_correction_required."
+    },
+    "review_cycle_class": {
+      "type": "string",
+      "enum": [
+        "nightly_review",
+        "weekly_governance_review",
+        "release_candidate_review",
+        "milestone_close_review",
+        "support_escalation_review"
+      ],
+      "description": "Closed five-class review-cycle vocabulary. Names the review surface the dashboard row was assembled for; the export_fields parity floor enforces that every row carries the same fields across all review cycles."
+    },
+    "corpus_profile_identity_class": {
+      "type": "string",
+      "enum": [
+        "reference_hardware",
+        "design_partner_workspace",
+        "air_gapped_lab",
+        "managed_saas_ring",
+        "general_corpus_no_profile_pin"
+      ],
+      "description": "Closed corpus / profile identity vocabulary. Mirrors schemas/governance/nightly_report_row.schema.json so the perf-side dashboard row, the live fitness tile, and the recurring nightly row agree on where the evidence was captured."
+    },
+    "comparison_envelope_class": {
+      "type": "string",
+      "enum": [
+        "reference_hardware",
+        "design_partner_workspace",
+        "air_gapped_lab",
+        "managed_saas_ring",
+        "general_corpus_no_profile_pin"
+      ],
+      "description": "Closed five-class comparison-envelope vocabulary. Mirrors corpus_profile_identity_class. The dashboard row MUST set comparison_envelope_class equal to corpus_profile_identity_class so a baseline window cannot widen across reference surfaces."
+    },
+    "evidence_freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "near_expiry",
+        "stale_by_time",
+        "stale_by_trigger",
+        "missing",
+        "not_applicable_provisional"
+      ],
+      "description": "Closed evidence-freshness vocabulary. Mirrors schemas/governance/nightly_report_row.schema.json so the dashboard row, the upstream nightly row, and the underlying benchmark run-result agree on freshness semantics."
+    },
+
+    "protected_path_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fitness_function_row_ref",
+        "metric_family_class",
+        "protected_metrics_row_ref",
+        "fitness_function_catalog_revision",
+        "protected_metrics_revision"
+      ],
+      "properties": {
+        "fitness_function_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into artifacts/bench/fitness_function_catalog.yaml#rows[].id (e.g. ff.warm_start_to_first_paint). The row MUST resolve at fitness_function_catalog_revision."
+        },
+        "metric_family_class": { "$ref": "#/$defs/metric_family_class" },
+        "protected_metrics_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into artifacts/bench/protected_metrics.yaml threshold rows; resolves at protected_metrics_revision."
+        },
+        "fitness_function_catalog_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision pin for the fitness-function catalog the row was projected against."
+        },
+        "protected_metrics_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision pin for the protected-metrics file the row was projected against."
+        }
+      },
+      "description": "Protected-path envelope. Pins the dashboard row to one fitness-function row, one metric family, and one protected-metrics threshold revision so the row cannot float free of the catalog the metric was promised against."
+    },
+
+    "corpus_profile_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_profile_identity_class",
+        "corpus_refs",
+        "corpus_manifest_revision",
+        "profile_pin_ref",
+        "hardware_definition_ref",
+        "hardware_definition_revision",
+        "environment_definition_ref",
+        "environment_definition_revision",
+        "is_council_approved_baseline",
+        "identity_summary"
+      ],
+      "properties": {
+        "corpus_profile_identity_class": { "$ref": "#/$defs/corpus_profile_identity_class" },
+        "corpus_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Corpus ids the recent-baseline window was captured against. Empty only when corpus_profile_identity_class = general_corpus_no_profile_pin."
+        },
+        "corpus_manifest_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Revision of fixtures/benchmarks/corpus_manifest.yaml the recent-baseline window resolved against."
+        },
+        "profile_pin_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref pinning the named reference surface. Required when corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, managed_saas_ring."
+        },
+        "hardware_definition_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into artifacts/perf/reference_hardware_manifest.yaml#hardware_rows[]. Required when corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, managed_saas_ring; null admissible only on general_corpus_no_profile_pin."
+        },
+        "hardware_definition_revision": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Revision pin for the hardware-definition row. Required (non-null) when hardware_definition_ref is non-null."
+        },
+        "environment_definition_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into artifacts/perf/lab_image_manifest.yaml#lab_images[].environment_rows[]. Required when corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, managed_saas_ring; null admissible only on general_corpus_no_profile_pin."
+        },
+        "environment_definition_revision": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 1 }
+          ],
+          "description": "Revision pin for the benchmark-environment row. Required (non-null) when environment_definition_ref is non-null."
+        },
+        "is_council_approved_baseline": {
+          "type": "boolean",
+          "description": "Mirrors hardware_definition.is_council_approved_baseline on schemas/benchmarks/run_result.schema.json. False rows MUST NOT claim drift_breaches_release_floor_no_waiver against a council-approved baseline; they may only warn or carry an explicit waiver."
+        },
+        "identity_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the corpus, profile, hardware, and environment identity behind the rolled-up window. Names the reference surface so the result cannot float free of where it was captured."
+        }
+      },
+      "description": "Corpus / profile / hardware / environment identity envelope. Distinct from the per-run identity on schemas/benchmarks/run_result.schema.json: this envelope is the rolled-up window the dashboard summarises across recent recurring runs."
+    },
+
+    "current_state_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dashboard_row_state_class",
+        "last_qualifying_run_ref",
+        "last_qualifying_run_at",
+        "last_qualifying_run_state_summary",
+        "next_expected_run_at"
+      ],
+      "properties": {
+        "dashboard_row_state_class": { "$ref": "#/$defs/dashboard_row_state_class" },
+        "last_qualifying_run_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the latest run-result record (schemas/benchmarks/run_result.schema.json#run_id) that qualifies under the current corpus / profile / hardware / environment envelope. Null only when dashboard_row_state_class is in { not_run_due_to_blocker, provisional_threshold_pending_seed } or when the row is being seeded for the first time."
+        },
+        "last_qualifying_run_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Timestamp of the latest qualifying run. Null when last_qualifying_run_ref is null."
+        },
+        "last_qualifying_run_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the latest qualifying run's verdict and the comparable-baseline window. Raw measurement bytes do not appear; the summary names the verdict band and the envelope."
+        },
+        "next_expected_run_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Next scheduled or expected qualifying run timestamp. Null only when not_run_due_to_blocker or when the schedule itself is held by an upstream blocker."
+        }
+      },
+      "description": "Current-state envelope. Names the row's typed dashboard state, pins the last qualifying run, and projects the next expected run so the weekly review can show when fresh evidence is due without joining back to the upstream nightly lane."
+    },
+
+    "evidence_freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_freshness_class",
+        "captured_at",
+        "stale_after",
+        "expires_at",
+        "rerun_trigger_ref",
+        "freshness_summary"
+      ],
+      "properties": {
+        "evidence_freshness_class": { "$ref": "#/$defs/evidence_freshness_class" },
+        "captured_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "captured_at value copied from the latest qualifying run header. Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "stale_after": {
+          "$ref": "#/$defs/nullable_iso_duration",
+          "description": "stale_after duration copied from the proof-class freshness ceiling. Null only for evidence_freshness_class in { missing, not_applicable_provisional }."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Computed captured_at + stale_after. Null only for evidence_freshness_class in { missing, not_applicable_provisional }. For stale_by_time the timestamp MUST be in the past relative to evaluated_at."
+        },
+        "rerun_trigger_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required when evidence_freshness_class = stale_by_trigger; resolves into artifacts/governance/evidence_rerun_triggers.yaml. Null otherwise."
+        },
+        "freshness_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of why the evidence is in this freshness class. Names the time window or the named trigger."
+        }
+      },
+      "description": "Evidence-freshness envelope. Mirrors the freshness shape on schemas/governance/nightly_report_row.schema.json so the perf dashboard, the governance dashboard, and the underlying benchmark run-result agree on freshness semantics."
+    },
+
+    "waiver_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_record_ref",
+        "waiver_expiry_item_ref",
+        "waiver_authority_ref",
+        "waiver_cause_class",
+        "expiry_proximity_class",
+        "expires_at",
+        "mitigation_status_class",
+        "waiver_summary"
+      ],
+      "properties": {
+        "waiver_record_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into artifacts/governance/ownership_matrix.yaml#waivers[].id or schemas/governance/waiver_expiry.schema.json. Null when waiver_cause_class = no_active_waiver."
+        },
+        "waiver_expiry_item_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the governance-side waiver-expiry-queue item (schemas/governance/waiver_expiry_item.schema.json). Null when waiver_cause_class = no_active_waiver."
+        },
+        "waiver_authority_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the council / forum that minted the waiver (e.g. waiver_authority:performance_council). Null when waiver_cause_class = no_active_waiver."
+        },
+        "waiver_cause_class": { "$ref": "#/$defs/waiver_cause_class" },
+        "expiry_proximity_class": { "$ref": "#/$defs/expiry_proximity_class" },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Expiry timestamp copied from the underlying waiver record. Required (non-null) when expiry_proximity_class is in { expired_past_due, due_today_or_within_24h, nearing_expiry_within_seven_days, nearing_expiry_within_thirty_days, not_yet_due_review_window_open }. Null when expiry_proximity_class is in { no_expiry_pinned, no_active_waiver }."
+        },
+        "mitigation_status_class": { "$ref": "#/$defs/mitigation_status_class" },
+        "waiver_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the waiver authority, the cause, and the expiry posture. Raw waiver justification text MUST NOT appear."
+        }
+      },
+      "description": "Waiver envelope. Pins the dashboard row to the underlying waiver record, the governance-side queue item, the typed waiver-cause class, the typed expiry-proximity class, and the typed mitigation status. A passing row carries waiver_cause_class = no_active_waiver and null waiver / expiry / authority refs."
+    },
+
+    "drift_triage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drift_direction_class",
+        "noise_class",
+        "compare_action_class",
+        "compare_result_class",
+        "comparison_envelope_class",
+        "baseline_window_span",
+        "baseline_run_count",
+        "prior_baseline_packet_refs",
+        "compare_summary"
+      ],
+      "properties": {
+        "drift_direction_class": { "$ref": "#/$defs/drift_direction_class" },
+        "noise_class": { "$ref": "#/$defs/noise_class" },
+        "compare_action_class": {
+          "type": "string",
+          "enum": [
+            "compare_against_prior_baseline_window",
+            "compare_against_release_floor",
+            "compare_against_corpus_revision_floor",
+            "compare_against_threshold_only_no_baseline",
+            "compare_skipped_baseline_drift",
+            "compare_blocked_by_drift_in_corpus_or_profile"
+          ],
+          "description": "Closed six-class compare-action vocabulary, mirroring schemas/governance/nightly_report_row.schema.json with the prior_baseline class pinned to the rolling baseline-window the dashboard renders."
+        },
+        "compare_result_class": {
+          "type": "string",
+          "enum": [
+            "no_drift_inside_warning_band",
+            "drift_within_warning_band",
+            "drift_within_failure_band_no_waiver",
+            "drift_breaches_release_floor",
+            "new_baseline_required_seed_pending",
+            "compare_skipped"
+          ],
+          "description": "Closed six-class compare-result vocabulary. Mirrors schemas/governance/nightly_report_row.schema.json. drift_breaches_release_floor MUST pair with dashboard_row_state_class in { drift_breaches_release_floor_no_waiver, drift_breaches_release_floor_active_waiver, drift_breaches_release_floor_expired_waiver }."
+        },
+        "comparison_envelope_class": { "$ref": "#/$defs/comparison_envelope_class" },
+        "baseline_window_span": {
+          "$ref": "#/$defs/iso_duration",
+          "description": "ISO 8601 duration the rolling baseline window spans (e.g. P14D for a fortnight rolling window)."
+        },
+        "baseline_run_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of qualifying recurring runs inside the baseline window. baseline_run_count = 0 forces noise_class = insufficient_samples_to_evaluate and drift_direction_class in { unknown_insufficient_history, unknown_not_comparable }."
+        },
+        "prior_baseline_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the qualifying run-result records inside the baseline window. Required to be non-empty when compare_action_class = compare_against_prior_baseline_window."
+        },
+        "compare_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the comparison outcome and the envelope. Names the comparison band, the envelope, and the baseline-window span."
+        }
+      },
+      "description": "Drift-triage envelope. Names the rolled-up trend direction, the typed noise class distinguishing chronic drift from isolated noisy failures, the compare action / compare result against the rolling baseline window, the comparison envelope (which MUST equal corpus_profile_identity_class), the baseline-window span and run count, and the typed prior-baseline refs the dashboard summarised across."
+    },
+
+    "recurrence_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recurrence_window_class",
+        "recurrence_count",
+        "recurrence_window_span",
+        "recurring_waiver_cluster_class",
+        "repeated_protected_path_regression_class",
+        "cluster_member_refs",
+        "recurrence_summary"
+      ],
+      "properties": {
+        "recurrence_window_class": { "$ref": "#/$defs/recurrence_window_class" },
+        "recurrence_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Integer count of distinct waiver mintings or release-floor breach observations on this protected path within recurrence_window_span. recurrence_count >= 2 forces recurrence_window_class out of first_observation_in_window."
+        },
+        "recurrence_window_span": {
+          "$ref": "#/$defs/iso_duration",
+          "description": "ISO 8601 duration the recurrence window covers (e.g. P90D for a quarterly window, P365D for a year-long cross-release-line window)."
+        },
+        "recurring_waiver_cluster_class": {
+          "type": "string",
+          "enum": [
+            "not_recurring_first_observation",
+            "recurring_within_quarter",
+            "recurring_across_quarters",
+            "recurring_across_protected_paths",
+            "not_applicable_no_waiver_history"
+          ],
+          "description": "Closed five-class recurring-waiver cluster vocabulary. Mirrors schemas/governance/nightly_report_row.schema.json so the perf dashboard and the governance dashboard agree on the cluster class."
+        },
+        "repeated_protected_path_regression_class": {
+          "type": "string",
+          "enum": [
+            "no_regression_first_observation",
+            "repeated_protected_path_within_milestone",
+            "repeated_protected_path_across_milestones",
+            "repeated_protected_path_across_release_lines",
+            "not_applicable_no_protected_path_pin"
+          ],
+          "description": "Closed five-class repeated-protected-path-regression vocabulary. Mirrors schemas/governance/nightly_report_row.schema.json."
+        },
+        "cluster_member_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into other benchmark_waiver_row_ids (or governance-side nightly_report_row_ids and waiver_expiry_item_ids) that share the cluster. Required to be non-empty when recurrence_window_class is not first_observation_in_window or no_history_window_pending_baseline, when recurring_waiver_cluster_class is in { recurring_within_quarter, recurring_across_quarters, recurring_across_protected_paths }, or when repeated_protected_path_regression_class is in { repeated_protected_path_within_milestone, repeated_protected_path_across_milestones, repeated_protected_path_across_release_lines }."
+        },
+        "recurrence_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the recurrence posture. Names the recurrence count, the window span, and the cluster scope."
+        }
+      },
+      "description": "Recurrence envelope. Distinguishes a chronic-drift cluster (recurring across milestones / release lines) from a first-observation row, names the integer recurrence count and the rolling window span, and pins the typed governance-side cluster classes so the dashboard, the nightly row, and the waiver-expiry queue agree on whether a row is recurring."
+    },
+
+    "correction_trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "correction_trigger_class",
+        "correction_owner_role_class",
+        "correction_owner_dri_ref",
+        "correction_owner_lane_ref",
+        "decision_forum_ref",
+        "correction_work_refs",
+        "response_window_business_days",
+        "correction_trigger_summary"
+      ],
+      "properties": {
+        "correction_trigger_class": { "$ref": "#/$defs/correction_trigger_class" },
+        "correction_owner_role_class": { "$ref": "#/$defs/correction_owner_role_class" },
+        "correction_owner_dri_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque DRI handle ref. Required (non-null) when correction_owner_role_class is in { lane_dri, lane_dri_with_backup_owner }. Null otherwise."
+        },
+        "correction_owner_lane_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque scorecard-lane ref. Required (non-null) when correction_owner_role_class is in { lane_dri, lane_dri_with_backup_owner }. Null otherwise."
+        },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque decision-forum ref. Required (non-null) when correction_owner_role_class is in { performance_council, architecture_council, release_council, shiproom_executive, benchmark_council }."
+        },
+        "correction_work_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into artifacts/governance/correction_trigger_table.yaml#rows[].correction_trigger_id or into the staffed correction-work item ids. Required to be non-empty when correction_trigger_class is in { correction_owed_lane_dri, correction_owed_decision_forum, correction_owed_release_council, correction_owed_shiproom_executive, correction_complete_pending_retire }."
+        },
+        "response_window_business_days": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Response-window business days mirroring artifacts/governance/correction_trigger_table.yaml. Required (non-null) when correction_trigger_class is not no_correction_required."
+        },
+        "correction_trigger_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the correction-trigger posture. Names which authority is owed staffed correction work and the response-window posture."
+        }
+      },
+      "description": "Correction-trigger envelope. Names whether the row has crossed the correction-trigger threshold, which authority is owed staffed correction work, the linked correction-work refs, and the response-window posture. Distinct from a per-run waiver: a correction trigger fires when chronic drift or repeated waivers on the same protected path indicate the system needs staffed remediation, not another renewal."
+    },
+
+    "release_or_milestone_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_release_or_milestone_refs",
+        "linked_claim_refs",
+        "linked_compatibility_surface_refs",
+        "impact_summary"
+      ],
+      "properties": {
+        "affected_release_or_milestone_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into release-line ids, milestone ids, or LTS-train ids the row gates. At least one entry is required so a benchmark-waiver row cannot float free of a release / milestone surface."
+        },
+        "linked_claim_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into artifacts/governance/claim_manifest_seed.yaml rows the row gates. Empty admissible only when the row is internal-only or covers a metric family with no public claim."
+        },
+        "linked_compatibility_surface_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into compatibility-surface inventory rows the metric family pairs with (e.g. command-action schema, save / load contract). Empty admissible only when the metric family is host-independent."
+        },
+        "impact_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of which release / milestone / claim / compatibility surface the row gates."
+        }
+      },
+      "description": "Release / milestone / claim impact envelope. Pins the row to the release-train and claim surfaces it gates so a release-candidate review can sort dashboard rows by gating impact without re-deriving it from a free-text label."
+    },
+
+    "linked_governance_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nightly_report_row_refs",
+        "waiver_expiry_item_refs",
+        "waiver_register_entry_refs",
+        "support_export_refs",
+        "release_evidence_packet_refs"
+      ],
+      "properties": {
+        "nightly_report_row_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the upstream nightly_report_row ids the dashboard row was assembled from. Required to be non-empty when dashboard_row_state_class is in { drift_inside_warning_band_no_waiver, drift_inside_failure_band_no_waiver, drift_breaches_release_floor_no_waiver, drift_breaches_release_floor_active_waiver, drift_breaches_release_floor_expired_waiver, evidence_stale_pending_rerun, not_run_due_to_blocker }."
+        },
+        "waiver_expiry_item_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into governance-side waiver_expiry_item_ids the row depends on. Required to be non-empty when dashboard_row_state_class is in { drift_breaches_release_floor_active_waiver, drift_breaches_release_floor_expired_waiver }."
+        },
+        "waiver_register_entry_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the waiver register entries the row resolves through (schemas/governance/waiver_register.schema.json)."
+        },
+        "support_export_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into support-export packets the row is rendered onto when support escalation cites this row."
+        },
+        "release_evidence_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into release-evidence shiproom packets the row is rendered onto when a release-candidate review cites this row."
+        }
+      },
+      "description": "Linked-governance refs. Pins the dashboard row to the upstream nightly rows, the governance-side waiver-expiry queue items, the waiver-register entries, and the release / support packets that consume the row so the review can re-trace the row to one upstream source rather than reconstructing it from a free-text label."
+    },
+
+    "review_cycle_export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_nightly_review",
+        "render_on_weekly_governance_review",
+        "render_on_release_candidate_review",
+        "render_on_milestone_close_review",
+        "render_on_support_escalation_review",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest"
+      ],
+      "properties": {
+        "render_on_nightly_review": { "type": "boolean" },
+        "render_on_weekly_governance_review": { "type": "boolean" },
+        "render_on_release_candidate_review": { "type": "boolean" },
+        "render_on_milestone_close_review": { "type": "boolean" },
+        "render_on_support_escalation_review": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" }
+      },
+      "description": "Review-cycle / export parity floor. Every consuming review cycle (nightly, weekly governance, release-candidate, milestone-close, support-escalation) and every consuming packet (release packet, support export, governance packet, claim manifest) MUST render the same dashboard_row_state_class, waiver_envelope, drift_triage, recurrence_envelope, correction_trigger, release_or_milestone_impact, and linked_governance_refs. A surface that drops any of these envelopes is non-conforming."
+    },
+
+    "benchmark_waiver_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "benchmark_waiver_row_schema_version",
+        "record_kind",
+        "benchmark_waiver_row_id",
+        "evaluated_at",
+        "headline_label",
+        "protected_path",
+        "corpus_profile_identity",
+        "current_state",
+        "evidence_freshness",
+        "waiver_envelope",
+        "drift_triage",
+        "recurrence_envelope",
+        "correction_trigger",
+        "release_or_milestone_impact",
+        "linked_governance_refs",
+        "review_cycle_export_fields",
+        "review_cycles_covered",
+        "contract_doc_ref",
+        "nightly_report_row_schema_ref",
+        "waiver_expiry_item_schema_ref",
+        "run_result_schema_ref",
+        "fitness_function_catalog_ref",
+        "protected_metrics_ref",
+        "correction_trigger_table_ref",
+        "notes"
+      ],
+      "properties": {
+        "benchmark_waiver_row_schema_version": { "$ref": "#/$defs/benchmark_waiver_row_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "benchmark_waiver_row_record"
+        },
+        "benchmark_waiver_row_id": {
+          "type": "string",
+          "pattern": "^benchmark_waiver_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the benchmark-waiver dashboard, the milestone-close review, the release-candidate shiproom packet, the support-escalation export, the weekly governance review, and the governance packet."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the row was projected. Distinct from the per-run measured_on on schemas/benchmarks/run_result.schema.json; the same protected path can be reprojected when the recurrence window, the waiver expiry, or the correction-trigger threshold changes."
+        },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the row. Resolves against dashboard_row_state_class plus the protected fitness-function row id and the metric family; free-text 'all good' / 'all bad' copy is non-conforming."
+        },
+        "protected_path": { "$ref": "#/$defs/protected_path_envelope" },
+        "corpus_profile_identity": { "$ref": "#/$defs/corpus_profile_identity" },
+        "current_state": { "$ref": "#/$defs/current_state_envelope" },
+        "evidence_freshness": { "$ref": "#/$defs/evidence_freshness" },
+        "waiver_envelope": { "$ref": "#/$defs/waiver_envelope" },
+        "drift_triage": { "$ref": "#/$defs/drift_triage" },
+        "recurrence_envelope": { "$ref": "#/$defs/recurrence_envelope" },
+        "correction_trigger": { "$ref": "#/$defs/correction_trigger" },
+        "release_or_milestone_impact": { "$ref": "#/$defs/release_or_milestone_impact" },
+        "linked_governance_refs": { "$ref": "#/$defs/linked_governance_refs" },
+        "review_cycle_export_fields": { "$ref": "#/$defs/review_cycle_export_fields" },
+        "review_cycles_covered": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_cycle_class" },
+          "description": "Closed list of review-cycle classes this row was assembled for. The list MUST be consistent with review_cycle_export_fields: a row in review_cycles_covered MUST have the corresponding render_on_* boolean set to true."
+        },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/perf/benchmark_waiver_dashboard_contract.md"
+        },
+        "nightly_report_row_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/nightly_report_row.schema.json"
+        },
+        "waiver_expiry_item_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/waiver_expiry_item.schema.json"
+        },
+        "run_result_schema_ref": {
+          "type": "string",
+          "const": "schemas/benchmarks/run_result.schema.json"
+        },
+        "fitness_function_catalog_ref": {
+          "type": "string",
+          "const": "artifacts/bench/fitness_function_catalog.yaml"
+        },
+        "protected_metrics_ref": {
+          "type": "string",
+          "const": "artifacts/bench/protected_metrics.yaml"
+        },
+        "correction_trigger_table_ref": {
+          "type": "string",
+          "const": "artifacts/governance/correction_trigger_table.yaml"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "dashboard_row_state_class = passing_no_waiver_no_drift requires waiver_cause_class = no_active_waiver, expiry_proximity_class = no_active_waiver, mitigation_status_class = no_mitigation_required, drift_direction_class in { improving, stable_within_band }, noise_class = not_applicable_passing_row, correction_trigger_class = no_correction_required, and evidence_freshness_class in { fresh, near_expiry }. A clean dashboard row cannot ride a waiver, a chronic-drift cluster, or a stale evidence window.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "passing_no_waiver_no_drift" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "const": "no_active_waiver" },
+                  "expiry_proximity_class": { "const": "no_active_waiver" },
+                  "mitigation_status_class": { "const": "no_mitigation_required" },
+                  "waiver_record_ref": { "type": "null" },
+                  "waiver_expiry_item_ref": { "type": "null" },
+                  "waiver_authority_ref": { "type": "null" },
+                  "expires_at": { "type": "null" }
+                }
+              },
+              "drift_triage": {
+                "properties": {
+                  "drift_direction_class": { "enum": ["improving", "stable_within_band"] },
+                  "noise_class": { "const": "not_applicable_passing_row" }
+                }
+              },
+              "correction_trigger": {
+                "properties": {
+                  "correction_trigger_class": { "const": "no_correction_required" },
+                  "correction_owner_role_class": { "const": "no_owner_no_correction_required" }
+                }
+              },
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "enum": ["fresh", "near_expiry"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = drift_inside_warning_band_no_waiver requires waiver_cause_class = no_active_waiver, drift_direction_class in { regressing, noisy_high_variance, stable_within_band }, and compare_result_class in { drift_within_warning_band, no_drift_inside_warning_band }.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "drift_inside_warning_band_no_waiver" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "const": "no_active_waiver" },
+                  "waiver_record_ref": { "type": "null" }
+                }
+              },
+              "drift_triage": {
+                "properties": {
+                  "drift_direction_class": { "enum": ["regressing", "noisy_high_variance", "stable_within_band"] },
+                  "compare_result_class": { "enum": ["drift_within_warning_band", "no_drift_inside_warning_band"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = drift_inside_failure_band_no_waiver requires waiver_cause_class = no_active_waiver and compare_result_class = drift_within_failure_band_no_waiver.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "drift_inside_failure_band_no_waiver" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "const": "no_active_waiver" },
+                  "waiver_record_ref": { "type": "null" }
+                }
+              },
+              "drift_triage": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_within_failure_band_no_waiver" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = drift_breaches_release_floor_no_waiver requires waiver_cause_class = no_active_waiver, expiry_proximity_class = no_active_waiver, compare_result_class = drift_breaches_release_floor, and a non-empty linked_governance_refs.nightly_report_row_refs.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "drift_breaches_release_floor_no_waiver" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "const": "no_active_waiver" },
+                  "expiry_proximity_class": { "const": "no_active_waiver" },
+                  "waiver_record_ref": { "type": "null" }
+                }
+              },
+              "drift_triage": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_breaches_release_floor" }
+                }
+              },
+              "linked_governance_refs": {
+                "properties": {
+                  "nightly_report_row_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = drift_breaches_release_floor_active_waiver requires waiver_cause_class != no_active_waiver, expiry_proximity_class out of { no_active_waiver, expired_past_due }, mitigation_status_class != no_mitigation_required, compare_result_class = drift_breaches_release_floor, a non-null waiver_record_ref, and a non-empty linked_governance_refs.waiver_expiry_item_refs.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "drift_breaches_release_floor_active_waiver" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "not": { "const": "no_active_waiver" } },
+                  "expiry_proximity_class": {
+                    "not": { "enum": ["no_active_waiver", "expired_past_due"] }
+                  },
+                  "mitigation_status_class": { "not": { "const": "no_mitigation_required" } },
+                  "waiver_record_ref": { "not": { "type": "null" } }
+                }
+              },
+              "drift_triage": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_breaches_release_floor" }
+                }
+              },
+              "linked_governance_refs": {
+                "properties": {
+                  "waiver_expiry_item_refs": { "minItems": 1 },
+                  "nightly_report_row_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = drift_breaches_release_floor_expired_waiver requires waiver_cause_class != no_active_waiver, expiry_proximity_class = expired_past_due, mitigation_status_class != no_mitigation_required, compare_result_class = drift_breaches_release_floor, a non-null waiver_record_ref, and a non-empty linked_governance_refs.waiver_expiry_item_refs. An expired waiver cannot be filed under no_active_waiver.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "drift_breaches_release_floor_expired_waiver" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "not": { "const": "no_active_waiver" } },
+                  "expiry_proximity_class": { "const": "expired_past_due" },
+                  "mitigation_status_class": { "not": { "const": "no_mitigation_required" } },
+                  "waiver_record_ref": { "not": { "type": "null" } }
+                }
+              },
+              "drift_triage": {
+                "properties": {
+                  "compare_result_class": { "const": "drift_breaches_release_floor" }
+                }
+              },
+              "linked_governance_refs": {
+                "properties": {
+                  "waiver_expiry_item_refs": { "minItems": 1 },
+                  "nightly_report_row_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = evidence_stale_pending_rerun requires evidence_freshness_class in { stale_by_time, stale_by_trigger, missing }.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "evidence_stale_pending_rerun" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "enum": ["stale_by_time", "stale_by_trigger", "missing"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "dashboard_row_state_class = provisional_threshold_pending_seed requires evidence_freshness_class = not_applicable_provisional and waiver_cause_class in { threshold_provisional_pending_council, no_active_waiver }.",
+          "if": {
+            "properties": {
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "provisional_threshold_pending_seed" } },
+                "required": ["dashboard_row_state_class"]
+              }
+            },
+            "required": ["current_state"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": { "const": "not_applicable_provisional" }
+                }
+              },
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": {
+                    "enum": ["threshold_provisional_pending_council", "no_active_waiver"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class = stale_by_trigger requires a non-null rerun_trigger_ref so the stale-by-trigger reason can be resolved against artifacts/governance/evidence_rerun_triggers.yaml.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": { "evidence_freshness_class": { "const": "stale_by_trigger" } },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": { "rerun_trigger_ref": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_freshness_class in { missing, not_applicable_provisional } requires null captured_at, stale_after, and expires_at; the absence of qualifying evidence cannot be silently filled in.",
+          "if": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "evidence_freshness_class": {
+                    "enum": ["missing", "not_applicable_provisional"]
+                  }
+                },
+                "required": ["evidence_freshness_class"]
+              }
+            },
+            "required": ["evidence_freshness"]
+          },
+          "then": {
+            "properties": {
+              "evidence_freshness": {
+                "properties": {
+                  "captured_at": { "type": "null" },
+                  "stale_after": { "type": "null" },
+                  "expires_at": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class = expired_past_due requires a non-null expires_at strictly in the past relative to evaluated_at; an expired waiver cannot ride into a release-candidate review without an expiry timestamp.",
+          "if": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": { "expiry_proximity_class": { "const": "expired_past_due" } },
+                "required": ["expiry_proximity_class"]
+              }
+            },
+            "required": ["waiver_envelope"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": { "expires_at": { "not": { "type": "null" } } }
+              }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class in { due_today_or_within_24h, nearing_expiry_within_seven_days, nearing_expiry_within_thirty_days, not_yet_due_review_window_open } requires a non-null expires_at and a non-null waiver_record_ref.",
+          "if": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "expiry_proximity_class": {
+                    "enum": [
+                      "due_today_or_within_24h",
+                      "nearing_expiry_within_seven_days",
+                      "nearing_expiry_within_thirty_days",
+                      "not_yet_due_review_window_open"
+                    ]
+                  }
+                },
+                "required": ["expiry_proximity_class"]
+              }
+            },
+            "required": ["waiver_envelope"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "expires_at": { "not": { "type": "null" } },
+                  "waiver_record_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class = no_expiry_pinned requires expires_at to be null and waiver_cause_class in { single_maintainer_backup, other_named_in_summary }.",
+          "if": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": { "expiry_proximity_class": { "const": "no_expiry_pinned" } },
+                "required": ["expiry_proximity_class"]
+              }
+            },
+            "required": ["waiver_envelope"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "expires_at": { "type": "null" },
+                  "waiver_cause_class": {
+                    "enum": ["single_maintainer_backup", "other_named_in_summary"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class = no_active_waiver requires waiver_cause_class = no_active_waiver, mitigation_status_class = no_mitigation_required, expires_at to be null, and null waiver_record_ref / waiver_expiry_item_ref / waiver_authority_ref.",
+          "if": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": { "expiry_proximity_class": { "const": "no_active_waiver" } },
+                "required": ["expiry_proximity_class"]
+              }
+            },
+            "required": ["waiver_envelope"]
+          },
+          "then": {
+            "properties": {
+              "waiver_envelope": {
+                "properties": {
+                  "waiver_cause_class": { "const": "no_active_waiver" },
+                  "mitigation_status_class": { "const": "no_mitigation_required" },
+                  "expires_at": { "type": "null" },
+                  "waiver_record_ref": { "type": "null" },
+                  "waiver_expiry_item_ref": { "type": "null" },
+                  "waiver_authority_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class MUST equal corpus_profile_identity_class so a baseline comparison cannot widen across reference surfaces.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": { "corpus_profile_identity_class": { "const": "reference_hardware" } },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "comparison_envelope_class": { "const": "reference_hardware" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for design_partner_workspace.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": { "corpus_profile_identity_class": { "const": "design_partner_workspace" } },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "comparison_envelope_class": { "const": "design_partner_workspace" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for air_gapped_lab.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": { "corpus_profile_identity_class": { "const": "air_gapped_lab" } },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "comparison_envelope_class": { "const": "air_gapped_lab" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for managed_saas_ring.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": { "corpus_profile_identity_class": { "const": "managed_saas_ring" } },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "comparison_envelope_class": { "const": "managed_saas_ring" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "comparison_envelope_class equals corpus_profile_identity_class for general_corpus_no_profile_pin.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": { "corpus_profile_identity_class": { "const": "general_corpus_no_profile_pin" } },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "comparison_envelope_class": { "const": "general_corpus_no_profile_pin" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "When corpus_profile_identity_class is one of reference_hardware, design_partner_workspace, air_gapped_lab, or managed_saas_ring, the corpus_profile_identity envelope MUST cite a non-null profile_pin_ref, hardware_definition_ref, hardware_definition_revision, environment_definition_ref, environment_definition_revision, and a non-empty corpus_refs.",
+          "if": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "corpus_profile_identity_class": {
+                    "enum": [
+                      "reference_hardware",
+                      "design_partner_workspace",
+                      "air_gapped_lab",
+                      "managed_saas_ring"
+                    ]
+                  }
+                },
+                "required": ["corpus_profile_identity_class"]
+              }
+            },
+            "required": ["corpus_profile_identity"]
+          },
+          "then": {
+            "properties": {
+              "corpus_profile_identity": {
+                "properties": {
+                  "profile_pin_ref": { "not": { "type": "null" } },
+                  "hardware_definition_ref": { "not": { "type": "null" } },
+                  "hardware_definition_revision": { "not": { "type": "null" } },
+                  "environment_definition_ref": { "not": { "type": "null" } },
+                  "environment_definition_revision": { "not": { "type": "null" } },
+                  "corpus_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "compare_action_class = compare_against_prior_baseline_window requires a non-empty prior_baseline_packet_refs and baseline_run_count >= 1.",
+          "if": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "compare_action_class": { "const": "compare_against_prior_baseline_window" } },
+                "required": ["compare_action_class"]
+              }
+            },
+            "required": ["drift_triage"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": {
+                  "prior_baseline_packet_refs": { "minItems": 1 },
+                  "baseline_run_count": { "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "compare_action_class in { compare_skipped_baseline_drift, compare_blocked_by_drift_in_corpus_or_profile, compare_against_threshold_only_no_baseline } forces compare_result_class to compare_skipped or new_baseline_required_seed_pending.",
+          "if": {
+            "properties": {
+              "drift_triage": {
+                "properties": {
+                  "compare_action_class": {
+                    "enum": [
+                      "compare_skipped_baseline_drift",
+                      "compare_blocked_by_drift_in_corpus_or_profile",
+                      "compare_against_threshold_only_no_baseline"
+                    ]
+                  }
+                },
+                "required": ["compare_action_class"]
+              }
+            },
+            "required": ["drift_triage"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": {
+                  "compare_result_class": {
+                    "enum": ["compare_skipped", "new_baseline_required_seed_pending"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "noise_class = not_applicable_passing_row requires dashboard_row_state_class in { passing_no_waiver_no_drift, provisional_threshold_pending_seed }.",
+          "if": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "noise_class": { "const": "not_applicable_passing_row" } },
+                "required": ["noise_class"]
+              }
+            },
+            "required": ["drift_triage"]
+          },
+          "then": {
+            "properties": {
+              "current_state": {
+                "properties": {
+                  "dashboard_row_state_class": {
+                    "enum": ["passing_no_waiver_no_drift", "provisional_threshold_pending_seed"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "baseline_run_count = 0 forces noise_class = insufficient_samples_to_evaluate and drift_direction_class in { unknown_insufficient_history, unknown_not_comparable }.",
+          "if": {
+            "properties": {
+              "drift_triage": {
+                "properties": { "baseline_run_count": { "const": 0 } },
+                "required": ["baseline_run_count"]
+              }
+            },
+            "required": ["drift_triage"]
+          },
+          "then": {
+            "properties": {
+              "drift_triage": {
+                "properties": {
+                  "noise_class": { "const": "insufficient_samples_to_evaluate" },
+                  "drift_direction_class": {
+                    "enum": ["unknown_insufficient_history", "unknown_not_comparable"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "recurrence_window_class in { recurring_within_milestone, recurring_across_milestones, recurring_across_release_lines } requires recurrence_count >= 2 and a non-empty cluster_member_refs.",
+          "if": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": {
+                  "recurrence_window_class": {
+                    "enum": [
+                      "recurring_within_milestone",
+                      "recurring_across_milestones",
+                      "recurring_across_release_lines"
+                    ]
+                  }
+                },
+                "required": ["recurrence_window_class"]
+              }
+            },
+            "required": ["recurrence_envelope"]
+          },
+          "then": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": {
+                  "recurrence_count": { "minimum": 2 },
+                  "cluster_member_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "recurring_waiver_cluster_class in { recurring_within_quarter, recurring_across_quarters, recurring_across_protected_paths } requires a non-empty cluster_member_refs.",
+          "if": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": {
+                  "recurring_waiver_cluster_class": {
+                    "enum": [
+                      "recurring_within_quarter",
+                      "recurring_across_quarters",
+                      "recurring_across_protected_paths"
+                    ]
+                  }
+                },
+                "required": ["recurring_waiver_cluster_class"]
+              }
+            },
+            "required": ["recurrence_envelope"]
+          },
+          "then": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": { "cluster_member_refs": { "minItems": 1 } }
+              }
+            }
+          }
+        },
+        {
+          "description": "repeated_protected_path_regression_class in { repeated_protected_path_within_milestone, repeated_protected_path_across_milestones, repeated_protected_path_across_release_lines } requires a non-empty cluster_member_refs.",
+          "if": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": {
+                  "repeated_protected_path_regression_class": {
+                    "enum": [
+                      "repeated_protected_path_within_milestone",
+                      "repeated_protected_path_across_milestones",
+                      "repeated_protected_path_across_release_lines"
+                    ]
+                  }
+                },
+                "required": ["repeated_protected_path_regression_class"]
+              }
+            },
+            "required": ["recurrence_envelope"]
+          },
+          "then": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": { "cluster_member_refs": { "minItems": 1 } }
+              }
+            }
+          }
+        },
+        {
+          "description": "recurrence_window_class = recurring_across_release_lines requires correction_owner_role_class in { release_council, shiproom_executive } so chronic regression across release lines cannot be filed against the lane DRI alone.",
+          "if": {
+            "properties": {
+              "recurrence_envelope": {
+                "properties": { "recurrence_window_class": { "const": "recurring_across_release_lines" } },
+                "required": ["recurrence_window_class"]
+              }
+            },
+            "required": ["recurrence_envelope"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_owner_role_class": {
+                    "enum": ["release_council", "shiproom_executive"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "correction_trigger_class = no_correction_required requires correction_owner_role_class = no_owner_no_correction_required, an empty correction_work_refs, and a null response_window_business_days.",
+          "if": {
+            "properties": {
+              "correction_trigger": {
+                "properties": { "correction_trigger_class": { "const": "no_correction_required" } },
+                "required": ["correction_trigger_class"]
+              }
+            },
+            "required": ["correction_trigger"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_owner_role_class": { "const": "no_owner_no_correction_required" },
+                  "correction_work_refs": { "maxItems": 0 },
+                  "response_window_business_days": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "correction_trigger_class in { correction_owed_lane_dri, correction_owed_decision_forum, correction_owed_release_council, correction_owed_shiproom_executive, correction_complete_pending_retire } requires a non-empty correction_work_refs and a non-null response_window_business_days.",
+          "if": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_trigger_class": {
+                    "enum": [
+                      "correction_owed_lane_dri",
+                      "correction_owed_decision_forum",
+                      "correction_owed_release_council",
+                      "correction_owed_shiproom_executive",
+                      "correction_complete_pending_retire"
+                    ]
+                  }
+                },
+                "required": ["correction_trigger_class"]
+              }
+            },
+            "required": ["correction_trigger"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_work_refs": { "minItems": 1 },
+                  "response_window_business_days": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "correction_trigger_class = correction_owed_lane_dri requires correction_owner_role_class in { lane_dri, lane_dri_with_backup_owner } and non-null correction_owner_dri_ref + correction_owner_lane_ref.",
+          "if": {
+            "properties": {
+              "correction_trigger": {
+                "properties": { "correction_trigger_class": { "const": "correction_owed_lane_dri" } },
+                "required": ["correction_trigger_class"]
+              }
+            },
+            "required": ["correction_trigger"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_owner_role_class": {
+                    "enum": ["lane_dri", "lane_dri_with_backup_owner"]
+                  },
+                  "correction_owner_dri_ref": { "not": { "type": "null" } },
+                  "correction_owner_lane_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "correction_trigger_class = correction_owed_decision_forum requires correction_owner_role_class in { performance_council, architecture_council, benchmark_council } and non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "correction_trigger": {
+                "properties": { "correction_trigger_class": { "const": "correction_owed_decision_forum" } },
+                "required": ["correction_trigger_class"]
+              }
+            },
+            "required": ["correction_trigger"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_owner_role_class": {
+                    "enum": ["performance_council", "architecture_council", "benchmark_council"]
+                  },
+                  "decision_forum_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "correction_trigger_class = correction_owed_release_council requires correction_owner_role_class = release_council and non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "correction_trigger": {
+                "properties": { "correction_trigger_class": { "const": "correction_owed_release_council" } },
+                "required": ["correction_trigger_class"]
+              }
+            },
+            "required": ["correction_trigger"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_owner_role_class": { "const": "release_council" },
+                  "decision_forum_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "correction_trigger_class = correction_owed_shiproom_executive requires correction_owner_role_class = shiproom_executive and non-null decision_forum_ref.",
+          "if": {
+            "properties": {
+              "correction_trigger": {
+                "properties": { "correction_trigger_class": { "const": "correction_owed_shiproom_executive" } },
+                "required": ["correction_trigger_class"]
+              }
+            },
+            "required": ["correction_trigger"]
+          },
+          "then": {
+            "properties": {
+              "correction_trigger": {
+                "properties": {
+                  "correction_owner_role_class": { "const": "shiproom_executive" },
+                  "decision_forum_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When export_fields.render_on_release_packet or render_on_claim_manifest is true, dashboard_row_state_class = drift_breaches_release_floor_expired_waiver MUST also be rendered onto the dashboard and the governance packet so an expired waiver cannot ride into release / claim publication while being filed away from the dashboard.",
+          "if": {
+            "properties": {
+              "review_cycle_export_fields": {
+                "anyOf": [
+                  { "properties": { "render_on_release_packet": { "const": true } } },
+                  { "properties": { "render_on_claim_manifest": { "const": true } } }
+                ]
+              },
+              "current_state": {
+                "properties": { "dashboard_row_state_class": { "const": "drift_breaches_release_floor_expired_waiver" } }
+              }
+            },
+            "required": ["review_cycle_export_fields", "current_state"]
+          },
+          "then": {
+            "properties": {
+              "review_cycle_export_fields": {
+                "properties": {
+                  "render_on_nightly_review": { "const": true },
+                  "render_on_governance_packet": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
