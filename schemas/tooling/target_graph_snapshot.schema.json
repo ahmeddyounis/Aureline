@@ -1,0 +1,646 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/target_graph_snapshot.schema.json",
+  "title": "Aureline target-graph snapshot, workset-scope binding, toolchain/build-system fingerprint, and export/replay linkage contract",
+  "description": "Boundary schema for the target_graph_snapshot_record every build adapter (native runner, Build Server Protocol client, Bazel Build Event Protocol reader, structured importer, heuristic target inferrer, fallback opaque-preservation adapter) emits and every consumer (run / test / build / debug picker, quick-open, command palette, CI overlay, AI planner, support-bundle exporter, replay harness) reads to know one stable graph identity, one workset_scope binding, one source-adapter id, one toolchain / build-system fingerprint, one captured-at timestamp, one freshness posture, and one export / replay linkage. Pickers, CI overlays, and AI planners cite a graph_id when they reference a target; the same target_id resolved against the same graph_id resolves the same target across export and reopen. Lower-confidence adapters MUST NOT silently replace higher-confidence adapters' graphs; replacements ride an adapter_replacement_event_record (in schemas/tooling/adapter_descriptor.schema.json) whose visible_state_change_class is non-null. Sparse / partial-workset graphs MUST cite a partial_truth_class so consumers never render a partial graph as a full graph. This schema does not mint a new confidence vocabulary, a new scope vocabulary, a new target-class vocabulary, or a new toolchain-class vocabulary; it re-exports the frozen tokens from schemas/tooling/task_event_envelope.schema.json (confidence_class) and schemas/runtime/execution_context.schema.json (scope_class). Adding a new freshness_class, partial_truth_class, fingerprint_kind, replay_linkage_class, generation_event_class, or graph_lineage_class is additive-minor and bumps target_graph_snapshot_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/target_graph_snapshot_record" },
+    { "$ref": "#/$defs/target_graph_lineage_record" }
+  ],
+  "$defs": {
+    "target_graph_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the target-graph snapshot contract. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "target_graph_snapshot_record",
+        "target_graph_lineage_record"
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "dotted_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$",
+      "description": "Hash-algorithm-prefixed digest (for example 'sha256:7b9f0b2d...')."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Re-export of schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class. The graph's confidence is the source-adapter's confidence projected onto this snapshot; consumers MUST NOT raise it above the adapter ceiling."
+    },
+
+    "workspace_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of schemas/runtime/execution_context.schema.json#/$defs/scope_class."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_streaming",
+        "warm_cached",
+        "cold_cached",
+        "stale_pending_refresh",
+        "unknown_freshness",
+        "support_bundle_replay_only"
+      ],
+      "description": "Closed graph-freshness vocabulary. live_streaming is reserved for protocols that publish updates as targets change (BSP buildTargetsChanged, BEP streaming). support_bundle_replay_only is reserved for graphs replayed from a support bundle; consumers MUST NOT invoke actions against these without re-resolving in the active context."
+    },
+
+    "partial_truth_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_workset_scope",
+        "partial_workset_subset_of_full_graph",
+        "partial_initial_load_pending_full_resolution",
+        "partial_streamed_pending_completion_event",
+        "partial_policy_limited_view",
+        "partial_outside_current_slice_omitted",
+        "partial_adapter_degraded_pending_recovery",
+        "partial_unsupported_subgraph_preserved_opaquely"
+      ],
+      "description": "Closed partial-truth vocabulary. complete_for_workset_scope means the graph fully covers the bound workset_scope. Any partial_* class MUST be rendered as a partial graph by every consumer; pickers MUST disclose the partial-coverage chip and MUST NOT silently advertise targets that fall outside the cited slice as missing."
+    },
+
+    "fingerprint_kind": {
+      "type": "string",
+      "enum": [
+        "toolchain_identity_fingerprint",
+        "build_system_version_fingerprint",
+        "manifest_lockfile_fingerprint",
+        "build_server_protocol_capability_fingerprint",
+        "bazel_workspace_resolution_fingerprint",
+        "structured_importer_input_set_fingerprint",
+        "heuristic_ruleset_fingerprint",
+        "execution_context_fingerprint"
+      ],
+      "description": "Closed fingerprint-kind vocabulary. Snapshots cite at least one toolchain_identity_fingerprint and one build_system_version_fingerprint (or heuristic_ruleset_fingerprint for heuristic adapters); consumers compare fingerprints to decide whether two snapshots reference comparable build truth."
+    },
+
+    "fingerprint_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint_kind", "fingerprint_digest"],
+      "properties": {
+        "fingerprint_kind": { "$ref": "#/$defs/fingerprint_kind" },
+        "fingerprint_digest": {
+          "$ref": "#/$defs/hex_hash",
+          "description": "Hash-algorithm-prefixed digest of the fingerprint inputs. Raw lockfile contents, raw env values, raw secrets, and raw paths never appear here; producers retain inputs out-of-band and cite this digest."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+
+    "fingerprint_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/fingerprint_entry" }
+    },
+
+    "replay_linkage_class": {
+      "type": "string",
+      "enum": [
+        "live_no_replay_linkage",
+        "linked_to_task_event_replay_bundle",
+        "linked_to_support_bundle",
+        "linked_to_import_probe_export",
+        "linked_to_replay_probe",
+        "linked_to_automation_replay_harness"
+      ],
+      "description": "Closed replay-linkage vocabulary. Snapshots that participate in a task-event replay bundle, support bundle, or import-probe export cite that linkage so consumers can re-resolve target ids from a replayed graph rather than minting new ids."
+    },
+
+    "replay_linkage_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linkage_class", "task_event_replay_bundle_ref", "support_bundle_ref", "import_probe_export_ref", "replay_probe_ref"],
+      "properties": {
+        "linkage_class": { "$ref": "#/$defs/replay_linkage_class" },
+        "task_event_replay_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the task_event_replay_bundle_record (in schemas/tooling/task_event_envelope.schema.json) the snapshot belongs to. MUST be non-null when linkage_class is linked_to_task_event_replay_bundle."
+        },
+        "support_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "import_probe_export_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "replay_probe_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+
+    "generation_event_class": {
+      "type": "string",
+      "enum": [
+        "first_resolution_after_workspace_open",
+        "after_manifest_change_detected",
+        "after_lockfile_change_detected",
+        "after_toolchain_swap",
+        "after_build_server_protocol_event",
+        "after_bazel_build_event_stream",
+        "after_user_invoked_refresh",
+        "after_adapter_swap_visible_state_change",
+        "after_support_bundle_replay",
+        "after_import_probe",
+        "after_ai_proposed_pending_review",
+        "after_workset_scope_change"
+      ],
+      "description": "Closed generation-event vocabulary naming why this snapshot was generated. CI overlays and AI planners read this so a snapshot tagged after_user_invoked_refresh is treated as fresher than a snapshot tagged after_support_bundle_replay even when their captured_at timestamps are similar."
+    },
+
+    "graph_lineage_class": {
+      "type": "string",
+      "enum": [
+        "first_snapshot_no_predecessor",
+        "supersedes_prior_snapshot_same_adapter",
+        "supersedes_prior_snapshot_after_adapter_swap",
+        "coexists_side_by_side_with_higher_precedence_snapshot",
+        "supersedes_prior_snapshot_with_target_set_change",
+        "deprecated_replaced_by_new_graph_id"
+      ],
+      "description": "Closed graph-lineage vocabulary. supersedes_prior_snapshot_after_adapter_swap MUST cite a target_graph_lineage_record citing the swap's adapter_replacement_event_id_ref."
+    },
+
+    "target_graph_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "target_graph_snapshot_schema_version",
+        "graph_id",
+        "captured_at",
+        "workspace_id",
+        "workset_scope_class",
+        "workset_scope_ref",
+        "source_adapter_id_ref",
+        "source_adapter_confidence_class",
+        "fingerprint_set",
+        "freshness_class",
+        "partial_truth_class",
+        "generation_event_class",
+        "replay_linkage",
+        "graph_lineage_class",
+        "target_descriptor_refs"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "target_graph_snapshot_record" },
+        "target_graph_snapshot_schema_version": { "$ref": "#/$defs/target_graph_snapshot_schema_version" },
+        "graph_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable graph id. Surfaces cite this id alongside a target_id when they reference a target; the same target_id under the same graph_id resolves the same target across export and reopen."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_scope_class": { "$ref": "#/$defs/workspace_scope_class" },
+        "workset_scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the workset_scope object in schemas/runtime/execution_context.schema.json the snapshot was resolved under. The snapshot does not re-mint scope vocabulary; it cites the scope record."
+        },
+        "execution_context_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional ref to the execution_context_record this snapshot was resolved against. Null only when the snapshot is a static-import probe with no live execution context."
+        },
+        "source_adapter_id_ref": {
+          "$ref": "#/$defs/dotted_id",
+          "description": "Ref to the adapter_descriptor_record (in schemas/tooling/adapter_descriptor.schema.json) that emitted this snapshot."
+        },
+        "source_adapter_confidence_class": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence projected onto this snapshot. MUST NOT exceed the source adapter's adapter_confidence_ceiling."
+        },
+        "fingerprint_set": { "$ref": "#/$defs/fingerprint_set" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "partial_truth_class": { "$ref": "#/$defs/partial_truth_class" },
+        "generation_event_class": { "$ref": "#/$defs/generation_event_class" },
+        "replay_linkage": { "$ref": "#/$defs/replay_linkage_payload" },
+        "graph_lineage_class": { "$ref": "#/$defs/graph_lineage_class" },
+        "predecessor_graph_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the predecessor graph_id this snapshot supersedes (or coexists alongside). MUST be non-null when graph_lineage_class is supersedes_prior_snapshot_same_adapter / supersedes_prior_snapshot_after_adapter_swap / coexists_side_by_side_with_higher_precedence_snapshot / supersedes_prior_snapshot_with_target_set_change / deprecated_replaced_by_new_graph_id."
+        },
+        "adapter_replacement_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the adapter_replacement_event_record (in schemas/tooling/adapter_descriptor.schema.json) when graph_lineage_class is supersedes_prior_snapshot_after_adapter_swap. MUST be non-null in that case so the visible state change is traceable."
+        },
+        "target_descriptor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to target_descriptor_records (in schemas/tooling/target_descriptor.schema.json) published under this graph. Empty for a snapshot that publishes only the partial-truth posture (for example partial_initial_load_pending_full_resolution before any target resolves)."
+        },
+        "target_count_reported": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Reported number of target descriptors this snapshot publishes. MUST equal the length of target_descriptor_refs when partial_truth_class is complete_for_workset_scope; MAY be greater than target_descriptor_refs.length when partial_truth_class indicates an in-flight load."
+        },
+        "stale_after_ttl": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "pattern": "^P(?!$)(\\d+Y)?(\\d+M)?(\\d+D)?(T(\\d+H)?(\\d+M)?(\\d+(?:\\.\\d+)?S)?)?$"
+            }
+          ],
+          "description": "ISO 8601 duration after which the snapshot is treated as stale_pending_refresh by the freshness contract. Null when the adapter does not publish a TTL."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One target-graph snapshot. Pickers, quick-open, run / test / build / debug surfaces, CI overlays, AI planners, support-bundle exporters, and replay harnesses cite this record rather than mint a parallel graph object."
+    },
+
+    "target_graph_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "target_graph_snapshot_schema_version",
+        "lineage_event_id",
+        "captured_at",
+        "lineage_class",
+        "current_graph_id",
+        "prior_graph_ids",
+        "workspace_id",
+        "workset_scope_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "target_graph_lineage_record" },
+        "target_graph_snapshot_schema_version": { "$ref": "#/$defs/target_graph_snapshot_schema_version" },
+        "lineage_event_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "lineage_class": { "$ref": "#/$defs/graph_lineage_class" },
+        "current_graph_id": { "$ref": "#/$defs/opaque_id" },
+        "prior_graph_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_scope_class": { "$ref": "#/$defs/workspace_scope_class" },
+        "adapter_replacement_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the adapter_replacement_event_record when lineage_class is supersedes_prior_snapshot_after_adapter_swap; MUST be non-null in that case."
+        },
+        "target_id_continuity": {
+          "type": "string",
+          "enum": [
+            "all_target_ids_preserved_across_graphs",
+            "subset_of_target_ids_preserved_across_graphs",
+            "no_target_ids_preserved_review_required"
+          ],
+          "description": "Names whether target ids minted under prior_graph_ids survive into current_graph_id. Pickers and AI planners read this to decide whether to re-render a target list silently or to render a target_set_narrowed / target_set_widened review chip."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "Records lineage events between two or more graph_ids. Pickers, AI planners, CI overlays, and support-bundle exporters read these so a graph rotation never appears as a silent disappearance plus reappearance."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "first_snapshot_no_predecessor lineage MUST carry a null predecessor_graph_id_ref and a null adapter_replacement_event_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "graph_lineage_class": { "const": "first_snapshot_no_predecessor" }
+        },
+        "required": ["record_kind", "graph_lineage_class"]
+      },
+      "then": {
+        "properties": {
+          "predecessor_graph_id_ref": { "type": "null" },
+          "adapter_replacement_event_id_ref": { "type": "null" }
+        },
+        "required": ["predecessor_graph_id_ref", "adapter_replacement_event_id_ref"]
+      }
+    },
+    {
+      "description": "supersedes_prior_snapshot_* and coexists_* and deprecated_* lineage MUST carry a non-null predecessor_graph_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "graph_lineage_class": {
+            "enum": [
+              "supersedes_prior_snapshot_same_adapter",
+              "supersedes_prior_snapshot_after_adapter_swap",
+              "coexists_side_by_side_with_higher_precedence_snapshot",
+              "supersedes_prior_snapshot_with_target_set_change",
+              "deprecated_replaced_by_new_graph_id"
+            ]
+          }
+        },
+        "required": ["record_kind", "graph_lineage_class"]
+      },
+      "then": {
+        "properties": {
+          "predecessor_graph_id_ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["predecessor_graph_id_ref"]
+      }
+    },
+    {
+      "description": "supersedes_prior_snapshot_after_adapter_swap MUST cite an adapter_replacement_event_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "graph_lineage_class": { "const": "supersedes_prior_snapshot_after_adapter_swap" }
+        },
+        "required": ["record_kind", "graph_lineage_class"]
+      },
+      "then": {
+        "properties": {
+          "adapter_replacement_event_id_ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["adapter_replacement_event_id_ref"]
+      }
+    },
+    {
+      "description": "complete_for_workset_scope MUST report target_count_reported equal to target_descriptor_refs.length and a non-empty descriptor list (or report zero only when the workset scope legitimately resolves to zero targets).",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "partial_truth_class": { "const": "complete_for_workset_scope" }
+        },
+        "required": ["record_kind", "partial_truth_class"]
+      },
+      "then": {
+        "anyOf": [
+          {
+            "properties": {
+              "target_count_reported": { "const": 0 },
+              "target_descriptor_refs": { "type": "array", "maxItems": 0 }
+            }
+          },
+          {
+            "properties": {
+              "target_descriptor_refs": { "type": "array", "minItems": 1 }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "support_bundle_replay_only freshness MUST pair replay_linkage.linkage_class with linked_to_support_bundle or linked_to_task_event_replay_bundle.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "freshness_class": { "const": "support_bundle_replay_only" }
+        },
+        "required": ["record_kind", "freshness_class"]
+      },
+      "then": {
+        "properties": {
+          "replay_linkage": {
+            "properties": {
+              "linkage_class": {
+                "enum": [
+                  "linked_to_support_bundle",
+                  "linked_to_task_event_replay_bundle",
+                  "linked_to_replay_probe",
+                  "linked_to_automation_replay_harness"
+                ]
+              }
+            },
+            "required": ["linkage_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "linked_to_task_event_replay_bundle MUST carry a non-null task_event_replay_bundle_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "replay_linkage": {
+            "properties": { "linkage_class": { "const": "linked_to_task_event_replay_bundle" } },
+            "required": ["linkage_class"]
+          }
+        },
+        "required": ["record_kind", "replay_linkage"]
+      },
+      "then": {
+        "properties": {
+          "replay_linkage": {
+            "properties": { "task_event_replay_bundle_ref": { "type": "string", "minLength": 1 } },
+            "required": ["task_event_replay_bundle_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "linked_to_support_bundle MUST carry a non-null support_bundle_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "replay_linkage": {
+            "properties": { "linkage_class": { "const": "linked_to_support_bundle" } },
+            "required": ["linkage_class"]
+          }
+        },
+        "required": ["record_kind", "replay_linkage"]
+      },
+      "then": {
+        "properties": {
+          "replay_linkage": {
+            "properties": { "support_bundle_ref": { "type": "string", "minLength": 1 } },
+            "required": ["support_bundle_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "live_no_replay_linkage MUST carry null refs across the linkage payload.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "replay_linkage": {
+            "properties": { "linkage_class": { "const": "live_no_replay_linkage" } },
+            "required": ["linkage_class"]
+          }
+        },
+        "required": ["record_kind", "replay_linkage"]
+      },
+      "then": {
+        "properties": {
+          "replay_linkage": {
+            "properties": {
+              "task_event_replay_bundle_ref": { "type": "null" },
+              "support_bundle_ref": { "type": "null" },
+              "import_probe_export_ref": { "type": "null" },
+              "replay_probe_ref": { "type": "null" }
+            },
+            "required": [
+              "task_event_replay_bundle_ref",
+              "support_bundle_ref",
+              "import_probe_export_ref",
+              "replay_probe_ref"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "description": "after_adapter_swap_visible_state_change generation MUST pair with supersedes_prior_snapshot_after_adapter_swap lineage.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_snapshot_record" },
+          "generation_event_class": { "const": "after_adapter_swap_visible_state_change" }
+        },
+        "required": ["record_kind", "generation_event_class"]
+      },
+      "then": {
+        "properties": {
+          "graph_lineage_class": { "const": "supersedes_prior_snapshot_after_adapter_swap" }
+        },
+        "required": ["graph_lineage_class"]
+      }
+    },
+    {
+      "description": "Lineage events naming a non-first lineage_class MUST cite at least one prior_graph_ids entry.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_lineage_record" },
+          "lineage_class": {
+            "enum": [
+              "supersedes_prior_snapshot_same_adapter",
+              "supersedes_prior_snapshot_after_adapter_swap",
+              "coexists_side_by_side_with_higher_precedence_snapshot",
+              "supersedes_prior_snapshot_with_target_set_change",
+              "deprecated_replaced_by_new_graph_id"
+            ]
+          }
+        },
+        "required": ["record_kind", "lineage_class"]
+      },
+      "then": {
+        "properties": {
+          "prior_graph_ids": { "type": "array", "minItems": 1 }
+        },
+        "required": ["prior_graph_ids"]
+      }
+    },
+    {
+      "description": "first_snapshot_no_predecessor lineage events MUST carry an empty prior_graph_ids list.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_graph_lineage_record" },
+          "lineage_class": { "const": "first_snapshot_no_predecessor" }
+        },
+        "required": ["record_kind", "lineage_class"]
+      },
+      "then": {
+        "properties": {
+          "prior_graph_ids": { "type": "array", "maxItems": 0 }
+        }
+      }
+    }
+  ]
+}

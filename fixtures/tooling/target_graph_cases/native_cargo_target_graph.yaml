@@ -1,0 +1,280 @@
+# Multi-document YAML fixture for the native cargo target-graph case.
+# Each document carries a record_kind that resolves to one of:
+#   schemas/tooling/adapter_descriptor.schema.json
+#   schemas/tooling/target_graph_snapshot.schema.json
+#   schemas/tooling/target_descriptor.schema.json
+__fixture__:
+  name: native_cargo_target_graph
+  scenario: >
+    First-party native cargo task runner publishes a complete target
+    graph for the aureline workspace's current_root scope. Adapter
+    confidence is authoritative_from_source, snapshot is
+    complete_for_workset_scope under live_streaming freshness, target
+    descriptors round-trip stable target ids across export and reopen,
+    and run / test / build / debug actions all resolve through the
+    aureline.native.cargo_runner task-event adapter.
+  exercised:
+    adapter_class: native_build_runner
+    precedence_class: highest_authoritative_native
+    snapshot_partial_truth: complete_for_workset_scope
+    snapshot_freshness: live_streaming
+    target_id_lineage: preserved_across_export_and_reopen
+    action_support: supported_authoritative
+  seed_roles:
+    - native_adapter_descriptor
+    - authoritative_target_graph_snapshot
+    - target_id_round_trip_export_reopen
+    - run_test_build_debug_supported_authoritative
+---
+$schema: ../../../schemas/tooling/adapter_descriptor.schema.json
+record_kind: adapter_descriptor_record
+adapter_descriptor_schema_version: 1
+adapter_id: aureline.native.cargo_runner
+title: Native cargo build adapter (publishes target graph from cargo metadata + runs build / test / bench)
+adapter_class: native_build_runner
+producer_tool: cargo.metadata
+adapter_version: cargo.metadata.adapter.v1
+discovery_source_set:
+  - manifest_files_in_workspace
+  - workspace_lockfile
+workspace_scope_compatibility_set:
+  - current_root
+  - named_workset
+  - sparse_slice
+  - full_workspace
+precedence_class: highest_authoritative_native
+adapter_confidence_ceiling: authoritative_from_source
+capability_flag_set:
+  - publishes_target_graph_snapshot
+  - publishes_target_descriptors
+  - publishes_target_health_observations
+  - supports_run_action
+  - supports_test_action
+  - supports_build_action
+  - supports_debug_action
+  - supports_artifact_publication_event
+  - supports_target_graph_streaming_updates
+  - supports_partial_workset_scope
+  - preserves_target_id_across_export_and_reopen
+  - preserves_target_id_across_adapter_swap
+supported_target_class_set:
+  - local_host
+  - container_local
+  - devcontainer
+  - remote_workspace_vm
+supported_toolchain_class_set:
+  - compiler_toolchain
+  - package_manager_runner
+  - test_runner_runtime
+  - build_driver_runtime
+  - debug_adapter_runtime
+replacement_posture: may_replace_lower_or_equal_precedence_silently
+task_event_adapter_id_refs:
+  - aureline.native.cargo_runner
+external_handoff_kinds_supported: []
+graph_freshness_default_class: live_streaming
+notes: >
+  Reads cargo metadata for target discovery and the cargo build /
+  test / bench event stream for target health observations. Target
+  ids are derived from the cargo package id + target name; ids
+  survive export / reopen and survive a swap to the structured
+  pyproject importer when one workspace contains both manifests.
+---
+$schema: ../../../schemas/tooling/target_graph_snapshot.schema.json
+record_kind: target_graph_snapshot_record
+target_graph_snapshot_schema_version: 1
+graph_id: graph:tooling.target_graph:aureline_workspace:cargo:01
+captured_at: 2026-04-30T14:00:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: current_root
+workset_scope_ref: scope:aureline:current_root:01
+execution_context_id_ref: ctx:task:cargo_metadata:aureline_workspace:01
+source_adapter_id_ref: aureline.native.cargo_runner
+source_adapter_confidence_class: authoritative_from_source
+fingerprint_set:
+  - fingerprint_kind: toolchain_identity_fingerprint
+    fingerprint_digest: sha256:5b1c3e0a8f2d4b7a9c1e6d3b8f2a0c5d7e9b1a3c6f8d2e4b7a9c1e6d3b8f2a0c
+    summary: cargo 1.84.0 stable + rustc 1.84.0 stable
+  - fingerprint_kind: build_system_version_fingerprint
+    fingerprint_digest: sha256:0a7d3e9b2c1f8a6d4b0c5e7f2a1b3c8d9e0f6a2b4c7d1e8f3a5b9c0d2e4f6a8b
+    summary: cargo workspace at workspace root + lockfile digest
+  - fingerprint_kind: manifest_lockfile_fingerprint
+    fingerprint_digest: sha256:3c8f1a6d2b5e4c7a0d9f3b6e1c8a4d7f2b5e0c3a9d6f1b8e4c7a2d0f3b6e9c1a
+freshness_class: live_streaming
+partial_truth_class: complete_for_workset_scope
+generation_event_class: first_resolution_after_workspace_open
+replay_linkage:
+  linkage_class: live_no_replay_linkage
+  task_event_replay_bundle_ref: null
+  support_bundle_ref: null
+  import_probe_export_ref: null
+  replay_probe_ref: null
+  summary: Live snapshot, no replay linkage required.
+graph_lineage_class: first_snapshot_no_predecessor
+predecessor_graph_id_ref: null
+adapter_replacement_event_id_ref: null
+target_descriptor_refs:
+  - tgt:tooling.target:aureline-core:lib
+  - tgt:tooling.target:aureline-core:test
+  - tgt:tooling.target:aureline-cli:bin
+target_count_reported: 3
+stale_after_ttl: PT5M
+approval_ticket_ref: null
+summary: Native cargo target graph for the aureline workspace's current_root scope.
+---
+$schema: ../../../schemas/tooling/target_descriptor.schema.json
+record_kind: target_descriptor_record
+target_descriptor_schema_version: 1
+target_id: tgt:tooling.target:aureline-core:lib
+display_label: aureline-core (library)
+target_kind: library
+owning_root:
+  root_id_ref: root:aureline:workspace_root
+  owning_module_kind: cargo_package
+  owning_module_id_ref: cargo-pkg:aureline-core
+  submodule_or_nested_repo_ref: null
+  summary: cargo package aureline-core, lib target
+source_adapter_id_ref: aureline.native.cargo_runner
+source_adapter_confidence_class: authoritative_from_source
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+run_action_support:
+  state: unsupported_no_handoff_admissible
+  unsupported_reason: target_kind_does_not_carry_action
+  external_handoff: null
+  task_event_adapter_id_ref: null
+test_action_support:
+  state: unsupported_no_handoff_admissible
+  unsupported_reason: target_kind_does_not_carry_action
+  external_handoff: null
+  task_event_adapter_id_ref: null
+build_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+debug_action_support:
+  state: unsupported_no_handoff_admissible
+  unsupported_reason: target_kind_does_not_carry_action
+  external_handoff: null
+  task_event_adapter_id_ref: null
+environment_requirements:
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: compiler_toolchain
+    requirement_satisfaction: satisfied_in_active_context
+    summary: rustc compiler toolchain present
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: build_driver_runtime
+    requirement_satisfaction: satisfied_in_active_context
+    summary: cargo build driver present
+  - requirement_kind: required_target_class
+    requirement_value_token: local_host
+    requirement_satisfaction: satisfied_in_active_context
+    summary: local-host execution target
+health_state: healthy
+freshness_class: live_streaming
+target_id_lineage_class: preserved_across_export_and_reopen
+ai_proposed_review_ticket_ref: null
+approval_ticket_ref: null
+notes: aureline-core library target; build-only.
+---
+$schema: ../../../schemas/tooling/target_descriptor.schema.json
+record_kind: target_descriptor_record
+target_descriptor_schema_version: 1
+target_id: tgt:tooling.target:aureline-core:test
+display_label: aureline-core (tests)
+target_kind: test_suite
+owning_root:
+  root_id_ref: root:aureline:workspace_root
+  owning_module_kind: cargo_package
+  owning_module_id_ref: cargo-pkg:aureline-core
+  submodule_or_nested_repo_ref: null
+  summary: cargo package aureline-core, test target
+source_adapter_id_ref: aureline.native.cargo_runner
+source_adapter_confidence_class: authoritative_from_source
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+run_action_support:
+  state: unsupported_no_handoff_admissible
+  unsupported_reason: target_kind_does_not_carry_action
+  external_handoff: null
+  task_event_adapter_id_ref: null
+test_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+build_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+debug_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+environment_requirements:
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: test_runner_runtime
+    requirement_satisfaction: satisfied_in_active_context
+    summary: cargo test runner present
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: debug_adapter_runtime
+    requirement_satisfaction: satisfied_in_active_context
+    summary: lldb debug adapter available
+health_state: healthy
+freshness_class: live_streaming
+target_id_lineage_class: preserved_across_export_and_reopen
+ai_proposed_review_ticket_ref: null
+approval_ticket_ref: null
+notes: aureline-core test target; supports test / build / debug actions.
+---
+$schema: ../../../schemas/tooling/target_descriptor.schema.json
+record_kind: target_descriptor_record
+target_descriptor_schema_version: 1
+target_id: tgt:tooling.target:aureline-cli:bin
+display_label: aureline (binary)
+target_kind: executable_binary
+owning_root:
+  root_id_ref: root:aureline:workspace_root
+  owning_module_kind: cargo_package
+  owning_module_id_ref: cargo-pkg:aureline-cli
+  submodule_or_nested_repo_ref: null
+  summary: cargo package aureline-cli, bin target
+source_adapter_id_ref: aureline.native.cargo_runner
+source_adapter_confidence_class: authoritative_from_source
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+run_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+test_action_support:
+  state: unsupported_no_handoff_admissible
+  unsupported_reason: target_kind_does_not_carry_action
+  external_handoff: null
+  task_event_adapter_id_ref: null
+build_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+debug_action_support:
+  state: supported_authoritative
+  unsupported_reason: no_reason_supported_action
+  external_handoff: null
+  task_event_adapter_id_ref: aureline.native.cargo_runner
+environment_requirements:
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: compiler_toolchain
+    requirement_satisfaction: satisfied_in_active_context
+    summary: rustc compiler toolchain present
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: debug_adapter_runtime
+    requirement_satisfaction: satisfied_in_active_context
+    summary: lldb debug adapter available
+health_state: healthy
+freshness_class: live_streaming
+target_id_lineage_class: preserved_across_export_and_reopen
+ai_proposed_review_ticket_ref: null
+approval_ticket_ref: null
+notes: aureline-cli executable target; supports run / build / debug actions.

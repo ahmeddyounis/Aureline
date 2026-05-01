@@ -1,0 +1,597 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/adapter_descriptor.schema.json",
+  "title": "Aureline build-adapter descriptor, capability-flag, discovery-source, and precedence contract",
+  "description": "Boundary schema for the adapter_descriptor_record every build-truth producer (native task runner, Build Server Protocol client, Bazel Build Event Protocol reader, structured importer, heuristic target inferrer, fallback opaque-preservation adapter) registers and every consumer (run / test / build / debug picker, quick-open, command palette, CI overlay, AI planner, support-bundle exporter) reads to know which adapters may publish target-graph snapshots and target descriptors with which confidence class, which capability flags, which discovery source, which workspace-scope compatibility, and which precedence class. Adapter rows in artifacts/tooling/adapter_map.yaml that publish target graphs project through this descriptor; the task-event adapter rows already registered there bind to schemas/tooling/task_event_envelope.schema.json. This schema does not mint a new confidence vocabulary, a new scope vocabulary, a new target-class vocabulary, or a new toolchain-class vocabulary; it re-exports the frozen tokens from schemas/tooling/task_event_envelope.schema.json (confidence_class) and schemas/runtime/execution_context.schema.json (scope_class, target_class, toolchain_class). Lower-confidence adapters MUST NOT silently replace higher-confidence adapters; replacements ride an adapter_replacement_event_record whose visible_state_change_class is non-null whenever the adapter swap reduces confidence. Adding a new adapter_class, capability_flag, discovery_source_class, workspace_scope_compatibility_class, precedence_class, replacement_posture, visible_state_change_class, or external_handoff_kind is additive-minor and bumps adapter_descriptor_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/adapter_descriptor_record" },
+    { "$ref": "#/$defs/adapter_replacement_event_record" }
+  ],
+  "$defs": {
+    "adapter_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the adapter-descriptor contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "adapter_descriptor_record",
+        "adapter_replacement_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "dotted_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Dotted lower-snake id used for adapter_id, producer_tool, and discovery_source ids."
+    },
+
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Lowercase token id safe to embed in registry rows. Snake or kebab case."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in preview and export surfaces. Raw payload bytes, raw command lines, raw env bodies, and raw secret values never appear here."
+    },
+
+    "adapter_class": {
+      "type": "string",
+      "enum": [
+        "native_build_runner",
+        "build_server_protocol_client",
+        "bazel_build_event_protocol",
+        "structured_importer",
+        "heuristic_target_inferrer",
+        "fallback_opaque_preservation"
+      ],
+      "description": "Closed adapter-class vocabulary. native_build_runner is reserved for first-party native runners that own the build graph (cargo, go, npm-run-graph, etc.). build_server_protocol_client is reserved for BSP v2 servers that publish target graphs over the protocol. bazel_build_event_protocol is reserved for BEP-class streamed graphs (Bazel, Pants, Buck2-BEP). structured_importer is reserved for one-shot imports of a structured graph descriptor (CMake file API json, package.json / pnpm workspace, pyproject.toml + pdm/poetry export, etc.). heuristic_target_inferrer is reserved for filename / convention / regex-based discovery when no protocol or importer is available. fallback_opaque_preservation is the last-resort adapter that keeps an unknown source visible without claiming a typed graph."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Adapter confidence ceiling. Re-export of schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class. Pickers, CI overlays, and AI planners read this ceiling to choose which adapter's target graph wins when multiple adapters cover the same workspace."
+    },
+
+    "capability_flag": {
+      "type": "string",
+      "enum": [
+        "publishes_target_graph_snapshot",
+        "publishes_target_descriptors",
+        "publishes_target_health_observations",
+        "supports_run_action",
+        "supports_test_action",
+        "supports_build_action",
+        "supports_debug_action",
+        "supports_artifact_publication_event",
+        "supports_target_graph_streaming_updates",
+        "supports_inspect_only_external_handoff",
+        "supports_partial_workset_scope",
+        "preserves_target_id_across_export_and_reopen",
+        "preserves_target_id_across_adapter_swap"
+      ],
+      "description": "Closed capability-flag vocabulary. preserves_target_id_across_adapter_swap means the adapter MAY publish a graph that re-uses target ids minted by another adapter under the same workspace identity (used during native -> structured-importer hand-off after a manifest change); adapters that cannot guarantee id stability across swap MUST omit this flag and an adapter_replacement_event_record for the swap MUST carry a visible_state_change_class."
+    },
+
+    "discovery_source_class": {
+      "type": "string",
+      "enum": [
+        "manifest_files_in_workspace",
+        "workspace_lockfile",
+        "build_server_protocol_response",
+        "bazel_build_event_protocol_stream",
+        "structured_graph_export_file",
+        "filename_or_directory_convention_heuristic",
+        "regex_or_glob_pattern_heuristic",
+        "user_declared_target_set",
+        "support_bundle_replay",
+        "import_probe",
+        "ai_proposed_pending_review",
+        "opaque_unsupported_preservation"
+      ],
+      "description": "Closed discovery-source vocabulary. ai_proposed_pending_review is reserved for graphs proposed by an AI tool call that have not yet been admitted; such adapters MUST set adapter_confidence_ceiling to heuristic_best_effort or lower and MUST set replacement_posture to never_replaces_existing_until_user_admits."
+    },
+
+    "workspace_scope_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of schemas/runtime/execution_context.schema.json#/$defs/scope_class. Adapters declare which scope classes they can serve target-graph snapshots over; consumers asking for a scope an adapter cannot serve MUST treat the absence as not_observed_by_adapter rather than not_present_in_workspace."
+    },
+
+    "precedence_class": {
+      "type": "string",
+      "enum": [
+        "highest_authoritative_native",
+        "structured_protocol_authoritative",
+        "structured_importer_authoritative",
+        "heuristic_best_effort",
+        "fallback_opaque_preservation_only"
+      ],
+      "description": "Closed precedence-class vocabulary. When two adapters cover the same workspace under the same workset_scope, the higher precedence_class wins; the lower-precedence adapter's snapshot is downgraded to side-by-side advisory and MUST NOT replace the higher-precedence adapter's graph without an adapter_replacement_event_record carrying a visible_state_change_class."
+    },
+
+    "replacement_posture": {
+      "type": "string",
+      "enum": [
+        "may_replace_lower_or_equal_precedence_silently",
+        "may_replace_lower_precedence_with_visible_state_change_only",
+        "coexists_side_by_side_with_higher_precedence",
+        "never_replaces_existing_until_user_admits",
+        "fallback_only_when_all_others_unavailable"
+      ],
+      "description": "Closed replacement-posture vocabulary naming what the adapter is allowed to do when another adapter already owns the workset_scope. Higher-precedence adapters MAY use may_replace_lower_or_equal_precedence_silently; lower-precedence adapters MUST NOT. ai_proposed_pending_review discovery sources MUST use never_replaces_existing_until_user_admits."
+    },
+
+    "visible_state_change_class": {
+      "type": "string",
+      "enum": [
+        "no_visible_state_change_required",
+        "graph_provider_label_changed",
+        "confidence_downgrade_disclosed",
+        "target_set_narrowed_with_review_chip",
+        "target_set_widened_with_review_chip",
+        "discovery_source_changed_with_review_chip",
+        "fallback_to_opaque_preservation_with_review_chip"
+      ],
+      "description": "Closed visible-state-change vocabulary. no_visible_state_change_required is reserved for upgrades that strictly broaden the target set or strictly raise confidence and re-use existing target ids. Every other replacement MUST cite one of the disclosing classes so pickers, run/test/debug surfaces, CI overlays, and AI planners render a chip rather than swap silently."
+    },
+
+    "external_handoff_kind": {
+      "type": "string",
+      "enum": [
+        "open_in_provider_run_console",
+        "open_in_provider_debug_console",
+        "open_in_provider_test_explorer",
+        "copy_command_to_terminal",
+        "open_external_documentation",
+        "no_handoff_admissible"
+      ],
+      "description": "Closed external-handoff vocabulary used by the inspect-only fallback. Adapters that publish targets which can only be inspected (no run / test / build / debug action available locally) cite which external handoff is admissible so the picker renders an open-in-provider affordance rather than a generic Cannot run label."
+    },
+
+    "capability_flag_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capability_flag" },
+      "description": "Set of capability flags this adapter asserts. MUST include publishes_target_graph_snapshot if the adapter participates in the target-graph contract at all. heuristic_target_inferrer adapters MUST NOT include supports_run_action / supports_test_action / supports_build_action / supports_debug_action; those actions are owned by authoritative-source adapters. fallback_opaque_preservation adapters MUST include preserves_target_id_across_export_and_reopen and supports_inspect_only_external_handoff and MUST NOT include any supports_*_action flag."
+    },
+
+    "workspace_scope_compatibility_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/workspace_scope_compatibility_class" },
+      "description": "Set of scope classes this adapter can serve target-graph snapshots over. An adapter that cannot serve sparse_slice MUST NOT silently down-fill a sparse_slice request to current_root; the consumer either re-asks under a covered scope or treats the absence as not_observed_by_adapter."
+    },
+
+    "discovery_source_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/discovery_source_class" },
+      "description": "Set of discovery sources this adapter consumes. native_build_runner adapters typically consume manifest_files_in_workspace + workspace_lockfile; build_server_protocol_client consumes build_server_protocol_response; structured_importer consumes structured_graph_export_file; heuristic_target_inferrer consumes filename_or_directory_convention_heuristic and / or regex_or_glob_pattern_heuristic; fallback_opaque_preservation consumes opaque_unsupported_preservation."
+    },
+
+    "supported_target_class_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "local_host",
+          "ssh_remote",
+          "container_local",
+          "devcontainer",
+          "remote_workspace_vm",
+          "prebuild_runtime",
+          "managed_workspace",
+          "notebook_kernel_local",
+          "notebook_kernel_remote",
+          "ai_sandbox"
+        ]
+      },
+      "description": "Re-export of schemas/runtime/execution_context.schema.json#/$defs/target_class. Names which execution-target classes the adapter can publish target descriptors against. Adapters MUST NOT mint new target classes."
+    },
+
+    "supported_toolchain_class_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "interpreter",
+          "compiler_toolchain",
+          "package_manager_runner",
+          "containerised_runtime",
+          "notebook_kernel_runtime",
+          "language_server_process",
+          "debug_adapter_runtime",
+          "test_runner_runtime",
+          "build_driver_runtime",
+          "ai_tool_runtime"
+        ]
+      },
+      "description": "Re-export of schemas/runtime/execution_context.schema.json#/$defs/toolchain_class. Names which toolchain classes the adapter expects in the active execution context. Adapters MUST NOT mint new toolchain classes."
+    },
+
+    "adapter_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "adapter_descriptor_schema_version",
+        "adapter_id",
+        "title",
+        "adapter_class",
+        "producer_tool",
+        "adapter_version",
+        "discovery_source_set",
+        "workspace_scope_compatibility_set",
+        "precedence_class",
+        "adapter_confidence_ceiling",
+        "capability_flag_set",
+        "supported_target_class_set",
+        "supported_toolchain_class_set",
+        "replacement_posture",
+        "task_event_adapter_id_refs"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "adapter_descriptor_record" },
+        "adapter_descriptor_schema_version": { "$ref": "#/$defs/adapter_descriptor_schema_version" },
+        "adapter_id": {
+          "$ref": "#/$defs/dotted_id",
+          "description": "Stable adapter id. Stable across producer-tool versions; adapter changes bump adapter_descriptor_schema_version (for breaking payload changes) or the adapter_version field below (for non-breaking version drift)."
+        },
+        "title": { "$ref": "#/$defs/short_sentence" },
+        "adapter_class": { "$ref": "#/$defs/adapter_class" },
+        "producer_tool": {
+          "$ref": "#/$defs/dotted_id",
+          "description": "Dotted id of the originating tool (for example cargo.metadata, bsp.server, bazel.build_event_stream, cmake.file_api, heuristic.target_inferrer)."
+        },
+        "adapter_version": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque adapter-side version string. For heuristic adapters this is typically a ruleset id (for example heuristic.target_inferrer.ruleset_2026_04); for protocol clients this is the protocol revision the client speaks."
+        },
+        "discovery_source_set": { "$ref": "#/$defs/discovery_source_set" },
+        "workspace_scope_compatibility_set": { "$ref": "#/$defs/workspace_scope_compatibility_set" },
+        "precedence_class": { "$ref": "#/$defs/precedence_class" },
+        "adapter_confidence_ceiling": { "$ref": "#/$defs/confidence_class" },
+        "capability_flag_set": { "$ref": "#/$defs/capability_flag_set" },
+        "supported_target_class_set": { "$ref": "#/$defs/supported_target_class_set" },
+        "supported_toolchain_class_set": { "$ref": "#/$defs/supported_toolchain_class_set" },
+        "replacement_posture": { "$ref": "#/$defs/replacement_posture" },
+        "task_event_adapter_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/dotted_id" },
+          "description": "Refs to task-event adapter rows in artifacts/tooling/adapter_map.yaml whose task / build / test / debug envelopes resolve back to targets this adapter publishes. May be empty for adapters that publish target graphs but not task events (for example, a one-shot structured importer); MUST be non-empty for native_build_runner adapters."
+        },
+        "external_handoff_kinds_supported": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/external_handoff_kind" },
+          "description": "External-handoff kinds the adapter can offer when a target reaches inspect_only_no_action. Empty when supports_inspect_only_external_handoff is not in capability_flag_set; non-empty (with at least one kind other than no_handoff_admissible) when it is."
+        },
+        "graph_freshness_default_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "live_streaming",
+                "warm_cached",
+                "cold_cached",
+                "stale_pending_refresh",
+                "unknown_freshness"
+              ]
+            }
+          ],
+          "description": "Default freshness class the adapter publishes graph snapshots under. Individual snapshots MAY narrow further. Null when the adapter does not publish snapshots (capability_flag_set excludes publishes_target_graph_snapshot)."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema pointer used only by fixture files so editors can resolve the boundary schema; never part of the runtime record."
+        },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      },
+      "description": "One adapter descriptor row. Build pickers, quick-open, run / test / build / debug surfaces, CI overlays, and AI planners read these descriptors to decide which adapter's target graph and target descriptors to render and which adapter's swap MUST disclose a visible state change."
+    },
+
+    "adapter_replacement_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "adapter_descriptor_schema_version",
+        "event_id",
+        "captured_at",
+        "workspace_id",
+        "workset_scope_class",
+        "previous_adapter_id_ref",
+        "previous_precedence_class",
+        "previous_confidence_class",
+        "new_adapter_id_ref",
+        "new_precedence_class",
+        "new_confidence_class",
+        "previous_graph_id_ref",
+        "new_graph_id_ref",
+        "replacement_kind",
+        "visible_state_change_class",
+        "target_id_continuity"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "adapter_replacement_event_record" },
+        "adapter_descriptor_schema_version": { "$ref": "#/$defs/adapter_descriptor_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_scope_class": { "$ref": "#/$defs/workspace_scope_compatibility_class" },
+        "previous_adapter_id_ref": { "$ref": "#/$defs/dotted_id" },
+        "previous_precedence_class": { "$ref": "#/$defs/precedence_class" },
+        "previous_confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "new_adapter_id_ref": { "$ref": "#/$defs/dotted_id" },
+        "new_precedence_class": { "$ref": "#/$defs/precedence_class" },
+        "new_confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "previous_graph_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "new_graph_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "replacement_kind": {
+          "type": "string",
+          "enum": [
+            "upgrade_higher_confidence_takes_over",
+            "downgrade_lower_confidence_takes_over",
+            "side_by_side_coexistence_no_replacement",
+            "ai_proposed_pending_user_admission",
+            "fallback_to_opaque_preservation"
+          ]
+        },
+        "visible_state_change_class": { "$ref": "#/$defs/visible_state_change_class" },
+        "target_id_continuity": {
+          "type": "string",
+          "enum": [
+            "all_target_ids_preserved",
+            "subset_of_target_ids_preserved",
+            "no_target_ids_preserved_review_required"
+          ],
+          "description": "Names whether target ids minted by the previous adapter survive the swap. all_target_ids_preserved is reserved for adapters that carry preserves_target_id_across_adapter_swap. subset_of_target_ids_preserved and no_target_ids_preserved_review_required force the swap to render a target_set_narrowed_with_review_chip / target_set_widened_with_review_chip / discovery_source_changed_with_review_chip visible state change."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "Records one adapter swap. Pickers, run / test / build / debug surfaces, CI overlays, and AI planners cite this record to render the visible state change rather than rotate adapters silently."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "heuristic_target_inferrer adapters MUST NOT claim authoritative_from_source or structured_parse_match confidence.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_descriptor_record" },
+          "adapter_class": { "const": "heuristic_target_inferrer" }
+        },
+        "required": ["record_kind", "adapter_class"]
+      },
+      "then": {
+        "properties": {
+          "adapter_confidence_ceiling": {
+            "enum": ["heuristic_best_effort", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["adapter_confidence_ceiling"]
+      }
+    },
+    {
+      "description": "structured_importer adapters MAY claim structured_parse_match but MUST NOT claim authoritative_from_source.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_descriptor_record" },
+          "adapter_class": { "const": "structured_importer" }
+        },
+        "required": ["record_kind", "adapter_class"]
+      },
+      "then": {
+        "properties": {
+          "adapter_confidence_ceiling": {
+            "enum": ["structured_parse_match", "heuristic_best_effort", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["adapter_confidence_ceiling"]
+      }
+    },
+    {
+      "description": "fallback_opaque_preservation adapters MUST set adapter_confidence_ceiling = unknown and precedence_class = fallback_opaque_preservation_only.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_descriptor_record" },
+          "adapter_class": { "const": "fallback_opaque_preservation" }
+        },
+        "required": ["record_kind", "adapter_class"]
+      },
+      "then": {
+        "properties": {
+          "adapter_confidence_ceiling": { "const": "unknown" },
+          "precedence_class": { "const": "fallback_opaque_preservation_only" },
+          "replacement_posture": { "const": "fallback_only_when_all_others_unavailable" }
+        },
+        "required": ["adapter_confidence_ceiling", "precedence_class", "replacement_posture"]
+      }
+    },
+    {
+      "description": "ai_proposed_pending_review discovery_source MUST pair with replacement_posture = never_replaces_existing_until_user_admits and confidence at most heuristic_best_effort.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_descriptor_record" },
+          "discovery_source_set": {
+            "type": "array",
+            "contains": { "const": "ai_proposed_pending_review" }
+          }
+        },
+        "required": ["record_kind", "discovery_source_set"]
+      },
+      "then": {
+        "properties": {
+          "replacement_posture": { "const": "never_replaces_existing_until_user_admits" },
+          "adapter_confidence_ceiling": {
+            "enum": ["heuristic_best_effort", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["replacement_posture", "adapter_confidence_ceiling"]
+      }
+    },
+    {
+      "description": "Adapters that include supports_inspect_only_external_handoff in capability_flag_set MUST declare at least one external_handoff_kind other than no_handoff_admissible.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_descriptor_record" },
+          "capability_flag_set": {
+            "type": "array",
+            "contains": { "const": "supports_inspect_only_external_handoff" }
+          }
+        },
+        "required": ["record_kind", "capability_flag_set"]
+      },
+      "then": {
+        "properties": {
+          "external_handoff_kinds_supported": {
+            "type": "array",
+            "minItems": 1,
+            "contains": {
+              "not": { "const": "no_handoff_admissible" }
+            }
+          }
+        },
+        "required": ["external_handoff_kinds_supported"]
+      }
+    },
+    {
+      "description": "Replacement events whose new adapter has lower precedence than the previous adapter MUST carry a non-trivial visible_state_change_class (not no_visible_state_change_required).",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_replacement_event_record" },
+          "replacement_kind": { "const": "downgrade_lower_confidence_takes_over" }
+        },
+        "required": ["record_kind", "replacement_kind"]
+      },
+      "then": {
+        "properties": {
+          "visible_state_change_class": {
+            "enum": [
+              "graph_provider_label_changed",
+              "confidence_downgrade_disclosed",
+              "target_set_narrowed_with_review_chip",
+              "target_set_widened_with_review_chip",
+              "discovery_source_changed_with_review_chip",
+              "fallback_to_opaque_preservation_with_review_chip"
+            ]
+          }
+        },
+        "required": ["visible_state_change_class"]
+      }
+    },
+    {
+      "description": "Replacement events with target_id_continuity != all_target_ids_preserved MUST carry a non-trivial visible_state_change_class so target ids never silently rename.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_replacement_event_record" },
+          "target_id_continuity": {
+            "enum": [
+              "subset_of_target_ids_preserved",
+              "no_target_ids_preserved_review_required"
+            ]
+          }
+        },
+        "required": ["record_kind", "target_id_continuity"]
+      },
+      "then": {
+        "properties": {
+          "visible_state_change_class": {
+            "enum": [
+              "graph_provider_label_changed",
+              "confidence_downgrade_disclosed",
+              "target_set_narrowed_with_review_chip",
+              "target_set_widened_with_review_chip",
+              "discovery_source_changed_with_review_chip",
+              "fallback_to_opaque_preservation_with_review_chip"
+            ]
+          }
+        },
+        "required": ["visible_state_change_class"]
+      }
+    },
+    {
+      "description": "ai_proposed_pending_user_admission replacements MUST NOT swap the active adapter; they coexist as a proposal.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "adapter_replacement_event_record" },
+          "replacement_kind": { "const": "ai_proposed_pending_user_admission" }
+        },
+        "required": ["record_kind", "replacement_kind"]
+      },
+      "then": {
+        "properties": {
+          "visible_state_change_class": {
+            "enum": [
+              "graph_provider_label_changed",
+              "discovery_source_changed_with_review_chip"
+            ]
+          }
+        },
+        "required": ["visible_state_change_class"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+# Multi-document YAML fixture for the adapter-swap visible-state-change case.
+__fixture__:
+  name: adapter_swap_visible_state_change
+  scenario: >
+    Native cargo adapter that previously owned the aureline workspace's
+    target graph becomes unavailable (cargo binary missing from the
+    active toolchain); the fallback heuristic adapter takes over
+    under the same workset_scope. The swap rides an
+    adapter_replacement_event_record whose visible_state_change_class
+    is confidence_downgrade_disclosed and whose target_id_continuity
+    is subset_of_target_ids_preserved (only the targets the heuristic
+    inferrer can recognise survive). A new graph snapshot is emitted
+    citing supersedes_prior_snapshot_after_adapter_swap and the new
+    snapshot's adapter_replacement_event_id_ref. Pickers render the
+    confidence-downgrade chip rather than swap silently.
+  exercised:
+    replacement_kind: downgrade_lower_confidence_takes_over
+    visible_state_change_class: confidence_downgrade_disclosed
+    target_id_continuity: subset_of_target_ids_preserved
+    new_graph_lineage_class: supersedes_prior_snapshot_after_adapter_swap
+    new_graph_generation_event_class: after_adapter_swap_visible_state_change
+  seed_roles:
+    - adapter_replacement_event_record
+    - downgrade_lower_confidence_visible_state_change
+    - subset_target_id_continuity
+    - supersedes_after_swap_graph_lineage
+---
+$schema: ../../../schemas/tooling/adapter_descriptor.schema.json
+record_kind: adapter_replacement_event_record
+adapter_descriptor_schema_version: 1
+event_id: replacement:aureline_workspace:cargo_to_heuristic:01
+captured_at: 2026-04-30T14:20:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: current_root
+previous_adapter_id_ref: aureline.native.cargo_runner
+previous_precedence_class: highest_authoritative_native
+previous_confidence_class: authoritative_from_source
+new_adapter_id_ref: aureline.heuristic.target_inferrer
+new_precedence_class: heuristic_best_effort
+new_confidence_class: heuristic_best_effort
+previous_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+new_graph_id_ref: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+replacement_kind: downgrade_lower_confidence_takes_over
+visible_state_change_class: confidence_downgrade_disclosed
+target_id_continuity: subset_of_target_ids_preserved
+summary: Cargo binary became unavailable; heuristic adapter takes over; only targets the heuristic ruleset can recognise survive the swap.
+---
+$schema: ../../../schemas/tooling/target_graph_snapshot.schema.json
+record_kind: target_graph_snapshot_record
+target_graph_snapshot_schema_version: 1
+graph_id: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+captured_at: 2026-04-30T14:20:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: current_root
+workset_scope_ref: scope:aureline:current_root:01
+execution_context_id_ref: ctx:heuristic:tool_run:aureline_workspace:after_swap:01
+source_adapter_id_ref: aureline.heuristic.target_inferrer
+source_adapter_confidence_class: heuristic_best_effort
+fingerprint_set:
+  - fingerprint_kind: toolchain_identity_fingerprint
+    fingerprint_digest: sha256:1f4a7d0c3e6b9f2a5d8c1b4e7a0d3f6c9b2e5a8d1f4c7b0e3a6d9f2c5b8e1a4d
+    summary: rustc 1.84.0 stable still present; cargo binary absent
+  - fingerprint_kind: heuristic_ruleset_fingerprint
+    fingerprint_digest: sha256:6f9a2d5b8e1c4a7d0f3b6e9c2a5d8f1b4e7c0a3d6f9b2e5c8a1d4f7b0e3c6a9d
+    summary: heuristic.target_inferrer.ruleset_2026_04 ruleset digest
+freshness_class: warm_cached
+partial_truth_class: partial_adapter_degraded_pending_recovery
+generation_event_class: after_adapter_swap_visible_state_change
+replay_linkage:
+  linkage_class: live_no_replay_linkage
+  task_event_replay_bundle_ref: null
+  support_bundle_ref: null
+  import_probe_export_ref: null
+  replay_probe_ref: null
+  summary: Heuristic post-swap snapshot, no replay linkage.
+graph_lineage_class: supersedes_prior_snapshot_after_adapter_swap
+predecessor_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+adapter_replacement_event_id_ref: replacement:aureline_workspace:cargo_to_heuristic:01
+target_descriptor_refs:
+  - tgt:tooling.target:aureline-cli:bin
+target_count_reported: 1
+stale_after_ttl: PT15M
+approval_ticket_ref: null
+summary: Post-swap heuristic graph; aureline-cli target id preserved (heuristic adapter recognises the bin/ entrypoint); aureline-core lib + test target ids did not survive the swap because the heuristic ruleset cannot infer a Rust library or cargo test suite.
+---
+$schema: ../../../schemas/tooling/target_graph_snapshot.schema.json
+record_kind: target_graph_lineage_record
+target_graph_snapshot_schema_version: 1
+lineage_event_id: lineage:graph:aureline_workspace:cargo_to_heuristic:01
+captured_at: 2026-04-30T14:20:00.000Z
+lineage_class: supersedes_prior_snapshot_after_adapter_swap
+current_graph_id: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+prior_graph_ids:
+  - graph:tooling.target_graph:aureline_workspace:cargo:01
+workspace_id: wks:aureline
+workset_scope_class: current_root
+adapter_replacement_event_id_ref: replacement:aureline_workspace:cargo_to_heuristic:01
+target_id_continuity: subset_of_target_ids_preserved_across_graphs
+summary: Graph swap from native cargo to heuristic adapter under the same workset_scope; only aureline-cli survives.
+---
+$schema: ../../../schemas/tooling/target_descriptor.schema.json
+record_kind: target_id_lineage_record
+target_descriptor_schema_version: 1
+lineage_event_id: lineage:target:aureline-cli:bin:cargo_to_heuristic:01
+captured_at: 2026-04-30T14:20:00.000Z
+lineage_class: preserved_across_adapter_swap
+current_target_id: tgt:tooling.target:aureline-cli:bin
+prior_target_ids: []
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+summary: aureline-cli target id preserved across the cargo -> heuristic adapter swap; pickers reuse the same id without renaming.

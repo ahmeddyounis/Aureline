@@ -1,0 +1,1064 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/target_descriptor.schema.json",
+  "title": "Aureline target-descriptor identity, action-support, environment-requirement, and inspect-only handoff contract",
+  "description": "Boundary schema for the target_descriptor_record every build adapter (native runner, Build Server Protocol client, Bazel Build Event Protocol reader, structured importer, heuristic target inferrer, fallback opaque-preservation adapter) publishes and every consumer (run / test / build / debug picker, quick-open, command palette, CI overlay, AI planner, support-bundle exporter) reads to know one stable target identity, one display label, one owning root / module, one run / test / build / debug action-support posture, one set of environment requirements, one health / freshness pair, and one external-handoff fallback when only inspect-only remains. Stable target ids round-trip across export and reopen so a picker that resolved tgt:foo before an export resolves tgt:foo after import; lower-confidence adapters MUST NOT silently mint a different target id for the same underlying target without a visible state change recorded on the adapter-descriptor side. This schema does not mint a new confidence vocabulary, a new scope vocabulary, a new target-class vocabulary, or a new toolchain-class vocabulary; it re-exports the frozen tokens from schemas/tooling/task_event_envelope.schema.json (confidence_class) and schemas/runtime/execution_context.schema.json (target_class, toolchain_class, scope_class). Adding a new target_kind, owning_module_kind, action_support_state, action_unsupported_reason, environment_requirement_kind, target_health_state, target_freshness_class, external_handoff_kind, target_id_lineage_class, or external_handoff_provider_class is additive-minor and bumps target_descriptor_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/target_descriptor_record" },
+    { "$ref": "#/$defs/target_id_lineage_record" }
+  ],
+  "$defs": {
+    "target_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the target-descriptor contract. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "target_descriptor_record",
+        "target_id_lineage_record"
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "dotted_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$"
+    },
+
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Re-export of schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class. The descriptor's confidence is the source-adapter's confidence projected onto this target; consumers MUST NOT raise it above the adapter ceiling."
+    },
+
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "library",
+        "executable_binary",
+        "shared_library",
+        "static_library",
+        "test_suite",
+        "integration_test_suite",
+        "benchmark_suite",
+        "fuzz_target",
+        "documentation_bundle",
+        "package_artifact",
+        "container_image",
+        "notebook_runnable",
+        "language_server_runnable",
+        "debug_runnable",
+        "ai_proposed_pending_review",
+        "opaque_preserved_unsupported"
+      ],
+      "description": "Closed target-kind vocabulary. ai_proposed_pending_review is reserved for AI-proposed targets that have not yet been admitted; such targets MUST carry confidence_class no higher than heuristic_best_effort and MUST NOT advertise authoritative action support. opaque_preserved_unsupported is reserved for the fallback opaque-preservation adapter; such targets advertise inspect_only_no_action across run / test / build / debug."
+    },
+
+    "owning_module_kind": {
+      "type": "string",
+      "enum": [
+        "workspace_root",
+        "cargo_package",
+        "go_module",
+        "node_package",
+        "python_package",
+        "java_module",
+        "kotlin_module",
+        "scala_module",
+        "csharp_project",
+        "cpp_project",
+        "ruby_gem",
+        "php_package",
+        "rust_workspace_member",
+        "bazel_package",
+        "buck_cell",
+        "cmake_target",
+        "structured_importer_named_module",
+        "heuristic_inferred_module",
+        "submodule_or_nested_repo",
+        "no_owning_module_workspace_global"
+      ],
+      "description": "Closed owning-module vocabulary. submodule_or_nested_repo signals that the target lives inside a nested repository or submodule; consumers MUST resolve through the schemas/workspace/repo_topology_state.schema.json edge to avoid targeting a parent repo. heuristic_inferred_module is reserved for owning modules synthesised by a heuristic adapter and MUST pair with confidence_class no higher than heuristic_best_effort."
+    },
+
+    "action_support_state": {
+      "type": "string",
+      "enum": [
+        "supported_authoritative",
+        "supported_structured",
+        "supported_heuristic_best_effort",
+        "supported_degraded_partial",
+        "unsupported_no_handoff_admissible",
+        "unsupported_external_handoff_only",
+        "inspect_only_no_action",
+        "blocked_pending_user_admission",
+        "blocked_pending_workspace_trust",
+        "blocked_pending_policy_review",
+        "unknown_not_yet_observed"
+      ],
+      "description": "Closed action-support vocabulary. supported_authoritative is reserved for native_build_runner / build_server_protocol_client / bazel_build_event_protocol adapters publishing the target. supported_structured is reserved for structured_importer adapters. heuristic_target_inferrer adapters MUST NOT publish supported_authoritative or supported_structured for any action; they MAY publish supported_heuristic_best_effort, unsupported_external_handoff_only, inspect_only_no_action, or unknown_not_yet_observed. fallback_opaque_preservation adapters MUST publish inspect_only_no_action across all four actions. blocked_pending_user_admission is reserved for ai_proposed_pending_review targets."
+    },
+
+    "action_unsupported_reason": {
+      "type": "string",
+      "enum": [
+        "adapter_does_not_publish_action",
+        "toolchain_class_unavailable_in_context",
+        "target_class_unsupported_in_context",
+        "policy_blocks_action_in_context",
+        "workspace_trust_unset_or_restricted",
+        "external_provider_owns_action",
+        "ai_proposed_pending_admission",
+        "graph_freshness_too_stale",
+        "missing_required_capability_flag",
+        "target_kind_does_not_carry_action",
+        "support_bundle_replay_no_action_admissible",
+        "no_reason_supported_action"
+      ],
+      "description": "Closed action-unsupported-reason vocabulary. no_reason_supported_action is the legitimate value when action_support_state names a supported_* class. Any non-supported state MUST cite a reason other than no_reason_supported_action."
+    },
+
+    "external_handoff_kind": {
+      "type": "string",
+      "enum": [
+        "open_in_provider_run_console",
+        "open_in_provider_debug_console",
+        "open_in_provider_test_explorer",
+        "copy_command_to_terminal",
+        "open_external_documentation",
+        "no_handoff_admissible"
+      ],
+      "description": "Re-export of schemas/tooling/adapter_descriptor.schema.json#/$defs/external_handoff_kind. The picker renders one of these affordances when the target is inspect_only_no_action / unsupported_external_handoff_only and an external handoff is admissible."
+    },
+
+    "external_handoff_provider_class": {
+      "type": "string",
+      "enum": [
+        "system_terminal_emulator",
+        "system_default_browser",
+        "code_provider_run_console",
+        "code_provider_debug_console",
+        "code_provider_test_explorer",
+        "ci_provider_console",
+        "documentation_site",
+        "no_provider"
+      ],
+      "description": "Closed external-handoff-provider vocabulary naming the provider class the handoff resolves to. no_provider pairs only with no_handoff_admissible."
+    },
+
+    "external_handoff_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_kind", "provider_class", "handoff_payload_ref"],
+      "properties": {
+        "handoff_kind": { "$ref": "#/$defs/external_handoff_kind" },
+        "provider_class": { "$ref": "#/$defs/external_handoff_provider_class" },
+        "handoff_payload_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the handoff payload retained out-of-band (for example a browser-handoff packet, a copy-command packet). Raw URLs, raw command lines, raw secret values, and raw paths never appear inline. MUST be non-null when handoff_kind is not no_handoff_admissible."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+
+    "action_support_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "unsupported_reason",
+        "external_handoff",
+        "task_event_adapter_id_ref"
+      ],
+      "properties": {
+        "state": { "$ref": "#/$defs/action_support_state" },
+        "unsupported_reason": { "$ref": "#/$defs/action_unsupported_reason" },
+        "external_handoff": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/external_handoff_payload" }
+          ],
+          "description": "External-handoff payload when state is unsupported_external_handoff_only or inspect_only_no_action with a handoff admissible. MUST be null when state is supported_*; MAY be null when state is one of the blocked_* / unknown_not_yet_observed states; MUST be non-null when state is unsupported_external_handoff_only."
+        },
+        "task_event_adapter_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/dotted_id" }
+          ],
+          "description": "Ref to the task-event adapter row in artifacts/tooling/adapter_map.yaml that emits envelopes for this action when invoked. Null when action is not invokable from inside this contract (inspect_only_no_action / unsupported_no_handoff_admissible / unsupported_external_handoff_only)."
+        }
+      }
+    },
+
+    "environment_requirement_kind": {
+      "type": "string",
+      "enum": [
+        "required_toolchain_class",
+        "required_target_class",
+        "required_capability_envelope_flag",
+        "required_extension_pack",
+        "required_workspace_trust_state",
+        "required_policy_entitlement",
+        "required_credential_alias_class",
+        "required_network_egress",
+        "required_managed_workspace_lifecycle_state",
+        "required_provider_session_class"
+      ]
+    },
+
+    "environment_requirement_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_kind", "requirement_value_token"],
+      "properties": {
+        "requirement_kind": { "$ref": "#/$defs/environment_requirement_kind" },
+        "requirement_value_token": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Stable token naming the required value (for example test_runner_runtime, devcontainer, supports_pty, trusted, policy.publish_artifact). Raw env values, raw secret values, raw URLs, and raw paths never appear here."
+        },
+        "requirement_satisfaction": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "satisfied_in_active_context",
+                "unsatisfied_in_active_context",
+                "unknown_not_yet_resolved"
+              ]
+            }
+          ],
+          "description": "Whether the active execution context satisfies this requirement. Null when the descriptor was published outside a context (for example in a structured importer's static graph)."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+
+    "environment_requirement_set": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/environment_requirement_entry" }
+    },
+
+    "target_health_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "stale_metadata",
+        "missing_artifacts_pending_build",
+        "drift_from_manifest_review_required",
+        "broken_no_action_admissible",
+        "blocked_pending_user_admission",
+        "blocked_pending_workspace_trust",
+        "blocked_pending_policy_review",
+        "opaque_preserved_review_required",
+        "unknown_not_yet_observed"
+      ],
+      "description": "Closed target-health vocabulary. drift_from_manifest_review_required pairs with action states no higher than supported_degraded_partial. broken_no_action_admissible MUST pair with all four actions in the inspect_only_no_action / unsupported_no_handoff_admissible / unsupported_external_handoff_only states. opaque_preserved_review_required is the legitimate state for opaque_preserved_unsupported targets."
+    },
+
+    "target_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_streaming",
+        "warm_cached",
+        "cold_cached",
+        "stale_pending_refresh",
+        "unknown_freshness",
+        "support_bundle_replay_only"
+      ],
+      "description": "Closed target-freshness vocabulary. support_bundle_replay_only is reserved for descriptors replayed from a support bundle; pickers MUST render a replay chip and MUST NOT invoke actions against such descriptors without re-resolving them in the active context."
+    },
+
+    "target_id_lineage_class": {
+      "type": "string",
+      "enum": [
+        "minted_fresh_no_prior_id",
+        "preserved_across_export_and_reopen",
+        "preserved_across_adapter_swap",
+        "renamed_with_lineage_record",
+        "merged_from_prior_target_set",
+        "split_into_new_target_set",
+        "deprecated_replaced_by_new_id",
+        "ai_proposed_pending_admission_no_canonical_id_yet"
+      ],
+      "description": "Closed target-id lineage vocabulary. preserved_across_export_and_reopen is the default when a descriptor for the same underlying target round-trips through an export and reopen. renamed_with_lineage_record / merged_from_prior_target_set / split_into_new_target_set MUST cite a target_id_lineage_record event."
+    },
+
+    "owning_root_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_id_ref", "owning_module_kind", "owning_module_id_ref"],
+      "properties": {
+        "root_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the workspace-root identity (resolves through schemas/runtime/execution_context.schema.json#/$defs/filesystem_identity_record). Raw paths never appear here."
+        },
+        "owning_module_kind": { "$ref": "#/$defs/owning_module_kind" },
+        "owning_module_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Stable ref to the owning module (cargo package id, go module id, node package id, etc.). Null when owning_module_kind is workspace_root or no_owning_module_workspace_global."
+        },
+        "submodule_or_nested_repo_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the schemas/workspace/repo_topology_state.schema.json edge when owning_module_kind is submodule_or_nested_repo; null otherwise."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        }
+      }
+    },
+
+    "target_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "target_descriptor_schema_version",
+        "target_id",
+        "display_label",
+        "target_kind",
+        "owning_root",
+        "source_adapter_id_ref",
+        "source_adapter_confidence_class",
+        "publishing_graph_id_ref",
+        "run_action_support",
+        "test_action_support",
+        "build_action_support",
+        "debug_action_support",
+        "environment_requirements",
+        "health_state",
+        "freshness_class",
+        "target_id_lineage_class"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "target_descriptor_record" },
+        "target_descriptor_schema_version": { "$ref": "#/$defs/target_descriptor_schema_version" },
+        "target_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable target id. MUST round-trip across export and reopen so a picker, command-palette entry, AI plan, or CI overlay that resolved this id before export resolves the same id after import. Adapter swaps MUST NOT silently rename target ids: when target_id_lineage_class is renamed_with_lineage_record / merged_from_prior_target_set / split_into_new_target_set, a target_id_lineage_record MUST be emitted alongside this descriptor."
+        },
+        "display_label": {
+          "$ref": "#/$defs/short_sentence",
+          "description": "Reviewer-facing label safe to render in pickers and quick-open. Raw paths, raw URLs, and raw secret values never appear here."
+        },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "owning_root": { "$ref": "#/$defs/owning_root_ref" },
+        "source_adapter_id_ref": {
+          "$ref": "#/$defs/dotted_id",
+          "description": "Ref to the adapter_descriptor_record (in schemas/tooling/adapter_descriptor.schema.json) that published this target descriptor."
+        },
+        "source_adapter_confidence_class": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence projected onto this target. MUST NOT exceed the source adapter's adapter_confidence_ceiling."
+        },
+        "publishing_graph_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the target_graph_snapshot_record (in schemas/tooling/target_graph_snapshot.schema.json) that published this descriptor."
+        },
+        "run_action_support": { "$ref": "#/$defs/action_support_descriptor" },
+        "test_action_support": { "$ref": "#/$defs/action_support_descriptor" },
+        "build_action_support": { "$ref": "#/$defs/action_support_descriptor" },
+        "debug_action_support": { "$ref": "#/$defs/action_support_descriptor" },
+        "environment_requirements": { "$ref": "#/$defs/environment_requirement_set" },
+        "health_state": { "$ref": "#/$defs/target_health_state" },
+        "freshness_class": { "$ref": "#/$defs/target_freshness_class" },
+        "target_id_lineage_class": { "$ref": "#/$defs/target_id_lineage_class" },
+        "ai_proposed_review_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque review-ticket id for ai_proposed_pending_review targets. MUST be non-null when target_kind is ai_proposed_pending_review."
+        },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One target descriptor. Pickers, quick-open, command palette, run / test / build / debug surfaces, CI overlays, and AI planners read this record rather than mint a parallel target object."
+    },
+
+    "target_id_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "target_descriptor_schema_version",
+        "lineage_event_id",
+        "captured_at",
+        "lineage_class",
+        "current_target_id",
+        "prior_target_ids",
+        "publishing_graph_id_ref"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "target_id_lineage_record" },
+        "target_descriptor_schema_version": { "$ref": "#/$defs/target_descriptor_schema_version" },
+        "lineage_event_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "lineage_class": { "$ref": "#/$defs/target_id_lineage_class" },
+        "current_target_id": { "$ref": "#/$defs/opaque_id" },
+        "prior_target_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Prior target ids whose lineage merges into / splits from / is replaced by current_target_id. Empty for minted_fresh_no_prior_id; non-empty for renamed_with_lineage_record / merged_from_prior_target_set / split_into_new_target_set / deprecated_replaced_by_new_id."
+        },
+        "publishing_graph_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_sentence" }
+          ]
+        },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "Records lineage events for target ids that change identity across graph snapshots. Pickers, AI planners, and CI overlays read these so a target rename never appears as a silent disappearance plus reappearance."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "Heuristic-source descriptors MUST NOT advertise authoritative or structured action support.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "source_adapter_confidence_class": {
+            "enum": ["heuristic_best_effort", "degraded_partial", "unknown"]
+          }
+        },
+        "required": ["record_kind", "source_adapter_confidence_class"]
+      },
+      "then": {
+        "properties": {
+          "run_action_support": {
+            "properties": {
+              "state": {
+                "not": { "enum": ["supported_authoritative", "supported_structured"] }
+              }
+            },
+            "required": ["state"]
+          },
+          "test_action_support": {
+            "properties": {
+              "state": {
+                "not": { "enum": ["supported_authoritative", "supported_structured"] }
+              }
+            },
+            "required": ["state"]
+          },
+          "build_action_support": {
+            "properties": {
+              "state": {
+                "not": { "enum": ["supported_authoritative", "supported_structured"] }
+              }
+            },
+            "required": ["state"]
+          },
+          "debug_action_support": {
+            "properties": {
+              "state": {
+                "not": { "enum": ["supported_authoritative", "supported_structured"] }
+              }
+            },
+            "required": ["state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "opaque_preserved_unsupported targets MUST advertise inspect_only_no_action across all four actions.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "target_kind": { "const": "opaque_preserved_unsupported" }
+        },
+        "required": ["record_kind", "target_kind"]
+      },
+      "then": {
+        "properties": {
+          "run_action_support": {
+            "properties": { "state": { "const": "inspect_only_no_action" } },
+            "required": ["state"]
+          },
+          "test_action_support": {
+            "properties": { "state": { "const": "inspect_only_no_action" } },
+            "required": ["state"]
+          },
+          "build_action_support": {
+            "properties": { "state": { "const": "inspect_only_no_action" } },
+            "required": ["state"]
+          },
+          "debug_action_support": {
+            "properties": { "state": { "const": "inspect_only_no_action" } },
+            "required": ["state"]
+          },
+          "health_state": { "const": "opaque_preserved_review_required" },
+          "source_adapter_confidence_class": { "const": "unknown" }
+        },
+        "required": [
+          "run_action_support",
+          "test_action_support",
+          "build_action_support",
+          "debug_action_support",
+          "health_state",
+          "source_adapter_confidence_class"
+        ]
+      }
+    },
+    {
+      "description": "ai_proposed_pending_review targets MUST set source_adapter_confidence_class no higher than heuristic_best_effort and MUST cite an ai_proposed_review_ticket_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "target_kind": { "const": "ai_proposed_pending_review" }
+        },
+        "required": ["record_kind", "target_kind"]
+      },
+      "then": {
+        "properties": {
+          "source_adapter_confidence_class": {
+            "enum": ["heuristic_best_effort", "degraded_partial", "unknown"]
+          },
+          "ai_proposed_review_ticket_ref": { "type": "string", "minLength": 1 },
+          "run_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "blocked_pending_user_admission",
+                  "inspect_only_no_action",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "test_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "blocked_pending_user_admission",
+                  "inspect_only_no_action",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "build_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "blocked_pending_user_admission",
+                  "inspect_only_no_action",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "debug_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "blocked_pending_user_admission",
+                  "inspect_only_no_action",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": [
+          "source_adapter_confidence_class",
+          "ai_proposed_review_ticket_ref",
+          "run_action_support",
+          "test_action_support",
+          "build_action_support",
+          "debug_action_support"
+        ]
+      }
+    },
+    {
+      "description": "broken_no_action_admissible health MUST pair every action with one of the inspect-only / unsupported / blocked classes.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "health_state": { "const": "broken_no_action_admissible" }
+        },
+        "required": ["record_kind", "health_state"]
+      },
+      "then": {
+        "properties": {
+          "run_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "inspect_only_no_action",
+                  "blocked_pending_user_admission",
+                  "blocked_pending_workspace_trust",
+                  "blocked_pending_policy_review"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "test_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "inspect_only_no_action",
+                  "blocked_pending_user_admission",
+                  "blocked_pending_workspace_trust",
+                  "blocked_pending_policy_review"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "build_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "inspect_only_no_action",
+                  "blocked_pending_user_admission",
+                  "blocked_pending_workspace_trust",
+                  "blocked_pending_policy_review"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "debug_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "inspect_only_no_action",
+                  "blocked_pending_user_admission",
+                  "blocked_pending_workspace_trust",
+                  "blocked_pending_policy_review"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "support_bundle_replay_only freshness MUST pair every action with no_reason_supported_action prohibited; replay descriptors do not invoke actions.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "freshness_class": { "const": "support_bundle_replay_only" }
+        },
+        "required": ["record_kind", "freshness_class"]
+      },
+      "then": {
+        "properties": {
+          "run_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "inspect_only_no_action",
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "test_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "inspect_only_no_action",
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "build_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "inspect_only_no_action",
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          },
+          "debug_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "inspect_only_no_action",
+                  "unsupported_no_handoff_admissible",
+                  "unsupported_external_handoff_only",
+                  "unknown_not_yet_observed"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        }
+      }
+    },
+    {
+      "description": "run_action_support unsupported_external_handoff_only MUST carry a non-null external_handoff payload whose handoff_kind is not no_handoff_admissible.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "run_action_support": {
+            "properties": { "state": { "const": "unsupported_external_handoff_only" } },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "run_action_support"]
+      },
+      "then": {
+        "properties": {
+          "run_action_support": {
+            "properties": {
+              "external_handoff": {
+                "type": "object",
+                "properties": {
+                  "handoff_kind": { "not": { "const": "no_handoff_admissible" } }
+                },
+                "required": ["handoff_kind"]
+              }
+            },
+            "required": ["external_handoff"]
+          }
+        }
+      }
+    },
+    {
+      "description": "test_action_support unsupported_external_handoff_only MUST carry a non-null external_handoff payload whose handoff_kind is not no_handoff_admissible.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "test_action_support": {
+            "properties": { "state": { "const": "unsupported_external_handoff_only" } },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "test_action_support"]
+      },
+      "then": {
+        "properties": {
+          "test_action_support": {
+            "properties": {
+              "external_handoff": {
+                "type": "object",
+                "properties": {
+                  "handoff_kind": { "not": { "const": "no_handoff_admissible" } }
+                },
+                "required": ["handoff_kind"]
+              }
+            },
+            "required": ["external_handoff"]
+          }
+        }
+      }
+    },
+    {
+      "description": "build_action_support unsupported_external_handoff_only MUST carry a non-null external_handoff payload whose handoff_kind is not no_handoff_admissible.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "build_action_support": {
+            "properties": { "state": { "const": "unsupported_external_handoff_only" } },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "build_action_support"]
+      },
+      "then": {
+        "properties": {
+          "build_action_support": {
+            "properties": {
+              "external_handoff": {
+                "type": "object",
+                "properties": {
+                  "handoff_kind": { "not": { "const": "no_handoff_admissible" } }
+                },
+                "required": ["handoff_kind"]
+              }
+            },
+            "required": ["external_handoff"]
+          }
+        }
+      }
+    },
+    {
+      "description": "debug_action_support unsupported_external_handoff_only MUST carry a non-null external_handoff payload whose handoff_kind is not no_handoff_admissible.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "debug_action_support": {
+            "properties": { "state": { "const": "unsupported_external_handoff_only" } },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "debug_action_support"]
+      },
+      "then": {
+        "properties": {
+          "debug_action_support": {
+            "properties": {
+              "external_handoff": {
+                "type": "object",
+                "properties": {
+                  "handoff_kind": { "not": { "const": "no_handoff_admissible" } }
+                },
+                "required": ["handoff_kind"]
+              }
+            },
+            "required": ["external_handoff"]
+          }
+        }
+      }
+    },
+    {
+      "description": "run_action_support supported_* states MUST cite no_reason_supported_action and a non-null task_event_adapter_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "run_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "supported_authoritative",
+                  "supported_structured",
+                  "supported_heuristic_best_effort",
+                  "supported_degraded_partial"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "run_action_support"]
+      },
+      "then": {
+        "properties": {
+          "run_action_support": {
+            "properties": {
+              "unsupported_reason": { "const": "no_reason_supported_action" },
+              "task_event_adapter_id_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["unsupported_reason", "task_event_adapter_id_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "test_action_support supported_* states MUST cite no_reason_supported_action and a non-null task_event_adapter_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "test_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "supported_authoritative",
+                  "supported_structured",
+                  "supported_heuristic_best_effort",
+                  "supported_degraded_partial"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "test_action_support"]
+      },
+      "then": {
+        "properties": {
+          "test_action_support": {
+            "properties": {
+              "unsupported_reason": { "const": "no_reason_supported_action" },
+              "task_event_adapter_id_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["unsupported_reason", "task_event_adapter_id_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "build_action_support supported_* states MUST cite no_reason_supported_action and a non-null task_event_adapter_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "build_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "supported_authoritative",
+                  "supported_structured",
+                  "supported_heuristic_best_effort",
+                  "supported_degraded_partial"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "build_action_support"]
+      },
+      "then": {
+        "properties": {
+          "build_action_support": {
+            "properties": {
+              "unsupported_reason": { "const": "no_reason_supported_action" },
+              "task_event_adapter_id_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["unsupported_reason", "task_event_adapter_id_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "debug_action_support supported_* states MUST cite no_reason_supported_action and a non-null task_event_adapter_id_ref.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_descriptor_record" },
+          "debug_action_support": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "supported_authoritative",
+                  "supported_structured",
+                  "supported_heuristic_best_effort",
+                  "supported_degraded_partial"
+                ]
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": ["record_kind", "debug_action_support"]
+      },
+      "then": {
+        "properties": {
+          "debug_action_support": {
+            "properties": {
+              "unsupported_reason": { "const": "no_reason_supported_action" },
+              "task_event_adapter_id_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["unsupported_reason", "task_event_adapter_id_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "renamed / merged / split / deprecated lineage on a descriptor MUST cite a non-empty prior_target_ids list when emitted as a target_id_lineage_record.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "target_id_lineage_record" },
+          "lineage_class": {
+            "enum": [
+              "renamed_with_lineage_record",
+              "merged_from_prior_target_set",
+              "split_into_new_target_set",
+              "deprecated_replaced_by_new_id"
+            ]
+          }
+        },
+        "required": ["record_kind", "lineage_class"]
+      },
+      "then": {
+        "properties": {
+          "prior_target_ids": {
+            "type": "array",
+            "minItems": 1
+          }
+        },
+        "required": ["prior_target_ids"]
+      }
+    }
+  ]
+}

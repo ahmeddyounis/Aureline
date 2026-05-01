@@ -1,0 +1,87 @@
+# Single-document YAML fixture for the inspect-only external-handoff
+# target descriptor case.
+__fixture__:
+  name: inspect_only_external_handoff_target
+  scenario: >
+    Native adapter publishes an executable_binary target whose run /
+    debug actions are owned by an external CI provider's run console;
+    the target itself is broken_no_action_admissible because the
+    artifact has not yet been built locally and the build action is
+    blocked by policy. Every action lands in inspect_only_no_action /
+    unsupported_external_handoff_only / blocked_pending_policy_review;
+    the picker MUST render the open-in-provider-run-console handoff
+    rather than a generic Cannot run label.
+  exercised:
+    target_kind: executable_binary
+    health_state: broken_no_action_admissible
+    run_action_state: unsupported_external_handoff_only
+    test_action_state: inspect_only_no_action
+    build_action_state: blocked_pending_policy_review
+    debug_action_state: unsupported_external_handoff_only
+    external_handoff_kind: open_in_provider_run_console
+  seed_roles:
+    - inspect_only_external_handoff
+    - broken_no_action_admissible_health
+    - non_null_external_handoff_payload
+$schema: ../../../schemas/tooling/target_descriptor.schema.json
+record_kind: target_descriptor_record
+target_descriptor_schema_version: 1
+target_id: tgt:tooling.target:release_pipeline:publish_artifact
+display_label: release-publish (CI-managed publish target)
+target_kind: executable_binary
+owning_root:
+  root_id_ref: root:aureline:workspace_root
+  owning_module_kind: cargo_package
+  owning_module_id_ref: cargo-pkg:aureline-release
+  submodule_or_nested_repo_ref: null
+  summary: cargo package aureline-release, publish binary target
+source_adapter_id_ref: aureline.native.cargo_runner
+source_adapter_confidence_class: authoritative_from_source
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+run_action_support:
+  state: unsupported_external_handoff_only
+  unsupported_reason: external_provider_owns_action
+  external_handoff:
+    handoff_kind: open_in_provider_run_console
+    provider_class: ci_provider_console
+    handoff_payload_ref: handoff:ci:run_request:release_pipeline:publish_artifact:01
+    summary: Run action is owned by the CI provider's run console; user opens the provider rather than running locally.
+  task_event_adapter_id_ref: null
+test_action_support:
+  state: inspect_only_no_action
+  unsupported_reason: target_kind_does_not_carry_action
+  external_handoff: null
+  task_event_adapter_id_ref: null
+build_action_support:
+  state: blocked_pending_policy_review
+  unsupported_reason: policy_blocks_action_in_context
+  external_handoff: null
+  task_event_adapter_id_ref: null
+debug_action_support:
+  state: unsupported_external_handoff_only
+  unsupported_reason: external_provider_owns_action
+  external_handoff:
+    handoff_kind: open_in_provider_debug_console
+    provider_class: ci_provider_console
+    handoff_payload_ref: handoff:ci:debug_request:release_pipeline:publish_artifact:01
+    summary: Debug action is owned by the CI provider's debug console.
+  task_event_adapter_id_ref: null
+environment_requirements:
+  - requirement_kind: required_toolchain_class
+    requirement_value_token: build_driver_runtime
+    requirement_satisfaction: unsatisfied_in_active_context
+    summary: cargo build driver present locally but policy blocks invoking it for this target
+  - requirement_kind: required_policy_entitlement
+    requirement_value_token: policy_publish_artifact
+    requirement_satisfaction: unsatisfied_in_active_context
+    summary: publish-artifact entitlement is not granted in the active workspace context
+  - requirement_kind: required_provider_session_class
+    requirement_value_token: ci_provider_console
+    requirement_satisfaction: satisfied_in_active_context
+    summary: CI provider console reachable
+health_state: broken_no_action_admissible
+freshness_class: warm_cached
+target_id_lineage_class: preserved_across_export_and_reopen
+ai_proposed_review_ticket_ref: null
+approval_ticket_ref: null
+notes: CI-owned publish target. Run / debug route to the CI provider's consoles; build is policy-blocked locally; test does not apply for an executable binary target.
