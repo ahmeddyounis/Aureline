@@ -1,0 +1,147 @@
+# yaml-language-server: $schema=../../../schemas/debug/recording_mode.schema.json
+__fixture__:
+  name: artifact_mismatch_after_rebuild
+  scenario: >
+    A debug session reopened after a workspace rebuild produced a new
+    binary whose module build_id no longer matches the recording's
+    captured module identity. The recording_state_class on the banner
+    flips to artifact_mismatch and the chronology-mismatch banner
+    cites artifact_mismatch with recovery rebuild_then_recapture. The
+    debug_artifact_manifest_ref resolves a manifest entry whose
+    mismatch_reason_class is mismatch_module_build_id (drawn from the
+    artifact-resolution seed), so the banner names *what* mismatched.
+    Every reverse-step control disables under
+    availability_reason_class = artifact_mismatch and the scrubber
+    renders disabled_artifact_mismatch with the artifact_mismatch_marker.
+    Snapshot frame rows that pre-date the rebuild carry posture_class =
+    artifact_mismatch_frame_inadmissible so the rows remain visible
+    with a typed inadmissible posture.
+  exercised_axes:
+    runtime_class: native_linux_x86_64
+    support_level_class: record_replay_supported
+    recording_state_class: artifact_mismatch
+    scrubber_state_class: disabled_artifact_mismatch
+    reverse_step_disabled_count: 4
+    chronology_mismatch_state_class: artifact_mismatch
+    artifact_mismatch_token: mismatch_module_build_id
+  contract_sections:
+    - "2.3 Recording state"
+    - "2.7 Chronology-mismatch state"
+    - "5. Forbidden collapses"
+
+banner:
+  recording_mode_banner_schema_version: 1
+  record_kind: recording_mode_banner_record
+  banner_id: banner:debug:chronology:artifact-mismatch:001
+  debug_session_ref: debug-session:linux-x86-64-rr:artifact-mismatch:005
+  capture_session_ref: capture:replay:linux-x86-64-rr:artifact-mismatch:005
+  debug_artifact_manifest_ref: debug-artifact:linux-x86-64:native_symbol_dwarf:0042
+  supported_runtime:
+    runtime_class: native_linux_x86_64
+    support_level_class: record_replay_supported
+    runtime_label: "Linux x86_64 (rr backend)"
+    toolchain_label: "rustc 1.84.0 / lldb-17"
+    support_level_note_ref: note:support-level:record-replay:linux-x86-64
+  recording_state_class: artifact_mismatch
+  recording_state_label: "Artifact mismatch - rebuild invalidated the recording"
+  overhead_storage:
+    overhead_class: not_measured
+    storage_band_class: metadata_only
+    overhead_note_ref: note:overhead:artifact-mismatch-metadata-only
+    storage_note_ref: note:storage:artifact-mismatch-metadata-only
+    raw_payload_size_bytes: null
+  privacy_export_note:
+    redaction_class_ref: redaction:debug:replay-local
+    export_posture_class: local_only_no_export
+    opt_in_required: false
+    privacy_note_ref: note:privacy:artifact-mismatch-no-export
+  banner_actions:
+    - banner_action_class: start_recording
+      action_state_class: enabled
+      action_disable_reason_class: null
+    - banner_action_class: stop_recording
+      action_state_class: disabled_with_reason
+      action_disable_reason_class: recording_already_stopped
+    - banner_action_class: restart_with_recording
+      action_state_class: enabled
+      action_disable_reason_class: null
+    - banner_action_class: open_artifact_resolution_doc
+      action_state_class: enabled
+      action_disable_reason_class: null
+    - banner_action_class: open_capture_settings
+      action_state_class: enabled
+      action_disable_reason_class: null
+    - banner_action_class: open_privacy_disclosure
+      action_state_class: enabled
+      action_disable_reason_class: null
+    - banner_action_class: export_recording_bookmark
+      action_state_class: disabled_with_reason
+      action_disable_reason_class: artifact_mismatch_rebuild_required
+    - banner_action_class: share_read_only_session
+      action_state_class: disabled_with_reason
+      action_disable_reason_class: artifact_mismatch_rebuild_required
+    - banner_action_class: acknowledge_unavailable_reason
+      action_state_class: enabled
+      action_disable_reason_class: null
+  chronology_mismatch_state_class: artifact_mismatch
+  chronology_mismatch_recovery_action_class: rebuild_then_recapture
+  summary: "Recording invalidated by rebuild (mismatch_module_build_id); recapture required."
+  minted_at: "2026-04-30T16:48:00Z"
+
+control_set:
+  reverse_step_control_schema_version: 1
+  record_kind: reverse_step_control_record
+  control_set_id: ctrl:reverse-step:artifact-mismatch:001
+  recording_mode_banner_ref: banner:debug:chronology:artifact-mismatch:001
+  debug_session_ref: debug-session:linux-x86-64-rr:artifact-mismatch:005
+  capture_session_ref: capture:replay:linux-x86-64-rr:artifact-mismatch:005
+  timeline_scrubber:
+    scrubber_state_class: disabled_artifact_mismatch
+    event_ordering_class: monotonic_single_host
+    marker_classes:
+      - breakpoint_marker
+      - bookmark_marker
+      - recording_start_marker
+      - recording_stop_marker
+      - artifact_mismatch_marker
+    current_frame_time_basis_class: monotonic_offset_from_recording_start
+    current_frame_time_label: "Frame inadmissible after rebuild"
+    current_recording_note_ref: note:current-recording:artifact-mismatch
+  snapshot_frame_rows:
+    - snapshot_frame_id: snap:frame:artifact-mismatch:0001
+      frame_time_label: "+00:00:00.000"
+      frame_sequence_index: 0
+      thread_or_process_label: "main thread (PID 12771)"
+      frame_summary_note_ref: note:frame:artifact-mismatch-start
+      mapping_quality_ref: mapping-quality:exact-build:linux-x86-64:artifact-mismatch:0001
+      posture_class: artifact_mismatch_frame_inadmissible
+    - snapshot_frame_id: snap:frame:artifact-mismatch:0002
+      frame_time_label: "+00:00:18.500"
+      frame_sequence_index: 1
+      thread_or_process_label: "main thread (PID 12771)"
+      frame_summary_note_ref: note:frame:artifact-mismatch-mid
+      mapping_quality_ref: mapping-quality:exact-build:linux-x86-64:artifact-mismatch:0002
+      posture_class: artifact_mismatch_frame_inadmissible
+  reverse_step_controls:
+    - control_kind_class: step_back_over
+      control_state_class: disabled_with_reason
+      availability_reason_class: artifact_mismatch
+      keyboard_shortcut_label: "Shift+F10"
+      current_recording_note_ref: note:reverse-step:artifact-mismatch
+    - control_kind_class: step_back_into
+      control_state_class: disabled_with_reason
+      availability_reason_class: artifact_mismatch
+      keyboard_shortcut_label: "Shift+F11"
+      current_recording_note_ref: note:reverse-step:artifact-mismatch
+    - control_kind_class: step_back_out
+      control_state_class: disabled_with_reason
+      availability_reason_class: artifact_mismatch
+      keyboard_shortcut_label: "Shift+F12"
+      current_recording_note_ref: note:reverse-step:artifact-mismatch
+    - control_kind_class: reverse_continue
+      control_state_class: disabled_with_reason
+      availability_reason_class: artifact_mismatch
+      keyboard_shortcut_label: "Shift+F5"
+      current_recording_note_ref: note:reverse-continue:artifact-mismatch
+  summary: "Reverse step disabled across an artifact-mismatch recording (mismatch_module_build_id)."
+  minted_at: "2026-04-30T16:48:00Z"

@@ -1,0 +1,536 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/recording_mode.schema.json",
+  "title": "Aureline chronology recording-mode banner",
+  "description": "Boundary schema for one recording_mode_banner_record frozen in docs/debug/chronology_and_reverse_execution_contract.md. The banner is the single source of truth the debugger UI, support-bundle preview, and AI assist read before rendering any record / replay / time-travel chrome. It carries the supported runtime / toolchain tuple, the recording-state class re-exported from the capture-session contract, the overhead and storage note shown before the user starts a recording, the privacy and export note, the closed banner-action set with typed disable reasons, and the optional chronology-mismatch state plus typed recovery action. Raw paths, raw URLs, raw command lines, raw payload bytes, raw secret material, and raw prose never cross this boundary; the record carries opaque refs, typed vocabulary, and short reviewable labels. Adding a new class to any closed vocabulary is additive-minor and bumps recording_mode_banner_schema_version; repurposing an existing token is breaking. Reverse-execution backends, time-travel debug engines, snapshot stores, and consent flows remain out of scope; the banner pins only the user-visible chronology contract every downstream surface resolves.",
+  "$ref": "#/$defs/recording_mode_banner_record",
+  "$defs": {
+    "recording_mode_banner_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the recording-mode banner contract. Bumped only on additive-minor or breaking payload changes."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "recording_mode_banner_record"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe inside debugger UI state, support bundles, and release-evidence rows. Raw absolute paths, raw URLs, raw signing material, raw secret values, and raw payload bytes never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short redaction-safe label rendered verbatim by debugger UI, support-bundle preview, and AI assist. Raw paths, raw URLs, and raw command lines never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured when the banner record was minted."
+    },
+    "runtime_class": {
+      "type": "string",
+      "enum": [
+        "native_linux_x86_64",
+        "native_linux_aarch64",
+        "native_macos_x86_64",
+        "native_macos_aarch64",
+        "native_windows_x86_64",
+        "web_browser_runtime",
+        "notebook_kernel_runtime",
+        "wasm_runtime",
+        "remote_agent_runtime",
+        "imported_runtime_only",
+        "unknown_runtime"
+      ],
+      "description": "Closed runtime / host vocabulary for the supported tuple. native_* cover OS+arch; web_browser_runtime / notebook_kernel_runtime / wasm_runtime cover non-native record/replay backends; remote_agent_runtime covers a remote agent recording lane; imported_runtime_only marks an import-only lane that cannot host live recording; unknown_runtime forces unsupported_no_backend or unsupported_runtime_segment on support_level_class."
+    },
+    "support_level_class": {
+      "type": "string",
+      "enum": [
+        "record_replay_supported",
+        "record_only_supported",
+        "profile_only_supported",
+        "live_debug_only_supported",
+        "import_only_supported",
+        "unsupported_runtime_segment",
+        "unsupported_no_backend"
+      ],
+      "description": "Support-level boundary the banner declares. record_replay_supported is the only class that admits live_recording or recorded states with reverse-step support. record_only_supported can record but cannot reverse-step. profile_only_supported and live_debug_only_supported cannot host a chronology at all. import_only_supported admits imported_recording but never live_recording. unsupported_runtime_segment marks a runtime segment whose backend dropped out mid-session; unsupported_no_backend marks a runtime where no record/replay backend ships at all."
+    },
+    "supported_runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime_class",
+        "support_level_class",
+        "runtime_label",
+        "toolchain_label",
+        "support_level_note_ref"
+      ],
+      "properties": {
+        "runtime_class": { "$ref": "#/$defs/runtime_class" },
+        "support_level_class": { "$ref": "#/$defs/support_level_class" },
+        "runtime_label": { "$ref": "#/$defs/short_label" },
+        "toolchain_label": { "$ref": "#/$defs/short_label" },
+        "support_level_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      },
+      "description": "Supported runtime / toolchain tuple plus the support-level class. The labels are rendered verbatim by the banner; the note ref points at the human-readable explanation. Raw prose never crosses this boundary."
+    },
+    "recording_state_class": {
+      "type": "string",
+      "enum": [
+        "not_recording",
+        "live_recording",
+        "recorded",
+        "imported_recording",
+        "recording_unavailable",
+        "expired",
+        "artifact_mismatch"
+      ],
+      "description": "Recording-state vocabulary, re-exported verbatim from schemas/performance/capture_session.schema.json so the banner cannot drift from the capture-session truth. live_recording and recorded require a non-null capture_session_ref whose capture_class is replay_capture. imported_recording marks an import-only lane. recording_unavailable, expired, and artifact_mismatch each pair with a chronology_mismatch_state_class on the banner."
+    },
+    "overhead_class": {
+      "type": "string",
+      "enum": [
+        "negligible",
+        "low",
+        "moderate",
+        "high",
+        "unknown",
+        "not_measured"
+      ],
+      "description": "Overhead band re-exported from schemas/performance/capture_session.schema.json. The banner displays this value before the user starts a recording so the cost is visible up-front."
+    },
+    "storage_band_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only",
+        "small_under_10mb",
+        "medium_under_250mb",
+        "large_under_5gb",
+        "very_large_over_5gb",
+        "unknown"
+      ],
+      "description": "Storage band re-exported from schemas/performance/capture_session.schema.json. Rendered next to the overhead class on the banner."
+    },
+    "overhead_storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overhead_class",
+        "storage_band_class",
+        "overhead_note_ref",
+        "storage_note_ref",
+        "raw_payload_size_bytes"
+      ],
+      "properties": {
+        "overhead_class": { "$ref": "#/$defs/overhead_class" },
+        "storage_band_class": { "$ref": "#/$defs/storage_band_class" },
+        "overhead_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "storage_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "raw_payload_size_bytes": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ]
+        }
+      },
+      "description": "Overhead and storage note rendered before start_recording is offered. Raw payload bytes never cross this boundary; the size hint is an optional integer for sizing UI affordances."
+    },
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_export",
+        "summary_export_safe",
+        "raw_export_user_consent_required",
+        "raw_export_admin_only",
+        "raw_export_blocked_by_policy"
+      ],
+      "description": "Export posture for the recording bytes. local_only_no_export disables export and share actions. summary_export_safe admits manifest-with-digests exports without raw bytes. raw_export_user_consent_required and raw_export_admin_only force opt_in_required = true. raw_export_blocked_by_policy disables export with policy_disabled."
+    },
+    "privacy_export_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class_ref",
+        "export_posture_class",
+        "opt_in_required",
+        "privacy_note_ref"
+      ],
+      "properties": {
+        "redaction_class_ref": { "$ref": "#/$defs/opaque_ref" },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "opt_in_required": { "type": "boolean" },
+        "privacy_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      },
+      "description": "Privacy and export note. The redaction profile is cited by ref (the capture-session contract owns the profile body); the export posture is one of the five closed classes; opt_in_required is the boolean the banner uses to gate raw export and share actions."
+    },
+    "banner_action_class": {
+      "type": "string",
+      "enum": [
+        "start_recording",
+        "stop_recording",
+        "restart_with_recording",
+        "acknowledge_unavailable_reason",
+        "open_support_level_doc",
+        "open_runtime_support_doc",
+        "open_artifact_resolution_doc",
+        "open_capture_settings",
+        "open_privacy_disclosure",
+        "export_recording_bookmark",
+        "share_read_only_session",
+        "dismiss_inert"
+      ],
+      "description": "Closed banner-action vocabulary. The banner_actions array enumerates which actions are available, which are disabled with a typed reason, and which are inadmissible on this lane (so the user always sees the full set rather than guessing which buttons exist)."
+    },
+    "action_state_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_with_reason",
+        "hidden_inadmissible"
+      ],
+      "description": "State of one banner action. enabled admits the action; disabled_with_reason renders the action with a typed reason; hidden_inadmissible removes the action from the rendered set (e.g. share_read_only_session on a not_shareable lane)."
+    },
+    "action_disable_reason_class": {
+      "type": "string",
+      "enum": [
+        "recording_already_active",
+        "recording_already_stopped",
+        "backend_not_supported",
+        "runtime_unsupported",
+        "recording_expired_recapture_required",
+        "artifact_mismatch_rebuild_required",
+        "policy_disabled",
+        "consent_pending",
+        "not_applicable"
+      ],
+      "description": "Closed reason vocabulary for action_state_class != enabled. Renderers cite the typed reason verbatim instead of inventing freeform copy."
+    },
+    "banner_action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "banner_action_class",
+        "action_state_class",
+        "action_disable_reason_class"
+      ],
+      "properties": {
+        "banner_action_class": { "$ref": "#/$defs/banner_action_class" },
+        "action_state_class": { "$ref": "#/$defs/action_state_class" },
+        "action_disable_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/action_disable_reason_class" }
+          ],
+          "description": "Required non-null whenever action_state_class is disabled_with_reason or hidden_inadmissible. MUST be null when action_state_class is enabled."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "action_state_class": { "const": "enabled" } },
+            "required": ["action_state_class"]
+          },
+          "then": {
+            "properties": {
+              "action_disable_reason_class": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action_state_class": { "enum": ["disabled_with_reason", "hidden_inadmissible"] }
+            },
+            "required": ["action_state_class"]
+          },
+          "then": {
+            "properties": {
+              "action_disable_reason_class": { "$ref": "#/$defs/action_disable_reason_class" }
+            },
+            "required": ["action_disable_reason_class"]
+          }
+        }
+      ]
+    },
+    "chronology_mismatch_state_class": {
+      "type": "string",
+      "enum": [
+        "recording_not_started",
+        "runtime_unsupported",
+        "history_partial",
+        "artifact_mismatch",
+        "recording_expired"
+      ],
+      "description": "Closed chronology-mismatch state vocabulary frozen by the UI/UX spec. Each value is a stable banner row with copy and shortcuts; the banner does not collapse two states into a generic 'no chronology' string."
+    },
+    "chronology_mismatch_recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "start_new_recording",
+        "acknowledge_unsupported_runtime_segment",
+        "open_partial_history_only",
+        "rebuild_then_recapture",
+        "restart_with_recording",
+        "open_runtime_support_doc",
+        "open_artifact_resolution_doc",
+        "open_capture_settings"
+      ],
+      "description": "Closed recovery-action vocabulary paired with chronology_mismatch_state_class. Required non-null whenever chronology_mismatch_state_class is non-null; the banner never names a mismatch state without naming a recovery action."
+    },
+    "recording_mode_banner_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recording_mode_banner_schema_version",
+        "record_kind",
+        "banner_id",
+        "debug_session_ref",
+        "capture_session_ref",
+        "debug_artifact_manifest_ref",
+        "supported_runtime",
+        "recording_state_class",
+        "recording_state_label",
+        "overhead_storage",
+        "privacy_export_note",
+        "banner_actions",
+        "chronology_mismatch_state_class",
+        "chronology_mismatch_recovery_action_class",
+        "minted_at"
+      ],
+      "properties": {
+        "recording_mode_banner_schema_version": { "$ref": "#/$defs/recording_mode_banner_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "banner_id": { "$ref": "#/$defs/opaque_ref" },
+        "debug_session_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the debug_session_record this banner sits inside. Required non-null; the banner is a debug-session surface and cannot exist outside one."
+        },
+        "capture_session_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref",
+          "description": "Opaque ref to the performance_capture_session_record carrying the recording state, the replay capability, and the allowed verbs. Required non-null when recording_state_class is live_recording, recorded, imported_recording, expired, or artifact_mismatch. May be null when recording_state_class is not_recording or recording_unavailable."
+        },
+        "debug_artifact_manifest_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref",
+          "description": "Opaque ref to the debug_artifact_manifest_record entry whose mismatch token resolves the banner's chronology_mismatch_state_class = artifact_mismatch claim. Required non-null when chronology_mismatch_state_class is artifact_mismatch; null otherwise."
+        },
+        "supported_runtime": { "$ref": "#/$defs/supported_runtime" },
+        "recording_state_class": { "$ref": "#/$defs/recording_state_class" },
+        "recording_state_label": { "$ref": "#/$defs/short_label" },
+        "overhead_storage": { "$ref": "#/$defs/overhead_storage" },
+        "privacy_export_note": { "$ref": "#/$defs/privacy_export_note" },
+        "banner_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/banner_action_entry" },
+          "description": "Ordered banner-action list. The list MUST enumerate every action the banner offers — even disabled ones — so the user sees a typed reason instead of a vanished button."
+        },
+        "chronology_mismatch_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/chronology_mismatch_state_class" }
+          ]
+        },
+        "chronology_mismatch_recovery_action_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/chronology_mismatch_recovery_action_class" }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label" }
+          ],
+          "description": "Optional reviewer-facing sentence the debugger UI, support-bundle preview, and AI assist may render verbatim alongside the typed banner."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "chronology_mismatch_state_class": { "type": "string" }
+            },
+            "required": ["chronology_mismatch_state_class"]
+          },
+          "then": {
+            "properties": {
+              "chronology_mismatch_recovery_action_class": { "$ref": "#/$defs/chronology_mismatch_recovery_action_class" }
+            },
+            "required": ["chronology_mismatch_recovery_action_class"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "chronology_mismatch_state_class": { "type": "null" }
+            },
+            "required": ["chronology_mismatch_state_class"]
+          },
+          "then": {
+            "properties": {
+              "chronology_mismatch_recovery_action_class": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "recording_state_class": {
+                "enum": ["live_recording", "recorded", "imported_recording", "expired", "artifact_mismatch"]
+              }
+            },
+            "required": ["recording_state_class"]
+          },
+          "then": {
+            "properties": {
+              "capture_session_ref": { "$ref": "#/$defs/opaque_ref" }
+            },
+            "required": ["capture_session_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "chronology_mismatch_state_class": { "const": "artifact_mismatch" }
+            },
+            "required": ["chronology_mismatch_state_class"]
+          },
+          "then": {
+            "properties": {
+              "debug_artifact_manifest_ref": { "$ref": "#/$defs/opaque_ref" },
+              "recording_state_class": { "const": "artifact_mismatch" }
+            },
+            "required": ["debug_artifact_manifest_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "chronology_mismatch_state_class": { "const": "recording_expired" }
+            },
+            "required": ["chronology_mismatch_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recording_state_class": { "const": "expired" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "chronology_mismatch_state_class": { "const": "recording_not_started" }
+            },
+            "required": ["chronology_mismatch_state_class"]
+          },
+          "then": {
+            "properties": {
+              "recording_state_class": { "enum": ["not_recording", "recording_unavailable"] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "chronology_mismatch_state_class": { "const": "runtime_unsupported" }
+            },
+            "required": ["chronology_mismatch_state_class"]
+          },
+          "then": {
+            "properties": {
+              "supported_runtime": {
+                "properties": {
+                  "support_level_class": {
+                    "enum": ["unsupported_runtime_segment", "unsupported_no_backend", "profile_only_supported", "live_debug_only_supported", "import_only_supported"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "supported_runtime": {
+                "properties": {
+                  "support_level_class": { "const": "import_only_supported" }
+                },
+                "required": ["support_level_class"]
+              }
+            },
+            "required": ["supported_runtime"]
+          },
+          "then": {
+            "properties": {
+              "recording_state_class": {
+                "enum": ["imported_recording", "not_recording", "recording_unavailable", "expired", "artifact_mismatch"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "supported_runtime": {
+                "properties": {
+                  "support_level_class": {
+                    "enum": ["profile_only_supported", "live_debug_only_supported", "unsupported_runtime_segment", "unsupported_no_backend"]
+                  }
+                },
+                "required": ["support_level_class"]
+              }
+            },
+            "required": ["supported_runtime"]
+          },
+          "then": {
+            "properties": {
+              "recording_state_class": {
+                "enum": ["not_recording", "recording_unavailable", "artifact_mismatch"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "privacy_export_note": {
+                "properties": {
+                  "export_posture_class": {
+                    "enum": ["raw_export_user_consent_required", "raw_export_admin_only"]
+                  }
+                },
+                "required": ["export_posture_class"]
+              }
+            },
+            "required": ["privacy_export_note"]
+          },
+          "then": {
+            "properties": {
+              "privacy_export_note": {
+                "properties": {
+                  "opt_in_required": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

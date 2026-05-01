@@ -1,0 +1,219 @@
+# Chronology recording-mode + reverse-step control fixture corpus.
+#
+# Reviewer-facing case manifest for the recording_mode_banner_record and
+# reverse_step_control_record pair frozen in
+# docs/debug/chronology_and_reverse_execution_contract.md. Each fixture
+# carries one banner record and the matching control record so debugger
+# UI, support-bundle preview, and AI assist read the banner and the
+# scrubber/snapshot/reverse-step row as one surface.
+#
+# Surfaces consuming these fixtures MUST NOT mint tokens outside the
+# enumerations declared in
+# schemas/debug/recording_mode.schema.json or
+# schemas/debug/reverse_step_control.schema.json.
+
+corpus_id: debug.chronology_cases.v1
+schema_version: 1
+
+contract_doc_ref: docs/debug/chronology_and_reverse_execution_contract.md
+recording_mode_schema_ref: schemas/debug/recording_mode.schema.json
+reverse_step_control_schema_ref: schemas/debug/reverse_step_control.schema.json
+capture_session_schema_ref: schemas/performance/capture_session.schema.json
+debug_session_schema_ref: schemas/execution/debug_session.schema.json
+debug_artifact_manifest_schema_ref: schemas/debug/debug_artifact_manifest.schema.json
+
+summary: >
+  Five worked cases covering a supported recorded session with all four
+  reverse-step controls enabled, an unrecorded live-debug session whose
+  controls disable with recording_not_started, a partial-history
+  recording whose scrubber renders disabled_partial_history with an
+  explicit gap marker, an expired capture whose controls disable with
+  recording_expired and whose scrubber renders disabled_recording_expired,
+  and an artifact-mismatch recording after a rebuild that cites the
+  artifact-resolution seed's mismatch_module_build_id token.
+
+# ---------------------------------------------------------------------
+# Frozen vocabularies (cited locally for parity audit). A case that
+# introduces a token outside these lists MUST bump the schema first;
+# this corpus adopts new tokens by reference, not duplication.
+# ---------------------------------------------------------------------
+
+recording_state_class_vocabulary:
+  - not_recording
+  - live_recording
+  - recorded
+  - imported_recording
+  - recording_unavailable
+  - expired
+  - artifact_mismatch
+
+chronology_mismatch_state_class_vocabulary:
+  - recording_not_started
+  - runtime_unsupported
+  - history_partial
+  - artifact_mismatch
+  - recording_expired
+
+chronology_mismatch_recovery_action_class_vocabulary:
+  - start_new_recording
+  - acknowledge_unsupported_runtime_segment
+  - open_partial_history_only
+  - rebuild_then_recapture
+  - restart_with_recording
+  - open_runtime_support_doc
+  - open_artifact_resolution_doc
+  - open_capture_settings
+
+scrubber_state_class_vocabulary:
+  - live_active
+  - replay_active
+  - disabled_no_recording
+  - disabled_recording_in_progress
+  - disabled_recording_expired
+  - disabled_artifact_mismatch
+  - disabled_runtime_unsupported
+  - disabled_partial_history
+
+control_kind_class_vocabulary:
+  - step_back_over
+  - step_back_into
+  - step_back_out
+  - reverse_continue
+
+availability_reason_class_vocabulary:
+  - supported
+  - not_replay_capture
+  - backend_not_supported
+  - recording_not_started
+  - recording_expired
+  - artifact_mismatch
+  - symbols_or_runtime_mismatch
+  - policy_disabled
+  - capture_mode_summary_only
+
+# ---------------------------------------------------------------------
+# Required cases. Each case exercises one acceptance axis of the spec:
+# supported recorded session, unrecorded live-debug, partial history,
+# expired capture, and artifact mismatch after rebuild.
+# ---------------------------------------------------------------------
+
+cases:
+
+  - case_id: debug.chronology.supported_recorded_session
+    fixture_ref: fixtures/debug/chronology_cases/supported_recorded_session.yaml
+    recording_state_class: recorded
+    scrubber_state_class: replay_active
+    chronology_mismatch_state_class: null
+    reverse_step_enabled_count: 4
+    reverse_step_disabled_count: 0
+    summary: >
+      Linux x86_64 native debug session attached to a recorded rr-style
+      capture. All four reverse-step controls enabled with
+      availability_reason_class = supported.
+
+  - case_id: debug.chronology.unrecorded_live_debug_session
+    fixture_ref: fixtures/debug/chronology_cases/unrecorded_live_debug_session.yaml
+    recording_state_class: not_recording
+    scrubber_state_class: disabled_no_recording
+    chronology_mismatch_state_class: recording_not_started
+    chronology_mismatch_recovery_action_class: start_new_recording
+    reverse_step_enabled_count: 0
+    reverse_step_disabled_count: 4
+    summary: >
+      Live macOS arm64 debug session with no recording engaged. All four
+      reverse-step controls remain rendered, disabled with
+      availability_reason_class = recording_not_started.
+
+  - case_id: debug.chronology.partial_history_recording
+    fixture_ref: fixtures/debug/chronology_cases/partial_history_recording.yaml
+    recording_state_class: recorded
+    scrubber_state_class: disabled_partial_history
+    chronology_mismatch_state_class: history_partial
+    chronology_mismatch_recovery_action_class: open_partial_history_only
+    reverse_step_enabled_count: 0
+    reverse_step_disabled_count: 4
+    required_marker_classes:
+      - partial_history_gap_marker
+    summary: >
+      rr capture with a non-deterministic gap. Scrubber carries an
+      explicit partial_history_gap_marker; reverse-step controls
+      disable with availability_reason_class = capture_mode_summary_only.
+
+  - case_id: debug.chronology.expired_capture
+    fixture_ref: fixtures/debug/chronology_cases/expired_capture.yaml
+    recording_state_class: expired
+    scrubber_state_class: disabled_recording_expired
+    chronology_mismatch_state_class: recording_expired
+    chronology_mismatch_recovery_action_class: restart_with_recording
+    reverse_step_enabled_count: 0
+    reverse_step_disabled_count: 4
+    required_marker_classes:
+      - expired_segment_marker
+    summary: >
+      Recording reopened past its retention window. Every reverse-step
+      control disables with availability_reason_class = recording_expired.
+
+  - case_id: debug.chronology.artifact_mismatch_after_rebuild
+    fixture_ref: fixtures/debug/chronology_cases/artifact_mismatch_after_rebuild.yaml
+    recording_state_class: artifact_mismatch
+    scrubber_state_class: disabled_artifact_mismatch
+    chronology_mismatch_state_class: artifact_mismatch
+    chronology_mismatch_recovery_action_class: rebuild_then_recapture
+    artifact_resolution_mismatch_token: mismatch_module_build_id
+    reverse_step_enabled_count: 0
+    reverse_step_disabled_count: 4
+    required_marker_classes:
+      - artifact_mismatch_marker
+    summary: >
+      Workspace rebuild produced a binary whose module build_id no longer
+      matches the recording. Banner cites mismatch_module_build_id from
+      the artifact-resolution seed; controls disable with
+      availability_reason_class = artifact_mismatch.
+
+# ---------------------------------------------------------------------
+# Coverage contract.
+# ---------------------------------------------------------------------
+
+coverage_contract:
+  required_cases:
+    - debug.chronology.supported_recorded_session
+    - debug.chronology.unrecorded_live_debug_session
+    - debug.chronology.partial_history_recording
+    - debug.chronology.expired_capture
+    - debug.chronology.artifact_mismatch_after_rebuild
+
+  required_recording_state_minimum:
+    - recorded
+    - not_recording
+    - expired
+    - artifact_mismatch
+
+  required_chronology_mismatch_state_minimum:
+    - recording_not_started
+    - history_partial
+    - recording_expired
+    - artifact_mismatch
+
+  required_scrubber_state_minimum:
+    - replay_active
+    - disabled_no_recording
+    - disabled_partial_history
+    - disabled_recording_expired
+    - disabled_artifact_mismatch
+
+  required_availability_reason_minimum:
+    - supported
+    - recording_not_started
+    - capture_mode_summary_only
+    - recording_expired
+    - artifact_mismatch
+
+  policy_rule: >
+    Debugger UI, support-bundle preview, AI assist, and release-evidence
+    surfaces MUST preserve recording_state_class, support_level_class,
+    chronology_mismatch_state_class, chronology_mismatch_recovery_action_class,
+    scrubber_state_class, marker_classes, control_kind_class, control_state_class,
+    and availability_reason_class tokens without substituting freeform
+    wording or surface-specific badges. Reverse-step controls remain in
+    every row, disabling with a typed availability_reason_class instead
+    of disappearing.

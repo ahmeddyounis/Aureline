@@ -1,0 +1,508 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/debug/reverse_step_control.schema.json",
+  "title": "Aureline reverse-step control set",
+  "description": "Boundary schema for one reverse_step_control_record frozen in docs/debug/chronology_and_reverse_execution_contract.md. The control set carries the timeline-scrubber descriptor, the snapshot-frame row list, and the four reverse-step controls (step_back_over, step_back_into, step_back_out, reverse_continue). Reverse-step controls never disappear from the row; they enumerate even when disabled and cite a typed availability_reason_class re-exported from schemas/performance/capture_session.schema.json. The control record is bound to one recording_mode_banner_record so debugger UI, support-bundle preview, and AI assist render the banner and the controls as one surface. Raw paths, raw URLs, raw command lines, raw payload bytes, raw secret material, and raw prose never cross this boundary; the record carries opaque refs, typed vocabulary, and short reviewable labels. Adding a new class to any closed vocabulary is additive-minor and bumps reverse_step_control_schema_version; repurposing an existing token is breaking. Reverse-execution backends, time-travel debug engines, snapshot stores, and inline-frame elision logic remain out of scope.",
+  "$ref": "#/$defs/reverse_step_control_record",
+  "$defs": {
+    "reverse_step_control_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the reverse-step control contract. Bumped only on additive-minor or breaking payload changes."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "reverse_step_control_record"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe inside debugger UI state, support bundles, and release-evidence rows."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_ref" }
+      ]
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short redaction-safe label rendered verbatim by debugger UI, support-bundle preview, and AI assist."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "scrubber_state_class": {
+      "type": "string",
+      "enum": [
+        "live_active",
+        "replay_active",
+        "disabled_no_recording",
+        "disabled_recording_in_progress",
+        "disabled_recording_expired",
+        "disabled_artifact_mismatch",
+        "disabled_runtime_unsupported",
+        "disabled_partial_history"
+      ],
+      "description": "Closed timeline-scrubber state vocabulary. live_active pairs with recording_state_class = live_recording. replay_active pairs with recorded or imported_recording. The six disabled_* values pair with the matching chronology_mismatch_state_class on the banner; the scrubber never disappears from the row even when disabled."
+    },
+    "event_ordering_class": {
+      "type": "string",
+      "enum": [
+        "monotonic_single_host",
+        "wall_clock_utc",
+        "partial_order_only",
+        "unknown_ordering"
+      ],
+      "description": "Closed event-ordering vocabulary. monotonic_single_host is the strongest; wall_clock_utc covers UTC-stamped recordings; partial_order_only covers imported lanes whose clock cannot be ordered against runtime time; unknown_ordering pairs with disabled_no_recording or disabled_runtime_unsupported."
+    },
+    "marker_class": {
+      "type": "string",
+      "enum": [
+        "breakpoint_marker",
+        "bookmark_marker",
+        "signal_marker",
+        "crash_marker",
+        "recording_start_marker",
+        "recording_stop_marker",
+        "partial_history_gap_marker",
+        "artifact_mismatch_marker",
+        "expired_segment_marker",
+        "current_frame_marker"
+      ],
+      "description": "Closed marker vocabulary the scrubber may overlay. partial_history_gap_marker, artifact_mismatch_marker, and expired_segment_marker are the chronology-mismatch markers; the scrubber must include the matching marker when the chronology_mismatch_state_class on the banner is non-null."
+    },
+    "current_frame_time_basis_class": {
+      "type": "string",
+      "enum": [
+        "iso_8601_utc",
+        "iso_8601_local_with_offset",
+        "monotonic_offset_from_recording_start",
+        "partial_order_label_only",
+        "not_applicable_no_recording"
+      ],
+      "description": "Closed time-basis vocabulary for the current_frame_time_label rendered next to the scrubber. not_applicable_no_recording pairs with scrubber_state_class = disabled_no_recording."
+    },
+    "timeline_scrubber": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scrubber_state_class",
+        "event_ordering_class",
+        "marker_classes",
+        "current_frame_time_basis_class",
+        "current_frame_time_label",
+        "current_recording_note_ref"
+      ],
+      "properties": {
+        "scrubber_state_class": { "$ref": "#/$defs/scrubber_state_class" },
+        "event_ordering_class": { "$ref": "#/$defs/event_ordering_class" },
+        "marker_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker_class" },
+          "uniqueItems": true,
+          "description": "Deduplicated marker set the scrubber overlays. The scrubber MUST include partial_history_gap_marker when scrubber_state_class is disabled_partial_history, artifact_mismatch_marker when disabled_artifact_mismatch, and expired_segment_marker when disabled_recording_expired."
+        },
+        "current_frame_time_basis_class": { "$ref": "#/$defs/current_frame_time_basis_class" },
+        "current_frame_time_label": { "$ref": "#/$defs/short_label" },
+        "current_recording_note_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref",
+          "description": "Opaque ref to the current-recording note rendered next to the scrubber. Required non-null whenever scrubber_state_class is not disabled_no_recording."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "scrubber_state_class": { "const": "disabled_no_recording" } },
+            "required": ["scrubber_state_class"]
+          },
+          "then": {
+            "properties": {
+              "current_frame_time_basis_class": { "const": "not_applicable_no_recording" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "scrubber_state_class": { "const": "disabled_partial_history" } },
+            "required": ["scrubber_state_class"]
+          },
+          "then": {
+            "properties": {
+              "marker_classes": { "contains": { "const": "partial_history_gap_marker" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "scrubber_state_class": { "const": "disabled_artifact_mismatch" } },
+            "required": ["scrubber_state_class"]
+          },
+          "then": {
+            "properties": {
+              "marker_classes": { "contains": { "const": "artifact_mismatch_marker" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "scrubber_state_class": { "const": "disabled_recording_expired" } },
+            "required": ["scrubber_state_class"]
+          },
+          "then": {
+            "properties": {
+              "marker_classes": { "contains": { "const": "expired_segment_marker" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "scrubber_state_class": {
+                "enum": [
+                  "live_active",
+                  "replay_active",
+                  "disabled_recording_in_progress",
+                  "disabled_recording_expired",
+                  "disabled_artifact_mismatch",
+                  "disabled_runtime_unsupported",
+                  "disabled_partial_history"
+                ]
+              }
+            },
+            "required": ["scrubber_state_class"]
+          },
+          "then": {
+            "properties": {
+              "current_recording_note_ref": { "$ref": "#/$defs/opaque_ref" }
+            },
+            "required": ["current_recording_note_ref"]
+          }
+        }
+      ],
+      "description": "Timeline scrubber descriptor. The scrubber is rendered even when disabled; its state class names exactly why."
+    },
+    "snapshot_frame_posture_class": {
+      "type": "string",
+      "enum": [
+        "live_frame_no_replay",
+        "recorded_frame_replay_view_only",
+        "recorded_frame_replay_read_only",
+        "recorded_frame_replay_interactive",
+        "partial_history_frame_outside_recording",
+        "expired_frame_inadmissible",
+        "artifact_mismatch_frame_inadmissible"
+      ],
+      "description": "Closed snapshot-frame posture vocabulary. recorded_frame_replay_* require the capture session's replay_session.allowed_verbs to include inspect_frame. partial_history_frame_outside_recording marks a frame whose timestamp is outside the recording's coverage. expired_frame_inadmissible and artifact_mismatch_frame_inadmissible mark frames the row still lists but flags as inadmissible for inspection."
+    },
+    "snapshot_frame_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "snapshot_frame_id",
+        "frame_time_label",
+        "frame_sequence_index",
+        "thread_or_process_label",
+        "frame_summary_note_ref",
+        "mapping_quality_ref",
+        "posture_class"
+      ],
+      "properties": {
+        "snapshot_frame_id": { "$ref": "#/$defs/opaque_ref" },
+        "frame_time_label": { "$ref": "#/$defs/short_label" },
+        "frame_sequence_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic non-negative sequence index inside one recording session."
+        },
+        "thread_or_process_label": { "$ref": "#/$defs/short_label" },
+        "frame_summary_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "mapping_quality_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the mapping_quality_record for the frame's source/symbol jump. Resolved through the debug-truth contract; this record does not embed mapping body."
+        },
+        "posture_class": { "$ref": "#/$defs/snapshot_frame_posture_class" }
+      }
+    },
+    "control_kind_class": {
+      "type": "string",
+      "enum": [
+        "step_back_over",
+        "step_back_into",
+        "step_back_out",
+        "reverse_continue"
+      ],
+      "description": "Closed reverse-step control-kind vocabulary. The reverse_step_controls array MUST contain exactly one entry per kind so all four controls appear in the row even when disabled."
+    },
+    "control_state_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_with_reason"
+      ],
+      "description": "State of one reverse-step control. enabled requires availability_reason_class = supported plus a recorded / live_recording / imported_recording recording state, replay_read_only or replay_interactive support, and the matching allowed_verb on the capture session. Otherwise the control is disabled_with_reason and cites a typed availability_reason_class."
+    },
+    "availability_reason_class": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "not_replay_capture",
+        "backend_not_supported",
+        "recording_not_started",
+        "recording_expired",
+        "artifact_mismatch",
+        "symbols_or_runtime_mismatch",
+        "policy_disabled",
+        "capture_mode_summary_only"
+      ],
+      "description": "Closed availability-reason vocabulary, re-exported verbatim from schemas/performance/capture_session.schema.json so the control row never drifts from the capture-session truth. Disabled controls cite the typed reason instead of falling back to a generic 'not available' string."
+    },
+    "reverse_step_control_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_kind_class",
+        "control_state_class",
+        "availability_reason_class",
+        "keyboard_shortcut_label",
+        "current_recording_note_ref"
+      ],
+      "properties": {
+        "control_kind_class": { "$ref": "#/$defs/control_kind_class" },
+        "control_state_class": { "$ref": "#/$defs/control_state_class" },
+        "availability_reason_class": { "$ref": "#/$defs/availability_reason_class" },
+        "keyboard_shortcut_label": { "$ref": "#/$defs/short_label" },
+        "current_recording_note_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "control_state_class": { "const": "enabled" } },
+            "required": ["control_state_class"]
+          },
+          "then": {
+            "properties": {
+              "availability_reason_class": { "const": "supported" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "control_state_class": { "const": "disabled_with_reason" } },
+            "required": ["control_state_class"]
+          },
+          "then": {
+            "properties": {
+              "availability_reason_class": {
+                "enum": [
+                  "not_replay_capture",
+                  "backend_not_supported",
+                  "recording_not_started",
+                  "recording_expired",
+                  "artifact_mismatch",
+                  "symbols_or_runtime_mismatch",
+                  "policy_disabled",
+                  "capture_mode_summary_only"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "reverse_step_control_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reverse_step_control_schema_version",
+        "record_kind",
+        "control_set_id",
+        "recording_mode_banner_ref",
+        "debug_session_ref",
+        "capture_session_ref",
+        "timeline_scrubber",
+        "snapshot_frame_rows",
+        "reverse_step_controls",
+        "minted_at"
+      ],
+      "properties": {
+        "reverse_step_control_schema_version": { "$ref": "#/$defs/reverse_step_control_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "control_set_id": { "$ref": "#/$defs/opaque_ref" },
+        "recording_mode_banner_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the parent recording_mode_banner_record. Required non-null; the control set never exists without a banner."
+        },
+        "debug_session_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the debug_session_record this control set sits inside. Must equal the parent banner's debug_session_ref; renderers that disagree are non-conforming."
+        },
+        "capture_session_ref": {
+          "$ref": "#/$defs/nullable_opaque_ref",
+          "description": "Opaque ref to the performance_capture_session_record carrying the recording state. Must equal the parent banner's capture_session_ref (or both null)."
+        },
+        "timeline_scrubber": { "$ref": "#/$defs/timeline_scrubber" },
+        "snapshot_frame_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snapshot_frame_row" },
+          "description": "Ordered snapshot-frame row list. Rows that fall outside the recording's coverage or are inadmissible (expired / artifact-mismatch) MUST still appear with the matching posture_class; rows are not silently dropped."
+        },
+        "reverse_step_controls": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/reverse_step_control_entry" },
+          "description": "Exactly four entries, one per control_kind_class. The schema does not enumerate the order to keep renderers free to lay out the row, but every kind MUST appear exactly once. The schema enforces both the size bound and the kind-uniqueness through the contains-checks in the allOf section below."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "reverse_step_controls": {
+              "contains": {
+                "properties": { "control_kind_class": { "const": "step_back_over" } },
+                "required": ["control_kind_class"]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "reverse_step_controls": {
+              "contains": {
+                "properties": { "control_kind_class": { "const": "step_back_into" } },
+                "required": ["control_kind_class"]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "reverse_step_controls": {
+              "contains": {
+                "properties": { "control_kind_class": { "const": "step_back_out" } },
+                "required": ["control_kind_class"]
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "reverse_step_controls": {
+              "contains": {
+                "properties": { "control_kind_class": { "const": "reverse_continue" } },
+                "required": ["control_kind_class"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "timeline_scrubber": {
+                "properties": { "scrubber_state_class": { "const": "disabled_no_recording" } },
+                "required": ["scrubber_state_class"]
+              }
+            },
+            "required": ["timeline_scrubber"]
+          },
+          "then": {
+            "properties": {
+              "reverse_step_controls": {
+                "items": {
+                  "properties": {
+                    "control_state_class": { "const": "disabled_with_reason" },
+                    "availability_reason_class": { "const": "recording_not_started" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "timeline_scrubber": {
+                "properties": { "scrubber_state_class": { "const": "disabled_recording_expired" } },
+                "required": ["scrubber_state_class"]
+              }
+            },
+            "required": ["timeline_scrubber"]
+          },
+          "then": {
+            "properties": {
+              "reverse_step_controls": {
+                "items": {
+                  "properties": {
+                    "control_state_class": { "const": "disabled_with_reason" },
+                    "availability_reason_class": { "const": "recording_expired" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "timeline_scrubber": {
+                "properties": { "scrubber_state_class": { "const": "disabled_artifact_mismatch" } },
+                "required": ["scrubber_state_class"]
+              }
+            },
+            "required": ["timeline_scrubber"]
+          },
+          "then": {
+            "properties": {
+              "reverse_step_controls": {
+                "items": {
+                  "properties": {
+                    "control_state_class": { "const": "disabled_with_reason" },
+                    "availability_reason_class": { "const": "artifact_mismatch" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "timeline_scrubber": {
+                "properties": { "scrubber_state_class": { "const": "disabled_runtime_unsupported" } },
+                "required": ["scrubber_state_class"]
+              }
+            },
+            "required": ["timeline_scrubber"]
+          },
+          "then": {
+            "properties": {
+              "reverse_step_controls": {
+                "items": {
+                  "properties": {
+                    "control_state_class": { "const": "disabled_with_reason" },
+                    "availability_reason_class": { "const": "backend_not_supported" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
