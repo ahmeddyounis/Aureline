@@ -1,0 +1,77 @@
+# Recovery-evidence packet — crash recovery, dirty-buffer replay.
+#
+# Packet shape frozen in:
+#   artifacts/qa/restore_qualification_matrix.yaml#recovery_evidence_packet_shape
+# Drill row qualified by this packet:
+#   artifacts/qa/restore_qualification_matrix.yaml drill_id =
+#   crash_recovery_dirty_buffer_replay_qualification
+
+__fixture__:
+  name: crash_recovery_dirty_buffer_replay_qualification
+  scenario: >
+    A reopen after an abnormal termination where the restorable
+    layout state is quarantined as corrupt, but the autosave /
+    dirty-buffer journal carries unsaved bytes. The chooser opens
+    at `dirty_buffer_recovery`. The user reaches the
+    autosave-compare-to-disk sheet before any replay write
+    commits. The discarded-or-deferred class names the corrupt
+    layout state explicitly. The journal is not a save — the
+    chooser refuses `claim_save_to_disk`.
+  drill_row_ref: drill:crash_recovery_dirty_buffer_replay_qualification
+  matrix_ref: artifacts/qa/restore_qualification_matrix.yaml
+  upstream_chooser_fixture_ref: fixtures/recovery/recovery_level_cases/dirty_buffer_recovery.yaml
+  upstream_autosave_fixture_ref: fixtures/recovery/autosave_replay_cases/single_file_crash_restore.yaml
+
+drill_id: crash_recovery_dirty_buffer_replay_qualification
+drill_class: dirty_buffer_replay_drill
+emitted_at: "mono:6801:18:48:21.0107"
+
+chooser_id: chooser-dirty-buffer-recovery-0001
+chosen_recovery_level_class: dirty_buffer_recovery
+selection_criterion_class: recovery_journal_present_layout_unsafe
+risk_class: writes_user_owned_recovery_state
+reversibility_class: checkpoint_restore
+
+retained_artifact_classes:
+  - dirty_buffer_recovery_journal
+  - local_history_journal
+  - crash_envelope
+  - support_bundle_candidate
+  - restore_provenance_record
+
+discarded_or_deferred_artifact_classes:
+  - corrupt_restorable_layout_state
+
+action_chosen_id: replay_dirty_buffer_after_compare
+compare_before_discard_hook_class: autosave_compare_to_disk_sheet
+export_before_reset_linkage_class: not_applicable_no_destructive_action
+placeholder_or_downgrade_note_class: evidence_only_layout_quarantined
+
+claimed_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+
+upstream_chooser_record_ref: chooser-dirty-buffer-recovery-0001
+upstream_checkpoint_inventory_record_ref: checkpoint_inventory:dirty_buffer_recovery.0001
+upstream_export_before_reset_checklist_ref: null
+upstream_export_verification_result_ref: null
+upstream_recovery_scenario_card_ref: null
+upstream_hydration_phase_event_refs:
+  - hydration_phase_event:placeholder_hydration_missing_extension.0001
+  - hydration_phase_event:evidence_only_fallback_corrupt_restorable_state.0001
+
+rerun_expectation_class: rerun_required_state_artifact_family_changed
+
+parity_expectations_proved:
+  - chosen_recovery_level_matches_selection_criterion
+  - retained_and_discarded_classes_named_no_silent_omission
+  - compare_before_discard_hook_typed
+  - placeholder_or_downgrade_note_visible_when_applicable
+  - crash_drill_class_distinct_from_update_drill_class
+
+fixture_ref: fixtures/recovery/qualification_cases/crash_recovery_dirty_buffer_replay_qualification.yaml
+
+honesty_invariants:
+  upstream_chooser_record_cited: true
+  retained_classes_named_explicitly: true
+  discarded_classes_named_explicitly: true
+  export_before_reset_linkage_typed: true
+  rerun_expectation_typed: true

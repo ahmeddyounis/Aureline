@@ -1,0 +1,928 @@
+# Restore qualification corpus, recovery-evidence packet shape, and
+# crash-vs-update-vs-migration-vs-version-skew drill map.
+#
+# Canonical machine-readable QA seed for proving that recovery is
+# qualified as a governed evidence lane rather than a collection of
+# ad-hoc restart demos. The seed binds the closed restore-chooser
+# recovery-level vocabulary, the closed selection criteria, the
+# closed risk-class set, the closed expected-action set, and the
+# closed retained / discarded artifact-class set every recovering
+# launch must project into one inspectable record before
+# downstream review, support, release, or channel-widening surfaces
+# attach evidence to it.
+#
+# Companion narrative:
+#   docs/qa/restore_evidence_packet.md
+# Reviewable qualification fixtures:
+#   fixtures/recovery/qualification_cases/
+#
+# Frozen vocabularies reused here (do not redefine):
+#   - recovery_level_class, selection_criterion_class,
+#     forbidden_claim_class, expiry_trigger_class:
+#                      schemas/recovery/recovery_level.schema.json,
+#                      schemas/recovery/restore_chooser_state.schema.json
+#   - risk_class, primary_action_id, companion_action_id,
+#     surface_family, startup_state_ref:
+#                      schemas/recovery/restore_chooser_state.schema.json
+#   - inventory_item_class, scope_class, control_class,
+#     effect_breadth_class, control_availability_class:
+#                      schemas/recovery/checkpoint_inventory.schema.json
+#   - artifact_class, verification_result_class,
+#     reset_authorization_state_class:
+#                      schemas/recovery/export_before_reset_checklist.schema.json,
+#                      schemas/recovery/export_verification_result.schema.json
+#   - hydration_phase_class, ready_cue_class, partiality_class:
+#                      schemas/recovery/hydration_phase_event.schema.json
+#   - restored_collab_kind_class, restoration_posture_class,
+#     live_authority_status_class:
+#                      schemas/recovery/restored_collab_state.schema.json
+#   - recovery_scenario_family_class, safe_remainder,
+#     destructive_risk_class:
+#                      schemas/recovery/recovery_scenario_card.schema.json
+#   - claimed_profile_id:
+#                      artifacts/platform/claimed_desktop_profiles.yaml
+#
+# Rules.
+#   - Every drill MUST name one stable drill_id, exactly one
+#     drill_class, exactly one expected_recovery_level_class, and
+#     exactly one fixture_ref.
+#   - Crash, update, migration, and cross-version (schema-skew /
+#     build-identity-changed) restore paths MUST live on separate
+#     drill rows. A single "continuity" drill that collapses two of
+#     these classes is non-conforming.
+#   - Every drill MUST cite at least one retained_artifact_class and
+#     one discarded_or_deferred_artifact_class entry — even if the
+#     discarded entry is `nothing_discarded_explicit` — so the
+#     evidence packet never carries silent omissions.
+#   - Every drill MUST cite a compare_before_discard_hook_class and
+#     an export_before_reset_linkage_class so reviewers can read
+#     whether the user had a typed comparison surface and a typed
+#     reset-gate reference before any destructive action ran.
+#   - Every drill MUST list the claimed_profile_ids it must run on,
+#     drawn from artifacts/platform/claimed_desktop_profiles.yaml.
+#     A drill that names "all desktop profiles" without listing
+#     them is non-conforming.
+#   - Drills that ride a placeholder, a downgrade, or a missing
+#     dependency MUST cite a placeholder_or_downgrade_note_class so
+#     the evidence packet can carry the note verbatim.
+#   - Drill ids and case ids MUST NOT contain milestone slugs.
+#   - This file is authoritative. If it disagrees with
+#     docs/qa/restore_evidence_packet.md, this file wins and the
+#     narrative updates in the same change.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/qa/restore_evidence_packet.md
+qualification_cases_source: fixtures/recovery/qualification_cases/
+
+restore_chooser_contract_source: docs/recovery/restore_chooser_contract.md
+checkpoint_inspector_contract_source: docs/recovery/checkpoint_inspector_contract.md
+restore_hydration_phases_contract_source: docs/recovery/restore_hydration_phases_contract.md
+collab_restore_contract_source: docs/recovery/collab_restore_and_presentation_contract.md
+recovery_scenario_contract_source: docs/reliability/recovery_scenario_contract.md
+autosave_journal_contract_source: docs/reliability/autosave_journal_and_guided_replay_contract.md
+local_history_restore_preview_contract_source: docs/reliability/local_history_restore_preview_contract.md
+continuity_status_card_contract_source: docs/reliability/continuity_status_card_contract.md
+corruption_rescue_compare_contract_source: docs/reliability/corruption_rescue_compare_contract.md
+export_before_reset_contract_source: docs/reliability/export_before_reset_contract.md
+
+related_qa_seed_sources:
+  - artifacts/qa/window_display_matrix.yaml
+  - artifacts/qa/provider_handoff_parity_suite.yaml
+
+claimed_desktop_profiles_source: artifacts/platform/claimed_desktop_profiles.yaml
+safe_first_action_matrix_source: artifacts/recovery/safe_first_action_matrix.yaml
+backup_checkpoint_classes_source: artifacts/recovery/backup_checkpoint_classes.yaml
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "Crash recovery"
+      - "Restore session"
+      - "Evidence-only fallback"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "State ownership by scope"
+      - "Recovery posture"
+      - "Local-history and checkpoint matrix"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Workspace-window, split-layout, and session-restore architecture"
+      - "Crash-loop and restore-fidelity"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Five recovery levels: Exact session restore, Context restore with placeholders, Dirty-buffer recovery, Checkpoint rollback, Evidence-only recovery"
+      - "Session restore and crash-loop containment rules"
+      - "Workspace serialization, portable-state packages, and restore provenance"
+
+# ===================================================================
+# Closed vocabularies — re-exported by reference from the upstream
+# schemas. Adding a value is additive-minor; repurposing is breaking
+# and opens a new decision row in
+# artifacts/governance/decision_index.yaml.
+# ===================================================================
+
+drill_class_vocabulary:
+  - crash_recovery_drill
+  - dirty_buffer_replay_drill
+  - failed_update_drill
+  - failed_import_or_migration_drill
+  - schema_skew_cross_version_drill
+  - monitor_topology_change_drill
+  - missing_extension_host_drill
+  - expired_remote_session_drill
+  - evidence_only_fallback_drill
+
+# Mirrors the closed five-class progressive recovery-level
+# vocabulary from schemas/recovery/recovery_level.schema.json.
+expected_recovery_level_vocabulary:
+  - exact_session_restore
+  - context_restore_with_placeholders
+  - dirty_buffer_recovery
+  - checkpoint_rollback
+  - evidence_only_recovery
+
+# Mirrors the deterministic selection criteria from
+# schemas/recovery/recovery_level.schema.json.
+expected_selection_criterion_vocabulary:
+  - prior_runtime_survived_compatible_contract
+  - compatible_translation_available
+  - missing_dependency_layout_only
+  - recovery_journal_present_layout_unsafe
+  - typed_checkpoint_covers_failure
+  - corrupt_restorable_state_quarantined
+  - bounded_restart_exhausted_no_safe_path
+  - policy_blocked_restore_evidence_remains
+  - no_recoverable_state_evidence_only
+
+# Mirrors the closed risk-class vocabulary from
+# schemas/recovery/restore_chooser_state.schema.json.
+expected_risk_class_vocabulary:
+  - non_destructive_read_only
+  - non_destructive_writes_local_evidence_only
+  - writes_disposable_state_only
+  - writes_user_owned_recovery_state
+  - mutates_workspace_bytes_with_checkpoint
+  - mutates_profile_state_with_checkpoint_and_export
+  - destructive_user_authored_no_undo_export_required
+  - restore_no_rerun_no_reattach
+  - evidence_only_no_state_change
+
+# Closed retained-artifact-class set the evidence packet projects
+# from the chooser's retained_evidence_links plus the checkpoint-
+# inventory inventory_item_class.
+retained_artifact_class_vocabulary:
+  - workspace_authority_checkpoint
+  - window_topology_snapshot
+  - dirty_buffer_recovery_journal
+  - local_history_journal
+  - portable_state_package
+  - evidence_only_recovery_pack
+  - settings_backup_checkpoint
+  - crash_envelope
+  - restore_manifest
+  - support_bundle_candidate
+  - quarantined_copy_record
+  - placeholder_pane_slot
+  - role_badge_local_context
+  - restore_provenance_record
+
+# Closed discarded-or-deferred-artifact-class set so the evidence
+# packet never carries silent omissions. `nothing_discarded_explicit`
+# is the conforming way to say "no class was discarded or deferred"
+# without leaving the field empty.
+discarded_or_deferred_artifact_class_vocabulary:
+  - nothing_discarded_explicit
+  - corrupt_restorable_layout_state
+  - stale_window_topology_snapshot
+  - expired_remote_authority
+  - revoked_extension_grant
+  - revoked_collaboration_grant
+  - incompatible_schema_translation_target
+  - quarantined_install_metadata
+  - failed_migration_dry_run_artifact
+  - mirror_only_layout_cache
+  - dismissed_checkpoint_candidate
+  - bounded_restart_attempts_exhausted
+
+# Closed action-chosen vocabulary. Re-exports the chooser's required
+# primary actions (restore_now, skip_once, open_clean, safe_mode)
+# plus the evidence-only `open_evidence` aliasing for
+# `evidence_only_recovery` per docs/recovery/restore_chooser_contract.md
+# §7.3 rule 2.
+action_chosen_vocabulary:
+  - restore_now
+  - open_evidence
+  - skip_once
+  - open_clean
+  - safe_mode
+  - rollback_after_export
+  - replay_dirty_buffer_after_compare
+  - restart_bounded_attempt
+
+# Closed compare-before-discard-hook vocabulary. Every drill cites
+# exactly one. The hook names the typed surface a reviewer (user or
+# support engineer) can use to compare retained against discarded
+# state before any destructive action runs. `no_compare_required`
+# is reserved for evidence-only and read-only postures.
+compare_before_discard_hook_class_vocabulary:
+  - autosave_compare_to_disk_sheet
+  - local_history_restore_preview
+  - corruption_rescue_compare_sheet
+  - quarantined_copy_inspect_only
+  - portable_state_export_review
+  - restore_destination_review
+  - placeholder_inspect_only
+  - no_compare_required
+
+# Closed export-before-reset-linkage vocabulary. Every drill cites
+# exactly one so a destructive action either has a typed checklist
+# ref and a typed verification result ref, or it explicitly does
+# not need one. Silent absence is non-conforming.
+export_before_reset_linkage_class_vocabulary:
+  - typed_checklist_required_and_verified
+  - typed_checklist_required_blocked_by_policy
+  - typed_checklist_required_blocked_unsupported_class
+  - typed_checklist_required_user_declined
+  - not_applicable_no_destructive_action
+  - not_applicable_evidence_only_inspect
+
+# Closed placeholder-or-downgrade-note vocabulary. Drills that ride
+# a placeholder pane, a fidelity downgrade, or a missing-dependency
+# state cite exactly one. `no_placeholder_or_downgrade` is reserved
+# for exact-session-restore drills where neither applies.
+placeholder_or_downgrade_note_class_vocabulary:
+  - no_placeholder_or_downgrade
+  - missing_extension_host_placeholder
+  - missing_remote_target_placeholder
+  - missing_managed_session_placeholder
+  - missing_devcontainer_placeholder
+  - missing_toolchain_placeholder
+  - schema_compatible_translation_with_notes
+  - monitor_topology_adjustment_note
+  - layout_only_authority_expired
+  - evidence_only_layout_quarantined
+  - downgraded_from_live_after_authority_expired
+
+# Mirrors artifacts/platform/claimed_desktop_profiles.yaml.
+claimed_profile_ids:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+# Closed parity-expectation vocabulary. Every drill cites at least
+# one. These are the truth-statements the qualification corpus
+# proves about the matrix row, not free-text rationale.
+parity_expectation_vocabulary:
+  - chosen_recovery_level_matches_selection_criterion
+  - retained_and_discarded_classes_named_no_silent_omission
+  - compare_before_discard_hook_typed
+  - export_before_reset_linkage_typed_when_destructive
+  - placeholder_or_downgrade_note_visible_when_applicable
+  - chooser_chooser_id_stable_across_surfaces
+  - evidence_only_fallback_keeps_evidence_inspectable
+  - crash_drill_class_distinct_from_update_drill_class
+  - update_drill_class_distinct_from_migration_drill_class
+  - migration_drill_class_distinct_from_cross_version_drill_class
+  - rerun_expectation_explicit_when_protected_surface_changes
+
+# ===================================================================
+# Recovery-evidence packet shape — frozen here so milestone, release,
+# support, and channel-widening reviews attach a packet they can
+# read without reinterpretation. The packet is a typed projection of
+# the chooser, the checkpoint inventory, and the export-before-reset
+# checklist; it is NOT a new record family.
+# ===================================================================
+recovery_evidence_packet_shape:
+  required_fields:
+    - drill_id
+    - drill_class
+    - chooser_id
+    - chosen_recovery_level_class
+    - selection_criterion_class
+    - risk_class
+    - reversibility_class
+    - retained_artifact_classes
+    - discarded_or_deferred_artifact_classes
+    - action_chosen_id
+    - compare_before_discard_hook_class
+    - export_before_reset_linkage_class
+    - placeholder_or_downgrade_note_class
+    - claimed_profile_id
+    - fixture_ref
+    - upstream_chooser_record_ref
+    - upstream_checkpoint_inventory_record_ref
+    - upstream_export_before_reset_checklist_ref
+    - upstream_export_verification_result_ref
+    - upstream_recovery_scenario_card_ref
+    - upstream_hydration_phase_event_refs
+    - rerun_expectation_class
+    - parity_expectations_proved
+  rules:
+    - Every required field MUST be present.
+      `null` is allowed only on the upstream linkage refs whose
+      associated record was not produced for the drill (e.g. a
+      drill that does not produce an export-before-reset checklist
+      MUST set `upstream_export_before_reset_checklist_ref` to null
+      AND set `export_before_reset_linkage_class` to one of
+      `not_applicable_no_destructive_action` or
+      `not_applicable_evidence_only_inspect`).
+    - The packet MUST cite the upstream record refs by opaque id;
+      free-text linkage prose is non-conforming.
+    - The packet MUST quote `chosen_recovery_level_class` and
+      `selection_criterion_class` verbatim from the upstream
+      `recovery_level_record` and the
+      `selection_criterion_class` enum. Surfaces that mint a
+      private level or criterion are non-conforming.
+    - The packet MUST list `discarded_or_deferred_artifact_classes`
+      explicitly. `nothing_discarded_explicit` is the conforming
+      way to record "no discard occurred"; an empty list is
+      non-conforming.
+    - The packet MUST cite at least one
+      `parity_expectations_proved` entry from the
+      `parity_expectation_vocabulary`.
+    - When `chosen_recovery_level_class` is
+      `evidence_only_recovery`, `action_chosen_id` MUST be
+      `open_evidence`, `risk_class` MUST be
+      `evidence_only_no_state_change`, and the packet MUST NOT
+      claim any rehydrated runtime state.
+    - When `chosen_recovery_level_class` is `checkpoint_rollback`
+      and `risk_class` is
+      `mutates_profile_state_with_checkpoint_and_export`, the
+      packet MUST cite a non-null
+      `upstream_export_before_reset_checklist_ref` and a non-null
+      `upstream_export_verification_result_ref`.
+
+# ===================================================================
+# Rerun expectation contract — when a new protected surface or state
+# artifact family lands, which drills MUST rerun and which MAY ride
+# their existing fixture. A protected surface or state-artifact
+# change without a rerun decision row is non-conforming.
+# ===================================================================
+rerun_expectation_contract:
+  owner: qa.recovery
+  reviewers:
+    - reliability.recovery_chooser
+    - state.restore_artifact_family
+    - support.recovery_evidence
+  rerun_expectation_class_vocabulary:
+    - rerun_required_protected_surface_changed
+    - rerun_required_state_artifact_family_changed
+    - rerun_required_chooser_vocabulary_extended
+    - rerun_required_export_before_reset_vocabulary_extended
+    - rerun_required_claimed_profile_added
+    - rerun_optional_narrow_doc_only_change
+    - rerun_not_required_planning_metadata_only_change
+  rules:
+    - Adding a new value to any of `recovery_level_class`,
+      `selection_criterion_class`, `risk_class`,
+      `expiry_trigger_class`, `inventory_item_class`,
+      `effect_breadth_class`, `artifact_class`, or
+      `verification_result_class` requires every drill row whose
+      `expected_recovery_level_class` or upstream linkage references
+      the affected vocabulary to declare a typed
+      `rerun_expectation_class` and rerun the drill on every claimed
+      profile in `claimed_profile_ids`.
+    - Adding a new protected surface or state-artifact family (e.g.
+      a new restore-artifact-family member, a new recovery-scenario
+      family, or a new collab-restore kind) requires every drill
+      that touches the affected scope to declare
+      `rerun_required_protected_surface_changed` or
+      `rerun_required_state_artifact_family_changed` and rerun on
+      every claimed profile.
+    - Adding a new claimed desktop profile in
+      artifacts/platform/claimed_desktop_profiles.yaml requires
+      every drill in this matrix to declare
+      `rerun_required_claimed_profile_added` and run once on the
+      new profile before its claim status widens.
+    - Doc-only narrowing or wording changes that do not extend a
+      closed vocabulary or add a protected surface MAY declare
+      `rerun_optional_narrow_doc_only_change` and ride the existing
+      fixture on the originally claimed profiles.
+    - Planning-metadata changes (milestone slugs, schedule notes,
+      ownership rotations) declare
+      `rerun_not_required_planning_metadata_only_change`. They MUST
+      NOT be used to skip a rerun forced by any of the rules above.
+
+# ===================================================================
+# Cadence guidance — frozen so support, release, and channel-widening
+# reviews use the same cadence vocabulary the rest of the QA seed
+# corpus uses (window-display matrix, provider qualification suite).
+# ===================================================================
+cadence_guidance:
+  targeted_change_validation: >-
+    Any change touching the restore chooser, the recovery-level
+    vocabulary, the checkpoint inventory, the export-before-reset
+    checklist, the autosave journal, the local-history restore
+    preview, the corruption-rescue compare sheet, the restored-
+    collaboration record, the hydration-phase event, or the
+    recovery-scenario card runs the affected drills on the affected
+    claimed profiles before any release, support, or channel-
+    widening claim.
+  release_candidate_validation: >-
+    Every drill exercises a worked qualification fixture or cited
+    sibling fixture on every claimed profile in
+    `claimed_profile_ids` before the desktop claim row widens or
+    ships. The recovery-evidence packet is the artifact that
+    proves the run; ship-readiness reviews cite the packet, not a
+    fresh checklist minted in a release lane.
+
+# ===================================================================
+# Crash, update, migration, and cross-version drill map — these four
+# evidence classes stay distinct rather than collapsing into a single
+# "continuity" claim.
+# ===================================================================
+drill_map_by_evidence_class:
+  - evidence_class: crash_recovery
+    drill_ids:
+      - crash_recovery_exact_session_qualification
+      - crash_recovery_dirty_buffer_replay_qualification
+      - crash_recovery_evidence_only_fallback_qualification
+    must_prove:
+      - crash recovery never collapses into the update or
+        migration drill class
+      - dirty-buffer replay rides the autosave-journal contract
+        and never claims save-to-disk
+      - evidence-only fallback keeps every retained anchor
+        inspectable without rehydrating runtime state
+  - evidence_class: failed_update
+    drill_ids:
+      - failed_update_rollback_after_export_qualification
+    must_prove:
+      - failed-update rollback runs the export-before-reset
+        checklist and the verification result before the rollback
+        path executes
+      - the recovery-scenario card for `failed_update` is cited
+        verbatim and not collapsed into a generic reset
+  - evidence_class: failed_import_or_migration
+    drill_ids:
+      - failed_import_or_migration_qualification
+    must_prove:
+      - migration drill is distinct from update drill
+      - failed migration dry-run artifacts are surfaced as
+        discarded-or-deferred classes, not silently dropped
+      - the chosen level is `checkpoint_rollback` or
+        `context_restore_with_placeholders`, never
+        `exact_session_restore`
+  - evidence_class: cross_version_or_schema_skew
+    drill_ids:
+      - schema_skew_compatible_translation_qualification
+    must_prove:
+      - schema skew is qualified separately from a fresh crash
+      - the compatible-translation note is preserved verbatim in
+        the evidence packet
+      - the chooser does not claim pixel-perfect layout when only
+        a compatible translation exists
+  - evidence_class: topology_change
+    drill_ids:
+      - monitor_topology_change_layout_only_qualification
+    must_prove:
+      - monitor topology change is qualified separately from a
+        crash or an update
+      - the topology adjustment note is preserved on the evidence
+        packet
+  - evidence_class: missing_dependency
+    drill_ids:
+      - missing_extension_host_placeholder_qualification
+      - expired_remote_session_placeholder_qualification
+    must_prove:
+      - missing extension host and expired remote session ride
+        distinct drill classes even though both produce
+        `context_restore_with_placeholders`
+      - placeholder pane slots are retained, not collapsed into
+        the surrounding layout
+      - live authority is never silently rebound
+
+# ===================================================================
+# Drill rows
+# ===================================================================
+drills:
+  - drill_id: crash_recovery_exact_session_qualification
+    drill_class: crash_recovery_drill
+    title: Crash recovery — exact session restore on a clean reopen
+    status: seeded
+    expected_recovery_level_class: exact_session_restore
+    expected_selection_criterion_class: prior_runtime_survived_compatible_contract
+    expected_risk_class: restore_no_rerun_no_reattach
+    expected_reversibility_class: exact_undo
+    expected_action_chosen: restore_now
+    retained_artifact_classes:
+      - restore_manifest
+      - dirty_buffer_recovery_journal
+      - local_history_journal
+      - workspace_authority_checkpoint
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - nothing_discarded_explicit
+    compare_before_discard_hook_class: no_compare_required
+    export_before_reset_linkage_class: not_applicable_no_destructive_action
+    placeholder_or_downgrade_note_class: no_placeholder_or_downgrade
+    rerun_expectation_class: rerun_required_chooser_vocabulary_extended
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - compare_before_discard_hook_typed
+      - chooser_chooser_id_stable_across_surfaces
+      - crash_drill_class_distinct_from_update_drill_class
+      - placeholder_or_downgrade_note_visible_when_applicable
+    must_prove:
+      - chooser opens with `exact_session_restore` and the
+        deterministic criterion `prior_runtime_survived_compatible_contract`
+      - retained-evidence anchors are cited by opaque ref and the
+        discarded-class field is the explicit
+        `nothing_discarded_explicit` sentinel, never an empty list
+      - no destructive action runs; export-before-reset linkage is
+        explicitly `not_applicable_no_destructive_action`
+      - the same `chooser_id` appears on Start Center, diagnostics,
+        and any support-export preview the launch produces
+    fixture_ref: fixtures/recovery/qualification_cases/crash_recovery_exact_session_qualification.yaml
+
+  - drill_id: crash_recovery_dirty_buffer_replay_qualification
+    drill_class: dirty_buffer_replay_drill
+    title: Crash recovery — dirty-buffer replay with compare-to-disk
+    status: seeded
+    expected_recovery_level_class: dirty_buffer_recovery
+    expected_selection_criterion_class: recovery_journal_present_layout_unsafe
+    expected_risk_class: writes_user_owned_recovery_state
+    expected_reversibility_class: checkpoint_restore
+    expected_action_chosen: replay_dirty_buffer_after_compare
+    retained_artifact_classes:
+      - dirty_buffer_recovery_journal
+      - local_history_journal
+      - crash_envelope
+      - support_bundle_candidate
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - corrupt_restorable_layout_state
+    compare_before_discard_hook_class: autosave_compare_to_disk_sheet
+    export_before_reset_linkage_class: not_applicable_no_destructive_action
+    placeholder_or_downgrade_note_class: evidence_only_layout_quarantined
+    rerun_expectation_class: rerun_required_state_artifact_family_changed
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - compare_before_discard_hook_typed
+      - placeholder_or_downgrade_note_visible_when_applicable
+      - crash_drill_class_distinct_from_update_drill_class
+    must_prove:
+      - the autosave-compare-to-disk sheet is reachable before any
+        replay writes are committed
+      - the chooser refuses `claim_save_to_disk` and never claims
+        the journal is a save
+      - corrupt restorable layout state is named on the
+        discarded-or-deferred classes, not silently dropped
+      - the placeholder/downgrade note states layout was
+        quarantined as evidence-only; the dirty-buffer replay
+        does not promise pixel-perfect layout
+    fixture_ref: fixtures/recovery/qualification_cases/crash_recovery_dirty_buffer_replay_qualification.yaml
+
+  - drill_id: crash_recovery_evidence_only_fallback_qualification
+    drill_class: evidence_only_fallback_drill
+    title: Crash recovery — evidence-only fallback after exhausted bounded restart
+    status: seeded
+    expected_recovery_level_class: evidence_only_recovery
+    expected_selection_criterion_class: bounded_restart_exhausted_no_safe_path
+    expected_risk_class: evidence_only_no_state_change
+    expected_reversibility_class: no_undo_export_only
+    expected_action_chosen: open_evidence
+    retained_artifact_classes:
+      - crash_envelope
+      - evidence_only_recovery_pack
+      - support_bundle_candidate
+      - restore_manifest
+    discarded_or_deferred_artifact_classes:
+      - bounded_restart_attempts_exhausted
+      - corrupt_restorable_layout_state
+    compare_before_discard_hook_class: no_compare_required
+    export_before_reset_linkage_class: not_applicable_evidence_only_inspect
+    placeholder_or_downgrade_note_class: evidence_only_layout_quarantined
+    rerun_expectation_class: rerun_required_chooser_vocabulary_extended
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - evidence_only_fallback_keeps_evidence_inspectable
+      - retained_and_discarded_classes_named_no_silent_omission
+      - export_before_reset_linkage_typed_when_destructive
+      - placeholder_or_downgrade_note_visible_when_applicable
+    must_prove:
+      - the chooser routes the user to `open_evidence` instead of
+        `restore_now` and never promises rehydrated runtime state
+      - the discarded class names the exhausted bounded restart
+        attempts explicitly
+      - export-before-reset linkage resolves to
+        `not_applicable_evidence_only_inspect` because no
+        destructive action runs from the chooser
+      - the recovery-ladder packet ref is cited so safe-mode is
+        the supportable next step
+    fixture_ref: fixtures/recovery/qualification_cases/crash_recovery_evidence_only_fallback_qualification.yaml
+
+  - drill_id: failed_update_rollback_after_export_qualification
+    drill_class: failed_update_drill
+    title: Failed update — rollback after verified export
+    status: seeded
+    expected_recovery_level_class: checkpoint_rollback
+    expected_selection_criterion_class: typed_checkpoint_covers_failure
+    expected_risk_class: mutates_profile_state_with_checkpoint_and_export
+    expected_reversibility_class: checkpoint_restore
+    expected_action_chosen: rollback_after_export
+    retained_artifact_classes:
+      - workspace_authority_checkpoint
+      - settings_backup_checkpoint
+      - portable_state_package
+      - quarantined_copy_record
+      - support_bundle_candidate
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - quarantined_install_metadata
+    compare_before_discard_hook_class: corruption_rescue_compare_sheet
+    export_before_reset_linkage_class: typed_checklist_required_and_verified
+    placeholder_or_downgrade_note_class: no_placeholder_or_downgrade
+    rerun_expectation_class: rerun_required_export_before_reset_vocabulary_extended
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - compare_before_discard_hook_typed
+      - export_before_reset_linkage_typed_when_destructive
+      - update_drill_class_distinct_from_migration_drill_class
+      - rerun_expectation_explicit_when_protected_surface_changes
+    must_prove:
+      - the export-before-reset checklist verification reaches
+        `authorized_for_reset` before the rollback path runs
+      - the corruption-rescue compare sheet for the install-chain
+        metadata is cited and reviewable; the quarantined-copy
+        record is preserved
+      - the recovery-scenario card for `failed_update` is cited
+        verbatim and never collapses into a generic reset
+      - the rollback risk class names
+        `mutates_profile_state_with_checkpoint_and_export`,
+        forcing the export and checkpoint pre-actions to be cited
+    fixture_ref: fixtures/recovery/qualification_cases/failed_update_rollback_after_export_qualification.yaml
+
+  - drill_id: failed_import_or_migration_qualification
+    drill_class: failed_import_or_migration_drill
+    title: Failed import or migration — checkpoint rollback with retained dry-run evidence
+    status: seeded
+    expected_recovery_level_class: checkpoint_rollback
+    expected_selection_criterion_class: typed_checkpoint_covers_failure
+    expected_risk_class: mutates_workspace_bytes_with_checkpoint
+    expected_reversibility_class: checkpoint_restore
+    expected_action_chosen: rollback_after_export
+    retained_artifact_classes:
+      - workspace_authority_checkpoint
+      - portable_state_package
+      - local_history_journal
+      - support_bundle_candidate
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - failed_migration_dry_run_artifact
+      - incompatible_schema_translation_target
+    compare_before_discard_hook_class: restore_destination_review
+    export_before_reset_linkage_class: typed_checklist_required_and_verified
+    placeholder_or_downgrade_note_class: schema_compatible_translation_with_notes
+    rerun_expectation_class: rerun_required_state_artifact_family_changed
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - compare_before_discard_hook_typed
+      - export_before_reset_linkage_typed_when_destructive
+      - update_drill_class_distinct_from_migration_drill_class
+      - migration_drill_class_distinct_from_cross_version_drill_class
+      - rerun_expectation_explicit_when_protected_surface_changes
+    must_prove:
+      - the failed-migration drill is distinct from the failed-
+        update drill and from the cross-version drill, even when
+        both touch profile or workspace state
+      - failed migration dry-run artifacts and incompatible
+        schema-translation targets are named on the discarded-or-
+        deferred classes, not silently dropped
+      - the restore-destination review is cited as the compare
+        surface and a portable-state package is captured before
+        the rollback path runs
+      - the placeholder/downgrade note records the compatible
+        translation that did succeed, so a partial migration is
+        not mis-claimed as exact restore
+    fixture_ref: fixtures/recovery/qualification_cases/failed_import_or_migration_qualification.yaml
+
+  - drill_id: schema_skew_compatible_translation_qualification
+    drill_class: schema_skew_cross_version_drill
+    title: Cross-version schema skew — compatible translation with placeholders
+    status: seeded
+    expected_recovery_level_class: context_restore_with_placeholders
+    expected_selection_criterion_class: compatible_translation_available
+    expected_risk_class: restore_no_rerun_no_reattach
+    expected_reversibility_class: exact_undo
+    expected_action_chosen: restore_now
+    retained_artifact_classes:
+      - restore_manifest
+      - workspace_authority_checkpoint
+      - local_history_journal
+      - portable_state_package
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - incompatible_schema_translation_target
+    compare_before_discard_hook_class: portable_state_export_review
+    export_before_reset_linkage_class: not_applicable_no_destructive_action
+    placeholder_or_downgrade_note_class: schema_compatible_translation_with_notes
+    rerun_expectation_class: rerun_required_state_artifact_family_changed
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - compare_before_discard_hook_typed
+      - placeholder_or_downgrade_note_visible_when_applicable
+      - migration_drill_class_distinct_from_cross_version_drill_class
+      - rerun_expectation_explicit_when_protected_surface_changes
+    must_prove:
+      - the cross-version drill is distinct from a failed-migration
+        drill — schema skew translates compatibly here, no rollback
+        runs
+      - the chooser refuses `claim_pixel_perfect_layout` because
+        the underlying restore is `compatible_restore`, not
+        `exact_restore`
+      - the portable-state export review is cited as the compare
+        surface so a reviewer can read the translation note before
+        committing
+      - the placeholder/downgrade note records the
+        schema-compatible translation verbatim
+    fixture_ref: fixtures/recovery/qualification_cases/schema_skew_compatible_translation_qualification.yaml
+
+  - drill_id: monitor_topology_change_layout_only_qualification
+    drill_class: monitor_topology_change_drill
+    title: Monitor topology change — context restore with topology adjustment note
+    status: seeded
+    expected_recovery_level_class: context_restore_with_placeholders
+    expected_selection_criterion_class: compatible_translation_available
+    expected_risk_class: restore_no_rerun_no_reattach
+    expected_reversibility_class: exact_undo
+    expected_action_chosen: restore_now
+    retained_artifact_classes:
+      - restore_manifest
+      - window_topology_snapshot
+      - workspace_authority_checkpoint
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - stale_window_topology_snapshot
+    compare_before_discard_hook_class: placeholder_inspect_only
+    export_before_reset_linkage_class: not_applicable_no_destructive_action
+    placeholder_or_downgrade_note_class: monitor_topology_adjustment_note
+    rerun_expectation_class: rerun_required_claimed_profile_added
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - placeholder_or_downgrade_note_visible_when_applicable
+      - chooser_chooser_id_stable_across_surfaces
+      - rerun_expectation_explicit_when_protected_surface_changes
+    must_prove:
+      - the topology-adjustment note is visible on the evidence
+        packet and the chooser does not claim pixel-perfect layout
+      - the stale window-topology snapshot is cited on the
+        discarded-or-deferred classes
+      - the row reruns on every claimed profile so platform-
+        specific topology rules (Spaces, snapped layouts,
+        portal-aware monitor changes, X11 reachability) are
+        proved separately
+      - the same drill row is the qualification companion to the
+        window-display matrix's `display_detach_dock_safe_bounds`
+        and `mixed_dpi_cross_monitor_reflow` rows
+    fixture_ref: fixtures/recovery/qualification_cases/monitor_topology_change_layout_only_qualification.yaml
+
+  - drill_id: missing_extension_host_placeholder_qualification
+    drill_class: missing_extension_host_drill
+    title: Missing extension host — context restore with placeholder pane
+    status: seeded
+    expected_recovery_level_class: context_restore_with_placeholders
+    expected_selection_criterion_class: missing_dependency_layout_only
+    expected_risk_class: restore_no_rerun_no_reattach
+    expected_reversibility_class: exact_undo
+    expected_action_chosen: restore_now
+    retained_artifact_classes:
+      - restore_manifest
+      - window_topology_snapshot
+      - placeholder_pane_slot
+      - local_history_journal
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - revoked_extension_grant
+    compare_before_discard_hook_class: placeholder_inspect_only
+    export_before_reset_linkage_class: not_applicable_no_destructive_action
+    placeholder_or_downgrade_note_class: missing_extension_host_placeholder
+    rerun_expectation_class: rerun_required_protected_surface_changed
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - placeholder_or_downgrade_note_visible_when_applicable
+      - chooser_chooser_id_stable_across_surfaces
+    must_prove:
+      - the missing extension host produces a placeholder pane
+        slot, not a collapsed layout
+      - the revoked extension grant is named on the discarded-or-
+        deferred classes
+      - live authority is never silently rebound; the chooser's
+        risk class is `restore_no_rerun_no_reattach`
+      - the qualification packet maps cleanly to the window-display
+        matrix's `restart_reopen_missing_dependency_placeholder`
+        row
+    fixture_ref: fixtures/recovery/qualification_cases/missing_extension_host_placeholder_qualification.yaml
+
+  - drill_id: expired_remote_session_placeholder_qualification
+    drill_class: expired_remote_session_drill
+    title: Expired remote session — context restore with placeholder and required regrant
+    status: seeded
+    expected_recovery_level_class: context_restore_with_placeholders
+    expected_selection_criterion_class: missing_dependency_layout_only
+    expected_risk_class: restore_no_rerun_no_reattach
+    expected_reversibility_class: exact_undo
+    expected_action_chosen: restore_now
+    retained_artifact_classes:
+      - restore_manifest
+      - placeholder_pane_slot
+      - role_badge_local_context
+      - restore_provenance_record
+    discarded_or_deferred_artifact_classes:
+      - expired_remote_authority
+      - revoked_collaboration_grant
+    compare_before_discard_hook_class: placeholder_inspect_only
+    export_before_reset_linkage_class: not_applicable_no_destructive_action
+    placeholder_or_downgrade_note_class: missing_remote_target_placeholder
+    rerun_expectation_class: rerun_required_protected_surface_changed
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    parity_expectations:
+      - chosen_recovery_level_matches_selection_criterion
+      - retained_and_discarded_classes_named_no_silent_omission
+      - placeholder_or_downgrade_note_visible_when_applicable
+      - chooser_chooser_id_stable_across_surfaces
+    must_prove:
+      - the expired remote authority is named on the discarded-or-
+        deferred classes; silent reauth is forbidden
+      - any restored collaboration role badge is restored as local
+        context only and never claims live authority
+      - the placeholder pane slot is preserved with a required-
+        regrant action; the chooser's risk class is
+        `restore_no_rerun_no_reattach`
+      - the qualification packet rides the collab-restore contract
+        for any restored role badge or follow target
+    fixture_ref: fixtures/recovery/qualification_cases/expired_remote_session_placeholder_qualification.yaml
