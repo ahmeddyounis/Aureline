@@ -1,0 +1,1034 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ci/pipeline_annotation_row.schema.json",
+  "title": "Aureline CI / pipeline annotation row",
+  "description": "Boundary schema for the pipeline_annotation_row_record frozen in docs/ci/pipeline_artifact_annotation_contract.md. Every CI / pipeline / scanner / linter / compiler / test-runner finding rendered in the product (annotations panel, gutter chip, problems panel, support packet, AI evidence packet, command palette result) emits one pipeline_annotation_row_record. The record cites the producing pipeline_run_row_record by reference and projects annotation source class, scanner / tool label, severity, confidence, anchor kind, anchor refs, anchor freshness, local-action class, open-provider-action class, and origin / freshness identity. Annotation anchors degrade honestly: when the workspace has drifted, the anchor refers to an imported snapshot only, the anchor failed to map, or the source has no anchor at all, the row MUST set anchor_freshness_class and local_action_class to the matching typed values. Raw URLs (provider host, run URL, branch URL, commit URL), raw absolute paths, raw line content, raw scanner payloads, raw author email addresses, and raw bearer / OAuth / delegated / approval tokens never cross this boundary. Adding a new annotation_source_class, severity_class, confidence_class, anchor_kind_class, anchor_freshness_class, local_action_class, or open_provider_action_class value is additive-minor and bumps pipeline_annotation_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/pipeline_annotation_row_record" }
+  ],
+  "$defs": {
+    "pipeline_annotation_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the pipeline-annotation-row boundary. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "pipeline_annotation_row_record"
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support / export packets."
+    },
+
+    "redaction_aware_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing short label. Redaction-aware; raw secrets, raw URLs, raw absolute paths, raw line content, and raw author email addresses never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "step_identity_class": {
+      "type": "string",
+      "enum": [
+        "named_step",
+        "matrix_step",
+        "composite_action_step",
+        "service_container_step",
+        "post_step",
+        "setup_step",
+        "teardown_step",
+        "not_applicable_run_level_annotation",
+        "unknown_step_class_provider_owned"
+      ]
+    },
+
+    "step_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_identity_class"],
+      "properties": {
+        "step_identity_class": { "$ref": "#/$defs/step_identity_class" },
+        "step_ref": { "$ref": "#/$defs/opaque_id" },
+        "step_label": { "$ref": "#/$defs/redaction_aware_label" }
+      }
+    },
+
+    "annotation_source_class": {
+      "type": "string",
+      "enum": [
+        "provider_native_check_annotation",
+        "provider_native_log_annotation",
+        "provider_scanner_sast",
+        "provider_scanner_dast",
+        "provider_scanner_dependency",
+        "provider_scanner_secret",
+        "provider_scanner_iac",
+        "provider_scanner_container_image",
+        "provider_linter",
+        "provider_compiler_diagnostic",
+        "provider_test_runner_failure",
+        "third_party_uploaded_sarif",
+        "ai_proposed_annotation_pending_review",
+        "unknown_annotation_source_provider_owned"
+      ],
+      "description": "Closed annotation-source vocabulary."
+    },
+
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "error",
+        "warning",
+        "notice",
+        "info",
+        "blocker",
+        "security_critical",
+        "security_high",
+        "security_medium",
+        "security_low",
+        "security_informational",
+        "unknown_severity_provider_owned"
+      ],
+      "description": "Closed severity vocabulary."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "confirmed_by_local_run",
+        "high_confidence_provider_attested",
+        "medium_confidence_heuristic",
+        "low_confidence_heuristic",
+        "ai_proposed_pending_review",
+        "unknown_confidence_provider_owned"
+      ],
+      "description": "Closed confidence vocabulary."
+    },
+
+    "anchor_kind_class": {
+      "type": "string",
+      "enum": [
+        "file_line_anchor",
+        "file_range_anchor",
+        "file_only_anchor",
+        "symbol_anchor",
+        "manifest_path_anchor",
+        "package_or_dependency_anchor",
+        "container_layer_anchor",
+        "run_or_step_only_no_anchor",
+        "unanchored_review_required",
+        "ai_proposed_anchor_pending_review"
+      ],
+      "description": "Closed anchor-kind vocabulary."
+    },
+
+    "line_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_line"],
+      "properties": {
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "start_column": { "type": "integer", "minimum": 1 },
+        "end_column": { "type": "integer", "minimum": 1 }
+      },
+      "description": "Anchor line range. start_line is 1-based; end_line MUST be greater than or equal to start_line when both are present. Raw line content does not appear here."
+    },
+
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "file_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque file ref (workspace-relative, never a raw absolute path)."
+        },
+        "line_range": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/line_range" }
+          ]
+        },
+        "symbol_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "manifest_path_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "package_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "container_layer_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "anchor_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Anchor block. The required sub-refs depend on anchor_kind_class; see the contract section 2.5."
+    },
+
+    "anchor_freshness_class": {
+      "type": "string",
+      "enum": [
+        "exact_anchor_against_current_workspace",
+        "approximate_anchor_drifted_workspace",
+        "anchor_against_imported_snapshot_only",
+        "stale_anchor_workspace_moved",
+        "anchor_unmapped_against_current_workspace",
+        "denied_no_anchor_resolution",
+        "unknown_anchor_freshness_provider_owned"
+      ],
+      "description": "Closed anchor-freshness vocabulary."
+    },
+
+    "local_action_class": {
+      "type": "string",
+      "enum": [
+        "jump_to_local_anchor_admissible",
+        "jump_to_local_anchor_with_drift_disclosure_admissible",
+        "open_in_safe_preview_admissible",
+        "open_local_diff_admissible",
+        "no_local_action_admissible",
+        "denied_no_action_no_anchor"
+      ],
+      "description": "Closed local-action vocabulary."
+    },
+
+    "open_provider_action_class": {
+      "type": "string",
+      "enum": [
+        "open_provider_run_admissible",
+        "open_provider_log_at_anchor_admissible",
+        "open_provider_artifact_admissible",
+        "open_in_provider_with_handoff_admissible",
+        "no_provider_action_admissible",
+        "denied_no_provider_action"
+      ],
+      "description": "Closed open-provider-action vocabulary."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_provider_overlay",
+        "cached_provider_overlay",
+        "replayed_import",
+        "imported_snapshot",
+        "support_packet_import"
+      ],
+      "description": "Closed origin-class vocabulary re-exported verbatim from schemas/ci/pipeline_run_row.schema.json#origin_class."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ]
+        },
+        "id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "pipeline_annotation_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pipeline_annotation_row_schema_version",
+        "pipeline_annotation_row_id",
+        "scope_ref",
+        "pipeline_run_row_ref",
+        "step_identity",
+        "annotation_source_class",
+        "scanner_or_tool_label",
+        "annotation_message_label",
+        "severity_class",
+        "confidence_class",
+        "anchor_kind_class",
+        "anchor",
+        "anchor_freshness_class",
+        "local_action_class",
+        "open_provider_action_class",
+        "origin_class",
+        "freshness_class",
+        "policy_context",
+        "redaction_class",
+        "row_summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "pipeline_annotation_row_record" },
+        "pipeline_annotation_row_schema_version": {
+          "$ref": "#/$defs/pipeline_annotation_row_schema_version"
+        },
+        "pipeline_annotation_row_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "pipeline_run_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "step_identity": { "$ref": "#/$defs/step_identity" },
+        "annotation_source_class": { "$ref": "#/$defs/annotation_source_class" },
+        "scanner_or_tool_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "annotation_message_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "annotation_explanation_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "anchor_kind_class": { "$ref": "#/$defs/anchor_kind_class" },
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "anchor_freshness_class": { "$ref": "#/$defs/anchor_freshness_class" },
+        "anchor_drift_explanation_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "local_action_class": { "$ref": "#/$defs/local_action_class" },
+        "open_provider_action_class": { "$ref": "#/$defs/open_provider_action_class" },
+        "browser_handoff_packet_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required (non-null) when open_provider_action_class is open_in_provider_with_handoff_admissible."
+        },
+        "provider_action_denial_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "pipeline_artifact_card_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required (non-null) when annotation_source_class is third_party_uploaded_sarif. May reference an artifact card for any other source."
+        },
+        "local_execution_context_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required (non-null) when confidence_class is confirmed_by_local_run."
+        },
+        "ai_proposed_review_ticket_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required (non-null) when annotation_source_class is ai_proposed_annotation_pending_review."
+        },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "provider_event_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the provider_event_record. Required (non-null) when origin_class is live_provider_overlay or cached_provider_overlay."
+        },
+        "import_session_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "replay_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "row_summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Step-level identity classes MUST cite step_ref and step_label.",
+          "if": {
+            "type": "object",
+            "required": ["step_identity"],
+            "properties": {
+              "step_identity": {
+                "type": "object",
+                "required": ["step_identity_class"],
+                "properties": {
+                  "step_identity_class": {
+                    "enum": [
+                      "named_step",
+                      "matrix_step",
+                      "composite_action_step",
+                      "service_container_step",
+                      "post_step",
+                      "setup_step",
+                      "teardown_step"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "step_identity": {
+                "type": "object",
+                "required": ["step_ref", "step_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "file_line_anchor MUST cite file_ref and line_range.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "file_line_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["file_ref", "line_range"],
+                "properties": {
+                  "file_ref": { "type": "string", "minLength": 1 },
+                  "line_range": { "$ref": "#/$defs/line_range" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "file_range_anchor MUST cite file_ref and line_range.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "file_range_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["file_ref", "line_range"],
+                "properties": {
+                  "file_ref": { "type": "string", "minLength": 1 },
+                  "line_range": {
+                    "type": "object",
+                    "required": ["start_line", "end_line"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "file_only_anchor MUST cite file_ref.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "file_only_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["file_ref"],
+                "properties": {
+                  "file_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "symbol_anchor MUST cite symbol_ref.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "symbol_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["symbol_ref"],
+                "properties": {
+                  "symbol_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "manifest_path_anchor MUST cite manifest_path_ref.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "manifest_path_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["manifest_path_ref"],
+                "properties": {
+                  "manifest_path_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "package_or_dependency_anchor MUST cite package_ref.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "package_or_dependency_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["package_ref"],
+                "properties": {
+                  "package_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "container_layer_anchor MUST cite container_layer_ref.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "container_layer_anchor" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "required": ["container_layer_ref"],
+                "properties": {
+                  "container_layer_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "run_or_step_only_no_anchor and unanchored_review_required MUST set every anchor sub-ref to null and resolve local_action_class to no_local_action_admissible or denied_no_action_no_anchor.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": {
+                "enum": ["run_or_step_only_no_anchor", "unanchored_review_required"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor": {
+                "type": "object",
+                "properties": {
+                  "file_ref": { "type": "null" },
+                  "line_range": { "type": "null" },
+                  "symbol_ref": { "type": "null" },
+                  "manifest_path_ref": { "type": "null" },
+                  "package_ref": { "type": "null" },
+                  "container_layer_ref": { "type": "null" }
+                }
+              },
+              "local_action_class": {
+                "enum": ["no_local_action_admissible", "denied_no_action_no_anchor"]
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_proposed_anchor_pending_review MUST pair with confidence_class ai_proposed_pending_review.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_kind_class"],
+            "properties": {
+              "anchor_kind_class": { "const": "ai_proposed_anchor_pending_review" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "confidence_class": { "const": "ai_proposed_pending_review" }
+            }
+          }
+        },
+        {
+          "description": "exact_anchor_against_current_workspace is admissible only with anchored kinds.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_freshness_class"],
+            "properties": {
+              "anchor_freshness_class": {
+                "const": "exact_anchor_against_current_workspace"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor_kind_class": {
+                "enum": [
+                  "file_line_anchor",
+                  "file_range_anchor",
+                  "file_only_anchor",
+                  "symbol_anchor",
+                  "manifest_path_anchor",
+                  "package_or_dependency_anchor",
+                  "container_layer_anchor"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "approximate_anchor_drifted_workspace MUST surface a typed anchor_drift_explanation_label and narrow local_action_class.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_freshness_class"],
+            "properties": {
+              "anchor_freshness_class": {
+                "const": "approximate_anchor_drifted_workspace"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["anchor_drift_explanation_label"],
+            "properties": {
+              "local_action_class": {
+                "enum": [
+                  "jump_to_local_anchor_with_drift_disclosure_admissible",
+                  "open_local_diff_admissible",
+                  "no_local_action_admissible"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "anchor_against_imported_snapshot_only narrows local_action_class.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_freshness_class"],
+            "properties": {
+              "anchor_freshness_class": {
+                "const": "anchor_against_imported_snapshot_only"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "local_action_class": {
+                "enum": [
+                  "open_in_safe_preview_admissible",
+                  "no_local_action_admissible",
+                  "denied_no_action_no_anchor"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "stale_anchor_workspace_moved and anchor_unmapped_against_current_workspace narrow local_action_class.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_freshness_class"],
+            "properties": {
+              "anchor_freshness_class": {
+                "enum": [
+                  "stale_anchor_workspace_moved",
+                  "anchor_unmapped_against_current_workspace"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "local_action_class": {
+                "enum": ["no_local_action_admissible", "denied_no_action_no_anchor"]
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_no_anchor_resolution forces local_action_class denied_no_action_no_anchor and open_provider_action_class denied_no_provider_action.",
+          "if": {
+            "type": "object",
+            "required": ["anchor_freshness_class"],
+            "properties": {
+              "anchor_freshness_class": { "const": "denied_no_anchor_resolution" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "local_action_class": { "const": "denied_no_action_no_anchor" },
+              "open_provider_action_class": { "const": "denied_no_provider_action" }
+            }
+          }
+        },
+        {
+          "description": "jump_to_local_anchor_admissible MUST pair with exact_anchor_against_current_workspace.",
+          "if": {
+            "type": "object",
+            "required": ["local_action_class"],
+            "properties": {
+              "local_action_class": { "const": "jump_to_local_anchor_admissible" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor_freshness_class": {
+                "const": "exact_anchor_against_current_workspace"
+              }
+            }
+          }
+        },
+        {
+          "description": "jump_to_local_anchor_with_drift_disclosure_admissible MUST pair with approximate_anchor_drifted_workspace.",
+          "if": {
+            "type": "object",
+            "required": ["local_action_class"],
+            "properties": {
+              "local_action_class": {
+                "const": "jump_to_local_anchor_with_drift_disclosure_admissible"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "anchor_freshness_class": {
+                "const": "approximate_anchor_drifted_workspace"
+              }
+            }
+          }
+        },
+        {
+          "description": "open_in_provider_with_handoff_admissible MUST cite a non-null browser_handoff_packet_ref.",
+          "if": {
+            "type": "object",
+            "required": ["open_provider_action_class"],
+            "properties": {
+              "open_provider_action_class": {
+                "const": "open_in_provider_with_handoff_admissible"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["browser_handoff_packet_ref"],
+            "properties": {
+              "browser_handoff_packet_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "denied_no_provider_action MUST surface a typed provider_action_denial_label.",
+          "if": {
+            "type": "object",
+            "required": ["open_provider_action_class"],
+            "properties": {
+              "open_provider_action_class": { "const": "denied_no_provider_action" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["provider_action_denial_label"]
+          }
+        },
+        {
+          "description": "third_party_uploaded_sarif MUST cite a non-null pipeline_artifact_card_ref.",
+          "if": {
+            "type": "object",
+            "required": ["annotation_source_class"],
+            "properties": {
+              "annotation_source_class": { "const": "third_party_uploaded_sarif" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["pipeline_artifact_card_ref"],
+            "properties": {
+              "pipeline_artifact_card_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "ai_proposed_annotation_pending_review MUST cite ai_proposed_review_ticket_ref, pair with confidence ai_proposed_pending_review, and MUST NOT mint security_* severities.",
+          "if": {
+            "type": "object",
+            "required": ["annotation_source_class"],
+            "properties": {
+              "annotation_source_class": {
+                "const": "ai_proposed_annotation_pending_review"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["ai_proposed_review_ticket_ref"],
+            "properties": {
+              "ai_proposed_review_ticket_ref": { "type": "string", "minLength": 1 },
+              "confidence_class": { "const": "ai_proposed_pending_review" },
+              "severity_class": {
+                "not": {
+                  "enum": [
+                    "security_critical",
+                    "security_high",
+                    "security_medium",
+                    "security_low",
+                    "security_informational"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "confirmed_by_local_run MUST cite a non-null local_execution_context_record_ref.",
+          "if": {
+            "type": "object",
+            "required": ["confidence_class"],
+            "properties": {
+              "confidence_class": { "const": "confirmed_by_local_run" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["local_execution_context_record_ref"],
+            "properties": {
+              "local_execution_context_record_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "security_* severities are admissible only on scanner / SARIF sources.",
+          "if": {
+            "type": "object",
+            "required": ["severity_class"],
+            "properties": {
+              "severity_class": {
+                "enum": [
+                  "security_critical",
+                  "security_high",
+                  "security_medium",
+                  "security_low",
+                  "security_informational"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "annotation_source_class": {
+                "enum": [
+                  "provider_scanner_sast",
+                  "provider_scanner_dast",
+                  "provider_scanner_dependency",
+                  "provider_scanner_secret",
+                  "provider_scanner_iac",
+                  "provider_scanner_container_image",
+                  "third_party_uploaded_sarif"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Only live_provider_overlay may claim authoritative_live freshness.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": [
+                  "cached_provider_overlay",
+                  "replayed_import",
+                  "imported_snapshot",
+                  "support_packet_import"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "freshness_class": {
+                "not": { "const": "authoritative_live" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Live and cached overlay annotations MUST cite a provider_event_ref.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": ["live_provider_overlay", "cached_provider_overlay"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["provider_event_ref"],
+            "properties": {
+              "provider_event_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "Replayed-import annotations MUST cite a replay_record_ref and an import_session_ref.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": { "const": "replayed_import" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["replay_record_ref", "import_session_ref"],
+            "properties": {
+              "replay_record_ref": { "type": "string", "minLength": 1 },
+              "import_session_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "Imported-snapshot and support-packet annotations MUST cite an import_session_ref.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": ["imported_snapshot", "support_packet_import"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["import_session_ref"],
+            "properties": {
+              "import_session_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

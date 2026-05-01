@@ -1,0 +1,1232 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ci/pipeline_artifact_card.schema.json",
+  "title": "Aureline CI / pipeline artifact card",
+  "description": "Boundary schema for the pipeline_artifact_card_record frozen in docs/ci/pipeline_artifact_annotation_contract.md. Every artifact produced by a CI / pipeline / check / build / deploy / release run rendered in the product (runs panel artifact list, log-pane inline artifact chip, support packet, AI evidence packet, command palette result) emits one pipeline_artifact_card_record. The record cites the producing pipeline_run_row_record by reference and projects artifact-kind class, media type, redaction-aware label, size disclosure, content-digest disclosure, trust class, active-content policy class, safe-open path, viewer mode, output-viewer-object reference, retention window, origin / freshness, provider event / import session / replay record, local-truth binding, policy context, and redaction class. Active or rich content cannot resolve to TrustedLocalActive on this boundary; HTML / JS / CSS / SVG / image / archive / executable / container artifacts MUST resolve to SanitizedRich, IsolatedRemoteActive, or RawText. Structured reports open in a structured viewer; HTML and rich content open in safe-preview / sanitized; binary / executable / container / archive artifacts route to download-only. Stale or retention-expired bytes narrow safe_open_path out of any path that depends on live bytes. Raw URLs (provider host, artifact download URL, run URL, branch URL, commit URL), raw absolute paths, raw artifact bodies, raw bytes, raw scanner payloads, raw author email addresses, and raw bearer / OAuth / delegated / approval tokens never cross this boundary. Adding a new artifact_kind_class, media_type_class, safe_open_path, retention_window_class, digest_class, viewer_mode, or origin_class value is additive-minor and bumps pipeline_artifact_card_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/pipeline_artifact_card_record" }
+  ],
+  "$defs": {
+    "pipeline_artifact_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the pipeline-artifact-card boundary. Current value is 1. Bumped only on breaking payload changes; additive enum values do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "pipeline_artifact_card_record"
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support / export packets. Raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material never appear here."
+    },
+
+    "redaction_aware_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing short label. Redaction-aware; raw secrets, raw URLs, raw hostnames, raw absolute paths, raw author email addresses, and raw artifact bodies never appear here."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "step_identity_class": {
+      "type": "string",
+      "enum": [
+        "named_step",
+        "matrix_step",
+        "composite_action_step",
+        "service_container_step",
+        "post_step",
+        "setup_step",
+        "teardown_step",
+        "not_applicable_run_level_artifact",
+        "unknown_step_class_provider_owned"
+      ],
+      "description": "Closed step-identity class vocabulary. not_applicable_run_level_artifact is the correct posture when the artifact is produced at the workflow / job level rather than a single step."
+    },
+
+    "step_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_identity_class"],
+      "properties": {
+        "step_identity_class": { "$ref": "#/$defs/step_identity_class" },
+        "step_ref": { "$ref": "#/$defs/opaque_id" },
+        "step_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Producing step identity. A step-level artifact MUST cite a non-empty step_ref and step_label; a run-level artifact MAY omit them and use not_applicable_run_level_artifact."
+    },
+
+    "artifact_kind_class": {
+      "type": "string",
+      "enum": [
+        "structured_report_artifact",
+        "html_bundle_artifact",
+        "binary_bundle_artifact",
+        "executable_or_loadable_artifact",
+        "container_image_artifact",
+        "archive_compressed_artifact",
+        "source_archive_artifact",
+        "log_archive_artifact",
+        "image_or_media_artifact",
+        "document_artifact",
+        "source_map_bundle_artifact",
+        "generated_source_mapping_artifact",
+        "generic_blob_artifact",
+        "unknown_artifact_kind_provider_owned"
+      ],
+      "description": "Closed artifact-kind vocabulary."
+    },
+
+    "media_type_class": {
+      "type": "string",
+      "enum": [
+        "structured_json",
+        "structured_yaml",
+        "structured_xml",
+        "sarif_report",
+        "junit_xml_report",
+        "lcov_coverage_report",
+        "cobertura_coverage_report",
+        "openapi_document",
+        "html_document",
+        "javascript_bundle",
+        "css_bundle",
+        "text_log",
+        "image_raster",
+        "image_vector_svg",
+        "document_pdf",
+        "archive_zip",
+        "archive_tar",
+        "archive_tar_gz",
+        "container_image_oci",
+        "executable_binary",
+        "loadable_library",
+        "source_map_file",
+        "generic_octet_stream",
+        "unknown_media_type_provider_owned"
+      ],
+      "description": "Closed media-type vocabulary. unknown_media_type_provider_owned is the correct posture when the provider returns a media type the contract does not recognise yet; it MUST NOT be flattened into generic_octet_stream."
+    },
+
+    "size_bucket_class": {
+      "type": "string",
+      "enum": [
+        "tiny_under_1_kib",
+        "small_under_64_kib",
+        "medium_under_1_mib",
+        "large_under_64_mib",
+        "very_large_under_1_gib",
+        "huge_over_1_gib",
+        "unknown_size_bucket_provider_owned"
+      ],
+      "description": "Closed UX-visible size-bucket vocabulary. The size_disclosure block carries byte-count truth; the bucket is never collapsed away."
+    },
+
+    "size_truncation_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_truncated",
+        "client_size_cap",
+        "provider_pagination_cap",
+        "provider_retention_dropped",
+        "policy_redacted",
+        "denied_no_artifact_visibility",
+        "unknown_truncation_provider_owned"
+      ],
+      "description": "Closed size-truncation reason vocabulary. Silent size truncation is non-conforming."
+    },
+
+    "byte_count_value": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "bytes"],
+          "properties": {
+            "status": { "const": "exact" },
+            "bytes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "bytes"],
+          "properties": {
+            "status": { "const": "approximate" },
+            "bytes": { "type": "integer", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "const": "unknown" }
+          }
+        }
+      ],
+      "description": "Exact / approximate / unknown byte count truth."
+    },
+
+    "size_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["byte_count", "size_bucket_class", "size_truncation_reason_class"],
+      "properties": {
+        "byte_count": { "$ref": "#/$defs/byte_count_value" },
+        "size_bucket_class": { "$ref": "#/$defs/size_bucket_class" },
+        "size_truncation_reason_class": { "$ref": "#/$defs/size_truncation_reason_class" },
+        "size_disclosure_label": { "$ref": "#/$defs/redaction_aware_label" }
+      },
+      "description": "Size disclosure for the artifact. Both the bucket and the byte-count truth remain visible regardless of safe_open_path."
+    },
+
+    "hash_algorithm_class": {
+      "type": "string",
+      "enum": [
+        "sha1_git",
+        "sha256_git",
+        "sha256_content",
+        "blake3_content"
+      ],
+      "description": "Hash-algorithm vocabulary re-exported verbatim from schemas/debug/debug_artifact_manifest.schema.json#hash_algorithm_class."
+    },
+
+    "content_digest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "value"],
+      "properties": {
+        "algorithm": { "$ref": "#/$defs/hash_algorithm_class" },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Lower-case hex digest, no prefix."
+        }
+      },
+      "description": "Content-addressed digest pair. Raw bytes never appear; the card carries only digest + algorithm."
+    },
+
+    "digest_class": {
+      "type": "string",
+      "enum": [
+        "provider_attested",
+        "locally_recomputed",
+        "signature_verified",
+        "unverified_provider_owned",
+        "denied_no_digest"
+      ],
+      "description": "Closed digest-class vocabulary. provider_attested, locally_recomputed, and signature_verified MUST cite a non-null content_digest. denied_no_digest MUST narrow safe_open_path to download_only_no_in_product_open or denied_no_open_path."
+    },
+
+    "content_digest_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_class"],
+      "properties": {
+        "digest_class": { "$ref": "#/$defs/digest_class" },
+        "content_digest": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_digest" }
+          ],
+          "description": "Required (non-null) when digest_class is provider_attested, locally_recomputed, or signature_verified; null otherwise."
+        },
+        "signature_evidence_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Required (non-null) when digest_class is signature_verified."
+        },
+        "digest_explanation_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Content-digest disclosure for the artifact. Silent missing digest is non-conforming."
+    },
+
+    "trust_class": {
+      "type": "string",
+      "enum": [
+        "RawText",
+        "SanitizedRich",
+        "TrustedLocalActive",
+        "IsolatedRemoteActive"
+      ],
+      "description": "Trust-class re-exported verbatim from schemas/security/trust_class.schema.json#trust_class. CI / pipeline artifacts arrive from a provider boundary; TrustedLocalActive is not admissible on this boundary."
+    },
+
+    "active_content_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_active_content_present",
+        "active_content_allowed",
+        "active_content_blocked_trust",
+        "active_content_blocked_policy",
+        "active_content_blocked_sandbox",
+        "active_content_blocked_representation"
+      ],
+      "description": "Active-content policy class re-exported verbatim from schemas/ux/output_viewer_object.schema.json#active_content_policy_class."
+    },
+
+    "safe_open_path": {
+      "type": "string",
+      "enum": [
+        "open_in_structured_viewer",
+        "open_in_safe_preview_sanitized",
+        "open_in_safe_preview_metadata_only",
+        "download_only_no_in_product_open",
+        "denied_no_open_path"
+      ],
+      "description": "Closed safe-open-path vocabulary."
+    },
+
+    "viewer_mode_class": {
+      "type": "string",
+      "enum": [
+        "inline",
+        "virtualized",
+        "open_detail",
+        "blocked_active_content",
+        "textual_fallback",
+        "snapshot_review",
+        "not_applicable_no_in_product_open"
+      ],
+      "description": "Closed viewer-mode vocabulary re-exported from schemas/ux/output_viewer_object.schema.json#viewer_mode plus not_applicable_no_in_product_open for download-only / denied cards."
+    },
+
+    "retention_window_class": {
+      "type": "string",
+      "enum": [
+        "provider_default_retention",
+        "provider_extended_retention",
+        "provider_short_lived_retention",
+        "retention_expired_no_bytes_available",
+        "retention_unknown_provider_owned",
+        "local_only_no_provider_retention",
+        "imported_snapshot_retention_static"
+      ],
+      "description": "Closed retention-window vocabulary."
+    },
+
+    "retention_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention_window_class"],
+      "properties": {
+        "retention_window_class": { "$ref": "#/$defs/retention_window_class" },
+        "expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Provider-supplied expiry timestamp. Null is admissible only when the provider does not supply one."
+        },
+        "retention_explanation_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Retention-window disclosure. Silent missing retention is non-conforming."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "live_provider_overlay",
+        "cached_provider_overlay",
+        "replayed_import",
+        "imported_snapshot",
+        "support_packet_import"
+      ],
+      "description": "Closed origin-class vocabulary re-exported verbatim from schemas/ci/pipeline_run_row.schema.json#origin_class."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness-class re-exported from the capability-lifecycle and safe-preview contracts."
+    },
+
+    "local_truth_authority_class": {
+      "type": "string",
+      "enum": [
+        "local_truth_is_authoritative",
+        "provider_overlay_is_authoritative",
+        "local_and_provider_disagree_review_required",
+        "no_local_correspondent"
+      ],
+      "description": "Closed local-truth authority vocabulary re-exported verbatim from schemas/ci/pipeline_run_row.schema.json#local_truth_authority_class."
+    },
+
+    "local_truth_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["local_truth_authority_class", "local_truth_explanation_label"],
+      "properties": {
+        "local_truth_authority_class": { "$ref": "#/$defs/local_truth_authority_class" },
+        "execution_context_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Local execution-context record this artifact composes with. Null when local_truth_authority_class is no_local_correspondent."
+        },
+        "local_outcome_summary_ref": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "debug_artifact_manifest_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to a debug_artifact_manifest entry when the artifact is a workspace-attached debug artifact (PDB, dSYM, source map, etc)."
+        },
+        "local_truth_explanation_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Binding between this artifact and the corresponding local execution-context, plus the closed authority verdict. The runs panel artifact list, log-pane inline artifact chip, support packet, and AI evidence packet MUST all project the same local_truth_binding for the same pipeline_artifact_card_id within an import session."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": [
+            "account_free_local",
+            "self_hosted_org",
+            "managed_workspace"
+          ]
+        },
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "scope_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "id"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "window",
+            "review_workspace",
+            "remote_session",
+            "tenant",
+            "companion_surface"
+          ]
+        },
+        "id": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "pipeline_artifact_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "pipeline_artifact_card_schema_version",
+        "pipeline_artifact_card_id",
+        "scope_ref",
+        "pipeline_run_row_ref",
+        "step_identity",
+        "artifact_label",
+        "artifact_kind_class",
+        "media_type_class",
+        "size_disclosure",
+        "content_digest_disclosure",
+        "trust_class",
+        "active_content_policy_class",
+        "safe_open_path",
+        "viewer_mode_class",
+        "retention_window",
+        "origin_class",
+        "freshness_class",
+        "local_truth_binding",
+        "policy_context",
+        "redaction_class",
+        "card_summary_label",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "pipeline_artifact_card_record" },
+        "pipeline_artifact_card_schema_version": {
+          "$ref": "#/$defs/pipeline_artifact_card_schema_version"
+        },
+        "pipeline_artifact_card_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_ref": { "$ref": "#/$defs/scope_ref" },
+        "pipeline_run_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Reference to the pipeline_run_row_record that produced this artifact."
+        },
+        "step_identity": { "$ref": "#/$defs/step_identity" },
+        "artifact_label": { "$ref": "#/$defs/redaction_aware_label" },
+        "artifact_kind_class": { "$ref": "#/$defs/artifact_kind_class" },
+        "media_type_class": { "$ref": "#/$defs/media_type_class" },
+        "size_disclosure": { "$ref": "#/$defs/size_disclosure" },
+        "content_digest_disclosure": { "$ref": "#/$defs/content_digest_disclosure" },
+        "trust_class": { "$ref": "#/$defs/trust_class" },
+        "active_content_policy_class": { "$ref": "#/$defs/active_content_policy_class" },
+        "safe_open_path": { "$ref": "#/$defs/safe_open_path" },
+        "safe_open_path_denial_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "download_only_alternative_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "viewer_mode_class": { "$ref": "#/$defs/viewer_mode_class" },
+        "output_viewer_object_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the underlying output_viewer_object_record. Required (non-null) when safe_open_path is open_in_structured_viewer, open_in_safe_preview_sanitized, or open_in_safe_preview_metadata_only; null when safe_open_path is download_only_no_in_product_open or denied_no_open_path."
+        },
+        "retention_window": { "$ref": "#/$defs/retention_window" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "stale_or_unavailable_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "provider_event_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the provider_event_record. Required (non-null) when origin_class is live_provider_overlay or cached_provider_overlay; MAY be null otherwise."
+        },
+        "import_session_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to the import_session_record. Required (non-null) when origin_class is replayed_import, imported_snapshot, or support_packet_import."
+        },
+        "replay_record_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Reference to a webhook_replay_record. Required (non-null) when origin_class is replayed_import."
+        },
+        "local_truth_binding": { "$ref": "#/$defs/local_truth_binding" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "card_summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "TrustedLocalActive is not admissible on the CI artifact boundary.",
+          "type": "object",
+          "properties": {
+            "trust_class": {
+              "not": { "const": "TrustedLocalActive" }
+            }
+          }
+        },
+        {
+          "description": "Step-level identity classes MUST cite step_ref and step_label.",
+          "if": {
+            "type": "object",
+            "required": ["step_identity"],
+            "properties": {
+              "step_identity": {
+                "type": "object",
+                "required": ["step_identity_class"],
+                "properties": {
+                  "step_identity_class": {
+                    "enum": [
+                      "named_step",
+                      "matrix_step",
+                      "composite_action_step",
+                      "service_container_step",
+                      "post_step",
+                      "setup_step",
+                      "teardown_step"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "step_identity": {
+                "type": "object",
+                "required": ["step_ref", "step_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "open_in_structured_viewer MUST resolve to a structured / report media type and trust class RawText or SanitizedRich.",
+          "if": {
+            "type": "object",
+            "required": ["safe_open_path"],
+            "properties": {
+              "safe_open_path": { "const": "open_in_structured_viewer" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "media_type_class": {
+                "enum": [
+                  "structured_json",
+                  "structured_yaml",
+                  "structured_xml",
+                  "sarif_report",
+                  "junit_xml_report",
+                  "lcov_coverage_report",
+                  "cobertura_coverage_report",
+                  "openapi_document",
+                  "source_map_file"
+                ]
+              },
+              "trust_class": {
+                "enum": ["RawText", "SanitizedRich"]
+              },
+              "output_viewer_object_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["output_viewer_object_ref"]
+          }
+        },
+        {
+          "description": "open_in_safe_preview_sanitized MUST resolve to a rich-content media type with active content blocked plus trust class SanitizedRich or IsolatedRemoteActive.",
+          "if": {
+            "type": "object",
+            "required": ["safe_open_path"],
+            "properties": {
+              "safe_open_path": { "const": "open_in_safe_preview_sanitized" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "media_type_class": {
+                "enum": [
+                  "html_document",
+                  "javascript_bundle",
+                  "css_bundle",
+                  "image_raster",
+                  "image_vector_svg",
+                  "document_pdf"
+                ]
+              },
+              "trust_class": {
+                "enum": ["SanitizedRich", "IsolatedRemoteActive"]
+              },
+              "active_content_policy_class": {
+                "enum": [
+                  "no_active_content_present",
+                  "active_content_blocked_trust",
+                  "active_content_blocked_policy",
+                  "active_content_blocked_sandbox",
+                  "active_content_blocked_representation"
+                ]
+              },
+              "output_viewer_object_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["output_viewer_object_ref"]
+          }
+        },
+        {
+          "description": "open_in_safe_preview_metadata_only MUST resolve to viewer_mode textual_fallback or snapshot_review and trust class RawText or SanitizedRich.",
+          "if": {
+            "type": "object",
+            "required": ["safe_open_path"],
+            "properties": {
+              "safe_open_path": { "const": "open_in_safe_preview_metadata_only" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "trust_class": {
+                "enum": ["RawText", "SanitizedRich"]
+              },
+              "viewer_mode_class": {
+                "enum": ["textual_fallback", "snapshot_review"]
+              },
+              "output_viewer_object_ref": { "type": "string", "minLength": 1 }
+            },
+            "required": ["output_viewer_object_ref"]
+          }
+        },
+        {
+          "description": "download_only_no_in_product_open MUST set viewer_mode_class not_applicable_no_in_product_open and null output_viewer_object_ref.",
+          "if": {
+            "type": "object",
+            "required": ["safe_open_path"],
+            "properties": {
+              "safe_open_path": { "const": "download_only_no_in_product_open" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "viewer_mode_class": { "const": "not_applicable_no_in_product_open" },
+              "output_viewer_object_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "denied_no_open_path MUST set viewer_mode_class not_applicable_no_in_product_open, null output_viewer_object_ref, and a typed denial label.",
+          "if": {
+            "type": "object",
+            "required": ["safe_open_path"],
+            "properties": {
+              "safe_open_path": { "const": "denied_no_open_path" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["safe_open_path_denial_label"],
+            "properties": {
+              "viewer_mode_class": { "const": "not_applicable_no_in_product_open" },
+              "output_viewer_object_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "structured_report_artifact MUST NOT route to open_in_safe_preview_sanitized.",
+          "if": {
+            "type": "object",
+            "required": ["artifact_kind_class"],
+            "properties": {
+              "artifact_kind_class": { "const": "structured_report_artifact" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "not": { "const": "open_in_safe_preview_sanitized" }
+              }
+            }
+          }
+        },
+        {
+          "description": "html_bundle_artifact MUST NOT route to open_in_structured_viewer.",
+          "if": {
+            "type": "object",
+            "required": ["artifact_kind_class"],
+            "properties": {
+              "artifact_kind_class": { "const": "html_bundle_artifact" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "not": { "const": "open_in_structured_viewer" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Binary / executable / container / archive / source-archive artifacts MUST NOT route to open_in_structured_viewer or open_in_safe_preview_sanitized.",
+          "if": {
+            "type": "object",
+            "required": ["artifact_kind_class"],
+            "properties": {
+              "artifact_kind_class": {
+                "enum": [
+                  "binary_bundle_artifact",
+                  "executable_or_loadable_artifact",
+                  "container_image_artifact",
+                  "archive_compressed_artifact",
+                  "source_archive_artifact",
+                  "log_archive_artifact"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "enum": [
+                  "open_in_safe_preview_metadata_only",
+                  "download_only_no_in_product_open",
+                  "denied_no_open_path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "image_or_media artifacts MUST NOT route to open_in_structured_viewer.",
+          "if": {
+            "type": "object",
+            "required": ["artifact_kind_class"],
+            "properties": {
+              "artifact_kind_class": { "const": "image_or_media_artifact" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "not": { "const": "open_in_structured_viewer" }
+              }
+            }
+          }
+        },
+        {
+          "description": "document artifacts MUST NOT route to open_in_structured_viewer.",
+          "if": {
+            "type": "object",
+            "required": ["artifact_kind_class"],
+            "properties": {
+              "artifact_kind_class": { "const": "document_artifact" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "not": { "const": "open_in_structured_viewer" }
+              }
+            }
+          }
+        },
+        {
+          "description": "generic / unknown artifact kinds MUST NOT route to open_in_structured_viewer or open_in_safe_preview_sanitized.",
+          "if": {
+            "type": "object",
+            "required": ["artifact_kind_class"],
+            "properties": {
+              "artifact_kind_class": {
+                "enum": [
+                  "generic_blob_artifact",
+                  "unknown_artifact_kind_provider_owned"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "enum": [
+                  "open_in_safe_preview_metadata_only",
+                  "download_only_no_in_product_open",
+                  "denied_no_open_path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "active_content_allowed MUST resolve to IsolatedRemoteActive and safe_open_path open_in_safe_preview_sanitized with viewer_mode blocked_active_content or textual_fallback.",
+          "if": {
+            "type": "object",
+            "required": ["active_content_policy_class"],
+            "properties": {
+              "active_content_policy_class": { "const": "active_content_allowed" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "trust_class": { "const": "IsolatedRemoteActive" },
+              "safe_open_path": { "const": "open_in_safe_preview_sanitized" },
+              "viewer_mode_class": {
+                "enum": ["blocked_active_content", "textual_fallback"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Provider-attested, locally-recomputed, and signature-verified digests MUST cite a non-null content_digest.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["digest_class"],
+                "properties": {
+                  "digest_class": {
+                    "enum": ["provider_attested", "locally_recomputed", "signature_verified"]
+                  }
+                }
+              }
+            },
+            "required": ["content_digest_disclosure"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["content_digest"],
+                "properties": {
+                  "content_digest": { "$ref": "#/$defs/content_digest" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "signature_verified MUST cite a non-null signature_evidence_ref.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["digest_class"],
+                "properties": {
+                  "digest_class": { "const": "signature_verified" }
+                }
+              }
+            },
+            "required": ["content_digest_disclosure"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["signature_evidence_ref"],
+                "properties": {
+                  "signature_evidence_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "locally_recomputed MUST cite a non-null local execution_context_record_ref.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["digest_class"],
+                "properties": {
+                  "digest_class": { "const": "locally_recomputed" }
+                }
+              }
+            },
+            "required": ["content_digest_disclosure"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "local_truth_binding": {
+                "type": "object",
+                "required": ["execution_context_record_ref"],
+                "properties": {
+                  "execution_context_record_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_no_digest MUST narrow safe_open_path to download_only_no_in_product_open or denied_no_open_path and cite a typed digest_explanation_label.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["digest_class"],
+                "properties": {
+                  "digest_class": { "const": "denied_no_digest" }
+                }
+              }
+            },
+            "required": ["content_digest_disclosure"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": {
+                "enum": ["download_only_no_in_product_open", "denied_no_open_path"]
+              },
+              "content_digest_disclosure": {
+                "type": "object",
+                "required": ["digest_explanation_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "retention_expired_no_bytes_available MUST set safe_open_path denied_no_open_path and a typed retention_explanation_label.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "retention_window": {
+                "type": "object",
+                "required": ["retention_window_class"],
+                "properties": {
+                  "retention_window_class": {
+                    "const": "retention_expired_no_bytes_available"
+                  }
+                }
+              }
+            },
+            "required": ["retention_window"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "safe_open_path": { "const": "denied_no_open_path" },
+              "retention_window": {
+                "type": "object",
+                "required": ["retention_explanation_label"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Only live_provider_overlay may claim authoritative_live freshness.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": [
+                  "cached_provider_overlay",
+                  "replayed_import",
+                  "imported_snapshot",
+                  "support_packet_import"
+                ]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "freshness_class": {
+                "not": { "const": "authoritative_live" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Live and cached overlay artifacts MUST cite a provider_event_ref.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": ["live_provider_overlay", "cached_provider_overlay"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["provider_event_ref"],
+            "properties": {
+              "provider_event_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "Replayed-import artifacts MUST cite a replay_record_ref and an import_session_ref.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": { "const": "replayed_import" }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["replay_record_ref", "import_session_ref"],
+            "properties": {
+              "replay_record_ref": { "type": "string", "minLength": 1 },
+              "import_session_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "Imported-snapshot and support-packet artifacts MUST cite an import_session_ref.",
+          "if": {
+            "type": "object",
+            "required": ["origin_class"],
+            "properties": {
+              "origin_class": {
+                "enum": ["imported_snapshot", "support_packet_import"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["import_session_ref"],
+            "properties": {
+              "import_session_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "no_local_correspondent MUST leave execution_context_record_ref null.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "local_truth_binding": {
+                "type": "object",
+                "required": ["local_truth_authority_class"],
+                "properties": {
+                  "local_truth_authority_class": { "const": "no_local_correspondent" }
+                }
+              }
+            },
+            "required": ["local_truth_binding"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "local_truth_binding": {
+                "type": "object",
+                "required": ["execution_context_record_ref"],
+                "properties": {
+                  "execution_context_record_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "local_truth_is_authoritative and local_and_provider_disagree_review_required MUST cite an execution_context_record_ref.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "local_truth_binding": {
+                "type": "object",
+                "required": ["local_truth_authority_class"],
+                "properties": {
+                  "local_truth_authority_class": {
+                    "enum": [
+                      "local_truth_is_authoritative",
+                      "local_and_provider_disagree_review_required"
+                    ]
+                  }
+                }
+              }
+            },
+            "required": ["local_truth_binding"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "local_truth_binding": {
+                "type": "object",
+                "required": ["execution_context_record_ref"],
+                "properties": {
+                  "execution_context_record_ref": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "local_only_no_provider_retention MUST resolve provider_event_ref to null and local_truth_authority_class to local_truth_is_authoritative.",
+          "if": {
+            "type": "object",
+            "properties": {
+              "retention_window": {
+                "type": "object",
+                "required": ["retention_window_class"],
+                "properties": {
+                  "retention_window_class": {
+                    "const": "local_only_no_provider_retention"
+                  }
+                }
+              }
+            },
+            "required": ["retention_window"]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "provider_event_ref": { "type": "null" },
+              "local_truth_binding": {
+                "type": "object",
+                "required": ["local_truth_authority_class"],
+                "properties": {
+                  "local_truth_authority_class": {
+                    "const": "local_truth_is_authoritative"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Stale or unavailable freshness MUST narrow safe_open_path out of open_in_structured_viewer and surface a typed stale_or_unavailable_label.",
+          "if": {
+            "type": "object",
+            "required": ["freshness_class"],
+            "properties": {
+              "freshness_class": {
+                "enum": ["stale", "unverified"]
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "required": ["stale_or_unavailable_label"],
+            "properties": {
+              "safe_open_path": {
+                "enum": [
+                  "open_in_safe_preview_metadata_only",
+                  "download_only_no_in_product_open",
+                  "denied_no_open_path"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
