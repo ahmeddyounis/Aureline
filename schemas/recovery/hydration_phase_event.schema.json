@@ -1,0 +1,946 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/hydration_phase_event.schema.json",
+  "title": "Aureline restore-hydration phase event contract",
+  "description": "Boundary schema for hydration-phase event records frozen in docs/recovery/restore_hydration_phases_contract.md. Each event names exactly one of the six closed phases (chooser, shell_skeleton, workspace_authority_rebind, placeholder_hydration, live_dependency_rebind, evidence_only_fallback), the typed phase_state_class, the ordered cue_transition_records emitted with this event, the typed partiality block, the typed packet/export linkage, the accessibility contract, and the const honesty_invariants. The closed ready_cue_class set differentiates shell-ready, search-ready, semantic-ready, restore-complete, and the per-target rebind-complete cues so a later service, rebind, or semantic refinement cannot silently reuse one generic Ready label. Upstream restore_chooser_state, restore_provenance_record, window_topology_snapshot, workspace_authority_checkpoint, recovery_ladder_packet, and benchmark trace refs are quoted by opaque ref. Raw paths, raw URLs, raw credentials, raw provider payloads, and raw terminal scrollback never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/hydration_phase_event_record",
+  "$defs": {
+    "hydration_phase_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for hydration_phase_event_record. Additive-minor changes (new phase_state_class, new ready_cue_class, new cue_transition_class, new partiality_class, new surface_family, new linkage ref) bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "hydration_phase_event_record",
+      "description": "Discriminator. Always hydration_phase_event_record for records conforming to this schema."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for status surfaces, support bundles, evidence packets, benchmark traces, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in shell surfaces, support exports, evidence packets, benchmark trace consumers, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; consumers never re-read system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "hydration_phase_class": {
+      "type": "string",
+      "enum": [
+        "chooser",
+        "shell_skeleton",
+        "workspace_authority_rebind",
+        "placeholder_hydration",
+        "live_dependency_rebind",
+        "evidence_only_fallback"
+      ],
+      "description": "Closed six-class hydration-phase vocabulary. Rendered names are 'Chooser', 'Shell skeleton', 'Workspace authority rebind', 'Placeholder hydration', 'Live dependency rebind', and 'Evidence-only fallback'."
+    },
+    "phase_state_class": {
+      "type": "string",
+      "enum": [
+        "entered",
+        "progressing",
+        "stalled",
+        "awaiting_workspace_authority",
+        "awaiting_live_dependency",
+        "completed",
+        "degraded_to_evidence_only",
+        "upgraded_from_placeholder_hydration",
+        "bypassed_not_applicable"
+      ],
+      "description": "Closed nine-class phase-state vocabulary. Each event cites exactly one. The schema's allOf block enforces phase / state pairings (e.g. awaiting_workspace_authority is only valid on live_dependency_rebind)."
+    },
+    "ready_cue_class": {
+      "type": "string",
+      "enum": [
+        "shell_ready",
+        "quick_open_ready",
+        "command_entry_ready",
+        "first_editor_ready",
+        "search_ready",
+        "semantic_ready",
+        "remote_rebind_complete",
+        "provider_rebind_complete",
+        "notebook_rebind_complete",
+        "debugger_rebind_complete",
+        "task_runtime_rebind_complete",
+        "restore_complete"
+      ],
+      "description": "Closed twelve-class ready-cue vocabulary. Differentiates shell-ready (and its three sub-cues), search-ready, semantic-ready, the five per-target rebind-complete cues, and restore-complete so later readiness states cannot silently reuse one generic Ready label."
+    },
+    "cue_transition_class": {
+      "type": "string",
+      "enum": [
+        "not_yet_emitted",
+        "emitted_live",
+        "emitted_degraded",
+        "upgraded_from_degraded",
+        "downgraded_from_live",
+        "superseded_by_evidence_only",
+        "withdrawn_into_placeholder"
+      ],
+      "description": "Closed seven-class cue-transition vocabulary. Any change to a previously-emitted cue rides one of upgraded_from_degraded, downgraded_from_live, superseded_by_evidence_only, or withdrawn_into_placeholder; silent redefinition is non-conforming."
+    },
+    "partiality_class": {
+      "type": "string",
+      "enum": [
+        "pending_index_warmup",
+        "pending_remote_attach",
+        "pending_provider_overlay",
+        "pending_notebook_kernel",
+        "pending_debugger_attach",
+        "pending_task_runtime",
+        "stalled_rebind",
+        "missing_dependency",
+        "expired_authority"
+      ],
+      "description": "Closed nine-class partiality vocabulary describing what is still not live. Background hydration progress, stalled rebinds, missing dependencies, and expired authority are surfaced through this set; surfaces that emit free-text 'still loading' prose are non-conforming."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "shell_chrome",
+        "command_palette",
+        "quick_open_surface",
+        "editor_surface",
+        "diagnostics_panel",
+        "benchmark_trace",
+        "support_bundle",
+        "release_evidence_packet",
+        "docs_help_example"
+      ],
+      "description": "Closed surface-family vocabulary. Each event cites exactly one."
+    },
+    "startup_state_token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^startup_state:[a-z_]+$",
+      "description": "A startup_state token from docs/ux/entry_restore_truth_audit.md §6 (e.g. startup_state:reopen_with_pending_restore, startup_state:warming_startup, startup_state:partial_startup, startup_state:open_without_restore). Optional; absent on launches that have moved past the placeholder startup-state surface."
+    },
+    "recovery_level_class": {
+      "type": "string",
+      "enum": [
+        "exact_session_restore",
+        "context_restore_with_placeholders",
+        "dirty_buffer_recovery",
+        "checkpoint_rollback",
+        "evidence_only_recovery"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_level.schema.json#recovery_level_class. The chooser ref carries the chosen level for this launch; this field is the chosen class quoted for fast cross-surface filtering."
+    },
+    "cue_transition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cue",
+        "transition",
+        "summary"
+      ],
+      "properties": {
+        "cue": { "$ref": "#/$defs/ready_cue_class" },
+        "transition": { "$ref": "#/$defs/cue_transition_class" },
+        "target_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Per-target ref for rebind-complete cues. Required when cue is one of remote_rebind_complete, provider_rebind_complete, notebook_rebind_complete, debugger_rebind_complete, or task_runtime_rebind_complete."
+        },
+        "prior_event_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Required for upgraded_from_degraded, downgraded_from_live, superseded_by_evidence_only, and withdrawn_into_placeholder transitions; cites the prior event in the same phase_session_id whose cue last asserted the prior fidelity."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "Per-target rebind-complete cues require a target_ref.",
+          "if": {
+            "properties": {
+              "cue": {
+                "enum": [
+                  "remote_rebind_complete",
+                  "provider_rebind_complete",
+                  "notebook_rebind_complete",
+                  "debugger_rebind_complete",
+                  "task_runtime_rebind_complete"
+                ]
+              }
+            },
+            "required": ["cue"]
+          },
+          "then": {
+            "properties": {
+              "target_ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["target_ref"]
+          }
+        },
+        {
+          "description": "Upgrade / downgrade / supersede / withdraw transitions require a prior_event_ref.",
+          "if": {
+            "properties": {
+              "transition": {
+                "enum": [
+                  "upgraded_from_degraded",
+                  "downgraded_from_live",
+                  "superseded_by_evidence_only",
+                  "withdrawn_into_placeholder"
+                ]
+              }
+            },
+            "required": ["transition"]
+          },
+          "then": {
+            "properties": {
+              "prior_event_ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["prior_event_ref"]
+          }
+        }
+      ]
+    },
+    "partiality_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "partiality_classes",
+        "progress_visible",
+        "summary"
+      ],
+      "properties": {
+        "partiality_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/partiality_class" },
+          "uniqueItems": true,
+          "description": "Closed-vocabulary list. Empty when the phase is entered with no cues emitted yet or when every emitted cue is emitted_live."
+        },
+        "stalled_rebind_target_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "missing_dependency_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "expired_authority_target_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "pending_index_warmup_class": { "$ref": "#/$defs/short_text" },
+        "progress_visible": {
+          "type": "boolean",
+          "description": "Const true whenever partiality_classes is non-empty. Background hydration progress, stalled rebinds, missing dependencies, and expired authority MUST be visible to the user, not silently buried."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "Non-empty partiality_classes implies progress_visible = true.",
+          "if": {
+            "properties": {
+              "partiality_classes": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["partiality_classes"]
+          },
+          "then": {
+            "properties": {
+              "progress_visible": { "const": true }
+            },
+            "required": ["progress_visible"]
+          }
+        },
+        {
+          "description": "stalled_rebind in partiality_classes requires at least one stalled_rebind_target_ref.",
+          "if": {
+            "properties": {
+              "partiality_classes": {
+                "type": "array",
+                "contains": { "const": "stalled_rebind" }
+              }
+            },
+            "required": ["partiality_classes"]
+          },
+          "then": {
+            "properties": {
+              "stalled_rebind_target_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["stalled_rebind_target_refs"]
+          }
+        },
+        {
+          "description": "missing_dependency in partiality_classes requires at least one missing_dependency_class_ref.",
+          "if": {
+            "properties": {
+              "partiality_classes": {
+                "type": "array",
+                "contains": { "const": "missing_dependency" }
+              }
+            },
+            "required": ["partiality_classes"]
+          },
+          "then": {
+            "properties": {
+              "missing_dependency_class_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["missing_dependency_class_refs"]
+          }
+        },
+        {
+          "description": "expired_authority in partiality_classes requires at least one expired_authority_target_ref.",
+          "if": {
+            "properties": {
+              "partiality_classes": {
+                "type": "array",
+                "contains": { "const": "expired_authority" }
+              }
+            },
+            "required": ["partiality_classes"]
+          },
+          "then": {
+            "properties": {
+              "expired_authority_target_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["expired_authority_target_refs"]
+          }
+        }
+      ]
+    },
+    "packet_export_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase_session_id",
+        "recovery_ladder_packet_ref",
+        "docs_help_label"
+      ],
+      "properties": {
+        "phase_session_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id stable across every event in the same recovering launch / scope. Reused verbatim by benchmark traces, diagnostics panels, support bundles, release-evidence packets, and docs/help examples."
+        },
+        "restore_chooser_state_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restore_provenance_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "window_topology_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "workspace_authority_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "recovery_ladder_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_bundle_candidate_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "benchmark_trace_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "release_evidence_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "docs_help_label": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "accessibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyboard_reachable_actions",
+        "screen_reader_summary"
+      ],
+      "properties": {
+        "keyboard_reachable_actions": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that any cue chip / banner the shell renders is keyboard-reachable; partiality progress is not buried behind hover-only tooltips."
+        },
+        "focus_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "screen_reader_summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phase_vocabulary_is_closed",
+        "ready_cues_are_distinct",
+        "partiality_is_named",
+        "no_silent_cue_redefinition",
+        "privileged_surfaces_never_live_before_rebind",
+        "linkage_is_typed"
+      ],
+      "properties": {
+        "phase_vocabulary_is_closed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the event resolves to exactly one of the six closed phases."
+        },
+        "ready_cues_are_distinct": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the four shell_skeleton cues, search_ready, semantic_ready, the five rebind-complete cues, and restore_complete appear distinctly. No generic Ready collapse."
+        },
+        "partiality_is_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that any cue emitted as emitted_degraded or downgraded_from_live names at least one typed partiality_class in the event's partiality block."
+        },
+        "no_silent_cue_redefinition": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that every transition off a previously-emitted cue rides one of upgraded_from_degraded, downgraded_from_live, superseded_by_evidence_only, or withdrawn_into_placeholder."
+        },
+        "privileged_surfaces_never_live_before_rebind": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that rebind-complete cues are emitted only from a live_dependency_rebind event whose phase_state is completed."
+        },
+        "linkage_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that packet/export linkage refs are typed; free-text linkage prose is non-conforming."
+        }
+      }
+    },
+    "hydration_phase_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "hydration_phase_event_schema_version",
+        "event_id",
+        "emitted_at",
+        "phase_class",
+        "phase_state",
+        "surface_family",
+        "cue_transitions",
+        "partiality_block",
+        "packet_export_linkage",
+        "accessibility_contract",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "hydration_phase_event_schema_version": { "$ref": "#/$defs/hydration_phase_event_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "phase_class": { "$ref": "#/$defs/hydration_phase_class" },
+        "phase_state": { "$ref": "#/$defs/phase_state_class" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "startup_state_ref": { "$ref": "#/$defs/startup_state_token" },
+        "recovery_level_class_ref": { "$ref": "#/$defs/recovery_level_class" },
+        "cue_transitions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cue_transition_record" },
+          "uniqueItems": true,
+          "description": "Ordered list of cue transitions emitted with this event. Empty on entered / progressing / stalled / awaiting_* / bypassed_not_applicable events that emit no cues."
+        },
+        "partiality_block": { "$ref": "#/$defs/partiality_block" },
+        "packet_export_linkage": { "$ref": "#/$defs/packet_export_linkage" },
+        "accessibility_contract": { "$ref": "#/$defs/accessibility_contract" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "chooser phase requires the chooser linkage ref.",
+          "if": {
+            "properties": {
+              "phase_class": { "const": "chooser" },
+              "phase_state": { "not": { "const": "bypassed_not_applicable" } }
+            },
+            "required": ["phase_class", "phase_state"]
+          },
+          "then": {
+            "properties": {
+              "packet_export_linkage": {
+                "properties": {
+                  "restore_chooser_state_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["restore_chooser_state_ref"]
+              }
+            },
+            "required": ["packet_export_linkage"]
+          }
+        },
+        {
+          "description": "shell_skeleton and later phases require a window_topology_snapshot_ref.",
+          "if": {
+            "properties": {
+              "phase_class": {
+                "enum": [
+                  "shell_skeleton",
+                  "workspace_authority_rebind",
+                  "placeholder_hydration",
+                  "live_dependency_rebind",
+                  "evidence_only_fallback"
+                ]
+              }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_export_linkage": {
+                "properties": {
+                  "window_topology_snapshot_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["window_topology_snapshot_ref"]
+              }
+            },
+            "required": ["packet_export_linkage"]
+          }
+        },
+        {
+          "description": "workspace_authority_rebind and later phases require a workspace_authority_checkpoint_ref.",
+          "if": {
+            "properties": {
+              "phase_class": {
+                "enum": [
+                  "workspace_authority_rebind",
+                  "placeholder_hydration",
+                  "live_dependency_rebind",
+                  "evidence_only_fallback"
+                ]
+              }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "packet_export_linkage": {
+                "properties": {
+                  "workspace_authority_checkpoint_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["workspace_authority_checkpoint_ref"]
+              }
+            },
+            "required": ["packet_export_linkage"]
+          }
+        },
+        {
+          "description": "awaiting_workspace_authority is only valid on live_dependency_rebind.",
+          "if": {
+            "properties": {
+              "phase_state": { "const": "awaiting_workspace_authority" }
+            },
+            "required": ["phase_state"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": { "const": "live_dependency_rebind" }
+            },
+            "required": ["phase_class"]
+          }
+        },
+        {
+          "description": "awaiting_live_dependency is only valid on placeholder_hydration.",
+          "if": {
+            "properties": {
+              "phase_state": { "const": "awaiting_live_dependency" }
+            },
+            "required": ["phase_state"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": { "const": "placeholder_hydration" }
+            },
+            "required": ["phase_class"]
+          }
+        },
+        {
+          "description": "degraded_to_evidence_only is only valid on placeholder_hydration, live_dependency_rebind, or evidence_only_fallback.",
+          "if": {
+            "properties": {
+              "phase_state": { "const": "degraded_to_evidence_only" }
+            },
+            "required": ["phase_state"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": {
+                "enum": [
+                  "placeholder_hydration",
+                  "live_dependency_rebind",
+                  "evidence_only_fallback"
+                ]
+              }
+            },
+            "required": ["phase_class"]
+          }
+        },
+        {
+          "description": "upgraded_from_placeholder_hydration is only valid on placeholder_hydration or live_dependency_rebind.",
+          "if": {
+            "properties": {
+              "phase_state": { "const": "upgraded_from_placeholder_hydration" }
+            },
+            "required": ["phase_state"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": {
+                "enum": [
+                  "placeholder_hydration",
+                  "live_dependency_rebind"
+                ]
+              }
+            },
+            "required": ["phase_class"]
+          }
+        },
+        {
+          "description": "bypassed_not_applicable is only valid on chooser or evidence_only_fallback.",
+          "if": {
+            "properties": {
+              "phase_state": { "const": "bypassed_not_applicable" }
+            },
+            "required": ["phase_state"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": {
+                "enum": [
+                  "chooser",
+                  "evidence_only_fallback"
+                ]
+              }
+            },
+            "required": ["phase_class"]
+          }
+        },
+        {
+          "description": "bypass events emit no cue transitions.",
+          "if": {
+            "properties": {
+              "phase_state": { "const": "bypassed_not_applicable" }
+            },
+            "required": ["phase_state"]
+          },
+          "then": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "maxItems": 0
+              }
+            },
+            "required": ["cue_transitions"]
+          }
+        },
+        {
+          "description": "shell_skeleton events MUST NOT emit search_ready, semantic_ready, restore_complete, or per-target rebind-complete cues.",
+          "if": {
+            "properties": {
+              "phase_class": { "const": "shell_skeleton" }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "cue": {
+                      "enum": [
+                        "shell_ready",
+                        "quick_open_ready",
+                        "command_entry_ready",
+                        "first_editor_ready",
+                        "search_ready"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "workspace_authority_rebind events emit only restore_complete.",
+          "if": {
+            "properties": {
+              "phase_class": { "const": "workspace_authority_rebind" }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "cue": { "const": "restore_complete" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "placeholder_hydration events emit only search_ready, semantic_ready, or evidence-only / placeholder withdrawal transitions on prior cues.",
+          "if": {
+            "properties": {
+              "phase_class": { "const": "placeholder_hydration" }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "cue": {
+                          "enum": [
+                            "search_ready",
+                            "semantic_ready"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "transition": {
+                          "enum": [
+                            "superseded_by_evidence_only",
+                            "withdrawn_into_placeholder"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "live_dependency_rebind events emit only the five per-target rebind-complete cues, or supersede / withdraw transitions on previously-emitted cues.",
+          "if": {
+            "properties": {
+              "phase_class": { "const": "live_dependency_rebind" }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "properties": {
+                        "cue": {
+                          "enum": [
+                            "remote_rebind_complete",
+                            "provider_rebind_complete",
+                            "notebook_rebind_complete",
+                            "debugger_rebind_complete",
+                            "task_runtime_rebind_complete"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "properties": {
+                        "transition": {
+                          "enum": [
+                            "superseded_by_evidence_only",
+                            "withdrawn_into_placeholder"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_only_fallback events emit only superseded_by_evidence_only or withdrawn_into_placeholder transitions on previously-emitted cues; no live cue may be emitted from this phase.",
+          "if": {
+            "properties": {
+              "phase_class": { "const": "evidence_only_fallback" }
+            },
+            "required": ["phase_class"]
+          },
+          "then": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "transition": {
+                      "enum": [
+                        "superseded_by_evidence_only",
+                        "withdrawn_into_placeholder"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Privileged-surface rebind cues are only emittable from a completed live_dependency_rebind event.",
+          "if": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "cue": {
+                      "enum": [
+                        "remote_rebind_complete",
+                        "provider_rebind_complete",
+                        "notebook_rebind_complete",
+                        "debugger_rebind_complete",
+                        "task_runtime_rebind_complete"
+                      ]
+                    },
+                    "transition": {
+                      "enum": [
+                        "emitted_live",
+                        "emitted_degraded",
+                        "upgraded_from_degraded"
+                      ]
+                    }
+                  },
+                  "required": ["cue", "transition"]
+                }
+              }
+            },
+            "required": ["cue_transitions"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": { "const": "live_dependency_rebind" },
+              "phase_state": { "const": "completed" }
+            },
+            "required": ["phase_class", "phase_state"]
+          }
+        },
+        {
+          "description": "restore_complete is only emittable from a completed workspace_authority_rebind event.",
+          "if": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "cue": { "const": "restore_complete" },
+                    "transition": {
+                      "enum": [
+                        "emitted_live",
+                        "emitted_degraded",
+                        "upgraded_from_degraded"
+                      ]
+                    }
+                  },
+                  "required": ["cue", "transition"]
+                }
+              }
+            },
+            "required": ["cue_transitions"]
+          },
+          "then": {
+            "properties": {
+              "phase_class": { "const": "workspace_authority_rebind" },
+              "phase_state": { "const": "completed" }
+            },
+            "required": ["phase_class", "phase_state"]
+          }
+        },
+        {
+          "description": "Any emitted_degraded or downgraded_from_live cue requires a non-empty partiality_classes list.",
+          "if": {
+            "properties": {
+              "cue_transitions": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "transition": {
+                      "enum": [
+                        "emitted_degraded",
+                        "downgraded_from_live"
+                      ]
+                    }
+                  },
+                  "required": ["transition"]
+                }
+              }
+            },
+            "required": ["cue_transitions"]
+          },
+          "then": {
+            "properties": {
+              "partiality_block": {
+                "properties": {
+                  "partiality_classes": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                },
+                "required": ["partiality_classes"]
+              }
+            },
+            "required": ["partiality_block"]
+          }
+        }
+      ]
+    }
+  }
+}
