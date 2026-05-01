@@ -1,0 +1,157 @@
+# Multi-document YAML fixture for the partial-coverage drift case.
+__fixture__:
+  name: partial_coverage_after_workset_change
+  scenario: >
+    User narrows the workset scope from current_root to sparse_slice
+    (only the aureline-cli crate is in scope). The native cargo
+    runner publishes a partial graph for the sparse slice; targets
+    outside the slice are explicitly omitted. The drift event is
+    capability_set_partial_coverage_change with drift reason
+    workset_scope_changed_by_user. The fallback record cites
+    partial_truth_demoted_to_partial_adapter_degraded_pending_recovery
+    so consumer surfaces never render the partial graph as a full
+    graph. Out-of-slice targets receive a degraded_capability_handoff
+    of class known_missing_capability_no_recovery_in_context with the
+    install-or-attach review chip pointing at "widen workset scope" as
+    the recovery action.
+  exercised:
+    drift_class: capability_set_partial_coverage_change
+    drift_reason_class: workset_scope_changed_by_user
+    fallback_downgraded_behavior:
+      - target_set_narrowed_to_subset_with_review
+      - partial_truth_demoted_to_partial_adapter_degraded_pending_recovery
+    handoff_degraded_capability_class: known_missing_capability_no_recovery_in_context
+    recovery_or_escalation_action_class: widen_workset_scope_via_review
+  seed_roles:
+    - partial_coverage_drift_event
+    - partial_truth_fallback_confidence_record
+    - known_missing_handoff_for_out_of_slice_target
+---
+$schema: ../../../schemas/tooling/adapter_drift_event.schema.json
+record_kind: adapter_drift_event_record
+adapter_drift_event_schema_version: 1
+drift_event_id: drift:aureline_workspace:current_root_to_sparse_slice:01
+captured_at: 2026-04-30T15:30:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: sparse_slice
+workset_scope_ref: scope:aureline:sparse_slice:cli_only:01
+drift_class: capability_set_partial_coverage_change
+prior_adapter_state:
+  adapter_id_ref: aureline.native.cargo_runner
+  adapter_class: native_build_runner
+  adapter_confidence_ceiling: authoritative_from_source
+  publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+  snapshot_freshness_class: live_streaming
+  snapshot_partial_truth_class: complete_for_workset_scope
+  summary: Cargo runner under current_root scope; complete coverage for the workspace.
+current_adapter_state:
+  adapter_id_ref: aureline.native.cargo_runner
+  adapter_class: native_build_runner
+  adapter_confidence_ceiling: authoritative_from_source
+  publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo_sparse_slice:01
+  snapshot_freshness_class: live_streaming
+  snapshot_partial_truth_class: partial_outside_current_slice_omitted
+  summary: Same cargo runner under sparse_slice scope; aureline-core targets explicitly omitted from this slice.
+changed_capability_set:
+  - capability_flag: supports_partial_workset_scope
+    change_class: capability_added
+    summary: Snapshot now advertises a sparse-slice partial-truth posture.
+  - capability_flag: publishes_target_descriptors
+    change_class: capability_demoted_from_authoritative_to_structured
+    summary: Descriptor coverage narrowed to in-slice targets; out-of-slice targets disclosed as omitted rather than missing.
+affected_target_id_refs:
+  - tgt:tooling.target:aureline-core:lib
+  - tgt:tooling.target:aureline-core:test
+affected_action_class_set:
+  - run
+  - test
+  - build
+  - debug
+required_disclosure_behavior_class_set:
+  - emit_visible_state_change_chip_in_picker
+  - emit_problem_pane_freshness_chip_for_target
+  - emit_output_pane_header_capability_chip_for_target
+  - emit_review_required_chip_for_target
+  - emit_support_export_disclosure_with_capability_loss_summary
+drift_reason_class: workset_scope_changed_by_user
+linked_adapter_replacement_event_id_ref: null
+linked_fallback_confidence_record_id_ref: fallback:aureline_workspace:sparse_slice_partial_coverage:01
+lifecycle_status_card_ref: null
+summary: Workset scope narrowed from current_root to sparse_slice; cargo runner publishes a partial graph; out-of-slice targets disclosed as omitted; pickers render partial-coverage chip and offer widen-scope recovery.
+---
+$schema: ../../../schemas/tooling/fallback_confidence.schema.json
+record_kind: fallback_confidence_record
+fallback_confidence_schema_version: 1
+fallback_confidence_record_id: fallback:aureline_workspace:sparse_slice_partial_coverage:01
+captured_at: 2026-04-30T15:30:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: sparse_slice
+workset_scope_ref: scope:aureline:sparse_slice:cli_only:01
+source_kind_class: native_runner_active
+confidence_tier: authoritative_from_source
+missing_capability_class_set:
+  - missing_target_descriptors
+  - missing_target_health_observations
+downgraded_behavior_class_set:
+  - target_set_narrowed_to_subset_with_review
+  - partial_truth_demoted_to_partial_adapter_degraded_pending_recovery
+recovery_or_escalation_action_class_set:
+  - widen_workset_scope_via_review
+  - narrow_workset_scope_via_review
+current_adapter_snapshot:
+  adapter_id_ref: aureline.native.cargo_runner
+  adapter_class: native_build_runner
+  adapter_confidence_ceiling: authoritative_from_source
+  publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo_sparse_slice:01
+  snapshot_partial_truth_class: partial_outside_current_slice_omitted
+  snapshot_freshness_class: live_streaming
+  summary: Cargo runner snapshot under sparse_slice scope; in-slice coverage authoritative, out-of-slice targets explicitly omitted.
+affected_target_id_refs:
+  - tgt:tooling.target:aureline-core:lib
+  - tgt:tooling.target:aureline-core:test
+affected_action_class_set:
+  - run
+  - test
+  - build
+  - debug
+lifecycle_status_card_ref: null
+linked_adapter_drift_event_id_ref: drift:aureline_workspace:current_root_to_sparse_slice:01
+linked_adapter_replacement_event_id_ref: null
+support_export_disclosure_class: exported_with_capability_loss_summary_only
+summary: Native cargo runner remains authoritative inside the sparse slice; aureline-core targets are not_observed_by_adapter under the active slice; widening the scope through review restores full coverage.
+---
+$schema: ../../../schemas/tooling/fallback_confidence.schema.json
+record_kind: degraded_capability_handoff_record
+fallback_confidence_schema_version: 1
+handoff_record_id: handoff:aureline_workspace:aureline-core:test:test:out_of_slice:01
+captured_at: 2026-04-30T15:30:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: sparse_slice
+target_id_ref: tgt:tooling.target:aureline-core:test
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo_sparse_slice:01
+source_adapter_id_ref: aureline.native.cargo_runner
+source_adapter_class: native_build_runner
+source_kind_class: native_runner_active
+confidence_tier: authoritative_from_source
+affected_action_class: test
+degraded_capability_class: known_missing_capability_no_recovery_in_context
+delivery_surface_class_set:
+  - run_test_build_debug_picker
+  - quick_open
+  - problems_pane_chip
+  - support_export
+handoff_affordance_class_set:
+  - render_known_missing_chip_with_install_or_attach_review
+  - disable_action_in_picker_with_typed_label
+  - fan_out_to_support_export_disclosure
+external_handoff: null
+rerun_last_invocation: null
+recovery_guidance:
+  recovery_or_escalation_action_class: widen_workset_scope_via_review
+  preserves_current_work: true
+  routes_through_safe_review: true
+  lifecycle_status_card_ref: null
+  summary: Widen the active workset scope through the workset review surface to bring aureline-core back into coverage; current work and session state are preserved.
+linked_fallback_confidence_record_id_ref: fallback:aureline_workspace:sparse_slice_partial_coverage:01
+linked_adapter_drift_event_id_ref: drift:aureline_workspace:current_root_to_sparse_slice:01
+summary: aureline-core test target is outside the active sparse slice; picker renders known-missing chip with widen-scope review action rather than rendering the target as broken.

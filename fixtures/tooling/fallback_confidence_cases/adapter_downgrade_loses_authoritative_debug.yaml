@@ -1,0 +1,179 @@
+# Multi-document YAML fixture for the adapter-downgrade-loses-authoritative-debug case.
+__fixture__:
+  name: adapter_downgrade_loses_authoritative_debug
+  scenario: >
+    Native cargo runner that previously owned the aureline workspace's
+    target graph becomes unavailable (the cargo binary is missing from
+    the active toolchain context). The heuristic target inferrer takes
+    over under the same workset_scope. The adapter swap rides
+    schemas/tooling/adapter_descriptor.schema.json#adapter_replacement_event_record;
+    here we record the matching adapter_drift_event_record, the
+    fallback_confidence_record the drift event emitted, and the
+    degraded_capability_handoff_record the picker renders for the
+    aureline-cli debug action: debug downgrades from
+    supported_authoritative to currently_inferred_heuristic_only with
+    a review-required chip. Capability loss narrows affordances
+    immediately and names the heuristic_target_inferrer adapter class
+    plus the toolchain-unavailable reason.
+  exercised:
+    drift_class: capability_downgrade_disclosed_lower_confidence
+    drift_reason_class: toolchain_unavailable_in_active_context
+    fallback_source_kind_class: heuristic_target_inferrer_ruleset
+    handoff_degraded_capability_class: currently_inferred_heuristic_only
+    handoff_affordance_class: render_currently_inferred_chip_with_review_required
+    recovery_or_escalation_action_class: install_or_attach_native_runner_via_extension_review
+  seed_roles:
+    - capability_downgrade_drift_event
+    - heuristic_fallback_confidence_record
+    - currently_inferred_handoff
+---
+$schema: ../../../schemas/tooling/adapter_drift_event.schema.json
+record_kind: adapter_drift_event_record
+adapter_drift_event_schema_version: 1
+drift_event_id: drift:aureline_workspace:cargo_to_heuristic_downgrade:01
+captured_at: 2026-04-30T14:20:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: current_root
+workset_scope_ref: scope:aureline:current_root:01
+drift_class: capability_downgrade_disclosed_lower_confidence
+prior_adapter_state:
+  adapter_id_ref: aureline.native.cargo_runner
+  adapter_class: native_build_runner
+  adapter_confidence_ceiling: authoritative_from_source
+  publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:cargo:01
+  snapshot_freshness_class: live_streaming
+  snapshot_partial_truth_class: complete_for_workset_scope
+  summary: Native cargo runner active before the cargo binary became unavailable.
+current_adapter_state:
+  adapter_id_ref: aureline.heuristic.target_inferrer
+  adapter_class: heuristic_target_inferrer
+  adapter_confidence_ceiling: heuristic_best_effort
+  publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+  snapshot_freshness_class: warm_cached
+  snapshot_partial_truth_class: partial_adapter_degraded_pending_recovery
+  summary: Heuristic adapter takes over after cargo binary loss; only targets the heuristic ruleset can recognise survive.
+changed_capability_set:
+  - capability_flag: supports_debug_action
+    change_class: capability_demoted_from_authoritative_to_structured
+    summary: Debug action demoted; heuristic adapter cannot drive a structured debug session.
+  - capability_flag: supports_test_action
+    change_class: capability_demoted_from_structured_to_heuristic
+    summary: Test action narrowed to heuristic pytest-style discovery; cargo test no longer reachable.
+  - capability_flag: supports_artifact_publication_event
+    change_class: capability_removed
+    summary: Heuristic adapter does not emit artifact-publication events.
+  - capability_flag: supports_target_graph_streaming_updates
+    change_class: capability_demoted_from_streaming_to_warm_cached
+    summary: Live cargo metadata watcher gone; heuristic adapter polls warm cache.
+  - capability_flag: preserves_target_id_across_adapter_swap
+    change_class: capability_removed
+    summary: Heuristic adapter cannot guarantee aureline-core test ids across the swap.
+affected_target_id_refs:
+  - tgt:tooling.target:aureline-cli:bin
+  - tgt:tooling.target:aureline-core:lib
+  - tgt:tooling.target:aureline-core:test
+affected_action_class_set:
+  - run
+  - test
+  - build
+  - debug
+required_disclosure_behavior_class_set:
+  - emit_visible_state_change_chip_in_picker
+  - emit_lifecycle_status_card_for_workspace_or_target
+  - emit_problem_pane_freshness_chip_for_target
+  - emit_output_pane_header_capability_chip_for_target
+  - emit_ai_action_sheet_disclosure_disabling_tool_call
+  - emit_review_required_chip_for_target
+  - emit_support_export_disclosure_with_capability_loss_summary
+drift_reason_class: toolchain_unavailable_in_active_context
+linked_adapter_replacement_event_id_ref: replacement:aureline_workspace:cargo_to_heuristic:01
+linked_fallback_confidence_record_id_ref: fallback:aureline_workspace:cargo_to_heuristic_downgrade:01
+lifecycle_status_card_ref: lifecycle:status_card:aureline_workspace:degraded_after_cargo_loss:01
+summary: Cargo binary unavailable; heuristic adapter takes over; debug / test / artifact-publication / streaming / target-id-stability capabilities downgraded; pickers render confidence-downgrade chip and review-required chip; AI action sheets disable structured tool calls.
+---
+$schema: ../../../schemas/tooling/fallback_confidence.schema.json
+record_kind: fallback_confidence_record
+fallback_confidence_schema_version: 1
+fallback_confidence_record_id: fallback:aureline_workspace:cargo_to_heuristic_downgrade:01
+captured_at: 2026-04-30T14:20:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: current_root
+workset_scope_ref: scope:aureline:current_root:01
+source_kind_class: heuristic_target_inferrer_ruleset
+confidence_tier: heuristic_best_effort
+missing_capability_class_set:
+  - missing_debug_action
+  - missing_artifact_publication_event
+  - missing_target_graph_streaming_updates
+  - missing_target_id_continuity_across_swap
+  - missing_authoritative_confidence_ceiling
+downgraded_behavior_class_set:
+  - action_demoted_to_currently_inferred_heuristic_only
+  - action_demoted_to_external_handoff
+  - target_set_narrowed_to_subset_with_review
+  - freshness_demoted_to_stale_pending_refresh
+  - partial_truth_demoted_to_partial_adapter_degraded_pending_recovery
+  - confidence_ceiling_demoted_below_prior_ceiling
+recovery_or_escalation_action_class_set:
+  - install_or_attach_native_runner_via_extension_review
+  - copy_command_to_terminal_external_handoff
+  - rerun_last_known_invocation_via_review
+current_adapter_snapshot:
+  adapter_id_ref: aureline.heuristic.target_inferrer
+  adapter_class: heuristic_target_inferrer
+  adapter_confidence_ceiling: heuristic_best_effort
+  publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+  snapshot_partial_truth_class: partial_adapter_degraded_pending_recovery
+  snapshot_freshness_class: warm_cached
+  summary: Heuristic adapter snapshot after the cargo runner became unavailable.
+affected_target_id_refs:
+  - tgt:tooling.target:aureline-cli:bin
+affected_action_class_set:
+  - debug
+  - test
+  - build
+lifecycle_status_card_ref: lifecycle:status_card:aureline_workspace:degraded_after_cargo_loss:01
+linked_adapter_drift_event_id_ref: drift:aureline_workspace:cargo_to_heuristic_downgrade:01
+linked_adapter_replacement_event_id_ref: replacement:aureline_workspace:cargo_to_heuristic:01
+support_export_disclosure_class: exported_with_full_capability_loss_disclosure
+summary: Workspace dropped to heuristic posture after cargo binary became unavailable; debug / artifact / streaming capabilities lost; recovery is to reattach the native cargo runner via extension review.
+---
+$schema: ../../../schemas/tooling/fallback_confidence.schema.json
+record_kind: degraded_capability_handoff_record
+fallback_confidence_schema_version: 1
+handoff_record_id: handoff:aureline_workspace:aureline-cli:bin:debug:heuristic:01
+captured_at: 2026-04-30T14:20:00.000Z
+workspace_id: wks:aureline
+workset_scope_class: current_root
+target_id_ref: tgt:tooling.target:aureline-cli:bin
+publishing_graph_id_ref: graph:tooling.target_graph:aureline_workspace:heuristic_after_swap:01
+source_adapter_id_ref: aureline.heuristic.target_inferrer
+source_adapter_class: heuristic_target_inferrer
+source_kind_class: heuristic_target_inferrer_ruleset
+confidence_tier: heuristic_best_effort
+affected_action_class: debug
+degraded_capability_class: currently_inferred_heuristic_only
+delivery_surface_class_set:
+  - run_test_build_debug_picker
+  - quick_open
+  - command_palette
+  - output_pane_header_chip
+  - ai_action_sheet
+  - support_export
+handoff_affordance_class_set:
+  - render_currently_inferred_chip_with_review_required
+  - disable_action_in_picker_with_typed_label
+  - fan_out_to_lifecycle_status_card
+  - fan_out_to_ai_action_sheet_disclosure
+  - fan_out_to_support_export_disclosure
+external_handoff: null
+rerun_last_invocation: null
+recovery_guidance:
+  recovery_or_escalation_action_class: install_or_attach_native_runner_via_extension_review
+  preserves_current_work: true
+  routes_through_safe_review: true
+  lifecycle_status_card_ref: lifecycle:status_card:aureline_workspace:degraded_after_cargo_loss:01
+  summary: Reattach the native cargo runner via extension review to restore authoritative debug; current work and session state are preserved.
+linked_fallback_confidence_record_id_ref: fallback:aureline_workspace:cargo_to_heuristic_downgrade:01
+linked_adapter_drift_event_id_ref: drift:aureline_workspace:cargo_to_heuristic_downgrade:01
+summary: aureline-cli debug action narrowed to currently-inferred-heuristic-only; review-required chip surfaces in the picker, the output pane header, and AI action sheets; recovery is to reattach the native cargo runner.
