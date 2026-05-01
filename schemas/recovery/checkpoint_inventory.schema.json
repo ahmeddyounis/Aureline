@@ -1,0 +1,804 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/checkpoint_inventory.schema.json",
+  "title": "Aureline checkpoint inspector inventory contract",
+  "description": "Boundary schema for checkpoint_inventory_record frozen in docs/recovery/checkpoint_inspector_contract.md. The inspector projects one record describing the remembered state visible at a chosen scope (current window, current workspace, current machine, profile-local, or all windows for the workspace), the typed inventory of restorable items (workspace-authority checkpoints, window-topology snapshots, dirty-buffer / local-history / session-restore journals, portable-state packages, and evidence-only recovery packs) with scope, age, producer build, and fidelity labels, the typed inventory_control records that drive clear / export / revert actions with explicit deletion scope and review language separating remembered state from broader workspace content / profile settings / caches, the typed linkage to restore provenance / export-before-reset / clear-data review, and the const honesty invariants every consumer reads. The closed inventory_item_class, scope_class, age_class, fidelity_label_class, control_class, effect_breadth_class, downgrade_trigger_class, excluded_live_authority_class, redaction_class, export_posture, reversibility_class, and pre_action_class vocabularies re-export verbatim from /schemas/state/workspace_authority_checkpoint.schema.json, /schemas/state/portable_state_package.schema.json, /schemas/state/restore_provenance_record.schema.json, /schemas/recovery/restore_chooser_state.schema.json, /schemas/recovery/export_before_reset_checklist.schema.json, and /schemas/storage/clear_data_review.schema.json. The schema mints no new restore-fidelity, restore-level, downgrade-trigger, redaction, export-posture, reversibility, pre-action, or scenario-family value. Raw absolute paths, raw URLs, raw credentials, raw provider payloads, raw command lines, raw secret material, raw terminal scrollback, and raw source content never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/checkpoint_inventory_record",
+  "$defs": {
+    "checkpoint_inventory_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for checkpoint_inventory_record. Additive-minor changes (new inventory_item_class, new scope_class, new age_class, new control_class, new effect_breadth_class) bump this const; repurposing an existing value, weakening any honesty invariant, or relaxing the export-before-reset linkage on destructive controls is breaking and requires a new decision row."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "checkpoint_inventory_record",
+      "description": "Discriminator. Always checkpoint_inventory_record for records conforming to this schema."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for inspector surfaces, support bundles, evidence packets, CLI output, and logs. Raw absolute paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in inspector surfaces, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": { "$ref": "#/$defs/short_text" },
+        "producer_version": { "$ref": "#/$defs/short_text" },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null]
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null]
+        },
+        "producer_instance_handle": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Producer build stamp reflecting the producer that wrote the inventoried artifact. Re-exported verbatim from /schemas/state/workspace_authority_checkpoint.schema.json#producer_build_stamp."
+    },
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_window",
+        "current_workspace",
+        "current_machine",
+        "profile_local",
+        "all_windows_for_workspace"
+      ],
+      "description": "Closed five-class scope vocabulary the inspector uses for both itself (the inspector's overall scope) and per-control target_scope. Surfaces that mint a parallel scope label are non-conforming."
+    },
+    "age_class": {
+      "type": "string",
+      "enum": [
+        "current_session",
+        "this_workspace_session",
+        "within_recent_window",
+        "older_than_recent_window",
+        "expired_pending_gc",
+        "unknown_no_timestamp"
+      ],
+      "description": "Closed six-class age vocabulary used by inspector rows to disclose recency without requiring a real wall-clock timestamp. Producer-local monotonic time fields remain opaque; this class names the bucket the surface renders."
+    },
+    "inventory_item_class": {
+      "type": "string",
+      "enum": [
+        "workspace_authority_checkpoint",
+        "window_topology_snapshot",
+        "dirty_buffer_recovery_journal",
+        "local_history_journal",
+        "session_restore_journal",
+        "portable_state_package",
+        "evidence_only_recovery_pack"
+      ],
+      "description": "Closed seven-class inventory vocabulary covering the artifact families the inspector exposes. Surfaces that flatten 'all remembered state' into a single opaque blob are non-conforming."
+    },
+    "fidelity_label_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Re-exported verbatim from /schemas/state/workspace_authority_checkpoint.schema.json#restore_class. Display copy may render Exact restore, Compatible restore, Layout only, Recovered drafts, Evidence only, or No restore."
+    },
+    "downgrade_trigger_class": {
+      "type": "string",
+      "enum": [
+        "schema_translation_required",
+        "schema_meaning_changed",
+        "missing_extension_dependency",
+        "missing_remote_session",
+        "missing_remote_authority",
+        "unsupported_display_topology",
+        "excluded_secret_material",
+        "excluded_live_handle",
+        "workspace_manifest_conflict",
+        "policy_narrowing",
+        "manual_repair_required",
+        "producer_schema_downgrade_refused"
+      ],
+      "description": "Re-exported verbatim from /schemas/state/workspace_authority_checkpoint.schema.json#downgrade_trigger_class. Empty list when fidelity_label_class is exact_restore."
+    },
+    "excluded_live_authority_class": {
+      "type": "string",
+      "enum": [
+        "raw_secret_material",
+        "live_token_or_cookie",
+        "delegated_approval_or_unspent_ticket",
+        "machine_unique_handle",
+        "live_process_or_session_handle",
+        "raw_provider_payload",
+        "raw_url_path_command_or_log",
+        "raw_source_or_user_content",
+        "live_remote_or_kernel_binding"
+      ],
+      "description": "Re-exported verbatim from /schemas/state/workspace_authority_checkpoint.schema.json#excluded_live_authority_class."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "review_required_code_adjacent",
+        "regulated_support_only",
+        "local_only_private",
+        "raw_dump_excluded"
+      ],
+      "description": "Re-exported verbatim from /schemas/ux/restore_fidelity.schema.json#redaction_class via /schemas/recovery/restore_chooser_state.schema.json#redaction_class."
+    },
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "local_first_not_exported",
+        "export_review_required",
+        "exported_by_reference",
+        "export_blocked_by_policy"
+      ],
+      "description": "Re-exported verbatim from /schemas/ux/restore_fidelity.schema.json#export_posture via /schemas/recovery/restore_chooser_state.schema.json#export_posture."
+    },
+    "reversibility_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regeneration",
+        "checkpoint_restore",
+        "no_undo_export_only"
+      ],
+      "description": "Re-exported verbatim from /schemas/support/recovery_action.schema.json#reversal_class via /schemas/recovery/restore_chooser_state.schema.json#reversibility_class."
+    },
+    "pre_action_class": {
+      "type": "string",
+      "enum": [
+        "export_now_before_change",
+        "capture_local_checkpoint",
+        "import_offline_bundle",
+        "investigate_with_project_doctor"
+      ],
+      "description": "Re-exported verbatim from the recovery-scenario contract pre-action set via /schemas/recovery/restore_chooser_state.schema.json#pre_action_class."
+    },
+    "control_class": {
+      "type": "string",
+      "enum": [
+        "inspect",
+        "export",
+        "revert",
+        "clear"
+      ],
+      "description": "Closed four-class control vocabulary. inspect is read-only; export writes a portable-state convenience package by reference; revert walks an authoritative rollback ref to a prior checkpoint state; clear removes the inventoried remembered-state row only and never reaches broader workspace content, profile settings, or caches."
+    },
+    "effect_breadth_class": {
+      "type": "string",
+      "enum": [
+        "non_destructive_read_only",
+        "removes_remembered_state_only",
+        "affects_broader_workspace_content",
+        "affects_profile_settings",
+        "affects_caches"
+      ],
+      "description": "Closed five-class effect-breadth vocabulary the inspector uses to disclose what an action actually touches. Inspector clear / revert controls MUST resolve to non_destructive_read_only or removes_remembered_state_only; the three broader values are reserved for the contrast disclaimer block and for ref-only routing into the clear-data review, factory-reset, or profile-reset surfaces that own them."
+    },
+    "control_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "disabled_until_probe",
+        "hidden_not_applicable",
+        "blocked_by_policy",
+        "unavailable_missing_evidence",
+        "blocked_pending_export_before_reset"
+      ],
+      "description": "Closed availability vocabulary for inventory controls. blocked_pending_export_before_reset is inspector-scoped: a destructive control stays disabled until the linked export-before-reset checklist resolves to verified."
+    },
+    "linkage_target_class": {
+      "type": "string",
+      "enum": [
+        "clear_data_review",
+        "factory_or_profile_reset_checklist",
+        "profile_settings_inspector",
+        "storage_inspector"
+      ],
+      "description": "Closed four-class set naming the broader-effect surfaces the inspector cites by ref when its disclaimer block contrasts removed remembered state with affected workspace content, profile settings, or caches. The inspector never executes those broader actions itself; it only links them by ref."
+    },
+    "inventory_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "item_class",
+        "item_artifact_ref",
+        "scope_class",
+        "scope_ref",
+        "age_class",
+        "producer_build",
+        "source_schema_version",
+        "fidelity_label_class",
+        "downgrade_triggers",
+        "excluded_live_authority_classes",
+        "redaction_class",
+        "export_posture",
+        "available_control_ids",
+        "summary"
+      ],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/opaque_id" },
+        "item_class": { "$ref": "#/$defs/inventory_item_class" },
+        "item_artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the underlying artifact (workspace_authority_ref, window_topology_snapshot id, journal_id, portable_state_package id, or evidence-pack id). The inspector cites the artifact by ref; bodies live elsewhere."
+        },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "age_class": { "$ref": "#/$defs/age_class" },
+        "last_written_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "source_schema_version": { "$ref": "#/$defs/short_text" },
+        "fidelity_label_class": { "$ref": "#/$defs/fidelity_label_class" },
+        "downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger_class" },
+          "uniqueItems": true,
+          "description": "Typed reasons that narrowed this row's fidelity. MUST be empty when fidelity_label_class is exact_restore."
+        },
+        "excluded_live_authority_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/excluded_live_authority_class" },
+          "uniqueItems": true,
+          "description": "Live-authority classes intentionally left out of the underlying artifact. Surfaces that imply live tokens or kernel handles ride the inventory row are non-conforming."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "size_estimate_bytes": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional byte estimate. Null when the producer cannot estimate without rebuilding the artifact body."
+        },
+        "checksum_state": {
+          "type": ["string", "null"],
+          "enum": ["unchecked", "verified", "mismatch", "unsupported_destination", null],
+          "description": "Optional checksum-state hint. Surfaces that imply verified provenance without a verified checksum_state are non-conforming."
+        },
+        "signature_state": {
+          "type": ["string", "null"],
+          "enum": ["unsigned", "signed_unverified", "signed_verified", "unsupported_destination", null],
+          "description": "Optional signature-state hint. Plain local exports may be unsigned; the surface MUST NOT imply verified provenance for unsigned rows."
+        },
+        "restore_provenance_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preserved_prior_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "available_control_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque ids for the controls in the parent record's controls[] that target this row. Every row MUST be inspectable; surfaces that emit a row with no controls are non-conforming."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "Rows whose fidelity_label_class is exact_restore MUST carry an empty downgrade_triggers list.",
+          "if": {
+            "properties": { "fidelity_label_class": { "const": "exact_restore" } },
+            "required": ["fidelity_label_class"]
+          },
+          "then": {
+            "properties": {
+              "downgrade_triggers": {
+                "type": "array",
+                "maxItems": 0
+              }
+            },
+            "required": ["downgrade_triggers"]
+          }
+        },
+        {
+          "description": "Window-topology snapshots, session-restore journals, evidence-only recovery packs, dirty-buffer journals, and local-history journals MUST NOT claim exact_restore. Only the workspace-authority checkpoint or a portable-state package can carry exact_restore; the other classes are layout-only, recovered-drafts, evidence-only, or compatible at best.",
+          "if": {
+            "properties": {
+              "item_class": {
+                "enum": [
+                  "window_topology_snapshot",
+                  "dirty_buffer_recovery_journal",
+                  "local_history_journal",
+                  "session_restore_journal",
+                  "evidence_only_recovery_pack"
+                ]
+              }
+            },
+            "required": ["item_class"]
+          },
+          "then": {
+            "properties": {
+              "fidelity_label_class": {
+                "not": { "const": "exact_restore" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Evidence-only recovery packs MUST carry fidelity_label_class evidence_only or no_restore. The inspector never claims live or layout fidelity for an evidence pack.",
+          "if": {
+            "properties": { "item_class": { "const": "evidence_only_recovery_pack" } },
+            "required": ["item_class"]
+          },
+          "then": {
+            "properties": {
+              "fidelity_label_class": {
+                "enum": ["evidence_only", "no_restore"]
+              }
+            },
+            "required": ["fidelity_label_class"]
+          }
+        }
+      ]
+    },
+    "inventory_control_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "control_class",
+        "target_item_ids",
+        "target_scope_class",
+        "target_scope_ref",
+        "effect_breadth_class",
+        "availability",
+        "enabled",
+        "reversibility_class",
+        "evidence_retained_after_action",
+        "confirm_label",
+        "cancel_label",
+        "summary"
+      ],
+      "properties": {
+        "control_id": { "$ref": "#/$defs/opaque_id" },
+        "control_class": { "$ref": "#/$defs/control_class" },
+        "target_item_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque ids of the inventory_item_records this control acts on. The deletion / export / revert scope is named by the listed item ids; surfaces that imply unlisted items are touched are non-conforming."
+        },
+        "target_scope_class": { "$ref": "#/$defs/scope_class" },
+        "target_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "effect_breadth_class": { "$ref": "#/$defs/effect_breadth_class" },
+        "availability": { "$ref": "#/$defs/control_availability_class" },
+        "enabled": { "type": "boolean" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "requires_pre_action": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pre_action_class" },
+          "uniqueItems": true
+        },
+        "evidence_retained_after_action": {
+          "type": "boolean",
+          "description": "True when retained evidence (crash envelope, restore manifest, evidence packet, forensic packet, support bundle) survives this action. Inspect and export controls always retain evidence; clear and revert controls retain evidence except when the cleared row IS evidence (e.g. clearing an evidence_only_recovery_pack), in which case the surface MUST disclose the loss in summary copy."
+        },
+        "linked_export_before_reset_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the export_before_reset_checklist_record gating a destructive control. Required on every clear and revert control whose effect breadth is removes_remembered_state_only AND whose availability transitions through blocked_pending_export_before_reset."
+        },
+        "linked_clear_data_review_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the clear_data_review_record. Cited only as a contrast link from the inspector disclaimer block; the inspector never executes clear-data review actions itself."
+        },
+        "linked_restore_provenance_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "linked_portable_state_package_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the portable_state_package_record produced by an export control. Required on every export control whose post-condition is a written package."
+        },
+        "linked_workspace_authority_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the workspace_authority_checkpoint_record this control targets or walks. Required on every revert control."
+        },
+        "confirm_label": { "$ref": "#/$defs/short_text" },
+        "cancel_label": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "inspect controls MUST be non-destructive read-only with exact_undo reversibility.",
+          "if": {
+            "properties": { "control_class": { "const": "inspect" } },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_breadth_class": { "const": "non_destructive_read_only" },
+              "reversibility_class": { "const": "exact_undo" },
+              "evidence_retained_after_action": { "const": true }
+            },
+            "required": ["effect_breadth_class", "reversibility_class", "evidence_retained_after_action"]
+          }
+        },
+        {
+          "description": "export controls MUST be non-destructive read-only and produce a portable-state package ref.",
+          "if": {
+            "properties": { "control_class": { "const": "export" } },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_breadth_class": { "const": "non_destructive_read_only" },
+              "reversibility_class": { "const": "exact_undo" },
+              "evidence_retained_after_action": { "const": true }
+            },
+            "required": [
+              "effect_breadth_class",
+              "reversibility_class",
+              "evidence_retained_after_action",
+              "linked_portable_state_package_ref"
+            ]
+          }
+        },
+        {
+          "description": "clear controls MUST remove only remembered state and never reach broader workspace content, profile settings, or caches.",
+          "if": {
+            "properties": { "control_class": { "const": "clear" } },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_breadth_class": { "const": "removes_remembered_state_only" },
+              "reversibility_class": {
+                "enum": ["checkpoint_restore", "regeneration", "no_undo_export_only"]
+              }
+            },
+            "required": ["effect_breadth_class", "reversibility_class"]
+          }
+        },
+        {
+          "description": "revert controls MUST walk a workspace-authority checkpoint and resolve to removes_remembered_state_only effect breadth (the workspace-authority checkpoint walk is, by contract, a remembered-state operation; broader profile / cache effects ride a separate clear-data review or factory-reset surface).",
+          "if": {
+            "properties": { "control_class": { "const": "revert" } },
+            "required": ["control_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_breadth_class": { "const": "removes_remembered_state_only" },
+              "reversibility_class": {
+                "enum": ["checkpoint_restore", "compensating_action"]
+              }
+            },
+            "required": [
+              "effect_breadth_class",
+              "reversibility_class",
+              "linked_workspace_authority_checkpoint_ref"
+            ]
+          }
+        },
+        {
+          "description": "Controls whose availability is blocked_pending_export_before_reset MUST cite a linked_export_before_reset_ref.",
+          "if": {
+            "properties": {
+              "availability": { "const": "blocked_pending_export_before_reset" }
+            },
+            "required": ["availability"]
+          },
+          "then": {
+            "required": ["linked_export_before_reset_ref"]
+          }
+        },
+        {
+          "description": "Controls whose availability is blocked_pending_export_before_reset MUST be disabled.",
+          "if": {
+            "properties": {
+              "availability": { "const": "blocked_pending_export_before_reset" }
+            },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": {
+              "enabled": { "const": false }
+            },
+            "required": ["enabled"]
+          }
+        },
+        {
+          "description": "Inspector controls MUST NOT carry an effect breadth of affects_broader_workspace_content, affects_profile_settings, or affects_caches. Those breadths exist only as contrast disclaimers; the inspector links the broader surface by ref instead of executing it.",
+          "properties": {
+            "effect_breadth_class": {
+              "not": {
+                "enum": [
+                  "affects_broader_workspace_content",
+                  "affects_profile_settings",
+                  "affects_caches"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "broader_effect_disclaimer_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effect_breadth_class",
+        "linkage_target_class",
+        "linkage_target_ref",
+        "summary"
+      ],
+      "properties": {
+        "effect_breadth_class": {
+          "type": "string",
+          "enum": [
+            "affects_broader_workspace_content",
+            "affects_profile_settings",
+            "affects_caches"
+          ],
+          "description": "Only the three broader-effect classes are admissible; the disclaimer block names what the inspector does NOT touch."
+        },
+        "linkage_target_class": { "$ref": "#/$defs/linkage_target_class" },
+        "linkage_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "review_language_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "removes_remembered_state_only_summary",
+        "broader_effect_disclaimers",
+        "remembered_state_definition_const",
+        "broader_surface_routing_const"
+      ],
+      "properties": {
+        "removes_remembered_state_only_summary": { "$ref": "#/$defs/short_text" },
+        "broader_effect_disclaimers": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/broader_effect_disclaimer_row" },
+          "uniqueItems": true,
+          "description": "Three rows naming the three broader-effect classes (affects_broader_workspace_content, affects_profile_settings, affects_caches) and the surface ref the user would use if they actually wanted the broader effect. The inspector renders all three so the contrast is always present."
+        },
+        "remembered_state_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the surface uses the contract's remembered-state definition (workspace-authority checkpoints, window-topology snapshots, dirty-buffer / local-history / session-restore journals, portable-state packages, and evidence-only recovery packs) rather than substituting a private prose definition."
+        },
+        "broader_surface_routing_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that broader workspace content, profile settings, and caches are routed by ref to clear-data review, profile-reset / factory-reset, profile-settings inspector, or storage inspector — and never executed inline by the checkpoint inspector."
+        }
+      },
+      "allOf": [
+        {
+          "description": "The broader_effect_disclaimers block MUST cover all three broader-effect classes exactly once.",
+          "properties": {
+            "broader_effect_disclaimers": {
+              "type": "array",
+              "allOf": [
+                {
+                  "contains": {
+                    "properties": { "effect_breadth_class": { "const": "affects_broader_workspace_content" } },
+                    "required": ["effect_breadth_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "properties": { "effect_breadth_class": { "const": "affects_profile_settings" } },
+                    "required": ["effect_breadth_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "properties": { "effect_breadth_class": { "const": "affects_caches" } },
+                    "required": ["effect_breadth_class"]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_provenance_refs",
+        "export_before_reset_checklist_refs",
+        "clear_data_review_refs",
+        "portable_state_package_refs",
+        "support_bundle_candidate_ref"
+      ],
+      "properties": {
+        "restore_provenance_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to /schemas/state/restore_provenance_record.schema.json records explaining the restore fidelity and omission of inventoried rows."
+        },
+        "export_before_reset_checklist_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to /schemas/recovery/export_before_reset_checklist.schema.json records gating any destructive inventory control."
+        },
+        "clear_data_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to /schemas/storage/clear_data_review.schema.json records used as the contrast link when the inspector disclaims affects_broader_workspace_content or affects_caches."
+        },
+        "portable_state_package_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to /schemas/state/portable_state_package.schema.json records produced by inventory export controls."
+        },
+        "support_bundle_candidate_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inventory_class_is_closed",
+        "scope_is_explicit",
+        "effect_breadth_is_typed",
+        "controls_distinguish_inspect_export_clear_revert",
+        "destructive_controls_link_export_before_reset",
+        "clear_actions_remove_remembered_state_only",
+        "broader_effects_routed_by_ref",
+        "linkage_is_typed"
+      ],
+      "properties": {
+        "inventory_class_is_closed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that every inventoried row resolves to one of the seven closed inventory_item_class values; remembered state is never rendered as a single opaque blob."
+        },
+        "scope_is_explicit": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that both the inspector's overall scope and every control's target_scope_class are typed before any control runs."
+        },
+        "effect_breadth_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that every control resolves to one of the five closed effect_breadth_class values; free-text 'minor cleanup' or 'reset' prose is non-conforming."
+        },
+        "controls_distinguish_inspect_export_clear_revert": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the four control_class values render distinctly. A surface that collapses inspect / export / clear / revert into one generic 'reset' button is non-conforming."
+        },
+        "destructive_controls_link_export_before_reset": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that any inventory control whose availability transitions through blocked_pending_export_before_reset cites a linked export-before-reset checklist ref."
+        },
+        "clear_actions_remove_remembered_state_only": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that inventory clear and revert controls never reach broader workspace content, profile settings, or caches inline; broader effects are linked by ref to the surface that owns them."
+        },
+        "broader_effects_routed_by_ref": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that affects_broader_workspace_content, affects_profile_settings, and affects_caches appear only in the disclaimer block as ref-linked contrast — never as the effect breadth of an executable inspector control."
+        },
+        "linkage_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that linkage refs (restore provenance, export-before-reset, clear-data review, portable-state package, support-bundle candidate) are typed opaque ids; free-text linkage prose is non-conforming."
+        }
+      }
+    },
+    "checkpoint_inventory_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "checkpoint_inventory_schema_version",
+        "inventory_id",
+        "emitted_at",
+        "inspector_scope_class",
+        "inspector_scope_ref",
+        "producer_build",
+        "title",
+        "summary",
+        "inventory_items",
+        "controls",
+        "review_language",
+        "linkage",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "checkpoint_inventory_schema_version": { "$ref": "#/$defs/checkpoint_inventory_schema_version" },
+        "inventory_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "inspector_scope_class": { "$ref": "#/$defs/scope_class" },
+        "inspector_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "title": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "inventory_items": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inventory_item_record" },
+          "uniqueItems": true,
+          "description": "One row per inventoried artifact in the inspector's scope. An empty inventory is non-conforming; surfaces that have nothing to show MUST emit one evidence_only_recovery_pack row whose summary names that the workspace has no remembered state."
+        },
+        "controls": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/inventory_control_record" },
+          "uniqueItems": true,
+          "description": "One row per control the inspector exposes. Every inventory item MUST be referenced by at least one control via target_item_ids."
+        },
+        "review_language": { "$ref": "#/$defs/review_language_block" },
+        "linkage": { "$ref": "#/$defs/linkage_block" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "Every inventory_item_record MUST be referenced by at least one inventory_control_record via target_item_ids. Surfaces that emit a row with no controls — making it inert — are non-conforming.",
+          "properties": {
+            "controls": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "control_class": { "const": "inspect" }
+                },
+                "required": ["control_class"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

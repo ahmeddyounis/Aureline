@@ -1,0 +1,191 @@
+# yaml-language-server: $schema=../../../schemas/recovery/checkpoint_inventory.schema.json
+__fixture__:
+  name: evidence_only_pack_clear_blocked_pending_export
+  scenario: >
+    A support-export-preview inspector instance scoped to the
+    current machine. The inventory exposes one evidence-only
+    recovery pack (a crash envelope and forensic packets that
+    survived a corrupt-restorable-state failure). The clear control
+    is destructive and disabled until the linked export-before-
+    reset checklist resolves to verified — clearing the only copy
+    of the evidence pack would destroy support evidence. The
+    surface discloses that clearing the pack itself is the rare
+    case where evidence retention does not hold and asks the user
+    to export first.
+  doc_sections:
+    - "§2 Inventory-item vocabulary"
+    - "§5 Controls"
+    - "§5.1 Availability"
+    - "§7 Linkage"
+    - "§9 Surface rules"
+
+record_kind: checkpoint_inventory_record
+checkpoint_inventory_schema_version: 1
+inventory_id: ckpt-inventory-evidence-only-pack-0004
+emitted_at: "mono:7302:00:15:42.0033"
+
+inspector_scope_class: current_machine
+inspector_scope_ref: machine:aureline-laptop.0001
+
+producer_build:
+  producer_name: aureline
+  producer_version: "0.0.0-dev.7302"
+  producer_channel: experimental
+  producer_platform_class: macos
+  producer_instance_handle: producer_instance:support_export_preview.0001
+
+title: Checkpoint inventory — evidence-only recovery pack
+summary: >
+  One evidence-only recovery pack from yesterday's corrupt-
+  restorable-state failure. Clearing the pack destroys evidence
+  and is gated by the linked export-before-reset checklist.
+
+inventory_items:
+  - item_id: inv-row-evidence-only-recovery-pack-0040
+    item_class: evidence_only_recovery_pack
+    item_artifact_ref: evidence_only_recovery_pack:corrupt_restorable_state.0040
+    scope_class: current_machine
+    scope_ref: machine:aureline-laptop.0001
+    age_class: within_recent_window
+    last_written_at: "mono:7301:18:02:14.0008"
+    producer_build:
+      producer_name: aureline
+      producer_version: "0.0.0-dev.7301"
+      producer_channel: experimental
+      producer_platform_class: macos
+      producer_instance_handle: producer_instance:authoritative.0001
+    source_schema_version: "evidence_only_recovery_pack.v1"
+    fidelity_label_class: evidence_only
+    downgrade_triggers:
+      - manual_repair_required
+      - workspace_manifest_conflict
+    excluded_live_authority_classes:
+      - raw_secret_material
+      - live_token_or_cookie
+      - live_process_or_session_handle
+      - live_remote_or_kernel_binding
+    redaction_class: regulated_support_only
+    export_posture: export_review_required
+    size_estimate_bytes: 1572864
+    checksum_state: verified
+    signature_state: signed_verified
+    restore_provenance_ref: restore_provenance:evidence_only_pack.0040
+    available_control_ids:
+      - inv-control-inspect-evidence-pack-0040
+      - inv-control-export-evidence-pack-0040
+      - inv-control-clear-evidence-pack-0040
+    summary: >
+      Crash envelope and forensic packets retained from the
+      corrupt-restorable-state failure. Restore fidelity is
+      evidence-only by class.
+
+controls:
+  - control_id: inv-control-inspect-evidence-pack-0040
+    control_class: inspect
+    target_item_ids:
+      - inv-row-evidence-only-recovery-pack-0040
+    target_scope_class: current_machine
+    target_scope_ref: machine:aureline-laptop.0001
+    effect_breadth_class: non_destructive_read_only
+    availability: available
+    enabled: true
+    reversibility_class: exact_undo
+    evidence_retained_after_action: true
+    confirm_label: Inspect evidence-only recovery pack
+    cancel_label: Cancel
+    summary: >
+      Read-only inspection of the crash envelope and forensic
+      packet manifest. Body bytes stay redacted at boundary class
+      regulated_support_only.
+
+  - control_id: inv-control-export-evidence-pack-0040
+    control_class: export
+    target_item_ids:
+      - inv-row-evidence-only-recovery-pack-0040
+    target_scope_class: current_machine
+    target_scope_ref: machine:aureline-laptop.0001
+    effect_breadth_class: non_destructive_read_only
+    availability: available
+    enabled: true
+    reversibility_class: exact_undo
+    evidence_retained_after_action: true
+    linked_portable_state_package_ref: portable_state_package:evidence_only_pack.0040.export
+    linked_restore_provenance_ref: restore_provenance:evidence_only_pack.0040
+    confirm_label: Export evidence-only pack
+    cancel_label: Cancel
+    summary: >
+      Write a support-bundle-shaped export preserving the crash
+      envelope, forensic packets, redaction class, and signer ref
+      so a later support engineer can reconstruct the failure.
+
+  - control_id: inv-control-clear-evidence-pack-0040
+    control_class: clear
+    target_item_ids:
+      - inv-row-evidence-only-recovery-pack-0040
+    target_scope_class: current_machine
+    target_scope_ref: machine:aureline-laptop.0001
+    effect_breadth_class: removes_remembered_state_only
+    availability: blocked_pending_export_before_reset
+    enabled: false
+    reversibility_class: no_undo_export_only
+    requires_pre_action:
+      - export_now_before_change
+    evidence_retained_after_action: false
+    linked_export_before_reset_ref: ebr:evidence_only_pack_clear.0001
+    confirm_label: Clear evidence-only recovery pack
+    cancel_label: Keep evidence
+    summary: >
+      Removing this pack destroys the only retained crash envelope
+      and forensic packets for the failure. The control stays
+      disabled until the linked export-before-reset checklist
+      verifies the convenience export. Evidence retention does not
+      hold for this control because the cleared row IS the
+      evidence; the user is told this in the confirm step.
+
+review_language:
+  removes_remembered_state_only_summary: >
+    Clear acts only on the evidence-only recovery pack remembered
+    on this machine. Workspace bytes, profile defaults, caches,
+    and the live workspace authority are not affected.
+  broader_effect_disclaimers:
+    - effect_breadth_class: affects_broader_workspace_content
+      linkage_target_class: clear_data_review
+      linkage_target_ref: clear_data_review:project-aureline.workspace.0001
+      summary: >
+        To remove workspace bytes or shared manifests, use the
+        linked clear-data review sheet.
+    - effect_breadth_class: affects_profile_settings
+      linkage_target_class: factory_or_profile_reset_checklist
+      linkage_target_ref: ebr:profile_reset.profile-aureline.0001
+      summary: >
+        To reset profile defaults, use the linked export-before-
+        reset checklist for profile reset.
+    - effect_breadth_class: affects_caches
+      linkage_target_class: storage_inspector
+      linkage_target_ref: storage_inspector:project-aureline.workspace.0001
+      summary: >
+        To clear knowledge / artifact / prebuild caches, use the
+        linked storage inspector.
+  remembered_state_definition_const: true
+  broader_surface_routing_const: true
+
+linkage:
+  restore_provenance_refs:
+    - restore_provenance:evidence_only_pack.0040
+  export_before_reset_checklist_refs:
+    - ebr:evidence_only_pack_clear.0001
+  clear_data_review_refs:
+    - clear_data_review:project-aureline.workspace.0001
+  portable_state_package_refs:
+    - portable_state_package:evidence_only_pack.0040.export
+  support_bundle_candidate_ref: support_bundle_candidate:evidence_only_pack.0040
+
+honesty_invariants:
+  inventory_class_is_closed: true
+  scope_is_explicit: true
+  effect_breadth_is_typed: true
+  controls_distinguish_inspect_export_clear_revert: true
+  destructive_controls_link_export_before_reset: true
+  clear_actions_remove_remembered_state_only: true
+  broader_effects_routed_by_ref: true
+  linkage_is_typed: true
