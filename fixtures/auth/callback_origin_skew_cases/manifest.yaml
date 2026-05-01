@@ -1,0 +1,113 @@
+schema_version: 1
+contract_ref: docs/auth/auth_handoff_interstitial_contract.md
+auth_handoff_interstitial_schema_ref: schemas/auth/auth_handoff_interstitial.schema.json
+auth_callback_state_schema_ref: schemas/auth/auth_callback_state.schema.json
+drill_packet_ref: artifacts/auth/system_browser_auth_drill_packet.md
+native_approval_boundary_review_ref: artifacts/auth/native_approval_boundary_review.yaml
+
+rules:
+  - Every fixture validates as one auth_handoff_interstitial_record.
+  - Every fixture's __fixture__.exercised_axes carries skew_class, resulting_state, safe_recovery_action_class, and authority_change_class so the drill packet can quote the row by stable id.
+  - Callback origin, requested action class, provider/domain, target scope, expiry/replay policy, availability disclosure, native-approval boundary, and confirm/reject actions are present on every fixture.
+  - System-browser, device-code, and platform-authenticator-native flows MUST carry embedded_auth_exception_ref = null.
+  - Denied / expired / superseded / rejected_by_policy rows MUST name one denial_reason_class from the closed set.
+  - Raw tokens, raw URLs, raw cookies, raw codes, raw nonces, raw PKCE verifiers, raw passkey material, raw passwords, and raw provider query strings never appear; every reference is opaque-id-aliased.
+  - safe_recovery_action_class resolves to one of the closed retry_path_class values on schemas/auth/auth_callback_state.schema.json#/$defs/retry_path_class.
+  - authority_change_class resolves to one of the six closed values in §3 of the system-browser auth drill packet.
+
+cases:
+  - fixture: baseline_loopback_origin_verified.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: no_skew_baseline
+    resulting_state: pending_review
+    safe_recovery_action_class: continue_local_without_sign_in
+    authority_change_class: authority_unchanged_local_continuity_preserved
+    covers:
+      - normal_callback_system_browser_first
+      - loopback_http_origin
+      - origin_verification_verified
+      - system_browser_first_preferred
+
+  - fixture: loopback_port_drift_denied.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: loopback_port_or_host_drift
+    resulting_state: denied_origin_mismatch
+    safe_recovery_action_class: retry_in_system_browser
+    authority_change_class: authority_denied_failed_closed_no_widening
+    covers:
+      - wrong_origin_callback_origin_mismatch
+      - loopback_http_origin
+      - origin_verification_cross_origin_limited
+      - typed_denial_callback_origin_mismatch
+
+  - fixture: tenant_match_rule_violated_denied.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: tenant_or_workspace_binding_mismatch
+    resulting_state: denied_native_boundary
+    safe_recovery_action_class: contact_support_with_export
+    authority_change_class: authority_narrowed_managed_only_revoked
+    covers:
+      - wrong_tenant_authority_narrowed
+      - tenant_or_workspace_mismatch_denial
+      - preserved_local_work_intact_with_managed_narrowed
+      - no_silent_workspace_reopen
+
+  - fixture: expired_callback_after_browser_idle.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: expiry_window_closed_before_review
+    resulting_state: expired_before_review
+    safe_recovery_action_class: retry_in_system_browser
+    authority_change_class: authority_unchanged_managed_held_until_revalidation
+    covers:
+      - expired_callback_reopen_required
+      - expiry_or_replay_policy_violation_denial
+      - reopen_required_after_idle
+      - no_silent_re_prompt_after_expiry
+
+  - fixture: stale_approval_replay_denied.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: stale_approval_replay_attempt
+    resulting_state: denied_replay
+    safe_recovery_action_class: no_recovery_without_superseding_action
+    authority_change_class: authority_denied_failed_closed_no_widening
+    covers:
+      - stale_approval_replay_denied
+      - callback_replay_denied_denial
+      - single_redemption_invariant
+      - no_silent_re_use_of_consumed_callback
+
+  - fixture: browser_blocked_device_code_offered.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: browser_launch_policy_blocked_device_code_offered
+    resulting_state: pending_review
+    safe_recovery_action_class: switch_to_device_code
+    authority_change_class: authority_narrowed_visible_recovery_required
+    covers:
+      - browser_blocked_device_code_fallback
+      - device_code_poll_origin
+      - browser_launch_policy_blocked_with_visible_recovery
+      - code_expiry_label_rendered
+
+  - fixture: passkey_available_step_up_native.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: passkey_available_native_step_up
+    resulting_state: pending_review
+    safe_recovery_action_class: resume_after_step_up
+    authority_change_class: authority_widened_inside_native_review_only
+    covers:
+      - passkey_available_step_up_native
+      - platform_authenticator_native_origin
+      - product_owned_native_required
+      - reserved_native_surface_high_risk_approval_sheet
+
+  - fixture: passkey_unavailable_system_browser_fallback.yaml
+    record_kind: auth_handoff_interstitial_record
+    skew_class: passkey_unavailable_system_browser_fallback
+    resulting_state: pending_review
+    safe_recovery_action_class: retry_in_system_browser
+    authority_change_class: authority_narrowed_visible_recovery_required
+    covers:
+      - passkey_unavailable_system_browser_fallback
+      - passkey_unsupported_by_platform_or_authenticator
+      - system_browser_first_preferred_when_passkey_unavailable
+      - no_embedded_passkey_substitute

@@ -1,0 +1,125 @@
+# yaml-language-server: $schema=../../../schemas/auth/auth_handoff_interstitial.schema.json
+__fixture__:
+  name: expired_callback_after_browser_idle
+  scenario: >
+    The user opened the system browser, paused, and returned after
+    the interstitial's expiry window closed. The interstitial fails
+    closed with expired_before_review and the typed
+    expiry_or_replay_policy_violation denial reason. Managed
+    authority is held until the reviewer reopens; the host shell
+    never silently re-prompts with a freshly minted policy after
+    expiry. The reject path keeps local work intact; the confirm
+    path is a typed retry_in_system_browser, not a silent retry.
+  exercised_axes:
+    skew_class: expiry_window_closed_before_review
+    resulting_state: expired_before_review
+    safe_recovery_action_class: retry_in_system_browser
+    authority_change_class: authority_unchanged_managed_held_until_revalidation
+    auth_flow_class: system_browser
+    requested_action_class: refresh_existing_session
+    callback_origin_class: loopback_http_origin
+    origin_verification_state: verified
+    denial_reason_class: expiry_or_replay_policy_violation
+    embedded_handoff_forbidden: true
+  contract_sections:
+    - Required interstitial fields
+    - Callback-origin review rules
+    - Confirm and reject actions
+    - Audit and export rules
+
+record_kind: auth_handoff_interstitial_record
+auth_handoff_interstitial_schema_version: 1
+interstitial_id: auth-handoff-interstitial:skew-expired-callback:0004
+interstitial_state: expired_before_review
+auth_flow_class: system_browser
+requested_action_class: refresh_existing_session
+requested_action_label: Refresh your managed session for the payments-prod workspace.
+provider_identity:
+  provider_class: identity_or_enterprise_provider
+  provider_label: Acme corporate identity
+  provider_domain_label: login.acme.example
+  provider_scope_label: payments-prod tenant, scoped session
+  provider_actor_class: human_account
+  connected_provider_record_id: connected-provider:acme-idp:0001
+callback_origin_disclosure:
+  callback_origin_class: loopback_http_origin
+  callback_origin_label: Aureline desktop loopback (port-pinned)
+  host_or_domain_label: 127.0.0.1 (Aureline-managed loopback)
+  origin_verification_state: verified
+  return_anchor_label: Aureline desktop – payments-prod workspace
+  return_anchor_ref: return-anchor:skew-expired-callback:0004
+  origin_disclosure_ref: origin-disclosure:skew-expired-callback:0004
+target_scope:
+  identity_mode: managed_workspace
+  account_boundary_class: managed
+  scope_summary_label: Refresh binds to the payments-prod workspace and the Acme tenant; the bound subject does not change.
+  bound_workspace_ref: workspace:payments-prod
+  bound_tenant_or_org_ref: tenant:acme-prod
+  bound_actor_subject_ref: actor-subject:sam.acme
+  active_org_ref: org:acme-prod
+  target_scope_summary_refs:
+    - scope-summary:skew-expired-callback:payments-prod
+expiry_replay_policy:
+  issued_at: "2026-04-29T14:00:00Z"
+  expires_at: "2026-04-29T14:05:00Z"
+  replay_posture: denied_on_any_replay
+  single_use_required: true
+  expiry_summary_label: This handoff has expired; reopen sign-in to mint a fresh review.
+availability_disclosure:
+  system_browser_availability: supported
+  device_code_availability: supported
+  passkey_availability: supported
+  preferred_flow_class: system_browser
+  fallback_flow_order:
+    - device_code
+    - platform_authenticator_native
+  availability_summary_label: System browser is preferred. The previous handoff expired; no path silently re-prompts on the prior policy.
+  browser_launch_policy_class: system_default_browser_required
+native_approval_boundary:
+  product_owned_native_required: false
+  embedded_handoff_forbidden: true
+  host_native_step_up_required: false
+  reserved_native_surface_refs:
+    - product_security_messaging
+    - workspace_trust_elevation
+    - high_risk_approval_sheet
+  product_owned_review_surface_ref: null
+  boundary_summary_label: The handoff expired before review; managed authority is held until a fresh interstitial is minted and confirmed.
+confirm_action:
+  action_label: Reopen sign-in in system browser
+  primary_action_class: open_in_system_browser
+  host_native_target_required: false
+  hook_ref: repair-hook:retry-in-system-browser:skew-expired-callback:0004
+  browser_handoff_packet_ref: browser-handoff-packet:retry:skew-expired-callback:0004
+reject_action:
+  action_label: Continue local without sign-in
+  rejection_outcome_class: continue_local_without_sign_in
+  hook_ref: repair-hook:continue-local-without-sign-in:skew-expired-callback:0004
+  preserves_local_work_assertion: true
+preserved_local_work_summary:
+  posture_class: local_work_intact_with_managed_narrowed
+  summary_label: Local editing, save, undo, local Git, local tasks, and BYOK AI remain available while the managed session is held pending a fresh sign-in.
+  preserved_local_work_block_ref: preserved-local-work:managed-session:reauth-required:skew-expired-callback:0004
+auth_callback_packet_ref: auth-callback-packet:skew-expired-callback:0004
+managed_session_state_ref: managed-session:reauth-required:payments-prod:skew-expired-callback:0004
+browser_handoff_packet_ref: browser-handoff-packet:retry:skew-expired-callback:0004
+device_code_ref: null
+embedded_auth_exception_ref: null
+deployment_profile_scope:
+  - enterprise_online
+  - managed_cloud
+denial_reason_class: expiry_or_replay_policy_violation
+support_export_refs:
+  - support-export:auth-handoff:skew-expired-callback:0004
+audit_event_refs:
+  - audit-event:auth_handoff_interstitial_rendered:skew-expired-callback:0004
+  - audit-event:auth_handoff_interstitial_expired:skew-expired-callback:0004
+diagnostics_quote_refs:
+  - docs-help-quote:auth-handoff:expired-callback
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:auth:managed:0002
+  trust_state: trusted
+  execution_context_id: execution-context:auth:skew-expired-callback:payments-prod
+redaction_class: metadata_safe_default
+minted_at: "2026-04-29T14:08:11Z"

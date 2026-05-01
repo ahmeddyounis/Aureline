@@ -1,0 +1,818 @@
+# Native-approval boundary review for the auth-handoff lane.
+#
+# Companion to:
+#   - the auth-handoff interstitial contract
+#     (docs/auth/auth_handoff_interstitial_contract.md)
+#   - the system-browser callback packet contract
+#     (docs/auth/system_browser_callback_packet.md)
+#   - the managed-authentication and session-continuity contract
+#     (docs/auth/managed_auth_and_session_continuity_contract.md)
+#   - ADR 0010 (browser-handoff approval ticket)
+#     (docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md)
+#   - ADR 0015 (embedded-surface boundary and auth handoff)
+#     (docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md)
+#   - the system-browser auth drill packet
+#     (artifacts/auth/system_browser_auth_drill_packet.md)
+#   - the embedded-surface owner/origin chrome review
+#     (artifacts/ux/owner_origin_chrome_review.yaml)
+#   - the auth-handoff interstitial schema
+#     (schemas/auth/auth_handoff_interstitial.schema.json)
+#   - the auth-callback-state schema
+#     (schemas/auth/auth_callback_state.schema.json)
+#   - the embedded-auth exception register schema
+#     (schemas/auth/embedded_auth_exception.schema.json)
+#   - the callback-origin skew corpus
+#     (fixtures/auth/callback_origin_skew_cases/)
+#   - the auth-handoff interstitial corpus
+#     (fixtures/auth/auth_handoff_cases/)
+#
+# Purpose:
+#   Freeze the review rules that keep high-risk auth approvals on a
+#   host-native review surface and out of webviews, OS notifications,
+#   and companion shortcuts. This file is the per-row review companion
+#   to the system-browser auth drill packet: reviewers grade each
+#   requested-action class against the rules below, and the drill
+#   packet aggregates the verdicts.
+#
+# Rules:
+#   - If this file and the auth-handoff interstitial contract disagree,
+#     the contract wins and this file MUST update in the same change.
+#   - Every token quoted below is sourced from one of the schemas above
+#     by value. Adding a new token requires a schema bump and a parallel
+#     decision row.
+#   - The review packet is reusable in diagnostics, support exports,
+#     admin exports, release evidence, and docs/help without special-case
+#     copy. Surfaces quote labels by stable ref.
+#   - Per-task and per-milestone identifiers stay out of this file.
+
+schema_version: 1
+
+contract_ref: docs/auth/auth_handoff_interstitial_contract.md
+upstream_callback_packet_contract_ref: docs/auth/system_browser_callback_packet.md
+upstream_managed_session_contract_ref: docs/auth/managed_auth_and_session_continuity_contract.md
+upstream_adr_browser_handoff_ref: docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+upstream_adr_embedded_surface_ref: docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+auth_handoff_interstitial_schema_ref: schemas/auth/auth_handoff_interstitial.schema.json
+auth_callback_state_schema_ref: schemas/auth/auth_callback_state.schema.json
+embedded_auth_exception_schema_ref: schemas/auth/embedded_auth_exception.schema.json
+drill_packet_ref: artifacts/auth/system_browser_auth_drill_packet.md
+embedded_surface_chrome_review_ref: artifacts/ux/owner_origin_chrome_review.yaml
+callback_origin_skew_corpus: fixtures/auth/callback_origin_skew_cases/
+auth_handoff_corpus: fixtures/auth/auth_handoff_cases/
+
+# Reused closed vocabularies. These mirror the schemas above by value;
+# new tokens require a schema bump and a parallel decision row.
+axes:
+  requested_action_class:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/requested_action_class
+    values:
+      - sign_in_new_session
+      - resume_existing_session
+      - step_up_authority
+      - refresh_existing_session
+      - link_account
+      - scope_grant
+      - switch_org_or_tenant
+      - admin_step_up
+      - credential_recovery
+      - deprovision_acknowledge
+
+  auth_flow_class:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/auth_flow_class
+    values:
+      - system_browser
+      - device_code
+      - platform_authenticator_native
+      - embedded_session_refresh
+      - embedded_password_exception
+      - not_applicable
+
+  primary_action_class:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/confirm_action/properties/primary_action_class
+    values:
+      - open_in_system_browser
+      - switch_to_device_code
+      - open_platform_authenticator
+      - open_host_native_step_up
+      - resume_after_step_up
+      - open_embedded_session_refresh
+      - open_embedded_password_exception
+      - open_admin_step_up
+      - open_deprovision_review
+      - no_confirm_admissible
+
+  rejection_outcome_class:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/reject_action/properties/rejection_outcome_class
+    values:
+      - continue_local_without_sign_in
+      - return_to_account_free_local
+      - request_admin_policy_change
+      - switch_to_device_code
+      - contact_support_with_export
+      - abort_pending_handoff_silently_forbidden
+
+  native_reserved_surface:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/native_reserved_surface
+    values:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+
+  forbidden_surrogate_path_class:
+    description: >
+      Closed vocabulary for paths that MUST NOT deliver a high-risk
+      auth approval. The reviewer asks one question per surrogate
+      class for every action row.
+    values:
+      - embedded_webview_final_approval
+      - embedded_password_form_high_risk_action
+      - embedded_session_refresh_widening_scope
+      - os_notification_inline_confirm
+      - os_notification_lock_screen_quick_action
+      - companion_push_inline_confirm
+      - companion_shortcut_quick_action
+      - background_silent_re_grant
+      - silent_embedded_fallback_after_browser_block
+      - silent_re_prompt_after_expiry_or_rejection
+      - cross_origin_tab_substitute_for_loopback_callback
+
+  denial_reason_class:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/denial_reason_class
+    values:
+      - callback_origin_mismatch
+      - callback_replay_denied
+      - tenant_or_workspace_mismatch
+      - embedded_handoff_without_exception
+      - embedded_handoff_for_high_risk_action
+      - system_browser_blocked_no_visible_fallback
+      - device_code_unavailable_no_visible_fallback
+      - passkey_unavailable_no_visible_fallback
+      - native_approval_boundary_violation
+      - expiry_or_replay_policy_violation
+      - exception_register_entry_revoked_or_expired
+
+  audit_event_id:
+    source: schemas/auth/auth_handoff_interstitial.schema.json#/$defs/audit_event_id
+    values:
+      - auth_handoff_interstitial_rendered
+      - auth_handoff_interstitial_confirmed
+      - auth_handoff_interstitial_rejected
+      - auth_handoff_interstitial_expired
+      - auth_handoff_interstitial_superseded
+      - auth_handoff_interstitial_denied_origin
+      - auth_handoff_interstitial_denied_replay
+      - auth_handoff_interstitial_denied_native_boundary
+      - auth_handoff_interstitial_routed_to_native_approval
+      - auth_handoff_interstitial_routed_to_device_code
+      - auth_handoff_interstitial_exception_register_quoted
+
+# Per-requested-action review rows. Each row pins the host-native
+# review surface the confirm action lands on, the admissible primary
+# action classes, the surrogate paths the row denies, and the typed
+# audit event ids reviewers expect on a confirm or fail-closed.
+requested_action_review_rows:
+  - requested_action_class: sign_in_new_session
+    crosses_product_owned_native_boundary: false
+    product_owned_native_required: false
+    host_native_target_required: false
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - switch_to_device_code
+      - open_platform_authenticator
+    confirm_lands_on_reserved_native_surfaces: []
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - silent_embedded_fallback_after_browser_block
+      - cross_origin_tab_substitute_for_loopback_callback
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_origin
+      - auth_handoff_interstitial_denied_replay
+    note: >
+      Pre-workspace and pre-provider sign-in. The interstitial may
+      land on the activity center; no native-reserved approval is
+      required because no privileged action is yet authorised.
+
+  - requested_action_class: resume_existing_session
+    crosses_product_owned_native_boundary: false
+    product_owned_native_required: false
+    host_native_target_required: false
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - switch_to_device_code
+      - open_platform_authenticator
+      - open_embedded_session_refresh
+    confirm_lands_on_reserved_native_surfaces: []
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - embedded_session_refresh_widening_scope
+      - silent_embedded_fallback_after_browser_block
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_origin
+      - auth_handoff_interstitial_denied_replay
+      - auth_handoff_interstitial_denied_native_boundary
+    note: >
+      Resume binds an existing managed or self-hosted session.
+      Embedded session refresh is admissible only inside an active
+      register entry whose exception_scope_class is
+      session_refresh_only and whose host_native_approval_required is
+      true.
+
+  - requested_action_class: step_up_authority
+    crosses_product_owned_native_boundary: true
+    product_owned_native_required: true
+    host_native_target_required: true
+    admissible_primary_action_classes:
+      - open_platform_authenticator
+      - open_host_native_step_up
+      - resume_after_step_up
+    confirm_lands_on_reserved_native_surfaces:
+      - product_security_messaging
+      - workspace_trust_elevation
+      - high_risk_approval_sheet
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - embedded_password_form_high_risk_action
+      - os_notification_inline_confirm
+      - os_notification_lock_screen_quick_action
+      - companion_push_inline_confirm
+      - companion_shortcut_quick_action
+      - background_silent_re_grant
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_routed_to_native_approval
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_native_boundary
+      - auth_handoff_interstitial_denied_replay
+    note: >
+      Step-up crosses a product-owned/native boundary. Confirm MUST
+      land on a host-native step-up sheet; OS notifications and
+      companion shortcuts may not deliver the final approval and may
+      not present an inline confirm action.
+
+  - requested_action_class: refresh_existing_session
+    crosses_product_owned_native_boundary: false
+    product_owned_native_required: false
+    host_native_target_required: false
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - switch_to_device_code
+      - open_platform_authenticator
+      - open_embedded_session_refresh
+    confirm_lands_on_reserved_native_surfaces: []
+    forbidden_surrogate_paths:
+      - embedded_session_refresh_widening_scope
+      - background_silent_re_grant
+      - silent_re_prompt_after_expiry_or_rejection
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_confirmed
+      - auth_handoff_interstitial_exception_register_quoted
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_replay
+      - auth_handoff_interstitial_denied_native_boundary
+      - auth_handoff_interstitial_expired
+    note: >
+      Narrow renewal inside an authenticated session. Embedded paths
+      MUST cite an active embedded-session-refresh register entry;
+      scope widening, password collection, and high-risk action
+      authority on this row are non-conforming.
+
+  - requested_action_class: link_account
+    crosses_product_owned_native_boundary: false
+    product_owned_native_required: false
+    host_native_target_required: false
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - switch_to_device_code
+      - open_embedded_password_exception
+    confirm_lands_on_reserved_native_surfaces: []
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - embedded_password_form_high_risk_action
+      - companion_shortcut_quick_action
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_confirmed
+      - auth_handoff_interstitial_exception_register_quoted
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_origin
+      - auth_handoff_interstitial_denied_native_boundary
+    note: >
+      Bounded account-link without widening scope. Embedded paths
+      MUST cite an active embedded_password_exception register entry
+      whose exception_scope_class is limited_account_link.
+
+  - requested_action_class: scope_grant
+    crosses_product_owned_native_boundary: true
+    product_owned_native_required: true
+    host_native_target_required: true
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - open_host_native_step_up
+      - resume_after_step_up
+    confirm_lands_on_reserved_native_surfaces:
+      - high_risk_approval_sheet
+      - workspace_trust_elevation
+      - product_security_messaging
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - embedded_session_refresh_widening_scope
+      - os_notification_inline_confirm
+      - companion_push_inline_confirm
+      - background_silent_re_grant
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_routed_to_native_approval
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_replay
+      - auth_handoff_interstitial_denied_native_boundary
+    note: >
+      Scope-grant widens authority and MUST land on a host-native
+      review surface that names every reserved native surface the
+      grant touches.
+
+  - requested_action_class: switch_org_or_tenant
+    crosses_product_owned_native_boundary: true
+    product_owned_native_required: true
+    host_native_target_required: true
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - open_host_native_step_up
+      - resume_after_step_up
+    confirm_lands_on_reserved_native_surfaces:
+      - workspace_trust_elevation
+      - high_risk_approval_sheet
+      - product_security_messaging
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - companion_shortcut_quick_action
+      - silent_re_prompt_after_expiry_or_rejection
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_routed_to_native_approval
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_native_boundary
+      - auth_handoff_interstitial_denied_origin
+    note: >
+      Org or tenant switch crosses a product-owned/native boundary.
+      The interstitial MUST disclose current and target scope; a
+      failed switch fails closed visibly to a managed-blocked or
+      local-safe state.
+
+  - requested_action_class: admin_step_up
+    crosses_product_owned_native_boundary: true
+    product_owned_native_required: true
+    host_native_target_required: true
+    admissible_primary_action_classes:
+      - open_admin_step_up
+      - open_host_native_step_up
+      - resume_after_step_up
+    confirm_lands_on_reserved_native_surfaces:
+      - product_security_messaging
+      - workspace_trust_elevation
+      - high_risk_approval_sheet
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - embedded_password_form_high_risk_action
+      - os_notification_inline_confirm
+      - os_notification_lock_screen_quick_action
+      - companion_push_inline_confirm
+      - companion_shortcut_quick_action
+      - background_silent_re_grant
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_routed_to_native_approval
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_native_boundary
+    note: >
+      Admin step-up MUST land on a host-native admin step-up sheet.
+      No notification, companion shortcut, or embedded surface is
+      admissible as a final-approval path on this row.
+
+  - requested_action_class: credential_recovery
+    crosses_product_owned_native_boundary: false
+    product_owned_native_required: false
+    host_native_target_required: false
+    admissible_primary_action_classes:
+      - open_in_system_browser
+      - switch_to_device_code
+      - open_host_native_step_up
+      - open_admin_step_up
+    confirm_lands_on_reserved_native_surfaces: []
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - embedded_password_form_high_risk_action
+      - companion_shortcut_quick_action
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_native_boundary
+      - auth_handoff_interstitial_denied_origin
+    note: >
+      Recovery routes through system-browser, device-code, credential-
+      store unlock, or admin-assisted recovery. CAPTCHA-only and
+      knowledge-question-only sole paths are forbidden.
+
+  - requested_action_class: deprovision_acknowledge
+    crosses_product_owned_native_boundary: true
+    product_owned_native_required: true
+    host_native_target_required: true
+    admissible_primary_action_classes:
+      - open_deprovision_review
+      - open_host_native_step_up
+    confirm_lands_on_reserved_native_surfaces:
+      - product_security_messaging
+      - workspace_trust_elevation
+      - high_risk_approval_sheet
+    forbidden_surrogate_paths:
+      - embedded_webview_final_approval
+      - os_notification_inline_confirm
+      - companion_push_inline_confirm
+      - companion_shortcut_quick_action
+      - silent_re_prompt_after_expiry_or_rejection
+    audit_events_on_confirm:
+      - auth_handoff_interstitial_routed_to_native_approval
+      - auth_handoff_interstitial_confirmed
+    audit_events_on_fail_closed:
+      - auth_handoff_interstitial_denied_native_boundary
+    note: >
+      Reviewer-only acknowledgement of a managed deprovision. The
+      interstitial MUST quote preserved-local-work by ref and the
+      offboarding/export path on the bound managed-session record;
+      the acknowledgement lands on a host-native review surface.
+
+# Surrogate-path denial rules. Reviewers ask one question per row for
+# every action whose requested-action class crosses a product-owned/
+# native boundary, and one question per row for the embedded paths on
+# the non-crossing rows.
+surrogate_path_denial_rules:
+  - id: embedded_webview_never_final_approval
+    rule: >
+      An embedded webview MUST NOT render a final-approval button for
+      any requested-action class that crosses a product-owned/native
+      boundary. Confirm MUST land on a reserved native surface from
+      the closed set.
+    expected_denial_reason_class: native_approval_boundary_violation
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: embedded_password_form_for_high_risk_action_forbidden
+    rule: >
+      An embedded password form MUST NOT authorise a high-risk action.
+      Embedded password collection is admissible only inside an active
+      embedded_password_exception register entry whose
+      applies_to_action_classes excludes step_up_authority,
+      admin_step_up, scope_grant, switch_org_or_tenant, and
+      deprovision_acknowledge.
+    expected_denial_reason_class: embedded_handoff_for_high_risk_action
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: os_notification_inline_confirm_forbidden
+    rule: >
+      An OS notification MUST NOT carry an inline confirm action that
+      widens authority. Notifications may exact-reopen the
+      interstitial or the host-native review surface; the final
+      approval MUST be reviewed and confirmed inside the host shell.
+    expected_denial_reason_class: native_approval_boundary_violation
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: lock_screen_quick_action_forbidden
+    rule: >
+      A lock-screen quick action MUST NOT confirm or grant any auth
+      handoff. Lock-screen surfaces stay in a privacy-preserving
+      summary posture and may only exact-reopen the host-native
+      review.
+    expected_denial_reason_class: native_approval_boundary_violation
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: companion_push_inline_confirm_forbidden
+    rule: >
+      A companion push or companion shortcut MUST NOT carry an inline
+      confirm action that widens authority. Companion delivery may
+      exact-reopen the interstitial only.
+    expected_denial_reason_class: native_approval_boundary_violation
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: silent_embedded_fallback_after_browser_block_forbidden
+    rule: >
+      When system-browser launch is blocked, the interstitial MUST
+      route to a typed retry_path_class (for example,
+      switch_to_device_code or request_admin_policy_change) and MUST
+      NOT silently downgrade to an embedded webview without an active
+      register entry.
+    expected_denial_reason_class: embedded_handoff_without_exception
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: silent_re_prompt_after_expiry_or_rejection_forbidden
+    rule: >
+      After expired_before_review, rejected_by_user, or
+      rejected_by_policy, the host shell MUST mint a fresh
+      interstitial (with a new interstitial_id) before any further
+      review. Re-rendering the previous policy in the same surface is
+      non-conforming.
+    expected_denial_reason_class: expiry_or_replay_policy_violation
+    expected_audit_event_id: auth_handoff_interstitial_expired
+
+  - id: background_silent_re_grant_forbidden
+    rule: >
+      A background renewal that re-grants step-up authority, scope,
+      tenant binding, or admin elevation without a typed reviewer
+      confirm is non-conforming. Renewal MUST emit
+      auth_handoff_interstitial_confirmed against a fresh
+      interstitial_id.
+    expected_denial_reason_class: native_approval_boundary_violation
+    expected_audit_event_id: auth_handoff_interstitial_denied_native_boundary
+
+  - id: cross_origin_tab_substitute_for_loopback_forbidden
+    rule: >
+      A cross-origin returning tab MUST NOT substitute for the pre-
+      disclosed loopback callback origin. Origin drift between mint
+      and return fails closed at the callback-origin boundary.
+    expected_denial_reason_class: callback_origin_mismatch
+    expected_audit_event_id: auth_handoff_interstitial_denied_origin
+
+# Conformance invariants. Every interstitial that crosses a product-
+# owned/native boundary MUST satisfy each invariant; a row that fails
+# any invariant fails the review.
+conformance_invariants:
+  - id: native_actions_render_in_host_chrome
+    rule: >
+      product_owned_native_required = true MUST coincide with
+      confirm_action.host_native_target_required = true and a
+      product_owned_review_surface_ref naming a host-native review
+      surface from the closed reserved-native-surface set.
+  - id: reserved_native_surface_disclosed_on_interstitial
+    rule: >
+      native_approval_boundary.reserved_native_surface_refs MUST list
+      every host-owned native-reserved surface the confirm action
+      lands on. The list never shrinks on a fail-closed row.
+  - id: embedded_handoff_forbidden_on_supported_paths
+    rule: >
+      For auth_flow_class in {system_browser, device_code,
+      platform_authenticator_native}, embedded_handoff_forbidden = true
+      and embedded_auth_exception_ref = null. The schema enforces
+      this; the review confirms the constraint stays true after every
+      mint, refresh, and supersedence.
+  - id: typed_recovery_replaces_silent_fallback
+    rule: >
+      A blocked system-browser, unavailable device-code, or
+      unavailable passkey row routes through a typed retry_path_class
+      (for example, switch_to_device_code, request_admin_policy_change,
+      continue_local_without_sign_in) and never through a silent
+      embedded substitute.
+  - id: notifications_and_companions_only_exact_reopen
+    rule: >
+      OS notifications, lock-screen surfaces, companion pushes, and
+      companion shortcuts may exact-reopen the auth-handoff
+      interstitial or the bound host-native review surface only.
+      Inline confirm actions, lock-screen quick-confirms, and
+      companion shortcut quick-grants are denied.
+  - id: every_fail_closed_row_carries_typed_denial_reason
+    rule: >
+      Every interstitial whose interstitial_state is one of
+      rejected_by_policy, expired_before_review, superseded,
+      denied_origin_mismatch, denied_replay, or
+      denied_native_boundary MUST carry a denial_reason_class from
+      the closed set and emit a closed audit_event_id.
+  - id: preserved_local_work_intact_on_every_row
+    rule: >
+      preserved_local_work_summary.posture_class resolves to one of
+      local_work_intact, local_work_intact_with_managed_narrowed, or
+      local_work_intact_with_self_hosted_narrowed. Local edit, save,
+      undo, search, local Git, local tasks, and BYOK AI remain
+      representable.
+  - id: reusable_in_diagnostics_support_release_evidence
+    rule: >
+      Surfaces quote interstitial_id, register_entry_id (when
+      present), auth_callback_packet_ref, browser_handoff_packet_ref,
+      device_code_ref, managed_session_state_ref, support_export_refs,
+      diagnostics_quote_refs, and audit_event_refs by stable id.
+      Surface-local copy that disagrees with the bound labels is
+      non-conforming.
+
+# Per-row review checklist. Reviewers tick each item against the row's
+# upstream record and bound callback / managed-session / handoff packet.
+review_checklist:
+  - id: requested_action_class_crosses_native_boundary_correctly_flagged
+    asks: >
+      Does requested_action_class match the
+      crosses_product_owned_native_boundary value on the row, and do
+      product_owned_native_required and host_native_target_required
+      reflect that posture?
+  - id: confirm_lands_on_reserved_native_surface
+    asks: >
+      For rows that cross the boundary, does
+      product_owned_review_surface_ref name a reserved native surface
+      from the closed set, and does primary_action_class belong to
+      the admissible_primary_action_classes for the row?
+  - id: forbidden_surrogate_paths_denied
+    asks: >
+      Did the surface deny every forbidden surrogate path on the row
+      (embedded webview final approval, embedded password form for
+      high-risk action, OS notification inline confirm, lock-screen
+      quick action, companion push inline confirm, companion shortcut
+      quick action, background silent re-grant, silent embedded
+      fallback after browser block, silent re-prompt after expiry or
+      rejection, cross-origin tab substitute for loopback)?
+  - id: callback_origin_pre_disclosed_with_verification_state
+    asks: >
+      Does callback_origin_disclosure pre-disclose
+      callback_origin_class, callback_origin_label, host_or_domain_label,
+      return_anchor_label, and origin_verification_state, and does
+      the row pass the callback-origin review rules from the contract?
+  - id: availability_disclosed_for_all_three_rows
+    asks: >
+      Does availability_disclosure render system_browser, device_code,
+      and passkey rows together, with preferred_flow_class matching
+      the auth_flow_class on the record, fallback_flow_order naming
+      at least one honest fallback, and the deployment never
+      advertising a path it cannot honour?
+  - id: typed_audit_event_id_emitted
+    asks: >
+      Did the row emit one of the closed audit_event_ids — confirm
+      rows emit auth_handoff_interstitial_confirmed (and
+      auth_handoff_interstitial_routed_to_native_approval for boundary-
+      crossing rows); fail-closed rows emit
+      auth_handoff_interstitial_denied_origin,
+      auth_handoff_interstitial_denied_replay,
+      auth_handoff_interstitial_denied_native_boundary,
+      auth_handoff_interstitial_expired, or
+      auth_handoff_interstitial_superseded — and does the row carry
+      the denial_reason_class required by the surrogate-path table?
+  - id: embedded_path_only_with_active_register_entry
+    asks: >
+      For rows whose auth_flow_class is embedded_session_refresh or
+      embedded_password_exception, does embedded_auth_exception_ref
+      cite an active register entry whose exception_scope_class
+      narrows the row, and does the boundary card mirror the same
+      register entry id?
+  - id: preserved_local_work_quoted_by_ref
+    asks: >
+      Does preserved_local_work_summary quote the canonical
+      preserved-local-work block on the bound auth_callback_packet
+      or managed_session_state record by ref, with a posture_class
+      that confirms local edit / save / undo / search / local Git /
+      local tasks / BYOK AI remain available?
+  - id: support_diagnostics_release_evidence_quote_by_ref
+    asks: >
+      Do support_export_refs, diagnostics_quote_refs, and
+      audit_event_refs resolve to stable opaque ids that support
+      packets, admin exports, release evidence, and docs/help
+      diagnostics quote without minting surface-local copy?
+
+# Worked examples. These cite the callback-origin skew corpus and the
+# auth-handoff corpus by file path so reviewers can scan one row per
+# requested-action class while grading.
+worked_examples:
+  - requested_action_class: sign_in_new_session
+    fixture: fixtures/auth/auth_handoff_cases/system_browser_managed_sign_in_interstitial.yaml
+    summary: >
+      System-browser-first sign-in. Confirm lands on the activity
+      center via open_in_system_browser; no native-reserved approval
+      is requested. Reject path is continue_local_without_sign_in.
+
+  - requested_action_class: sign_in_new_session
+    fixture: fixtures/auth/callback_origin_skew_cases/baseline_loopback_origin_verified.yaml
+    summary: >
+      No-skew baseline anchor for the callback-origin skew corpus.
+      Pending review with verified loopback origin and the typed
+      open_in_system_browser confirm.
+
+  - requested_action_class: resume_existing_session
+    fixture: fixtures/auth/auth_handoff_cases/device_code_fallback_interstitial.yaml
+    summary: >
+      Device-code fallback when the system-browser launch is blocked
+      by a managed kiosk policy. The supported next step is the
+      device-code companion card; embedded fallback is denied.
+
+  - requested_action_class: resume_existing_session
+    fixture: fixtures/auth/callback_origin_skew_cases/tenant_match_rule_violated_denied.yaml
+    summary: >
+      Returning state names a different tenant than the bound
+      payments-prod tenant. The interstitial fails closed with
+      denied_native_boundary and denial reason
+      tenant_or_workspace_mismatch.
+
+  - requested_action_class: step_up_authority
+    fixture: fixtures/auth/auth_handoff_cases/passkey_step_up_interstitial.yaml
+    summary: >
+      Platform-authenticator-native step-up. Confirm lands on the
+      host-native step-up sheet; OS notifications and companion
+      shortcuts may not deliver the final approval.
+
+  - requested_action_class: step_up_authority
+    fixture: fixtures/auth/callback_origin_skew_cases/passkey_available_step_up_native.yaml
+    summary: >
+      Step-up authority routed to the host-native step-up sheet via
+      open_platform_authenticator. Authority widens only inside the
+      reserved native surface.
+
+  - requested_action_class: refresh_existing_session
+    fixture: fixtures/auth/auth_handoff_cases/embedded_session_refresh_exception_register_entry.yaml
+    summary: >
+      Active embedded-session-refresh register entry. The interstitial
+      that quotes this entry MUST set
+      auth_flow_class = embedded_session_refresh and cite the entry
+      id; scope widening, password collection, and high-risk action
+      authority on this row are non-conforming.
+
+  - requested_action_class: refresh_existing_session
+    fixture: fixtures/auth/callback_origin_skew_cases/expired_callback_after_browser_idle.yaml
+    summary: >
+      Refresh interstitial expired before review. Authority is held
+      until the reviewer reopens; no path silently re-prompts on the
+      prior policy.
+
+  - requested_action_class: link_account
+    fixture: fixtures/auth/auth_handoff_cases/embedded_password_exception_register_entry.yaml
+    summary: >
+      Active embedded-password exception register entry. Bounded
+      account-link only; the entry forbids step-up authority, admin
+      step-up, scope grant, switch org or tenant, and deprovision
+      acknowledge.
+
+  - requested_action_class: scope_grant
+    fixture: fixtures/auth/auth_handoff_cases/scope_grant_rejected_by_user_interstitial.yaml
+    summary: >
+      Scope-grant interstitial rejected by the user with a typed
+      continue_local_without_sign_in outcome. Preserved-local-work
+      assertion remains true.
+
+  - requested_action_class: scope_grant
+    fixture: fixtures/auth/callback_origin_skew_cases/stale_approval_replay_denied.yaml
+    summary: >
+      Scope-grant approval replayed against a consumed callback
+      receipt. The interstitial fails closed with denied_replay and
+      the typed callback_replay_denied denial reason.
+
+  - requested_action_class: switch_org_or_tenant
+    fixture: fixtures/auth/callback_origin_skew_cases/tenant_match_rule_violated_denied.yaml
+    summary: >
+      Same tenant-mismatch fixture, viewed as the worked example for
+      switch_org_or_tenant: a failed switch fails closed visibly to
+      a managed-blocked or local-safe state and never reopens the
+      bound workspace under the alternate tenant.
+
+  - requested_action_class: admin_step_up
+    fixture: fixtures/auth/callback_origin_skew_cases/passkey_available_step_up_native.yaml
+    summary: >
+      Same step-up fixture, viewed as the worked example for
+      admin_step_up: the confirm action lands on the host-native
+      step-up sheet; OS notifications and companion shortcuts may
+      not deliver the final approval.
+
+  - requested_action_class: credential_recovery
+    fixture: fixtures/auth/callback_origin_skew_cases/loopback_port_drift_denied.yaml
+    summary: >
+      A recovery sign-in whose returning loopback origin drifted from
+      the pre-disclosed port. The interstitial fails closed with
+      denied_origin_mismatch; CAPTCHA-only and knowledge-question-
+      only sole paths remain forbidden on this row.
+
+  - requested_action_class: deprovision_acknowledge
+    fixture: fixtures/auth/managed_session_cases/seat_removal_deprovisioning_preserved_local_artifacts.yaml
+    summary: >
+      Seat-removal / deprovisioning row showing managed seat-loss
+      with preserved local artifacts. The interstitial that quotes
+      this managed-session record MUST land the acknowledgement on
+      a host-native review surface and quote the offboarding/export
+      path by ref.
+
+# Acceptance gates for the review. A row passes when every gate
+# resolves to pass; pass_with_notes is allowed when the reviewer
+# annotates the deviation against the closed vocabularies, never by
+# widening them.
+acceptance_gates:
+  - id: requested_action_review_complete
+    rule: >
+      Every requested-action class in §requested_action_review_rows
+      has a row that names admissible primary action classes,
+      reserved native surfaces, forbidden surrogate paths, and
+      expected audit events.
+  - id: surrogate_paths_denied
+    rule: >
+      Every surrogate path in §surrogate_path_denial_rules is denied
+      with a typed denial_reason_class and a closed audit_event_id.
+  - id: conformance_invariants_hold
+    rule: >
+      Every conformance invariant in §conformance_invariants holds
+      for every interstitial that quotes this review packet.
+  - id: corpus_fixtures_resolve_by_ref
+    rule: >
+      Every worked example in §worked_examples resolves to one
+      fixture under fixtures/auth/auth_handoff_cases/,
+      fixtures/auth/callback_origin_skew_cases/, or
+      fixtures/auth/managed_session_cases/, and that fixture
+      validates as the named record kind.
+  - id: reusable_without_special_case_copy
+    rule: >
+      Diagnostics, support exports, admin exports, release evidence,
+      and docs/help quote interstitial_id, register_entry_id (when
+      present), auth_callback_packet_ref, managed_session_state_ref,
+      browser_handoff_packet_ref, device_code_ref, support_export_refs,
+      and audit_event_refs by stable id; surface-local copy that
+      disagrees with the bound labels is non-conforming.
