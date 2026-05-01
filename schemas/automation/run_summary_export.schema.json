@@ -1,0 +1,809 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/run_summary_export.schema.json",
+  "title": "Aureline automation safe-summary export contract",
+  "description": "Boundary schema for the safe-summary export contract frozen in docs/automation/run_history_contract.md. Every run a user, an organization audit lane, a support bundle, a portable profile export, a headless offline export, or an AI-assistant evidence pack carries out across a tenant or surface boundary MUST publish exactly one run_summary_export_record against this schema. The export preserves the run's identity (run_id, manifest_id, manifest_revision_ref, optional manifest_content_address), the per-step outcome counts (preserved as counts, never as raw step argv), the artifact / effect-lineage / approval-ticket opaque refs (preserved as refs, never as raw paths or raw approver identity material), the rerun-under-current-policy admissibility (resolved through the same closed vocabulary the history row publishes), and the redaction posture; raw argv, raw URLs, raw filesystem paths, raw buffer bytes, raw prompt text, raw credential material, raw approver identity material, raw extension/external payload bytes, raw stdout / stderr, and raw step parameter values are omitted by default and the export carries an omitted_fields_block that names which closed-vocabulary field-classes were omitted so a reviewer can audit the redaction posture without re-loading the underlying run record. Adding a new included_field_class, omitted_field_class, delivery_surface_class, summary_kind, or rerun_eligibility_class is additive-minor and bumps run_summary_export_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/run_summary_export_record" },
+    { "$ref": "#/$defs/run_summary_export_seed_record" }
+  ],
+  "$defs": {
+    "run_summary_export_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "run_summary_export_record",
+        "run_summary_export_seed_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "automation_layer_class": {
+      "type": "string",
+      "enum": [
+        "recorded_macro_layer",
+        "declarative_recipe_layer",
+        "managed_only_template_layer",
+        "extension_or_external_automation_layer",
+        "headless_safe_run_layer"
+      ]
+    },
+    "delivery_surface_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle_redacted",
+        "support_bundle_operator_only",
+        "organization_audit_log",
+        "shiproom_dashboard",
+        "portable_profile_export",
+        "headless_offline_export",
+        "ai_assistant_evidence_pack"
+      ],
+      "description": "Frozen delivery-surface vocabulary. The same run MAY emit different summary exports for different delivery surfaces (a support_bundle_redacted summary and an organization_audit_log summary may have distinct redaction postures); each emission publishes one record against this schema."
+    },
+    "summary_kind_class": {
+      "type": "string",
+      "enum": [
+        "summary_only_no_artifact_refs",
+        "summary_with_artifact_refs",
+        "summary_with_artifact_refs_and_effect_lineage_refs",
+        "summary_with_redacted_payload_handles_only",
+        "summary_organization_audit_only_with_full_lineage_refs"
+      ],
+      "description": "Frozen summary-kind vocabulary. The summary kind names which slot of preserved fields the export carries; the omitted_fields_block names which slots were redacted out."
+    },
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "completed_all_steps_applied",
+        "completed_all_steps_dry_run_only",
+        "partial_success_with_warnings",
+        "denied_at_trust_gate",
+        "denied_at_policy_gate",
+        "denied_at_approval_gate",
+        "denied_at_preview_gate",
+        "denied_at_kill_switch",
+        "denied_at_credential_broker_handshake",
+        "denied_at_managed_only_channel",
+        "cancelled_by_user",
+        "cancelled_by_timeout",
+        "aborted_on_reconciliation_drift",
+        "queued_for_later_connectivity_window",
+        "queued_for_later_authority_window",
+        "queued_for_later_remote_agent_window",
+        "replayed_from_queued_action_idempotent",
+        "replayed_from_queued_action_with_reconciliation",
+        "replay_window_expired_stale_authority_denied",
+        "unrecoverable_internal_error"
+      ],
+      "description": "Re-export of the run_outcome_class vocabulary frozen in run_record.schema.json."
+    },
+    "gate_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_disabled_by_policy",
+        "managed_only_channel_required",
+        "kill_switch_tripped",
+        "credential_broker_denied",
+        "approval_denied_no_approval_path",
+        "preview_denial_no_safe_preview",
+        "preview_required_not_shown",
+        "capability_not_declared_in_manifest",
+        "reconciliation_drift_detected",
+        "replay_window_expired",
+        "unknown_descriptor_revision",
+        "publisher_not_permitted",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet"
+      ]
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "fully_replayable_same_environment",
+        "fully_replayable_same_workspace_only",
+        "partially_replayable_environment_drifted",
+        "partially_replayable_provider_drifted",
+        "partially_replayable_policy_drifted",
+        "partially_replayable_trust_drifted",
+        "non_replayable_raw_byte_dependent",
+        "non_replayable_mutation_already_applied",
+        "non_replayable_manifest_retired",
+        "non_replayable_stale_authority_denied"
+      ]
+    },
+    "queueability_state_class": {
+      "type": "string",
+      "enum": [
+        "queueability_not_applicable",
+        "queued_waiting_on_connectivity",
+        "queued_waiting_on_authority",
+        "queued_waiting_on_credential_broker",
+        "queued_waiting_on_remote_agent",
+        "queued_waiting_on_managed_only_channel",
+        "queued_waiting_on_kill_switch_cleared",
+        "queued_replay_window_bound_remaining",
+        "queued_replay_window_expired_denied",
+        "queue_drained_on_replay_idempotent",
+        "queue_drained_on_replay_with_reconciliation"
+      ]
+    },
+    "reconciliation_state_class": {
+      "type": "string",
+      "enum": [
+        "reconciliation_not_applicable",
+        "reconciled_with_remote_read_before_replay",
+        "reconciled_with_local_journal_before_replay",
+        "reconciled_with_approval_ticket_before_replay",
+        "aborted_on_reconciliation_drift",
+        "reconciliation_skipped_by_branch_on_previous_outcome"
+      ]
+    },
+    "redaction_mode_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ]
+    },
+    "current_policy_rerun_eligibility_class": {
+      "type": "string",
+      "enum": [
+        "rerun_under_current_policy_admissible_no_revalidation_required",
+        "rerun_under_current_policy_admissible_after_user_revalidates_environment",
+        "rerun_under_current_policy_admissible_after_user_grants_fresh_approval",
+        "rerun_under_current_policy_admissible_after_user_clears_kill_switch",
+        "rerun_under_current_policy_admissible_after_user_resolves_managed_only_channel",
+        "rerun_under_current_policy_blocked_publisher_revoked",
+        "rerun_under_current_policy_blocked_capability_disabled_by_policy",
+        "rerun_under_current_policy_blocked_managed_only_template_retired",
+        "rerun_under_current_policy_blocked_recipe_revision_retired",
+        "rerun_under_current_policy_blocked_replay_window_expired",
+        "rerun_under_current_policy_blocked_descriptor_revision_retired",
+        "rerun_under_current_policy_blocked_environment_capsule_drift_detected",
+        "rerun_blocked_macro_recording_only_no_replay_admissible",
+        "rerun_blocked_extension_or_external_runner_no_replay_admissible",
+        "rerun_blocked_imported_record_no_dispatch_admissible"
+      ],
+      "description": "Re-export of the rerun_action_class vocabulary frozen in run_history_row.schema.json. The export preserves the eligibility class so a downstream reviewer can decide rerun admissibility without re-resolving the policy / trust / kill-switch / managed-only state."
+    },
+    "current_policy_blocker_class": {
+      "type": "string",
+      "enum": [
+        "blocker_workspace_trust_restricted_now",
+        "blocker_capability_disabled_by_policy_now",
+        "blocker_managed_only_channel_now_required",
+        "blocker_kill_switch_engaged_now",
+        "blocker_credential_broker_handshake_now_required",
+        "blocker_approval_authority_revoked_now",
+        "blocker_preview_required_now",
+        "blocker_descriptor_revision_retired_now",
+        "blocker_publisher_no_longer_permitted_now",
+        "blocker_replay_window_expired_now",
+        "blocker_recipe_revision_retired_now",
+        "blocker_macro_replay_state_drifted_now",
+        "blocker_extension_or_external_runner_no_longer_available_now",
+        "blocker_environment_capsule_drift_detected_now",
+        "blocker_no_blocker_present_now"
+      ]
+    },
+    "step_count_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_count_total",
+        "step_count_succeeded",
+        "step_count_denied",
+        "step_count_skipped",
+        "step_count_queued",
+        "step_count_aborted"
+      ],
+      "properties": {
+        "step_count_total": { "type": "integer", "minimum": 0 },
+        "step_count_succeeded": { "type": "integer", "minimum": 0 },
+        "step_count_denied": { "type": "integer", "minimum": 0 },
+        "step_count_skipped": { "type": "integer", "minimum": 0 },
+        "step_count_queued": { "type": "integer", "minimum": 0 },
+        "step_count_aborted": { "type": "integer", "minimum": 0 },
+        "step_count_partial_success": { "type": "integer", "minimum": 0 },
+        "step_count_dry_run_only": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Per-step outcome counts preserved verbatim. The export preserves the shape of the run (how many steps, how many denied) without preserving raw step argv or raw step parameter values."
+    },
+    "approvals_preserved_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approvals_consumed_count", "approval_postures_observed"],
+      "properties": {
+        "approvals_consumed_count": { "type": "integer", "minimum": 0 },
+        "approval_postures_observed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "approval_required_once_per_run",
+              "approval_required_per_step",
+              "approval_required_on_every_high_blast_step",
+              "approval_required_on_every_irreversible_step"
+            ]
+          }
+        },
+        "approval_ticket_refs_preserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque approval-ticket refs preserved into the export. Raw approver identity material is never preserved here; the closed posture vocabulary is the only axis a reviewer reads."
+        }
+      },
+      "description": "Approvals slot preserved into the safe-summary export. The approver identity bytes are never preserved; only the count, the closed posture set, and the opaque approval-ticket refs cross the boundary."
+    },
+    "included_field_class": {
+      "type": "string",
+      "enum": [
+        "included_run_identity_run_id_manifest_id_manifest_revision_ref",
+        "included_manifest_content_address",
+        "included_invocation_session_root_packet_ref",
+        "included_execution_context_capsule_ref",
+        "included_environment_capsule_ref",
+        "included_step_count_block",
+        "included_result_class_and_gate_denial_reason_class",
+        "included_replay_posture_class_and_queueability_state_class_and_reconciliation_state_class",
+        "included_approvals_preserved_block_postures_and_opaque_ticket_refs",
+        "included_artifact_root_refs_opaque_only",
+        "included_effect_lineage_root_refs_opaque_only",
+        "included_current_policy_rerun_eligibility_and_blockers",
+        "included_redaction_mode_class",
+        "included_export_visibility_class_and_support_visibility_class",
+        "included_dispatched_at_and_completed_at_timestamps"
+      ],
+      "description": "Frozen included-field vocabulary. The export's included_fields list quotes one entry per slot of preserved data so a reviewer can audit what crossed the boundary without re-loading the run record."
+    },
+    "omitted_field_class": {
+      "type": "string",
+      "enum": [
+        "omitted_raw_step_argv",
+        "omitted_raw_step_parameter_values",
+        "omitted_raw_secret_values",
+        "omitted_raw_environment_variable_values",
+        "omitted_raw_filesystem_paths",
+        "omitted_raw_urls",
+        "omitted_raw_stdout_stderr",
+        "omitted_raw_prompt_text",
+        "omitted_raw_buffer_bytes",
+        "omitted_raw_credential_material",
+        "omitted_raw_clipboard_bytes",
+        "omitted_raw_extension_or_external_payload_bytes",
+        "omitted_raw_approver_identity_material",
+        "omitted_raw_workspace_label_or_profile_label",
+        "omitted_raw_descriptor_argument_inspection_payload",
+        "omitted_raw_macro_capture_buffer_bytes",
+        "omitted_raw_recipe_step_argument_template_bytes",
+        "omitted_raw_provider_event_payload_bytes"
+      ],
+      "description": "Frozen omitted-field vocabulary. The export's omitted_fields list quotes one entry per slot of redacted data so a reviewer can audit which classes of payload were withheld without having to inspect the raw run record."
+    },
+    "export_visibility_class": {
+      "type": "string",
+      "enum": [
+        "exportable_via_portable_profile",
+        "exportable_via_support_bundle_redacted",
+        "exportable_via_organization_share_managed_only",
+        "not_exportable_local_only",
+        "export_denied_by_policy"
+      ]
+    },
+    "support_visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible_in_support_bundle_redacted",
+        "visible_in_support_bundle_operator_only",
+        "visible_in_shiproom_dashboard",
+        "visible_in_organization_audit_log",
+        "not_visible_to_support",
+        "visible_to_local_user_only"
+      ]
+    },
+    "run_summary_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_summary_export_schema_version",
+        "summary_export_id",
+        "run_id",
+        "run_history_row_id",
+        "automation_layer_class",
+        "manifest_id",
+        "manifest_revision_ref",
+        "delivery_surface_class",
+        "summary_kind_class",
+        "result_class",
+        "step_count_block",
+        "replay_posture_class",
+        "queueability_state_class",
+        "reconciliation_state_class",
+        "approvals_preserved_block",
+        "current_policy_rerun_eligibility_class",
+        "current_policy_blockers",
+        "redaction_mode_class",
+        "export_visibility_class",
+        "support_visibility_class",
+        "included_fields",
+        "omitted_fields",
+        "summary_emitted_at",
+        "summary_invariants"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_summary_export_record" },
+        "run_summary_export_schema_version": { "$ref": "#/$defs/run_summary_export_schema_version" },
+        "summary_export_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying run record. Preserved verbatim so the export's identity binding is auditable; raw argv and raw payloads do not cross."
+        },
+        "run_history_row_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the run-history row this summary was minted from. The history row is the projection layer; this export is its safe-summary boundary."
+        },
+        "automation_layer_class": { "$ref": "#/$defs/automation_layer_class" },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "manifest_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_content_address": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_address" }
+          ]
+        },
+        "invocation_session_root_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "execution_context_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "environment_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "delivery_surface_class": { "$ref": "#/$defs/delivery_surface_class" },
+        "summary_kind_class": { "$ref": "#/$defs/summary_kind_class" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "gate_denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/gate_denial_reason_class" }
+          ]
+        },
+        "step_count_block": { "$ref": "#/$defs/step_count_block" },
+        "replay_posture_class": { "$ref": "#/$defs/replay_posture_class" },
+        "queueability_state_class": { "$ref": "#/$defs/queueability_state_class" },
+        "reconciliation_state_class": { "$ref": "#/$defs/reconciliation_state_class" },
+        "approvals_preserved_block": { "$ref": "#/$defs/approvals_preserved_block" },
+        "artifact_root_refs_preserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque artifact root refs preserved into the export. Raw paths and raw artifact bytes are never preserved here."
+        },
+        "effect_lineage_root_refs_preserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque external-effect-lineage root refs preserved into the export."
+        },
+        "current_policy_rerun_eligibility_class": { "$ref": "#/$defs/current_policy_rerun_eligibility_class" },
+        "current_policy_blockers": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/current_policy_blocker_class" },
+          "description": "Closed-vocabulary list of every blocker the rerun-under-current-policy resolver observed at export time. Preserves the rerun admissibility honestly so a downstream reviewer never reads the export as cached approval."
+        },
+        "redaction_mode_class": { "$ref": "#/$defs/redaction_mode_class" },
+        "export_visibility_class": { "$ref": "#/$defs/export_visibility_class" },
+        "support_visibility_class": { "$ref": "#/$defs/support_visibility_class" },
+        "included_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/included_field_class" },
+          "description": "Closed-vocabulary list of every slot the export preserves. Reviewers read this list to confirm the export carries the slots the surface needs (run identity, step counts, artifact refs, approvals, rerun eligibility) without having to inspect raw bytes."
+        },
+        "omitted_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/omitted_field_class" },
+          "description": "Closed-vocabulary list of every slot of raw payload the export omitted by default. omitted_raw_step_argv, omitted_raw_secret_values, omitted_raw_credential_material, and omitted_raw_approver_identity_material MUST appear on every safe-summary export so the redaction posture is auditable."
+        },
+        "summary_emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary_emitted_by_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the actor identity that emitted the summary export (a user identity, an org admin identity, an automation actor identity). Raw identity bytes never appear here."
+        },
+        "summary_invariants": { "$ref": "#/$defs/run_summary_export_invariants_block" }
+      },
+      "allOf": [
+        {
+          "description": "Every safe-summary export MUST include the run-identity, step-count, rerun-eligibility, and redaction-posture slots.",
+          "properties": {
+            "included_fields": {
+              "type": "array",
+              "contains": { "const": "included_run_identity_run_id_manifest_id_manifest_revision_ref" }
+            }
+          }
+        },
+        {
+          "description": "Every safe-summary export MUST include the step-count block.",
+          "properties": {
+            "included_fields": {
+              "type": "array",
+              "contains": { "const": "included_step_count_block" }
+            }
+          }
+        },
+        {
+          "description": "Every safe-summary export MUST include the result-class and gate-denial-reason-class slot.",
+          "properties": {
+            "included_fields": {
+              "type": "array",
+              "contains": { "const": "included_result_class_and_gate_denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "Every safe-summary export MUST include the approvals_preserved_block slot.",
+          "properties": {
+            "included_fields": {
+              "type": "array",
+              "contains": { "const": "included_approvals_preserved_block_postures_and_opaque_ticket_refs" }
+            }
+          }
+        },
+        {
+          "description": "Every safe-summary export MUST include the rerun-eligibility-and-blockers slot.",
+          "properties": {
+            "included_fields": {
+              "type": "array",
+              "contains": { "const": "included_current_policy_rerun_eligibility_and_blockers" }
+            }
+          }
+        },
+        {
+          "description": "Every safe-summary export MUST include the redaction-mode-class slot.",
+          "properties": {
+            "included_fields": {
+              "type": "array",
+              "contains": { "const": "included_redaction_mode_class" }
+            }
+          }
+        },
+        {
+          "description": "Every safe-summary export MUST omit raw step argv, raw secret values, raw credential material, and raw approver identity material.",
+          "allOf": [
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_step_argv" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_secret_values" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_credential_material" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_approver_identity_material" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_step_parameter_values" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_environment_variable_values" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_filesystem_paths" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_urls" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_stdout_stderr" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_prompt_text" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_buffer_bytes" }
+                }
+              }
+            },
+            {
+              "properties": {
+                "omitted_fields": {
+                  "type": "array",
+                  "contains": { "const": "omitted_raw_clipboard_bytes" }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "description": "A denied / aborted / replay-window-expired result MUST cite a gate_denial_reason_class.",
+          "if": {
+            "properties": {
+              "result_class": {
+                "enum": [
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_at_preview_gate",
+                  "denied_at_kill_switch",
+                  "denied_at_credential_broker_handshake",
+                  "denied_at_managed_only_channel",
+                  "aborted_on_reconciliation_drift",
+                  "replay_window_expired_stale_authority_denied"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["gate_denial_reason_class"],
+            "properties": {
+              "gate_denial_reason_class": { "$ref": "#/$defs/gate_denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "rerun_under_current_policy_admissible_no_revalidation_required MUST pair with current_policy_blockers == [blocker_no_blocker_present_now].",
+          "if": {
+            "properties": {
+              "current_policy_rerun_eligibility_class": { "const": "rerun_under_current_policy_admissible_no_revalidation_required" }
+            }
+          },
+          "then": {
+            "properties": {
+              "current_policy_blockers": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "blocker_no_blocker_present_now" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any other rerun_eligibility_class MUST cite at least one non-no-blocker entry.",
+          "if": {
+            "not": {
+              "properties": {
+                "current_policy_rerun_eligibility_class": { "const": "rerun_under_current_policy_admissible_no_revalidation_required" }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "current_policy_blockers": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "not": { "const": "blocker_no_blocker_present_now" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "summary_with_redacted_payload_handles_only MUST quote redaction_required_with_secret_broker_handles or redaction_required_on_export.",
+          "if": {
+            "properties": {
+              "summary_kind_class": { "const": "summary_with_redacted_payload_handles_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "redaction_mode_class": {
+                "enum": [
+                  "redaction_required_with_secret_broker_handles",
+                  "redaction_required_on_export"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "summary_organization_audit_only_with_full_lineage_refs MUST pair with delivery_surface_class organization_audit_log and exportable_via_organization_share_managed_only.",
+          "if": {
+            "properties": {
+              "summary_kind_class": { "const": "summary_organization_audit_only_with_full_lineage_refs" }
+            }
+          },
+          "then": {
+            "properties": {
+              "delivery_surface_class": { "const": "organization_audit_log" },
+              "export_visibility_class": { "const": "exportable_via_organization_share_managed_only" }
+            }
+          }
+        }
+      ],
+      "description": "Canonical safe-summary export of a single run. Preserves run identity, step counts, artifact refs, approvals, rerun-under-current-policy admissibility, and redaction posture; omits raw step argv, raw secret values, raw credential material, raw approver identity material, raw paths, raw URLs, raw stdout / stderr, raw prompt text, raw buffer bytes, and raw clipboard bytes by default and quotes the omitted slots through omitted_fields so a reviewer can audit the redaction posture mechanically."
+    },
+    "run_summary_export_invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_export_preserves_run_id_and_manifest_id_and_revision",
+        "every_export_preserves_step_count_block_not_raw_step_argv",
+        "every_export_preserves_artifact_root_refs_as_opaque_only",
+        "every_export_preserves_approvals_summary_not_raw_approver_identity",
+        "every_export_preserves_current_policy_rerun_eligibility_and_blockers",
+        "rerun_eligibility_never_implies_cached_approval_or_stale_environment",
+        "raw_step_argv_never_appears_in_a_safe_summary_export",
+        "raw_secrets_credentials_paths_urls_buffer_bytes_prompt_text_never_appear_in_a_safe_summary_export",
+        "approver_identity_bytes_never_appear_in_a_safe_summary_export",
+        "omitted_fields_block_quotes_every_redacted_slot_so_redaction_posture_is_auditable",
+        "delivery_surface_class_pins_one_emission_per_safe_summary_export"
+      ],
+      "properties": {
+        "every_export_preserves_run_id_and_manifest_id_and_revision": { "const": true },
+        "every_export_preserves_step_count_block_not_raw_step_argv": { "const": true },
+        "every_export_preserves_artifact_root_refs_as_opaque_only": { "const": true },
+        "every_export_preserves_approvals_summary_not_raw_approver_identity": { "const": true },
+        "every_export_preserves_current_policy_rerun_eligibility_and_blockers": { "const": true },
+        "rerun_eligibility_never_implies_cached_approval_or_stale_environment": { "const": true },
+        "raw_step_argv_never_appears_in_a_safe_summary_export": { "const": true },
+        "raw_secrets_credentials_paths_urls_buffer_bytes_prompt_text_never_appear_in_a_safe_summary_export": { "const": true },
+        "approver_identity_bytes_never_appear_in_a_safe_summary_export": { "const": true },
+        "omitted_fields_block_quotes_every_redacted_slot_so_redaction_posture_is_auditable": { "const": true },
+        "delivery_surface_class_pins_one_emission_per_safe_summary_export": { "const": true }
+      }
+    },
+    "run_summary_export_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_summary_export_schema_version",
+        "seed_id",
+        "title",
+        "seed_scope_summary",
+        "source_contract_refs",
+        "run_record_schema_ref",
+        "run_history_row_schema_ref",
+        "fixture_root",
+        "fixture_refs",
+        "invariants",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_summary_export_seed_record" },
+        "run_summary_export_schema_version": { "$ref": "#/$defs/run_summary_export_schema_version" },
+        "seed_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "seed_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_history_row_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_root": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "invariants": { "$ref": "#/$defs/run_summary_export_invariants_block" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/run_summary_export_record" }
+        }
+      }
+    }
+  }
+}

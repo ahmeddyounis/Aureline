@@ -1,0 +1,990 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/automation/run_history_row.schema.json",
+  "title": "Aureline automation run-history row contract",
+  "description": "Boundary schema for the user-facing automation run-history row contract frozen in docs/automation/run_history_contract.md. Every run a desktop history pane, a headless history log, an AI assistant history pane, a support-bundle summary, or an organization audit log surfaces MUST publish exactly one automation_run_history_row against this schema. The history row is a derived projection over the underlying run record (recipe_run_record or macro_replay_record published against schemas/automation/run_record.schema.json) plus extension/external automation rows that ride a non-Aureline runner; it adds the layer / execution-mode / context-summary / artifact-bundle-state / retention / redaction / rerun-under-current-policy / open-as-recipe / safe-summary-export action axes the history surface needs to render a row honestly without re-deciding the run-record's frozen vocabulary. Raw argv, raw URLs, raw filesystem paths, raw buffer bytes, raw prompt text, raw credential material, raw approver identity material, raw extension/external payload bytes, and raw stdout / stderr never cross this boundary; the schema carries opaque ids, closed vocabulary, short reviewable sentences, and content-addresses only. Adding a new automation_layer_class, execution_mode_class, artifact_bundle_state_class, retention_class, redaction_mode_class, rerun_action_class, current_policy_blocker_class, open_as_recipe_action_class, export_action_class, or display_layer_class is additive-minor and bumps run_history_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/automation_run_history_row" },
+    { "$ref": "#/$defs/run_history_seed_record" }
+  ],
+  "$defs": {
+    "run_history_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "automation_run_history_row",
+        "run_history_seed_record"
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in support bundles, claim manifests, and release evidence. Raw argv, raw paths, raw URLs, raw JSON payloads, raw prompt text, and raw secrets never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence intended for history pane preview, support-bundle summary preview, and docs reference pages. Raw argv, raw paths, raw URLs, raw prompt text, and raw secrets never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "digest_algorithm": {
+      "type": "string",
+      "enum": ["sha256", "sha384", "sha512", "blake3"]
+    },
+    "content_address": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest_algorithm", "digest_hex"],
+      "properties": {
+        "digest_algorithm": { "$ref": "#/$defs/digest_algorithm" },
+        "digest_hex": {
+          "type": "string",
+          "pattern": "^[0-9a-f]+$",
+          "minLength": 32
+        },
+        "digest_size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "automation_layer_class": {
+      "type": "string",
+      "enum": [
+        "recorded_macro_layer",
+        "declarative_recipe_layer",
+        "managed_only_template_layer",
+        "extension_or_external_automation_layer",
+        "headless_safe_run_layer"
+      ],
+      "description": "Frozen automation-layer vocabulary. recorded_macro_layer covers macro_replay_record rows. declarative_recipe_layer covers recipe_run_record rows whose authoring_posture_class is declarative_first_recipe or recorded_macro_promoted_to_declarative_recipe. managed_only_template_layer covers recipe_run_record rows whose authoring_posture_class is managed_only_template_declarative_recipe so the history pane can render the managed-only badge without re-resolving the manifest. extension_or_external_automation_layer covers automation that rode a non-Aureline runner (for example a host-side IDE extension automation handle, an external CI automation handle, or a remote-agent automation handle); the underlying run record is still the canonical evidence row but the dispatch happened through an external authority. headless_safe_run_layer covers runs the headless / CLI surface dispatched against a manifest whose shareability_metadata pins headless_safe."
+    },
+    "execution_mode_class": {
+      "type": "string",
+      "enum": [
+        "desktop_interactive_palette_dispatch",
+        "desktop_interactive_keybinding_dispatch",
+        "desktop_interactive_explicit_action_button_dispatch",
+        "desktop_macro_replay_dispatch",
+        "desktop_recipe_runner_dispatch",
+        "desktop_managed_only_template_dispatch",
+        "headless_cli_explicit_dispatch",
+        "headless_cli_scripted_dispatch",
+        "headless_offline_replay_dispatch",
+        "ai_assistant_proposed_then_user_admitted_dispatch",
+        "ai_assistant_managed_only_template_dispatch",
+        "extension_or_external_runner_dispatch",
+        "deferred_intent_drained_on_window_dispatch",
+        "queued_action_drained_on_window_dispatch",
+        "queued_action_replay_window_expired_no_dispatch"
+      ],
+      "description": "Frozen execution-mode vocabulary. The history pane reads this slot to render the dispatch path the run took (palette vs keybinding vs CLI vs AI-assistant vs deferred-intent drain) without re-deciding it from the run record."
+    },
+    "context_summary_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_context_capsule_ref",
+        "trust_state_class",
+        "policy_observation_class",
+        "kill_switch_observation_class"
+      ],
+      "properties": {
+        "execution_context_capsule_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the ADR-0009 execution context capsule that bounded this run. Re-exported from the underlying run record without modification."
+        },
+        "environment_capsule_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the environment capsule the run observed. Non-null on every run whose replay_posture_class is anything other than non_replayable_raw_byte_dependent; preserved verbatim from the underlying run record."
+        },
+        "trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted_workspace",
+            "restricted_workspace",
+            "trust_revalidation_required",
+            "trust_state_unknown_imported_record"
+          ],
+          "description": "Trust state the run observed at dispatch. Re-export of the trust matrix axis frozen in artifacts/security/trust_state_matrix.yaml; the history row never re-decides trust."
+        },
+        "policy_observation_class": {
+          "type": "string",
+          "enum": [
+            "no_policy_pinned",
+            "policy_observed_under_admin_resolver",
+            "policy_observed_under_managed_only_channel",
+            "policy_state_unknown_imported_record"
+          ],
+          "description": "Admin-policy observation state at dispatch. Re-export of the ADR-0008 admin-policy observation axis; the history row never re-decides the policy."
+        },
+        "kill_switch_observation_class": {
+          "type": "string",
+          "enum": [
+            "kill_switch_clear",
+            "kill_switch_engaged",
+            "kill_switch_state_unknown_imported_record"
+          ],
+          "description": "Kill-switch observation state at dispatch. Re-export of the ADR-0011 kill-switch axis; the history row never re-decides the kill-switch."
+        },
+        "context_summary_sentence_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to a short reviewable-sentence packet describing the run's context (workspace label, profile, scope). Raw workspace labels and raw profile names never cross this boundary."
+        }
+      },
+      "description": "Context capsule summary projected from the underlying run record. The history pane and the support-bundle summary read this block to render the run's environment honestly without leaking raw env-var values, raw paths, or raw URLs."
+    },
+    "step_count_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step_count_total",
+        "step_count_succeeded",
+        "step_count_denied",
+        "step_count_skipped",
+        "step_count_queued",
+        "step_count_aborted"
+      ],
+      "properties": {
+        "step_count_total": { "type": "integer", "minimum": 0 },
+        "step_count_succeeded": { "type": "integer", "minimum": 0 },
+        "step_count_denied": { "type": "integer", "minimum": 0 },
+        "step_count_skipped": { "type": "integer", "minimum": 0 },
+        "step_count_queued": { "type": "integer", "minimum": 0 },
+        "step_count_aborted": { "type": "integer", "minimum": 0 },
+        "step_count_partial_success": { "type": "integer", "minimum": 0 },
+        "step_count_dry_run_only": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Per-step outcome counts derived from the underlying run record's step_executions. Preserved verbatim into safe-summary export so a reviewer can compare two runs by shape without re-loading the full step list. Raw step argv never appears here."
+    },
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "completed_all_steps_applied",
+        "completed_all_steps_dry_run_only",
+        "partial_success_with_warnings",
+        "denied_at_trust_gate",
+        "denied_at_policy_gate",
+        "denied_at_approval_gate",
+        "denied_at_preview_gate",
+        "denied_at_kill_switch",
+        "denied_at_credential_broker_handshake",
+        "denied_at_managed_only_channel",
+        "cancelled_by_user",
+        "cancelled_by_timeout",
+        "aborted_on_reconciliation_drift",
+        "queued_for_later_connectivity_window",
+        "queued_for_later_authority_window",
+        "queued_for_later_remote_agent_window",
+        "replayed_from_queued_action_idempotent",
+        "replayed_from_queued_action_with_reconciliation",
+        "replay_window_expired_stale_authority_denied",
+        "unrecoverable_internal_error"
+      ],
+      "description": "Re-export of the run_outcome_class vocabulary frozen in run_record.schema.json. The history row MUST quote this opaque value rather than re-categorising the run; minting a parallel result vocabulary is non-conforming."
+    },
+    "gate_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "workspace_trust_restricted",
+        "capability_disabled_by_policy",
+        "managed_only_channel_required",
+        "kill_switch_tripped",
+        "credential_broker_denied",
+        "approval_denied_no_approval_path",
+        "preview_denial_no_safe_preview",
+        "preview_required_not_shown",
+        "capability_not_declared_in_manifest",
+        "reconciliation_drift_detected",
+        "replay_window_expired",
+        "unknown_descriptor_revision",
+        "publisher_not_permitted",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet"
+      ],
+      "description": "Re-export of the gate_denial_reason_class vocabulary frozen in run_record.schema.json. Required when result_class names a denied / aborted / replay-window-expired outcome."
+    },
+    "replay_posture_class": {
+      "type": "string",
+      "enum": [
+        "fully_replayable_same_environment",
+        "fully_replayable_same_workspace_only",
+        "partially_replayable_environment_drifted",
+        "partially_replayable_provider_drifted",
+        "partially_replayable_policy_drifted",
+        "partially_replayable_trust_drifted",
+        "non_replayable_raw_byte_dependent",
+        "non_replayable_mutation_already_applied",
+        "non_replayable_manifest_retired",
+        "non_replayable_stale_authority_denied"
+      ],
+      "description": "Re-export of the replay_posture_class vocabulary frozen in run_record.schema.json."
+    },
+    "queueability_state_class": {
+      "type": "string",
+      "enum": [
+        "queueability_not_applicable",
+        "queued_waiting_on_connectivity",
+        "queued_waiting_on_authority",
+        "queued_waiting_on_credential_broker",
+        "queued_waiting_on_remote_agent",
+        "queued_waiting_on_managed_only_channel",
+        "queued_waiting_on_kill_switch_cleared",
+        "queued_replay_window_bound_remaining",
+        "queued_replay_window_expired_denied",
+        "queue_drained_on_replay_idempotent",
+        "queue_drained_on_replay_with_reconciliation"
+      ],
+      "description": "Re-export of the queueability_state_class vocabulary frozen in run_record.schema.json."
+    },
+    "reconciliation_state_class": {
+      "type": "string",
+      "enum": [
+        "reconciliation_not_applicable",
+        "reconciled_with_remote_read_before_replay",
+        "reconciled_with_local_journal_before_replay",
+        "reconciled_with_approval_ticket_before_replay",
+        "aborted_on_reconciliation_drift",
+        "reconciliation_skipped_by_branch_on_previous_outcome"
+      ],
+      "description": "Re-export of the reconciliation_state_class vocabulary frozen in run_record.schema.json."
+    },
+    "approvals_summary_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approvals_consumed_count",
+        "approval_postures_observed"
+      ],
+      "properties": {
+        "approvals_consumed_count": { "type": "integer", "minimum": 0 },
+        "approval_postures_observed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "approval_required_once_per_run",
+              "approval_required_per_step",
+              "approval_required_on_every_high_blast_step",
+              "approval_required_on_every_irreversible_step"
+            ]
+          },
+          "description": "Distinct approval postures the run observed. Raw approver identity material never appears here; only the closed posture class set crosses the boundary."
+        },
+        "approval_ticket_refs_preserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque approval-ticket refs preserved into the history row so a reviewer can re-resolve the approval lineage through the authority-ticket / approval packet contract. Raw approver identity material is never preserved here."
+        }
+      },
+      "description": "Approvals summary projected from the underlying run record. The history pane and the safe-summary export read this block to render the approval posture honestly without leaking approver identity bytes."
+    },
+    "artifact_bundle_state_class": {
+      "type": "string",
+      "enum": [
+        "artifact_bundle_present_full_local",
+        "artifact_bundle_present_full_organization_audit",
+        "artifact_bundle_present_partial",
+        "artifact_bundle_present_redacted_for_export",
+        "artifact_bundle_pending_export",
+        "artifact_bundle_pending_replay_drain",
+        "artifact_bundle_purged_by_retention_summary_only",
+        "artifact_bundle_not_produced_run_denied_at_gate",
+        "artifact_bundle_not_produced_macro_state_replay_only",
+        "artifact_bundle_not_produced_extension_or_external_no_artifact_path"
+      ],
+      "description": "Frozen artifact-bundle state vocabulary. The history pane reads this slot to render the artifact-bundle availability state without re-deciding it from the run record's output_artifact_root_refs and effect_lineage_root_refs lists alone (a denied run may still carry warning artifacts; a purged run may carry only a summary)."
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "retain_until_purged_by_user",
+        "retain_until_workspace_redaction_window",
+        "retain_until_organization_audit_window",
+        "retain_until_support_export_consumed",
+        "retain_until_replay_window_expires",
+        "retain_indefinitely_under_audit_lock",
+        "purged_by_retention_summary_only_remains"
+      ],
+      "description": "Frozen retention vocabulary. The retention class determines when the artifact_bundle_state_class transitions to artifact_bundle_purged_by_retention_summary_only and the row keeps only a safe summary."
+    },
+    "redaction_mode_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "no_redaction_required",
+        "redaction_required_on_export",
+        "redaction_required_with_secret_broker_handles"
+      ],
+      "description": "Re-export of the redaction_class vocabulary frozen in run_record.schema.json and docs/governance/record_class_governance.md. Repeated here as redaction_mode_class so the history pane and the safe-summary export can render the redaction posture without re-resolving it."
+    },
+    "current_policy_blocker_class": {
+      "type": "string",
+      "enum": [
+        "blocker_workspace_trust_restricted_now",
+        "blocker_capability_disabled_by_policy_now",
+        "blocker_managed_only_channel_now_required",
+        "blocker_kill_switch_engaged_now",
+        "blocker_credential_broker_handshake_now_required",
+        "blocker_approval_authority_revoked_now",
+        "blocker_preview_required_now",
+        "blocker_descriptor_revision_retired_now",
+        "blocker_publisher_no_longer_permitted_now",
+        "blocker_replay_window_expired_now",
+        "blocker_recipe_revision_retired_now",
+        "blocker_macro_replay_state_drifted_now",
+        "blocker_extension_or_external_runner_no_longer_available_now",
+        "blocker_environment_capsule_drift_detected_now",
+        "blocker_no_blocker_present_now"
+      ],
+      "description": "Frozen current-policy blocker vocabulary. Every blocker the resolver discovered when projecting rerun-under-current-policy admissibility MUST be quoted from this set; the row's current_policy_blockers list is the authoritative reason a rerun would not be admitted today even if the run succeeded yesterday."
+    },
+    "rerun_action_class": {
+      "type": "string",
+      "enum": [
+        "rerun_under_current_policy_admissible_no_revalidation_required",
+        "rerun_under_current_policy_admissible_after_user_revalidates_environment",
+        "rerun_under_current_policy_admissible_after_user_grants_fresh_approval",
+        "rerun_under_current_policy_admissible_after_user_clears_kill_switch",
+        "rerun_under_current_policy_admissible_after_user_resolves_managed_only_channel",
+        "rerun_under_current_policy_blocked_publisher_revoked",
+        "rerun_under_current_policy_blocked_capability_disabled_by_policy",
+        "rerun_under_current_policy_blocked_managed_only_template_retired",
+        "rerun_under_current_policy_blocked_recipe_revision_retired",
+        "rerun_under_current_policy_blocked_replay_window_expired",
+        "rerun_under_current_policy_blocked_descriptor_revision_retired",
+        "rerun_under_current_policy_blocked_environment_capsule_drift_detected",
+        "rerun_blocked_macro_recording_only_no_replay_admissible",
+        "rerun_blocked_extension_or_external_runner_no_replay_admissible",
+        "rerun_blocked_imported_record_no_dispatch_admissible"
+      ],
+      "description": "Frozen rerun-under-current-policy vocabulary. The history pane MUST resolve rerun admissibility through this slot rather than implying that yesterday's success means today's rerun would also succeed. rerun_blocked_imported_record_no_dispatch_admissible is the enforcement slot for imported records (per docs/integrations/provider_event_ingestion_contract.md): a row that was imported from a provider event MUST NOT offer a one-click rerun, because dispatch authority did not survive the import boundary."
+    },
+    "open_as_recipe_action_class": {
+      "type": "string",
+      "enum": [
+        "open_as_recipe_admissible_macro_promotable_to_declarative_recipe",
+        "open_as_recipe_admissible_extension_or_external_authored_as_declarative_recipe",
+        "open_as_recipe_inadmissible_already_declarative_recipe",
+        "open_as_recipe_inadmissible_already_managed_only_template",
+        "open_as_recipe_inadmissible_no_declarative_capability_path_admitted",
+        "open_as_recipe_inadmissible_extension_or_external_authority_required"
+      ],
+      "description": "Frozen open-as-recipe vocabulary. A macro that touches only the closed recorded-macro capability subset MAY be promoted to a declarative recipe (recorded_macro_promoted_to_declarative_recipe per recipe_manifest.schema.json); an extension/external automation row that touches a capability not admissible to declarative recipes MUST quote open_as_recipe_inadmissible_no_declarative_capability_path_admitted rather than silently lifting the capability into a recipe."
+    },
+    "export_action_class": {
+      "type": "string",
+      "enum": [
+        "export_safe_summary_only_admissible",
+        "export_safe_summary_with_artifact_refs_admissible",
+        "export_safe_summary_with_redacted_payload_admissible",
+        "export_safe_summary_organization_audit_only_admissible",
+        "export_inadmissible_local_only",
+        "export_inadmissible_managed_only_channel_only",
+        "export_inadmissible_imported_record_no_re_export"
+      ],
+      "description": "Frozen safe-summary export vocabulary. The history pane reads this slot to render the export action's admissibility; a row whose export_visibility_class is not_exportable_local_only MUST quote export_inadmissible_local_only here (the two slots are coupled)."
+    },
+    "display_layer_class": {
+      "type": "string",
+      "enum": [
+        "desktop_history_pane",
+        "headless_history_log",
+        "support_bundle_summary",
+        "organization_audit_log",
+        "ai_assistant_history_pane",
+        "portable_profile_export_history"
+      ],
+      "description": "Frozen display-layer vocabulary. The same row MAY be rendered into multiple display layers (desktop_history_pane plus support_bundle_summary on opt-in); the row MUST publish one display_layer_class per emission so support exports can prove which surface the row was rendered for."
+    },
+    "export_visibility_class": {
+      "type": "string",
+      "enum": [
+        "exportable_via_portable_profile",
+        "exportable_via_support_bundle_redacted",
+        "exportable_via_organization_share_managed_only",
+        "not_exportable_local_only",
+        "export_denied_by_policy"
+      ],
+      "description": "Re-export of the export_visibility_class vocabulary frozen in run_record.schema.json."
+    },
+    "support_visibility_class": {
+      "type": "string",
+      "enum": [
+        "visible_in_support_bundle_redacted",
+        "visible_in_support_bundle_operator_only",
+        "visible_in_shiproom_dashboard",
+        "visible_in_organization_audit_log",
+        "not_visible_to_support",
+        "visible_to_local_user_only"
+      ],
+      "description": "Re-export of the support_visibility_class vocabulary frozen in run_record.schema.json."
+    },
+    "automation_run_history_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_history_row_schema_version",
+        "run_history_row_id",
+        "run_id",
+        "automation_layer_class",
+        "execution_mode_class",
+        "title",
+        "summary",
+        "manifest_id",
+        "manifest_revision_ref",
+        "context_summary",
+        "result_class",
+        "step_count_block",
+        "replay_posture_class",
+        "queueability_state_class",
+        "reconciliation_state_class",
+        "approvals_summary",
+        "artifact_bundle_state_class",
+        "retention_class",
+        "redaction_mode_class",
+        "rerun_action_class",
+        "current_policy_blockers",
+        "open_as_recipe_action_class",
+        "export_action_class",
+        "export_visibility_class",
+        "support_visibility_class",
+        "display_layer_class",
+        "dispatched_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "automation_run_history_row" },
+        "run_history_row_schema_version": { "$ref": "#/$defs/run_history_row_schema_version" },
+        "run_history_row_id": { "$ref": "#/$defs/opaque_id" },
+        "run_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying run_record (recipe_run_record / macro_replay_record). The history row is a derived projection; the run record is the canonical evidence row and MUST exist for every history row except those whose automation_layer_class is extension_or_external_automation_layer and whose run_record was not minted by Aureline (in which case run_id is the external runner's opaque handle preserved verbatim)."
+        },
+        "underlying_run_record_kind": {
+          "type": "string",
+          "enum": [
+            "recipe_run_record",
+            "macro_replay_record",
+            "external_run_handle_only_no_aureline_run_record"
+          ],
+          "description": "Discriminator naming the underlying run-record shape this row projects from. external_run_handle_only_no_aureline_run_record is admissible only when automation_layer_class is extension_or_external_automation_layer."
+        },
+        "automation_layer_class": { "$ref": "#/$defs/automation_layer_class" },
+        "execution_mode_class": { "$ref": "#/$defs/execution_mode_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "manifest_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the recipe_id, macro_id, or extension/external automation authority id the run dispatched against."
+        },
+        "manifest_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the manifest revision the run dispatched against. Re-exported verbatim from the underlying run record without re-resolving."
+        },
+        "manifest_content_address": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/content_address" }
+          ],
+          "description": "Optional content-address pin of the manifest bytes the run dispatched against. Recommended on every row so support export can prove the manifest revision the row references without re-loading the manifest store."
+        },
+        "external_runner_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the extension/external runner authority that dispatched the run. Non-null exactly when automation_layer_class is extension_or_external_automation_layer; null otherwise."
+        },
+        "invocation_session_root_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the root invocation-session packet the underlying run dispatched through. Non-null on every row whose underlying_run_record_kind is recipe_run_record or macro_replay_record; null only when underlying_run_record_kind is external_run_handle_only_no_aureline_run_record."
+        },
+        "context_summary": { "$ref": "#/$defs/context_summary_block" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "gate_denial_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/gate_denial_reason_class" }
+          ]
+        },
+        "step_count_block": { "$ref": "#/$defs/step_count_block" },
+        "replay_posture_class": { "$ref": "#/$defs/replay_posture_class" },
+        "queueability_state_class": { "$ref": "#/$defs/queueability_state_class" },
+        "reconciliation_state_class": { "$ref": "#/$defs/reconciliation_state_class" },
+        "replay_window_expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Wall-clock timestamp at which the queued replay window closes. Non-null exactly when queueability_state_class is queued_replay_window_bound_remaining."
+        },
+        "approvals_summary": { "$ref": "#/$defs/approvals_summary_block" },
+        "artifact_bundle_state_class": { "$ref": "#/$defs/artifact_bundle_state_class" },
+        "artifact_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the artifact bundle this row resolves through. Null when artifact_bundle_state_class is artifact_bundle_not_produced_run_denied_at_gate, artifact_bundle_not_produced_macro_state_replay_only, artifact_bundle_not_produced_extension_or_external_no_artifact_path, or artifact_bundle_purged_by_retention_summary_only."
+        },
+        "output_artifact_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the underlying run record's top-level artifacts. Re-exported verbatim. Empty when the run was denied at a gate or produced no first-class artifacts."
+        },
+        "effect_lineage_root_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the underlying run record's external-effect-lineage roots. Empty when the run was read-only or denied at a gate."
+        },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_window_expires_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Wall-clock timestamp at which the retention window closes. Non-null when retention_class names a windowed class (retain_until_workspace_redaction_window / retain_until_organization_audit_window / retain_until_support_export_consumed / retain_until_replay_window_expires)."
+        },
+        "redaction_mode_class": { "$ref": "#/$defs/redaction_mode_class" },
+        "rerun_action_class": { "$ref": "#/$defs/rerun_action_class" },
+        "current_policy_blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/current_policy_blocker_class" },
+          "description": "Closed-vocabulary list of every blocker the rerun-under-current-policy resolver observed at projection time. blocker_no_blocker_present_now is the only admissible value when rerun_action_class is rerun_under_current_policy_admissible_no_revalidation_required and the list MUST contain exactly that one entry."
+        },
+        "open_as_recipe_action_class": { "$ref": "#/$defs/open_as_recipe_action_class" },
+        "export_action_class": { "$ref": "#/$defs/export_action_class" },
+        "export_visibility_class": { "$ref": "#/$defs/export_visibility_class" },
+        "support_visibility_class": { "$ref": "#/$defs/support_visibility_class" },
+        "display_layer_class": { "$ref": "#/$defs/display_layer_class" },
+        "dispatched_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Completion timestamp re-exported from the underlying run record. Null only when the run is queued and has not yet been drained, mirroring run_record.schema.json."
+        },
+        "last_summary_emitted_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Wall-clock timestamp at which the last safe-summary export was emitted for this row. Null when no safe-summary has been emitted."
+        },
+        "last_safe_summary_export_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the last run_summary_export_record minted from this row. Non-null whenever last_summary_emitted_at is non-null."
+        }
+      },
+      "allOf": [
+        {
+          "description": "A denied / aborted / replay-window-expired result MUST cite a gate_denial_reason_class.",
+          "if": {
+            "properties": {
+              "result_class": {
+                "enum": [
+                  "denied_at_trust_gate",
+                  "denied_at_policy_gate",
+                  "denied_at_approval_gate",
+                  "denied_at_preview_gate",
+                  "denied_at_kill_switch",
+                  "denied_at_credential_broker_handshake",
+                  "denied_at_managed_only_channel",
+                  "aborted_on_reconciliation_drift",
+                  "replay_window_expired_stale_authority_denied"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": ["gate_denial_reason_class"],
+            "properties": {
+              "gate_denial_reason_class": { "$ref": "#/$defs/gate_denial_reason_class" }
+            }
+          }
+        },
+        {
+          "description": "Queued runs MUST leave completed_at null and MUST carry a non-queueability_not_applicable queueability_state_class.",
+          "if": {
+            "properties": {
+              "result_class": {
+                "enum": [
+                  "queued_for_later_connectivity_window",
+                  "queued_for_later_authority_window",
+                  "queued_for_later_remote_agent_window"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "completed_at": { "type": "null" },
+              "queueability_state_class": {
+                "enum": [
+                  "queued_waiting_on_connectivity",
+                  "queued_waiting_on_authority",
+                  "queued_waiting_on_credential_broker",
+                  "queued_waiting_on_remote_agent",
+                  "queued_waiting_on_managed_only_channel",
+                  "queued_waiting_on_kill_switch_cleared",
+                  "queued_replay_window_bound_remaining"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "queued_replay_window_bound_remaining MUST pin a non-null replay_window_expires_at.",
+          "if": {
+            "properties": {
+              "queueability_state_class": { "const": "queued_replay_window_bound_remaining" }
+            }
+          },
+          "then": {
+            "required": ["replay_window_expires_at"],
+            "properties": {
+              "replay_window_expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+            }
+          }
+        },
+        {
+          "description": "replay_window_expired_stale_authority_denied MUST quote queued_replay_window_expired_denied.",
+          "if": {
+            "properties": {
+              "result_class": { "const": "replay_window_expired_stale_authority_denied" }
+            }
+          },
+          "then": {
+            "properties": {
+              "queueability_state_class": { "const": "queued_replay_window_expired_denied" },
+              "rerun_action_class": { "const": "rerun_under_current_policy_blocked_replay_window_expired" }
+            }
+          }
+        },
+        {
+          "description": "extension_or_external_automation_layer MUST cite an external_runner_authority_ref.",
+          "if": {
+            "properties": {
+              "automation_layer_class": { "const": "extension_or_external_automation_layer" }
+            }
+          },
+          "then": {
+            "required": ["external_runner_authority_ref"],
+            "properties": {
+              "external_runner_authority_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        },
+        {
+          "description": "Layers other than extension_or_external_automation_layer MUST leave external_runner_authority_ref null.",
+          "if": {
+            "properties": {
+              "automation_layer_class": {
+                "enum": [
+                  "recorded_macro_layer",
+                  "declarative_recipe_layer",
+                  "managed_only_template_layer",
+                  "headless_safe_run_layer"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "external_runner_authority_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "external_run_handle_only_no_aureline_run_record is admissible only on extension_or_external_automation_layer.",
+          "if": {
+            "properties": {
+              "underlying_run_record_kind": { "const": "external_run_handle_only_no_aureline_run_record" }
+            }
+          },
+          "then": {
+            "properties": {
+              "automation_layer_class": { "const": "extension_or_external_automation_layer" },
+              "invocation_session_root_packet_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "recorded_macro_layer MUST project from a macro_replay_record.",
+          "if": {
+            "properties": {
+              "automation_layer_class": { "const": "recorded_macro_layer" }
+            }
+          },
+          "then": {
+            "properties": {
+              "underlying_run_record_kind": { "const": "macro_replay_record" }
+            }
+          }
+        },
+        {
+          "description": "recorded_macro_layer MUST quote rerun_blocked_macro_recording_only_no_replay_admissible or rerun_under_current_policy_admissible_*; the row MUST NOT offer extension/external rerun on a macro.",
+          "if": {
+            "properties": {
+              "automation_layer_class": { "const": "recorded_macro_layer" }
+            }
+          },
+          "then": {
+            "properties": {
+              "rerun_action_class": {
+                "enum": [
+                  "rerun_under_current_policy_admissible_no_revalidation_required",
+                  "rerun_under_current_policy_admissible_after_user_revalidates_environment",
+                  "rerun_under_current_policy_admissible_after_user_clears_kill_switch",
+                  "rerun_under_current_policy_blocked_environment_capsule_drift_detected",
+                  "rerun_blocked_macro_recording_only_no_replay_admissible"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "extension_or_external_automation_layer MUST quote a rerun_action_class admissible to extension/external runners.",
+          "if": {
+            "properties": {
+              "automation_layer_class": { "const": "extension_or_external_automation_layer" }
+            }
+          },
+          "then": {
+            "properties": {
+              "rerun_action_class": {
+                "enum": [
+                  "rerun_under_current_policy_admissible_no_revalidation_required",
+                  "rerun_under_current_policy_admissible_after_user_revalidates_environment",
+                  "rerun_under_current_policy_admissible_after_user_grants_fresh_approval",
+                  "rerun_under_current_policy_admissible_after_user_clears_kill_switch",
+                  "rerun_under_current_policy_admissible_after_user_resolves_managed_only_channel",
+                  "rerun_under_current_policy_blocked_publisher_revoked",
+                  "rerun_under_current_policy_blocked_capability_disabled_by_policy",
+                  "rerun_under_current_policy_blocked_replay_window_expired",
+                  "rerun_under_current_policy_blocked_environment_capsule_drift_detected",
+                  "rerun_blocked_extension_or_external_runner_no_replay_admissible",
+                  "rerun_blocked_imported_record_no_dispatch_admissible"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "rerun_under_current_policy_admissible_no_revalidation_required MUST pair with current_policy_blockers == [blocker_no_blocker_present_now].",
+          "if": {
+            "properties": {
+              "rerun_action_class": { "const": "rerun_under_current_policy_admissible_no_revalidation_required" }
+            }
+          },
+          "then": {
+            "properties": {
+              "current_policy_blockers": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": { "const": "blocker_no_blocker_present_now" }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any rerun_action_class other than rerun_under_current_policy_admissible_no_revalidation_required MUST cite at least one non-no-blocker entry.",
+          "if": {
+            "not": {
+              "properties": {
+                "rerun_action_class": { "const": "rerun_under_current_policy_admissible_no_revalidation_required" }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "current_policy_blockers": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "not": { "const": "blocker_no_blocker_present_now" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "not_exportable_local_only MUST pair with export_inadmissible_local_only.",
+          "if": {
+            "properties": {
+              "export_visibility_class": { "const": "not_exportable_local_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "export_action_class": { "const": "export_inadmissible_local_only" }
+            }
+          }
+        },
+        {
+          "description": "exportable_via_organization_share_managed_only MUST pair with export_safe_summary_organization_audit_only_admissible or export_inadmissible_managed_only_channel_only.",
+          "if": {
+            "properties": {
+              "export_visibility_class": { "const": "exportable_via_organization_share_managed_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "export_action_class": {
+                "enum": [
+                  "export_safe_summary_organization_audit_only_admissible",
+                  "export_inadmissible_managed_only_channel_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "artifact_bundle_purged_by_retention_summary_only MUST leave artifact_bundle_ref null.",
+          "if": {
+            "properties": {
+              "artifact_bundle_state_class": { "const": "artifact_bundle_purged_by_retention_summary_only" }
+            }
+          },
+          "then": {
+            "properties": {
+              "artifact_bundle_ref": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "artifact_bundle_not_produced_* states MUST leave artifact_bundle_ref null.",
+          "if": {
+            "properties": {
+              "artifact_bundle_state_class": {
+                "enum": [
+                  "artifact_bundle_not_produced_run_denied_at_gate",
+                  "artifact_bundle_not_produced_macro_state_replay_only",
+                  "artifact_bundle_not_produced_extension_or_external_no_artifact_path"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "artifact_bundle_ref": { "type": "null" }
+            }
+          }
+        }
+      ],
+      "description": "Canonical automation run-history row. The history pane, the headless history log, the support-bundle summary, the organization audit log, and the AI assistant history pane all read this row to render automation history honestly without re-deciding the run record's frozen vocabulary or implying that yesterday's success means today's rerun would also succeed."
+    },
+    "run_history_row_invariants_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "every_row_resolves_to_run_id_and_manifest_id_and_revision",
+        "every_row_quotes_run_outcome_class_from_run_record_without_recategorising",
+        "every_row_resolves_rerun_under_current_policy_explicitly",
+        "rerun_admissibility_never_implies_cached_approval_or_stale_environment",
+        "current_policy_blockers_are_the_authoritative_reason_a_rerun_would_not_be_admitted_today",
+        "macro_history_rows_never_offer_extension_or_external_rerun",
+        "extension_or_external_history_rows_never_silently_lift_capability_into_a_recipe",
+        "imported_records_never_offer_one_click_rerun",
+        "raw_step_argv_never_appears_in_a_history_row",
+        "raw_paths_urls_secrets_buffer_bytes_prompt_text_credential_material_never_appear_in_a_history_row",
+        "approver_identity_bytes_never_appear_in_a_history_row",
+        "purged_rows_keep_only_the_safe_summary",
+        "export_action_admissibility_is_coupled_to_export_visibility_class"
+      ],
+      "properties": {
+        "every_row_resolves_to_run_id_and_manifest_id_and_revision": { "const": true },
+        "every_row_quotes_run_outcome_class_from_run_record_without_recategorising": { "const": true },
+        "every_row_resolves_rerun_under_current_policy_explicitly": { "const": true },
+        "rerun_admissibility_never_implies_cached_approval_or_stale_environment": { "const": true },
+        "current_policy_blockers_are_the_authoritative_reason_a_rerun_would_not_be_admitted_today": { "const": true },
+        "macro_history_rows_never_offer_extension_or_external_rerun": { "const": true },
+        "extension_or_external_history_rows_never_silently_lift_capability_into_a_recipe": { "const": true },
+        "imported_records_never_offer_one_click_rerun": { "const": true },
+        "raw_step_argv_never_appears_in_a_history_row": { "const": true },
+        "raw_paths_urls_secrets_buffer_bytes_prompt_text_credential_material_never_appear_in_a_history_row": { "const": true },
+        "approver_identity_bytes_never_appear_in_a_history_row": { "const": true },
+        "purged_rows_keep_only_the_safe_summary": { "const": true },
+        "export_action_admissibility_is_coupled_to_export_visibility_class": { "const": true }
+      },
+      "description": "Run-history row invariants pinned as schema-level constants. Reviewers read this block to confirm the contract is enforced mechanically; a false value is non-conforming."
+    },
+    "run_history_seed_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "run_history_row_schema_version",
+        "seed_id",
+        "title",
+        "seed_scope_summary",
+        "source_contract_refs",
+        "run_record_schema_ref",
+        "recipe_manifest_schema_ref",
+        "run_summary_export_schema_ref",
+        "fixture_root",
+        "fixture_refs",
+        "invariants",
+        "entries"
+      ],
+      "properties": {
+        "record_kind": { "const": "run_history_seed_record" },
+        "run_history_row_schema_version": { "$ref": "#/$defs/run_history_row_schema_version" },
+        "seed_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "seed_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "source_contract_refs": { "$ref": "#/$defs/non_empty_string_array" },
+        "run_record_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "recipe_manifest_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "run_summary_export_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_root": { "$ref": "#/$defs/non_empty_string" },
+        "fixture_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "invariants": { "$ref": "#/$defs/run_history_row_invariants_block" },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/automation_run_history_row" }
+        }
+      }
+    }
+  }
+}
