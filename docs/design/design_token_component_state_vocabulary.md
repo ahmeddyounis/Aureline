@@ -54,6 +54,14 @@ The companion artifacts are:
   — token-conformance audit format, machine-readable drift fail-gate
   rules, and worked manifest / refusal / inheritance-gap fixtures
   that diff canonical vocabulary against per-surface consumption.
+- [`/artifacts/design/component_state_screenshot_corpus.yaml`](../../artifacts/design/component_state_screenshot_corpus.yaml),
+  [`/docs/design/component_state_diff_packet_template.md`](./component_state_diff_packet_template.md),
+  and
+  [`/fixtures/design/component_state_cases/`](../../fixtures/design/component_state_cases/)
+  — component-state screenshot corpus, hover / focus / tooltip
+  honesty-review packet template, and worked baseline / violation /
+  diff fixtures that resolve spec-named state names on launch-
+  critical surfaces against this vocabulary's component-state set.
 
 The human-facing source of truth for concrete per-token values is
 [`.t2/docs/Aureline_UX_Design_System_Style_Guide.md`](../../.t2/docs/Aureline_UX_Design_System_Style_Guide.md).

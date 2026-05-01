@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=
+#
+# Build-to-build diff packet that detects a regression: a dialog
+# action's pending posture has been collapsed into the loading
+# posture. The packet routes to
+# component_state_repurposed_without_decision_row and resolves to
+# block.
+__fixture__:
+  name: diff_packet_build_to_build_pending_collapsed_into_loading
+  scenario: >
+    Build N introduced a generic "Working..." spinner that replaces
+    the prior pending badge on dialog actions. The diff packet
+    detects the collapse against the previous build's baseline,
+    routes to the component_state_repurposed_without_decision_row
+    rule, and blocks merge until the regression is reverted or a
+    decision row is opened.
+  corpus_state_class: pending
+  taxonomy_state_class: pending
+  resolved_corpus_row_id: corpus:surface:dialog_or_capability_sheet
+  expected_verdict: block
+
+component_state_corpus_schema_version: 1
+record_kind: component_state_diff_packet_record
+packet_id: state_diff:build_to_build:dialog_action:pending_collapsed_into_loading:01
+packet_kind: state_diff_build_to_build
+
+packet_header:
+  running_build_identity_ref: build_identity:m0_seed:2026-04-30:n
+  design_token_export_manifest_ref: design_token_export_manifest:m0_seed:02
+  previous_packet_ref: state_diff:baseline:dialog_action:pending:01
+  scope_summary: Build-to-build diff for the dialog-action pending state on the M0 shell spike.
+  surfaces_in_scope:
+    - corpus:surface:dialog_or_capability_sheet
+  claim_narrowing_posture_class: no_narrowing_required
+  policy_context:
+    policy_epoch: pe:2026-04-29:01
+    trust_state: trusted
+  redaction_class: metadata_safe_default
+
+per_row_state_evidence:
+  - corpus_row_id: corpus:surface:dialog_or_capability_sheet
+    corpus_state_class: pending
+    taxonomy_state_class: pending
+    component_surface_class: dialog_action
+    screenshot_baseline_refs:
+      - design-screenshot:dialog_action.pending_regression.dark_reference_default:01
+      - design-screenshot:dialog_action.pending_regression.light_parity_default:01
+      - design-screenshot:dialog_action.pending_regression.high_contrast_dark:01
+      - design-screenshot:dialog_action.pending_regression.high_contrast_light:01
+    keyboard_journey_refs:
+      - keyboard-journey:dialog_action.pending_regression.cancel_route_lost:01
+    assistive_technology_refs:
+      - at_matrix.macos.core_shell:dialog_action.pending_regression:01
+      - tree_coverage.dialog_action.pending_regression:01
+    token_drift_check_refs:
+      - token_drift_rules:block:component_state_repurposed
+    docs_link_verification_refs:
+      - docs-link:dialog_action.pending.copy_taxonomy:01
+    extension_parity_fixture_refs:
+      - extension-parity:dialog_action.pending.host_owned_only:01
+    state_machine_validation_refs:
+      - state-machine-probe:dialog_action.pending_distinct_from_loading:01
+    non_color_cues:
+      - label_text
+    state_evidence_status_class: required_captured
+    waiver_ref: null
+
+per_row_honesty_review:
+  - corpus_row_id: corpus:surface:dialog_or_capability_sheet
+    corpus_state_class: pending
+    honesty_review_axis_class: focus_visible
+    honesty_violation_class: none
+    evidence_ref: design-screenshot:dialog_action.pending_regression.dark_reference_default:01
+    diff_severity_class: pass
+    rule_ref: corpus:honesty:none
+  - corpus_row_id: corpus:surface:dialog_or_capability_sheet
+    corpus_state_class: pending
+    honesty_review_axis_class: keyboard_only_visibility
+    honesty_violation_class: keyboard_only_focus_loses_recovery_route
+    evidence_ref: keyboard-journey:dialog_action.pending_regression.cancel_route_lost:01
+    diff_severity_class: block
+    rule_ref: corpus:honesty:keyboard_only_focus_loses_recovery_route
+    notes: The cancel route disappears under the new generic spinner; pending recovery is unreachable.
+  - corpus_row_id: corpus:surface:dialog_or_capability_sheet
+    corpus_state_class: pending
+    honesty_review_axis_class: tooltip
+    honesty_violation_class: state_label_revealed_only_on_tooltip
+    evidence_ref: design-screenshot:dialog_action.pending_regression.dark_reference_default:01
+    diff_severity_class: block
+    rule_ref: corpus:honesty:state_label_revealed_only_on_tooltip
+    notes: The pending state label is rendered only inside the spinner tooltip; persistent disclosure is required.
+
+state_semantic_diff:
+  - diff_kind_class: pending_collapsed_into_loading
+    support_row_state_change_class: not_applicable
+    corpus_state_class: pending
+    taxonomy_state_class: pending
+    diff_severity_class: block
+    routes_to_rule_id: token_drift_rules:block:component_state_repurposed
+    decision_row_ref: null
+    notes: The previous packet's pending row resolved to taxonomy_state_class = pending with cancel route inline. The current build collapses pending into loading without a decision row.
+
+token_conformance_routing:
+  - failing_section: state_semantic_diff
+    rule_id: token_drift_rules:block:component_state_repurposed
+    denial_reason: component_state_repurposed_without_decision_row
+  - failing_section: per_row_honesty_review
+    rule_id: token_drift_rules:block:component_state_repurposed
+    denial_reason: component_state_repurposed_without_decision_row
+
+gate_verdict:
+  verdict_class: block
+  contributing_row_refs:
+    - state_semantic_diff[0]
+    - per_row_honesty_review[1]
+    - per_row_honesty_review[2]
+  notes: Restore the pending badge plus cancel route, or open a decision row that justifies the collapse and bumps design_token_schema_version.
+
+audit_trail:
+  reviewer_role_refs:
+    - design
+    - engineering
+    - accessibility
+  evidence_pack_id: evidence.design.component_state.dialog_action_pending_regression.review_pack
+  waiver_refs: []
+  waiver_state: none
+  decision_row_refs: []
+  minted_at: "2026-04-30T11:10:00Z"

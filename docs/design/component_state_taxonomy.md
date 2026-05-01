@@ -20,6 +20,17 @@ Companion artifacts:
 - [`/docs/design/design_token_component_state_vocabulary.md`](./design_token_component_state_vocabulary.md)
   remains the token and theme vocabulary. This taxonomy narrows the
   shared user-visible state meanings that component contracts cite.
+- [`/artifacts/design/component_state_screenshot_corpus.yaml`](../../artifacts/design/component_state_screenshot_corpus.yaml)
+  binds spec-named state names (Empty, Loading, Pending, Degraded,
+  Blocked, Error, Completed, Restored, Restricted, Policy blocked,
+  Quiet-hours held, Reconnecting) on launch-critical surfaces to
+  these taxonomy classes and reserves the per-state screenshot,
+  honesty-review axis, and non-color-cue requirements.
+- [`/docs/design/component_state_diff_packet_template.md`](./component_state_diff_packet_template.md)
+  is the build-to-build, revision-to-revision, and release-evidence
+  review-packet template that consumes the corpus and routes
+  honesty-review and state-semantic diff findings through the
+  existing token-drift fail gates.
 
 Normative sources projected here:
 

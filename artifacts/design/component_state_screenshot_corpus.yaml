@@ -1,0 +1,1065 @@
+# Component-state screenshot and honesty-review corpus.
+#
+# Companion to docs/design/component_state_diff_packet_template.md and
+# the canonical taxonomies in:
+#   - docs/design/design_token_component_state_vocabulary.md (the
+#     closed 22-token component-state vocabulary)
+#   - docs/design/component_state_taxonomy.md (the 13-class shared
+#     review taxonomy reusable component packets cite)
+#   - schemas/design/component_state_machine.schema.json (the
+#     state-machine boundary schema)
+#   - artifacts/design/theme_support_rows.yaml and
+#     artifacts/design/layer_and_scrim_tokens.yaml (the seed theme,
+#     posture, layer, and scrim rows)
+#   - artifacts/design/token_drift_rules.yaml (the closed audit-
+#     finding, severity, and gate-state vocabularies for token-
+#     conformance audits)
+#   - artifacts/design/component_review_checklist.md (the reusable
+#     component review gate)
+#
+# This corpus exists so component-state semantics for launch-
+# critical surfaces become reviewable evidence rows instead of
+# prose. It binds each user-visible state name from the spec
+# (Empty, Loading, Pending, Degraded, Blocked, Error, Completed,
+# Restored, Restricted, Policy blocked, Quiet-hours held,
+# Reconnecting) to the closed taxonomy classes already published,
+# pins the screenshot captures, hover / focus / selected /
+# disabled / tooltip / keyboard-only honesty checks, and the
+# theme / posture / density matrix every capture must cover so
+# later high-contrast, reduced-motion, and accessibility audits
+# can cross-check against one row shape.
+#
+# Rules:
+#   - Every corpus_state_class row resolves to one or more
+#     taxonomy_state_class values from the closed 22-token
+#     vocabulary; minting a thirteenth corpus_state_class is an
+#     additive-minor change that bumps
+#     component_state_corpus_schema_version.
+#   - Every row pins exactly one design_token_export_manifest_ref
+#     and at minimum the four first-party theme rows; surfaces
+#     MUST NOT mint per-row theme palettes or fork postures.
+#   - Hover-only, tooltip-only, and keyboard-only-invisible
+#     dependencies on critical actions, source explanations, lock
+#     reasons, freshness, recovery, or state labels are
+#     non-conforming. The corpus enumerates the violation classes
+#     so the review packet can fail-close on them.
+#   - Reduced opacity and color alone are NEVER state cues. Each
+#     state row pins required non_color_cue_class values that the
+#     screenshot capture must show.
+#   - Surfaces consume corpus_row_id; reviewers MAY add advisory
+#     notes but MAY NOT mint surface-local state names for the
+#     same underlying status.
+#   - Out of scope: screenshot automation infrastructure or
+#     visual-baseline tooling. The corpus reserves the addressable
+#     row shape; the runner is a later task.
+
+component_state_corpus_schema_version: 1
+
+source_doc_refs:
+  - docs/design/design_token_component_state_vocabulary.md
+  - docs/design/component_state_taxonomy.md
+  - docs/design/component_state_diff_packet_template.md
+boundary_schema_refs:
+  - schemas/design/component_state_machine.schema.json
+  - schemas/design/token_export_manifest.schema.json
+  - schemas/design/component_contract.schema.json
+companion_artifact_refs:
+  - artifacts/design/theme_support_rows.yaml
+  - artifacts/design/layer_and_scrim_tokens.yaml
+  - artifacts/design/token_drift_rules.yaml
+  - artifacts/design/component_review_checklist.md
+fixture_dir_ref: fixtures/design/component_state_cases/
+style_guide_ref: .t2/docs/Aureline_UX_Design_System_Style_Guide.md
+
+# ---------------------------------------------------------------------------
+# Closed vocabularies. Tooling reads these blocks; reviewers MUST NOT mint
+# surface-local labels for the same underlying status.
+# ---------------------------------------------------------------------------
+
+# The twelve user-visible state names enumerated by the spec. Every
+# corpus_state_class resolves to one or more taxonomy_state_class
+# values from the 22-token component-state vocabulary frozen in
+# docs/design/design_token_component_state_vocabulary.md.
+corpus_state_class_vocabulary:
+  - empty
+  - loading
+  - pending
+  - degraded
+  - blocked
+  - error
+  - completed
+  - restored
+  - restricted
+  - policy_blocked
+  - quiet_hours_held
+  - reconnecting
+
+# The closed 22-token component-state vocabulary. Mirrored here so
+# tooling does not have to re-parse the vocabulary doc.
+taxonomy_state_class_vocabulary:
+  - idle
+  - hover
+  - focus
+  - focus_visible
+  - pressed
+  - selected
+  - current
+  - disabled
+  - read_only
+  - loading
+  - pending
+  - degraded
+  - stale
+  - restricted
+  - policy_blocked
+  - locked
+  - warning
+  - destructive
+  - reconnecting
+  - completed
+  - restored
+  - quiet_hours_held
+
+# Mapping from spec-named corpus_state_class to one or more
+# taxonomy_state_class values. The map is closed; a row that fails
+# to resolve a corpus_state_class to at least one taxonomy_state_class
+# is non-conforming and routes to denial reason
+# component_state_class_unresolved.
+corpus_to_taxonomy_state_map:
+  - corpus_state_class: empty
+    # "Empty" is not itself a taxonomy_state_class; it is a content
+    # posture rendered by an idle surface that has no rows yet. The
+    # state row stays addressable as idle so screen readers and
+    # keyboard journeys still land on the surface.
+    taxonomy_state_classes:
+      - idle
+    notes: >
+      Empty resolves to idle because the surface itself is in its
+      resting state with no rows; review captures must show the
+      empty-state copy, primary route, and any first-useful-work
+      hint without inventing a parallel "empty" state token.
+  - corpus_state_class: loading
+    taxonomy_state_classes:
+      - loading
+    notes: >
+      Loading is initial fetch, warm-up, or context preparation. It
+      is distinct from pending; collapsing the two is non-conforming
+      under schemas/design/component_state_machine.schema.json.
+  - corpus_state_class: pending
+    taxonomy_state_classes:
+      - pending
+    notes: >
+      Pending is a submitted, staged, or queued user action awaiting
+      commit. Captures must show the cancel, retry, or review route
+      that pairs with the pending posture.
+  - corpus_state_class: degraded
+    taxonomy_state_classes:
+      - degraded
+    notes: >
+      Degraded names preserved capability, reduced capability,
+      recovery path, and certainty or freshness change. Captures
+      must show all four facets in non-color cues.
+  - corpus_state_class: blocked
+    # "Blocked" is the cross-source lock posture. It maps to locked
+    # because shared component review treats restricted /
+    # policy_blocked as the underlying axes that locked exposes.
+    taxonomy_state_classes:
+      - locked
+    notes: >
+      Blocked is the user-visible "cannot act because of policy,
+      trust, permission, ownership, source authority, or missing
+      capability" posture. The underlying axis may be restricted or
+      policy_blocked; the captured component must expose source and
+      reason rather than appearing merely disabled.
+  - corpus_state_class: error
+    taxonomy_state_classes:
+      - warning
+    notes: >
+      Error covers warning, validation failure, and failed states.
+      The 22-token vocabulary calls this warning; the shared review
+      taxonomy at docs/design/component_state_taxonomy.md uses
+      warning_error. Captures must show text plus icon plus shape;
+      color alone is non-conforming.
+  - corpus_state_class: completed
+    taxonomy_state_classes:
+      - completed
+    notes: >
+      Completed is durable success (apply succeeded, restore
+      succeeded). Distinct from restored.
+  - corpus_state_class: restored
+    taxonomy_state_classes:
+      - restored
+    notes: >
+      Restored is post-recovery posture (restore level applied,
+      drafts recovered). Distinct from completed.
+  - corpus_state_class: restricted
+    taxonomy_state_classes:
+      - restricted
+    notes: >
+      Workspace-trust narrowing posture. Maps to
+      trust_visual_state.restricted_workspace. Brand gold is
+      forbidden on restricted surfaces.
+  - corpus_state_class: policy_blocked
+    taxonomy_state_classes:
+      - policy_blocked
+    notes: >
+      Admin-policy narrowing posture. Maps to
+      trust_visual_state.policy_locked. restricted and
+      policy_blocked are separate axes; collapsing them is
+      non-conforming.
+  - corpus_state_class: quiet_hours_held
+    taxonomy_state_classes:
+      - quiet_hours_held
+    notes: >
+      Durable-attention row deliberately held back because the user
+      is inside quiet hours. The row remains addressable for parity
+      audits and support exports.
+  - corpus_state_class: reconnecting
+    taxonomy_state_classes:
+      - reconnecting
+    notes: >
+      Remote attach, collaboration, or provider live-reconnecting
+      posture. Distinct from degraded and stale.
+
+# Launch-critical surfaces the corpus covers. The set is closed and
+# matches the launch-critical lanes named in
+# docs/design/design_token_component_state_vocabulary.md.
+launch_critical_surface_class_vocabulary:
+  - shell_chrome
+  - command_palette_and_search
+  - dialog_or_capability_sheet
+  - settings_canvas
+  - durable_attention_canvas
+  - notification_canvas
+  - status_strip
+  - inspector_surface
+  - trust_prompt_canvas
+  - onboarding_canvas
+  - editor_canvas
+  - terminal_canvas
+  - review_and_diff_canvas
+  - docs_help_canvas
+  - start_center_canvas
+
+# Component-class taxonomy mapping (closed). Aligns with
+# component_surface_class in
+# schemas/design/component_state_machine.schema.json.
+component_surface_class_vocabulary:
+  - badge_or_pill
+  - banner
+  - status_item
+  - dialog_action
+  - settings_row
+  - button
+  - text_input
+  - tree_row
+  - list_or_result_row
+  - tab_or_editor_tab
+  - other
+
+# Theme classes (mirrors theme_support_rows.yaml).
+theme_class_vocabulary:
+  - dark_reference
+  - light_parity
+  - high_contrast_dark
+  - high_contrast_light
+
+# Accessibility postures (mirrors theme_support_rows.yaml).
+accessibility_posture_class_vocabulary:
+  - motion_standard
+  - motion_reduced
+  - motion_low_motion
+  - motion_power_saver
+  - motion_critical_hot_path
+
+density_class_vocabulary:
+  - compact
+  - standard
+  - comfortable
+
+# Forced-colors handling (mirrors
+# theme_support_row.schema.json#forced_colors_behavior_class).
+forced_colors_behavior_class_vocabulary:
+  - defers_to_system
+  - applies_high_contrast_token_overrides
+  - not_applicable
+
+# Non-color cues (mirrors
+# schemas/design/component_state_machine.schema.json#non_color_cue_class).
+non_color_cue_class_vocabulary:
+  - label_text
+  - icon
+  - border
+  - shape
+  - position
+  - progress_indicator
+  - lock_or_shield_glyph
+  - check_or_selection_marker
+
+# Capture combinations the corpus requires for every state row.
+# These are the minimum captures a baseline must publish before a
+# corpus_state_class on a launch-critical surface counts as
+# reviewable. Forced-colors and motion captures supplement the
+# baseline four-theme matrix.
+required_screenshot_capture_class_vocabulary:
+  - dark_reference_default
+  - light_parity_default
+  - high_contrast_dark
+  - high_contrast_light
+  - density_compact
+  - density_comfortable
+  - motion_reduced
+  - motion_low_motion
+  - forced_colors_native
+
+# Honesty-review interaction axes the review packet must inspect
+# for every row. Closed; minting a parallel axis is non-conforming.
+honesty_review_axis_class_vocabulary:
+  - hover
+  - focus_visible
+  - selected
+  - disabled
+  - tooltip
+  - keyboard_only_visibility
+
+# Hover- / tooltip- / keyboard-only honesty failure modes. Closed.
+# A capture or evidence row that lands here is fail-closed; the
+# review packet must record the violation and route it to a
+# diff_severity_class of block or block_release.
+honesty_violation_class_vocabulary:
+  - critical_action_revealed_only_on_hover
+  - critical_action_revealed_only_on_tooltip
+  - source_explanation_revealed_only_on_hover
+  - source_explanation_revealed_only_on_tooltip
+  - lock_reason_revealed_only_on_hover
+  - lock_reason_revealed_only_on_tooltip
+  - freshness_revealed_only_on_hover
+  - freshness_revealed_only_on_tooltip
+  - recovery_route_revealed_only_on_hover
+  - recovery_route_revealed_only_on_tooltip
+  - state_label_revealed_only_on_hover
+  - state_label_revealed_only_on_tooltip
+  - keyboard_only_focus_loses_state_visibility
+  - keyboard_only_focus_loses_source_visibility
+  - keyboard_only_focus_loses_recovery_route
+  - selected_visually_collapses_with_current
+  - disabled_visually_collapses_with_locked
+  - read_only_visually_collapses_with_disabled
+  - color_alone_conveys_state
+  - reduced_opacity_alone_conveys_state
+  - none
+
+# Evidence row status. Mirrors
+# schemas/design/theme_support_row.schema.json#support_state_class
+# in spirit but narrower: a corpus row is either required and met,
+# required and not yet met, waived, or not applicable.
+state_evidence_status_class_vocabulary:
+  - required_captured
+  - required_awaiting_capture
+  - required_waived
+  - not_applicable
+
+# Diff packet review verdict. Mirrors
+# severity_class_vocabulary in artifacts/design/token_drift_rules.yaml
+# so the corpus and the token-conformance gate share one ladder.
+diff_severity_class_vocabulary:
+  - pass
+  - pass_with_disclosed_gap
+  - warn
+  - block
+  - block_release
+
+# ---------------------------------------------------------------------------
+# Shared evidence-hook contract. Each corpus row resolves these refs by
+# the same names used in
+# schemas/design/component_state_machine.schema.json#evidence_hooks_block.
+# ---------------------------------------------------------------------------
+evidence_hook_contract:
+  required_refs:
+    - screenshot_baseline_refs
+    - keyboard_journey_refs
+    - assistive_technology_refs
+    - token_drift_check_refs
+    - docs_link_verification_refs
+    - extension_parity_fixture_refs
+    - state_machine_validation_refs
+  notes: >
+    Corpus rows reuse the seven evidence-hook ref families published
+    by the component-state-machine schema; reviewers MUST NOT mint
+    parallel evidence-hook fields. token_drift_check_refs route to
+    artifacts/design/token_drift_rules.yaml rule ids;
+    state_machine_validation_refs route to fixtures conforming to
+    schemas/design/component_state_machine.schema.json.
+
+# ---------------------------------------------------------------------------
+# Per-state evidence requirements. One row per corpus_state_class. The
+# row reserves which honesty-review axes the review packet must inspect,
+# the non-color cues a baseline screenshot must show, and the captures
+# the row publishes alongside the four first-party theme rows.
+# ---------------------------------------------------------------------------
+per_state_requirements:
+
+  - corpus_state_class: empty
+    required_honesty_review_axes:
+      - focus_visible
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+    requires_recovery_route: true
+    notes: >
+      Empty rows must name what the surface is for, why it is empty
+      now, and the next best action (per the empty-state contract in
+      docs/ux/state_and_recovery_taxonomy.md). The first-useful-work
+      hint, recents route, or primary command must be keyboard
+      reachable from the empty surface.
+
+  - corpus_state_class: loading
+    required_honesty_review_axes:
+      - focus_visible
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - progress_indicator
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - motion_reduced
+      - motion_low_motion
+    requires_recovery_route: false
+    notes: >
+      Loading captures must preserve stable layout. Reduced-motion
+      and low-motion captures must show the textual or static
+      progress fallback; shimmer or pulse motion is non-conforming
+      under those postures.
+
+  - corpus_state_class: pending
+    required_honesty_review_axes:
+      - focus_visible
+      - selected
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+    requires_recovery_route: true
+    notes: >
+      Pending captures must name the submitted user action and a
+      cancel, retry, or review route. The pending state must be
+      visible without hover or tooltip-only disclosure.
+
+  - corpus_state_class: degraded
+    required_honesty_review_axes:
+      - focus_visible
+      - tooltip
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - border
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - forced_colors_native
+    requires_recovery_route: true
+    notes: >
+      Degraded captures must show preserved capability, reduced
+      capability, recovery path, and freshness or certainty change
+      in non-color cues. The degraded-mode pattern doc at
+      docs/ux/degraded_mode_pattern.md is the canonical copy axis.
+
+  - corpus_state_class: blocked
+    required_honesty_review_axes:
+      - focus_visible
+      - disabled
+      - tooltip
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - lock_or_shield_glyph
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - forced_colors_native
+    requires_recovery_route: true
+    notes: >
+      Blocked captures must expose source and reason. Brand gold is
+      forbidden on restricted_workspace and policy_locked trust
+      states; surfaces that route blocked through brand gold are
+      non-conforming and route to
+      token_drift_rules:block:brand_gold_on_restricted_state or
+      token_drift_rules:block:brand_gold_on_policy_locked_state.
+
+  - corpus_state_class: error
+    required_honesty_review_axes:
+      - focus_visible
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - shape
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - forced_colors_native
+    requires_recovery_route: true
+    notes: >
+      Error captures must say what failed, whether retry is safe,
+      and the next safe action. Color alone is non-conforming and
+      routes to color_alone_conveyed_required_meaning.
+
+  - corpus_state_class: completed
+    required_honesty_review_axes:
+      - focus_visible
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - check_or_selection_marker
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+    requires_recovery_route: false
+    notes: >
+      Completed captures must show the durable success affordance
+      and the link to the resulting object or evidence. Distinct
+      from restored.
+
+  - corpus_state_class: restored
+    required_honesty_review_axes:
+      - focus_visible
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+    requires_recovery_route: true
+    notes: >
+      Restored captures must name the restore level that applied,
+      the drafts recovered, and the route to inspect or revert. The
+      crash-loop and restore-fidelity contract at
+      docs/ux/crash_loop_and_restore_fidelity_contract.md is the
+      canonical copy axis.
+
+  - corpus_state_class: restricted
+    required_honesty_review_axes:
+      - focus_visible
+      - disabled
+      - tooltip
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - lock_or_shield_glyph
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - forced_colors_native
+    requires_recovery_route: true
+    notes: >
+      Restricted captures must show workspace-trust narrowing as a
+      shield or policy icon plus reason text. The capture must keep
+      restricted distinct from policy_blocked even when both are
+      active simultaneously.
+
+  - corpus_state_class: policy_blocked
+    required_honesty_review_axes:
+      - focus_visible
+      - disabled
+      - tooltip
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - lock_or_shield_glyph
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - forced_colors_native
+    requires_recovery_route: true
+    notes: >
+      Policy-blocked captures must name the policy source. Brand
+      gold is forbidden on policy_locked.
+
+  - corpus_state_class: quiet_hours_held
+    required_honesty_review_axes:
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+    requires_recovery_route: true
+    notes: >
+      Quiet-hours-held captures must show the held row addressable
+      for parity audit and support export. The row must remain
+      reachable from the durable-attention canvas even while
+      suppressed from the user's active attention.
+
+  - corpus_state_class: reconnecting
+    required_honesty_review_axes:
+      - focus_visible
+      - keyboard_only_visibility
+    required_non_color_cues:
+      - label_text
+      - icon
+      - progress_indicator
+    required_screenshot_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark
+      - high_contrast_light
+      - motion_reduced
+      - motion_low_motion
+    requires_recovery_route: true
+    notes: >
+      Reconnecting captures must distinguish reconnecting from
+      degraded and stale. The capture must preserve the host or
+      session label.
+
+# ---------------------------------------------------------------------------
+# Per-launch-critical-surface state coverage. One row per
+# launch_critical_surface_class. Each row enumerates which
+# corpus_state_class values are in scope for that surface, the
+# component_surface_class (from the state-machine schema), the
+# canonical contract refs, and the four-theme parity floor.
+# ---------------------------------------------------------------------------
+launch_critical_surface_rows:
+
+  - corpus_row_id: corpus:surface:shell_chrome
+    launch_critical_surface_class: shell_chrome
+    component_surface_class: status_item
+    canonical_contract_refs:
+      - docs/ux/shell_zone_and_density_contract.md
+      - docs/design/design_token_component_state_vocabulary.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - degraded
+      - blocked
+      - error
+      - restricted
+      - policy_blocked
+      - reconnecting
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Shell chrome must resolve every axis through the canonical
+      manifest; partial inheritance is a token-drift violation.
+
+  - corpus_row_id: corpus:surface:command_palette_and_search
+    launch_critical_surface_class: command_palette_and_search
+    component_surface_class: list_or_result_row
+    canonical_contract_refs:
+      - docs/ux/quick_open_contract.md
+      - docs/ux/command_diagnostics_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - error
+      - blocked
+      - restricted
+      - policy_blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Command palette captures must show the empty / no-match copy
+      and the loading skeleton without whole-shell spinners.
+
+  - corpus_row_id: corpus:surface:dialog_or_capability_sheet
+    launch_critical_surface_class: dialog_or_capability_sheet
+    component_surface_class: dialog_action
+    canonical_contract_refs:
+      - docs/ux/dialog_sheet_contract.md
+      - docs/ux/trust_prompt_contract.md
+    in_scope_corpus_state_classes:
+      - pending
+      - loading
+      - blocked
+      - error
+      - completed
+      - restricted
+      - policy_blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: false
+    notes: >
+      Dialog actions must distinguish pending submit from generic
+      loading chrome and locked from disabled.
+
+  - corpus_row_id: corpus:surface:settings_canvas
+    launch_critical_surface_class: settings_canvas
+    component_surface_class: settings_row
+    canonical_contract_refs:
+      - docs/ux/field_row_and_value_source_contract.md
+      - artifacts/design/component_review_checklist.md
+    in_scope_corpus_state_classes:
+      - pending
+      - degraded
+      - blocked
+      - error
+      - completed
+      - restricted
+      - policy_blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Settings rows must keep policy-managed values locked,
+      view-only values read-only, waiting-to-apply values pending,
+      and stale or partial source truth degraded.
+
+  - corpus_row_id: corpus:surface:durable_attention_canvas
+    launch_critical_surface_class: durable_attention_canvas
+    component_surface_class: list_or_result_row
+    canonical_contract_refs:
+      - docs/ux/attention_activity_taxonomy.md
+      - docs/ux/durable_job_envelope_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - pending
+      - degraded
+      - error
+      - completed
+      - restored
+      - quiet_hours_held
+      - reconnecting
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Durable rows must remain visible beyond a toast and must keep
+      quiet-hours-held rows addressable for parity audits.
+
+  - corpus_row_id: corpus:surface:notification_canvas
+    launch_critical_surface_class: notification_canvas
+    component_surface_class: banner
+    canonical_contract_refs:
+      - docs/ux/notification_contract.md
+      - docs/ux/notification_delivery_contract.md
+    in_scope_corpus_state_classes:
+      - pending
+      - degraded
+      - error
+      - completed
+      - quiet_hours_held
+      - reconnecting
+    requires_four_theme_parity: true
+    requires_density_matrix: false
+    notes: >
+      Notification surfaces inherit the durable-attention palette;
+      color alone is non-conforming.
+
+  - corpus_row_id: corpus:surface:status_strip
+    launch_critical_surface_class: status_strip
+    component_surface_class: status_item
+    canonical_contract_refs:
+      - docs/ux/status_bar_contract.md
+      - docs/ux/status_strip_family_contract.md
+    in_scope_corpus_state_classes:
+      - loading
+      - degraded
+      - blocked
+      - error
+      - restricted
+      - policy_blocked
+      - reconnecting
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Status items use current for the live context, locked for
+      provider or policy block, and degraded for partial service
+      quality with inspectable details.
+
+  - corpus_row_id: corpus:surface:inspector_surface
+    launch_critical_surface_class: inspector_surface
+    component_surface_class: settings_row
+    canonical_contract_refs:
+      - docs/ux/persistence_inspector_contract.md
+      - docs/ux/control_data_plane_status_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - degraded
+      - error
+      - restricted
+      - policy_blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Inspector captures must keep degraded distinct from error and
+      preserve forced-colors honesty.
+
+  - corpus_row_id: corpus:surface:trust_prompt_canvas
+    launch_critical_surface_class: trust_prompt_canvas
+    component_surface_class: dialog_action
+    canonical_contract_refs:
+      - docs/ux/trust_prompt_contract.md
+      - docs/ux/workspace_admission_contract.md
+    in_scope_corpus_state_classes:
+      - pending
+      - blocked
+      - error
+      - completed
+      - restricted
+      - policy_blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: false
+    notes: >
+      Trust prompts route blocked through locked with source and
+      reason; brand gold is forbidden on restricted_workspace and
+      policy_locked.
+
+  - corpus_row_id: corpus:surface:onboarding_canvas
+    launch_critical_surface_class: onboarding_canvas
+    component_surface_class: banner
+    canonical_contract_refs:
+      - docs/ux/no_account_local_entry_contract.md
+      - docs/ux/start_center_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - pending
+      - completed
+      - restored
+      - blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: false
+    notes: >
+      Onboarding surfaces ship full theme parity from M0; restored
+      captures must show the recovery affordance.
+
+  - corpus_row_id: corpus:surface:editor_canvas
+    launch_critical_surface_class: editor_canvas
+    component_surface_class: tab_or_editor_tab
+    canonical_contract_refs:
+      - docs/ux/editor_anatomy_contract.md
+      - docs/ux/editor_document_state_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - pending
+      - degraded
+      - blocked
+      - error
+      - completed
+      - restored
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Editor tabs must keep pending external changes distinct from
+      restored crash-recovery posture.
+
+  - corpus_row_id: corpus:surface:terminal_canvas
+    launch_critical_surface_class: terminal_canvas
+    component_surface_class: status_item
+    canonical_contract_refs:
+      - docs/ux/output_log_viewer_contract.md
+    in_scope_corpus_state_classes:
+      - loading
+      - degraded
+      - error
+      - completed
+      - reconnecting
+    requires_four_theme_parity: true
+    requires_density_matrix: false
+    notes: >
+      Terminal captures must include reduced-motion and low-motion
+      variants where the cursor blink and idle animations matter.
+
+  - corpus_row_id: corpus:surface:review_and_diff_canvas
+    launch_critical_surface_class: review_and_diff_canvas
+    component_surface_class: list_or_result_row
+    canonical_contract_refs:
+      - docs/ux/clone_review_contract.md
+      - docs/ux/live_update_review_contract.md
+    in_scope_corpus_state_classes:
+      - loading
+      - pending
+      - degraded
+      - error
+      - completed
+      - blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Review and diff canvases must keep pending review distinct
+      from generic loading chrome.
+
+  - corpus_row_id: corpus:surface:docs_help_canvas
+    launch_critical_surface_class: docs_help_canvas
+    component_surface_class: banner
+    canonical_contract_refs:
+      - docs/ux/contextual_teaching_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - degraded
+      - error
+      - blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: false
+    notes: >
+      Docs / help canvases inherit the shell semantic-status palette
+      under the docs_help_service_health_inherits_shell_palette
+      allowed-inheritance gap.
+
+  - corpus_row_id: corpus:surface:start_center_canvas
+    launch_critical_surface_class: start_center_canvas
+    component_surface_class: list_or_result_row
+    canonical_contract_refs:
+      - docs/ux/start_center_contract.md
+      - docs/ux/recent_work_and_restore_card_contract.md
+    in_scope_corpus_state_classes:
+      - empty
+      - loading
+      - error
+      - completed
+      - restored
+      - blocked
+    requires_four_theme_parity: true
+    requires_density_matrix: true
+    notes: >
+      Start center captures must show recents, restore card, and
+      empty-state copy without inventing surface-local state words.
+
+# ---------------------------------------------------------------------------
+# Honesty-review rule rows. The review packet evaluates every honesty
+# violation class against every captured row. A non-none violation
+# routes to a diff_severity_class of block or block_release per the
+# rule below.
+# ---------------------------------------------------------------------------
+honesty_review_rules:
+
+  - rule_id: corpus:honesty:critical_action_revealed_only_on_hover
+    honesty_violation_class: critical_action_revealed_only_on_hover
+    diff_severity_class: block_release
+    description: A primary or recovery action that reveals only on pointer hover is non-conforming. Hover may add emphasis but never adds new affordances.
+
+  - rule_id: corpus:honesty:critical_action_revealed_only_on_tooltip
+    honesty_violation_class: critical_action_revealed_only_on_tooltip
+    diff_severity_class: block_release
+    description: A primary or recovery action whose label, route, or activation appears only inside a tooltip is non-conforming.
+
+  - rule_id: corpus:honesty:source_explanation_revealed_only_on_hover
+    honesty_violation_class: source_explanation_revealed_only_on_hover
+    diff_severity_class: block
+    description: Source, owner, or trust-state explanations must be persistently disclosed for locked, restricted, and policy_blocked states.
+
+  - rule_id: corpus:honesty:source_explanation_revealed_only_on_tooltip
+    honesty_violation_class: source_explanation_revealed_only_on_tooltip
+    diff_severity_class: block
+    description: Source explanation may not depend on tooltip-only disclosure on locked, restricted, or policy_blocked states.
+
+  - rule_id: corpus:honesty:lock_reason_revealed_only_on_hover
+    honesty_violation_class: lock_reason_revealed_only_on_hover
+    diff_severity_class: block
+    description: Lock or policy reason must be inline; hover-only reasons collapse locked into disabled.
+
+  - rule_id: corpus:honesty:lock_reason_revealed_only_on_tooltip
+    honesty_violation_class: lock_reason_revealed_only_on_tooltip
+    diff_severity_class: block
+    description: Lock or policy reason must be inline; tooltip-only reasons collapse locked into disabled.
+
+  - rule_id: corpus:honesty:freshness_revealed_only_on_hover
+    honesty_violation_class: freshness_revealed_only_on_hover
+    diff_severity_class: warn
+    description: Freshness or staleness must be inline on degraded and stale states; hover-only freshness erodes the degraded-mode pattern.
+
+  - rule_id: corpus:honesty:freshness_revealed_only_on_tooltip
+    honesty_violation_class: freshness_revealed_only_on_tooltip
+    diff_severity_class: warn
+    description: Freshness or staleness must be inline on degraded and stale states; tooltip-only freshness erodes the degraded-mode pattern.
+
+  - rule_id: corpus:honesty:recovery_route_revealed_only_on_hover
+    honesty_violation_class: recovery_route_revealed_only_on_hover
+    diff_severity_class: block
+    description: Recovery routes for blocked, error, restricted, or policy_blocked states must be persistently disclosed.
+
+  - rule_id: corpus:honesty:recovery_route_revealed_only_on_tooltip
+    honesty_violation_class: recovery_route_revealed_only_on_tooltip
+    diff_severity_class: block
+    description: Recovery routes for blocked, error, restricted, or policy_blocked states must be persistently disclosed.
+
+  - rule_id: corpus:honesty:state_label_revealed_only_on_hover
+    honesty_violation_class: state_label_revealed_only_on_hover
+    diff_severity_class: block
+    description: The state label that names the user-visible status must not depend on pointer hover to appear.
+
+  - rule_id: corpus:honesty:state_label_revealed_only_on_tooltip
+    honesty_violation_class: state_label_revealed_only_on_tooltip
+    diff_severity_class: block
+    description: The state label that names the user-visible status must not depend on tooltip-only disclosure.
+
+  - rule_id: corpus:honesty:keyboard_only_focus_loses_state_visibility
+    honesty_violation_class: keyboard_only_focus_loses_state_visibility
+    diff_severity_class: block_release
+    description: A keyboard-only user must see the same state visibility as a pointer user; otherwise the state is unreviewable.
+
+  - rule_id: corpus:honesty:keyboard_only_focus_loses_source_visibility
+    honesty_violation_class: keyboard_only_focus_loses_source_visibility
+    diff_severity_class: block
+    description: Source explanation must remain visible under keyboard-only focus.
+
+  - rule_id: corpus:honesty:keyboard_only_focus_loses_recovery_route
+    honesty_violation_class: keyboard_only_focus_loses_recovery_route
+    diff_severity_class: block
+    description: Recovery routes must remain reachable under keyboard-only focus.
+
+  - rule_id: corpus:honesty:selected_visually_collapses_with_current
+    honesty_violation_class: selected_visually_collapses_with_current
+    diff_severity_class: block
+    description: Selected and current must remain visually distinct; collapsing them is non-conforming under the state-machine schema.
+
+  - rule_id: corpus:honesty:disabled_visually_collapses_with_locked
+    honesty_violation_class: disabled_visually_collapses_with_locked
+    diff_severity_class: block
+    description: Locked must show source and reason; disabled must not be used as a substitute. Collapsing the two routes to component_state_class_unresolved.
+
+  - rule_id: corpus:honesty:read_only_visually_collapses_with_disabled
+    honesty_violation_class: read_only_visually_collapses_with_disabled
+    diff_severity_class: block
+    description: Read-only must preserve inspectable content contrast and name the read-only scope; disabled does not.
+
+  - rule_id: corpus:honesty:color_alone_conveys_state
+    honesty_violation_class: color_alone_conveys_state
+    diff_severity_class: block_release
+    description: Color is never the sole state cue. Routes to color_alone_conveyed_required_meaning in artifacts/design/token_drift_rules.yaml.
+
+  - rule_id: corpus:honesty:reduced_opacity_alone_conveys_state
+    honesty_violation_class: reduced_opacity_alone_conveys_state
+    diff_severity_class: block_release
+    description: Reduced opacity is never the sole indicator of disabled, blocked, loading, or held state.
+
+  - rule_id: corpus:honesty:none
+    honesty_violation_class: none
+    diff_severity_class: pass
+    description: No honesty violation detected on this row.
