@@ -1,0 +1,506 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/recovery_level.schema.json",
+  "title": "Aureline progressive recovery-level contract",
+  "description": "Boundary schema for recovery-level records frozen in docs/recovery/restore_chooser_contract.md. Each record names exactly one of the five closed recovery levels (exact_session_restore, context_restore_with_placeholders, dirty_buffer_recovery, checkpoint_rollback, evidence_only_recovery), the deterministic selection criterion that bound the level, what the level restores, what reopens only as context or placeholder, what does not rerun, and the per-level forbidden-claim set the chooser refuses to render. The closed recovery_level_class, selection_criterion_class, and forbidden_claim_class vocabularies are re-exported into restore_chooser_state.schema.json. Upstream restore_level (entry-restore object model §3.1) and restore_fidelity_class (crash-loop / restore-fidelity contract) are quoted verbatim and never redefined here. Raw paths, raw URLs, raw credentials, raw provider payloads, and raw terminal scrollback never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/recovery_level_record",
+  "$defs": {
+    "recovery_level_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for recovery_level_record. Additive-minor changes (new recovery_level_class, new selection_criterion_class, new forbidden_claim_class, new what-restores / what-reopens / what-does-not-rerun class) bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "recovery_level_record",
+      "description": "Discriminator. Always recovery_level_record for records conforming to this schema."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in chooser surfaces, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "recovery_level_class": {
+      "type": "string",
+      "enum": [
+        "exact_session_restore",
+        "context_restore_with_placeholders",
+        "dirty_buffer_recovery",
+        "checkpoint_rollback",
+        "evidence_only_recovery"
+      ],
+      "description": "Closed five-class progressive recovery-level vocabulary. Rendered names are 'Exact session restore', 'Context restore with placeholders', 'Dirty-buffer recovery', 'Checkpoint rollback', and 'Evidence-only recovery'."
+    },
+    "selection_criterion_class": {
+      "type": "string",
+      "enum": [
+        "prior_runtime_survived_compatible_contract",
+        "compatible_translation_available",
+        "missing_dependency_layout_only",
+        "recovery_journal_present_layout_unsafe",
+        "typed_checkpoint_covers_failure",
+        "corrupt_restorable_state_quarantined",
+        "bounded_restart_exhausted_no_safe_path",
+        "policy_blocked_restore_evidence_remains",
+        "no_recoverable_state_evidence_only"
+      ],
+      "description": "Closed nine-class deterministic selection criterion. Each recovery_level_record cites exactly one. The schema's allOf block enforces the criterion / level pairing (e.g. prior_runtime_survived_compatible_contract is the only criterion permitted on exact_session_restore)."
+    },
+    "forbidden_claim_class": {
+      "type": "string",
+      "enum": [
+        "claim_runtime_reattached",
+        "claim_remote_session_reauthed",
+        "claim_silent_command_rerun",
+        "claim_pixel_perfect_layout",
+        "claim_save_to_disk",
+        "claim_undo_for_compensating_rollback",
+        "claim_evidence_was_deleted_by_skip",
+        "claim_live_readiness_for_placeholder"
+      ],
+      "description": "Closed eight-class set of claim phrases the chooser MUST refuse to render at the bound level. Surfaces that bypass by free-text wording are non-conforming."
+    },
+    "what_restores_class": {
+      "type": "string",
+      "enum": [
+        "windows_pane_tree",
+        "editor_identity",
+        "dirty_buffers",
+        "cursor_and_scroll",
+        "stable_inspectors",
+        "non_mutating_panels",
+        "layout_slots",
+        "panel_positions",
+        "stable_metadata",
+        "local_text_state",
+        "unsaved_text_from_journal",
+        "local_autosave_snapshots",
+        "journal_identity",
+        "last_known_good_state_at_checkpoint",
+        "settings_backup_state",
+        "migration_checkpoint_state",
+        "local_history_snapshot_state"
+      ],
+      "description": "Closed vocabulary describing what the chosen level rehydrates."
+    },
+    "context_or_placeholder_class": {
+      "type": "string",
+      "enum": [
+        "missing_extension_host",
+        "quarantined_extension",
+        "missing_remote_target",
+        "authority_expired_for_remote",
+        "missing_toolchain",
+        "missing_profile",
+        "missing_devcontainer",
+        "missing_managed_workspace",
+        "topology_changed",
+        "schema_migrated",
+        "binary_or_extension_version_changed",
+        "corrupt_restorable_state",
+        "policy_blocked_restore",
+        "layout_only_no_live_runtime"
+      ],
+      "description": "Closed vocabulary describing what reopens only as context or placeholder. The first thirteen values mirror the missing_target_state set frozen in the entry-restore object model §3.2."
+    },
+    "does_not_rerun_class": {
+      "type": "string",
+      "enum": [
+        "tasks",
+        "tests",
+        "debug_attach",
+        "notebook_cells",
+        "ai_tool_calls",
+        "publish_or_promote_actions",
+        "remote_mutations",
+        "save_to_disk",
+        "push_to_remote",
+        "send_to_external_service",
+        "live_runtime_reattach",
+        "silent_reauth",
+        "silent_reconnect",
+        "command_rerun",
+        "compensating_side_effects_unnamed"
+      ],
+      "description": "Closed vocabulary describing what the chosen level MUST NOT rerun."
+    },
+    "restore_level_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Re-exported verbatim from the entry-restore object model §3.1 restore_level vocabulary."
+    },
+    "restore_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/ux/restore_fidelity.schema.json#restore_fidelity_class."
+    },
+    "checkpoint_linked_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback_from_checkpoint",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_session_checkpoint",
+        "restore_from_migration_checkpoint",
+        "restore_from_settings_backup",
+        "restore_from_recovery_journal",
+        "restore_from_local_history_snapshot",
+        "manual_recovery_required"
+      ],
+      "description": "Re-exported verbatim from the entry-restore object model §4 checkpoint-linked recovery class vocabulary."
+    },
+    "recovery_level_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recovery_level_schema_version",
+        "level_id",
+        "generated_at",
+        "recovery_level_class",
+        "selection_criterion_class",
+        "rendered_name",
+        "what_restores",
+        "what_reopens_as_context_or_placeholder",
+        "what_does_not_rerun",
+        "forbidden_claims",
+        "restore_level_ref",
+        "restore_fidelity_class_ref",
+        "summary"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "recovery_level_schema_version": { "$ref": "#/$defs/recovery_level_schema_version" },
+        "level_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "recovery_level_class": { "$ref": "#/$defs/recovery_level_class" },
+        "selection_criterion_class": { "$ref": "#/$defs/selection_criterion_class" },
+        "rendered_name": {
+          "type": "string",
+          "enum": [
+            "Exact session restore",
+            "Context restore with placeholders",
+            "Dirty-buffer recovery",
+            "Checkpoint rollback",
+            "Evidence-only recovery"
+          ],
+          "description": "The verbatim rendered name for this level. Bound to recovery_level_class by the cross-field allOf below."
+        },
+        "what_restores": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/what_restores_class" },
+          "uniqueItems": true,
+          "description": "Closed-vocabulary list of what the chosen level rehydrates. May be empty only when recovery_level_class is evidence_only_recovery."
+        },
+        "what_reopens_as_context_or_placeholder": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/context_or_placeholder_class" },
+          "uniqueItems": true,
+          "description": "Closed-vocabulary list of dependencies that reopen only as context or placeholder."
+        },
+        "what_does_not_rerun": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/does_not_rerun_class" },
+          "uniqueItems": true,
+          "description": "Closed-vocabulary list of actions the chosen level MUST NOT rerun. Required for every level so the chooser is explicit about what is deferred."
+        },
+        "forbidden_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/forbidden_claim_class" },
+          "uniqueItems": true,
+          "description": "Closed-vocabulary list of claim phrases the chooser MUST refuse to render at this level."
+        },
+        "restore_level_ref": {
+          "$ref": "#/$defs/restore_level_class",
+          "description": "Quotes the upstream restore_prompt_record.restore_level (entry-restore §3.1). The recovery_level_class / restore_level_ref pairing is enforced by the cross-field allOf."
+        },
+        "restore_fidelity_class_ref": {
+          "$ref": "#/$defs/restore_fidelity_class",
+          "description": "Quotes the upstream restore_fidelity_class. The chooser MUST NOT promise a higher fidelity than the underlying class declares."
+        },
+        "checkpoint_linked_recovery_class_ref": {
+          "$ref": "#/$defs/checkpoint_linked_recovery_class",
+          "description": "Required when recovery_level_class is checkpoint_rollback. Names the typed rollback semantics."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "exact_session_restore is bound to selection_criterion_class prior_runtime_survived_compatible_contract, restore_level exact_restore, restore_fidelity exact_restore, and the rendered name 'Exact session restore'.",
+          "if": {
+            "properties": { "recovery_level_class": { "const": "exact_session_restore" } },
+            "required": ["recovery_level_class"]
+          },
+          "then": {
+            "properties": {
+              "selection_criterion_class": { "const": "prior_runtime_survived_compatible_contract" },
+              "restore_level_ref": { "const": "exact_restore" },
+              "restore_fidelity_class_ref": { "const": "exact_restore" },
+              "rendered_name": { "const": "Exact session restore" },
+              "what_restores": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": [
+              "selection_criterion_class",
+              "restore_level_ref",
+              "restore_fidelity_class_ref",
+              "rendered_name",
+              "what_restores"
+            ]
+          }
+        },
+        {
+          "description": "context_restore_with_placeholders is bound to one of two selection criteria, restore_level compatible_restore or layout_only, restore_fidelity compatible_restore or layout_only, and the rendered name 'Context restore with placeholders'.",
+          "if": {
+            "properties": { "recovery_level_class": { "const": "context_restore_with_placeholders" } },
+            "required": ["recovery_level_class"]
+          },
+          "then": {
+            "properties": {
+              "selection_criterion_class": {
+                "enum": [
+                  "compatible_translation_available",
+                  "missing_dependency_layout_only"
+                ]
+              },
+              "restore_level_ref": {
+                "enum": ["compatible_restore", "layout_only"]
+              },
+              "restore_fidelity_class_ref": {
+                "enum": ["compatible_restore", "layout_only"]
+              },
+              "rendered_name": { "const": "Context restore with placeholders" },
+              "what_reopens_as_context_or_placeholder": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": [
+              "selection_criterion_class",
+              "restore_level_ref",
+              "restore_fidelity_class_ref",
+              "rendered_name",
+              "what_reopens_as_context_or_placeholder"
+            ]
+          }
+        },
+        {
+          "description": "dirty_buffer_recovery is bound to selection_criterion_class recovery_journal_present_layout_unsafe, restore_level recovered_drafts, restore_fidelity recovered_drafts, and the rendered name 'Dirty-buffer recovery'.",
+          "if": {
+            "properties": { "recovery_level_class": { "const": "dirty_buffer_recovery" } },
+            "required": ["recovery_level_class"]
+          },
+          "then": {
+            "properties": {
+              "selection_criterion_class": { "const": "recovery_journal_present_layout_unsafe" },
+              "restore_level_ref": { "const": "recovered_drafts" },
+              "restore_fidelity_class_ref": { "const": "recovered_drafts" },
+              "rendered_name": { "const": "Dirty-buffer recovery" },
+              "what_restores": {
+                "type": "array",
+                "contains": {
+                  "enum": [
+                    "unsaved_text_from_journal",
+                    "local_autosave_snapshots",
+                    "journal_identity"
+                  ]
+                }
+              },
+              "what_does_not_rerun": {
+                "type": "array",
+                "contains": { "const": "save_to_disk" }
+              },
+              "forbidden_claims": {
+                "type": "array",
+                "contains": { "const": "claim_save_to_disk" }
+              }
+            },
+            "required": [
+              "selection_criterion_class",
+              "restore_level_ref",
+              "restore_fidelity_class_ref",
+              "rendered_name",
+              "what_restores",
+              "what_does_not_rerun",
+              "forbidden_claims"
+            ]
+          }
+        },
+        {
+          "description": "checkpoint_rollback requires selection_criterion_class typed_checkpoint_covers_failure, a checkpoint_linked_recovery_class_ref, and the rendered name 'Checkpoint rollback'.",
+          "if": {
+            "properties": { "recovery_level_class": { "const": "checkpoint_rollback" } },
+            "required": ["recovery_level_class"]
+          },
+          "then": {
+            "properties": {
+              "selection_criterion_class": { "const": "typed_checkpoint_covers_failure" },
+              "rendered_name": { "const": "Checkpoint rollback" }
+            },
+            "required": [
+              "selection_criterion_class",
+              "checkpoint_linked_recovery_class_ref",
+              "rendered_name"
+            ]
+          }
+        },
+        {
+          "description": "When checkpoint_rollback names a compensating_rollback or regenerate_from_canonical_source recovery class, forbidden_claims MUST contain claim_undo_for_compensating_rollback so the chooser refuses 'Undo' wording.",
+          "if": {
+            "properties": {
+              "recovery_level_class": { "const": "checkpoint_rollback" },
+              "checkpoint_linked_recovery_class_ref": {
+                "enum": ["compensating_rollback", "regenerate_from_canonical_source"]
+              }
+            },
+            "required": ["recovery_level_class", "checkpoint_linked_recovery_class_ref"]
+          },
+          "then": {
+            "properties": {
+              "forbidden_claims": {
+                "type": "array",
+                "contains": { "const": "claim_undo_for_compensating_rollback" }
+              }
+            },
+            "required": ["forbidden_claims"]
+          }
+        },
+        {
+          "description": "evidence_only_recovery is bound to one of four selection criteria, restore_level evidence_only or no_restore, restore_fidelity evidence_only, and the rendered name 'Evidence-only recovery'. what_restores is empty for this level.",
+          "if": {
+            "properties": { "recovery_level_class": { "const": "evidence_only_recovery" } },
+            "required": ["recovery_level_class"]
+          },
+          "then": {
+            "properties": {
+              "selection_criterion_class": {
+                "enum": [
+                  "corrupt_restorable_state_quarantined",
+                  "bounded_restart_exhausted_no_safe_path",
+                  "policy_blocked_restore_evidence_remains",
+                  "no_recoverable_state_evidence_only"
+                ]
+              },
+              "restore_level_ref": {
+                "enum": ["evidence_only", "no_restore"]
+              },
+              "restore_fidelity_class_ref": { "const": "evidence_only" },
+              "rendered_name": { "const": "Evidence-only recovery" },
+              "what_restores": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "forbidden_claims": {
+                "type": "array",
+                "allOf": [
+                  { "contains": { "const": "claim_runtime_reattached" } },
+                  { "contains": { "const": "claim_silent_command_rerun" } },
+                  { "contains": { "const": "claim_evidence_was_deleted_by_skip" } }
+                ]
+              }
+            },
+            "required": [
+              "selection_criterion_class",
+              "restore_level_ref",
+              "restore_fidelity_class_ref",
+              "rendered_name",
+              "what_restores",
+              "forbidden_claims"
+            ]
+          }
+        },
+        {
+          "description": "Every non-exact level MUST forbid claim_runtime_reattached. Only exact_session_restore may omit that claim from forbidden_claims.",
+          "if": {
+            "properties": {
+              "recovery_level_class": {
+                "enum": [
+                  "context_restore_with_placeholders",
+                  "dirty_buffer_recovery",
+                  "checkpoint_rollback",
+                  "evidence_only_recovery"
+                ]
+              }
+            },
+            "required": ["recovery_level_class"]
+          },
+          "then": {
+            "properties": {
+              "forbidden_claims": {
+                "type": "array",
+                "contains": { "const": "claim_runtime_reattached" }
+              }
+            },
+            "required": ["forbidden_claims"]
+          }
+        },
+        {
+          "description": "Every level MUST forbid claim_silent_command_rerun. The shell never reruns mutating commands as part of restore.",
+          "properties": {
+            "forbidden_claims": {
+              "type": "array",
+              "contains": { "const": "claim_silent_command_rerun" }
+            }
+          },
+          "required": ["forbidden_claims"]
+        },
+        {
+          "description": "Every level MUST forbid claim_evidence_was_deleted_by_skip. Skip and Open clean retain evidence.",
+          "properties": {
+            "forbidden_claims": {
+              "type": "array",
+              "contains": { "const": "claim_evidence_was_deleted_by_skip" }
+            }
+          },
+          "required": ["forbidden_claims"]
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,1169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/restore_chooser_state.schema.json",
+  "title": "Aureline restore-chooser state contract",
+  "description": "Boundary schema for restore-chooser state records frozen in docs/recovery/restore_chooser_contract.md. The chooser projects one chosen recovery_level_record (plus optional lower-level fallbacks), a typed changed_since_failure_summary, typed retained-evidence links, one typed risk note, the closed primary-action set (restore_now, skip_once, open_clean, safe_mode, plus companion actions), the typed remembered-choice expiry block, the packet/export linkage refs, and the honesty invariants. The closed recovery_level_class, selection_criterion_class, and forbidden_claim_class vocabularies are re-exported from schemas/recovery/recovery_level.schema.json. Upstream restore_level (entry-restore object model §3.1), restore_fidelity_class (crash-loop / restore-fidelity contract), exit_reason_class, redaction_class, export_posture, and the action_id grammar are quoted verbatim from their owning schemas. Raw paths, raw URLs, raw credentials, raw provider payloads, and raw terminal scrollback never cross this boundary.",
+  "type": "object",
+  "$ref": "#/$defs/restore_chooser_state_record",
+  "$defs": {
+    "restore_chooser_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for restore_chooser_state_record. Additive-minor changes (new surface_family, new changed_since_class, new expiry_trigger_class, new prior_decision_class, new remembered_decision_ttl_class, new still_suppressed_until_class, new risk_class, new chooser_action_id) bump this const; repurposing an existing value is breaking."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "restore_chooser_state_record",
+      "description": "Discriminator. Always restore_chooser_state_record for records conforming to this schema."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in chooser surfaces, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "recovery_level_class": {
+      "type": "string",
+      "enum": [
+        "exact_session_restore",
+        "context_restore_with_placeholders",
+        "dirty_buffer_recovery",
+        "checkpoint_rollback",
+        "evidence_only_recovery"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_level.schema.json#recovery_level_class."
+    },
+    "selection_criterion_class": {
+      "type": "string",
+      "enum": [
+        "prior_runtime_survived_compatible_contract",
+        "compatible_translation_available",
+        "missing_dependency_layout_only",
+        "recovery_journal_present_layout_unsafe",
+        "typed_checkpoint_covers_failure",
+        "corrupt_restorable_state_quarantined",
+        "bounded_restart_exhausted_no_safe_path",
+        "policy_blocked_restore_evidence_remains",
+        "no_recoverable_state_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_level.schema.json#selection_criterion_class."
+    },
+    "forbidden_claim_class": {
+      "type": "string",
+      "enum": [
+        "claim_runtime_reattached",
+        "claim_remote_session_reauthed",
+        "claim_silent_command_rerun",
+        "claim_pixel_perfect_layout",
+        "claim_save_to_disk",
+        "claim_undo_for_compensating_rollback",
+        "claim_evidence_was_deleted_by_skip",
+        "claim_live_readiness_for_placeholder"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_level.schema.json#forbidden_claim_class."
+    },
+    "what_restores_class": {
+      "type": "string",
+      "enum": [
+        "windows_pane_tree",
+        "editor_identity",
+        "dirty_buffers",
+        "cursor_and_scroll",
+        "stable_inspectors",
+        "non_mutating_panels",
+        "layout_slots",
+        "panel_positions",
+        "stable_metadata",
+        "local_text_state",
+        "unsaved_text_from_journal",
+        "local_autosave_snapshots",
+        "journal_identity",
+        "last_known_good_state_at_checkpoint",
+        "settings_backup_state",
+        "migration_checkpoint_state",
+        "local_history_snapshot_state"
+      ]
+    },
+    "context_or_placeholder_class": {
+      "type": "string",
+      "enum": [
+        "missing_extension_host",
+        "quarantined_extension",
+        "missing_remote_target",
+        "authority_expired_for_remote",
+        "missing_toolchain",
+        "missing_profile",
+        "missing_devcontainer",
+        "missing_managed_workspace",
+        "topology_changed",
+        "schema_migrated",
+        "binary_or_extension_version_changed",
+        "corrupt_restorable_state",
+        "policy_blocked_restore",
+        "layout_only_no_live_runtime"
+      ]
+    },
+    "does_not_rerun_class": {
+      "type": "string",
+      "enum": [
+        "tasks",
+        "tests",
+        "debug_attach",
+        "notebook_cells",
+        "ai_tool_calls",
+        "publish_or_promote_actions",
+        "remote_mutations",
+        "save_to_disk",
+        "push_to_remote",
+        "send_to_external_service",
+        "live_runtime_reattach",
+        "silent_reauth",
+        "silent_reconnect",
+        "command_rerun",
+        "compensating_side_effects_unnamed"
+      ]
+    },
+    "restore_level_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only",
+        "no_restore"
+      ],
+      "description": "Re-exported verbatim from the entry-restore object model §3.1 restore_level vocabulary."
+    },
+    "restore_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "layout_only",
+        "recovered_drafts",
+        "evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/ux/restore_fidelity.schema.json#restore_fidelity_class."
+    },
+    "checkpoint_linked_recovery_class": {
+      "type": "string",
+      "enum": [
+        "exact_rollback_from_checkpoint",
+        "compensating_rollback",
+        "regenerate_from_canonical_source",
+        "restore_from_session_checkpoint",
+        "restore_from_migration_checkpoint",
+        "restore_from_settings_backup",
+        "restore_from_recovery_journal",
+        "restore_from_local_history_snapshot",
+        "manual_recovery_required"
+      ]
+    },
+    "exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "crash_segfault_or_signal",
+        "crash_unhandled_panic",
+        "crash_allocation_failure",
+        "crash_abort_on_assertion",
+        "crash_resource_quota_exceeded",
+        "crash_sandbox_denial",
+        "rpc_contract_mismatch",
+        "corrupt_restorable_state",
+        "startup_restore_reentered_loop",
+        "unknown_nonclean_exit"
+      ],
+      "description": "Re-exported verbatim from schemas/ux/restore_fidelity.schema.json#exit_reason_class."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_only_default",
+        "review_required_code_adjacent",
+        "regulated_support_only",
+        "local_only_private",
+        "raw_dump_excluded"
+      ],
+      "description": "Re-exported verbatim from schemas/ux/restore_fidelity.schema.json#redaction_class."
+    },
+    "export_posture": {
+      "type": "string",
+      "enum": [
+        "local_first_not_exported",
+        "export_review_required",
+        "exported_by_reference",
+        "export_blocked_by_policy"
+      ],
+      "description": "Re-exported verbatim from schemas/ux/restore_fidelity.schema.json#export_posture."
+    },
+    "reversibility_class": {
+      "type": "string",
+      "enum": [
+        "exact_undo",
+        "compensating_action",
+        "regeneration",
+        "checkpoint_restore",
+        "no_undo_export_only"
+      ],
+      "description": "Re-exported verbatim from schemas/support/recovery_action.schema.json#reversal_class."
+    },
+    "pre_action_class": {
+      "type": "string",
+      "enum": [
+        "export_now_before_change",
+        "capture_local_checkpoint",
+        "import_offline_bundle",
+        "investigate_with_project_doctor"
+      ],
+      "description": "Re-exported verbatim from the recovery-scenario contract pre-action set."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "start_center_chooser",
+        "crash_loop_chooser",
+        "diagnostics_restore_panel",
+        "support_export_preview",
+        "docs_help_example"
+      ],
+      "description": "Closed surface family vocabulary. Each chooser cites exactly one."
+    },
+    "startup_state_token": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^startup_state:[a-z_]+$",
+      "description": "A startup_state token from docs/ux/entry_restore_truth_audit.md §6 (e.g. startup_state:reopen_with_pending_restore, startup_state:restore_failed, startup_state:open_without_restore)."
+    },
+    "chooser_primary_action_id": {
+      "type": "string",
+      "enum": [
+        "restore_now",
+        "skip_once",
+        "open_clean",
+        "safe_mode"
+      ],
+      "description": "Closed four-class set of required chooser primary actions. Re-uses the action_id values frozen in schemas/ux/restore_fidelity.schema.json#action_id."
+    },
+    "chooser_companion_action_id": {
+      "type": "string",
+      "enum": [
+        "compare_to_disk",
+        "open_journal",
+        "disable_suspect_extension",
+        "export_evidence",
+        "open_logs",
+        "retry_reopen",
+        "open_recovery_ladder"
+      ],
+      "description": "Closed companion-action set. Re-uses the action_id values frozen in schemas/ux/restore_fidelity.schema.json#action_id; open_recovery_ladder is chooser-scoped and always available."
+    },
+    "action_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "disabled_until_probe",
+        "hidden_not_applicable",
+        "blocked_by_policy",
+        "unavailable_missing_evidence",
+        "disabled_restart_budget_exhausted"
+      ]
+    },
+    "action_effect_class": {
+      "type": "string",
+      "enum": [
+        "preserve_dirty_buffers",
+        "preserve_evidence",
+        "preserve_crash_envelope",
+        "preserve_logs",
+        "preserve_session_manifest",
+        "preserve_layout_context",
+        "preserve_local_history",
+        "preserve_checkpoint_refs",
+        "defer_restore_this_launch",
+        "discard_auto_restore_attempt",
+        "suspend_extension_activation",
+        "suspend_remote_reattach",
+        "disable_suspect_until_review",
+        "require_user_compare",
+        "require_journal_review",
+        "rerun_nothing",
+        "upload_nothing_by_default"
+      ],
+      "description": "Re-exported verbatim from schemas/ux/restore_fidelity.schema.json#action_effect_class."
+    },
+    "primary_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "rendered_label",
+        "availability",
+        "enabled",
+        "preserves",
+        "discards_or_defers",
+        "evidence_retained_after_action",
+        "requires_confirmation",
+        "consequence_summary"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/chooser_primary_action_id" },
+        "rendered_label": {
+          "$ref": "#/$defs/short_text",
+          "description": "User-visible label. The restore_now action MUST quote the chosen recovery_level rendered name (e.g. 'Restore now (Exact session restore)', 'Restore now (Dirty-buffer recovery)', 'Open evidence' for evidence_only_recovery)."
+        },
+        "availability": { "$ref": "#/$defs/action_availability_class" },
+        "enabled": { "type": "boolean" },
+        "preserves": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "uniqueItems": true
+        },
+        "discards_or_defers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "uniqueItems": true
+        },
+        "evidence_retained_after_action": {
+          "type": "boolean",
+          "description": "True when the underlying chooser evidence remains retained after this action. The schema enforces evidence_retained_after_action = true on skip_once, open_clean, and safe_mode."
+        },
+        "requires_confirmation": { "type": "boolean" },
+        "consequence_summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "skip_once, open_clean, and safe_mode MUST retain evidence.",
+          "if": {
+            "properties": {
+              "action_id": {
+                "enum": ["skip_once", "open_clean", "safe_mode"]
+              }
+            },
+            "required": ["action_id"]
+          },
+          "then": {
+            "properties": {
+              "evidence_retained_after_action": { "const": true }
+            },
+            "required": ["evidence_retained_after_action"]
+          }
+        }
+      ]
+    },
+    "companion_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "availability",
+        "enabled",
+        "evidence_retained_after_action",
+        "consequence_summary"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/chooser_companion_action_id" },
+        "availability": { "$ref": "#/$defs/action_availability_class" },
+        "enabled": { "type": "boolean" },
+        "evidence_retained_after_action": { "type": "boolean" },
+        "preserves": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "uniqueItems": true
+        },
+        "discards_or_defers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/action_effect_class" },
+          "uniqueItems": true
+        },
+        "rendered_label": { "$ref": "#/$defs/short_text" },
+        "consequence_summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "recovery_level_record_inline": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Inline recovery_level_record. Mirrors schemas/recovery/recovery_level.schema.json#recovery_level_record without the $schema / __fixture__ keys; the parent record carries those.",
+      "required": [
+        "level_id",
+        "recovery_level_class",
+        "selection_criterion_class",
+        "rendered_name",
+        "what_restores",
+        "what_reopens_as_context_or_placeholder",
+        "what_does_not_rerun",
+        "forbidden_claims",
+        "restore_level_ref",
+        "restore_fidelity_class_ref",
+        "summary"
+      ],
+      "properties": {
+        "level_id": { "$ref": "#/$defs/opaque_id" },
+        "recovery_level_class": { "$ref": "#/$defs/recovery_level_class" },
+        "selection_criterion_class": { "$ref": "#/$defs/selection_criterion_class" },
+        "rendered_name": {
+          "type": "string",
+          "enum": [
+            "Exact session restore",
+            "Context restore with placeholders",
+            "Dirty-buffer recovery",
+            "Checkpoint rollback",
+            "Evidence-only recovery"
+          ]
+        },
+        "what_restores": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/what_restores_class" },
+          "uniqueItems": true
+        },
+        "what_reopens_as_context_or_placeholder": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/context_or_placeholder_class" },
+          "uniqueItems": true
+        },
+        "what_does_not_rerun": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/does_not_rerun_class" },
+          "uniqueItems": true
+        },
+        "forbidden_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/forbidden_claim_class" },
+          "uniqueItems": true
+        },
+        "restore_level_ref": { "$ref": "#/$defs/restore_level_class" },
+        "restore_fidelity_class_ref": { "$ref": "#/$defs/restore_fidelity_class" },
+        "checkpoint_linked_recovery_class_ref": { "$ref": "#/$defs/checkpoint_linked_recovery_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "changed_since_class": {
+      "type": "string",
+      "enum": [
+        "higher_risk_recovery_class_available",
+        "newly_available_evidence",
+        "recovery_level_class_changed",
+        "restore_manifest_digest_changed",
+        "build_or_schema_identity_changed",
+        "restore_fidelity_downgrade",
+        "remembered_decision_ttl_elapsed"
+      ],
+      "description": "Closed seven-class vocabulary describing what changed between the prior failure / decision and this launch."
+    },
+    "changed_since_failure_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prior_failure_id",
+        "prior_failure_class",
+        "prior_recovery_level_record_ref",
+        "changed_since_class",
+        "summary"
+      ],
+      "properties": {
+        "prior_failure_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "prior_failure_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/exit_reason_class" }
+          ]
+        },
+        "prior_recovery_level_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "changed_since_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/changed_since_class" },
+          "uniqueItems": true,
+          "description": "Closed-vocabulary list. Required to be non-empty whenever the chooser is shown after a remembered dismissal or a prior failure (see §8 expiry rules)."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "retained_evidence_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "export_posture",
+        "evidence_retained_after_skip"
+      ],
+      "properties": {
+        "crash_envelope_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "restore_manifest_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "recovery_journal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "local_history_snapshot_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "forensic_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "support_bundle_candidate_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "evidence_retained_after_skip": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that Skip once, Open clean, Safe mode, and remembered-decision expiry never delete evidence."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": [
+        "non_destructive_read_only",
+        "non_destructive_writes_local_evidence_only",
+        "writes_disposable_state_only",
+        "writes_user_owned_recovery_state",
+        "mutates_workspace_bytes_with_checkpoint",
+        "mutates_profile_state_with_checkpoint_and_export",
+        "destructive_user_authored_no_undo_export_required",
+        "restore_no_rerun_no_reattach",
+        "evidence_only_no_state_change"
+      ],
+      "description": "Closed nine-class chooser risk vocabulary. The first seven re-export schemas/recovery/recovery_scenario_card.schema.json#destructive_risk_class; the last two are chooser-specific."
+    },
+    "risk_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "risk_class",
+        "reversibility_class",
+        "no_undo_acknowledgement_required",
+        "summary"
+      ],
+      "properties": {
+        "risk_class": { "$ref": "#/$defs/risk_class" },
+        "reversibility_class": { "$ref": "#/$defs/reversibility_class" },
+        "requires_pre_action": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pre_action_class" },
+          "uniqueItems": true
+        },
+        "no_undo_acknowledgement_required": {
+          "type": "boolean",
+          "description": "True when risk_class is destructive_user_authored_no_undo_export_required."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "destructive_user_authored_no_undo_export_required requires no_undo_acknowledgement_required = true and at least the export_now_before_change pre-action.",
+          "if": {
+            "properties": {
+              "risk_class": { "const": "destructive_user_authored_no_undo_export_required" }
+            },
+            "required": ["risk_class"]
+          },
+          "then": {
+            "properties": {
+              "no_undo_acknowledgement_required": { "const": true },
+              "requires_pre_action": {
+                "type": "array",
+                "contains": { "const": "export_now_before_change" }
+              }
+            },
+            "required": ["no_undo_acknowledgement_required", "requires_pre_action"]
+          }
+        }
+      ]
+    },
+    "prior_decision_class": {
+      "type": "string",
+      "enum": [
+        "skip_once",
+        "open_clean",
+        "safe_mode_taken"
+      ],
+      "description": "Closed three-class set naming the prior remembered decision the chooser is overriding (or honoring)."
+    },
+    "remembered_decision_ttl_class": {
+      "type": "string",
+      "enum": [
+        "session_only",
+        "until_workspace_close",
+        "until_build_change",
+        "bounded_window_short",
+        "bounded_window_long"
+      ],
+      "description": "Closed five-class chooser TTL vocabulary. Absolute / monotonic timestamp semantics follow the governance chronology rules from docs/governance/record_state_and_policy_simulation_models.md."
+    },
+    "expiry_trigger_class": {
+      "type": "string",
+      "enum": [
+        "higher_risk_recovery_class_available",
+        "newly_available_evidence",
+        "recovery_level_class_changed",
+        "restore_manifest_digest_changed",
+        "build_or_schema_identity_changed",
+        "restore_fidelity_downgrade",
+        "remembered_decision_ttl_elapsed"
+      ],
+      "description": "Closed seven-class set; at least one MUST fire whenever a remembered decision is overridden. Mirrors changed_since_class so changed_since_failure_summary and remembered_choice_expiry stay aligned."
+    },
+    "still_suppressed_until_class": {
+      "type": "string",
+      "enum": [
+        "not_suppressed",
+        "next_failure_event",
+        "next_evidence_change"
+      ],
+      "description": "Closed three-class set naming the next expiry semantics if the user dismisses again."
+    },
+    "remembered_choice_expiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "was_prior_decision_remembered",
+        "expiry_triggered",
+        "still_suppressed_until_class",
+        "summary"
+      ],
+      "properties": {
+        "was_prior_decision_remembered": { "type": "boolean" },
+        "prior_decision_class": { "$ref": "#/$defs/prior_decision_class" },
+        "prior_decision_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "remembered_decision_ttl_class": { "$ref": "#/$defs/remembered_decision_ttl_class" },
+        "expiry_triggered": { "type": "boolean" },
+        "expiry_trigger_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expiry_trigger_class" },
+          "uniqueItems": true
+        },
+        "still_suppressed_until_class": { "$ref": "#/$defs/still_suppressed_until_class" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      },
+      "allOf": [
+        {
+          "description": "When a prior decision was remembered, prior_decision_class, prior_decision_at, and remembered_decision_ttl_class MUST be present.",
+          "if": {
+            "properties": { "was_prior_decision_remembered": { "const": true } },
+            "required": ["was_prior_decision_remembered"]
+          },
+          "then": {
+            "required": [
+              "prior_decision_class",
+              "prior_decision_at",
+              "remembered_decision_ttl_class"
+            ]
+          }
+        },
+        {
+          "description": "When expiry_triggered = true, expiry_trigger_classes MUST be non-empty.",
+          "if": {
+            "properties": { "expiry_triggered": { "const": true } },
+            "required": ["expiry_triggered"]
+          },
+          "then": {
+            "properties": {
+              "expiry_trigger_classes": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["expiry_trigger_classes"]
+          }
+        },
+        {
+          "description": "expiry_triggered = true requires was_prior_decision_remembered = true. Otherwise there is nothing to expire.",
+          "if": {
+            "properties": { "expiry_triggered": { "const": true } },
+            "required": ["expiry_triggered"]
+          },
+          "then": {
+            "properties": {
+              "was_prior_decision_remembered": { "const": true }
+            },
+            "required": ["was_prior_decision_remembered"]
+          }
+        }
+      ]
+    },
+    "packet_export_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "restore_prompt_ref",
+        "recovery_ladder_packet_ref",
+        "docs_help_label"
+      ],
+      "properties": {
+        "restore_prompt_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_card_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "crash_loop_card_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "recovery_scenario_card_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "recovery_ladder_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_bundle_candidate_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "forensic_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "local_history_snapshot_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "recovery_journal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "checkpoint_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "docs_help_label": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "accessibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keyboard_reachable_actions",
+        "focus_target_ref",
+        "screen_reader_summary"
+      ],
+      "properties": {
+        "keyboard_reachable_actions": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that every required and companion action is keyboard-reachable. A chooser without keyboard reachability is non-conforming."
+        },
+        "focus_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "screen_reader_summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recovery_level_is_closed",
+        "retained_evidence_named",
+        "primary_actions_distinct",
+        "expiry_is_typed",
+        "linkage_is_typed"
+      ],
+      "properties": {
+        "recovery_level_is_closed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the chooser resolves to exactly one of the five closed levels and never collapses two levels into one."
+        },
+        "retained_evidence_named": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that at least one evidence anchor is named; the user is never told the system failed without a named anchor."
+        },
+        "primary_actions_distinct": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that the four required actions appear distinctly. No generic Reopen collapse."
+        },
+        "expiry_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that remembered-choice expiry is represented by the typed expiry_trigger_classes set; silent shadowing or free-text expiry is forbidden."
+        },
+        "linkage_is_typed": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that packet/export linkage refs are typed (restore prompt, restore card, crash-loop card, scenario card, recovery-ladder packet, evidence / forensic / journal / checkpoint / local-history ids); free-text linkage prose is non-conforming."
+        }
+      }
+    },
+    "restore_chooser_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "restore_chooser_state_schema_version",
+        "chooser_id",
+        "emitted_at",
+        "surface_family",
+        "startup_state_ref",
+        "chosen_level_record",
+        "changed_since_failure_summary",
+        "retained_evidence_links",
+        "risk_note",
+        "primary_actions",
+        "remembered_choice_expiry",
+        "packet_export_linkage",
+        "accessibility_contract",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "restore_chooser_state_schema_version": { "$ref": "#/$defs/restore_chooser_state_schema_version" },
+        "chooser_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "startup_state_ref": { "$ref": "#/$defs/startup_state_token" },
+        "chosen_level_record": { "$ref": "#/$defs/recovery_level_record_inline" },
+        "available_lower_level_fallbacks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recovery_level_record_inline" },
+          "description": "Optional ordered list of strictly lower-level recovery_level_records the chooser kept available."
+        },
+        "changed_since_failure_summary": { "$ref": "#/$defs/changed_since_failure_summary" },
+        "retained_evidence_links": { "$ref": "#/$defs/retained_evidence_links" },
+        "risk_note": { "$ref": "#/$defs/risk_note" },
+        "primary_actions": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "$ref": "#/$defs/primary_action_record" },
+          "uniqueItems": true,
+          "description": "Exactly four required primary actions: restore_now, skip_once, open_clean, safe_mode. The schema's allOf block enforces presence of each id."
+        },
+        "companion_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/companion_action_record" },
+          "description": "Optional companion actions (compare_to_disk, open_journal, disable_suspect_extension, export_evidence, open_logs, retry_reopen, open_recovery_ladder)."
+        },
+        "remembered_choice_expiry": { "$ref": "#/$defs/remembered_choice_expiry" },
+        "packet_export_linkage": { "$ref": "#/$defs/packet_export_linkage" },
+        "accessibility_contract": { "$ref": "#/$defs/accessibility_contract" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "primary_actions MUST contain a restore_now record.",
+          "properties": {
+            "primary_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "restore_now" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "primary_actions MUST contain a skip_once record.",
+          "properties": {
+            "primary_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "skip_once" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "primary_actions MUST contain an open_clean record.",
+          "properties": {
+            "primary_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "open_clean" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "primary_actions MUST contain a safe_mode record.",
+          "properties": {
+            "primary_actions": {
+              "type": "array",
+              "contains": {
+                "type": "object",
+                "properties": { "action_id": { "const": "safe_mode" } },
+                "required": ["action_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "evidence_only_recovery requires risk_class evidence_only_no_state_change and reversibility_class exact_undo.",
+          "if": {
+            "properties": {
+              "chosen_level_record": {
+                "properties": {
+                  "recovery_level_class": { "const": "evidence_only_recovery" }
+                },
+                "required": ["recovery_level_class"]
+              }
+            },
+            "required": ["chosen_level_record"]
+          },
+          "then": {
+            "properties": {
+              "risk_note": {
+                "properties": {
+                  "risk_class": { "const": "evidence_only_no_state_change" },
+                  "reversibility_class": { "const": "exact_undo" }
+                },
+                "required": ["risk_class", "reversibility_class"]
+              }
+            },
+            "required": ["risk_note"]
+          }
+        },
+        {
+          "description": "exact_session_restore requires risk_class restore_no_rerun_no_reattach and reversibility_class exact_undo.",
+          "if": {
+            "properties": {
+              "chosen_level_record": {
+                "properties": {
+                  "recovery_level_class": { "const": "exact_session_restore" }
+                },
+                "required": ["recovery_level_class"]
+              }
+            },
+            "required": ["chosen_level_record"]
+          },
+          "then": {
+            "properties": {
+              "risk_note": {
+                "properties": {
+                  "risk_class": { "const": "restore_no_rerun_no_reattach" },
+                  "reversibility_class": { "const": "exact_undo" }
+                },
+                "required": ["risk_class", "reversibility_class"]
+              }
+            },
+            "required": ["risk_note"]
+          }
+        },
+        {
+          "description": "context_restore_with_placeholders requires risk_class restore_no_rerun_no_reattach.",
+          "if": {
+            "properties": {
+              "chosen_level_record": {
+                "properties": {
+                  "recovery_level_class": { "const": "context_restore_with_placeholders" }
+                },
+                "required": ["recovery_level_class"]
+              }
+            },
+            "required": ["chosen_level_record"]
+          },
+          "then": {
+            "properties": {
+              "risk_note": {
+                "properties": {
+                  "risk_class": { "const": "restore_no_rerun_no_reattach" }
+                },
+                "required": ["risk_class"]
+              }
+            },
+            "required": ["risk_note"]
+          }
+        },
+        {
+          "description": "dirty_buffer_recovery requires a risk_class drawn from writes_user_owned_recovery_state or restore_no_rerun_no_reattach.",
+          "if": {
+            "properties": {
+              "chosen_level_record": {
+                "properties": {
+                  "recovery_level_class": { "const": "dirty_buffer_recovery" }
+                },
+                "required": ["recovery_level_class"]
+              }
+            },
+            "required": ["chosen_level_record"]
+          },
+          "then": {
+            "properties": {
+              "risk_note": {
+                "properties": {
+                  "risk_class": {
+                    "enum": [
+                      "writes_user_owned_recovery_state",
+                      "restore_no_rerun_no_reattach"
+                    ]
+                  }
+                },
+                "required": ["risk_class"]
+              }
+            },
+            "required": ["risk_note"]
+          }
+        },
+        {
+          "description": "checkpoint_rollback requires a risk_class drawn from writes_user_owned_recovery_state, mutates_workspace_bytes_with_checkpoint, or mutates_profile_state_with_checkpoint_and_export.",
+          "if": {
+            "properties": {
+              "chosen_level_record": {
+                "properties": {
+                  "recovery_level_class": { "const": "checkpoint_rollback" }
+                },
+                "required": ["recovery_level_class"]
+              }
+            },
+            "required": ["chosen_level_record"]
+          },
+          "then": {
+            "properties": {
+              "risk_note": {
+                "properties": {
+                  "risk_class": {
+                    "enum": [
+                      "writes_user_owned_recovery_state",
+                      "mutates_workspace_bytes_with_checkpoint",
+                      "mutates_profile_state_with_checkpoint_and_export"
+                    ]
+                  }
+                },
+                "required": ["risk_class"]
+              }
+            },
+            "required": ["risk_note"]
+          }
+        },
+        {
+          "description": "When a chooser is shown despite a remembered decision, changed_since_failure_summary.changed_since_class[] MUST contain at least one entry that matches a fired expiry_trigger_class.",
+          "if": {
+            "properties": {
+              "remembered_choice_expiry": {
+                "properties": {
+                  "expiry_triggered": { "const": true }
+                },
+                "required": ["expiry_triggered"]
+              }
+            },
+            "required": ["remembered_choice_expiry"]
+          },
+          "then": {
+            "properties": {
+              "changed_since_failure_summary": {
+                "properties": {
+                  "changed_since_class": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                },
+                "required": ["changed_since_class"]
+              }
+            },
+            "required": ["changed_since_failure_summary"]
+          }
+        },
+        {
+          "description": "crash_loop_chooser surface family MUST cite a crash_loop_card_ref.",
+          "if": {
+            "properties": {
+              "surface_family": { "const": "crash_loop_chooser" }
+            },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "packet_export_linkage": {
+                "properties": {
+                  "crash_loop_card_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["crash_loop_card_ref"]
+              }
+            },
+            "required": ["packet_export_linkage"]
+          }
+        },
+        {
+          "description": "evidence_only_recovery cards driven by corrupt-restorable-state, bounded-restart-exhausted, policy-blocked, or no-recoverable-state criteria MUST cite a recovery_scenario_card_ref.",
+          "if": {
+            "properties": {
+              "chosen_level_record": {
+                "properties": {
+                  "recovery_level_class": { "const": "evidence_only_recovery" },
+                  "selection_criterion_class": {
+                    "enum": [
+                      "corrupt_restorable_state_quarantined",
+                      "bounded_restart_exhausted_no_safe_path",
+                      "policy_blocked_restore_evidence_remains",
+                      "no_recoverable_state_evidence_only"
+                    ]
+                  }
+                },
+                "required": ["recovery_level_class", "selection_criterion_class"]
+              }
+            },
+            "required": ["chosen_level_record"]
+          },
+          "then": {
+            "properties": {
+              "packet_export_linkage": {
+                "properties": {
+                  "recovery_scenario_card_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": ["recovery_scenario_card_ref"]
+              }
+            },
+            "required": ["packet_export_linkage"]
+          }
+        }
+      ]
+    }
+  }
+}

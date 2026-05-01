@@ -1,0 +1,267 @@
+# yaml-language-server: $schema=../../../schemas/recovery/restore_chooser_state.schema.json
+__fixture__:
+  name: checkpoint_rollback
+  scenario: >
+    A reopen after a failed migration apply where a typed
+    migration checkpoint covers the failing scope. The chooser
+    opens with checkpoint_rollback bound to
+    restore_from_migration_checkpoint. Risk class is
+    mutates_profile_state_with_checkpoint_and_export with
+    compensating_action reversibility — rollback walks the
+    pre-apply migration snapshot. Pre-actions
+    capture_local_checkpoint and export_now_before_change are
+    required so the user retains a way back if the rollback itself
+    needs to be reversed. The chooser's compensating-rollback path
+    is enforced by forbidden_claims =
+    claim_undo_for_compensating_rollback only when the
+    checkpoint_linked_recovery_class is compensating; this fixture
+    walks restore_from_migration_checkpoint, so 'Undo' wording is
+    permitted. The chooser opens after a remembered Skip-once
+    decision for an earlier, lower-risk reopen — but
+    higher_risk_recovery_class_available and
+    newly_available_evidence trigger expiry so the chooser is
+    shown deliberately.
+  doc_sections:
+    - "§2 Recovery-level vocabulary"
+    - "§3 Restore-chooser state record"
+    - "§4 Changed-since-failure summary"
+    - "§5 Retained-evidence links"
+    - "§6 Risk note"
+    - "§7 Primary actions"
+    - "§8 Remembered-choice expiry rules"
+    - "§9 Packet / export linkage"
+    - "§10 Honesty invariants"
+
+record_kind: restore_chooser_state_record
+restore_chooser_state_schema_version: 1
+chooser_id: chooser-checkpoint-rollback-0001
+emitted_at: "mono:6402:09:32:11.0250"
+
+surface_family: start_center_chooser
+startup_state_ref: "startup_state:reopen_with_pending_restore"
+
+chosen_level_record:
+  level_id: level-checkpoint-rollback-0001
+  recovery_level_class: checkpoint_rollback
+  selection_criterion_class: typed_checkpoint_covers_failure
+  rendered_name: Checkpoint rollback
+  what_restores:
+    - last_known_good_state_at_checkpoint
+    - migration_checkpoint_state
+    - settings_backup_state
+  what_reopens_as_context_or_placeholder:
+    - schema_migrated
+    - layout_only_no_live_runtime
+  what_does_not_rerun:
+    - tasks
+    - tests
+    - debug_attach
+    - notebook_cells
+    - publish_or_promote_actions
+    - remote_mutations
+    - command_rerun
+    - compensating_side_effects_unnamed
+  forbidden_claims:
+    - claim_runtime_reattached
+    - claim_silent_command_rerun
+    - claim_evidence_was_deleted_by_skip
+    - claim_live_readiness_for_placeholder
+  restore_level_ref: compatible_restore
+  restore_fidelity_class_ref: compatible_restore
+  checkpoint_linked_recovery_class_ref: restore_from_migration_checkpoint
+  summary: >
+    Walk the migration checkpoint to restore the pre-apply
+    profile / settings snapshot. Compensating side effects, if
+    any, are named on the checkpoint card.
+
+changed_since_failure_summary:
+  prior_failure_id: failure:migration-apply.0001
+  prior_failure_class: rpc_contract_mismatch
+  prior_recovery_level_record_ref: level:layout-only.previous-attempt
+  changed_since_class:
+    - higher_risk_recovery_class_available
+    - newly_available_evidence
+    - recovery_level_class_changed
+  summary: >
+    A migration checkpoint was captured between the prior
+    Skip-once decision and this launch; the rollback path is
+    higher-risk than the layout-only level the user previously
+    skipped.
+
+retained_evidence_links:
+  crash_envelope_ref: null
+  restore_manifest_ref: restore_manifest:checkpoint-rollback.0001
+  recovery_journal_refs:
+    - journal:autosave.checkpoint-rollback.0001
+  local_history_snapshot_refs: []
+  checkpoint_refs:
+    - checkpoint:migration_checkpoint.0001
+    - checkpoint:settings_backup.0001
+  evidence_packet_refs:
+    - evidence_packet:migration_apply_failure.0001
+  forensic_packet_refs:
+    - forensic_packet:migration_apply_diagnostics.0001
+  support_bundle_candidate_ref: support_bundle_candidate:migration-rollback.0001
+  redaction_class: review_required_code_adjacent
+  export_posture: export_review_required
+  evidence_retained_after_skip: true
+  summary: >
+    The migration checkpoint and the settings backup are the named
+    rollback anchors; the apply-failure evidence packet remains.
+
+risk_note:
+  risk_class: mutates_profile_state_with_checkpoint_and_export
+  reversibility_class: compensating_action
+  requires_pre_action:
+    - capture_local_checkpoint
+    - export_now_before_change
+  no_undo_acknowledgement_required: false
+  summary: >
+    Rolling back to the migration checkpoint mutates profile-wide
+    durable state. A workspace-authority checkpoint and an
+    export-before-change are required so the rollback itself
+    remains reversible.
+
+primary_actions:
+  - action_id: restore_now
+    rendered_label: Restore now (Checkpoint rollback)
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_session_manifest
+      - preserve_evidence
+      - preserve_dirty_buffers
+      - preserve_checkpoint_refs
+    discards_or_defers:
+      - rerun_nothing
+    evidence_retained_after_action: true
+    requires_confirmation: true
+    consequence_summary: >
+      Walk the migration checkpoint and restore the pre-apply
+      profile snapshot. Capture the local checkpoint and complete
+      the export before commit.
+  - action_id: skip_once
+    rendered_label: Skip once
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_checkpoint_refs
+      - preserve_local_history
+    discards_or_defers:
+      - defer_restore_this_launch
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Skip the chooser; the migration checkpoint remains retained
+      and may be walked later.
+  - action_id: open_clean
+    rendered_label: Open clean
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_checkpoint_refs
+      - preserve_local_history
+    discards_or_defers:
+      - discard_auto_restore_attempt
+    evidence_retained_after_action: true
+    requires_confirmation: true
+    consequence_summary: >
+      Open without rolling back. The checkpoint remains retained
+      for later use.
+  - action_id: safe_mode
+    rendered_label: Safe mode
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_checkpoint_refs
+      - preserve_dirty_buffers
+      - preserve_local_history
+    discards_or_defers:
+      - suspend_extension_activation
+      - suspend_remote_reattach
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Enter safe mode; the migration checkpoint remains available.
+
+companion_actions:
+  - action_id: open_recovery_ladder
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open recovery ladder
+    consequence_summary: >
+      Open the recovery-ladder packet to inspect rung options.
+  - action_id: export_evidence
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Export evidence
+    consequence_summary: >
+      Stage the apply-failure evidence packet and the migration
+      forensic packet for local export.
+  - action_id: open_logs
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open logs
+    consequence_summary: >
+      Open the migration apply log for review.
+
+remembered_choice_expiry:
+  was_prior_decision_remembered: true
+  prior_decision_class: skip_once
+  prior_decision_at: "mono:6401:21:18:55.0033"
+  remembered_decision_ttl_class: bounded_window_short
+  expiry_triggered: true
+  expiry_trigger_classes:
+    - higher_risk_recovery_class_available
+    - newly_available_evidence
+    - recovery_level_class_changed
+  still_suppressed_until_class: next_failure_event
+  summary: >
+    The prior Skip-once decision is overridden because a
+    higher-risk recovery class (checkpoint rollback) is available
+    today, an additional apply-failure evidence packet was
+    retained, and the chosen level differs from the level the
+    user previously skipped.
+
+packet_export_linkage:
+  restore_prompt_ref: restore_prompt:checkpoint-rollback.0001
+  restore_card_ref: restore_card:checkpoint-rollback.0001
+  crash_loop_card_ref: null
+  recovery_scenario_card_ref: null
+  recovery_ladder_packet_ref: recovery_ladder_packet:default.0001
+  support_bundle_candidate_ref: support_bundle_candidate:migration-rollback.0001
+  evidence_packet_refs:
+    - evidence_packet:migration_apply_failure.0001
+  forensic_packet_refs:
+    - forensic_packet:migration_apply_diagnostics.0001
+  local_history_snapshot_refs: []
+  recovery_journal_refs:
+    - journal:autosave.checkpoint-rollback.0001
+  checkpoint_refs:
+    - checkpoint:migration_checkpoint.0001
+    - checkpoint:settings_backup.0001
+  docs_help_label: >
+    Checkpoint rollback — walk the migration checkpoint after
+    capturing a local checkpoint and exporting current state.
+
+accessibility_contract:
+  keyboard_reachable_actions: true
+  focus_target_ref: focus:chooser.checkpoint_rollback.restore_now
+  screen_reader_summary: >
+    Checkpoint rollback. Restoring the migration checkpoint
+    mutates profile state; a local checkpoint and export are
+    required first. Four actions plus Open recovery ladder,
+    Export evidence, Open logs.
+
+honesty_invariants:
+  recovery_level_is_closed: true
+  retained_evidence_named: true
+  primary_actions_distinct: true
+  expiry_is_typed: true
+  linkage_is_typed: true

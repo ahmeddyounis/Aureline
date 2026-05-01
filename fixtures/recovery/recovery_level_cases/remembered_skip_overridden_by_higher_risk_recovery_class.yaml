@@ -1,0 +1,257 @@
+# yaml-language-server: $schema=../../../schemas/recovery/restore_chooser_state.schema.json
+__fixture__:
+  name: remembered_skip_overridden_by_higher_risk_recovery_class
+  scenario: >
+    A reopen on a workspace where the user previously chose Skip
+    once on a layout-only context_restore_with_placeholders
+    chooser. Today's chooser is dirty_buffer_recovery — a
+    higher-risk recovery class (writes_user_owned_recovery_state)
+    than the prior chooser (restore_no_rerun_no_reattach). The
+    expiry trigger higher_risk_recovery_class_available fires and
+    the chooser is shown despite the remembered Skip-once. The
+    chooser explicitly cites both higher_risk_recovery_class_
+    available and recovery_level_class_changed in
+    changed_since_class.
+  doc_sections:
+    - "§4 Changed-since-failure summary"
+    - "§5 Retained-evidence links"
+    - "§6 Risk note"
+    - "§7 Primary actions"
+    - "§8 Remembered-choice expiry rules"
+    - "§9 Packet / export linkage"
+    - "§10 Honesty invariants"
+    - "§11 Surface rules"
+
+record_kind: restore_chooser_state_record
+restore_chooser_state_schema_version: 1
+chooser_id: chooser-skip-overridden-higher-risk-0001
+emitted_at: "mono:6712:18:02:31.0218"
+
+surface_family: crash_loop_chooser
+startup_state_ref: "startup_state:restore_failed"
+
+chosen_level_record:
+  level_id: level-dirty-buffer-recovery-0011
+  recovery_level_class: dirty_buffer_recovery
+  selection_criterion_class: recovery_journal_present_layout_unsafe
+  rendered_name: Dirty-buffer recovery
+  what_restores:
+    - unsaved_text_from_journal
+    - local_autosave_snapshots
+    - journal_identity
+  what_reopens_as_context_or_placeholder:
+    - corrupt_restorable_state
+    - layout_only_no_live_runtime
+  what_does_not_rerun:
+    - save_to_disk
+    - push_to_remote
+    - send_to_external_service
+    - tasks
+    - debug_attach
+    - notebook_cells
+    - command_rerun
+  forbidden_claims:
+    - claim_runtime_reattached
+    - claim_silent_command_rerun
+    - claim_save_to_disk
+    - claim_evidence_was_deleted_by_skip
+    - claim_live_readiness_for_placeholder
+  restore_level_ref: recovered_drafts
+  restore_fidelity_class_ref: recovered_drafts
+  summary: >
+    A new autosave journal entry carries unsaved bytes for one
+    editor; the chooser is shown despite a prior Skip-once
+    because the recovery class is higher-risk than the prior
+    chooser.
+
+changed_since_failure_summary:
+  prior_failure_id: crash:dirty-buffer-after-skip.0001
+  prior_failure_class: corrupt_restorable_state
+  prior_recovery_level_record_ref: level:context-restore.previous-attempt-0007
+  changed_since_class:
+    - higher_risk_recovery_class_available
+    - recovery_level_class_changed
+    - newly_available_evidence
+  summary: >
+    The prior chooser was layout-only context restore at risk
+    class restore_no_rerun_no_reattach; today's chooser walks
+    dirty-buffer recovery at writes_user_owned_recovery_state and
+    a fresh autosave journal entry was retained.
+
+retained_evidence_links:
+  crash_envelope_ref: crash_envelope:dirty-buffer-after-skip.0001
+  restore_manifest_ref: restore_manifest:dirty-buffer-after-skip.0001
+  recovery_journal_refs:
+    - journal:autosave.editor_c.0001
+  local_history_snapshot_refs:
+    - local_history_snapshot:editor_c.0001
+  checkpoint_refs: []
+  evidence_packet_refs:
+    - evidence_packet:dirty_buffer_drafts.0011
+  forensic_packet_refs:
+    - forensic_packet:layout_state_quarantined.0011
+  support_bundle_candidate_ref: support_bundle_candidate:dirty-buffer-after-skip.0001
+  redaction_class: local_only_private
+  export_posture: local_first_not_exported
+  evidence_retained_after_skip: true
+  summary: >
+    Crash envelope, the new autosave journal, the local-history
+    snapshot, the drafts evidence packet, and the layout-
+    quarantine forensic packet remain available.
+
+risk_note:
+  risk_class: writes_user_owned_recovery_state
+  reversibility_class: checkpoint_restore
+  requires_pre_action: []
+  no_undo_acknowledgement_required: false
+  summary: >
+    Restoring drafts writes into user-owned local-history and
+    autosave state only. Higher risk than the prior chooser; the
+    user sees the upgraded posture before deciding.
+
+primary_actions:
+  - action_id: restore_now
+    rendered_label: Restore now (Dirty-buffer recovery)
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_dirty_buffers
+      - preserve_local_history
+      - preserve_evidence
+    discards_or_defers:
+      - rerun_nothing
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Restore unsaved bytes from the journal into the affected
+      editor. Nothing is written to disk.
+  - action_id: skip_once
+    rendered_label: Skip once
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_dirty_buffers
+      - preserve_evidence
+      - preserve_local_history
+    discards_or_defers:
+      - defer_restore_this_launch
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Skip again; the journal and local-history snapshots remain
+      retained.
+  - action_id: open_clean
+    rendered_label: Open clean
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_local_history
+      - preserve_checkpoint_refs
+    discards_or_defers:
+      - discard_auto_restore_attempt
+    evidence_retained_after_action: true
+    requires_confirmation: true
+    consequence_summary: >
+      Open without restoring drafts. Journals and evidence remain
+      retained.
+  - action_id: safe_mode
+    rendered_label: Safe mode
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_dirty_buffers
+      - preserve_local_history
+    discards_or_defers:
+      - suspend_extension_activation
+      - suspend_remote_reattach
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Enter safe mode; recovery state remains inspectable.
+
+companion_actions:
+  - action_id: compare_to_disk
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Compare to disk
+    consequence_summary: >
+      Open the diff between the journal draft and the on-disk
+      file.
+  - action_id: open_journal
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open journal
+    consequence_summary: >
+      Open the recovery journal for review.
+  - action_id: export_evidence
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Export evidence
+    consequence_summary: >
+      Stage the drafts evidence and forensic packets for local
+      export.
+  - action_id: open_recovery_ladder
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open recovery ladder
+    consequence_summary: >
+      Open the recovery-ladder packet for rung detail.
+
+remembered_choice_expiry:
+  was_prior_decision_remembered: true
+  prior_decision_class: skip_once
+  prior_decision_at: "mono:6711:09:42:18.0044"
+  remembered_decision_ttl_class: bounded_window_short
+  expiry_triggered: true
+  expiry_trigger_classes:
+    - higher_risk_recovery_class_available
+    - recovery_level_class_changed
+    - newly_available_evidence
+  still_suppressed_until_class: next_failure_event
+  summary: >
+    The prior Skip-once on layout-only context restore is
+    overridden because today's chosen level is dirty-buffer
+    recovery (a higher-risk recovery class) and a new autosave
+    journal entry was retained.
+
+packet_export_linkage:
+  restore_prompt_ref: restore_prompt:dirty-buffer-after-skip.0001
+  restore_card_ref: null
+  crash_loop_card_ref: crash_loop_card:dirty-buffer-after-skip.0001
+  recovery_scenario_card_ref: null
+  recovery_ladder_packet_ref: recovery_ladder_packet:default.0001
+  support_bundle_candidate_ref: support_bundle_candidate:dirty-buffer-after-skip.0001
+  evidence_packet_refs:
+    - evidence_packet:dirty_buffer_drafts.0011
+  forensic_packet_refs:
+    - forensic_packet:layout_state_quarantined.0011
+  local_history_snapshot_refs:
+    - local_history_snapshot:editor_c.0001
+  recovery_journal_refs:
+    - journal:autosave.editor_c.0001
+  checkpoint_refs: []
+  docs_help_label: >
+    Skip-once was overridden because a higher-risk recovery class
+    (dirty-buffer recovery) is available today.
+
+accessibility_contract:
+  keyboard_reachable_actions: true
+  focus_target_ref: focus:chooser.skip_overridden_higher_risk.restore_now
+  screen_reader_summary: >
+    Dirty-buffer recovery. Skip-once was overridden because the
+    recovery class is higher-risk than the prior chooser. Four
+    actions plus Compare to disk, Open journal, Export evidence,
+    Open recovery ladder.
+
+honesty_invariants:
+  recovery_level_is_closed: true
+  retained_evidence_named: true
+  primary_actions_distinct: true
+  expiry_is_typed: true
+  linkage_is_typed: true

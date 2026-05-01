@@ -1,0 +1,242 @@
+# yaml-language-server: $schema=../../../schemas/recovery/restore_chooser_state.schema.json
+__fixture__:
+  name: dirty_buffer_recovery
+  scenario: >
+    A reopen after an abnormal termination where layout cannot be
+    restored safely (corrupt restorable layout state) but the
+    autosave / dirty-buffer journal carries unsaved bytes for two
+    editors. The chooser opens with dirty_buffer_recovery. The risk
+    note is writes_user_owned_recovery_state with checkpoint_restore
+    reversibility — restore writes only into local-history /
+    autosave / workspace-authority checkpoint state. The chooser
+    forbids claim_save_to_disk because the journal is not a save.
+    Companion actions compare_to_disk and open_journal are
+    available.
+  doc_sections:
+    - "§2 Recovery-level vocabulary"
+    - "§3 Restore-chooser state record"
+    - "§5 Retained-evidence links"
+    - "§6 Risk note"
+    - "§7 Primary actions"
+    - "§9 Packet / export linkage"
+    - "§10 Honesty invariants"
+
+record_kind: restore_chooser_state_record
+restore_chooser_state_schema_version: 1
+chooser_id: chooser-dirty-buffer-recovery-0001
+emitted_at: "mono:6311:18:48:21.0107"
+
+surface_family: crash_loop_chooser
+startup_state_ref: "startup_state:restore_failed"
+
+chosen_level_record:
+  level_id: level-dirty-buffer-recovery-0001
+  recovery_level_class: dirty_buffer_recovery
+  selection_criterion_class: recovery_journal_present_layout_unsafe
+  rendered_name: Dirty-buffer recovery
+  what_restores:
+    - unsaved_text_from_journal
+    - local_autosave_snapshots
+    - journal_identity
+  what_reopens_as_context_or_placeholder:
+    - corrupt_restorable_state
+    - layout_only_no_live_runtime
+  what_does_not_rerun:
+    - save_to_disk
+    - push_to_remote
+    - send_to_external_service
+    - tasks
+    - debug_attach
+    - notebook_cells
+    - command_rerun
+  forbidden_claims:
+    - claim_runtime_reattached
+    - claim_silent_command_rerun
+    - claim_save_to_disk
+    - claim_evidence_was_deleted_by_skip
+    - claim_live_readiness_for_placeholder
+  restore_level_ref: recovered_drafts
+  restore_fidelity_class_ref: recovered_drafts
+  summary: >
+    Two editors recover unsaved text from the autosave journal.
+    Compare-to-disk and Open journal companion actions are
+    available; nothing has been written to disk.
+
+changed_since_failure_summary:
+  prior_failure_id: crash:dirty-buffer.0001
+  prior_failure_class: corrupt_restorable_state
+  prior_recovery_level_record_ref: null
+  changed_since_class:
+    - recovery_level_class_changed
+    - newly_available_evidence
+  summary: >
+    Restorable layout state was quarantined as corrupt; an
+    additional autosave snapshot was retained between the failure
+    and this launch.
+
+retained_evidence_links:
+  crash_envelope_ref: crash_envelope:dirty-buffer.0001
+  restore_manifest_ref: restore_manifest:dirty-buffer.0001
+  recovery_journal_refs:
+    - journal:autosave.editor_a.0001
+    - journal:autosave.editor_b.0001
+  local_history_snapshot_refs:
+    - local_history_snapshot:editor_a.0001
+  checkpoint_refs: []
+  evidence_packet_refs:
+    - evidence_packet:dirty_buffer_drafts.0001
+  forensic_packet_refs:
+    - forensic_packet:layout_state_quarantined.0001
+  support_bundle_candidate_ref: support_bundle_candidate:dirty-buffer.0001
+  redaction_class: local_only_private
+  export_posture: local_first_not_exported
+  evidence_retained_after_skip: true
+  summary: >
+    Crash envelope, two journals, one local-history snapshot, the
+    drafts evidence packet, and the layout-quarantine forensic
+    packet remain available.
+
+risk_note:
+  risk_class: writes_user_owned_recovery_state
+  reversibility_class: checkpoint_restore
+  requires_pre_action: []
+  no_undo_acknowledgement_required: false
+  summary: >
+    Restoring drafts writes into user-owned local-history /
+    autosave state only. The journal is not a save; explicit
+    Save-to-disk remains the user's action.
+
+primary_actions:
+  - action_id: restore_now
+    rendered_label: Restore now (Dirty-buffer recovery)
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_dirty_buffers
+      - preserve_local_history
+      - preserve_evidence
+    discards_or_defers:
+      - rerun_nothing
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Restore unsaved bytes from the autosave journal into the
+      affected editors. Nothing is written to disk.
+  - action_id: skip_once
+    rendered_label: Skip once
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_dirty_buffers
+      - preserve_evidence
+      - preserve_local_history
+    discards_or_defers:
+      - defer_restore_this_launch
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Skip the chooser; the journal and local-history snapshots
+      remain retained.
+  - action_id: open_clean
+    rendered_label: Open clean
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_local_history
+      - preserve_checkpoint_refs
+    discards_or_defers:
+      - discard_auto_restore_attempt
+    evidence_retained_after_action: true
+    requires_confirmation: true
+    consequence_summary: >
+      Open without restoring drafts. Journals and evidence remain.
+  - action_id: safe_mode
+    rendered_label: Safe mode
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_dirty_buffers
+      - preserve_local_history
+    discards_or_defers:
+      - suspend_extension_activation
+      - suspend_remote_reattach
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Enter safe mode; recovery state remains inspectable.
+
+companion_actions:
+  - action_id: compare_to_disk
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Compare to disk
+    consequence_summary: >
+      Open the diff between the journal draft and the on-disk file.
+      No write occurs.
+  - action_id: open_journal
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open journal
+    consequence_summary: >
+      Open the recovery journal for review. No apply or delete.
+  - action_id: export_evidence
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Export evidence
+    consequence_summary: >
+      Stage the drafts and forensic packets for local export.
+  - action_id: open_recovery_ladder
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open recovery ladder
+    consequence_summary: >
+      Open the recovery-ladder packet for rung detail.
+
+remembered_choice_expiry:
+  was_prior_decision_remembered: false
+  expiry_triggered: false
+  still_suppressed_until_class: not_suppressed
+  summary: >
+    No prior remembered decision on this workspace.
+
+packet_export_linkage:
+  restore_prompt_ref: restore_prompt:dirty-buffer.0001
+  restore_card_ref: null
+  crash_loop_card_ref: crash_loop_card:dirty-buffer.0001
+  recovery_scenario_card_ref: null
+  recovery_ladder_packet_ref: recovery_ladder_packet:default.0001
+  support_bundle_candidate_ref: support_bundle_candidate:dirty-buffer.0001
+  evidence_packet_refs:
+    - evidence_packet:dirty_buffer_drafts.0001
+  forensic_packet_refs:
+    - forensic_packet:layout_state_quarantined.0001
+  local_history_snapshot_refs:
+    - local_history_snapshot:editor_a.0001
+  recovery_journal_refs:
+    - journal:autosave.editor_a.0001
+    - journal:autosave.editor_b.0001
+  checkpoint_refs: []
+  docs_help_label: >
+    Dirty-buffer recovery — the journal is not a save. Compare to
+    disk before applying anything.
+
+accessibility_contract:
+  keyboard_reachable_actions: true
+  focus_target_ref: focus:chooser.dirty_buffer_recovery.restore_now
+  screen_reader_summary: >
+    Dirty-buffer recovery. Two editors have unsaved drafts in the
+    autosave journal. Four actions plus Compare to disk, Open
+    journal, Export evidence, Open recovery ladder.
+
+honesty_invariants:
+  recovery_level_is_closed: true
+  retained_evidence_named: true
+  primary_actions_distinct: true
+  expiry_is_typed: true
+  linkage_is_typed: true

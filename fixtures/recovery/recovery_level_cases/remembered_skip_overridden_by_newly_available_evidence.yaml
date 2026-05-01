@@ -1,0 +1,239 @@
+# yaml-language-server: $schema=../../../schemas/recovery/restore_chooser_state.schema.json
+__fixture__:
+  name: remembered_skip_overridden_by_newly_available_evidence
+  scenario: >
+    A reopen on a workspace where the user previously chose Skip
+    once on a context_restore_with_placeholders chooser. Today's
+    chosen level is the same — context_restore_with_placeholders
+    — but a new evidence packet (a captured forensic packet for the
+    quarantined extension host) was retained between the prior
+    decision and this launch. Newly_available_evidence triggers
+    expiry; the chooser is shown despite the remembered Skip-once.
+    The chooser explicitly cites newly_available_evidence in
+    changed_since_class so the user sees why today's prompt
+    differs from yesterday's.
+  doc_sections:
+    - "§4 Changed-since-failure summary"
+    - "§5 Retained-evidence links"
+    - "§7 Primary actions"
+    - "§8 Remembered-choice expiry rules"
+    - "§9 Packet / export linkage"
+    - "§10 Honesty invariants"
+    - "§11 Surface rules"
+
+record_kind: restore_chooser_state_record
+restore_chooser_state_schema_version: 1
+chooser_id: chooser-skip-overridden-newly-available-evidence-0001
+emitted_at: "mono:6612:09:14:11.0011"
+
+surface_family: start_center_chooser
+startup_state_ref: "startup_state:reopen_with_pending_restore"
+
+chosen_level_record:
+  level_id: level-context-restore-placeholders-0011
+  recovery_level_class: context_restore_with_placeholders
+  selection_criterion_class: missing_dependency_layout_only
+  rendered_name: Context restore with placeholders
+  what_restores:
+    - layout_slots
+    - panel_positions
+    - editor_identity
+    - local_text_state
+  what_reopens_as_context_or_placeholder:
+    - missing_extension_host
+    - quarantined_extension
+    - layout_only_no_live_runtime
+  what_does_not_rerun:
+    - tasks
+    - tests
+    - debug_attach
+    - notebook_cells
+    - live_runtime_reattach
+    - silent_reauth
+    - silent_reconnect
+  forbidden_claims:
+    - claim_runtime_reattached
+    - claim_silent_command_rerun
+    - claim_pixel_perfect_layout
+    - claim_evidence_was_deleted_by_skip
+    - claim_live_readiness_for_placeholder
+  restore_level_ref: layout_only
+  restore_fidelity_class_ref: layout_only
+  summary: >
+    Layout and editor identity rehydrate; the missing extension
+    host remains a placeholder. A new forensic packet has been
+    retained for the quarantined extension; the chooser is shown
+    despite a prior Skip-once.
+
+changed_since_failure_summary:
+  prior_failure_id: failure:extension-host-quarantined.0001
+  prior_failure_class: rpc_contract_mismatch
+  prior_recovery_level_record_ref: level:context-restore.previous-attempt
+  changed_since_class:
+    - newly_available_evidence
+  summary: >
+    A new forensic packet was retained for the quarantined
+    extension since the prior Skip-once decision; the chooser is
+    shown so the user can see the new evidence.
+
+retained_evidence_links:
+  crash_envelope_ref: null
+  restore_manifest_ref: restore_manifest:context-restore-placeholders.0011
+  recovery_journal_refs:
+    - journal:autosave.context-restore.0011
+  local_history_snapshot_refs: []
+  checkpoint_refs: []
+  evidence_packet_refs:
+    - evidence_packet:quarantined_extension.0001
+  forensic_packet_refs:
+    - forensic_packet:quarantined_extension.0002
+  support_bundle_candidate_ref: null
+  redaction_class: local_only_private
+  export_posture: local_first_not_exported
+  evidence_retained_after_skip: true
+  summary: >
+    The new forensic packet for the quarantined extension is the
+    anchor that triggered today's prompt; the prior evidence
+    packet remains alongside it.
+
+risk_note:
+  risk_class: restore_no_rerun_no_reattach
+  reversibility_class: exact_undo
+  requires_pre_action: []
+  no_undo_acknowledgement_required: false
+  summary: >
+    Restore rehydrates layout only; the placeholder pane carries
+    the new forensic packet for review.
+
+primary_actions:
+  - action_id: restore_now
+    rendered_label: Restore now (Context restore with placeholders)
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_layout_context
+      - preserve_session_manifest
+      - preserve_evidence
+      - preserve_dirty_buffers
+    discards_or_defers:
+      - rerun_nothing
+      - suspend_remote_reattach
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Restore layout. The quarantined extension reopens as a
+      placeholder; the new forensic packet is reviewable in-place.
+  - action_id: skip_once
+    rendered_label: Skip once
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_session_manifest
+      - preserve_dirty_buffers
+      - preserve_evidence
+      - preserve_local_history
+    discards_or_defers:
+      - defer_restore_this_launch
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Skip again; the new forensic packet remains retained and the
+      chooser will reappear on the next evidence change.
+  - action_id: open_clean
+    rendered_label: Open clean
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_local_history
+      - preserve_checkpoint_refs
+    discards_or_defers:
+      - discard_auto_restore_attempt
+    evidence_retained_after_action: true
+    requires_confirmation: true
+    consequence_summary: >
+      Open clean; evidence remains retained for support and
+      diagnostics.
+  - action_id: safe_mode
+    rendered_label: Safe mode
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_dirty_buffers
+      - preserve_session_manifest
+      - preserve_checkpoint_refs
+    discards_or_defers:
+      - suspend_extension_activation
+      - suspend_remote_reattach
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Enter safe mode; the quarantined extension stays disabled
+      and the new forensic packet remains inspectable.
+
+companion_actions:
+  - action_id: open_recovery_ladder
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open recovery ladder
+    consequence_summary: >
+      Open the recovery-ladder packet for safe-mode and extension-
+      quarantine rung detail.
+  - action_id: export_evidence
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Export evidence
+    consequence_summary: >
+      Stage the new forensic packet and the prior evidence packet
+      for local export.
+
+remembered_choice_expiry:
+  was_prior_decision_remembered: true
+  prior_decision_class: skip_once
+  prior_decision_at: "mono:6611:21:08:42.0099"
+  remembered_decision_ttl_class: until_workspace_close
+  expiry_triggered: true
+  expiry_trigger_classes:
+    - newly_available_evidence
+  still_suppressed_until_class: next_evidence_change
+  summary: >
+    The prior Skip-once decision is overridden because a new
+    forensic packet was retained between the prior decision and
+    this launch.
+
+packet_export_linkage:
+  restore_prompt_ref: restore_prompt:context-restore-placeholders.0011
+  restore_card_ref: restore_card:context-restore-placeholders.0011
+  crash_loop_card_ref: null
+  recovery_scenario_card_ref: null
+  recovery_ladder_packet_ref: recovery_ladder_packet:default.0001
+  support_bundle_candidate_ref: null
+  evidence_packet_refs:
+    - evidence_packet:quarantined_extension.0001
+  forensic_packet_refs:
+    - forensic_packet:quarantined_extension.0002
+  local_history_snapshot_refs: []
+  recovery_journal_refs:
+    - journal:autosave.context-restore.0011
+  checkpoint_refs: []
+  docs_help_label: >
+    Skip-once was overridden because a new forensic packet was
+    retained for the quarantined extension.
+
+accessibility_contract:
+  keyboard_reachable_actions: true
+  focus_target_ref: focus:chooser.skip_overridden_evidence.restore_now
+  screen_reader_summary: >
+    Context restore with placeholders. Skip-once was overridden
+    because new forensic evidence is now available. Four actions
+    plus Open recovery ladder, Export evidence.
+
+honesty_invariants:
+  recovery_level_is_closed: true
+  retained_evidence_named: true
+  primary_actions_distinct: true
+  expiry_is_typed: true
+  linkage_is_typed: true

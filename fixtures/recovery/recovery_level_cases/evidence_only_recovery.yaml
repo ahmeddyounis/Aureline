@@ -1,0 +1,247 @@
+# yaml-language-server: $schema=../../../schemas/recovery/restore_chooser_state.schema.json
+__fixture__:
+  name: evidence_only_recovery
+  scenario: >
+    A reopen after the fault-domain restart budget is exhausted.
+    UI state cannot be safely restored; the chooser opens with
+    evidence_only_recovery bound to selection criterion
+    bounded_restart_exhausted_no_safe_path. The chooser cites a
+    recovery-scenario card (workspace_index_corruption) because
+    the underlying scenario is large-failure recovery. Risk class
+    is evidence_only_no_state_change with exact_undo
+    reversibility — opening evidence does not change any state.
+    Companion actions export_evidence, open_logs, and
+    open_recovery_ladder are available; retry_reopen is disabled
+    because the restart budget is exhausted.
+  doc_sections:
+    - "§2 Recovery-level vocabulary"
+    - "§3 Restore-chooser state record"
+    - "§5 Retained-evidence links"
+    - "§6 Risk note"
+    - "§7 Primary actions"
+    - "§9 Packet / export linkage"
+    - "§10 Honesty invariants"
+    - "§11 Surface rules"
+
+record_kind: restore_chooser_state_record
+restore_chooser_state_schema_version: 1
+chooser_id: chooser-evidence-only-recovery-0001
+emitted_at: "mono:6502:14:55:42.0512"
+
+surface_family: crash_loop_chooser
+startup_state_ref: "startup_state:restore_failed"
+
+chosen_level_record:
+  level_id: level-evidence-only-recovery-0001
+  recovery_level_class: evidence_only_recovery
+  selection_criterion_class: bounded_restart_exhausted_no_safe_path
+  rendered_name: Evidence-only recovery
+  what_restores: []
+  what_reopens_as_context_or_placeholder:
+    - corrupt_restorable_state
+    - layout_only_no_live_runtime
+  what_does_not_rerun:
+    - tasks
+    - tests
+    - debug_attach
+    - notebook_cells
+    - ai_tool_calls
+    - publish_or_promote_actions
+    - remote_mutations
+    - save_to_disk
+    - push_to_remote
+    - send_to_external_service
+    - live_runtime_reattach
+    - silent_reauth
+    - silent_reconnect
+    - command_rerun
+  forbidden_claims:
+    - claim_runtime_reattached
+    - claim_remote_session_reauthed
+    - claim_silent_command_rerun
+    - claim_evidence_was_deleted_by_skip
+    - claim_live_readiness_for_placeholder
+  restore_level_ref: evidence_only
+  restore_fidelity_class_ref: evidence_only
+  summary: >
+    UI state cannot be safely restored; the chooser exposes the
+    crash envelope, logs, restore diagnostics, and forensic
+    packets for inspection or export.
+
+changed_since_failure_summary:
+  prior_failure_id: crash:bounded-restart-exhausted.0001
+  prior_failure_class: startup_restore_reentered_loop
+  prior_recovery_level_record_ref: null
+  changed_since_class:
+    - restore_fidelity_downgrade
+  summary: >
+    The fault-domain restart budget is exhausted; the underlying
+    restore fidelity dropped from layout-only to evidence-only
+    between the failing attempts.
+
+retained_evidence_links:
+  crash_envelope_ref: crash_envelope:bounded-restart-exhausted.0001
+  restore_manifest_ref: restore_manifest:evidence-only.0001
+  recovery_journal_refs: []
+  local_history_snapshot_refs: []
+  checkpoint_refs: []
+  evidence_packet_refs:
+    - evidence_packet:bounded_restart_exhausted.0001
+  forensic_packet_refs:
+    - forensic_packet:workspace_index_corruption.0001
+    - forensic_packet:bounded_restart_exhausted.0001
+  support_bundle_candidate_ref: support_bundle_candidate:evidence-only.0001
+  redaction_class: review_required_code_adjacent
+  export_posture: export_review_required
+  evidence_retained_after_skip: true
+  summary: >
+    Crash envelope, two forensic packets, and the bounded-restart
+    evidence packet remain inspectable.
+
+risk_note:
+  risk_class: evidence_only_no_state_change
+  reversibility_class: exact_undo
+  requires_pre_action: []
+  no_undo_acknowledgement_required: false
+  summary: >
+    Opening evidence does not change any state. No layout, no
+    journal, no checkpoint walk; only inspectable forensics.
+
+primary_actions:
+  - action_id: restore_now
+    rendered_label: Open evidence
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_crash_envelope
+      - preserve_logs
+    discards_or_defers:
+      - rerun_nothing
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Open the evidence-only recovery surface. Crash envelope,
+      forensic packets, and logs render side-by-side; nothing is
+      restored or rerun.
+  - action_id: skip_once
+    rendered_label: Skip once
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_crash_envelope
+      - preserve_logs
+    discards_or_defers:
+      - defer_restore_this_launch
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Skip the chooser for this launch; evidence remains retained.
+  - action_id: open_clean
+    rendered_label: Open clean
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_crash_envelope
+      - preserve_logs
+    discards_or_defers:
+      - discard_auto_restore_attempt
+    evidence_retained_after_action: true
+    requires_confirmation: true
+    consequence_summary: >
+      Open a clean shell. The crash envelope and forensic packets
+      remain inspectable.
+  - action_id: safe_mode
+    rendered_label: Safe mode
+    availability: available
+    enabled: true
+    preserves:
+      - preserve_evidence
+      - preserve_crash_envelope
+      - preserve_logs
+    discards_or_defers:
+      - suspend_extension_activation
+      - suspend_remote_reattach
+    evidence_retained_after_action: true
+    requires_confirmation: false
+    consequence_summary: >
+      Enter safe mode; evidence remains inspectable.
+
+companion_actions:
+  - action_id: export_evidence
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Export evidence
+    consequence_summary: >
+      Stage the crash envelope and forensic packets for local
+      export.
+  - action_id: open_logs
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open logs
+    consequence_summary: >
+      Open local logs for inspection.
+  - action_id: retry_reopen
+    availability: disabled_restart_budget_exhausted
+    enabled: false
+    evidence_retained_after_action: true
+    rendered_label: Retry reopen
+    consequence_summary: >
+      Retry is disabled because the fault-domain restart budget is
+      exhausted; another automatic retry would re-enter the same
+      failing path.
+  - action_id: open_recovery_ladder
+    availability: available
+    enabled: true
+    evidence_retained_after_action: true
+    rendered_label: Open recovery ladder
+    consequence_summary: >
+      Open the recovery-ladder packet to walk safe-mode and the
+      following rungs.
+
+remembered_choice_expiry:
+  was_prior_decision_remembered: false
+  expiry_triggered: false
+  still_suppressed_until_class: not_suppressed
+  summary: >
+    No prior remembered decision; the chooser is shown because the
+    restart budget is exhausted.
+
+packet_export_linkage:
+  restore_prompt_ref: restore_prompt:evidence-only.0001
+  restore_card_ref: null
+  crash_loop_card_ref: crash_loop_card:bounded-restart-exhausted.0001
+  recovery_scenario_card_ref: rsc-workspace-index-corruption-0001
+  recovery_ladder_packet_ref: recovery_ladder_packet:default.0001
+  support_bundle_candidate_ref: support_bundle_candidate:evidence-only.0001
+  evidence_packet_refs:
+    - evidence_packet:bounded_restart_exhausted.0001
+  forensic_packet_refs:
+    - forensic_packet:workspace_index_corruption.0001
+    - forensic_packet:bounded_restart_exhausted.0001
+  local_history_snapshot_refs: []
+  recovery_journal_refs: []
+  checkpoint_refs: []
+  docs_help_label: >
+    Evidence-only recovery — UI state could not be safely
+    restored; forensics remain inspectable for export.
+
+accessibility_contract:
+  keyboard_reachable_actions: true
+  focus_target_ref: focus:chooser.evidence_only.restore_now
+  screen_reader_summary: >
+    Evidence-only recovery. UI state could not be safely restored.
+    Open evidence, Skip once, Open clean, Safe mode are
+    available; Retry reopen is disabled because the restart
+    budget is exhausted.
+
+honesty_invariants:
+  recovery_level_is_closed: true
+  retained_evidence_named: true
+  primary_actions_distinct: true
+  expiry_is_typed: true
+  linkage_is_typed: true
