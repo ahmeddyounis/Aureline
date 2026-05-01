@@ -47,6 +47,13 @@ The companion artifacts are:
   power-saver, critical-hot-path).
 - [`/artifacts/design/layer_and_scrim_tokens.yaml`](../../artifacts/design/layer_and_scrim_tokens.yaml)
   — layer / portal order tokens and scrim / overlay tokens.
+- [`/docs/design/token_conformance_audit.md`](./token_conformance_audit.md),
+  [`/artifacts/design/token_drift_rules.yaml`](../../artifacts/design/token_drift_rules.yaml),
+  and
+  [`/fixtures/design/token_export_cases/`](../../fixtures/design/token_export_cases/)
+  — token-conformance audit format, machine-readable drift fail-gate
+  rules, and worked manifest / refusal / inheritance-gap fixtures
+  that diff canonical vocabulary against per-surface consumption.
 
 The human-facing source of truth for concrete per-token values is
 [`.t2/docs/Aureline_UX_Design_System_Style_Guide.md`](../../.t2/docs/Aureline_UX_Design_System_Style_Guide.md).

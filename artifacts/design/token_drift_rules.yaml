@@ -1,0 +1,409 @@
+# Design-token drift fail-gate rules.
+#
+# Companion to docs/design/token_conformance_audit.md and the
+# boundary schema at
+# schemas/design/token_export_manifest.schema.json.
+#
+# This file is the machine-readable rule set that the token-
+# conformance audit evaluator reads. It encodes:
+#
+#   - the closed audit-finding, severity, gate-state, and surface-
+#     owner-role vocabularies;
+#   - the closed allowed-inheritance-gap vocabulary that downgrades
+#     specific findings to pass_with_disclosed_gap on extension and
+#     embedded-surface owners;
+#   - one rule row per finding class, naming the schema-level
+#     denial reason it routes to and the gate verdict it produces;
+#     and
+#   - per-surface-owner policy describing which gap classes are
+#     permitted on which owners.
+#
+# Rules:
+#   - Every finding row resolves to one audit_finding_class drawn
+#     from the closed list below; minting a sixteenth class is an
+#     additive-minor change that bumps design_token_schema_version.
+#   - Every blocking row maps to a denial_reason or audit_event_id
+#     value already published in
+#     schemas/design/token_export_manifest.schema.json; rules MUST
+#     NOT mint parallel denial reasons.
+#   - first_party_shell, first_party_component, first_party_trust,
+#     first_party_onboarding, first_party_notification, and
+#     first_party_durable_attention surfaces have NO inheritance
+#     gap; the only allowed gap on first-party owners is the
+#     docs / help inheritance gap on the docs / help canvas, which
+#     is owned by the docs / help lane.
+#   - Surfaces consume the rule_id; reviewers MAY add advisory
+#     notes but MAY NOT override the gate verdict.
+
+design_token_schema_version: 1
+
+source_doc_ref: docs/design/token_conformance_audit.md
+boundary_schema: schemas/design/token_export_manifest.schema.json
+vocabulary_doc_ref: docs/design/design_token_component_state_vocabulary.md
+theme_support_rows_ref: artifacts/design/theme_support_rows.yaml
+layer_and_scrim_tokens_ref: artifacts/design/layer_and_scrim_tokens.yaml
+fixture_dir_ref: fixtures/design/token_export_cases/
+
+# ---------------------------------------------------------------------------
+# Closed vocabularies. Every audit row carries values from these enums.
+# ---------------------------------------------------------------------------
+
+audited_surface_class_vocabulary:
+  - shell_chrome
+  - editor_canvas
+  - terminal_canvas
+  - review_and_diff_canvas
+  - palette_and_search_canvas
+  - install_update_attach_canvas
+  - ai_apply_canvas
+  - collaboration_canvas
+  - provider_bearing_canvas
+  - docs_help_service_health_canvas
+  - support_export_canvas
+  - onboarding_surface
+  - notification_surface
+  - inspector_surface
+  - embedded_surface
+
+surface_owner_role_class_vocabulary:
+  - first_party_shell
+  - first_party_component
+  - first_party_docs_help
+  - first_party_trust
+  - first_party_onboarding
+  - first_party_notification
+  - first_party_durable_attention
+  - extension_contributed_surface
+  - embedded_surface_contributed
+
+audit_finding_class_vocabulary:
+  - manifest_resolved_clean
+  - extension_inherited_partial_token_set
+  - embedded_surface_partial_inheritance
+  - seed_subset_published
+  - token_family_class_unresolved
+  - token_family_repurposed_without_decision_row
+  - component_state_class_unresolved
+  - component_state_repurposed_without_decision_row
+  - theme_class_unresolved
+  - accessibility_posture_silent_downgrade
+  - layer_order_hard_coded
+  - scrim_used_as_sole_state_indicator
+  - brand_gold_on_restricted_state
+  - brand_gold_on_policy_locked_state
+  - density_changed_information_architecture
+  - density_changed_focus_visibility
+  - color_alone_conveyed_required_meaning
+  - icon_without_label_or_tooltip
+  - parallel_icon_metaphor
+  - source_of_truth_unresolved
+  - shadow_registry_detected
+  - design_token_schema_version_lagging
+
+severity_class_vocabulary:
+  - pass
+  - pass_with_disclosed_gap
+  - warn
+  - block
+  - block_release
+
+gate_state_class_vocabulary:
+  - pass
+  - pass_with_disclosed_gap
+  - warn
+  - block
+  - block_release
+
+allowed_inheritance_gap_class_vocabulary:
+  - extension_inherits_first_party_palette
+  - extension_partial_high_contrast_inheritance
+  - embedded_surface_inherits_outer_chrome
+  - embedded_surface_inert_placeholder_for_unmapped_role
+  - docs_help_service_health_inherits_shell_palette
+  - notification_surface_inherits_durable_attention_palette
+
+# ---------------------------------------------------------------------------
+# Severity ordering. Highest severity wins after gap resolution.
+# ---------------------------------------------------------------------------
+severity_ordering:
+  - pass
+  - pass_with_disclosed_gap
+  - warn
+  - block
+  - block_release
+
+# ---------------------------------------------------------------------------
+# Per-surface-owner gap policy. A gap is allowed only when the surface
+# owner's row lists the gap class. First-party launch-critical surfaces
+# carry an empty list (no inheritance gaps).
+# ---------------------------------------------------------------------------
+surface_owner_gap_policy:
+  - surface_owner_role_class: first_party_shell
+    allowed_gap_classes: []
+    notes: Shell chrome is the canvas of record; it MUST resolve every axis through its own manifest.
+
+  - surface_owner_role_class: first_party_component
+    allowed_gap_classes: []
+    notes: Reusable components consume the canonical manifest; partial inheritance is a drift violation.
+
+  - surface_owner_role_class: first_party_docs_help
+    allowed_gap_classes:
+      - docs_help_service_health_inherits_shell_palette
+    notes: Docs / help and service-health canvases inherit the shell semantic-status palette at M0; the gap is allowed for these owners only.
+
+  - surface_owner_role_class: first_party_trust
+    allowed_gap_classes: []
+    notes: Trust surfaces resolve the full manifest; brand gold is forbidden on restricted / policy-locked state regardless.
+
+  - surface_owner_role_class: first_party_onboarding
+    allowed_gap_classes: []
+    notes: Onboarding surfaces ship full theme parity from M0.
+
+  - surface_owner_role_class: first_party_notification
+    allowed_gap_classes:
+      - notification_surface_inherits_durable_attention_palette
+    notes: Notification surfaces inherit the durable-attention palette by design rather than minting their own.
+
+  - surface_owner_role_class: first_party_durable_attention
+    allowed_gap_classes: []
+    notes: Durable-attention is the source for the notification palette and resolves the full manifest itself.
+
+  - surface_owner_role_class: extension_contributed_surface
+    allowed_gap_classes:
+      - extension_inherits_first_party_palette
+      - extension_partial_high_contrast_inheritance
+    notes: Extension-contributed surfaces MAY inherit the first-party palette and high-contrast support; the gap MUST be declared explicitly on the audit row.
+
+  - surface_owner_role_class: embedded_surface_contributed
+    allowed_gap_classes:
+      - embedded_surface_inherits_outer_chrome
+      - embedded_surface_inert_placeholder_for_unmapped_role
+    notes: Embedded surfaces inherit the outer chrome's manifest and use the host inert_placeholder for unmapped roles; gaps MUST be declared.
+
+# ---------------------------------------------------------------------------
+# Drift-rule rows. One row per audit_finding_class. Each row pins the
+# severity, the gate verdict, the schema-level denial reason or audit
+# event id it routes to, and the launch-impact bucket.
+# ---------------------------------------------------------------------------
+drift_rules:
+
+  - rule_id: token_drift_rules:pass:manifest_resolved_clean
+    audit_finding_class: manifest_resolved_clean
+    severity_class: pass
+    gate_state_class: pass
+    routes_to_denial_reason: null
+    routes_to_audit_event_id: design_token_conformance_diff_emitted
+    permits_inheritance_gap_classes: []
+    description: Manifest resolved cleanly against the canonical export. All consumed ids are published; all per-entity rules hold.
+
+  - rule_id: token_drift_rules:pass_with_disclosed_gap:extension_inherited_partial_token_set
+    audit_finding_class: extension_inherited_partial_token_set
+    severity_class: pass_with_disclosed_gap
+    gate_state_class: pass_with_disclosed_gap
+    routes_to_denial_reason: null
+    routes_to_audit_event_id: design_token_conformance_diff_emitted
+    permits_inheritance_gap_classes:
+      - extension_inherits_first_party_palette
+      - extension_partial_high_contrast_inheritance
+    description: Extension-contributed surface inherited a subset of the first-party palette or high-contrast theme rows; gap is declared on the audit row.
+
+  - rule_id: token_drift_rules:pass_with_disclosed_gap:embedded_surface_partial_inheritance
+    audit_finding_class: embedded_surface_partial_inheritance
+    severity_class: pass_with_disclosed_gap
+    gate_state_class: pass_with_disclosed_gap
+    routes_to_denial_reason: null
+    routes_to_audit_event_id: design_token_conformance_diff_emitted
+    permits_inheritance_gap_classes:
+      - embedded_surface_inherits_outer_chrome
+      - embedded_surface_inert_placeholder_for_unmapped_role
+    description: Embedded surface inherits the outer chrome's manifest or uses inert_placeholder for unmapped roles; gap is declared.
+
+  - rule_id: token_drift_rules:warn:seed_subset_published
+    audit_finding_class: seed_subset_published
+    severity_class: warn
+    gate_state_class: warn
+    routes_to_denial_reason: null
+    routes_to_audit_event_id: design_token_conformance_diff_emitted
+    permits_inheritance_gap_classes: []
+    description: Manifest published a seed subset (fewer than the frozen full count). Surface MAY consume the manifest but MUST NOT cite it as authoritative.
+
+  - rule_id: token_drift_rules:block:token_family_class_unresolved
+    audit_finding_class: token_family_class_unresolved
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: token_family_class_unresolved
+    routes_to_audit_event_id: design_token_manifest_refused
+    permits_inheritance_gap_classes: []
+    description: Manifest is missing a token_family_record id for one of the 25 frozen token_family_class values; manifest emission is refused.
+
+  - rule_id: token_drift_rules:block:token_family_repurposed
+    audit_finding_class: token_family_repurposed_without_decision_row
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: token_family_repurposed_without_decision_row
+    routes_to_audit_event_id: token_family_repurposed_refused
+    permits_inheritance_gap_classes: []
+    description: Existing token_family_class repurposed without a decision row and a design_token_schema_version bump; breaking change refused.
+
+  - rule_id: token_drift_rules:block:component_state_class_unresolved
+    audit_finding_class: component_state_class_unresolved
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: component_state_class_unresolved
+    routes_to_audit_event_id: design_token_manifest_refused
+    permits_inheritance_gap_classes: []
+    description: Surface bound to a state_id outside the published component_state_record set or a state minted with a private name.
+
+  - rule_id: token_drift_rules:block:component_state_repurposed
+    audit_finding_class: component_state_repurposed_without_decision_row
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: component_state_repurposed_without_decision_row
+    routes_to_audit_event_id: component_state_repurposed_refused
+    permits_inheritance_gap_classes: []
+    description: Existing component_state_class repurposed (e.g. selected collapsed into current) without a decision row and a schema bump.
+
+  - rule_id: token_drift_rules:block:theme_class_unresolved
+    audit_finding_class: theme_class_unresolved
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: theme_class_unresolved
+    routes_to_audit_event_id: design_token_manifest_refused
+    permits_inheritance_gap_classes: []
+    description: Manifest is missing a theme_support_row_record for a frozen theme_class, or a surface bound a theme outside the closed four-row set.
+
+  - rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+    audit_finding_class: accessibility_posture_silent_downgrade
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: accessibility_posture_silent_downgrade
+    routes_to_audit_event_id: accessibility_posture_downgrade_refused
+    permits_inheritance_gap_classes: []
+    description: Surface escalated to a more restrictive posture (e.g. motion_power_saver) and silently relaxed before the runtime signal cleared.
+
+  - rule_id: token_drift_rules:block:layer_order_hard_coded
+    audit_finding_class: layer_order_hard_coded
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: layer_order_hard_coded
+    routes_to_audit_event_id: layer_order_hard_coded_refused
+    permits_inheritance_gap_classes: []
+    description: Surface emitted a hard-coded z-index value at the boundary instead of binding the layer_order token.
+
+  - rule_id: token_drift_rules:block:scrim_used_as_sole_state_indicator
+    audit_finding_class: scrim_used_as_sole_state_indicator
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: scrim_used_as_sole_state_indicator
+    routes_to_audit_event_id: scrim_as_sole_state_indicator_refused
+    permits_inheritance_gap_classes: []
+    description: Scrim alpha is the only indicator of disabled, blocked, loading, or held state; reduced opacity is never the sole state cue.
+
+  - rule_id: token_drift_rules:block:brand_gold_on_restricted_state
+    audit_finding_class: brand_gold_on_restricted_state
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: brand_gold_on_restricted_state
+    routes_to_audit_event_id: brand_gold_on_restricted_refused
+    permits_inheritance_gap_classes: []
+    description: Restricted-workspace surface coloured with brand gold; brand gold is reserved for branded emphasis and never communicates restricted state.
+
+  - rule_id: token_drift_rules:block:brand_gold_on_policy_locked_state
+    audit_finding_class: brand_gold_on_policy_locked_state
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: brand_gold_on_policy_locked_state
+    routes_to_audit_event_id: brand_gold_on_restricted_refused
+    permits_inheritance_gap_classes: []
+    description: Policy-locked surface coloured with brand gold; restricted and policy-locked postures use the warning palette plus a shield or policy icon.
+
+  - rule_id: token_drift_rules:block:density_changed_information_architecture
+    audit_finding_class: density_changed_information_architecture
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: density_changed_information_architecture
+    routes_to_audit_event_id: density_affected_semantics_refused
+    permits_inheritance_gap_classes: []
+    description: A density mode changed information architecture, command semantics, or column visibility; density affects spacing-like tokens only.
+
+  - rule_id: token_drift_rules:block:density_changed_focus_visibility
+    audit_finding_class: density_changed_focus_visibility
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: density_changed_focus_visibility
+    routes_to_audit_event_id: density_affected_semantics_refused
+    permits_inheritance_gap_classes: []
+    description: A density mode reduced focus-ring visibility; postures and density modes preserve focus visibility unconditionally.
+
+  - rule_id: token_drift_rules:block:color_alone_conveyed_required_meaning
+    audit_finding_class: color_alone_conveyed_required_meaning
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: color_alone_conveyed_required_meaning
+    routes_to_audit_event_id: design_token_conformance_diff_refused
+    permits_inheritance_gap_classes: []
+    description: A status, state, trust, or notification cue is communicated by colour alone; pair every state with shape, border, icon, or text.
+
+  - rule_id: token_drift_rules:block:icon_without_label_or_tooltip
+    audit_finding_class: icon_without_label_or_tooltip
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: icon_without_label_or_tooltip
+    routes_to_audit_event_id: design_token_conformance_diff_refused
+    permits_inheritance_gap_classes: []
+    description: Action icon shipped without a label or tooltip; status-only icons must carry an accessible text equivalent.
+
+  - rule_id: token_drift_rules:block:parallel_icon_metaphor
+    audit_finding_class: parallel_icon_metaphor
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: parallel_icon_metaphor
+    routes_to_audit_event_id: icon_treatment_parallel_metaphor_refused
+    permits_inheritance_gap_classes: []
+    description: A surface introduced a second icon metaphor for a canonical command; one metaphor per action.
+
+  - rule_id: token_drift_rules:block:source_of_truth_unresolved
+    audit_finding_class: source_of_truth_unresolved
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: source_of_truth_unresolved
+    routes_to_audit_event_id: design_token_manifest_refused
+    permits_inheritance_gap_classes: []
+    description: Manifest or per-entity row points at no canonical source_of_truth_class; copy-only registries are non-conforming.
+
+  - rule_id: token_drift_rules:block:shadow_registry_detected
+    audit_finding_class: shadow_registry_detected
+    severity_class: block
+    gate_state_class: block
+    routes_to_denial_reason: shadow_registry_detected
+    routes_to_audit_event_id: design_token_manifest_refused
+    permits_inheritance_gap_classes: []
+    description: A surface published a copy-only shadow registry that re-mints token-family, state, theme, posture, layer, or scrim ids.
+
+  - rule_id: token_drift_rules:block_release:design_token_schema_version_lagging
+    audit_finding_class: design_token_schema_version_lagging
+    severity_class: block_release
+    gate_state_class: block_release
+    routes_to_denial_reason: design_token_schema_version_lagging
+    routes_to_audit_event_id: design_token_manifest_refused
+    permits_inheritance_gap_classes: []
+    description: Surface resolved against an older design_token_schema_version than the running build identity; release train is held until the lag is closed.
+
+# ---------------------------------------------------------------------------
+# Mechanical evaluation order. The evaluator applies these steps in order and
+# halts at the first refusal at the manifest level; per-surface evaluation
+# continues independently per row.
+# ---------------------------------------------------------------------------
+evaluation_order:
+  - id: 1_resolve_manifest
+    description: Resolve the surface's manifest_ref and confirm running_build_identity_ref matches the row's running_build_identity_ref. Mismatch routes to design_token_schema_version_lagging.
+  - id: 2_diff_consumed_ids
+    description: Diff consumed_*_refs against the manifest's *_ids arrays. Missing or unknown ids route to the matching *_class_unresolved finding.
+  - id: 3_assert_per_entity_invariants
+    description: For every consumed per-entity record, assert frozen rules (namespace prefix, not_color_alone=true, is_first_party=true, dialog_and_critical_outrank=true, never_sole_state_indicator=true, etc.). Each violated invariant routes to its denial-reason finding.
+  - id: 4_resolve_declared_gaps
+    description: For each declared gap_record, confirm the gap class is allowed for the surface owner's role and downgrade the matching finding to pass_with_disclosed_gap. Undeclared gaps remain as drift.
+  - id: 5_select_gate_state
+    description: Pick the row's gate_state_class from the highest-severity finding remaining (block_release > block > warn > pass_with_disclosed_gap > pass).
+  - id: 6_emit_audit_event
+    description: Emit a token_export_audit_event_record with audit_event_id = design_token_conformance_diff_emitted (pass / pass_with_disclosed_gap / warn) or design_token_conformance_diff_refused (block / block_release).
