@@ -1,0 +1,1498 @@
+# Appearance-row coverage matrix.
+#
+# Companion to docs/design/appearance_evidence_packet_template.md and
+# the canonical contracts in:
+#   - docs/design/theme_support_and_inheritance_contract.md (theme,
+#     contrast, density, reduced-motion support row contract)
+#   - docs/design/design_token_component_state_vocabulary.md (the
+#     closed theme, contrast, density, posture, surface, and
+#     component-family vocabularies)
+#   - docs/design/component_state_diff_packet_template.md (the
+#     component-state screenshot corpus and review packet)
+#   - artifacts/design/theme_support_rows.yaml (the four first-party
+#     theme rows and five accessibility postures)
+#   - artifacts/design/component_state_screenshot_corpus.yaml (the
+#     launch-critical surface rows, component-family taxonomy, and
+#     honesty-review axis vocabulary)
+#   - artifacts/design/token_drift_rules.yaml (the closed audit-
+#     finding, severity, and gate-state vocabularies)
+#   - artifacts/design/layer_and_scrim_tokens.yaml (the seven layer
+#     tokens and four scrim tokens)
+#
+# This matrix exists so appearance support stops being a single
+# blanket "theming supported" claim and becomes per-row evidence on
+# every launch-critical surface and every component family the
+# product ships.  It binds every claimed appearance row
+# (theme x contrast x density x reduced-motion x text-scale-or-zoom)
+# to:
+#
+#   - the launch-critical surface (shell, dialogs, command palette,
+#     trust prompts, settings, onboarding, durable-attention,
+#     notifications, status strip, inspector, editor, terminal,
+#     review and diff, docs / help, start center)
+#   - the component family in scope (tabs, badges or pills, settings
+#     rows, permission sheets, status items, banners, dialog action
+#     rows) so reviewers can read component-level appearance parity
+#     instead of shell-level screenshots
+#   - the canonical theme_support_row_record + token_export_manifest
+#     id every row resolves through, so visual coverage and the
+#     source-of-truth token inventory cannot drift apart
+#   - the token-conformance and raw-color exception rule the row
+#     routes through when an appearance gap is detected
+#   - the inheritance posture (fully inherited, partially inherited,
+#     out of scope, denied) so reviewers can see where each surface
+#     stands without negotiating field names
+#
+# Rules:
+#   - Every coverage row resolves to one launch_critical_surface_class
+#     value drawn from the corpus YAML and one component_family_class
+#     drawn from the closed list below; minting a parallel surface or
+#     family is non-conforming and routes to denial reason
+#     surface_class_unresolved or component_family_class_unresolved.
+#   - Every coverage row pins exactly one theme_support_row_record
+#     (claim_id) and one token_export_manifest_ref; rows that do not
+#     resolve a claim are non-conforming and route to denial reason
+#     theme_support_row_record_unresolved.
+#   - inheritance_posture_class values map to the existing
+#     allowed_inheritance_gap_class values in
+#     artifacts/design/token_drift_rules.yaml when the row is
+#     partially inherited. Undeclared partial inheritance is drift,
+#     not coverage.
+#   - Rows MUST NOT collapse high_contrast_dark and high_contrast_light
+#     into a single "high contrast" row; the four-theme floor is
+#     mirrored from theme_support_rows.yaml.
+#   - Rows MUST NOT collapse motion_reduced and motion_low_motion into
+#     a single "reduced-motion" row; both postures appear when the
+#     surface admits motion.
+#   - Power-saver (motion_power_saver) and critical-hot-path
+#     (motion_critical_hot_path) postures appear as run-time review
+#     rows and never widen claims silently.
+#   - text-scale-or-zoom is its own appearance axis; surfaces that
+#     reflow under text scale must record the axis, not collapse it
+#     into density.
+#   - Surfaces consume coverage_row_id; reviewers MAY add advisory
+#     notes but MAY NOT override the gate verdict or the
+#     inheritance_posture_class.
+#   - Out of scope: per-OS appearance implementation, theme asset
+#     production, and the screenshot-runner infrastructure. The
+#     matrix reserves the addressable row shape; the runner is a
+#     later task.
+
+appearance_row_coverage_schema_version: 1
+
+source_doc_refs:
+  - docs/design/theme_support_and_inheritance_contract.md
+  - docs/design/design_token_component_state_vocabulary.md
+  - docs/design/component_state_diff_packet_template.md
+  - docs/design/appearance_evidence_packet_template.md
+boundary_schema_refs:
+  - schemas/design/theme_support_row.schema.json
+  - schemas/design/token_export_manifest.schema.json
+  - schemas/design/component_state_machine.schema.json
+companion_artifact_refs:
+  - artifacts/design/theme_support_rows.yaml
+  - artifacts/design/component_state_screenshot_corpus.yaml
+  - artifacts/design/token_drift_rules.yaml
+  - artifacts/design/layer_and_scrim_tokens.yaml
+fixture_dir_ref: fixtures/design/appearance_cases/
+style_guide_ref: .t2/docs/Aureline_UX_Design_System_Style_Guide.md
+
+# ---------------------------------------------------------------------------
+# Closed vocabularies. Tooling reads these blocks; reviewers MUST NOT mint
+# parallel labels for the same underlying axis.
+# ---------------------------------------------------------------------------
+
+# Launch-critical surfaces. Mirrors
+# artifacts/design/component_state_screenshot_corpus.yaml#launch_critical_surface_class_vocabulary.
+launch_critical_surface_class_vocabulary:
+  - shell_chrome
+  - command_palette_and_search
+  - dialog_or_capability_sheet
+  - settings_canvas
+  - durable_attention_canvas
+  - notification_canvas
+  - status_strip
+  - inspector_surface
+  - trust_prompt_canvas
+  - onboarding_canvas
+  - editor_canvas
+  - terminal_canvas
+  - review_and_diff_canvas
+  - docs_help_canvas
+  - start_center_canvas
+
+# Component-family vocabulary. Closed. Each appearance-coverage row
+# pins exactly one component_family_class. The taxonomy aligns with
+# the seven families the spec calls out (tabs, badges or pills,
+# settings rows, permission sheets, status items, banners, dialog
+# action rows) plus three families the launch-critical surfaces
+# already consume from
+# schemas/design/component_state_machine.schema.json#component_surface_class.
+component_family_class_vocabulary:
+  - tabs
+  - badge_or_pill
+  - settings_row
+  - permission_sheet
+  - status_item
+  - banner
+  - dialog_action_row
+  - list_or_result_row
+  - tree_row
+  - text_input
+  - button
+  - other
+
+# Theme classes. Mirrors theme_support_rows.yaml.
+theme_class_vocabulary:
+  - dark_reference
+  - light_parity
+  - high_contrast_dark
+  - high_contrast_light
+
+# Contrast modes. Mirrors
+# schemas/design/theme_support_row.schema.json#contrast_mode.
+contrast_mode_vocabulary:
+  - contrast_standard
+  - contrast_high
+  - contrast_forced_colors
+
+# Accessibility postures. Mirrors theme_support_rows.yaml.
+accessibility_posture_class_vocabulary:
+  - motion_standard
+  - motion_reduced
+  - motion_low_motion
+  - motion_power_saver
+  - motion_critical_hot_path
+
+# Density classes. Mirrors theme_support_rows.yaml.
+density_class_vocabulary:
+  - compact
+  - standard
+  - comfortable
+
+# Text-scale / zoom axis. Closed. The "100" anchor is the design-
+# system default; 125, 150, and 200 are the WCAG-aligned breakpoints
+# every shell, dialog, settings, and trust surface must reflow
+# without losing focus visibility, state conveyance, or recovery
+# routes.
+text_scale_or_zoom_class_vocabulary:
+  - text_scale_100
+  - text_scale_125
+  - text_scale_150
+  - text_scale_200
+  - browser_zoom_100
+  - browser_zoom_150
+  - browser_zoom_200
+  - not_applicable
+
+# Forced-colors handling. Mirrors
+# schemas/design/theme_support_row.schema.json#forced_colors_behavior_class.
+forced_colors_behavior_class_vocabulary:
+  - defers_to_system
+  - applies_high_contrast_token_overrides
+  - escalates_to_forced_colors_safe_subset
+  - not_applicable_no_color_dependence
+  - denied_color_alone_violation
+
+# Inheritance posture. Closed. fully_inherited and out_of_scope are
+# terminal verdicts; the partial_inherited_* rows MUST cite the
+# matching allowed_inheritance_gap_class from
+# artifacts/design/token_drift_rules.yaml. denied_drift is the row
+# that did not resolve a gap class and refuses claim emission.
+inheritance_posture_class_vocabulary:
+  - fully_inherited
+  - partial_inherited_extension_first_party_palette
+  - partial_inherited_extension_high_contrast
+  - partial_inherited_embedded_outer_chrome
+  - partial_inherited_embedded_inert_placeholder
+  - partial_inherited_docs_help_inherits_shell_palette
+  - partial_inherited_notification_inherits_durable_attention
+  - explicitly_out_of_scope
+  - denied_drift
+
+# Mapping from inheritance_posture_class to the
+# allowed_inheritance_gap_class it cites. Closed. Tooling consumes
+# this table to assert that a partial_inherited_* row references a
+# permitted gap on the surface owner.
+inheritance_posture_to_allowed_gap_class_map:
+  - inheritance_posture_class: fully_inherited
+    allowed_inheritance_gap_class: null
+  - inheritance_posture_class: partial_inherited_extension_first_party_palette
+    allowed_inheritance_gap_class: extension_inherits_first_party_palette
+  - inheritance_posture_class: partial_inherited_extension_high_contrast
+    allowed_inheritance_gap_class: extension_partial_high_contrast_inheritance
+  - inheritance_posture_class: partial_inherited_embedded_outer_chrome
+    allowed_inheritance_gap_class: embedded_surface_inherits_outer_chrome
+  - inheritance_posture_class: partial_inherited_embedded_inert_placeholder
+    allowed_inheritance_gap_class: embedded_surface_inert_placeholder_for_unmapped_role
+  - inheritance_posture_class: partial_inherited_docs_help_inherits_shell_palette
+    allowed_inheritance_gap_class: docs_help_service_health_inherits_shell_palette
+  - inheritance_posture_class: partial_inherited_notification_inherits_durable_attention
+    allowed_inheritance_gap_class: notification_surface_inherits_durable_attention_palette
+  - inheritance_posture_class: explicitly_out_of_scope
+    allowed_inheritance_gap_class: null
+  - inheritance_posture_class: denied_drift
+    allowed_inheritance_gap_class: null
+
+# Coverage state. Closed. supported and partial follow the
+# theme_support_row.schema.json#support_state_class semantics;
+# narrowed_for_release records a release-time narrowing and is
+# allowed only when the row pins a decision_row_ref. denied_drift
+# refuses claim emission.
+coverage_state_class_vocabulary:
+  - supported
+  - partial
+  - not_claimed
+  - narrowed_for_release
+  - denied_drift
+
+# Severity ladder. Mirrors
+# artifacts/design/token_drift_rules.yaml#severity_ordering so
+# appearance audits and token audits share one ladder.
+severity_class_vocabulary:
+  - pass
+  - pass_with_disclosed_gap
+  - warn
+  - block
+  - block_release
+
+severity_ordering:
+  - pass
+  - pass_with_disclosed_gap
+  - warn
+  - block
+  - block_release
+
+# Audit-finding vocabulary. Closed. Every non-pass appearance audit
+# row resolves to one of these classes plus the rule_id from
+# artifacts/design/token_drift_rules.yaml that the class routes
+# through.
+appearance_audit_finding_class_vocabulary:
+  - appearance_row_resolved_clean
+  - theme_row_missing_for_claimed_surface
+  - posture_row_missing_for_claimed_surface
+  - density_row_missing_for_claimed_surface
+  - text_scale_axis_missing
+  - forced_colors_axis_missing
+  - color_alone_state_cue_detected
+  - reduced_opacity_alone_state_cue_detected
+  - focus_visibility_lost_under_density
+  - focus_visibility_lost_under_posture
+  - density_changed_information_architecture
+  - power_saver_silent_relax
+  - low_motion_strips_state_conveyance
+  - extension_partial_inheritance_undeclared
+  - embedded_partial_inheritance_undeclared
+  - claim_widened_beyond_evidence
+  - raw_color_exception_unreviewed
+  - source_of_truth_unresolved
+
+# Mapping from appearance_audit_finding_class to the existing
+# rule_id in artifacts/design/token_drift_rules.yaml the finding
+# routes through. Reviewers MUST NOT mint parallel denial reasons.
+appearance_audit_finding_to_rule_id_map:
+  - appearance_audit_finding_class: appearance_row_resolved_clean
+    rule_id: token_drift_rules:pass:manifest_resolved_clean
+    severity_class: pass
+  - appearance_audit_finding_class: theme_row_missing_for_claimed_surface
+    rule_id: token_drift_rules:block:theme_class_unresolved
+    severity_class: block
+  - appearance_audit_finding_class: posture_row_missing_for_claimed_surface
+    rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+    severity_class: block
+  - appearance_audit_finding_class: density_row_missing_for_claimed_surface
+    rule_id: token_drift_rules:block:density_changed_information_architecture
+    severity_class: block
+  - appearance_audit_finding_class: text_scale_axis_missing
+    rule_id: token_drift_rules:warn:seed_subset_published
+    severity_class: warn
+  - appearance_audit_finding_class: forced_colors_axis_missing
+    rule_id: token_drift_rules:block:color_alone_conveyed_required_meaning
+    severity_class: block
+  - appearance_audit_finding_class: color_alone_state_cue_detected
+    rule_id: token_drift_rules:block:color_alone_conveyed_required_meaning
+    severity_class: block
+  - appearance_audit_finding_class: reduced_opacity_alone_state_cue_detected
+    rule_id: token_drift_rules:block:scrim_used_as_sole_state_indicator
+    severity_class: block
+  - appearance_audit_finding_class: focus_visibility_lost_under_density
+    rule_id: token_drift_rules:block:density_changed_focus_visibility
+    severity_class: block
+  - appearance_audit_finding_class: focus_visibility_lost_under_posture
+    rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+    severity_class: block
+  - appearance_audit_finding_class: density_changed_information_architecture
+    rule_id: token_drift_rules:block:density_changed_information_architecture
+    severity_class: block
+  - appearance_audit_finding_class: power_saver_silent_relax
+    rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+    severity_class: block
+  - appearance_audit_finding_class: low_motion_strips_state_conveyance
+    rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+    severity_class: block
+  - appearance_audit_finding_class: extension_partial_inheritance_undeclared
+    rule_id: token_drift_rules:block:component_state_class_unresolved
+    severity_class: block
+  - appearance_audit_finding_class: embedded_partial_inheritance_undeclared
+    rule_id: token_drift_rules:block:component_state_class_unresolved
+    severity_class: block
+  - appearance_audit_finding_class: claim_widened_beyond_evidence
+    rule_id: token_drift_rules:block:theme_class_unresolved
+    severity_class: block_release
+  - appearance_audit_finding_class: raw_color_exception_unreviewed
+    rule_id: token_drift_rules:block:source_of_truth_unresolved
+    severity_class: block
+  - appearance_audit_finding_class: source_of_truth_unresolved
+    rule_id: token_drift_rules:block:source_of_truth_unresolved
+    severity_class: block
+
+# Claim narrowing posture. Mirrors the narrowing vocabulary from
+# docs/design/theme_support_and_inheritance_contract.md and
+# docs/design/component_state_diff_packet_template.md so the
+# appearance evidence packet drives narrowing through the same axes
+# the component-state diff packet uses.
+claim_narrowing_posture_class_vocabulary:
+  - no_narrowing_required
+  - narrowed_to_partial_support
+  - narrowed_to_known_limit
+  - narrowed_to_extension_only
+  - narrowed_to_embedded_only
+
+# Raw-color exception status. Closed. Every appearance coverage row
+# whose component family ships a raw-color value (e.g. brand-gold
+# accent on a banner, severity hue on a status item) cites a
+# raw-color exception review row. Unreviewed raw-color refs route
+# to raw_color_exception_unreviewed.
+raw_color_exception_status_class_vocabulary:
+  - no_raw_color_in_row
+  - raw_color_under_documented_exception
+  - raw_color_under_decision_row
+  - raw_color_pending_review
+  - raw_color_review_denied
+
+# Required capture set per coverage row. Closed. The appearance
+# evidence packet pins these capture classes; rows that do not
+# resolve every required class for their surface block the gate.
+required_capture_class_vocabulary:
+  - dark_reference_default
+  - light_parity_default
+  - high_contrast_dark_default
+  - high_contrast_light_default
+  - density_compact
+  - density_standard
+  - density_comfortable
+  - motion_reduced
+  - motion_low_motion
+  - motion_power_saver
+  - forced_colors_native
+  - text_scale_125
+  - text_scale_150
+  - text_scale_200
+
+# ---------------------------------------------------------------------------
+# Per-surface coverage matrix. One row per
+# (launch_critical_surface_class, component_family_class) pair on a
+# launch-critical path. Each row enumerates which appearance axes are
+# claimed and how the claim resolves to the canonical
+# theme_support_row_record + token_export_manifest_ref.
+# ---------------------------------------------------------------------------
+appearance_coverage_rows:
+
+  # ----- shell_chrome -----------------------------------------------------
+  - coverage_row_id: appearance:coverage:shell_chrome:tabs
+    launch_critical_surface_class: shell_chrome
+    component_family_class: tabs
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:shell_chrome
+    canonical_theme_support_claim_id: theme_support_claim:shell_chrome:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Tabs in the shell chrome must keep current distinct from
+      selected and active editor distinct from background editor on
+      every theme and density. Power-saver posture is recorded as a
+      run-time review row; it never widens the claim.
+
+  - coverage_row_id: appearance:coverage:shell_chrome:status_item
+    launch_critical_surface_class: shell_chrome
+    component_family_class: status_item
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:shell_chrome
+    canonical_theme_support_claim_id: theme_support_claim:shell_chrome:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+      - forced_colors_native
+    notes: >
+      Status items render the live context (current), provider /
+      policy lock, and degraded service. Brand gold is forbidden on
+      restricted_workspace and policy_locked status items.
+
+  # ----- command_palette_and_search ---------------------------------------
+  - coverage_row_id: appearance:coverage:command_palette_and_search:list_or_result_row
+    launch_critical_surface_class: command_palette_and_search
+    component_family_class: list_or_result_row
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:command_palette_and_search
+    canonical_theme_support_claim_id: theme_support_claim:palette_and_search:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Result rows must keep selected, current, and pressed states
+      distinct under every theme and density. The empty / no-match
+      copy is captured at every theme so reviewers can verify it
+      does not collapse with loading.
+
+  - coverage_row_id: appearance:coverage:command_palette_and_search:badge_or_pill
+    launch_critical_surface_class: command_palette_and_search
+    component_family_class: badge_or_pill
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:command_palette_and_search
+    canonical_theme_support_claim_id: theme_support_claim:palette_and_search:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Trust, severity, and source-integrity badges must show shape,
+      label, icon, and border on every theme. Brand gold may
+      decorate informational badges only; restricted and
+      policy_locked badges use the warning palette plus a shield
+      glyph.
+
+  # ----- dialog_or_capability_sheet ---------------------------------------
+  - coverage_row_id: appearance:coverage:dialog_or_capability_sheet:dialog_action_row
+    launch_critical_surface_class: dialog_or_capability_sheet
+    component_family_class: dialog_action_row
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:dialog_or_capability_sheet
+    canonical_theme_support_claim_id: theme_support_claim:dialog_or_capability_sheet:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Dialog action rows must keep destructive distinct from primary
+      and pending distinct from loading on every theme. Compact
+      density is intentionally out of scope for dialogs; the row
+      records explicitly_out_of_scope on the compact density axis.
+
+  # ----- settings_canvas --------------------------------------------------
+  - coverage_row_id: appearance:coverage:settings_canvas:settings_row
+    launch_critical_surface_class: settings_canvas
+    component_family_class: settings_row
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:settings_canvas
+    canonical_theme_support_claim_id: theme_support_claim:settings_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Settings rows must keep policy-managed values locked,
+      view-only values read-only, waiting-to-apply values pending,
+      and stale or partial source truth degraded on every theme.
+
+  # ----- trust_prompt_canvas ---------------------------------------------
+  - coverage_row_id: appearance:coverage:trust_prompt_canvas:permission_sheet
+    launch_critical_surface_class: trust_prompt_canvas
+    component_family_class: permission_sheet
+    surface_owner_role_class: first_party_trust
+    canonical_corpus_row_id: corpus:surface:trust_prompt_canvas
+    canonical_theme_support_claim_id: theme_support_claim:trust_prompt_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Permission sheets must show source, scope, and consequence
+      inline on every theme. Brand gold is forbidden on
+      restricted_workspace and policy_locked sheets; the captures
+      route through brand_gold_on_restricted_state and
+      brand_gold_on_policy_locked_state when violated.
+
+  - coverage_row_id: appearance:coverage:trust_prompt_canvas:dialog_action_row
+    launch_critical_surface_class: trust_prompt_canvas
+    component_family_class: dialog_action_row
+    surface_owner_role_class: first_party_trust
+    canonical_corpus_row_id: corpus:surface:trust_prompt_canvas
+    canonical_theme_support_claim_id: theme_support_claim:trust_prompt_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Trust prompt action rows must keep the destructive route, the
+      restricted preview, and the deferral route distinct on every
+      theme.
+
+  # ----- onboarding_canvas -----------------------------------------------
+  - coverage_row_id: appearance:coverage:onboarding_canvas:banner
+    launch_critical_surface_class: onboarding_canvas
+    component_family_class: banner
+    surface_owner_role_class: first_party_onboarding
+    canonical_corpus_row_id: corpus:surface:onboarding_canvas
+    canonical_theme_support_claim_id: theme_support_claim:onboarding_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Onboarding banners ship full theme parity from M0; the
+      restored state must show the recovery affordance under every
+      theme.
+
+  # ----- durable_attention_canvas ----------------------------------------
+  - coverage_row_id: appearance:coverage:durable_attention_canvas:list_or_result_row
+    launch_critical_surface_class: durable_attention_canvas
+    component_family_class: list_or_result_row
+    surface_owner_role_class: first_party_durable_attention
+    canonical_corpus_row_id: corpus:surface:durable_attention_canvas
+    canonical_theme_support_claim_id: theme_support_claim:durable_attention_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Durable rows remain visible beyond a toast and keep
+      quiet-hours-held rows addressable on every theme. Power-saver
+      capture is required because durable jobs are the surface
+      where progress-indicator-loop suppression is most visible.
+
+  # ----- notification_canvas ---------------------------------------------
+  - coverage_row_id: appearance:coverage:notification_canvas:banner
+    launch_critical_surface_class: notification_canvas
+    component_family_class: banner
+    surface_owner_role_class: first_party_notification
+    canonical_corpus_row_id: corpus:surface:notification_canvas
+    canonical_theme_support_claim_id: theme_support_claim:notification_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: partial_inherited_notification_inherits_durable_attention
+    coverage_state_class: partial
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Notification banners inherit the durable-attention palette by
+      design. The partial-inherited posture cites the
+      notification_surface_inherits_durable_attention_palette gap
+      from artifacts/design/token_drift_rules.yaml.
+
+  # ----- status_strip ----------------------------------------------------
+  - coverage_row_id: appearance:coverage:status_strip:status_item
+    launch_critical_surface_class: status_strip
+    component_family_class: status_item
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:status_strip
+    canonical_theme_support_claim_id: theme_support_claim:status_strip:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+      - forced_colors_native
+    notes: >
+      Status items cover current, locked, restricted, policy_blocked,
+      and reconnecting on every theme. Power-saver and
+      critical-hot-path postures suppress idle animations without
+      relaxing focus visibility.
+
+  # ----- inspector_surface -----------------------------------------------
+  - coverage_row_id: appearance:coverage:inspector_surface:settings_row
+    launch_critical_surface_class: inspector_surface
+    component_family_class: settings_row
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:inspector_surface
+    canonical_theme_support_claim_id: theme_support_claim:inspector_surface:hc_dark:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: partial
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Inspector rows resolve high_contrast_dark cleanly; the
+      high_contrast_light row is partial because one diff token
+      remap is pending (see
+      fixtures/design/theme_support_cases/inspector_surface_high_contrast_dark_supported_claim.yaml).
+
+  # ----- editor_canvas ---------------------------------------------------
+  - coverage_row_id: appearance:coverage:editor_canvas:tabs
+    launch_critical_surface_class: editor_canvas
+    component_family_class: tabs
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:editor_canvas
+    canonical_theme_support_claim_id: theme_support_claim:editor_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Editor tabs must keep pending external changes distinct from
+      restored crash-recovery posture on every theme. The
+      reduced-motion capture must remove tab-swap animation while
+      preserving focus and selection cues.
+
+  # ----- terminal_canvas -------------------------------------------------
+  - coverage_row_id: appearance:coverage:terminal_canvas:status_item
+    launch_critical_surface_class: terminal_canvas
+    component_family_class: status_item
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:terminal_canvas
+    canonical_theme_support_claim_id: theme_support_claim:terminal_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: raw_color_under_documented_exception
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - motion_power_saver
+      - forced_colors_native
+    notes: >
+      Terminal text colour palette ships raw ANSI colour values
+      under a documented exception (the ANSI palette is preserved
+      verbatim for content-fidelity reasons) recorded against the
+      style guide's terminal section. The exception cites a
+      decision-row ref and is excluded from raw-color drift.
+
+  # ----- review_and_diff_canvas ------------------------------------------
+  - coverage_row_id: appearance:coverage:review_and_diff_canvas:list_or_result_row
+    launch_critical_surface_class: review_and_diff_canvas
+    component_family_class: list_or_result_row
+    surface_owner_role_class: first_party_shell
+    canonical_corpus_row_id: corpus:surface:review_and_diff_canvas
+    canonical_theme_support_claim_id: theme_support_claim:review_and_diff_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: raw_color_under_documented_exception
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Diff add / remove fills ship a documented raw-colour
+      exception under the al.color.diff namespace because the diff
+      hue carries content semantics; the row pairs every fill with
+      a shape, border, and label cue so colour alone is never the
+      sole indicator.
+
+  # ----- docs_help_canvas -----------------------------------------------
+  - coverage_row_id: appearance:coverage:docs_help_canvas:banner
+    launch_critical_surface_class: docs_help_canvas
+    component_family_class: banner
+    surface_owner_role_class: first_party_docs_help
+    canonical_corpus_row_id: corpus:surface:docs_help_canvas
+    canonical_theme_support_claim_id: theme_support_claim:docs_help_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: partial_inherited_docs_help_inherits_shell_palette
+    coverage_state_class: partial
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Docs / help banners inherit the shell semantic-status palette
+      under the
+      docs_help_service_health_inherits_shell_palette gap from
+      artifacts/design/token_drift_rules.yaml. The gap is declared,
+      not drift.
+
+  # ----- start_center_canvas ---------------------------------------------
+  - coverage_row_id: appearance:coverage:start_center_canvas:list_or_result_row
+    launch_critical_surface_class: start_center_canvas
+    component_family_class: list_or_result_row
+    surface_owner_role_class: first_party_onboarding
+    canonical_corpus_row_id: corpus:surface:start_center_canvas
+    canonical_theme_support_claim_id: theme_support_claim:start_center_canvas:dark_reference:01
+    canonical_token_export_manifest_ref: design_token_export_manifest:m0_seed:01
+    claimed_theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    claimed_contrast_modes:
+      - contrast_standard
+      - contrast_high
+      - contrast_forced_colors
+    claimed_density_classes:
+      - compact
+      - standard
+      - comfortable
+    claimed_accessibility_posture_classes:
+      - motion_standard
+      - motion_reduced
+      - motion_low_motion
+    claimed_text_scale_or_zoom_classes:
+      - text_scale_100
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    forced_colors_behavior_class: applies_high_contrast_token_overrides
+    inheritance_posture_class: fully_inherited
+    coverage_state_class: supported
+    raw_color_exception_status_class: no_raw_color_in_row
+    required_capture_classes:
+      - dark_reference_default
+      - light_parity_default
+      - high_contrast_dark_default
+      - high_contrast_light_default
+      - density_compact
+      - density_standard
+      - density_comfortable
+      - motion_reduced
+      - motion_low_motion
+      - forced_colors_native
+      - text_scale_125
+      - text_scale_150
+      - text_scale_200
+    notes: >
+      Start-center recents and restore-card rows ship full theme
+      parity from M0; restored rows must show the recovery
+      affordance under every theme.
+
+# ---------------------------------------------------------------------------
+# Power-saver / low-motion review rules. The matrix evaluates these
+# rules whenever a coverage row's claimed_accessibility_posture_classes
+# includes motion_low_motion or motion_power_saver. Each rule routes
+# through one rule_id in artifacts/design/token_drift_rules.yaml.
+# ---------------------------------------------------------------------------
+power_saver_low_motion_review_rules:
+
+  - rule_id: appearance:posture:power_saver_silent_relax_refused
+    appearance_audit_finding_class: power_saver_silent_relax
+    severity_class: block
+    description: >
+      A surface engaged motion_power_saver and silently relaxed
+      back to motion_standard before the runtime pressure source
+      cleared. Posture release MUST be observable; routes to
+      accessibility_posture_silent_downgrade.
+    routes_to_rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+
+  - rule_id: appearance:posture:low_motion_strips_state_conveyance_refused
+    appearance_audit_finding_class: low_motion_strips_state_conveyance
+    severity_class: block
+    description: >
+      A motion_low_motion capture replaced a state-bearing motion
+      with no static substitute, leaving the state cue invisible to
+      a low-motion user. Routes to
+      accessibility_posture_silent_downgrade.
+    routes_to_rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+
+  - rule_id: appearance:posture:focus_visibility_lost_under_posture_refused
+    appearance_audit_finding_class: focus_visibility_lost_under_posture
+    severity_class: block
+    description: >
+      A reduced-motion or power-saver capture hid or thinned the
+      focus ring; postures preserve focus visibility unconditionally.
+      Routes to accessibility_posture_silent_downgrade.
+    routes_to_rule_id: token_drift_rules:block:accessibility_posture_silent_downgrade
+
+  - rule_id: appearance:density:focus_visibility_lost_under_density_refused
+    appearance_audit_finding_class: focus_visibility_lost_under_density
+    severity_class: block
+    description: >
+      A density-compact capture reduced focus-ring visibility;
+      density modes preserve focus visibility. Routes to
+      density_changed_focus_visibility.
+    routes_to_rule_id: token_drift_rules:block:density_changed_focus_visibility
+
+  - rule_id: appearance:density:density_changed_information_architecture_refused
+    appearance_audit_finding_class: density_changed_information_architecture
+    severity_class: block
+    description: >
+      A density-compact capture removed columns, hid commands, or
+      changed information architecture. Density affects spacing-like
+      tokens only.
+    routes_to_rule_id: token_drift_rules:block:density_changed_information_architecture
+
+# ---------------------------------------------------------------------------
+# Extension / embedded inheritance review rules. Reviewers consume these
+# rules whenever a coverage row's surface_owner_role_class is
+# extension_contributed_surface or embedded_surface_contributed.
+# ---------------------------------------------------------------------------
+extension_embedded_inheritance_review_rules:
+
+  - rule_id: appearance:inheritance:extension_partial_inheritance_undeclared_refused
+    appearance_audit_finding_class: extension_partial_inheritance_undeclared
+    severity_class: block
+    description: >
+      An extension-contributed surface inherited a subset of the
+      first-party palette without declaring
+      extension_inherits_first_party_palette or
+      extension_partial_high_contrast_inheritance. The undeclared
+      gap is drift, not coverage.
+    routes_to_rule_id: token_drift_rules:block:component_state_class_unresolved
+    permitted_inheritance_posture_classes:
+      - partial_inherited_extension_first_party_palette
+      - partial_inherited_extension_high_contrast
+
+  - rule_id: appearance:inheritance:embedded_partial_inheritance_undeclared_refused
+    appearance_audit_finding_class: embedded_partial_inheritance_undeclared
+    severity_class: block
+    description: >
+      An embedded surface inherited the outer chrome's manifest or
+      used inert_placeholder for an unmapped role without declaring
+      embedded_surface_inherits_outer_chrome or
+      embedded_surface_inert_placeholder_for_unmapped_role.
+    routes_to_rule_id: token_drift_rules:block:component_state_class_unresolved
+    permitted_inheritance_posture_classes:
+      - partial_inherited_embedded_outer_chrome
+      - partial_inherited_embedded_inert_placeholder
+
+# ---------------------------------------------------------------------------
+# Mechanical evaluation order. The evaluator applies these steps per
+# coverage row and halts at the first refusal at the row level; per-
+# packet evaluation continues independently per row.
+# ---------------------------------------------------------------------------
+evaluation_order:
+  - id: 1_resolve_canonical_refs
+    description: >
+      Resolve canonical_corpus_row_id against
+      artifacts/design/component_state_screenshot_corpus.yaml,
+      canonical_theme_support_claim_id against the published
+      theme_support_row_claim_record set, and
+      canonical_token_export_manifest_ref against
+      schemas/design/token_export_manifest.schema.json. Missing
+      refs route to source_of_truth_unresolved.
+  - id: 2_assert_axis_floors
+    description: >
+      Confirm the row claims all four theme classes, both
+      contrast_standard and contrast_high, at least density_standard,
+      at least motion_standard and motion_reduced, and at least one
+      text_scale_or_zoom class beyond text_scale_100. Missing axis
+      claims route to the matching *_missing_for_claimed_surface
+      finding.
+  - id: 3_assert_inheritance_posture
+    description: >
+      For inheritance_posture_class != fully_inherited and
+      != explicitly_out_of_scope, confirm the matching
+      allowed_inheritance_gap_class is permitted on the surface
+      owner per
+      artifacts/design/token_drift_rules.yaml#surface_owner_gap_policy.
+      Undeclared partial inheritance routes to
+      extension_partial_inheritance_undeclared or
+      embedded_partial_inheritance_undeclared.
+  - id: 4_assert_raw_color_review
+    description: >
+      For raw_color_exception_status_class != no_raw_color_in_row,
+      confirm a decision-row ref or a documented-exception ref is
+      attached. raw_color_pending_review and
+      raw_color_review_denied route to
+      raw_color_exception_unreviewed.
+  - id: 5_assert_capture_floor
+    description: >
+      Confirm required_capture_classes covers every claimed theme,
+      contrast, density, posture, and text-scale axis. Missing
+      captures hold the row in
+      coverage_state_class = partial until the captures land.
+  - id: 6_select_gate_state
+    description: >
+      Pick the row's gate_state_class from the highest-severity
+      finding remaining (block_release > block > warn >
+      pass_with_disclosed_gap > pass).
+  - id: 7_emit_audit_event
+    description: >
+      Emit an appearance_evidence_packet_row record with
+      audit_event_id = design_token_conformance_diff_emitted (pass /
+      pass_with_disclosed_gap / warn) or
+      design_token_conformance_diff_refused (block / block_release).
