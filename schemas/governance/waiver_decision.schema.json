@@ -1,0 +1,567 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/waiver_decision.schema.json",
+  "title": "Aureline waiver-decision record contract — renew, close, narrow_claim, escalate_correction, and reject",
+  "description": "Boundary schema for one waiver_decision_record frozen in docs/governance/waiver_register_contract.md §15-§17. The record is the typed renewal-or-close decision object that resolves against a waiver_register_entry_record. Every decision names the affected register row, the typed decision class (renew, close, narrow_claim, escalate_correction, reject), the typed sponsor or forum attribution, the typed required evidence links the decision class is required to cite, the chronology, the typed escalation routing (where applicable), the typed claim-narrowing impact (where applicable), and a bounded reviewable summary. Decisions recorded only as meeting notes, only as comments on a pull request, or only as a paragraph in a release-notes appendix are non-conforming. Raw justification text, raw user identifiers, raw policy bodies, and raw screenshots MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new decision class, sponsor-or-forum class, required-evidence-link class, escalation-path class, or narrowed-claim-impact class is additive-minor and bumps waiver_decision_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/waiver_decision_record",
+  "$defs": {
+    "waiver_decision_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the waiver-decision payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "renew",
+        "close",
+        "narrow_claim",
+        "escalate_correction",
+        "reject"
+      ],
+      "description": "Closed five-class decision vocabulary. renew = renew the waiver against a new expiry envelope. close = close the waiver because the protected condition no longer applies. narrow_claim = resolve the waiver by narrowing a marketed claim. escalate_correction = escalate to a named correction work item. reject = reject the renewal; the affected surface no longer rides on this register row."
+    },
+    "sponsor_or_forum_class": {
+      "type": "string",
+      "enum": [
+        "dri_self_decision",
+        "backup_owner_decision",
+        "architecture_council",
+        "performance_council",
+        "release_council",
+        "security_trust_review",
+        "support_council",
+        "governance_council",
+        "shiproom_executive_scope_review",
+        "executive_steering",
+        "decision_forum_unresolved"
+      ],
+      "description": "Closed eleven-class sponsor-or-forum vocabulary. decision_forum_unresolved is admissible only when decision_class = escalate_correction and linked_escalation_decision_register_row_ref is non-null."
+    },
+    "required_evidence_link_class": {
+      "type": "string",
+      "enum": [
+        "mitigation_landed_evidence",
+        "correction_design_evidence",
+        "correction_test_evidence",
+        "claim_narrowing_disclosure_evidence",
+        "support_drill_evidence",
+        "escalation_packet_evidence",
+        "rejection_rationale_evidence"
+      ],
+      "description": "Closed seven-class required-evidence-link vocabulary."
+    },
+    "escalation_path_class": {
+      "type": "string",
+      "enum": [
+        "escalate_to_dri",
+        "escalate_to_backup_owner",
+        "escalate_to_decision_forum",
+        "escalate_to_release_council",
+        "escalate_to_shiproom",
+        "escalate_to_support",
+        "no_escalation_required"
+      ],
+      "description": "Closed seven-class escalation-path vocabulary mirrored from waiver_expiry_item.schema.json."
+    },
+    "claim_narrowing_impact_class": {
+      "type": "string",
+      "enum": [
+        "marketed_to_internal_only",
+        "marketed_narrowed_to_subset",
+        "marketed_held_no_narrowing",
+        "internal_only_narrowed_to_subset",
+        "no_claim_impact",
+        "claim_impact_pending_assessment"
+      ],
+      "description": "Closed six-class claim-narrowing-impact vocabulary on the decision record. marketed_to_internal_only = a marketed claim was pulled back to internal-only. marketed_narrowed_to_subset = a marketed claim was narrowed to a subset (profile, archetype, corpus). marketed_held_no_narrowing = the marketed claim is held without narrowing (e.g. close decision when correction lands). internal_only_narrowed_to_subset = an internal-only surface was narrowed. no_claim_impact = the decision has no claim-narrowing impact. claim_impact_pending_assessment = the impact is pending a follow-up decision."
+    },
+
+    "required_evidence_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_evidence_link_class",
+        "linked_evidence_ref",
+        "evidence_link_summary"
+      ],
+      "properties": {
+        "required_evidence_link_class": { "$ref": "#/$defs/required_evidence_link_class" },
+        "linked_evidence_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_link_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "renewal_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "new_expires_at",
+        "renewal_envelope_summary"
+      ],
+      "properties": {
+        "new_expires_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "New expiry timestamp the renewal grants. RFC 3339 UTC; MUST be later than the underlying waiver record's prior expires_at."
+        },
+        "renewal_envelope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "renewal_conditions_class": {
+          "type": "string",
+          "enum": [
+            "renewed_unchanged_envelope",
+            "renewed_with_narrower_envelope",
+            "renewed_with_compensating_control_added",
+            "renewed_pending_follow_up_decision"
+          ],
+          "description": "Closed four-class renewal-conditions vocabulary."
+        }
+      }
+    },
+
+    "narrowed_claim_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_narrowing_impact_class",
+        "narrowed_claim_row_refs",
+        "linked_disclosure_refs",
+        "narrowed_claim_summary"
+      ],
+      "properties": {
+        "claim_narrowing_impact_class": { "$ref": "#/$defs/claim_narrowing_impact_class" },
+        "narrowed_claim_row_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into claim manifest rows that were narrowed by this decision."
+        },
+        "linked_disclosure_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into the public proof rows, About / Help disclosures, and release-notes rows that render the narrowing."
+        },
+        "narrowed_claim_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "escalation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "escalation_path_class",
+        "linked_escalation_decision_register_row_ref",
+        "linked_correction_work_refs",
+        "escalation_summary"
+      ],
+      "properties": {
+        "escalation_path_class": { "$ref": "#/$defs/escalation_path_class" },
+        "linked_escalation_decision_register_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref into the gating decision register row the escalation cites."
+        },
+        "linked_correction_work_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Refs into the correction work items (RFC, design packet, milestone task) the escalation routes to."
+        },
+        "escalation_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "rejection_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "linked_rejection_decision_register_row_ref",
+        "post_rejection_surface_class",
+        "rejection_summary"
+      ],
+      "properties": {
+        "linked_rejection_decision_register_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref into the decision register row that records the rejection rationale."
+        },
+        "post_rejection_surface_class": {
+          "type": "string",
+          "enum": [
+            "surface_retired",
+            "surface_descoped_to_internal_only",
+            "surface_held_under_existing_protection",
+            "surface_held_pending_follow_up_waiver"
+          ],
+          "description": "Closed four-class post-rejection surface vocabulary."
+        },
+        "rejection_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "waiver_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_decision_schema_version",
+        "record_kind",
+        "waiver_decision_id",
+        "waiver_register_entry_ref",
+        "waiver_record_ref",
+        "decision_class",
+        "decided_at",
+        "sponsor_or_forum_class",
+        "sponsor_or_forum_label",
+        "decided_by_actor_role_ref",
+        "required_evidence_links",
+        "decision_summary",
+        "contract_doc_ref",
+        "waiver_register_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "waiver_decision_schema_version": { "$ref": "#/$defs/waiver_decision_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "waiver_decision_record"
+        },
+        "waiver_decision_id": {
+          "type": "string",
+          "pattern": "^waiver_decision:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable decision id quoted by every consuming surface."
+        },
+        "waiver_register_entry_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref into the waiver_register_entry_record this decision resolves against."
+        },
+        "waiver_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref into the underlying waiver_expiry_record on schemas/governance/waiver_expiry.schema.json or to the waiver register seed on artifacts/governance/ownership_matrix.yaml#waivers."
+        },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "decided_at": { "$ref": "#/$defs/utc_datetime" },
+        "sponsor_or_forum_class": { "$ref": "#/$defs/sponsor_or_forum_class" },
+        "sponsor_or_forum_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label naming the sponsor or forum (e.g. 'release council', 'security trust review')."
+        },
+        "decided_by_actor_role_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque role ref for the actor who recorded the decision. Personal handles, raw email addresses, and raw chat URLs MUST NOT appear; the role registry resolves the actor."
+        },
+        "required_evidence_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_evidence_link" },
+          "minItems": 1,
+          "description": "Required evidence links the decision class cites. Schema-enforced minimums by decision_class are in the allOf block."
+        },
+        "renewal_envelope": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/renewal_envelope" }
+          ],
+          "description": "Renewal envelope. Required when decision_class = renew; null otherwise."
+        },
+        "narrowed_claim": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/narrowed_claim_block" }
+          ],
+          "description": "Narrowed-claim block. Required when decision_class = narrow_claim; null otherwise."
+        },
+        "escalation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/escalation_block" }
+          ],
+          "description": "Escalation block. Required when decision_class = escalate_correction; null otherwise."
+        },
+        "rejection": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/rejection_block" }
+          ],
+          "description": "Rejection block. Required when decision_class = reject; null otherwise."
+        },
+        "decision_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the decision. Names the class, the sponsor or forum, and the resulting register-row posture. Raw justification text MUST NOT appear."
+        },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/waiver_register_contract.md"
+        },
+        "waiver_register_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/waiver_register.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "decision_class = renew requires renewal_envelope to be non-null and required_evidence_links to contain at least one entry of class mitigation_landed_evidence.",
+          "if": {
+            "properties": { "decision_class": { "const": "renew" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "renewal_envelope": { "not": { "type": "null" } },
+              "required_evidence_links": {
+                "contains": {
+                  "properties": {
+                    "required_evidence_link_class": { "const": "mitigation_landed_evidence" }
+                  },
+                  "required": ["required_evidence_link_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "decision_class = close requires required_evidence_links to contain at least one entry of class correction_test_evidence OR claim_narrowing_disclosure_evidence.",
+          "if": {
+            "properties": { "decision_class": { "const": "close" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "required_evidence_links": {
+                "anyOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "required_evidence_link_class": { "const": "correction_test_evidence" }
+                      },
+                      "required": ["required_evidence_link_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "required_evidence_link_class": { "const": "claim_narrowing_disclosure_evidence" }
+                      },
+                      "required": ["required_evidence_link_class"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "decision_class = narrow_claim requires narrowed_claim to be non-null and required_evidence_links to contain at least one entry of class claim_narrowing_disclosure_evidence.",
+          "if": {
+            "properties": { "decision_class": { "const": "narrow_claim" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "narrowed_claim": { "not": { "type": "null" } },
+              "required_evidence_links": {
+                "contains": {
+                  "properties": {
+                    "required_evidence_link_class": { "const": "claim_narrowing_disclosure_evidence" }
+                  },
+                  "required": ["required_evidence_link_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "decision_class = escalate_correction requires escalation to be non-null and required_evidence_links to contain at least one entry each of correction_design_evidence and escalation_packet_evidence.",
+          "if": {
+            "properties": { "decision_class": { "const": "escalate_correction" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "escalation": { "not": { "type": "null" } },
+              "required_evidence_links": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "required_evidence_link_class": { "const": "correction_design_evidence" }
+                      },
+                      "required": ["required_evidence_link_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "required_evidence_link_class": { "const": "escalation_packet_evidence" }
+                      },
+                      "required": ["required_evidence_link_class"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "decision_class = reject requires rejection to be non-null and required_evidence_links to contain at least one entry each of escalation_packet_evidence and rejection_rationale_evidence.",
+          "if": {
+            "properties": { "decision_class": { "const": "reject" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "rejection": { "not": { "type": "null" } },
+              "required_evidence_links": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "required_evidence_link_class": { "const": "escalation_packet_evidence" }
+                      },
+                      "required": ["required_evidence_link_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "required_evidence_link_class": { "const": "rejection_rationale_evidence" }
+                      },
+                      "required": ["required_evidence_link_class"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "decision_class != renew requires renewal_envelope to be null.",
+          "if": {
+            "properties": {
+              "decision_class": { "not": { "const": "renew" } }
+            },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "renewal_envelope": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "decision_class != narrow_claim requires narrowed_claim to be null.",
+          "if": {
+            "properties": {
+              "decision_class": { "not": { "const": "narrow_claim" } }
+            },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "narrowed_claim": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "decision_class != escalate_correction requires escalation to be null.",
+          "if": {
+            "properties": {
+              "decision_class": { "not": { "const": "escalate_correction" } }
+            },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "escalation": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "decision_class != reject requires rejection to be null.",
+          "if": {
+            "properties": {
+              "decision_class": { "not": { "const": "reject" } }
+            },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "rejection": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "sponsor_or_forum_class = decision_forum_unresolved is admissible only when decision_class = escalate_correction; the escalation block carries the gating decision register row.",
+          "if": {
+            "properties": {
+              "sponsor_or_forum_class": { "const": "decision_forum_unresolved" }
+            },
+            "required": ["sponsor_or_forum_class"]
+          },
+          "then": {
+            "properties": {
+              "decision_class": { "const": "escalate_correction" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

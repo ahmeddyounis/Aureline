@@ -1,0 +1,1092 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/waiver_register.schema.json",
+  "title": "Aureline waiver-register entry, mitigation-ledger, and renewal-or-close decision-history contract",
+  "description": "Boundary schema for one waiver_register_entry_record frozen in docs/governance/waiver_register_contract.md. The record is the projection that the dashboard, the milestone scorecard, the release-evidence shiproom packet, the support bundle, the public claim manifest, the governance packet, and the weekly governance review quote so a waiver is reviewable as a first-class governed object instead of a comment, a meeting note, or a hidden release-notes appendix. Every entry names the underlying waiver record, the typed waiver kind and authority, the typed affected target (requirement row, protected path, claim row, release train, milestone lane, compatibility surface, retention path, or export pipeline), the typed owner DRI / lane / decision-forum / backup posture, the typed mitigation ledger (compensating control, correction-work state, residual risk, marketed-or-internal claim narrowing), the typed expiry envelope, the typed current evidence gap, the typed renewal-requested state, the typed register status, the typed grouping class for repeated waivers on the same protected path across milestones or release trains, the typed claim / support impact refs, the typed decision-history projection over linked waiver_decision_records, and the bounded reviewable summaries the surfaces render verbatim. Raw waiver justification text, raw user identifiers, raw policy bodies, and raw screenshots MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new affected-target class, mitigation-ledger class, current-evidence-gap class, renewal-requested-state class, register-status class, repeated-path grouping class, or claim-or-support-impact-kind class is additive-minor and bumps waiver_register_entry_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/waiver_register_entry_record",
+  "$defs": {
+    "waiver_register_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the waiver-register-entry payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, and screenshots. Raw URLs, raw absolute paths, raw policy bodies, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw measurement bytes, raw evidence bodies, raw policy bodies, raw waiver justifications, and raw user identifiers MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "waiver_kind_class": {
+      "type": "string",
+      "enum": [
+        "freeze_exception",
+        "policy_narrowing",
+        "retention_exception",
+        "release_floor_breach_waiver",
+        "support_drill_pending_waiver",
+        "compatibility_window_waiver",
+        "claim_attestation_pending_waiver",
+        "single_maintainer_backup",
+        "other_named_in_summary"
+      ],
+      "description": "Closed nine-class waiver-kind vocabulary. Mirrors waiver_expiry_item.schema.json."
+    },
+    "waiver_authority_class": {
+      "type": "string",
+      "enum": [
+        "performance_council",
+        "architecture_council",
+        "release_council",
+        "shiproom_executive_scope_review",
+        "not_applicable_no_active_waiver"
+      ],
+      "description": "Closed five-class waiver-authority vocabulary. Mirrors waiver_expiry_item.schema.json. not_applicable_no_active_waiver is forbidden on a register entry; the register exists because a waiver was minted."
+    },
+    "expiry_proximity_class": {
+      "type": "string",
+      "enum": [
+        "expired_past_due",
+        "due_today_or_within_24h",
+        "nearing_expiry_within_seven_days",
+        "nearing_expiry_within_thirty_days",
+        "not_yet_due_review_window_open",
+        "no_expiry_pinned"
+      ],
+      "description": "Closed six-class expiry-proximity vocabulary. Mirrors waiver_expiry_item.schema.json."
+    },
+
+    "affected_target_class": {
+      "type": "string",
+      "enum": [
+        "requirement_row",
+        "protected_path",
+        "claim_row",
+        "release_train",
+        "milestone_lane",
+        "compatibility_surface",
+        "retention_path",
+        "export_pipeline"
+      ],
+      "description": "Closed eight-class affected-target vocabulary. requirement_row pairs with requirement_id; protected_path with protected_path_ref; claim_row with claim_row_ref; release_train with release_train_ref; milestone_lane with milestone_lane_ref; compatibility_surface with compatibility_surface_ref; retention_path with retention_path_ref; export_pipeline with export_pipeline_ref. The schema enforces that the matching ref is non-null and the non-matching refs are null."
+    },
+    "compensating_control_class": {
+      "type": "string",
+      "enum": [
+        "narrower_scope_until_correction",
+        "slower_path_until_correction",
+        "manual_review_until_correction",
+        "replicated_review_until_correction",
+        "alternate_artifact_until_correction",
+        "none_required_audit_only"
+      ],
+      "description": "Closed six-class compensating-control vocabulary. none_required_audit_only is admissible only for waiver_kind_class = single_maintainer_backup or register_status_class = register_closed_correction_landed."
+    },
+    "correction_work_state_class": {
+      "type": "string",
+      "enum": [
+        "correction_not_started",
+        "correction_in_design",
+        "correction_in_implementation",
+        "correction_in_verification",
+        "correction_landed_pending_renewal",
+        "correction_landed_renewal_minted",
+        "correction_descoped_with_decision"
+      ],
+      "description": "Closed seven-class correction-work-state vocabulary."
+    },
+    "residual_risk_class": {
+      "type": "string",
+      "enum": [
+        "residual_risk_minor",
+        "residual_risk_moderate",
+        "residual_risk_material",
+        "residual_risk_severe",
+        "residual_risk_unknown_pending_assessment"
+      ],
+      "description": "Closed five-class residual-risk vocabulary. Surfaces MUST NOT collapse residual_risk_severe into residual_risk_material."
+    },
+    "claim_scope_narrowing_class": {
+      "type": "string",
+      "enum": [
+        "marketed_public_claim_narrowed",
+        "marketed_public_claim_held_no_narrowing",
+        "internal_only_no_marketed_claim",
+        "internal_only_narrowed_to_subset",
+        "claim_scope_unresolved"
+      ],
+      "description": "Closed five-class claim-scope-narrowing vocabulary. Pins whether the waiver narrows a marketed public claim or stays internal-only. claim_scope_unresolved requires a non-empty linked_decision_refs[]."
+    },
+    "current_evidence_gap_class": {
+      "type": "string",
+      "enum": [
+        "evidence_gap_none_audit_only",
+        "evidence_gap_recapture_pending",
+        "evidence_gap_threshold_breach_active",
+        "evidence_gap_partial_profile_only",
+        "evidence_gap_compatibility_window_open",
+        "evidence_gap_support_drill_pending",
+        "evidence_gap_claim_attestation_pending"
+      ],
+      "description": "Closed seven-class current-evidence-gap vocabulary."
+    },
+    "renewal_requested_state_class": {
+      "type": "string",
+      "enum": [
+        "not_yet_due",
+        "renewal_requested_open",
+        "renewal_requested_in_review",
+        "renewal_resolved_renewed",
+        "renewal_resolved_closed",
+        "renewal_resolved_narrowed_claim",
+        "renewal_resolved_escalated",
+        "renewal_resolved_rejected",
+        "no_renewal_planned"
+      ],
+      "description": "Closed nine-class renewal-requested-state vocabulary."
+    },
+    "register_status_class": {
+      "type": "string",
+      "enum": [
+        "register_active_within_expiry",
+        "register_active_pending_renewal",
+        "register_renewed_under_new_decision",
+        "register_closed_correction_landed",
+        "register_closed_no_renewal",
+        "register_narrowed_claim_published",
+        "register_escalated_pending_resolution",
+        "register_rejected_no_protection",
+        "register_expired_no_decision"
+      ],
+      "description": "Closed nine-class register-status vocabulary."
+    },
+    "repeated_path_grouping_class": {
+      "type": "string",
+      "enum": [
+        "not_repeated_first_observation",
+        "repeated_within_milestone",
+        "repeated_across_milestones",
+        "repeated_across_release_trains",
+        "repeated_across_program_lifetime"
+      ],
+      "description": "Closed five-class repeated-protected-path grouping vocabulary."
+    },
+    "claim_or_support_impact_kind_class": {
+      "type": "string",
+      "enum": [
+        "claim_row",
+        "public_proof_row",
+        "about_help_disclosure",
+        "release_notes_row",
+        "support_export_packet",
+        "support_drill_packet",
+        "recovery_rehearsal_packet"
+      ],
+      "description": "Closed seven-class claim-or-support-impact-kind vocabulary."
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "renew",
+        "close",
+        "narrow_claim",
+        "escalate_correction",
+        "reject"
+      ],
+      "description": "Closed five-class decision vocabulary mirrored from waiver_decision.schema.json."
+    },
+    "sponsor_or_forum_class": {
+      "type": "string",
+      "enum": [
+        "dri_self_decision",
+        "backup_owner_decision",
+        "architecture_council",
+        "performance_council",
+        "release_council",
+        "security_trust_review",
+        "support_council",
+        "governance_council",
+        "shiproom_executive_scope_review",
+        "executive_steering",
+        "decision_forum_unresolved"
+      ],
+      "description": "Closed eleven-class sponsor-or-forum vocabulary mirrored from waiver_decision.schema.json."
+    },
+
+    "affected_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "affected_target_class",
+        "requirement_id",
+        "protected_path_ref",
+        "claim_row_ref",
+        "release_train_ref",
+        "milestone_lane_ref",
+        "compatibility_surface_ref",
+        "retention_path_ref",
+        "export_pipeline_ref",
+        "affected_target_summary"
+      ],
+      "properties": {
+        "affected_target_class": { "$ref": "#/$defs/affected_target_class" },
+        "requirement_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "protected_path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "claim_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "release_train_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "milestone_lane_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compatibility_surface_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retention_path_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_pipeline_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "affected_target_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "affected_target_class": { "const": "requirement_row" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "requirement_id": { "type": "string" } }, "required": ["requirement_id"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "protected_path" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "protected_path_ref": { "type": "string" } }, "required": ["protected_path_ref"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "claim_row" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "claim_row_ref": { "type": "string" } }, "required": ["claim_row_ref"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "release_train" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "release_train_ref": { "type": "string" } }, "required": ["release_train_ref"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "milestone_lane" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "milestone_lane_ref": { "type": "string" } }, "required": ["milestone_lane_ref"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "compatibility_surface" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "compatibility_surface_ref": { "type": "string" } }, "required": ["compatibility_surface_ref"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "retention_path" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "retention_path_ref": { "type": "string" } }, "required": ["retention_path_ref"] }
+        },
+        {
+          "if": { "properties": { "affected_target_class": { "const": "export_pipeline" } }, "required": ["affected_target_class"] },
+          "then": { "properties": { "export_pipeline_ref": { "type": "string" } }, "required": ["export_pipeline_ref"] }
+        }
+      ]
+    },
+
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_dri",
+        "evidence_owner",
+        "owning_lane",
+        "decision_forum_ref",
+        "backup_owner"
+      ],
+      "properties": {
+        "primary_dri": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Primary DRI handle. Resolves into artifacts/governance/ownership_matrix.yaml."
+        },
+        "evidence_owner": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Evidence owner handle. Resolves into the same matrix."
+        },
+        "owning_lane": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Owning scorecard lane. Resolves into ownership_matrix.scorecard_lane_index."
+        },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Decision forum that minted the waiver and owns renewal authority."
+        },
+        "backup_owner": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_label" }
+          ],
+          "description": "Backup owner handle. Null is admissible only when waiver_kind_class = single_maintainer_backup."
+        }
+      }
+    },
+
+    "mitigation_ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compensating_control_class",
+        "correction_work_state_class",
+        "residual_risk_class",
+        "claim_scope_narrowing_class",
+        "compensating_controls_summary",
+        "target_correction_work_summary",
+        "residual_risk_summary",
+        "claim_scope_summary"
+      ],
+      "properties": {
+        "compensating_control_class": { "$ref": "#/$defs/compensating_control_class" },
+        "correction_work_state_class": { "$ref": "#/$defs/correction_work_state_class" },
+        "residual_risk_class": { "$ref": "#/$defs/residual_risk_class" },
+        "claim_scope_narrowing_class": { "$ref": "#/$defs/claim_scope_narrowing_class" },
+        "compensating_controls_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_correction_work_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "residual_risk_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "claim_scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_correction_work_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the design / RFC / implementation / verification packets that carry the correction work."
+        }
+      }
+    },
+
+    "expiry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expiry_proximity_class",
+        "expires_at",
+        "expiry_summary"
+      ],
+      "properties": {
+        "expiry_proximity_class": { "$ref": "#/$defs/expiry_proximity_class" },
+        "expires_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "expiry_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "expiry_proximity_class": { "const": "no_expiry_pinned" } }, "required": ["expiry_proximity_class"] },
+          "then": { "properties": { "expires_at": { "type": "null" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "expiry_proximity_class": {
+                "enum": [
+                  "expired_past_due",
+                  "due_today_or_within_24h",
+                  "nearing_expiry_within_seven_days",
+                  "nearing_expiry_within_thirty_days",
+                  "not_yet_due_review_window_open"
+                ]
+              }
+            },
+            "required": ["expiry_proximity_class"]
+          },
+          "then": { "properties": { "expires_at": { "not": { "type": "null" } } } }
+        }
+      ]
+    },
+
+    "current_evidence_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_evidence_gap_class",
+        "linked_evidence_gap_refs",
+        "evidence_gap_summary"
+      ],
+      "properties": {
+        "current_evidence_gap_class": { "$ref": "#/$defs/current_evidence_gap_class" },
+        "linked_evidence_gap_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into absent or stale evidence packets the gap names. Empty only when current_evidence_gap_class = evidence_gap_none_audit_only."
+        },
+        "evidence_gap_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "current_evidence_gap_class": {
+                "not": { "const": "evidence_gap_none_audit_only" }
+              }
+            },
+            "required": ["current_evidence_gap_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_evidence_gap_refs": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "renewal_requested_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "renewal_requested_state_class",
+        "linked_decision_refs",
+        "renewal_requested_summary"
+      ],
+      "properties": {
+        "renewal_requested_state_class": { "$ref": "#/$defs/renewal_requested_state_class" },
+        "linked_decision_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into open or in-review waiver_decision_record ids. Required to be non-empty when renewal_requested_state_class is one of renewal_requested_open, renewal_requested_in_review, renewal_resolved_renewed, renewal_resolved_closed, renewal_resolved_narrowed_claim, renewal_resolved_escalated, or renewal_resolved_rejected."
+        },
+        "renewal_requested_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "renewal_requested_state_class": {
+                "enum": [
+                  "renewal_requested_open",
+                  "renewal_requested_in_review",
+                  "renewal_resolved_renewed",
+                  "renewal_resolved_closed",
+                  "renewal_resolved_narrowed_claim",
+                  "renewal_resolved_escalated",
+                  "renewal_resolved_rejected"
+                ]
+              }
+            },
+            "required": ["renewal_requested_state_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_decision_refs": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "decision_history_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_record_ref",
+        "decision_class",
+        "decided_at",
+        "sponsor_or_forum_class",
+        "decision_summary"
+      ],
+      "properties": {
+        "decision_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "decided_at": { "$ref": "#/$defs/utc_datetime" },
+        "sponsor_or_forum_class": { "$ref": "#/$defs/sponsor_or_forum_class" },
+        "decision_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "claim_or_support_impact_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_or_support_impact_kind_class",
+        "linked_ref",
+        "impact_summary"
+      ],
+      "properties": {
+        "claim_or_support_impact_kind_class": { "$ref": "#/$defs/claim_or_support_impact_kind_class" },
+        "linked_ref": { "$ref": "#/$defs/opaque_id" },
+        "impact_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_milestone_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest",
+        "render_on_weekly_governance_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_milestone_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" },
+        "render_on_weekly_governance_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the register entry MUST render the same waiver_kind_class, waiver_authority_class, affected_target_class, mitigation ledger axes, expiry_proximity_class, current_evidence_gap_class, renewal_requested_state_class, register_status_class, repeated_path_grouping_class, decision_history[], linked_claim_or_support_impact_refs[], and register_summary."
+    },
+
+    "waiver_register_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "waiver_register_entry_schema_version",
+        "record_kind",
+        "waiver_register_entry_id",
+        "evaluated_at",
+        "waiver_record_ref",
+        "waiver_kind_class",
+        "waiver_authority_class",
+        "affected_target",
+        "owner",
+        "mitigation_ledger",
+        "expiry",
+        "current_evidence_gap",
+        "renewal_requested_state",
+        "decision_history",
+        "register_status_class",
+        "repeated_path_grouping_class",
+        "cluster_member_refs",
+        "linked_claim_or_support_impact_refs",
+        "linked_requirement_status_row_refs",
+        "linked_nightly_report_row_refs",
+        "linked_release_truth_summary_refs",
+        "headline_label",
+        "register_summary",
+        "export_fields",
+        "contract_doc_ref",
+        "waiver_decision_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "waiver_register_entry_schema_version": { "$ref": "#/$defs/waiver_register_entry_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "waiver_register_entry_record"
+        },
+        "waiver_register_entry_id": {
+          "type": "string",
+          "pattern": "^waiver_register_entry:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by every consuming surface."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the register entry was projected. expiry_proximity_class, register_status_class, repeated_path_grouping_class, and decision_history[] are recomputed against this timestamp."
+        },
+        "waiver_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying waiver_expiry_record on schemas/governance/waiver_expiry.schema.json or to the waiver register seed on artifacts/governance/ownership_matrix.yaml#waivers."
+        },
+        "waiver_kind_class": { "$ref": "#/$defs/waiver_kind_class" },
+        "waiver_authority_class": { "$ref": "#/$defs/waiver_authority_class" },
+        "affected_target": { "$ref": "#/$defs/affected_target" },
+        "owner": { "$ref": "#/$defs/owner" },
+        "mitigation_ledger": { "$ref": "#/$defs/mitigation_ledger" },
+        "expiry": { "$ref": "#/$defs/expiry" },
+        "current_evidence_gap": { "$ref": "#/$defs/current_evidence_gap" },
+        "renewal_requested_state": { "$ref": "#/$defs/renewal_requested_state" },
+        "decision_history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/decision_history_entry" },
+          "description": "Decision-history projection. One entry per resolved waiver_decision_record that cites this register row, in chronological order. Empty only when register_status_class = register_active_within_expiry and no decision has been recorded."
+        },
+        "register_status_class": { "$ref": "#/$defs/register_status_class" },
+        "repeated_path_grouping_class": { "$ref": "#/$defs/repeated_path_grouping_class" },
+        "cluster_member_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into other waiver_register_entry_ids that share the cluster. Required to be non-empty when repeated_path_grouping_class is one of repeated_within_milestone, repeated_across_milestones, repeated_across_release_trains, or repeated_across_program_lifetime."
+        },
+        "linked_claim_or_support_impact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_or_support_impact_entry" },
+          "description": "Typed refs into the claim surfaces and support surfaces the waiver narrows or affects. A register row whose mitigation_ledger.claim_scope_narrowing_class = marketed_public_claim_narrowed MUST cite at least one claim_row and one public_proof_row entry."
+        },
+        "linked_requirement_status_row_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into requirement-status snapshot rows whose state is held by this register row. Required to be non-empty when affected_target_class = requirement_row."
+        },
+        "linked_nightly_report_row_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into nightly-row ids that triggered or are gated by this register row. Required to be non-empty when waiver_kind_class is in { release_floor_breach_waiver, support_drill_pending_waiver, compatibility_window_waiver, claim_attestation_pending_waiver }."
+        },
+        "linked_release_truth_summary_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into release-truth summaries that quote this register row. Required to be non-empty when affected_target_class = release_train."
+        },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "register_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary. Names the authority, the affected target, the expiry proximity, the mitigation posture, and the held release condition. Raw waiver justification text MUST NOT appear."
+        },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/waiver_register_contract.md"
+        },
+        "waiver_decision_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/waiver_decision.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "waiver_authority_class = not_applicable_no_active_waiver is forbidden on a register entry; the register exists because a waiver was minted.",
+          "properties": {
+            "waiver_authority_class": {
+              "not": { "const": "not_applicable_no_active_waiver" }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class = no_expiry_pinned requires waiver_kind_class to be single_maintainer_backup or other_named_in_summary.",
+          "if": {
+            "properties": {
+              "expiry": {
+                "properties": { "expiry_proximity_class": { "const": "no_expiry_pinned" } },
+                "required": ["expiry_proximity_class"]
+              }
+            },
+            "required": ["expiry"]
+          },
+          "then": {
+            "properties": {
+              "waiver_kind_class": {
+                "enum": ["single_maintainer_backup", "other_named_in_summary"]
+              }
+            }
+          }
+        },
+        {
+          "description": "expiry_proximity_class = expired_past_due requires register_status_class to be one of register_active_pending_renewal, register_renewed_under_new_decision, register_escalated_pending_resolution, register_rejected_no_protection, or register_expired_no_decision; an expired waiver cannot be filed under register_active_within_expiry.",
+          "if": {
+            "properties": {
+              "expiry": {
+                "properties": { "expiry_proximity_class": { "const": "expired_past_due" } },
+                "required": ["expiry_proximity_class"]
+              }
+            },
+            "required": ["expiry"]
+          },
+          "then": {
+            "properties": {
+              "register_status_class": {
+                "enum": [
+                  "register_active_pending_renewal",
+                  "register_renewed_under_new_decision",
+                  "register_escalated_pending_resolution",
+                  "register_rejected_no_protection",
+                  "register_expired_no_decision"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "compensating_control_class = none_required_audit_only requires waiver_kind_class = single_maintainer_backup OR register_status_class = register_closed_correction_landed.",
+          "if": {
+            "properties": {
+              "mitigation_ledger": {
+                "properties": { "compensating_control_class": { "const": "none_required_audit_only" } },
+                "required": ["compensating_control_class"]
+              }
+            },
+            "required": ["mitigation_ledger"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "waiver_kind_class": { "const": "single_maintainer_backup" }
+                }
+              },
+              {
+                "properties": {
+                  "register_status_class": { "const": "register_closed_correction_landed" }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "description": "correction_work_state_class = correction_landed_renewal_minted requires register_status_class in { register_closed_correction_landed, register_closed_no_renewal } and a non-empty decision_history[].",
+          "if": {
+            "properties": {
+              "mitigation_ledger": {
+                "properties": { "correction_work_state_class": { "const": "correction_landed_renewal_minted" } },
+                "required": ["correction_work_state_class"]
+              }
+            },
+            "required": ["mitigation_ledger"]
+          },
+          "then": {
+            "properties": {
+              "register_status_class": {
+                "enum": [
+                  "register_closed_correction_landed",
+                  "register_closed_no_renewal"
+                ]
+              },
+              "decision_history": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "claim_scope_narrowing_class = marketed_public_claim_narrowed requires linked_claim_or_support_impact_refs[] to contain at least one claim_row and one public_proof_row entry.",
+          "if": {
+            "properties": {
+              "mitigation_ledger": {
+                "properties": { "claim_scope_narrowing_class": { "const": "marketed_public_claim_narrowed" } },
+                "required": ["claim_scope_narrowing_class"]
+              }
+            },
+            "required": ["mitigation_ledger"]
+          },
+          "then": {
+            "properties": {
+              "linked_claim_or_support_impact_refs": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": { "claim_or_support_impact_kind_class": { "const": "claim_row" } },
+                      "required": ["claim_or_support_impact_kind_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": { "claim_or_support_impact_kind_class": { "const": "public_proof_row" } },
+                      "required": ["claim_or_support_impact_kind_class"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "claim_scope_narrowing_class = claim_scope_unresolved requires renewal_requested_state.linked_decision_refs[] to be non-empty.",
+          "if": {
+            "properties": {
+              "mitigation_ledger": {
+                "properties": { "claim_scope_narrowing_class": { "const": "claim_scope_unresolved" } },
+                "required": ["claim_scope_narrowing_class"]
+              }
+            },
+            "required": ["mitigation_ledger"]
+          },
+          "then": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": {
+                  "linked_decision_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "residual_risk_class = residual_risk_unknown_pending_assessment requires renewal_requested_state.linked_decision_refs[] to be non-empty.",
+          "if": {
+            "properties": {
+              "mitigation_ledger": {
+                "properties": { "residual_risk_class": { "const": "residual_risk_unknown_pending_assessment" } },
+                "required": ["residual_risk_class"]
+              }
+            },
+            "required": ["mitigation_ledger"]
+          },
+          "then": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": {
+                  "linked_decision_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "renewal_requested_state_class = renewal_resolved_renewed requires decision_history[] to contain at least one entry of class renew.",
+          "if": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": { "renewal_requested_state_class": { "const": "renewal_resolved_renewed" } },
+                "required": ["renewal_requested_state_class"]
+              }
+            },
+            "required": ["renewal_requested_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_history": {
+                "contains": {
+                  "properties": { "decision_class": { "const": "renew" } },
+                  "required": ["decision_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "renewal_requested_state_class = renewal_resolved_closed requires decision_history[] to contain at least one entry of class close.",
+          "if": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": { "renewal_requested_state_class": { "const": "renewal_resolved_closed" } },
+                "required": ["renewal_requested_state_class"]
+              }
+            },
+            "required": ["renewal_requested_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_history": {
+                "contains": {
+                  "properties": { "decision_class": { "const": "close" } },
+                  "required": ["decision_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "renewal_requested_state_class = renewal_resolved_narrowed_claim requires decision_history[] to contain at least one entry of class narrow_claim.",
+          "if": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": { "renewal_requested_state_class": { "const": "renewal_resolved_narrowed_claim" } },
+                "required": ["renewal_requested_state_class"]
+              }
+            },
+            "required": ["renewal_requested_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_history": {
+                "contains": {
+                  "properties": { "decision_class": { "const": "narrow_claim" } },
+                  "required": ["decision_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "renewal_requested_state_class = renewal_resolved_escalated requires decision_history[] to contain at least one entry of class escalate_correction.",
+          "if": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": { "renewal_requested_state_class": { "const": "renewal_resolved_escalated" } },
+                "required": ["renewal_requested_state_class"]
+              }
+            },
+            "required": ["renewal_requested_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_history": {
+                "contains": {
+                  "properties": { "decision_class": { "const": "escalate_correction" } },
+                  "required": ["decision_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "renewal_requested_state_class = renewal_resolved_rejected requires decision_history[] to contain at least one entry of class reject.",
+          "if": {
+            "properties": {
+              "renewal_requested_state": {
+                "properties": { "renewal_requested_state_class": { "const": "renewal_resolved_rejected" } },
+                "required": ["renewal_requested_state_class"]
+              }
+            },
+            "required": ["renewal_requested_state"]
+          },
+          "then": {
+            "properties": {
+              "decision_history": {
+                "contains": {
+                  "properties": { "decision_class": { "const": "reject" } },
+                  "required": ["decision_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "register_status_class = register_active_within_expiry forbids expiry_proximity_class = expired_past_due and forbids a non-empty renewal_requested_state.linked_decision_refs[] of class in_review (the row would be register_active_pending_renewal).",
+          "if": {
+            "properties": {
+              "register_status_class": { "const": "register_active_within_expiry" }
+            },
+            "required": ["register_status_class"]
+          },
+          "then": {
+            "properties": {
+              "expiry": {
+                "properties": {
+                  "expiry_proximity_class": {
+                    "not": { "const": "expired_past_due" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "register_status_class = register_narrowed_claim_published requires mitigation_ledger.claim_scope_narrowing_class = marketed_public_claim_narrowed and decision_history[] to contain a narrow_claim entry.",
+          "if": {
+            "properties": {
+              "register_status_class": { "const": "register_narrowed_claim_published" }
+            },
+            "required": ["register_status_class"]
+          },
+          "then": {
+            "properties": {
+              "mitigation_ledger": {
+                "properties": {
+                  "claim_scope_narrowing_class": { "const": "marketed_public_claim_narrowed" }
+                }
+              },
+              "decision_history": {
+                "contains": {
+                  "properties": { "decision_class": { "const": "narrow_claim" } },
+                  "required": ["decision_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "repeated_path_grouping_class in { repeated_within_milestone, repeated_across_milestones, repeated_across_release_trains, repeated_across_program_lifetime } requires a non-empty cluster_member_refs[].",
+          "if": {
+            "properties": {
+              "repeated_path_grouping_class": {
+                "enum": [
+                  "repeated_within_milestone",
+                  "repeated_across_milestones",
+                  "repeated_across_release_trains",
+                  "repeated_across_program_lifetime"
+                ]
+              }
+            },
+            "required": ["repeated_path_grouping_class"]
+          },
+          "then": {
+            "properties": {
+              "cluster_member_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "affected_target_class = requirement_row requires linked_requirement_status_row_refs[] to be non-empty.",
+          "if": {
+            "properties": {
+              "affected_target": {
+                "properties": { "affected_target_class": { "const": "requirement_row" } },
+                "required": ["affected_target_class"]
+              }
+            },
+            "required": ["affected_target"]
+          },
+          "then": {
+            "properties": {
+              "linked_requirement_status_row_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "waiver_kind_class in { release_floor_breach_waiver, support_drill_pending_waiver, compatibility_window_waiver, claim_attestation_pending_waiver } requires linked_nightly_report_row_refs[] to be non-empty.",
+          "if": {
+            "properties": {
+              "waiver_kind_class": {
+                "enum": [
+                  "release_floor_breach_waiver",
+                  "support_drill_pending_waiver",
+                  "compatibility_window_waiver",
+                  "claim_attestation_pending_waiver"
+                ]
+              }
+            },
+            "required": ["waiver_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_nightly_report_row_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "owner.backup_owner = null is admissible only when waiver_kind_class = single_maintainer_backup.",
+          "if": {
+            "properties": {
+              "owner": {
+                "properties": { "backup_owner": { "type": "null" } },
+                "required": ["backup_owner"]
+              }
+            },
+            "required": ["owner"]
+          },
+          "then": {
+            "properties": {
+              "waiver_kind_class": { "const": "single_maintainer_backup" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
