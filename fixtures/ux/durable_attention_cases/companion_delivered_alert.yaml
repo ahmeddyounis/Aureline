@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: companion_delivered_alert
+  scenario: >
+    A review mention is delivered cross-client to a companion
+    surface. Companion push and OS notification share one
+    cross_client_canonical_event_id with the desktop attention
+    item; per-device durable identities are forbidden. Lock-
+    screen summary delivers a privacy-safe scoped summary or
+    denies with reopen_denied_requires_revalidation when the
+    workspace requires re-auth.
+  exercised_axes:
+    state_class: attention_required
+    activity_partition: needs_attention
+    canonical_reopen_target_kind: attention_item_exact
+    release_trigger_class: user_resolve
+    dedupe_key_scheme: cross_client_canonical_event_id
+  contract_sections:
+    - "Per-row drills"
+    - "Drill rules"
+record_kind: job_row_retention_packet_record
+job_row_retention_schema_version: 1
+retention_packet_id: dur:retention:companion_delivered_alert:needs_attention
+corpus_row_id_ref: dur:row:companion_delivered_alert
+canonical_event_id_ref: ux:event:collab:review-mention:pr-1428
+durable_object_target_ref: obj:review:pr-1428
+job_row_id_ref: ux:job-row:collab:review-mention:pr-1428
+state_class: attention_required
+activity_partition: needs_attention
+partition_rule_ref: dur:partition-rule:needs_attention
+retention_class: keep_until_user_resolve
+retention_window_class: retained_with_unread_until_resolved
+dismissibility_class: dismissible_to_history_after_resolution
+release_trigger_class: user_resolve
+transient_chrome_classes_dismissible_without_clearing_row:
+  - toast
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - companion_push
+canonical_reopen_target_ref: ux:reopen:collab:review-mention:pr-1428:attention
+canonical_reopen_target_kind: attention_item_exact
+expected_reopen_target_kinds:
+  - attention_item_exact
+  - canonical_object_target_exact
+  - review_sheet
+  - activity_center_item
+  - history_lane_row
+  - reopen_denied_requires_revalidation
+reopen_window_label: >
+  Companion push, OS notification, lock-screen summary, and
+  desktop activity-center activations all reopen the same
+  attention item. Locked devices that need re-auth deny with
+  reopen_denied_requires_revalidation rather than silently
+  re-attaching.
+audit_handling_class: full_audit_trail_required
+audit_trail_refs:
+  - audit:durable_job_created:collab:review-mention:pr-1428
+  - audit:cross_client_lineage_joined:pr-1428
+support_export_inclusion_class: always_included_full_lineage
+raw_private_material_excluded: true
+stays_reviewable_label: >
+  The mention attention item stays in needs_attention until the
+  user replies, marks resolved, opens the review, or dismisses
+  to history. Cross-client deliveries share one canonical
+  identity.
+moves_to_partition_on_release: completed
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: exec-context:collaboration:review
+source_doc_refs:
+  - docs/ux/exact_reopen_drill_map.md#row-companion-delivered-alert
+  - docs/ux/notification_delivery_contract.md
+  - artifacts/ux/durable_attention_corpus.yaml
+minted_at: "2026-05-01T00:00:00Z"

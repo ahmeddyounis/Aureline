@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: suppressed_security_notice
+  scenario: >
+    A trust / secret-broker security notice is admin-narrowed:
+    OS-level fanout is suppressed but the in-product durable
+    audit row remains visible because the tier is critical_safety.
+    The row releases only when the policy is revoked or the user
+    with policy permission explicitly clears the audit row.
+  exercised_axes:
+    state_class: policy_suppressed
+    activity_partition: suppressed_held
+    canonical_reopen_target_kind: durable_job_row_exact
+    release_trigger_class: policy_revoked
+    interruptibility_tier: tier_critical_safety
+  contract_sections:
+    - "Per-row drills"
+    - "Drill rules"
+record_kind: job_row_retention_packet_record
+job_row_retention_schema_version: 1
+retention_packet_id: dur:retention:suppressed_security_notice:suppressed_held
+corpus_row_id_ref: dur:row:suppressed_security_notice
+canonical_event_id_ref: ux:event:trust:secret-broker:audit-only
+durable_object_target_ref: obj:trust-decision:secret-broker
+job_row_id_ref: ux:job-row:trust:secret-broker:audit
+state_class: policy_suppressed
+activity_partition: suppressed_held
+partition_rule_ref: dur:partition-rule:suppressed_held
+retention_class: keep_until_policy_revoked_or_explicit_clear
+retention_window_class: retained_until_policy_revoked_or_explicit_clear
+dismissibility_class: dismissible_only_via_explicit_user_clear
+release_trigger_class: policy_revoked
+transient_chrome_classes_dismissible_without_clearing_row:
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - companion_push
+  - digest_group_row
+canonical_reopen_target_ref: ux:reopen:trust:secret-broker:audit
+canonical_reopen_target_kind: durable_job_row_exact
+expected_reopen_target_kinds:
+  - durable_job_row_exact
+  - evidence_packet_row
+  - activity_center_item
+  - history_lane_row
+  - placeholder_announced
+reopen_window_label: >
+  Activations from the in-product banner or the held /
+  suppressed badge land on the durable audit row. OS-level
+  activations land on placeholder_announced when admin-narrowed,
+  with a typed announcement explaining why the OS surface is
+  read-only.
+audit_handling_class: policy_required_audit_trail
+audit_trail_refs:
+  - audit:trust:secret-broker:audit-only
+  - audit:not_delivered_held:trust:secret-broker:01
+support_export_inclusion_class: always_included_full_lineage
+raw_private_material_excluded: true
+stays_reviewable_label: >
+  The audit row stays in suppressed_held until the admin
+  policy is revoked or the user with policy permission clears
+  the audit row. Critical safety tier means the in-product
+  durable row is never silently blocked.
+moves_to_partition_on_release: completed
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: restricted
+  execution_context_id: exec-context:workspace_trust
+source_doc_refs:
+  - docs/ux/exact_reopen_drill_map.md#row-suppressed-security-notice
+  - docs/ux/os_notification_and_quiet_hours_contract.md
+  - artifacts/ux/durable_attention_corpus.yaml
+minted_at: "2026-05-01T00:00:00Z"

@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: ai_approval_pending
+  scenario: >
+    An AI apply (rename-symbol batch) is blocked on user approval
+    before any mutation. The attention item is the canonical
+    durable identity; OS notification, lock-screen summary, and
+    companion push reopen the attention item and route through
+    the in-product review sheet for the approval gesture. Direct
+    OS-side approval is non-conforming.
+  exercised_axes:
+    state_class: needs_approval
+    activity_partition: needs_attention
+    canonical_reopen_target_kind: attention_item_exact
+    release_trigger_class: user_resolve
+    high_risk_no_bypass: true
+  contract_sections:
+    - "Per-row drills"
+    - "Drill rules"
+record_kind: job_row_retention_packet_record
+job_row_retention_schema_version: 1
+retention_packet_id: dur:retention:ai_approval_pending:needs_attention
+corpus_row_id_ref: dur:row:ai_approval_pending
+canonical_event_id_ref: ux:event:ai-apply:rename-symbol:awaiting-approval
+durable_object_target_ref: obj:ai-apply:rename-symbol-batch
+job_row_id_ref: ux:job-row:ai-apply:rename-symbol:awaiting-approval
+state_class: needs_approval
+activity_partition: needs_attention
+partition_rule_ref: dur:partition-rule:needs_attention
+retention_class: keep_until_user_resolve
+retention_window_class: retained_with_unread_until_resolved
+dismissibility_class: dismissible_to_history_after_resolution
+release_trigger_class: user_resolve
+transient_chrome_classes_dismissible_without_clearing_row:
+  - toast
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - companion_push
+canonical_reopen_target_ref: ux:reopen:ai-apply:rename-symbol:attention
+canonical_reopen_target_kind: attention_item_exact
+expected_reopen_target_kinds:
+  - attention_item_exact
+  - review_sheet
+  - durable_job_row_exact
+  - activity_center_item
+reopen_window_label: >
+  Activations from OS notification, badge, or companion push
+  reopen the attention item; the approval gesture itself routes
+  through the in-product review sheet rather than completing
+  from the OS shortcut.
+audit_handling_class: full_audit_trail_required
+audit_trail_refs:
+  - audit:durable_job_created:ai-apply:rename-symbol
+  - audit:ai_apply_awaiting_approval:rename-symbol
+support_export_inclusion_class: always_included_full_lineage
+raw_private_material_excluded: true
+stays_reviewable_label: >
+  The approval row stays in needs_attention until the user
+  approves, denies, or dismisses to history; the high-risk
+  no-bypass rule keeps the mutation behind the review sheet.
+moves_to_partition_on_release: completed
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: exec-context:ai_apply:rename-symbol
+source_doc_refs:
+  - docs/ux/exact_reopen_drill_map.md#row-ai-approval-pending
+  - docs/ux/notification_delivery_contract.md
+  - artifacts/ux/durable_attention_corpus.yaml
+minted_at: "2026-05-01T00:00:00Z"

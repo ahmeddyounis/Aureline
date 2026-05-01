@@ -1,0 +1,77 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: build_run
+  scenario: >
+    A workspace build is actively running with determinate
+    progress. The retention packet pins the canonical durable job
+    row as the convergence target for every transient mirror
+    (toast, badge, OS notification, lock-screen summary). Toast
+    or badge dismissal does not clear the durable row; the row
+    only releases when the build reaches a terminal state.
+  exercised_axes:
+    state_class: running
+    activity_partition: current_work
+    canonical_reopen_target_kind: durable_job_row_exact
+    release_trigger_class: terminal_state_reached
+  contract_sections:
+    - "Per-row drills"
+    - "Activity-center partition retention summary"
+record_kind: job_row_retention_packet_record
+job_row_retention_schema_version: 1
+retention_packet_id: dur:retention:build_run:current_work
+corpus_row_id_ref: dur:row:build_run
+canonical_event_id_ref: ux:event:build:debug-profile:running
+durable_object_target_ref: obj:build:debug-profile
+job_row_id_ref: ux:job-row:build:debug-profile:running
+state_class: running
+activity_partition: current_work
+partition_rule_ref: dur:partition-rule:current_work
+retention_class: keep_until_terminal_state
+retention_window_class: live_until_terminal
+dismissibility_class: not_dismissible_until_terminal
+release_trigger_class: terminal_state_reached
+transient_chrome_classes_dismissible_without_clearing_row:
+  - toast
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - status_item
+canonical_reopen_target_ref: ux:reopen:build:debug-profile:durable
+canonical_reopen_target_kind: durable_job_row_exact
+expected_reopen_target_kinds:
+  - durable_job_row_exact
+  - activity_center_item
+reopen_window_label: >
+  The durable build row reopens on every transient activation
+  while the build is running, queued, or has just finished and
+  remains in the completed audit window.
+audit_handling_class: full_audit_trail_required
+audit_trail_refs:
+  - audit:durable_job_created:build:debug-profile
+  - audit:durable_job_phase_changed:build:debug-profile:running
+support_export_inclusion_class: always_included_full_lineage
+raw_private_material_excluded: true
+stays_reviewable_label: >
+  The build row stays reviewable from queue through completion;
+  toast or badge dismissal preserves it. The row moves to
+  completed (success) or needs_attention (failed or partial) at
+  terminal state.
+moves_to_partition_on_release: completed
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: exec-context:workspace:debug-build
+source_doc_refs:
+  - docs/ux/exact_reopen_drill_map.md#row-build-run
+  - docs/ux/durable_work_contract.md
+  - artifacts/ux/durable_attention_corpus.yaml
+  - fixtures/ux/job_rows/running_build_progress.json
+minted_at: "2026-05-01T00:00:00Z"

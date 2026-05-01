@@ -1,0 +1,70 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: index_rebuild
+  scenario: >
+    A workspace index rebuild is queued behind a policy refresh.
+    The status item carries the queue reason; OS-badge activation
+    lands on the activity_center partition rather than minting a
+    private indexer affordance. Toast-only treatment is forbidden
+    because indexer work outlives the originating surface.
+  exercised_axes:
+    state_class: queued_waiting
+    activity_partition: current_work
+    canonical_reopen_target_kind: durable_job_row_exact
+    release_trigger_class: terminal_state_reached
+  contract_sections:
+    - "Per-row drills"
+    - "Activity-center partition retention summary"
+record_kind: job_row_retention_packet_record
+job_row_retention_schema_version: 1
+retention_packet_id: dur:retention:index_rebuild:current_work
+corpus_row_id_ref: dur:row:index_rebuild
+canonical_event_id_ref: ux:event:index:workspace:queued
+durable_object_target_ref: obj:workspace-index:primary
+job_row_id_ref: ux:job-row:index:workspace:queued
+state_class: queued_waiting
+activity_partition: current_work
+partition_rule_ref: dur:partition-rule:current_work
+retention_class: keep_until_terminal_state
+retention_window_class: live_until_terminal
+dismissibility_class: not_dismissible_until_terminal
+release_trigger_class: terminal_state_reached
+transient_chrome_classes_dismissible_without_clearing_row:
+  - os_badge_app_icon
+  - status_item
+canonical_reopen_target_ref: ux:reopen:index:workspace:durable
+canonical_reopen_target_kind: durable_job_row_exact
+expected_reopen_target_kinds:
+  - durable_job_row_exact
+  - activity_center_item
+reopen_window_label: >
+  The durable index-rebuild row reopens from status item or
+  badge while the indexer is queued or running.
+audit_handling_class: full_audit_trail_required
+audit_trail_refs:
+  - audit:durable_job_created:index:workspace
+  - audit:durable_job_phase_changed:index:workspace:queued
+support_export_inclusion_class: always_included_full_lineage
+raw_private_material_excluded: true
+stays_reviewable_label: >
+  The indexer row stays in current_work while queued or running;
+  queue reason and expected boundary class are visible on the
+  durable row.
+moves_to_partition_on_release: completed
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: exec-context:indexer:workspace
+source_doc_refs:
+  - docs/ux/exact_reopen_drill_map.md#row-index-rebuild
+  - docs/ux/durable_work_contract.md
+  - artifacts/ux/durable_attention_corpus.yaml
+minted_at: "2026-05-01T00:00:00Z"

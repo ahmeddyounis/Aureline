@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: debug_session
+  scenario: >
+    An active debug session is running and reviewable after focus
+    loss. OS-notification activation after wake-from-sleep,
+    display reconnect, or policy-epoch rotation routes through
+    reopen_denied_requires_revalidation rather than silently
+    re-attaching. Otherwise the activation lands on the canonical
+    durable job row.
+  exercised_axes:
+    state_class: running
+    activity_partition: current_work
+    canonical_reopen_target_kind: durable_job_row_exact
+    release_trigger_class: terminal_state_reached
+    revalidation_path: reopen_denied_requires_revalidation
+  contract_sections:
+    - "Per-row drills"
+    - "Drill rules"
+record_kind: job_row_retention_packet_record
+job_row_retention_schema_version: 1
+retention_packet_id: dur:retention:debug_session:current_work
+corpus_row_id_ref: dur:row:debug_session
+canonical_event_id_ref: ux:event:debug:cli-runner:running
+durable_object_target_ref: obj:debug-session:cli-runner
+job_row_id_ref: ux:job-row:debug:cli-runner:running
+state_class: running
+activity_partition: current_work
+partition_rule_ref: dur:partition-rule:current_work
+retention_class: keep_until_terminal_state
+retention_window_class: live_until_terminal
+dismissibility_class: not_dismissible_until_terminal
+release_trigger_class: terminal_state_reached
+transient_chrome_classes_dismissible_without_clearing_row:
+  - os_badge_app_icon
+  - os_notification
+  - status_item
+canonical_reopen_target_ref: ux:reopen:debug:cli-runner:durable
+canonical_reopen_target_kind: durable_job_row_exact
+expected_reopen_target_kinds:
+  - durable_job_row_exact
+  - activity_center_item
+  - reopen_denied_requires_revalidation
+reopen_window_label: >
+  The durable debug-session row reopens while the session is
+  attached. Activations after wake-from-sleep, display reconnect,
+  or policy-epoch rotation deny with
+  reopen_denied_requires_revalidation, naming the trigger.
+audit_handling_class: full_audit_trail_required
+audit_trail_refs:
+  - audit:durable_job_created:debug:cli-runner
+  - audit:durable_job_phase_changed:debug:cli-runner:running
+support_export_inclusion_class: always_included_full_lineage
+raw_private_material_excluded: true
+stays_reviewable_label: >
+  The debug session row stays reviewable until the session ends
+  or detaches; revalidation is required after sleep/wake or
+  policy-epoch rotation rather than silent replay.
+moves_to_partition_on_release: completed
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: exec-context:debug:cli-runner
+source_doc_refs:
+  - docs/ux/exact_reopen_drill_map.md#row-debug-session
+  - docs/ux/durable_work_contract.md
+  - artifacts/ux/durable_attention_corpus.yaml
+minted_at: "2026-05-01T00:00:00Z"

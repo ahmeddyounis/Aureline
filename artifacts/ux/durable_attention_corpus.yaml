@@ -1,0 +1,629 @@
+# Durable-attention corpus.
+#
+# This corpus binds every long-running, reviewable, held, or suppressed
+# scenario the attention-routing, durable-job, activity-center, quiet-
+# hours, and reopen-semantics contracts call out to one canonical
+# durable object, one closed retention packet, and one closed reopen
+# drill. It exists so reviewers can trace any transient toast, badge,
+# OS notification, lock-screen summary, status-strip mirror, or
+# companion push back to the same durable identity rather than
+# trusting that the routing contracts will be interpreted
+# consistently surface by surface.
+#
+# Source contracts (read these first; this file does not re-mint
+# their vocabularies):
+#   - docs/ux/attention_activity_taxonomy.md
+#   - docs/ux/notification_delivery_contract.md
+#   - docs/ux/durable_work_contract.md
+#   - docs/ux/durable_job_envelope_contract.md
+#   - docs/ux/os_notification_and_quiet_hours_contract.md
+#   - docs/ux/exact_reopen_drill_map.md
+#
+# Companion artifacts:
+#   - schemas/ux/job_row.schema.json
+#   - schemas/ux/job_row_retention.schema.json
+#   - schemas/ux/activity_event_envelope.schema.json
+#   - schemas/ux/event_lineage.schema.json
+#   - artifacts/ux/quiet_hours_policy_matrix.yaml
+#   - fixtures/ux/durable_attention_cases/*.yaml
+#
+# Rules (frozen):
+#   1. Every row resolves to exactly one source_subsystem,
+#      target_kind, state_class, and activity_partition from the
+#      schema vocabularies; rows MUST NOT mint local synonyms.
+#   2. Every row names exactly one canonical_object_target_ref and
+#      one durable_job_id_ref. Notification, badge, and OS-level
+#      deliveries reopen to that target identity or deny with
+#      reopen_denied_requires_revalidation; reopen to a generic
+#      home screen is non-conforming.
+#   3. Every row pins a retention_packet_ref resolved through
+#      schemas/ux/job_row_retention.schema.json and a fixture under
+#      fixtures/ux/durable_attention_cases/.
+#   4. Transient chrome classes (toast, badge, OS notification,
+#      lock-screen summary, companion push, digest group row) MAY
+#      be dismissed without clearing the durable row; the row's
+#      partition only changes on the named release_trigger_class.
+#   5. Adding a row is additive-minor; renaming a row id is
+#      breaking and requires a new decision row.
+
+schema_version: 1
+corpus_id: aureline.durable_attention_corpus.v1
+status: seeded
+
+source_doc_refs:
+  attention_activity_taxonomy: docs/ux/attention_activity_taxonomy.md
+  notification_delivery_contract: docs/ux/notification_delivery_contract.md
+  durable_work_contract: docs/ux/durable_work_contract.md
+  durable_job_envelope_contract: docs/ux/durable_job_envelope_contract.md
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  exact_reopen_drill_map: docs/ux/exact_reopen_drill_map.md
+
+companion_artifact_refs:
+  job_row_schema: schemas/ux/job_row.schema.json
+  job_row_retention_schema: schemas/ux/job_row_retention.schema.json
+  activity_event_envelope_schema: schemas/ux/activity_event_envelope.schema.json
+  event_lineage_schema: schemas/ux/event_lineage.schema.json
+  quiet_hours_policy_matrix: artifacts/ux/quiet_hours_policy_matrix.yaml
+  durable_attention_cases: fixtures/ux/durable_attention_cases/
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from the schemas. Tooling reads these blocks;
+# rows MUST NOT use values outside the enumerations below.
+# ---------------------------------------------------------------------------
+
+source_subsystem_vocabulary:
+  - editor
+  - terminal
+  - review_and_diff
+  - palette_and_search
+  - install_update_attach
+  - ai_apply
+  - collaboration
+  - provider_bearing
+  - docs_help_service_health
+  - support_export
+  - build_system
+  - test_runner
+  - debug_session
+  - task_runner
+  - indexer
+  - vfs_save
+  - sync_mirror
+  - notebook_kernel
+  - remote_agent
+  - extension_host
+  - workspace_trust
+  - policy_resolver
+  - admin_policy
+  - secret_broker
+  - runtime_power_manager
+  - shell
+
+target_kind_vocabulary:
+  - build
+  - test_run
+  - debug_session
+  - task_run
+  - workspace_index
+  - save_or_sync
+  - package_action
+  - provider_publish
+  - ai_apply
+  - review_apply
+  - remote_attach
+  - collaboration_session
+  - notebook_execution
+  - support_export
+  - policy_decision
+  - update_install
+  - download_upload
+  - recovery_action
+
+state_class_vocabulary:
+  - running
+  - queued_waiting
+  - needs_approval
+  - attention_required
+  - completed
+  - partially_completed
+  - quiet_hours_held
+  - policy_suppressed
+
+activity_partition_vocabulary:
+  - current_work
+  - needs_attention
+  - completed
+  - suppressed_held
+
+delivery_surface_class_vocabulary:
+  - toast
+  - contextual_banner
+  - status_item
+  - durable_job_row
+  - attention_item
+  - activity_center_digest_card
+  - digest_group_row
+  - os_notification
+  - os_badge_app_icon
+  - lock_screen_summary
+  - companion_push
+  - not_delivered_held
+
+reopen_target_kind_vocabulary:
+  - canonical_object_target_exact
+  - review_sheet
+  - diff_view
+  - evidence_packet_row
+  - activity_center_item
+  - history_lane_row
+  - attention_item_exact
+  - durable_job_row_exact
+  - placeholder_announced
+  - reopen_denied_requires_revalidation
+
+dedupe_key_scheme_vocabulary:
+  - canonical_event_id
+  - canonical_object_target_plus_event_class
+  - grouped_burst_id
+  - subsystem_plus_object_plus_phase
+  - cross_client_canonical_event_id
+
+# ---------------------------------------------------------------------------
+# Corpus rows.
+# ---------------------------------------------------------------------------
+corpus_rows:
+
+  - corpus_row_id: dur:row:build_run
+    scenario_label: Workspace build is actively running with determinate progress.
+    scenario_kind: build_run
+    source_subsystem: build_system
+    target_kind: build
+    state_class: running
+    activity_partition: current_work
+    interruptibility_tier: tier_durable
+    attention_class: durable_running
+    canonical_event_id: ux:event:build:debug-profile:running
+    canonical_object_target_ref: obj:build:debug-profile
+    durable_job_id_ref: ux:durable-job:build:debug-profile
+    job_row_id_ref: ux:job-row:build:debug-profile:running
+    delivery_surfaces:
+      - delivery_surface_class: durable_job_row
+        role: canonical_durable
+      - delivery_surface_class: status_item
+        role: status_mirror
+      - delivery_surface_class: os_badge_app_icon
+        role: badge_count
+      - delivery_surface_class: toast
+        role: transient_acknowledgement_optional
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - durable_job_row_exact
+      - activity_center_item
+    canonical_reopen_target_kind: durable_job_row_exact
+    canonical_reopen_target_ref: ux:reopen:build:debug-profile:durable
+    retention_packet_ref: dur:retention:build_run:current_work
+    retention_partition: current_work
+    fixture_ref: fixtures/ux/durable_attention_cases/build_run.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-build-run
+    notes_label: >
+      Build is one of the long-running classes that MUST live on a
+      durable surface; toast and badge mirror the row but do not
+      replace it.
+
+  - corpus_row_id: dur:row:test_run
+    scenario_label: Workspace test run failed and needs follow-up.
+    scenario_kind: test_run
+    source_subsystem: test_runner
+    target_kind: test_run
+    state_class: attention_required
+    activity_partition: needs_attention
+    interruptibility_tier: tier_actionable
+    attention_class: follow_up_needed
+    canonical_event_id: ux:event:test:integration-suite:failed
+    canonical_object_target_ref: obj:test-run:integration-suite
+    durable_job_id_ref: ux:durable-job:test:integration-suite
+    job_row_id_ref: ux:job-row:test:integration-suite:failed
+    delivery_surfaces:
+      - delivery_surface_class: attention_item
+        role: canonical_durable
+      - delivery_surface_class: durable_job_row
+        role: secondary_durable
+      - delivery_surface_class: os_badge_app_icon
+        role: badge_count
+      - delivery_surface_class: toast
+        role: transient_acknowledgement_optional
+      - delivery_surface_class: os_notification
+        role: redacted_summary_optional
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - attention_item_exact
+      - durable_job_row_exact
+      - activity_center_item
+      - history_lane_row
+    canonical_reopen_target_kind: attention_item_exact
+    canonical_reopen_target_ref: ux:reopen:test:integration-suite:attention
+    retention_packet_ref: dur:retention:test_run:needs_attention
+    retention_partition: needs_attention
+    fixture_ref: fixtures/ux/durable_attention_cases/test_run_failed.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-test-run
+    notes_label: >
+      Test failures stay in needs_attention until the user resolves
+      or dismisses to history; OS-notification reopen lands on the
+      attention item, not on a generic dashboard.
+
+  - corpus_row_id: dur:row:debug_session
+    scenario_label: Active debug session is running and reviewable after focus loss.
+    scenario_kind: debug_session
+    source_subsystem: debug_session
+    target_kind: debug_session
+    state_class: running
+    activity_partition: current_work
+    interruptibility_tier: tier_durable
+    attention_class: durable_running
+    canonical_event_id: ux:event:debug:cli-runner:running
+    canonical_object_target_ref: obj:debug-session:cli-runner
+    durable_job_id_ref: ux:durable-job:debug:cli-runner
+    job_row_id_ref: ux:job-row:debug:cli-runner:running
+    delivery_surfaces:
+      - delivery_surface_class: durable_job_row
+        role: canonical_durable
+      - delivery_surface_class: status_item
+        role: status_mirror
+      - delivery_surface_class: os_badge_app_icon
+        role: badge_count
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - durable_job_row_exact
+      - activity_center_item
+      - reopen_denied_requires_revalidation
+    canonical_reopen_target_kind: durable_job_row_exact
+    canonical_reopen_target_ref: ux:reopen:debug:cli-runner:durable
+    retention_packet_ref: dur:retention:debug_session:current_work
+    retention_partition: current_work
+    fixture_ref: fixtures/ux/durable_attention_cases/debug_session.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-debug-session
+    notes_label: >
+      Debug session reopen across wake-from-sleep or display
+      reconnect denies with reopen_denied_requires_revalidation
+      rather than silently re-attaching.
+
+  - corpus_row_id: dur:row:update_or_download
+    scenario_label: Update install with embedded download is making determinate progress.
+    scenario_kind: update_or_download
+    source_subsystem: install_update_attach
+    target_kind: update_install
+    state_class: running
+    activity_partition: current_work
+    interruptibility_tier: tier_durable
+    attention_class: durable_running
+    canonical_event_id: ux:event:update:platform-2026.05:running
+    canonical_object_target_ref: obj:update-install:platform-2026.05
+    durable_job_id_ref: ux:durable-job:update:platform-2026.05
+    job_row_id_ref: ux:job-row:update:platform-2026.05:running
+    delivery_surfaces:
+      - delivery_surface_class: durable_job_row
+        role: canonical_durable
+      - delivery_surface_class: status_item
+        role: status_mirror
+      - delivery_surface_class: os_badge_app_icon
+        role: badge_count
+      - delivery_surface_class: toast
+        role: transient_acknowledgement_optional
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - durable_job_row_exact
+      - activity_center_item
+      - history_lane_row
+    canonical_reopen_target_kind: durable_job_row_exact
+    canonical_reopen_target_ref: ux:reopen:update:platform-2026.05:durable
+    retention_packet_ref: dur:retention:update_or_download:current_work
+    retention_partition: current_work
+    fixture_ref: fixtures/ux/durable_attention_cases/update_or_download.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-update-or-download
+    notes_label: >
+      Both update install and download share the same row class:
+      taskbar / dock progress mirrors the durable row read-only.
+
+  - corpus_row_id: dur:row:index_rebuild
+    scenario_label: Workspace index rebuild is queued behind a policy refresh.
+    scenario_kind: index_rebuild
+    source_subsystem: indexer
+    target_kind: workspace_index
+    state_class: queued_waiting
+    activity_partition: current_work
+    interruptibility_tier: tier_durable
+    attention_class: durable_running
+    canonical_event_id: ux:event:index:workspace:queued
+    canonical_object_target_ref: obj:workspace-index:primary
+    durable_job_id_ref: ux:durable-job:index:workspace
+    job_row_id_ref: ux:job-row:index:workspace:queued
+    delivery_surfaces:
+      - delivery_surface_class: durable_job_row
+        role: canonical_durable
+      - delivery_surface_class: status_item
+        role: status_mirror
+      - delivery_surface_class: os_badge_app_icon
+        role: badge_count
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - durable_job_row_exact
+      - activity_center_item
+    canonical_reopen_target_kind: durable_job_row_exact
+    canonical_reopen_target_ref: ux:reopen:index:workspace:durable
+    retention_packet_ref: dur:retention:index_rebuild:current_work
+    retention_partition: current_work
+    fixture_ref: fixtures/ux/durable_attention_cases/index_rebuild.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-index-rebuild
+    notes_label: >
+      Indexer queue reasons must be visible on the durable row
+      rather than collapsing into a status flicker.
+
+  - corpus_row_id: dur:row:transport_reconnect
+    scenario_label: Sync transport is reconnecting after a network drop.
+    scenario_kind: transport_reconnect
+    source_subsystem: sync_mirror
+    target_kind: remote_attach
+    state_class: attention_required
+    activity_partition: needs_attention
+    interruptibility_tier: tier_actionable
+    attention_class: follow_up_needed
+    canonical_event_id: ux:event:transport:remote-mirror:reconnecting
+    canonical_object_target_ref: obj:transport-session:remote-mirror
+    durable_job_id_ref: ux:durable-job:transport:remote-mirror
+    job_row_id_ref: ux:job-row:transport:remote-mirror:reconnecting
+    delivery_surfaces:
+      - delivery_surface_class: attention_item
+        role: canonical_durable
+      - delivery_surface_class: contextual_banner
+        role: degraded_disclosure
+      - delivery_surface_class: status_item
+        role: status_mirror
+      - delivery_surface_class: durable_job_row
+        role: secondary_durable
+    dedupe_key_scheme: subsystem_plus_object_plus_phase
+    expected_reopen_target_kinds:
+      - attention_item_exact
+      - durable_job_row_exact
+      - activity_center_item
+    canonical_reopen_target_kind: attention_item_exact
+    canonical_reopen_target_ref: ux:reopen:transport:remote-mirror:attention
+    retention_packet_ref: dur:retention:transport_reconnect:needs_attention
+    retention_partition: needs_attention
+    fixture_ref: fixtures/ux/durable_attention_cases/transport_reconnect.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-transport-reconnect
+    notes_label: >
+      Reconnect is degraded-capability work; toast-only treatment
+      is prohibited and the row carries last-known-good state.
+
+  - corpus_row_id: dur:row:extension_crash
+    scenario_label: Extension host process crashed; recovery is staged.
+    scenario_kind: extension_crash
+    source_subsystem: extension_host
+    target_kind: recovery_action
+    state_class: attention_required
+    activity_partition: needs_attention
+    interruptibility_tier: tier_actionable
+    attention_class: follow_up_needed
+    canonical_event_id: ux:event:extension:contoso-linter:crashed
+    canonical_object_target_ref: obj:extension:contoso-linter
+    durable_job_id_ref: ux:durable-job:extension-recovery:contoso-linter
+    job_row_id_ref: ux:job-row:extension:contoso-linter:crashed
+    delivery_surfaces:
+      - delivery_surface_class: attention_item
+        role: canonical_durable
+      - delivery_surface_class: contextual_banner
+        role: degraded_disclosure
+      - delivery_surface_class: status_item
+        role: status_mirror
+      - delivery_surface_class: os_notification
+        role: redacted_summary_optional
+    dedupe_key_scheme: canonical_object_target_plus_event_class
+    expected_reopen_target_kinds:
+      - attention_item_exact
+      - durable_job_row_exact
+      - activity_center_item
+      - history_lane_row
+    canonical_reopen_target_kind: attention_item_exact
+    canonical_reopen_target_ref: ux:reopen:extension:contoso-linter:attention
+    retention_packet_ref: dur:retention:extension_crash:needs_attention
+    retention_partition: needs_attention
+    fixture_ref: fixtures/ux/durable_attention_cases/extension_crash.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-extension-crash
+    notes_label: >
+      Extension crashes carry the recovery row until the extension
+      recovers or the user dismisses to history; the durable row
+      survives toast or OS-notification dismissal.
+
+  - corpus_row_id: dur:row:ai_approval_pending
+    scenario_label: AI apply is blocked on user approval before mutation.
+    scenario_kind: ai_approval_pending
+    source_subsystem: ai_apply
+    target_kind: ai_apply
+    state_class: needs_approval
+    activity_partition: needs_attention
+    interruptibility_tier: tier_actionable
+    attention_class: follow_up_needed
+    canonical_event_id: ux:event:ai-apply:rename-symbol:awaiting-approval
+    canonical_object_target_ref: obj:ai-apply:rename-symbol-batch
+    durable_job_id_ref: ux:durable-job:ai-apply:rename-symbol
+    job_row_id_ref: ux:job-row:ai-apply:rename-symbol:awaiting-approval
+    delivery_surfaces:
+      - delivery_surface_class: attention_item
+        role: canonical_durable
+      - delivery_surface_class: durable_job_row
+        role: secondary_durable
+      - delivery_surface_class: os_badge_app_icon
+        role: badge_count
+      - delivery_surface_class: os_notification
+        role: redacted_summary_optional
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - attention_item_exact
+      - review_sheet
+      - durable_job_row_exact
+      - activity_center_item
+    canonical_reopen_target_kind: attention_item_exact
+    canonical_reopen_target_ref: ux:reopen:ai-apply:rename-symbol:attention
+    retention_packet_ref: dur:retention:ai_approval_pending:needs_attention
+    retention_partition: needs_attention
+    fixture_ref: fixtures/ux/durable_attention_cases/ai_approval_pending.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-ai-approval-pending
+    notes_label: >
+      OS-notification activation MUST route through the in-product
+      review sheet; the OS shortcut MUST NOT directly approve the
+      apply.
+
+  - corpus_row_id: dur:row:quiet_hours_held
+    scenario_label: Routine task completions held under user quiet hours.
+    scenario_kind: quiet_hours_held
+    source_subsystem: task_runner
+    target_kind: task_run
+    state_class: quiet_hours_held
+    activity_partition: suppressed_held
+    interruptibility_tier: tier_durable
+    attention_class: held_quiet_hours
+    canonical_event_id: ux:event:task-completions:quiet-hours-held
+    canonical_object_target_ref: obj:task-runner:quiet-hours-digest
+    durable_job_id_ref: ux:durable-job:task-completions:quiet-hours-held
+    job_row_id_ref: ux:job-row:task-completions:quiet-hours-held
+    delivery_surfaces:
+      - delivery_surface_class: durable_job_row
+        role: canonical_durable
+      - delivery_surface_class: not_delivered_held
+        role: held_envelope_audit
+      - delivery_surface_class: digest_group_row
+        role: release_digest_on_mode_exit
+      - delivery_surface_class: os_badge_app_icon
+        role: held_or_suppressed_badge
+    dedupe_key_scheme: grouped_burst_id
+    expected_reopen_target_kinds:
+      - durable_job_row_exact
+      - activity_center_item
+      - history_lane_row
+    canonical_reopen_target_kind: durable_job_row_exact
+    canonical_reopen_target_ref: ux:reopen:task-completions:quiet-hours-held:durable
+    retention_packet_ref: dur:retention:quiet_hours_held:suppressed_held
+    retention_partition: suppressed_held
+    fixture_ref: fixtures/ux/durable_attention_cases/quiet_hours_held.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-quiet-hours-held
+    notes_label: >
+      Held envelopes preserve durable history; release on mode
+      exit emits one grouped digest grouped by source and severity.
+
+  - corpus_row_id: dur:row:suppressed_security_notice
+    scenario_label: Security notice partially suppressed by admin policy.
+    scenario_kind: suppressed_security_notice
+    source_subsystem: workspace_trust
+    target_kind: policy_decision
+    state_class: policy_suppressed
+    activity_partition: suppressed_held
+    interruptibility_tier: tier_critical_safety
+    attention_class: suppressed_policy
+    canonical_event_id: ux:event:trust:secret-broker:audit-only
+    canonical_object_target_ref: obj:trust-decision:secret-broker
+    durable_job_id_ref: ux:durable-job:trust:secret-broker:audit
+    job_row_id_ref: ux:job-row:trust:secret-broker:audit
+    delivery_surfaces:
+      - delivery_surface_class: durable_job_row
+        role: canonical_durable
+      - delivery_surface_class: contextual_banner
+        role: redacted_disclosure_in_product
+      - delivery_surface_class: not_delivered_held
+        role: held_envelope_audit
+      - delivery_surface_class: os_badge_app_icon
+        role: held_or_suppressed_badge
+    dedupe_key_scheme: canonical_event_id
+    expected_reopen_target_kinds:
+      - durable_job_row_exact
+      - evidence_packet_row
+      - activity_center_item
+      - history_lane_row
+    canonical_reopen_target_kind: durable_job_row_exact
+    canonical_reopen_target_ref: ux:reopen:trust:secret-broker:audit
+    retention_packet_ref: dur:retention:suppressed_security_notice:suppressed_held
+    retention_partition: suppressed_held
+    fixture_ref: fixtures/ux/durable_attention_cases/suppressed_security_notice.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-suppressed-security-notice
+    notes_label: >
+      Admin suppression MAY narrow OS-level fanout; the durable
+      audit row remains visible in-product because the tier is
+      critical_safety.
+
+  - corpus_row_id: dur:row:companion_delivered_alert
+    scenario_label: Review mention delivered cross-client to companion surface.
+    scenario_kind: companion_delivered_alert
+    source_subsystem: collaboration
+    target_kind: collaboration_session
+    state_class: attention_required
+    activity_partition: needs_attention
+    interruptibility_tier: tier_actionable
+    attention_class: follow_up_needed
+    canonical_event_id: ux:event:collab:review-mention:pr-1428
+    canonical_object_target_ref: obj:review:pr-1428
+    durable_job_id_ref: ux:durable-job:collab:review-mention:pr-1428
+    job_row_id_ref: ux:job-row:collab:review-mention:pr-1428
+    delivery_surfaces:
+      - delivery_surface_class: attention_item
+        role: canonical_durable
+      - delivery_surface_class: companion_push
+        role: cross_client_delivery
+      - delivery_surface_class: os_notification
+        role: redacted_summary_optional
+      - delivery_surface_class: os_badge_app_icon
+        role: mentions_badge
+      - delivery_surface_class: lock_screen_summary
+        role: privacy_safe_generic_summary
+    dedupe_key_scheme: cross_client_canonical_event_id
+    expected_reopen_target_kinds:
+      - attention_item_exact
+      - canonical_object_target_exact
+      - review_sheet
+      - activity_center_item
+      - history_lane_row
+    canonical_reopen_target_kind: attention_item_exact
+    canonical_reopen_target_ref: ux:reopen:collab:review-mention:pr-1428:attention
+    retention_packet_ref: dur:retention:companion_delivered_alert:needs_attention
+    retention_partition: needs_attention
+    fixture_ref: fixtures/ux/durable_attention_cases/companion_delivered_alert.yaml
+    drill_map_section_ref: docs/ux/exact_reopen_drill_map.md#row-companion-delivered-alert
+    notes_label: >
+      Companion push and OS notification share one
+      cross_client_canonical_event_id; both reopen to the same
+      attention item rather than minting per-device durable items.
+
+# ---------------------------------------------------------------------------
+# Convergence assertions. Tooling reads each block to verify that every
+# transient or OS-level delivery surface for a row resolves to one
+# canonical reopen target identity, not a generic home screen.
+# ---------------------------------------------------------------------------
+convergence_assertions:
+  - assertion_id: dur:assert:reopen_target_identity_singular
+    statement: >
+      For every corpus row, every delivery_surfaces[*].delivery_surface_class
+      MUST converge on canonical_reopen_target_ref or deny with
+      reopen_denied_requires_revalidation. Reopen to a generic home
+      screen is non-conforming.
+  - assertion_id: dur:assert:transient_dismissal_preserves_durable_row
+    statement: >
+      Dismissing toast, OS notification, badge, lock-screen summary,
+      digest group row, or companion push MUST NOT clear the durable
+      row, the canonical event lineage, the audit trail, or the
+      held / suppressed count. Only the row's named release_trigger_class
+      satisfies retention.
+  - assertion_id: dur:assert:retention_partition_aligned_with_state_class
+    statement: >
+      Each row's activity_partition MUST agree with the state_class
+      mapping in schemas/ux/job_row.schema.json and the partition
+      rule in schemas/ux/job_row_retention.schema.json.
+  - assertion_id: dur:assert:held_or_suppressed_audit_trail
+    statement: >
+      Held and policy-suppressed rows MUST emit a not_delivered_held
+      envelope and an audit_event_id even when no interruption was
+      delivered; durable history is preserved across every quiet
+      hours mode.
+  - assertion_id: dur:assert:cross_client_lineage_singular
+    statement: >
+      Cross-client deliveries (companion push, managed admin
+      surface, remote agent) MUST share one
+      cross_client_canonical_event_id with the desktop attention
+      item; per-device durable identities are forbidden.

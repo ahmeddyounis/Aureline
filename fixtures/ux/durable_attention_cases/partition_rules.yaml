@@ -1,0 +1,230 @@
+# yaml-language-server: $schema=../../../schemas/ux/job_row_retention.schema.json
+#
+# Per-activity-partition retention rules. Four records, one per
+# frozen activity_partition (current_work, needs_attention,
+# completed, suppressed_held). Each retention packet under
+# fixtures/ux/durable_attention_cases/*.yaml resolves through one
+# of these partition_rule_id values; rule rows narrow but never
+# widen these defaults.
+#
+# Source: docs/ux/exact_reopen_drill_map.md and
+# docs/ux/durable_work_contract.md.
+
+---
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: partition_rule_current_work
+  scenario: >
+    Default retention rule for the current_work partition. Live
+    rows stay reviewable until they reach a terminal state and
+    move to completed or needs_attention. Transient toast, badge,
+    OS notification, and lock-screen summaries are dismissible
+    without clearing the durable row.
+  contract_sections:
+    - "Activity-center partition retention summary"
+    - "Drill rules"
+record_kind: job_row_retention_partition_rule_record
+job_row_retention_schema_version: 1
+partition_rule_id: dur:partition-rule:current_work
+activity_partition: current_work
+included_state_classes:
+  - running
+  - queued_waiting
+retention_window_class: live_until_terminal
+default_retention_class: keep_until_terminal_state
+default_dismissibility_class: not_dismissible_until_terminal
+default_release_trigger_class: terminal_state_reached
+audit_handling_class: full_audit_trail_required
+support_export_inclusion_class: always_included_full_lineage
+moves_to_partition_on_release: completed
+stays_reviewable_label: >
+  Rows in current_work stay reviewable while the work is running
+  or queued. They release on terminal state reached, then move
+  to completed (success) or needs_attention (failed or partial).
+transient_chrome_classes_dismissible_without_clearing_row:
+  - toast
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - status_item
+  - companion_push
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+source_doc_refs:
+  - docs/ux/durable_work_contract.md
+  - docs/ux/exact_reopen_drill_map.md
+  - docs/ux/attention_activity_taxonomy.md
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: null
+minted_at: "2026-05-01T00:00:00Z"
+
+---
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: partition_rule_needs_attention
+  scenario: >
+    Default retention rule for the needs_attention partition.
+    Rows stay until the user resolves, dismisses to history, or
+    the underlying policy / extension condition clears.
+  contract_sections:
+    - "Activity-center partition retention summary"
+    - "Drill rules"
+record_kind: job_row_retention_partition_rule_record
+job_row_retention_schema_version: 1
+partition_rule_id: dur:partition-rule:needs_attention
+activity_partition: needs_attention
+included_state_classes:
+  - needs_approval
+  - attention_required
+  - partially_completed
+retention_window_class: retained_with_unread_until_resolved
+default_retention_class: keep_until_user_resolve
+default_dismissibility_class: dismissible_to_history_after_resolution
+default_release_trigger_class: user_resolve
+audit_handling_class: full_audit_trail_required
+support_export_inclusion_class: always_included_full_lineage
+moves_to_partition_on_release: completed
+stays_reviewable_label: >
+  Needs-attention rows stay until the user resolves the failure,
+  approval, or partial outcome, or dismisses the row to history.
+  Transient toast or OS-notification dismissal alone does not
+  clear the row.
+transient_chrome_classes_dismissible_without_clearing_row:
+  - toast
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - status_item
+  - companion_push
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+source_doc_refs:
+  - docs/ux/durable_work_contract.md
+  - docs/ux/exact_reopen_drill_map.md
+  - docs/ux/attention_activity_taxonomy.md
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: null
+minted_at: "2026-05-01T00:00:00Z"
+
+---
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: partition_rule_completed
+  scenario: >
+    Default retention rule for the completed partition. Successful
+    work stays reviewable across a bounded audit window, then is
+    dismissible to history while remaining reviewable through
+    history-lane and support-export refs.
+  contract_sections:
+    - "Activity-center partition retention summary"
+    - "Drill rules"
+record_kind: job_row_retention_partition_rule_record
+job_row_retention_schema_version: 1
+partition_rule_id: dur:partition-rule:completed
+activity_partition: completed
+included_state_classes:
+  - completed
+retention_window_class: retained_for_completion_audit_window
+default_retention_class: keep_until_user_dismiss_to_history
+default_dismissibility_class: dismissible_to_history_after_acknowledge
+default_release_trigger_class: user_dismiss_to_history
+audit_handling_class: history_lane_entry_after_clear
+support_export_inclusion_class: always_included_full_lineage
+moves_to_partition_on_release: null
+stays_reviewable_label: >
+  Completed rows stay reviewable across a bounded audit window so
+  the user can acknowledge the outcome, attach evidence, or
+  export. Dismissing to history preserves the canonical event id
+  and the history-lane entry.
+transient_chrome_classes_dismissible_without_clearing_row:
+  - toast
+  - os_badge_app_icon
+  - os_notification
+  - lock_screen_summary
+  - status_item
+  - companion_push
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+source_doc_refs:
+  - docs/ux/durable_work_contract.md
+  - docs/ux/exact_reopen_drill_map.md
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: null
+minted_at: "2026-05-01T00:00:00Z"
+
+---
+$schema: ../../../schemas/ux/job_row_retention.schema.json
+__fixture__:
+  name: partition_rule_suppressed_held
+  scenario: >
+    Default retention rule for the suppressed_held partition.
+    Held quiet-hours rows release on mode exit as one grouped
+    digest. Policy-suppressed rows stay until the policy is
+    revoked or the user with policy permission explicitly clears
+    the audit row. Durable history is preserved in every mode.
+  contract_sections:
+    - "Activity-center partition retention summary"
+    - "Drill rules"
+record_kind: job_row_retention_partition_rule_record
+job_row_retention_schema_version: 1
+partition_rule_id: dur:partition-rule:suppressed_held
+activity_partition: suppressed_held
+included_state_classes:
+  - quiet_hours_held
+  - policy_suppressed
+retention_window_class: retained_until_release_digest
+default_retention_class: keep_until_release_digest_emitted
+default_dismissibility_class: dismissible_after_release_digest
+default_release_trigger_class: mode_exit_grouped_digest_release
+audit_handling_class: policy_required_audit_trail
+support_export_inclusion_class: always_included_full_lineage
+moves_to_partition_on_release: completed
+stays_reviewable_label: >
+  Suppressed and held rows preserve durable history. Quiet-hours
+  rows release as one grouped digest on mode exit. Policy-
+  suppressed rows stay until the policy is revoked or the user
+  with policy permission explicitly clears the audit row.
+transient_chrome_classes_dismissible_without_clearing_row:
+  - os_badge_app_icon
+  - digest_group_row
+  - os_notification
+  - lock_screen_summary
+  - companion_push
+durable_history_invariants:
+  preserves_canonical_event_id: true
+  preserves_durable_object_target_ref: true
+  preserves_durable_history: true
+  preserves_audit_trail: true
+  preserves_critical_safety_tier: true
+  transient_chrome_dismissal_does_not_clear_row: true
+source_doc_refs:
+  - docs/ux/durable_work_contract.md
+  - docs/ux/exact_reopen_drill_map.md
+  - docs/ux/attention_activity_taxonomy.md
+  - artifacts/ux/quiet_hours_policy_matrix.yaml
+policy_context:
+  policy_epoch: pe:2026-04-30:01
+  trust_state: trusted
+  execution_context_id: null
+minted_at: "2026-05-01T00:00:00Z"

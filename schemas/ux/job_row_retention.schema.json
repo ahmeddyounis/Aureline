@@ -1,0 +1,650 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/job_row_retention.schema.json",
+  "title": "Aureline durable-attention job-row retention contract",
+  "description": "Boundary schema for the job_row_retention_partition_rule_record, the job_row_retention_packet_record, and the job_row_retention_audit_event_record frozen by docs/ux/durable_work_contract.md and docs/ux/exact_reopen_drill_map.md. The partition rule freezes how long each activity_partition (current_work, needs_attention, completed, suppressed_held) stays reviewable, what dismisses or releases it, and what audit handling it carries. The retention packet binds one corpus row from artifacts/ux/durable_attention_corpus.yaml to its partition rule, names the canonical durable object the row resolves to from every transient delivery, and records the closed reopen-target vocabulary every notification, badge, or activity-center invocation must converge on. The audit event record covers retention transitions (row promoted to history, row released from hold, row policy-revoked, transient chrome dismissed without clearing the durable row). Records compose with schemas/ux/job_row.schema.json, schemas/ux/activity_event_envelope.schema.json, schemas/ux/event_lineage.schema.json, schemas/ux/durable_job_envelope.schema.json, and schemas/ux/notification_suppression_record.schema.json without re-minting state-class, activity-partition, delivery-surface, suppression-reason, or reopen-target vocabulary. Raw bodies, raw paths, raw URLs, raw provider payloads, raw prompt or completion text, raw command bodies, raw logs, tokens, credential material, and secret values never cross this boundary. Adding a new retention class, retention window class, dismissibility class, release trigger class, audit handling class, support export inclusion class, retention transition class, transient chrome class, or audit event kind is additive-minor and bumps job_row_retention_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/job_row_retention_partition_rule_record" },
+    { "$ref": "#/$defs/job_row_retention_packet_record" },
+    { "$ref": "#/$defs/job_row_retention_audit_event_record" }
+  ],
+  "$defs": {
+    "job_row_retention_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this durable-attention retention vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe for logs, RPC, support bundles, notification payloads, and export manifests. Never contains raw paths, raw URLs, raw secret material, raw provider payloads, raw prompt text, or raw logs."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Short, privacy-safe label text. Must not contain raw paths, raw URLs, raw secret material, raw customer-owned identifiers, or raw prompt or completion text."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewable sentence-length explanation, privacy-safe."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "job_row_retention_partition_rule_record",
+        "job_row_retention_packet_record",
+        "job_row_retention_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+    "activity_partition": {
+      "type": "string",
+      "enum": [
+        "current_work",
+        "needs_attention",
+        "completed",
+        "suppressed_held"
+      ],
+      "description": "Re-exported from schemas/ux/job_row.schema.json without modification."
+    },
+    "state_class": {
+      "type": "string",
+      "enum": [
+        "running",
+        "queued_waiting",
+        "needs_approval",
+        "attention_required",
+        "completed",
+        "partially_completed",
+        "quiet_hours_held",
+        "policy_suppressed"
+      ],
+      "description": "Re-exported from schemas/ux/job_row.schema.json without modification."
+    },
+    "delivery_surface_class": {
+      "type": "string",
+      "enum": [
+        "toast",
+        "contextual_banner",
+        "status_item",
+        "durable_job_row",
+        "attention_item",
+        "activity_center_digest_card",
+        "digest_group_row",
+        "os_notification",
+        "os_badge_app_icon",
+        "lock_screen_summary",
+        "companion_push",
+        "not_delivered_held"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json without modification."
+    },
+    "transient_chrome_class": {
+      "type": "string",
+      "enum": [
+        "toast",
+        "contextual_banner",
+        "status_item",
+        "os_notification",
+        "os_badge_app_icon",
+        "lock_screen_summary",
+        "companion_push",
+        "digest_group_row"
+      ],
+      "description": "Surface classes whose dismissal MUST NOT clear the underlying durable row, badge count, attention item, history-lane entry, or audit trail."
+    },
+    "reopen_target_kind": {
+      "type": "string",
+      "enum": [
+        "canonical_object_target_exact",
+        "review_sheet",
+        "diff_view",
+        "evidence_packet_row",
+        "activity_center_item",
+        "history_lane_row",
+        "attention_item_exact",
+        "durable_job_row_exact",
+        "placeholder_announced",
+        "reopen_denied_requires_revalidation"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json without modification."
+    },
+    "retention_window_class": {
+      "type": "string",
+      "enum": [
+        "live_until_terminal",
+        "retained_with_unread_until_acknowledged",
+        "retained_with_unread_until_resolved",
+        "retained_for_completion_audit_window",
+        "retained_until_release_digest",
+        "retained_until_policy_revoked_or_explicit_clear",
+        "retained_until_extension_recovered_or_dismissed_to_history"
+      ],
+      "description": "How long a row stays reviewable in its activity partition before it can move, release, or be dismissed to history."
+    },
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "keep_until_terminal_state",
+        "keep_until_user_acknowledge",
+        "keep_until_user_resolve",
+        "keep_until_user_dismiss_to_history",
+        "keep_until_release_digest_emitted",
+        "keep_until_policy_revoked_or_explicit_clear",
+        "keep_until_extension_recovered",
+        "keep_for_audit_history_only"
+      ],
+      "description": "Which lifecycle event makes a row eligible to leave its current activity partition. Applies on top of retention_window_class."
+    },
+    "dismissibility_class": {
+      "type": "string",
+      "enum": [
+        "not_dismissible_until_terminal",
+        "dismissible_to_history_after_acknowledge",
+        "dismissible_to_history_after_resolution",
+        "dismissible_after_release_digest",
+        "dismissible_after_policy_revocation",
+        "dismissible_only_via_explicit_user_clear",
+        "transient_chrome_dismissible_durable_row_preserved"
+      ],
+      "description": "What level of intent is required for the durable row itself to leave a partition. Transient chrome dismissal never satisfies this on its own."
+    },
+    "release_trigger_class": {
+      "type": "string",
+      "enum": [
+        "terminal_state_reached",
+        "user_acknowledge",
+        "user_resolve",
+        "user_dismiss_to_history",
+        "user_explicit_clear",
+        "mode_exit_grouped_digest_release",
+        "policy_revoked",
+        "extension_recovered",
+        "no_release_durable_history_only"
+      ],
+      "description": "The named lifecycle event that releases a row from its current partition (and may move it to a different partition)."
+    },
+    "audit_handling_class": {
+      "type": "string",
+      "enum": [
+        "full_audit_trail_required",
+        "redacted_audit_trail_required",
+        "history_lane_entry_after_clear",
+        "support_export_only_when_present",
+        "policy_required_audit_trail"
+      ],
+      "description": "Audit handling required for retention transitions on this row class."
+    },
+    "support_export_inclusion_class": {
+      "type": "string",
+      "enum": [
+        "always_included_full_lineage",
+        "always_included_redacted",
+        "included_when_present_in_partition",
+        "included_only_with_explicit_user_consent",
+        "excluded_from_support_export"
+      ],
+      "description": "Whether the row class appears in the support export by default and how. Mirrors the redaction posture in docs/ux/durable_work_contract.md and docs/ux/attention_activity_taxonomy.md."
+    },
+    "retention_audit_event_kind": {
+      "type": "string",
+      "enum": [
+        "job_row_retained",
+        "job_row_promoted_to_history",
+        "job_row_released_from_hold",
+        "job_row_dismissed_to_history",
+        "job_row_resolved_to_history",
+        "job_row_policy_revoked",
+        "transient_chrome_dismissed_durable_row_preserved",
+        "extension_crash_row_recovered",
+        "row_reopen_denied_requires_revalidation"
+      ],
+      "description": "Closed audit-event vocabulary for retention transitions. Reasoned over alongside the activity-event audit log."
+    },
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "transient_dismissal_attempted_to_clear_durable_row",
+        "retention_packet_partition_disagrees_with_state_class",
+        "retention_packet_partition_disagrees_with_partition_rule",
+        "retention_packet_drops_canonical_event_lineage",
+        "retention_packet_reopen_target_kind_unresolved",
+        "retention_packet_dismissibility_class_too_weak_for_state",
+        "support_export_widened_beyond_partition_rule",
+        "retention_audit_event_unresolved",
+        "retention_packet_overrode_critical_safety_tier"
+      ],
+      "description": "Closed denial-reason vocabulary for retention conformance failures. Tooling MUST emit one of these rather than minting a parallel reason."
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      }
+    },
+    "durable_history_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preserves_canonical_event_id",
+        "preserves_durable_object_target_ref",
+        "preserves_durable_history",
+        "preserves_audit_trail",
+        "preserves_critical_safety_tier",
+        "transient_chrome_dismissal_does_not_clear_row"
+      ],
+      "properties": {
+        "preserves_canonical_event_id": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_durable_object_target_ref": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_audit_trail": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_critical_safety_tier": {
+          "type": "boolean",
+          "const": true
+        },
+        "transient_chrome_dismissal_does_not_clear_row": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "job_row_retention_partition_rule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "job_row_retention_schema_version",
+        "partition_rule_id",
+        "activity_partition",
+        "included_state_classes",
+        "retention_window_class",
+        "default_retention_class",
+        "default_dismissibility_class",
+        "default_release_trigger_class",
+        "audit_handling_class",
+        "support_export_inclusion_class",
+        "moves_to_partition_on_release",
+        "stays_reviewable_label",
+        "transient_chrome_classes_dismissible_without_clearing_row",
+        "durable_history_invariants",
+        "source_doc_refs",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "job_row_retention_partition_rule_record"
+        },
+        "job_row_retention_schema_version": {
+          "$ref": "#/$defs/job_row_retention_schema_version"
+        },
+        "partition_rule_id": { "$ref": "#/$defs/opaque_id" },
+        "activity_partition": { "$ref": "#/$defs/activity_partition" },
+        "included_state_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/state_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "retention_window_class": {
+          "$ref": "#/$defs/retention_window_class"
+        },
+        "default_retention_class": {
+          "$ref": "#/$defs/retention_class"
+        },
+        "default_dismissibility_class": {
+          "$ref": "#/$defs/dismissibility_class"
+        },
+        "default_release_trigger_class": {
+          "$ref": "#/$defs/release_trigger_class"
+        },
+        "audit_handling_class": {
+          "$ref": "#/$defs/audit_handling_class"
+        },
+        "support_export_inclusion_class": {
+          "$ref": "#/$defs/support_export_inclusion_class"
+        },
+        "moves_to_partition_on_release": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/activity_partition" }
+          ]
+        },
+        "stays_reviewable_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "transient_chrome_classes_dismissible_without_clearing_row": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transient_chrome_class" },
+          "uniqueItems": true
+        },
+        "durable_history_invariants": {
+          "$ref": "#/$defs/durable_history_invariants"
+        },
+        "source_doc_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "job_row_retention_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "job_row_retention_schema_version",
+        "retention_packet_id",
+        "corpus_row_id_ref",
+        "canonical_event_id_ref",
+        "durable_object_target_ref",
+        "job_row_id_ref",
+        "state_class",
+        "activity_partition",
+        "partition_rule_ref",
+        "retention_class",
+        "retention_window_class",
+        "dismissibility_class",
+        "release_trigger_class",
+        "transient_chrome_classes_dismissible_without_clearing_row",
+        "canonical_reopen_target_ref",
+        "canonical_reopen_target_kind",
+        "expected_reopen_target_kinds",
+        "reopen_window_label",
+        "audit_handling_class",
+        "audit_trail_refs",
+        "support_export_inclusion_class",
+        "raw_private_material_excluded",
+        "stays_reviewable_label",
+        "moves_to_partition_on_release",
+        "durable_history_invariants",
+        "policy_context",
+        "source_doc_refs",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "job_row_retention_packet_record"
+        },
+        "job_row_retention_schema_version": {
+          "$ref": "#/$defs/job_row_retention_schema_version"
+        },
+        "retention_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "corpus_row_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "durable_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "job_row_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "activity_partition": { "$ref": "#/$defs/activity_partition" },
+        "partition_rule_ref": { "$ref": "#/$defs/opaque_id" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "retention_window_class": {
+          "$ref": "#/$defs/retention_window_class"
+        },
+        "dismissibility_class": {
+          "$ref": "#/$defs/dismissibility_class"
+        },
+        "release_trigger_class": {
+          "$ref": "#/$defs/release_trigger_class"
+        },
+        "transient_chrome_classes_dismissible_without_clearing_row": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transient_chrome_class" },
+          "uniqueItems": true
+        },
+        "canonical_reopen_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_reopen_target_kind": {
+          "$ref": "#/$defs/reopen_target_kind"
+        },
+        "expected_reopen_target_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reopen_target_kind" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "reopen_window_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "audit_handling_class": {
+          "$ref": "#/$defs/audit_handling_class"
+        },
+        "audit_trail_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "support_export_inclusion_class": {
+          "$ref": "#/$defs/support_export_inclusion_class"
+        },
+        "raw_private_material_excluded": {
+          "type": "boolean",
+          "const": true
+        },
+        "stays_reviewable_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "moves_to_partition_on_release": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/activity_partition" }
+          ]
+        },
+        "durable_history_invariants": {
+          "$ref": "#/$defs/durable_history_invariants"
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "source_doc_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state_class": {
+                "enum": ["running", "queued_waiting"]
+              }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "activity_partition": { "const": "current_work" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state_class": {
+                "enum": [
+                  "needs_approval",
+                  "attention_required",
+                  "partially_completed"
+                ]
+              }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "activity_partition": { "const": "needs_attention" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state_class": { "const": "completed" }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "activity_partition": { "const": "completed" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state_class": {
+                "enum": ["quiet_hours_held", "policy_suppressed"]
+              }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "activity_partition": { "const": "suppressed_held" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "canonical_reopen_target_kind": {
+                "const": "placeholder_announced"
+              }
+            },
+            "required": ["canonical_reopen_target_kind"]
+          },
+          "then": false
+        }
+      ]
+    },
+    "job_row_retention_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "job_row_retention_schema_version",
+        "audit_event_id",
+        "audit_event_kind",
+        "retention_packet_ref",
+        "canonical_event_id_ref",
+        "from_activity_partition",
+        "to_activity_partition",
+        "transient_chrome_class",
+        "preserves_durable_history",
+        "preserves_canonical_event_id",
+        "occurred_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "job_row_retention_audit_event_record"
+        },
+        "job_row_retention_schema_version": {
+          "$ref": "#/$defs/job_row_retention_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_kind": {
+          "$ref": "#/$defs/retention_audit_event_kind"
+        },
+        "retention_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "from_activity_partition": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/activity_partition" }
+          ]
+        },
+        "to_activity_partition": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/activity_partition" }
+          ]
+        },
+        "transient_chrome_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/transient_chrome_class" }
+          ]
+        },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "const": true
+        },
+        "preserves_canonical_event_id": {
+          "type": "boolean",
+          "const": true
+        },
+        "summary_label": { "$ref": "#/$defs/short_label_text" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
