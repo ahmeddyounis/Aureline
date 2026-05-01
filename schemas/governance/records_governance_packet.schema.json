@@ -1,0 +1,1200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/records_governance_packet.schema.json",
+  "title": "Aureline records-governance packet, retention-hold delta summary, and offboarding-caveat contract",
+  "description": "Boundary schema for one records_governance_packet_record frozen in docs/governance/records_governance_packet_contract.md. The packet is the projection that the milestone scorecard, the release-evidence shiproom packet, the support handoff bundle, the AI evidence packet, the claim manifest, the public-proof index, and the weekly governance review quote so milestone or release readiness can state, in one inspectable record, exactly what changed in governed record classes, what changed in retention and legal-hold posture, what export and delete contracts are status-tracked, what offboarding evidence is linked, and what held-data caveats remain open. Every packet pins the typed packet window (milestone close, release train, weekly governance review, ad-hoc review), the typed audience and redaction profile so the same packet body can serve engineering, support, enterprise audit, release readiness, and public-proof review without overexposing raw record contents, the typed record-class registry diff (additions, axis-by-axis changes, retirements), the typed retention and legal-hold policy diff (matrix-row axis changes plus typed legal-hold change kinds), the typed export and delete contract status, the typed offboarding evidence links, the typed open held-data caveats, the typed linked artifact families (telemetry schema registry, support exports, collaboration evidence, AI retained evidence, offboarding/export artifacts, claim manifest rows, public-proof rows), the typed change-significance summary (informational, release-bearing, claim-narrowing, claim-widening-blocked) with schema-enforced pairings, and the typed consuming-surface parity floor. Raw record payloads, raw hold justifications, raw policy bundle bodies, raw export bytes, raw prompts, raw user identifiers, and raw destruction receipt bytes MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new audience class, redaction-profile class, record-class changed-axis class, retention-matrix changed-axis class, legal-hold change-kind class, contract-status class, delete-request-state status class, held-data caveat class, change-significance class, or window-kind class is additive-minor and bumps records_governance_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/records_governance_packet_record",
+  "$defs": {
+    "records_governance_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the records-governance packet payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, governance packets, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw record payloads, raw hold justifications, raw policy bundle bodies, raw export bytes, raw prompts, raw user identifiers, and raw destruction receipt bytes MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "window_kind_class": {
+      "type": "string",
+      "enum": [
+        "milestone_close_window",
+        "release_train_window",
+        "weekly_governance_review_window",
+        "ad_hoc_review_window"
+      ],
+      "description": "Closed four-class window-kind vocabulary."
+    },
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "engineering_internal",
+        "support_handoff",
+        "enterprise_audit",
+        "release_readiness",
+        "public_proof_safe"
+      ],
+      "description": "Closed five-class audience vocabulary. A packet whose audience cannot be typed denies with audience_class_unresolved rather than collapsing to engineering_internal."
+    },
+    "redaction_profile_class": {
+      "type": "string",
+      "enum": [
+        "engineering_internal_only",
+        "support_handoff_redacted",
+        "enterprise_audit_redacted",
+        "release_readiness_summary",
+        "public_proof_safe_zero_payload"
+      ],
+      "description": "Closed five-class redaction-profile vocabulary. The schema enforces redaction_profile_class matches audience_class per the contract's audience-redaction pairing table."
+    },
+    "record_class_changed_axis_class": {
+      "type": "string",
+      "enum": [
+        "scope_posture",
+        "retention_posture",
+        "hold_posture",
+        "delete_posture",
+        "export_posture",
+        "offboarding_posture",
+        "partial_result_cause_set"
+      ],
+      "description": "Closed seven-class record-class registry changed-axis vocabulary mirroring record_class.schema.json row blocks verbatim."
+    },
+    "retention_matrix_changed_axis_class": {
+      "type": "string",
+      "enum": [
+        "location_class",
+        "default_retention",
+        "export_path",
+        "delete_path",
+        "policy_owner",
+        "partial_blockers",
+        "remaining_location_classes"
+      ],
+      "description": "Closed seven-class retention-matrix changed-axis vocabulary."
+    },
+    "legal_hold_change_kind_class": {
+      "type": "string",
+      "enum": [
+        "hold_added",
+        "hold_extended",
+        "hold_narrowed",
+        "hold_cleared",
+        "hold_review_pending"
+      ],
+      "description": "Closed five-class legal-hold change-kind vocabulary. hold_review_pending pairs with expected_clear_at = null."
+    },
+    "legal_hold_class": {
+      "type": "string",
+      "enum": [
+        "tenant_legal_hold",
+        "support_investigation_hold",
+        "regulatory_hold",
+        "customer_managed_hold",
+        "cross_tenant_hold"
+      ],
+      "description": "Closed five-class legal-hold-class vocabulary."
+    },
+    "contract_status_class": {
+      "type": "string",
+      "enum": [
+        "contract_frozen",
+        "contract_in_review",
+        "contract_breaking_change",
+        "contract_needs_renewal",
+        "contract_not_yet_seeded"
+      ],
+      "description": "Closed five-class export/delete contract-status vocabulary."
+    },
+    "delete_request_state_status_class": {
+      "type": "string",
+      "enum": [
+        "delete_request_state_live_in_use",
+        "delete_request_state_in_review",
+        "delete_request_state_needs_renewal",
+        "delete_request_state_not_yet_seeded"
+      ],
+      "description": "Closed four-class delete-request-state status vocabulary."
+    },
+    "held_data_caveat_class": {
+      "type": "string",
+      "enum": [
+        "legal_hold_active",
+        "policy_retention_floor",
+        "support_investigation",
+        "export_pending_hold",
+        "sync_backlog",
+        "provider_backlog",
+        "managed_service_unavailable",
+        "manual_local_capture_required",
+        "redaction_policy",
+        "outside_platform_scope",
+        "import_source_unreachable"
+      ],
+      "description": "Closed eleven-class held-data-caveat vocabulary."
+    },
+    "change_significance_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "release_bearing",
+        "claim_narrowing",
+        "claim_widening_blocked"
+      ],
+      "description": "Closed four-class change-significance vocabulary applied per-entry on the record-class registry diff and the retention-and-legal-hold policy diff, and as the overall_significance_class on the packet."
+    },
+    "registry_schema_version_advanced_class": {
+      "type": "string",
+      "enum": [
+        "not_advanced",
+        "additive_minor",
+        "breaking"
+      ],
+      "description": "Closed three-class registry schema-version-advanced vocabulary. breaking requires the packet's overall_significance_class to be release_bearing or claim_narrowing."
+    },
+    "export_path_class": {
+      "type": "string",
+      "enum": [
+        "no_export",
+        "user_self_serve_export",
+        "support_case_export",
+        "managed_offboarding_packet",
+        "tenant_admin_export",
+        "regenerate_instead_of_export",
+        "import_source_owns_export",
+        "exit_packet_only",
+        "destruction_receipt_only_export"
+      ],
+      "description": "Closed nine-class export-path vocabulary mirroring the retention/deletion matrix's export_path_class enum."
+    },
+    "delete_path_class": {
+      "type": "string",
+      "enum": [
+        "local_delete_only",
+        "managed_delete_with_receipt",
+        "distinct_local_and_managed_delete",
+        "policy_held_until_release",
+        "regenerate_instead_of_delete",
+        "import_source_owns_delete",
+        "not_deletable_after_export",
+        "managed_offboarding_only_delete"
+      ],
+      "description": "Closed eight-class delete-path vocabulary mirroring the retention/deletion matrix's delete_path_class enum."
+    },
+
+    "packet_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_kind_class",
+        "window_ref",
+        "baseline_evaluated_at",
+        "window_summary"
+      ],
+      "properties": {
+        "window_kind_class": { "$ref": "#/$defs/window_kind_class" },
+        "window_ref": { "$ref": "#/$defs/opaque_id" },
+        "baseline_evaluated_at": { "$ref": "#/$defs/utc_datetime" },
+        "window_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "redaction_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_profile_class",
+        "redaction_profile_ref",
+        "raw_record_payloads_excluded",
+        "raw_hold_justifications_excluded",
+        "raw_policy_bundle_bytes_excluded",
+        "raw_user_identifiers_excluded",
+        "redaction_profile_summary"
+      ],
+      "properties": {
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "redaction_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "raw_record_payloads_excluded": { "type": "boolean", "const": true },
+        "raw_hold_justifications_excluded": { "type": "boolean", "const": true },
+        "raw_policy_bundle_bytes_excluded": { "type": "boolean", "const": true },
+        "raw_user_identifiers_excluded": { "type": "boolean", "const": true },
+        "redaction_profile_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "registry_addition_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_id",
+        "addition_summary",
+        "change_significance_class",
+        "linked_redaction_artifact_refs",
+        "linked_retention_artifact_refs"
+      ],
+      "properties": {
+        "record_class_id": { "$ref": "#/$defs/opaque_id" },
+        "addition_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "change_significance_class": { "$ref": "#/$defs/change_significance_class" },
+        "linked_redaction_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "linked_retention_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "registry_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_id",
+        "changed_axis_class",
+        "before_summary",
+        "after_summary",
+        "change_significance_class",
+        "linked_redaction_artifact_refs",
+        "linked_retention_artifact_refs"
+      ],
+      "properties": {
+        "record_class_id": { "$ref": "#/$defs/opaque_id" },
+        "changed_axis_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/record_class_changed_axis_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "before_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "after_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "change_significance_class": { "$ref": "#/$defs/change_significance_class" },
+        "linked_redaction_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "linked_retention_artifact_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "registry_retirement_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_id",
+        "retirement_summary",
+        "superseding_record_class_id",
+        "change_significance_class"
+      ],
+      "properties": {
+        "record_class_id": { "$ref": "#/$defs/opaque_id" },
+        "retirement_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "superseding_record_class_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "change_significance_class": { "$ref": "#/$defs/change_significance_class" }
+      }
+    },
+
+    "record_class_registry_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "additions",
+        "changes",
+        "retirements",
+        "registry_schema_version_advanced_class",
+        "registry_diff_summary"
+      ],
+      "properties": {
+        "additions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/registry_addition_entry" }
+        },
+        "changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/registry_change_entry" }
+        },
+        "retirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/registry_retirement_entry" }
+        },
+        "registry_schema_version_advanced_class": { "$ref": "#/$defs/registry_schema_version_advanced_class" },
+        "registry_diff_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "retention_matrix_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "matrix_row_ref",
+        "changed_matrix_axis_class",
+        "before_summary",
+        "after_summary",
+        "change_significance_class",
+        "linked_record_class_refs"
+      ],
+      "properties": {
+        "matrix_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "changed_matrix_axis_class": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retention_matrix_changed_axis_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "before_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "after_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "change_significance_class": { "$ref": "#/$defs/change_significance_class" },
+        "linked_record_class_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "legal_hold_posture_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hold_change_kind_class",
+        "hold_class",
+        "affected_matrix_row_refs",
+        "affected_record_class_refs",
+        "expected_clear_at",
+        "change_significance_class",
+        "hold_change_summary"
+      ],
+      "properties": {
+        "hold_change_kind_class": { "$ref": "#/$defs/legal_hold_change_kind_class" },
+        "hold_class": { "$ref": "#/$defs/legal_hold_class" },
+        "affected_matrix_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "affected_record_class_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "expected_clear_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "change_significance_class": { "$ref": "#/$defs/change_significance_class" },
+        "hold_change_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "hold_review_pending pairs with expected_clear_at = null.",
+          "if": {
+            "properties": { "hold_change_kind_class": { "const": "hold_review_pending" } },
+            "required": ["hold_change_kind_class"]
+          },
+          "then": {
+            "properties": { "expected_clear_at": { "type": "null" } }
+          }
+        }
+      ]
+    },
+
+    "retention_and_legal_hold_policy_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_matrix_changes",
+        "legal_hold_posture_changes",
+        "policy_diff_summary"
+      ],
+      "properties": {
+        "retention_matrix_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retention_matrix_change_entry" }
+        },
+        "legal_hold_posture_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/legal_hold_posture_change_entry" }
+        },
+        "policy_diff_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "export_path_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_path_class",
+        "contract_doc_ref",
+        "contract_status_class",
+        "manifest_required",
+        "raw_secret_excluded_required",
+        "gating_blocker_refs",
+        "export_path_summary"
+      ],
+      "properties": {
+        "export_path_class": { "$ref": "#/$defs/export_path_class" },
+        "contract_doc_ref": { "$ref": "#/$defs/opaque_id" },
+        "contract_status_class": { "$ref": "#/$defs/contract_status_class" },
+        "manifest_required": { "type": "boolean" },
+        "raw_secret_excluded_required": { "type": "boolean", "const": true },
+        "gating_blocker_refs": { "$ref": "#/$defs/ref_array" },
+        "export_path_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "delete_path_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delete_path_class",
+        "contract_doc_ref",
+        "contract_status_class",
+        "honors_legal_hold",
+        "gating_blocker_refs",
+        "delete_path_summary"
+      ],
+      "properties": {
+        "delete_path_class": { "$ref": "#/$defs/delete_path_class" },
+        "contract_doc_ref": { "$ref": "#/$defs/opaque_id" },
+        "contract_status_class": { "$ref": "#/$defs/contract_status_class" },
+        "honors_legal_hold": { "type": "boolean", "const": true },
+        "gating_blocker_refs": { "$ref": "#/$defs/ref_array" },
+        "delete_path_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "export_delete_contract_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_path_rows",
+        "delete_path_rows",
+        "delete_request_state_status_class",
+        "contract_status_summary"
+      ],
+      "properties": {
+        "export_path_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_path_row" }
+        },
+        "delete_path_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/delete_path_row" }
+        },
+        "delete_request_state_status_class": { "$ref": "#/$defs/delete_request_state_status_class" },
+        "contract_status_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "offboarding_evidence_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exit_packet_refs",
+        "destruction_receipt_refs",
+        "portability_matrix_refs",
+        "support_offboarding_drill_refs",
+        "collaboration_offboarding_evidence_refs",
+        "ai_offboarding_evidence_refs",
+        "offboarding_links_summary"
+      ],
+      "properties": {
+        "exit_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "destruction_receipt_refs": { "$ref": "#/$defs/ref_array" },
+        "portability_matrix_refs": { "$ref": "#/$defs/ref_array" },
+        "support_offboarding_drill_refs": { "$ref": "#/$defs/ref_array" },
+        "collaboration_offboarding_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "ai_offboarding_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "offboarding_links_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "open_held_data_caveat_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "caveat_id",
+        "caveat_class",
+        "affected_matrix_row_refs",
+        "affected_record_class_refs",
+        "linked_waiver_register_entry_ref",
+        "linked_privacy_history_event_refs",
+        "expected_clear_at",
+        "caveat_summary"
+      ],
+      "properties": {
+        "caveat_id": { "$ref": "#/$defs/opaque_id" },
+        "caveat_class": { "$ref": "#/$defs/held_data_caveat_class" },
+        "affected_matrix_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "affected_record_class_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "linked_waiver_register_entry_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "linked_privacy_history_event_refs": { "$ref": "#/$defs/ref_array" },
+        "expected_clear_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "caveat_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "linked_artifact_families": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "telemetry_schema_registry_refs",
+        "support_export_packet_refs",
+        "collaboration_evidence_refs",
+        "ai_retained_evidence_refs",
+        "offboarding_export_artifact_refs",
+        "claim_manifest_row_refs",
+        "public_proof_row_refs"
+      ],
+      "properties": {
+        "telemetry_schema_registry_refs": { "$ref": "#/$defs/ref_array" },
+        "support_export_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "collaboration_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "ai_retained_evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "offboarding_export_artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "claim_manifest_row_refs": { "$ref": "#/$defs/ref_array" },
+        "public_proof_row_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+
+    "claim_narrowing_link_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_row_ref",
+        "public_proof_row_refs",
+        "narrowing_summary"
+      ],
+      "properties": {
+        "claim_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "public_proof_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "narrowing_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "change_significance_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall_significance_class",
+        "release_bearing_rationale",
+        "claim_narrowing_links",
+        "claim_widening_blocked_decision_ref",
+        "significance_summary"
+      ],
+      "properties": {
+        "overall_significance_class": { "$ref": "#/$defs/change_significance_class" },
+        "release_bearing_rationale": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "claim_narrowing_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/claim_narrowing_link_entry" }
+        },
+        "claim_widening_blocked_decision_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "significance_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "release_bearing requires non-null release_bearing_rationale.",
+          "if": {
+            "properties": { "overall_significance_class": { "const": "release_bearing" } },
+            "required": ["overall_significance_class"]
+          },
+          "then": {
+            "properties": {
+              "release_bearing_rationale": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "description": "claim_narrowing requires a non-empty claim_narrowing_links array.",
+          "if": {
+            "properties": { "overall_significance_class": { "const": "claim_narrowing" } },
+            "required": ["overall_significance_class"]
+          },
+          "then": {
+            "properties": {
+              "claim_narrowing_links": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "claim_widening_blocked requires a non-null claim_widening_blocked_decision_ref.",
+          "if": {
+            "properties": { "overall_significance_class": { "const": "claim_widening_blocked" } },
+            "required": ["overall_significance_class"]
+          },
+          "then": {
+            "properties": {
+              "claim_widening_blocked_decision_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+
+    "consuming_surface_parity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_milestone_scorecard",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest",
+        "render_on_public_proof_index",
+        "render_on_weekly_governance_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_milestone_scorecard": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" },
+        "render_on_public_proof_index": { "type": "boolean" },
+        "render_on_weekly_governance_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the packet MUST render the same packet_id, packet_window, audience_class, redaction_profile_class, registry-diff section counts plus typed entries, retention-and-hold-diff section counts plus typed entries, contract status block, offboarding-links section, open-held-data-caveats list, change-significance summary, headline_label, and packet_summary."
+    },
+
+    "records_governance_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "records_governance_packet_schema_version",
+        "record_kind",
+        "packet_id",
+        "evaluated_at",
+        "packet_window",
+        "audience_class",
+        "redaction_profile",
+        "record_class_registry_diff",
+        "retention_and_legal_hold_policy_diff",
+        "export_delete_contract_status",
+        "offboarding_evidence_links",
+        "open_held_data_caveats",
+        "linked_artifact_families",
+        "change_significance_summary",
+        "consuming_surface_parity",
+        "linked_waiver_register_refs",
+        "linked_release_truth_summary_refs",
+        "linked_requirement_status_row_refs",
+        "headline_label",
+        "packet_summary",
+        "contract_doc_ref",
+        "record_class_registry_ref",
+        "retention_matrix_contract_doc_ref",
+        "notes"
+      ],
+      "properties": {
+        "records_governance_packet_schema_version": { "$ref": "#/$defs/records_governance_packet_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "records_governance_packet_record"
+        },
+        "packet_id": {
+          "type": "string",
+          "pattern": "^records_governance_packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by every consuming surface."
+        },
+        "evaluated_at": { "$ref": "#/$defs/utc_datetime" },
+        "packet_window": { "$ref": "#/$defs/packet_window" },
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "redaction_profile": { "$ref": "#/$defs/redaction_profile" },
+        "record_class_registry_diff": { "$ref": "#/$defs/record_class_registry_diff" },
+        "retention_and_legal_hold_policy_diff": { "$ref": "#/$defs/retention_and_legal_hold_policy_diff" },
+        "export_delete_contract_status": { "$ref": "#/$defs/export_delete_contract_status" },
+        "offboarding_evidence_links": { "$ref": "#/$defs/offboarding_evidence_links" },
+        "open_held_data_caveats": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/open_held_data_caveat_entry" }
+        },
+        "linked_artifact_families": { "$ref": "#/$defs/linked_artifact_families" },
+        "change_significance_summary": { "$ref": "#/$defs/change_significance_summary" },
+        "consuming_surface_parity": { "$ref": "#/$defs/consuming_surface_parity" },
+        "linked_waiver_register_refs": { "$ref": "#/$defs/ref_array" },
+        "linked_release_truth_summary_refs": { "$ref": "#/$defs/ref_array" },
+        "linked_requirement_status_row_refs": { "$ref": "#/$defs/ref_array" },
+        "headline_label": { "$ref": "#/$defs/reviewable_label" },
+        "packet_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/records_governance_packet_contract.md"
+        },
+        "record_class_registry_ref": {
+          "type": "string",
+          "const": "artifacts/governance/record_class_registry.yaml"
+        },
+        "retention_matrix_contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/retention_deletion_matrix_contract.md"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "audience_class = engineering_internal pairs with redaction_profile_class = engineering_internal_only.",
+          "if": {
+            "properties": { "audience_class": { "const": "engineering_internal" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "engineering_internal_only" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = support_handoff pairs with redaction_profile_class = support_handoff_redacted.",
+          "if": {
+            "properties": { "audience_class": { "const": "support_handoff" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "support_handoff_redacted" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = enterprise_audit pairs with redaction_profile_class = enterprise_audit_redacted.",
+          "if": {
+            "properties": { "audience_class": { "const": "enterprise_audit" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "enterprise_audit_redacted" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = release_readiness pairs with redaction_profile_class = release_readiness_summary.",
+          "if": {
+            "properties": { "audience_class": { "const": "release_readiness" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "release_readiness_summary" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "audience_class = public_proof_safe pairs with redaction_profile_class = public_proof_safe_zero_payload.",
+          "if": {
+            "properties": { "audience_class": { "const": "public_proof_safe" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile": {
+                "properties": { "redaction_profile_class": { "const": "public_proof_safe_zero_payload" } },
+                "required": ["redaction_profile_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "registry_schema_version_advanced_class = breaking requires overall_significance_class to be release_bearing or claim_narrowing.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "properties": { "registry_schema_version_advanced_class": { "const": "breaking" } },
+                "required": ["registry_schema_version_advanced_class"]
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "overall_significance_class": {
+                    "enum": ["release_bearing", "claim_narrowing"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "overall_significance_class = release_bearing requires linked_release_truth_summary_refs to be non-empty.",
+          "if": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": { "overall_significance_class": { "const": "release_bearing" } },
+                "required": ["overall_significance_class"]
+              }
+            },
+            "required": ["change_significance_summary"]
+          },
+          "then": {
+            "properties": {
+              "linked_release_truth_summary_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "overall_significance_class = claim_widening_blocked requires linked_waiver_register_refs to be non-empty.",
+          "if": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": { "overall_significance_class": { "const": "claim_widening_blocked" } },
+                "required": ["overall_significance_class"]
+              }
+            },
+            "required": ["change_significance_summary"]
+          },
+          "then": {
+            "properties": {
+              "linked_waiver_register_refs": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Touching record_class telemetry_contract_schema, crash_diagnostic_payload, or performance_capture_evidence requires at least one telemetry_schema_registry_refs entry.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "additions": {
+                        "contains": {
+                          "properties": {
+                            "record_class_id": {
+                              "enum": [
+                                "telemetry_contract_schema",
+                                "crash_diagnostic_payload",
+                                "performance_capture_evidence"
+                              ]
+                            }
+                          },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "changes": {
+                        "contains": {
+                          "properties": {
+                            "record_class_id": {
+                              "enum": [
+                                "telemetry_contract_schema",
+                                "crash_diagnostic_payload",
+                                "performance_capture_evidence"
+                              ]
+                            }
+                          },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_families": {
+                "properties": {
+                  "telemetry_schema_registry_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Touching record_class support_bundle_archive requires at least one support_export_packet_refs entry.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "additions": {
+                        "contains": {
+                          "properties": { "record_class_id": { "const": "support_bundle_archive" } },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "changes": {
+                        "contains": {
+                          "properties": { "record_class_id": { "const": "support_bundle_archive" } },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_families": {
+                "properties": {
+                  "support_export_packet_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Touching record_class collaboration_evidence_packet requires at least one collaboration_evidence_refs entry.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "additions": {
+                        "contains": {
+                          "properties": { "record_class_id": { "const": "collaboration_evidence_packet" } },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "changes": {
+                        "contains": {
+                          "properties": { "record_class_id": { "const": "collaboration_evidence_packet" } },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_families": {
+                "properties": {
+                  "collaboration_evidence_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Touching record_class ai_retained_evidence_packet requires at least one ai_retained_evidence_refs entry.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "additions": {
+                        "contains": {
+                          "properties": { "record_class_id": { "const": "ai_retained_evidence_packet" } },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "changes": {
+                        "contains": {
+                          "properties": { "record_class_id": { "const": "ai_retained_evidence_packet" } },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_families": {
+                "properties": {
+                  "ai_retained_evidence_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Touching record_class offboarding_exit_packet or destruction_receipt_record requires at least one offboarding_export_artifact_refs entry.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "anyOf": [
+                  {
+                    "properties": {
+                      "additions": {
+                        "contains": {
+                          "properties": {
+                            "record_class_id": {
+                              "enum": ["offboarding_exit_packet", "destruction_receipt_record"]
+                            }
+                          },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "properties": {
+                      "changes": {
+                        "contains": {
+                          "properties": {
+                            "record_class_id": {
+                              "enum": ["offboarding_exit_packet", "destruction_receipt_record"]
+                            }
+                          },
+                          "required": ["record_class_id"]
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_families": {
+                "properties": {
+                  "offboarding_export_artifact_refs": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A change_significance_class = claim_narrowing on any record_class_registry_diff.changes[] entry requires the packet's overall_significance_class to be claim_narrowing or claim_widening_blocked.",
+          "if": {
+            "properties": {
+              "record_class_registry_diff": {
+                "properties": {
+                  "changes": {
+                    "contains": {
+                      "properties": { "change_significance_class": { "const": "claim_narrowing" } },
+                      "required": ["change_significance_class"]
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["record_class_registry_diff"]
+          },
+          "then": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "overall_significance_class": {
+                    "enum": ["claim_narrowing", "claim_widening_blocked"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "A change_significance_class = release_bearing on any legal_hold_posture_changes[] entry requires the packet's overall_significance_class to be release_bearing or claim_narrowing.",
+          "if": {
+            "properties": {
+              "retention_and_legal_hold_policy_diff": {
+                "properties": {
+                  "legal_hold_posture_changes": {
+                    "contains": {
+                      "properties": { "change_significance_class": { "const": "release_bearing" } },
+                      "required": ["change_significance_class"]
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["retention_and_legal_hold_policy_diff"]
+          },
+          "then": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "overall_significance_class": {
+                    "enum": ["release_bearing", "claim_narrowing"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
