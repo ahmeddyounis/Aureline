@@ -1,0 +1,143 @@
+# Forbidden shortcut audit case.
+#
+# Reviewer-side fixture for
+# docs/ux/notification_privacy_dedupe_audit.md §5 (forbidden shortcut
+# actions). Binds the high-risk-shortcut-no-bypass row, the
+# desktop_summary_affordance_record for an OS notification action,
+# the bypass_protection block, and the lineage's denial step to
+# prove that an OS-level shortcut for a force-publish action refuses
+# to complete and routes the user back into the in-product review
+# sheet.
+__fixture__:
+  name: forbidden_shortcut_audit
+  scenario: >
+    An OS notification offers a "Publish now" action for a release
+    that is gated by an active review-apply session. Activating the
+    OS shortcut path is refused: the affordance routes the user
+    into the in-product review sheet via
+    mutation_via_review_path_only, the lineage records
+    suppression_record_bypass_blocked, and every forbidden shortcut
+    class is enumerated explicitly so the audit row can confirm the
+    no-bypass rule mechanically.
+  audit_row_ref: notification_privacy_dedupe_audit#forbidden_shortcut_actions
+  contract_sections:
+    - "Audit rows §5 Forbidden shortcut actions"
+    - "Privacy-safe summaries vs. privileged details"
+  exercised_axes:
+    event_class: high_risk_shortcut_no_bypass
+    affordance_effect_class: mutation_via_review_path_only
+    must_route_through_review_sheet: true
+    forbidden_shortcut_action_classes_full_set: true
+
+audit_binding:
+  canonical_event_id: ux:event:provider-publish:release-7:01
+  event_lineage_id_ref: ux:lineage:provider-publish:release-7:01
+  canonical_object_target_ref: obj:provider-release:release-7
+  source_subsystem: provider_bearing
+  actor_identity_ref: id:actor:user:release-owner
+
+routing_proof:
+  record_kind: notification_route_rule_record
+  event_class: high_risk_shortcut_no_bypass
+  default_surface: durable_job_row
+  escalates_to_surfaces:
+    - tier_blocking_trust_banner
+    - os_notification
+  forbidden_surfaces:
+    - toast_alone
+    - os_badge_app_icon_alone
+  required_carry_over:
+    - canonical_event_id
+    - canonical_object_target_ref
+    - interaction_safety_packet_id_ref
+    - authority_source_label
+    - next_action_label
+    - linkback_records
+
+affordance_proof:
+  record_kind: desktop_summary_affordance_record
+  affordance_id: ux:desktop-affordance:os-action:provider-publish:release-7
+  affordance_class: os_notification_action
+  effect_class: mutation_via_review_path_only
+  privacy_payload_class: lock_screen_safe_generic
+  progress_value_basis_class: not_a_progress_source
+  preserves_durable_history: true
+  preserves_canonical_event_id: true
+  preserves_canonical_object_identity: true
+  announce_actions_to_assistive_tech: true
+  exact_reopen_linkage:
+    reopen_target_kind: review_context
+    target_identity_ref: obj:review-sheet:provider-publish:release-7
+    command_id_ref: cmd:provider.open_publish_review_sheet
+    must_resolve_through_in_product_surface: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:review-sheet:provider-publish:release-7
+  must_route_through_approval_workflow: true
+  approval_workflow_ref: obj:approval-workflow:provider-publish:release-7
+  requires_revalidation: false
+  revalidation_reason_label: null
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:provider-publish:release-7
+
+forbidden_shortcut_action_classes:
+  - destructive_publish_or_apply
+  - secret_or_credential_reveal
+  - irreversible_high_blast
+  - bypass_review_sheet
+  - bypass_approval_workflow
+  - cross_workspace_mutation
+  - direct_mutation_from_lock_screen
+  - direct_mutation_from_companion_push
+  - direct_mutation_from_dock_or_taskbar
+  - direct_mutation_from_system_tray
+  - policy_override_from_os_shortcut
+  - trust_state_change_from_os_shortcut
+  - provider_grant_change_from_os_shortcut
+
+bypass_blocked_audit:
+  record_kind: lineage_audit_event_record
+  audit_event_id: suppression_record_bypass_blocked
+  occurred_at: "2026-04-26T12:00:00Z"
+  notes_label: >
+    The OS shortcut would have completed destructive_publish_or_apply
+    on release-7. The action is refused; the user lands on
+    obj:review-sheet:provider-publish:release-7 to confirm.
+
+reviewer_checks:
+  - id: thirteen_forbidden_classes_enumerated
+    description: >
+      forbidden_shortcut_action_classes lists every closed class so
+      review tooling can detect the rule mechanically.
+    pass: true
+  - id: review_sheet_route_required
+    description: >
+      bypass_protection.must_route_through_review_sheet is true
+      with a non-null review_sheet_ref.
+    pass: true
+  - id: assistive_tech_announced
+    description: >
+      announce_actions_to_assistive_tech is true; switch control
+      and screen reader users see the same actions.
+    pass: true
+  - id: lock_screen_payload_generic
+    description: >
+      privacy_payload_class is lock_screen_safe_generic; the
+      destructive intent is never on the lock screen.
+    pass: true
+  - id: lineage_records_bypass_blocked
+    description: >
+      The audit-event stream records
+      suppression_record_bypass_blocked when the shortcut path is
+      refused.
+    pass: true
+
+denial_reasons_avoided:
+  - high_risk_shortcut_toast_only_forbidden
+  - high_risk_shortcut_bypassed_review_sheet
+  - desktop_summary_affordance_drift_denied
+  - dismissal_silently_mutated_source_object
+  - resolve_silently_mutated_source_object

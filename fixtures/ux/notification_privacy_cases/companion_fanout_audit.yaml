@@ -1,0 +1,128 @@
+# Companion fanout audit case.
+#
+# Reviewer-side fixture for
+# docs/ux/notification_privacy_dedupe_audit.md §4 (companion
+# fanout). Binds the canonical event lineage, sibling envelopes for
+# desktop and companion clients, the companion push payload's
+# desktop_summary_affordance_record, and the cross-client collapse
+# step to prove that one canonical event id collapses across
+# clients, no payload class widens, and the companion shortcut
+# refuses any forbidden mutation.
+__fixture__:
+  name: companion_fanout_audit
+  scenario: >
+    A direct collaboration mention is fanned out from the desktop
+    product to the companion surface. The lineage shares one
+    canonical_event_id; both sibling envelopes share
+    cross_client_canonical_event_id; the companion push payload
+    carries lock_screen_safe_scoped (matching the desktop OS
+    notification class); the companion action is
+    read_only_reopen_attention_item; cross-client dismissal collapses
+    via cross_client_collapse so dismissing on one client does not
+    strand the row on the other.
+  audit_row_ref: notification_privacy_dedupe_audit#companion_fanout
+  contract_sections:
+    - "Audit rows §4 Companion fanout"
+    - "Privacy-safe summaries vs. privileged details"
+  exercised_axes:
+    dedupe_key_scheme: cross_client_canonical_event_id
+    privacy_payload_class_consistent: true
+    companion_effect_class: read_only_reopen_attention_item
+    cross_client_collapse_trigger: cross_client_collapse
+
+audit_binding:
+  canonical_event_id: ux:event:collab-mention:thread-42:01
+  event_lineage_id_ref: ux:lineage:collab-mention:thread-42:01
+  canonical_object_target_ref: obj:collab-thread:thread-42
+  source_subsystem: collaboration
+  actor_identity_ref: id:actor:user:reviewer:42
+
+cross_client_lineage:
+  record_kind: event_lineage_record
+  cross_client_lineage_refs:
+    - ux:cross-client:desktop:collab-mention:thread-42:01
+    - ux:cross-client:companion:collab-mention:thread-42:01
+  dedupe_key_scheme: cross_client_canonical_event_id
+
+sibling_envelopes:
+  - record_kind: activity_event_envelope_record
+    envelope_id: ux:env:collab-mention:thread-42:desktop:os
+    delivery_surface_class: os_notification
+    canonical_event_id: ux:event:collab-mention:thread-42:01
+    privacy_payload_class: lock_screen_safe_scoped
+    client_scope: desktop_product
+  - record_kind: activity_event_envelope_record
+    envelope_id: ux:env:collab-mention:thread-42:companion:push
+    delivery_surface_class: companion_push
+    canonical_event_id: ux:event:collab-mention:thread-42:01
+    privacy_payload_class: lock_screen_safe_scoped
+    client_scope: companion_surface
+
+companion_affordance_proof:
+  record_kind: desktop_summary_affordance_record
+  affordance_id: ux:desktop-affordance:companion-push:collab-mention:thread-42
+  affordance_class: companion_push_action
+  effect_class: read_only_reopen_attention_item
+  privacy_payload_class: lock_screen_safe_scoped
+  progress_value_basis_class: not_a_progress_source
+  preserves_durable_history: true
+  preserves_canonical_event_id: true
+  preserves_canonical_object_identity: true
+  announce_actions_to_assistive_tech: true
+  forbidden_shortcut_action_classes:
+    - direct_mutation_from_companion_push
+    - direct_mutation_from_lock_screen
+    - secret_or_credential_reveal
+    - destructive_publish_or_apply
+    - irreversible_high_blast
+    - bypass_review_sheet
+    - bypass_approval_workflow
+    - cross_workspace_mutation
+
+cross_client_collapse_proof:
+  record_kind: release_step_record
+  kind: cross_client_collapse
+  released_to_delivery_surface_class: attention_item
+  released_with_privacy_payload_class: in_product_only
+  notes_label: >
+    Dismissing the mention on desktop collapses the companion push
+    sibling via cross_client_collapse so the user does not see two
+    independent dismiss flows.
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:mentions
+  record_kind: badge_record
+  badge_class: mentions
+  count_delta: 1
+  count_basis: deduped_canonical_event
+  badge_count_semantics_label: >
+    The mention counts once across desktop and companion clients
+    via cross_client_canonical_event_id.
+
+reviewer_checks:
+  - id: shared_canonical_event_id
+    description: >
+      Desktop and companion envelopes share
+      ux:event:collab-mention:thread-42:01.
+    pass: true
+  - id: payload_class_no_widen
+    description: >
+      Both siblings carry lock_screen_safe_scoped; no client
+      widens to in_product_only on a lock-screen-bound surface.
+    pass: true
+  - id: companion_effect_read_only
+    description: >
+      The companion action is read_only_reopen_attention_item; no
+      direct mutation class is exposed.
+    pass: true
+  - id: cross_client_collapse_recorded
+    description: >
+      Cross-client dismissal records release_step_record kind =
+      cross_client_collapse so the row never strands.
+    pass: true
+
+denial_reasons_avoided:
+  - cross_client_divergence
+  - companion_cross_client_divergence
+  - privacy_payload_class_widened_across_clients
+  - desktop_summary_affordance_drift_denied

@@ -1,0 +1,114 @@
+# Repeated-failure coalescing audit case.
+#
+# Reviewer-side fixture for
+# docs/ux/notification_privacy_dedupe_audit.md §2 (repeated-failure
+# coalescing). Binds one durable_job_record, one grouped_burst_record
+# under subsystem_plus_object_plus_phase, one event_lineage_record
+# with a typed escalation reason, and one badge row to prove that
+# ten retries against one pipeline collapse into the right badge
+# class without inflating with mixed classes.
+__fixture__:
+  name: repeated_failure_coalescing_audit
+  scenario: >
+    A workspace build retries ten times against the same pipeline
+    phase. The lineage collapses the retries via
+    subsystem_plus_object_plus_phase; the durable_job_row stays the
+    source of truth; the badge increments failed_runs by one for
+    the deduped durable job; tier rises with
+    repeated_dedupe_threshold_crossed once the threshold is
+    crossed. completion_unread, mentions, and needs_review are
+    untouched.
+  audit_row_ref: notification_privacy_dedupe_audit#repeated_failure_coalescing
+  contract_sections:
+    - "Audit rows §2 Repeated-failure coalescing"
+  exercised_axes:
+    dedupe_key_scheme: subsystem_plus_object_plus_phase
+    badge_class: failed_runs
+    badge_count_basis: deduped_durable_item
+    escalation_reason: repeated_dedupe_threshold_crossed
+    tier_after_escalation: tier_actionable
+
+audit_binding:
+  canonical_event_id: ux:event:build:debug-profile:retry-burst
+  event_lineage_id_ref: ux:lineage:build:debug-profile:retry-burst
+  canonical_object_target_ref: obj:build:debug-profile
+  source_subsystem: build_system
+  actor_identity_ref: id:actor:system:build-runner
+
+durable_job_proof:
+  record_kind: durable_job_record
+  durable_job_id: ux:job-row:build:debug-profile:retry-burst
+  lifecycle_state: failed
+  phase_label: link_step
+  durable_job_subject_class: build
+
+dedupe_proof:
+  record_kind: grouped_burst_record
+  grouped_burst_id: ux:burst:build:debug-profile:link_step
+  dedupe_key_scheme: subsystem_plus_object_plus_phase
+  member_count: 10
+  first_event_id_ref: ux:event-envelope:build:retry:01
+  latest_event_id_ref: ux:event-envelope:build:retry:10
+  grouping_reason_label: >
+    Ten retries of the link step on debug-profile collapse into one
+    evolving lineage rather than ten independent notifications.
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: repeated_dedupe_threshold_crossed
+  escalated_from_tier: tier_durable
+  escalated_to_tier: tier_actionable
+  caused_attention_item: true
+  attention_item_id_ref: ux:attention:build:debug-profile:link_step
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:failed_runs
+  record_kind: badge_record
+  badge_class: failed_runs
+  count_delta: 1
+  count_basis: deduped_durable_item
+  badge_count_semantics_label: >
+    failed_runs counts the deduped durable build row, not the ten
+    retry envelopes. completion_unread and mentions remain at zero
+    deltas for this lineage.
+
+surface_envelopes:
+  - record_kind: activity_event_envelope_record
+    envelope_id: ux:env:build:retry-burst:durable
+    delivery_surface_class: durable_job_row
+    canonical_event_id: ux:event:build:debug-profile:retry-burst
+    grouped_burst_id_ref: ux:burst:build:debug-profile:link_step
+  - record_kind: activity_event_envelope_record
+    envelope_id: ux:env:build:retry-burst:status
+    delivery_surface_class: status_item
+    canonical_event_id: ux:event:build:debug-profile:retry-burst
+    grouped_burst_id_ref: ux:burst:build:debug-profile:link_step
+
+reviewer_checks:
+  - id: failed_runs_only
+    description: >
+      The lineage increments failed_runs only; needs_review,
+      mentions, and completion_unread are untouched.
+    pass: true
+  - id: no_per_retry_stacking
+    description: >
+      No envelope mints a toast per retry; transient mirrors share
+      the same lineage and dedupe scheme.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      The tier rise is recorded with
+      repeated_dedupe_threshold_crossed; decorative escalation
+      would deny.
+    pass: true
+  - id: durable_job_is_source_of_truth
+    description: >
+      Toast and OS notification mirrors carry linkback_records
+      pointing back to ux:job-row:build:debug-profile:retry-burst;
+      the durable row owns progress and failure state.
+    pass: true
+
+denial_reasons_avoided:
+  - badge_count_inflation_mixed_classes
+  - escalation_reason_missing_on_tier_change
+  - dedupe_violated_stacked_toasts

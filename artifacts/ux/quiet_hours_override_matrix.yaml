@@ -1,0 +1,471 @@
+# Quiet-hours override matrix.
+#
+# Companion to docs/ux/notification_privacy_dedupe_audit.md and to the
+# upstream quiet-hours posture frozen in
+# docs/ux/attention_activity_taxonomy.md (§Quiet-hours mode and
+# §Interruptibility tier), docs/ux/notification_delivery_contract.md
+# (§4 routing matrix and §5.5), docs/ux/os_notification_and_quiet_hours_contract.md
+# (§Suppression class table), and artifacts/ux/quiet_hours_policy_matrix.yaml
+# (per-mode suppressed / preserved surface lists).
+#
+# This matrix names — narrowly, by exact scope — the only override
+# cases under which a quiet-hours hold may break and what evidence
+# must remain afterward. It exists so reviewers can confirm, before
+# notification behavior hardens, that overrides are bounded by named
+# event classes (security advisory, trust downgrade, approval expiry,
+# route warning) rather than generic urgency language, that every
+# break records a typed escalation reason, and that durable history
+# and the audit trail are always preserved.
+#
+# Rules (frozen):
+#   - This file does not mint new quiet_hours_modes, suppression
+#     reasons, escalation reasons, interruptibility tiers, dedupe
+#     schemes, privacy payload classes, reopen-target kinds, or
+#     audit-event ids. Every value is re-exported from the upstream
+#     schemas and the quiet_hours_policy_matrix.yaml.
+#   - Every override row names exactly one override_event_class from
+#     the closed four (security_advisory_break,
+#     trust_downgrade_break, approval_expiry_break,
+#     route_warning_break), one override_scope_class, one
+#     allowed_break_target_tier (tier_blocking_trust or
+#     tier_critical_safety), one escalation_reason from the closed
+#     event-lineage set, and one evidence_preservation block.
+#   - Generic urgency, decorative escalation, raw urgency phrases,
+#     or any break that resolves to tier_durable / tier_actionable
+#     and below is non-conforming.
+#   - Every override row asserts preserves_durable_history = true and
+#     preserves_critical_safety_tier = true. The override never
+#     widens delivery beyond the frozen carry-over fields and never
+#     bypasses the redaction pass.
+#   - mode_admin_suppression MAY narrow further; it MAY NOT be
+#     overridden into delivery beyond what admin policy allows. An
+#     override row that crosses admin_overridable = false denies with
+#     admin_suppression_blocked_critical_safety.
+
+schema_version: 1
+matrix_id: aureline.ux.quiet_hours_override_matrix.v1
+status: seeded
+
+source_doc_refs:
+  notification_privacy_dedupe_audit: docs/ux/notification_privacy_dedupe_audit.md
+  attention_activity_taxonomy: docs/ux/attention_activity_taxonomy.md
+  notification_delivery_contract: docs/ux/notification_delivery_contract.md
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  quiet_hours_policy_matrix: artifacts/ux/quiet_hours_policy_matrix.yaml
+
+companion_artifact_refs:
+  notification_event_schema: schemas/ux/notification_event.schema.json
+  event_lineage_schema: schemas/ux/event_lineage.schema.json
+  activity_event_envelope_schema: schemas/ux/activity_event_envelope.schema.json
+  notification_suppression_record_schema: schemas/ux/notification_suppression_record.schema.json
+  badge_class_review: artifacts/ux/badge_class_review.yaml
+  notification_privacy_cases: fixtures/ux/notification_privacy_cases/
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from the upstream schemas. Tooling reads
+# these blocks; rows MUST NOT use values outside the enumerations below.
+# ---------------------------------------------------------------------------
+
+quiet_hours_modes:
+  - mode_quiet_hours_user
+  - mode_do_not_disturb_user
+  - mode_focus_mode_user
+  - mode_presentation
+  - mode_screen_share
+  - mode_privacy_mode
+  - mode_reduced_attention_policy
+  - mode_power_saver_runtime
+  - mode_admin_suppression
+
+# Closed override event classes. The four classes below are the only
+# generators of a quiet-hours break. Generic urgency, generic
+# escalation, or any other event class is non-conforming.
+override_event_class_vocabulary:
+  - security_advisory_break
+  - trust_downgrade_break
+  - approval_expiry_break
+  - route_warning_break
+
+# Closed override scopes. Every override row names exactly one scope
+# from the set below; the scope is what bounds the break narrowly.
+override_scope_class_vocabulary:
+  - workspace_admission_active_session
+  - active_provider_handoff_session
+  - active_review_apply_session
+  - active_collaboration_session
+  - active_remote_agent_attach
+  - workspace_trust_state_active
+  - admin_policy_epoch_active
+  - secret_broker_credential_active
+
+# Closed allowed break-target tiers. A break may resolve to
+# tier_blocking_trust or tier_critical_safety only.
+allowed_break_target_tier_vocabulary:
+  - tier_blocking_trust
+  - tier_critical_safety
+
+# Closed escalation-reason set re-exported from
+# schemas/ux/event_lineage.schema.json (§4 routing matrix). Override
+# rows pin the typed reason; decorative escalation is non-conforming.
+allowed_escalation_reasons:
+  - severity_increased
+  - duration_threshold_crossed
+  - required_authority_changed
+  - consequence_class_escalated
+  - basis_snapshot_drifted
+  - policy_epoch_changed
+  - trust_state_changed
+  - provider_grant_narrowed
+  - recovery_class_downgraded_to_no_recovery
+
+# Closed delivery-surface set permitted on a break. The override
+# never widens to lock_screen_summary, os_badge_app_icon, or
+# companion_push beyond the lock_screen_safe_generic / scoped rules.
+allowed_break_delivery_surfaces:
+  - contextual_banner
+  - attention_item
+  - durable_job_row
+  - review_sheet
+  - os_notification
+
+# Closed required-evidence kinds. Every override row records a
+# non-empty subset; absence of one denies the break.
+required_evidence_kind_vocabulary:
+  - lineage_escalation_recorded
+  - suppression_record_release_recorded
+  - suppression_record_redaction_recorded
+  - lineage_reopen_recorded
+  - badge_record_updated
+  - audit_trail_record_ref_present
+  - interaction_safety_packet_id_ref_present
+
+# Closed forbidden-justification phrases. Reviewer-side rule: an
+# override that justifies the break with any of these phrases denies
+# with override_justification_generic.
+forbidden_generic_urgency_phrases:
+  - urgent
+  - critical_general
+  - high_priority
+  - escalated_general
+  - immediate_attention
+  - time_sensitive_general
+
+# ---------------------------------------------------------------------------
+# Override rows. Each row pins one override_event_class to one
+# override_scope, one allowed_break_target_tier, one typed
+# escalation_reason, the closed delivery surfaces it MAY use, the
+# privacy posture, the badge_class_review row it interacts with, and
+# the evidence_preservation block reviewers cite.
+# ---------------------------------------------------------------------------
+override_rows:
+
+  - record_kind: quiet_hours_override_row_record
+    override_row_id: ux:quiet-hours-override:security_advisory_break:01
+    override_event_class: security_advisory_break
+    override_scope_class: secret_broker_credential_active
+    allowed_break_target_tier: tier_critical_safety
+    eligible_modes:
+      - mode_quiet_hours_user
+      - mode_do_not_disturb_user
+      - mode_focus_mode_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_privacy_mode
+      - mode_reduced_attention_policy
+      - mode_power_saver_runtime
+    forbidden_modes:
+      - mode_admin_suppression
+    allowed_escalation_reasons:
+      - severity_increased
+      - consequence_class_escalated
+      - recovery_class_downgraded_to_no_recovery
+    allowed_break_delivery_surfaces:
+      - contextual_banner
+      - attention_item
+      - review_sheet
+      - os_notification
+    privacy_payload_class: lock_screen_safe_generic
+    badge_class_review_ref: ux:badge-review:security_notices
+    canonical_object_kind: security_advisory_record
+    must_route_through_review_sheet: true
+    requires_revalidation: true
+    evidence_preservation:
+      preserves_durable_history: true
+      preserves_critical_safety_tier: true
+      required_evidence_kinds:
+        - lineage_escalation_recorded
+        - suppression_record_release_recorded
+        - suppression_record_redaction_recorded
+        - audit_trail_record_ref_present
+        - interaction_safety_packet_id_ref_present
+      retained_record_refs:
+        - schemas/ux/notification_suppression_record.schema.json#suppression_record
+        - schemas/ux/event_lineage.schema.json#event_lineage_record
+        - schemas/ux/notification_event.schema.json#notification_event_record
+    notes_label: >
+      A confirmed compromise of an active credential held by the
+      secret broker breaks any user-set hold so the user can route
+      through the security review canvas before the credential is
+      reused. The OS notification carries lock_screen_safe_generic
+      only; the canonical object identity, advisory text, and any
+      remediation instructions live behind the in-product review
+      surface. mode_admin_suppression is forbidden because admin
+      policy MAY narrow but MAY NOT silently widen and MAY NOT
+      silently block tier_critical_safety; the break operates inside
+      the policy envelope.
+
+  - record_kind: quiet_hours_override_row_record
+    override_row_id: ux:quiet-hours-override:trust_downgrade_break:01
+    override_event_class: trust_downgrade_break
+    override_scope_class: workspace_trust_state_active
+    allowed_break_target_tier: tier_blocking_trust
+    eligible_modes:
+      - mode_quiet_hours_user
+      - mode_do_not_disturb_user
+      - mode_focus_mode_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_privacy_mode
+      - mode_reduced_attention_policy
+      - mode_power_saver_runtime
+    forbidden_modes:
+      - mode_admin_suppression
+    allowed_escalation_reasons:
+      - trust_state_changed
+      - required_authority_changed
+      - policy_epoch_changed
+    allowed_break_delivery_surfaces:
+      - contextual_banner
+      - attention_item
+      - review_sheet
+    privacy_payload_class: lock_screen_safe_scoped
+    badge_class_review_ref: ux:badge-review:security_notices
+    canonical_object_kind: trust_review_record
+    must_route_through_review_sheet: true
+    requires_revalidation: true
+    evidence_preservation:
+      preserves_durable_history: true
+      preserves_critical_safety_tier: true
+      required_evidence_kinds:
+        - lineage_escalation_recorded
+        - suppression_record_release_recorded
+        - audit_trail_record_ref_present
+        - interaction_safety_packet_id_ref_present
+      retained_record_refs:
+        - schemas/ux/notification_suppression_record.schema.json#suppression_record
+        - schemas/ux/event_lineage.schema.json#event_lineage_record
+    notes_label: >
+      A workspace trust state moves from trusted to restricted while
+      a user-level mode is active. The break renders an in-product
+      banner plus an attention item; the active workflow cannot
+      continue safely without the interruption. The lock-screen
+      summary stays scoped (workspace label only) and reopen
+      denies with reopen_denied_requires_revalidation until the user
+      re-enters the trust review canvas.
+
+  - record_kind: quiet_hours_override_row_record
+    override_row_id: ux:quiet-hours-override:approval_expiry_break:01
+    override_event_class: approval_expiry_break
+    override_scope_class: active_review_apply_session
+    allowed_break_target_tier: tier_blocking_trust
+    eligible_modes:
+      - mode_quiet_hours_user
+      - mode_do_not_disturb_user
+      - mode_focus_mode_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_reduced_attention_policy
+      - mode_power_saver_runtime
+    forbidden_modes:
+      - mode_privacy_mode
+      - mode_admin_suppression
+    allowed_escalation_reasons:
+      - duration_threshold_crossed
+      - required_authority_changed
+      - provider_grant_narrowed
+    allowed_break_delivery_surfaces:
+      - contextual_banner
+      - attention_item
+      - review_sheet
+    privacy_payload_class: lock_screen_safe_scoped
+    badge_class_review_ref: ux:badge-review:needs_review
+    canonical_object_kind: approval_request_record
+    must_route_through_review_sheet: true
+    requires_revalidation: false
+    evidence_preservation:
+      preserves_durable_history: true
+      preserves_critical_safety_tier: true
+      required_evidence_kinds:
+        - lineage_escalation_recorded
+        - lineage_reopen_recorded
+        - suppression_record_release_recorded
+        - audit_trail_record_ref_present
+        - badge_record_updated
+      retained_record_refs:
+        - schemas/ux/notification_suppression_record.schema.json#suppression_record
+        - schemas/ux/event_lineage.schema.json#event_lineage_record
+        - schemas/ux/notification_event.schema.json#notification_event_record
+    notes_label: >
+      An approval ticket attached to an active review-apply session
+      is about to expire. The break renders a banner plus attention
+      item so the user can re-approve, re-route, or cancel before
+      authority lapses. Held under mode_privacy_mode the break
+      denies because in-product surfaces stay available there
+      already; the privacy mode still suppresses every OS-level
+      surface and the lock-screen summary.
+
+  - record_kind: quiet_hours_override_row_record
+    override_row_id: ux:quiet-hours-override:route_warning_break:01
+    override_event_class: route_warning_break
+    override_scope_class: active_provider_handoff_session
+    allowed_break_target_tier: tier_blocking_trust
+    eligible_modes:
+      - mode_quiet_hours_user
+      - mode_do_not_disturb_user
+      - mode_focus_mode_user
+      - mode_presentation
+      - mode_screen_share
+      - mode_reduced_attention_policy
+      - mode_power_saver_runtime
+    forbidden_modes:
+      - mode_privacy_mode
+      - mode_admin_suppression
+    allowed_escalation_reasons:
+      - basis_snapshot_drifted
+      - provider_grant_narrowed
+      - required_authority_changed
+    allowed_break_delivery_surfaces:
+      - contextual_banner
+      - attention_item
+    privacy_payload_class: lock_screen_safe_scoped
+    badge_class_review_ref: ux:badge-review:security_notices
+    canonical_object_kind: provider_grant_record
+    must_route_through_review_sheet: true
+    requires_revalidation: true
+    evidence_preservation:
+      preserves_durable_history: true
+      preserves_critical_safety_tier: true
+      required_evidence_kinds:
+        - lineage_escalation_recorded
+        - suppression_record_release_recorded
+        - lineage_reopen_recorded
+        - audit_trail_record_ref_present
+      retained_record_refs:
+        - schemas/ux/notification_suppression_record.schema.json#suppression_record
+        - schemas/ux/event_lineage.schema.json#event_lineage_record
+    notes_label: >
+      A provider handoff or browser-handoff approval ticket route
+      becomes unsafe (provider grant narrowed, target route changed,
+      basis snapshot drifted). The user is shown a banner plus an
+      attention item and reopen denies with
+      reopen_denied_requires_revalidation until the user re-enters
+      the provider grant review canvas. The OS notification stays
+      lock_screen_safe_scoped; raw URLs and raw provider payloads
+      never reach the OS sink.
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: override_target_tier_bounded
+    description: >
+      Every override row resolves to tier_blocking_trust or
+      tier_critical_safety. An override that targets tier_durable,
+      tier_actionable, tier_transient, or tier_ambient denies with
+      interruption_tier_escalated_without_trigger.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: interruption_tier_escalated_without_trigger
+
+  - id: override_event_class_named
+    description: >
+      Every override row pins one override_event_class from the
+      closed four. A break that records no override_event_class
+      denies with override_event_class_unresolved (re-exported
+      through lineage_denial_emitted).
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: override_event_class_unresolved
+
+  - id: escalation_reason_typed
+    description: >
+      Every override row pins at least one allowed escalation_reason
+      from the upstream closed set. Decorative escalation denies
+      with escalation_reason_missing_on_tier_change.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: escalation_reason_missing_on_tier_change
+
+  - id: durable_history_always_preserved
+    description: >
+      Every override row asserts
+      evidence_preservation.preserves_durable_history = true.
+      An override that discards durable history denies with
+      quiet_hours_hold_discarded_durable_history.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: quiet_hours_hold_discarded_durable_history
+
+  - id: critical_safety_always_renders
+    description: >
+      Every override row asserts
+      evidence_preservation.preserves_critical_safety_tier = true.
+      An override that discards critical safety denies with
+      quiet_hours_hold_discarded_critical_safety_tier.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: quiet_hours_hold_discarded_critical_safety_tier
+
+  - id: admin_suppression_never_overridden
+    description: >
+      mode_admin_suppression appears on forbidden_modes for every
+      override row. Admin policy MAY narrow further; admin
+      suppression MAY NOT be overridden into delivery. A break that
+      crosses admin policy denies with
+      admin_suppression_blocked_critical_safety.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: admin_suppression_blocked_critical_safety
+
+  - id: redaction_never_bypassed
+    description: >
+      Every override row pins privacy_payload_class to
+      lock_screen_safe_generic or lock_screen_safe_scoped on
+      OS-bound surfaces. Raw bodies, raw paths, raw URLs, raw
+      secret material, and raw prompt / completion text never
+      reach the OS sink even when a break is active.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: privacy_payload_class_widened_across_clients
+
+  - id: review_sheet_route_required
+    description: >
+      Every override row asserts must_route_through_review_sheet =
+      true (or names a review_sheet_ref through bypass_protection).
+      A break that completes a high-risk action from the OS payload
+      denies with high_risk_shortcut_bypassed_review_sheet.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: high_risk_shortcut_bypassed_review_sheet
+
+  - id: evidence_preservation_complete
+    description: >
+      Every override row's evidence_preservation block lists at
+      least one required_evidence_kind from the closed seven and at
+      least one retained_record_ref. A break that releases without
+      one of those evidence kinds recorded denies with
+      held_event_missing_audit_trail.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: held_event_missing_audit_trail
+
+  - id: generic_urgency_forbidden
+    description: >
+      Reviewer-side rule. An override row whose justification
+      relies on any forbidden_generic_urgency_phrase
+      (urgent / critical_general / high_priority /
+      escalated_general / immediate_attention /
+      time_sensitive_general) denies with
+      override_justification_generic.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: override_justification_generic
+
+  - id: schema_version_alignment
+    description: >
+      All emitted quiet_hours_override_row_record instances share
+      schema_version with the registry; surfaces lagging behind a
+      schema bump are denied.
+    failure_event: activity_event_envelope_schema_version_bumped
+    failure_denial_reason: activity_event_envelope_schema_version_lagging

@@ -1,0 +1,487 @@
+# Badge-class / source review matrix.
+#
+# Companion to docs/ux/notification_privacy_dedupe_audit.md and to the
+# closed badge_class enum frozen in
+# docs/ux/attention_activity_taxonomy.md (§Badge class) and re-exported
+# by schemas/ux/notification_event.schema.json and
+# schemas/ux/activity_event_envelope.schema.json. This file binds every
+# closed badge_class value to one or more frozen source_subsystem
+# values, one canonical-object kind, one count-basis rule, one held-
+# count posture, one privileged-detail review surface, and one
+# clears-on rule so reviewers can confirm — before the notification
+# router and badge counters land — that every count traces back to a
+# canonical durable row or authoritative object rather than a
+# surface-local counter.
+#
+# Rules (frozen):
+#   - This file does not mint new badge classes, source subsystems,
+#     count bases, clears-on rules, or canonical-object kinds. Every
+#     value is re-exported from the upstream schemas.
+#   - Every row pins exactly one badge_class. A surface that combines
+#     classes into one overloaded count denies with
+#     badge_count_inflation_mixed_classes.
+#   - Every row names canonical_object_kind from the durable-attention
+#     target_kind vocabulary or one of the closed authoritative-object
+#     kinds re-exported below; counts that point at surface-local
+#     counters are non-conforming.
+#   - Every row assigns held_or_suppressed_posture so suppressed events
+#     remain reviewable; a row that hides held items in a generic
+#     unread total is non-conforming.
+#   - Adding a row pinned to an additional source_subsystem is
+#     additive-minor; adding a new badge_class requires a schema bump
+#     and a decision row.
+
+schema_version: 1
+matrix_id: aureline.ux.badge_class_review.v1
+status: seeded
+
+source_doc_refs:
+  notification_privacy_dedupe_audit: docs/ux/notification_privacy_dedupe_audit.md
+  attention_activity_taxonomy: docs/ux/attention_activity_taxonomy.md
+  notification_contract: docs/ux/notification_contract.md
+  notification_delivery_contract: docs/ux/notification_delivery_contract.md
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  durable_work_contract: docs/ux/durable_work_contract.md
+  durable_attention_corpus: artifacts/ux/durable_attention_corpus.yaml
+
+companion_artifact_refs:
+  notification_event_schema: schemas/ux/notification_event.schema.json
+  activity_event_envelope_schema: schemas/ux/activity_event_envelope.schema.json
+  job_row_schema: schemas/ux/job_row.schema.json
+  event_lineage_schema: schemas/ux/event_lineage.schema.json
+  notification_suppression_record_schema: schemas/ux/notification_suppression_record.schema.json
+  notification_privacy_cases: fixtures/ux/notification_privacy_cases/
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from the upstream schemas. Tooling reads
+# these blocks; rows MUST NOT use values outside the enumerations below.
+# ---------------------------------------------------------------------------
+
+badge_class_vocabulary:
+  - needs_review
+  - failed_runs
+  - mentions
+  - security_notices
+  - session_requests
+  - offline_publish_pending
+  - durable_running_count
+  - held_or_suppressed_count
+  - completion_unread
+
+source_subsystem_vocabulary:
+  - editor
+  - terminal
+  - review_and_diff
+  - palette_and_search
+  - install_update_attach
+  - ai_apply
+  - collaboration
+  - provider_bearing
+  - docs_help_service_health
+  - support_export
+  - build_system
+  - test_runner
+  - debug_session
+  - task_runner
+  - indexer
+  - vfs_save
+  - sync_mirror
+  - notebook_kernel
+  - remote_agent
+  - extension_host
+  - workspace_trust
+  - policy_resolver
+  - admin_policy
+  - secret_broker
+  - runtime_power_manager
+  - shell
+
+count_basis_vocabulary:
+  - none
+  - deduped_canonical_event
+  - deduped_durable_item
+  - group_member_count
+
+clears_on_vocabulary:
+  - never
+  - acknowledge
+  - resolve
+  - dismiss_transient_only
+  - mode_exit_digest_reviewed
+
+# canonical_object_kind values are a closed set re-exported from the
+# durable-attention corpus target_kind_vocabulary plus the
+# authoritative-object kinds named in the upstream contracts. Counts
+# that point at any other kind deny with badge_class_unlabelled.
+canonical_object_kind_vocabulary:
+  - durable_job_row
+  - attention_item
+  - activity_center_digest_card
+  - digest_group_row
+  - review_apply_record
+  - approval_request_record
+  - collaboration_session_record
+  - mention_thread_record
+  - security_advisory_record
+  - trust_review_record
+  - provider_grant_record
+  - workspace_admission_record
+  - offline_publish_queue_record
+  - history_lane_row
+  - evidence_packet_row
+
+held_or_suppressed_posture_vocabulary:
+  - count_displayed_alongside_unread
+  - count_displayed_on_held_or_suppressed_count_only
+  - count_not_applicable
+
+privileged_detail_review_surface_vocabulary:
+  - in_product_review_sheet
+  - in_product_attention_item
+  - in_product_durable_job_row
+  - in_product_activity_center_digest_card
+  - in_product_diff_view
+  - in_product_evidence_packet_row
+  - in_product_collaboration_inbox
+  - in_product_security_review_canvas
+  - in_product_trust_review_canvas
+  - in_product_provider_grant_review_canvas
+  - in_product_offline_publish_queue_canvas
+
+# ---------------------------------------------------------------------------
+# Per-badge-class review rows. Each row binds the closed badge_class to
+# the source subsystems that may increment it, the canonical-object
+# kind the count must resolve to, the closed count basis, the closed
+# clears-on rule, the held-or-suppressed posture, and the in-product
+# privileged-detail review surface. Surface-local counters are listed
+# explicitly as non-conforming.
+# ---------------------------------------------------------------------------
+badge_review_rows:
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:needs_review
+    badge_class: needs_review
+    eligible_source_subsystems:
+      - review_and_diff
+      - ai_apply
+      - collaboration
+      - provider_bearing
+      - workspace_trust
+      - admin_policy
+    canonical_object_kinds:
+      - attention_item
+      - review_apply_record
+      - approval_request_record
+      - activity_center_digest_card
+      - digest_group_row
+    count_basis_rule: deduped_durable_item
+    held_or_suppressed_posture: count_displayed_alongside_unread
+    clears_on_rule: resolve
+    privileged_detail_review_surface: in_product_review_sheet
+    cross_client_collapse_required: true
+    notes_label: >
+      One needs_review increment per durable review-bearing object
+      (review item, AI-apply candidate, approval request, scoped
+      digest). The badge counts the durable items, never the toasts
+      or system-notification mirrors that announce them. Held items
+      stay visible through held_or_suppressed_count alongside the
+      primary unread count.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:failed_runs
+    badge_class: failed_runs
+    eligible_source_subsystems:
+      - build_system
+      - test_runner
+      - debug_session
+      - task_runner
+      - indexer
+      - vfs_save
+      - sync_mirror
+      - notebook_kernel
+      - remote_agent
+      - install_update_attach
+      - ai_apply
+      - provider_bearing
+    canonical_object_kinds:
+      - durable_job_row
+      - attention_item
+      - digest_group_row
+    count_basis_rule: deduped_durable_item
+    held_or_suppressed_posture: count_displayed_alongside_unread
+    clears_on_rule: resolve
+    privileged_detail_review_surface: in_product_durable_job_row
+    cross_client_collapse_required: true
+    notes_label: >
+      Retry bursts collapse via subsystem_plus_object_plus_phase. The
+      badge counts the deduped durable-job row, not each retry
+      envelope. Repeated dedupe at threshold escalates the lineage
+      with repeated_dedupe_threshold_crossed and may add an
+      attention_item; the badge still increments once per durable
+      row.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:mentions
+    badge_class: mentions
+    eligible_source_subsystems:
+      - collaboration
+      - review_and_diff
+      - provider_bearing
+    canonical_object_kinds:
+      - mention_thread_record
+      - attention_item
+      - collaboration_session_record
+    count_basis_rule: deduped_canonical_event
+    held_or_suppressed_posture: count_displayed_alongside_unread
+    clears_on_rule: acknowledge
+    privileged_detail_review_surface: in_product_collaboration_inbox
+    cross_client_collapse_required: true
+    notes_label: >
+      mentions counts deduped canonical mention events; multiple
+      replies in one thread share canonical_event_id and increment
+      the count once. Cross-client fanout collapses via
+      cross_client_canonical_event_id; a managed-admin client that
+      renews per-device events denies with
+      companion_cross_client_divergence.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:security_notices
+    badge_class: security_notices
+    eligible_source_subsystems:
+      - workspace_trust
+      - policy_resolver
+      - admin_policy
+      - secret_broker
+      - provider_bearing
+      - install_update_attach
+    canonical_object_kinds:
+      - security_advisory_record
+      - trust_review_record
+      - provider_grant_record
+      - workspace_admission_record
+      - attention_item
+    count_basis_rule: deduped_durable_item
+    held_or_suppressed_posture: count_displayed_alongside_unread
+    clears_on_rule: resolve
+    privileged_detail_review_surface: in_product_security_review_canvas
+    cross_client_collapse_required: true
+    notes_label: >
+      security_notices counts durable security or trust-review items
+      and is the badge class that may participate in the quiet-hours
+      override matrix when the underlying advisory or downgrade is
+      tier_blocking_trust or tier_critical_safety. The count never
+      reads from a per-toast counter; the canonical advisory or
+      review record is the source of truth.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:session_requests
+    badge_class: session_requests
+    eligible_source_subsystems:
+      - collaboration
+      - remote_agent
+      - debug_session
+      - notebook_kernel
+      - provider_bearing
+    canonical_object_kinds:
+      - collaboration_session_record
+      - attention_item
+    count_basis_rule: deduped_canonical_event
+    held_or_suppressed_posture: count_displayed_alongside_unread
+    clears_on_rule: resolve
+    privileged_detail_review_surface: in_product_attention_item
+    cross_client_collapse_required: true
+    notes_label: >
+      session_requests counts deduped invite / join / handoff events
+      addressed at the user; multiple invites for one session share
+      canonical_event_id. Companion push and OS notifications mirror
+      the count without becoming the source of truth.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:offline_publish_pending
+    badge_class: offline_publish_pending
+    eligible_source_subsystems:
+      - provider_bearing
+      - sync_mirror
+      - vfs_save
+      - support_export
+    canonical_object_kinds:
+      - offline_publish_queue_record
+      - durable_job_row
+    count_basis_rule: deduped_durable_item
+    held_or_suppressed_posture: count_displayed_on_held_or_suppressed_count_only
+    clears_on_rule: resolve
+    privileged_detail_review_surface: in_product_offline_publish_queue_canvas
+    cross_client_collapse_required: true
+    notes_label: >
+      offline_publish_pending counts queued publish entries waiting
+      for connectivity, provider grant, or admin approval. The badge
+      never inflates with retry attempts; one queue entry equals one
+      count regardless of how many transient toasts mirror its state.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:durable_running_count
+    badge_class: durable_running_count
+    eligible_source_subsystems:
+      - build_system
+      - test_runner
+      - debug_session
+      - task_runner
+      - indexer
+      - vfs_save
+      - sync_mirror
+      - install_update_attach
+      - ai_apply
+      - provider_bearing
+      - notebook_kernel
+      - remote_agent
+      - support_export
+    canonical_object_kinds:
+      - durable_job_row
+    count_basis_rule: deduped_durable_item
+    held_or_suppressed_posture: count_displayed_on_held_or_suppressed_count_only
+    clears_on_rule: never
+    privileged_detail_review_surface: in_product_durable_job_row
+    cross_client_collapse_required: true
+    notes_label: >
+      durable_running_count tracks how many durable jobs are running
+      right now. The count derives from durable_job_row lifecycle
+      state (queued, running, needs_approval, attention_required);
+      it does not increment on toast deliveries or background polls.
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:held_or_suppressed_count
+    badge_class: held_or_suppressed_count
+    eligible_source_subsystems:
+      - shell
+      - admin_policy
+      - workspace_trust
+      - runtime_power_manager
+      - policy_resolver
+    canonical_object_kinds:
+      - activity_center_digest_card
+      - digest_group_row
+      - attention_item
+    count_basis_rule: group_member_count
+    held_or_suppressed_posture: count_displayed_on_held_or_suppressed_count_only
+    clears_on_rule: mode_exit_digest_reviewed
+    privileged_detail_review_surface: in_product_activity_center_digest_card
+    cross_client_collapse_required: true
+    notes_label: >
+      held_or_suppressed_count is the dedicated badge for events
+      held under quiet-hours, focus, presentation, screen-share,
+      privacy, reduced-attention, power-saver, or admin suppression
+      modes. It is rendered alongside the primary class count in
+      compact-shell overflow so suppression is never silent
+      (badge_persisted_after_state_cleared / badge_class_unlabelled
+      apply when this rule is violated).
+
+  - record_kind: badge_class_review_row_record
+    review_row_id: ux:badge-review:completion_unread
+    badge_class: completion_unread
+    eligible_source_subsystems:
+      - build_system
+      - test_runner
+      - debug_session
+      - task_runner
+      - indexer
+      - vfs_save
+      - sync_mirror
+      - install_update_attach
+      - ai_apply
+      - provider_bearing
+      - notebook_kernel
+      - remote_agent
+      - support_export
+      - docs_help_service_health
+    canonical_object_kinds:
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+    count_basis_rule: deduped_durable_item
+    held_or_suppressed_posture: count_displayed_alongside_unread
+    clears_on_rule: acknowledge
+    privileged_detail_review_surface: in_product_durable_job_row
+    cross_client_collapse_required: true
+    notes_label: >
+      completion_unread counts unread completed durable jobs. It is
+      separate from failed_runs (which counts retryable failures) and
+      from durable_running_count (which tracks live work). Combining
+      these into a single overloaded count denies with
+      badge_count_inflation_mixed_classes.
+
+# ---------------------------------------------------------------------------
+# Surface-local counters explicitly forbidden. A surface that maintains
+# any of the following denies with badge_count_unsourced_from_durable_row.
+# Listed so review tooling can detect regressions without re-deriving
+# the rule from prose.
+# ---------------------------------------------------------------------------
+forbidden_surface_local_counters:
+  - per_toast_delivery_counter
+  - per_os_notification_delivery_counter
+  - per_companion_push_delivery_counter
+  - per_dock_or_taskbar_progress_counter
+  - per_lock_screen_summary_delivery_counter
+  - per_status_strip_delivery_counter
+  - per_session_render_counter
+  - per_render_pass_unread_counter
+  - per_window_unread_counter
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+invariants:
+
+  - id: every_count_traces_to_canonical_object
+    description: >
+      Every badge_record names a canonical_object_kind from the
+      vocabulary above and resolves through the corresponding
+      schema-defined record. A badge that points at a surface-local
+      counter denies with badge_count_unsourced_from_durable_row.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: badge_count_unsourced_from_durable_row
+
+  - id: classes_never_combine
+    description: >
+      A badge_record names exactly one badge_class. A render that
+      combines classes into one overloaded count denies with
+      badge_count_inflation_mixed_classes.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: badge_count_inflation_mixed_classes
+
+  - id: held_count_never_silent
+    description: >
+      Whenever held_or_suppressed_posture is
+      count_displayed_alongside_unread or
+      count_displayed_on_held_or_suppressed_count_only, a non-zero
+      held tally must render so suppression is never silent. A
+      badge that hides its held tally denies with
+      badge_persisted_after_state_cleared.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: badge_persisted_after_state_cleared
+
+  - id: cross_client_collapse_enforced
+    description: >
+      Every row in this matrix asserts cross_client_collapse_required
+      true. Per-client renewal of a count denies with
+      companion_cross_client_divergence; the canonical event id
+      collapses the count across desktop, companion, remote-agent,
+      and managed-admin clients.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: companion_cross_client_divergence
+
+  - id: privileged_detail_lives_in_product
+    description: >
+      Every row names exactly one privileged_detail_review_surface
+      from the in-product vocabulary. An OS-level surface that
+      becomes the privileged-detail destination denies with
+      privacy_payload_class_widened_across_clients.
+    failure_event: lineage_denial_emitted
+    failure_denial_reason: privacy_payload_class_widened_across_clients
+
+  - id: schema_version_alignment
+    description: >
+      All emitted badge_class_review_row_record instances share
+      schema_version with the registry; surfaces lagging behind a
+      schema bump are denied.
+    failure_event: activity_event_envelope_schema_version_bumped
+    failure_denial_reason: activity_event_envelope_schema_version_lagging

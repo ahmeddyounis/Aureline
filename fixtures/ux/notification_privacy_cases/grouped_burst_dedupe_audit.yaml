@@ -1,0 +1,113 @@
+# Grouped-burst dedupe audit case.
+#
+# Reviewer-side fixture for
+# docs/ux/notification_privacy_dedupe_audit.md §1 (grouped-burst
+# dedupe). Binds one grouped_burst_record, one event_lineage_record,
+# the per-surface notification_event_record envelopes, and one badge
+# row to prove that repeated deliveries collapse under a single
+# canonical_event_id and grouped_burst_id rather than stacking
+# toasts, badges, or OS notifications.
+__fixture__:
+  name: grouped_burst_dedupe_audit
+  scenario: >
+    Twelve provider-shared CI updates arrive in sequence under
+    mode_quiet_hours_user. They share one canonical_event_id and one
+    grouped_burst_id; member_count evolves as new envelopes arrive;
+    on mode exit the burst releases as one
+    activity_center_digest_card with member_count = 12 and the
+    badge increments needs_review by one.
+  audit_row_ref: notification_privacy_dedupe_audit#grouped_burst_dedupe
+  contract_sections:
+    - "Audit rows §1 Grouped-burst dedupe"
+  exercised_axes:
+    dedupe_key_scheme: grouped_burst_id
+    canonical_event_id_consistent: true
+    grouped_burst_id_consistent: true
+    badge_count_basis: deduped_durable_item
+    release_trigger_class: mode_exit_grouped_digest
+
+audit_binding:
+  canonical_event_id: ux:event:provider-ci-burst:01
+  event_lineage_id_ref: ux:lineage:provider-ci-burst:01
+  canonical_object_target_ref: obj:provider-thread:provider-ci-burst:01
+  source_subsystem: provider_bearing
+  actor_identity_ref: id:actor:system:provider-sync
+
+dedupe_proof:
+  record_kind: grouped_burst_record
+  grouped_burst_id: ux:burst:provider-ci-burst:01
+  dedupe_key_scheme: grouped_burst_id
+  member_count: 12
+  first_event_id_ref: ux:event-envelope:provider-ci-burst:first
+  latest_event_id_ref: ux:event-envelope:provider-ci-burst:latest
+  digest_released_after_hold: true
+  cross_client_lineage_refs:
+    - ux:cross-client:desktop:provider-ci-burst:01
+    - ux:cross-client:companion:provider-ci-burst:01
+
+surface_envelopes:
+  - record_kind: activity_event_envelope_record
+    envelope_id: ux:env:provider-ci-burst:01:digest
+    canonical_event_id: ux:event:provider-ci-burst:01
+    delivery_surface_class: activity_center_digest_card
+    grouped_burst_id_ref: ux:burst:provider-ci-burst:01
+    quiet_hours_mode_at_mint:
+      - mode_quiet_hours_user
+    suppression_reasons:
+      - quiet_hours_user_policy
+      - release_pending_next_unsuppressed_surface
+  - record_kind: activity_event_envelope_record
+    envelope_id: ux:env:provider-ci-burst:01:os-mirror
+    canonical_event_id: ux:event:provider-ci-burst:01
+    delivery_surface_class: os_notification
+    grouped_burst_id_ref: ux:burst:provider-ci-burst:01
+    quiet_hours_mode_at_mint:
+      - mode_quiet_hours_user
+    suppression_reasons:
+      - quiet_hours_user_policy
+      - release_pending_next_unsuppressed_surface
+
+release_proof:
+  record_kind: release_step_record
+  kind: mode_exit_grouped_digest
+  grouped_burst_id_ref: ux:burst:provider-ci-burst:01
+  member_count: 12
+  released_to_delivery_surface_class: activity_center_digest_card
+  released_with_privacy_payload_class: in_product_only
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:needs_review
+  record_kind: badge_record
+  badge_class: needs_review
+  count_delta: 1
+  count_basis: group_member_count
+  badge_count_semantics_label: >
+    The digest counts one reviewable group; the twelve members
+    appear inside the digest card without inflating the badge.
+
+reviewer_checks:
+  - id: shared_canonical_event_id
+    description: >
+      Every emitted envelope and notification_event_record names
+      ux:event:provider-ci-burst:01.
+    pass: true
+  - id: closed_dedupe_scheme
+    description: >
+      dedupe_key_scheme is grouped_burst_id (one of the closed
+      five); collapsed_delivery_count = 12.
+    pass: true
+  - id: no_stacked_toasts
+    description: >
+      No envelope renders as toast with
+      shows_individual_member_toasts = true.
+    pass: true
+  - id: digest_release_recorded
+    description: >
+      Mode exit emits release_step_record with kind =
+      mode_exit_grouped_digest and member_count = 12.
+    pass: true
+
+denial_reasons_avoided:
+  - dedupe_violated_stacked_toasts
+  - grouped_burst_split_without_new_lineage
+  - companion_cross_client_divergence

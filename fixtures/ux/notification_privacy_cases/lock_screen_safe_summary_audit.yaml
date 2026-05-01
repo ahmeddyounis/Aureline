@@ -1,0 +1,119 @@
+# Lock-screen-safe summary audit case.
+#
+# Reviewer-side fixture for
+# docs/ux/notification_privacy_dedupe_audit.md §3 (lock-screen-safe
+# summaries). Binds one notification_event_record, one
+# notification_suppression_record (privacy-redaction subset),
+# one privacy_safe_payload_rule_record reference, and the in-product
+# review canvas reopen target to prove that an OS-bound payload
+# carries only category-level (or scoped) labels and that every
+# stripped forbidden label kind is recorded.
+__fixture__:
+  name: lock_screen_safe_summary_audit
+  scenario: >
+    A workspace-trust review item is escalated to an OS notification
+    while the device is on the lock screen. The payload is
+    redacted to lock_screen_safe_scoped (category + workspace label
+    + lifecycle phase); raw_url, raw_provider_payload, and
+    object_identity_on_lock_screen are stripped before bytes reach
+    the OS sink. Reopen routes through the in-product trust review
+    canvas; the canonical event id is preserved end-to-end.
+  audit_row_ref: notification_privacy_dedupe_audit#lock_screen_safe_summaries
+  contract_sections:
+    - "Audit rows §3 Lock-screen-safe summaries"
+    - "Privacy-safe summaries vs. privileged details"
+  exercised_axes:
+    privacy_payload_class: lock_screen_safe_scoped
+    stripped_label_kinds:
+      - raw_url
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+    reopen_target_kind: review_context
+    must_resolve_through_in_product_surface: true
+
+audit_binding:
+  canonical_event_id: ux:event:trust-review:workspace-A:01
+  event_lineage_id_ref: ux:lineage:trust-review:workspace-A:01
+  canonical_object_target_ref: obj:trust-review:workspace-A:01
+  source_subsystem: workspace_trust
+  actor_identity_ref: id:actor:system:trust-review
+
+suppression_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:trust-review:workspace-A:lock-screen
+  intended_delivery_surface_class: lock_screen_summary
+  intended_privacy_payload_class: lock_screen_safe_scoped
+  intended_interruptibility_tier: tier_blocking_trust
+  suppression_class: redacted_for_lock_screen
+  suppression_outcome: delivered_redacted
+  active_quiet_hours_modes_at_decision:
+    - mode_none
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:trust-review-canvas:workspace-A:01
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+privacy_redaction_proof:
+  record_kind: privacy_redaction_block
+  applied_payload_class: lock_screen_safe_scoped
+  privacy_safe_payload_rule_ref: schemas/ux/notification_suppression_record.schema.json#privacy_safe_payload_rule_record
+  redacted_summary_label: >
+    Trust review pending in {workspace_label}
+  redaction_template_tokens:
+    - "{category}"
+    - "{workspace_label}"
+    - "{lifecycle_phase}"
+  stripped_label_kinds:
+    - raw_url
+    - raw_provider_payload
+    - object_identity_on_lock_screen
+  lock_screen_safe: true
+  companion_safe: true
+  system_notification_safe: true
+
+exact_reopen_proof:
+  record_kind: exact_reopen_linkage
+  reopen_target_kind: review_context
+  target_identity_ref: obj:trust-review-canvas:workspace-A:01
+  command_id_ref: cmd:trust.open_review_canvas
+  must_resolve_through_in_product_surface: true
+  preserves_canonical_event_id: true
+  preserves_canonical_object_identity: true
+
+reviewer_checks:
+  - id: default_or_scoped_payload_class
+    description: >
+      privacy_payload_class is lock_screen_safe_scoped (or
+      lock_screen_safe_generic). in_product_only would deny on the
+      lock-screen surface.
+    pass: true
+  - id: stripped_kinds_recorded
+    description: >
+      privacy_redaction.stripped_label_kinds enumerates every
+      forbidden kind removed from the payload.
+    pass: true
+  - id: redaction_tokens_within_closed_set
+    description: >
+      redaction_template_tokens is a subset of the closed eight
+      tokens defined by the upstream schema.
+    pass: true
+  - id: reopen_in_product
+    description: >
+      Reopen lands on the in-product trust review canvas;
+      must_resolve_through_in_product_surface is true.
+    pass: true
+  - id: privileged_details_in_product_only
+    description: >
+      Advisory text, raw URL, and provider payload remain in the
+      in-product trust review canvas; the lock-screen payload
+      shows category + workspace label + lifecycle phase only.
+    pass: true
+
+denial_reasons_avoided:
+  - privacy_payload_class_missing_on_lock_screen
+  - privacy_payload_class_widened_across_clients
+  - raw_body_forbidden_on_os_notification
+  - raw_prompt_text_forbidden_on_os_notification
+  - raw_secret_forbidden_on_any_surface

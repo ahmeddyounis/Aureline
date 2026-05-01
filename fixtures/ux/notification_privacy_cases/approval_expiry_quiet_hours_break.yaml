@@ -1,0 +1,147 @@
+# Approval-expiry quiet-hours break.
+#
+# Reviewer-side fixture for
+# artifacts/ux/quiet_hours_override_matrix.yaml row
+# ux:quiet-hours-override:approval_expiry_break:01.
+__fixture__:
+  name: approval_expiry_quiet_hours_break
+  scenario: >
+    A review-apply approval ticket is about to expire while the
+    user is in mode_do_not_disturb_user. The override row breaks
+    the hold at tier_blocking_trust, renders an in-product
+    contextual banner plus an attention item, mirrors a
+    lock_screen_safe_scoped OS notification, and prompts the user
+    to re-approve, re-route, or cancel before authority lapses.
+    mode_privacy_mode and mode_admin_suppression remain forbidden:
+    privacy mode keeps in-product surfaces available already, and
+    admin suppression operates outside this override.
+  override_row_ref: quiet_hours_override_matrix#ux:quiet-hours-override:approval_expiry_break:01
+  contract_sections:
+    - "Override rows §approval_expiry_break"
+  exercised_axes:
+    override_event_class: approval_expiry_break
+    override_scope_class: active_review_apply_session
+    allowed_break_target_tier: tier_blocking_trust
+    escalation_reason: duration_threshold_crossed
+    privacy_payload_class: lock_screen_safe_scoped
+
+audit_binding:
+  canonical_event_id: ux:event:approval-expiry:review-apply:session-9:01
+  event_lineage_id_ref: ux:lineage:approval-expiry:review-apply:session-9:01
+  canonical_object_target_ref: obj:approval-request:session-9
+  source_subsystem: review_and_diff
+  actor_identity_ref: id:actor:system:approval-clock
+
+quiet_hours_state_at_decision:
+  active_modes:
+    - mode_do_not_disturb_user
+  forbidden_for_this_break:
+    - mode_privacy_mode
+    - mode_admin_suppression
+
+break_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:approval-expiry:session-9:break
+  intended_delivery_surface_class: os_notification
+  intended_privacy_payload_class: lock_screen_safe_scoped
+  intended_interruptibility_tier: tier_blocking_trust
+  suppression_class: held_do_not_disturb_user_policy
+  suppression_outcome: released_on_escalation
+  active_quiet_hours_modes_at_decision:
+    - mode_do_not_disturb_user
+  release_step:
+    release_trigger_class: escalation_to_critical_safety
+    released_to_delivery_surface_class: attention_item
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:review-sheet:session-9:approval
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: duration_threshold_crossed
+  escalated_from_tier: tier_durable
+  escalated_to_tier: tier_blocking_trust
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:review-sheet:session-9:approval
+  must_route_through_approval_workflow: true
+  approval_workflow_ref: obj:approval-workflow:session-9
+  requires_revalidation: false
+  revalidation_reason_label: null
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:approval-expiry:session-9:01
+
+privacy_redaction_proof:
+  record_kind: privacy_redaction_block
+  applied_payload_class: lock_screen_safe_scoped
+  redacted_summary_label: >
+    Approval expiring in {workspace_label}
+  redaction_template_tokens:
+    - "{category}"
+    - "{workspace_label}"
+    - "{session_label}"
+    - "{lifecycle_phase}"
+  stripped_label_kinds:
+    - raw_path
+    - actor_real_name_on_lock_screen
+    - review_diff_excerpt_on_lock_screen
+  lock_screen_safe: true
+  companion_safe: true
+  system_notification_safe: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - lineage_reopen_recorded
+    - suppression_record_release_recorded
+    - audit_trail_record_ref_present
+    - badge_record_updated
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/notification_event.schema.json#notification_event_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:needs_review
+  record_kind: badge_record
+  badge_class: needs_review
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+reviewer_checks:
+  - id: tier_target_blocking_trust
+    description: >
+      The break resolves to tier_blocking_trust; an approval
+      lapsing requires the active workflow to interrupt safely.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      duration_threshold_crossed is recorded; the audit row never
+      relies on generic urgency.
+    pass: true
+  - id: review_sheet_and_approval_workflow_required
+    description: >
+      bypass_protection routes through both a review sheet and an
+      approval workflow before the action can complete.
+    pass: true
+  - id: privacy_mode_forbidden
+    description: >
+      mode_privacy_mode is on the forbidden_modes list; the break
+      never crosses privacy mode because in-product surfaces stay
+      available there already.
+    pass: true
+
+denial_reasons_avoided:
+  - quiet_hours_hold_discarded_durable_history
+  - quiet_hours_hold_discarded_critical_safety_tier
+  - admin_suppression_blocked_critical_safety
+  - escalation_reason_missing_on_tier_change
+  - privacy_payload_class_widened_across_clients
+  - override_justification_generic

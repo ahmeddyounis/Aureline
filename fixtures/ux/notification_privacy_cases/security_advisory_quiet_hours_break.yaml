@@ -1,0 +1,154 @@
+# Security-advisory quiet-hours break.
+#
+# Reviewer-side fixture for
+# artifacts/ux/quiet_hours_override_matrix.yaml row
+# ux:quiet-hours-override:security_advisory_break:01. Binds the
+# canonical advisory record, the suppression record's release step,
+# the lineage's typed escalation reason, and the evidence-preservation
+# block to prove that a confirmed credential-compromise advisory may
+# break mode_quiet_hours_user, render at tier_critical_safety, and
+# preserve every required audit trail.
+__fixture__:
+  name: security_advisory_quiet_hours_break
+  scenario: >
+    The secret broker confirms a compromise of an active credential
+    while the user is in mode_quiet_hours_user. The override row
+    breaks the hold at tier_critical_safety, renders an in-product
+    banner plus attention item, mirrors a lock_screen_safe_generic
+    OS notification, and denies reopen until revalidation. Every
+    required evidence kind is recorded; mode_admin_suppression
+    remains forbidden so the break operates inside admin policy.
+  override_row_ref: quiet_hours_override_matrix#ux:quiet-hours-override:security_advisory_break:01
+  contract_sections:
+    - "Override rows §security_advisory_break"
+  exercised_axes:
+    override_event_class: security_advisory_break
+    override_scope_class: secret_broker_credential_active
+    allowed_break_target_tier: tier_critical_safety
+    escalation_reason: severity_increased
+    privacy_payload_class: lock_screen_safe_generic
+
+audit_binding:
+  canonical_event_id: ux:event:security-advisory:credential-compromise:01
+  event_lineage_id_ref: ux:lineage:security-advisory:credential-compromise:01
+  canonical_object_target_ref: obj:security-advisory:credential-compromise:01
+  source_subsystem: secret_broker
+  actor_identity_ref: id:actor:system:secret-broker
+
+quiet_hours_state_at_decision:
+  active_modes:
+    - mode_quiet_hours_user
+  forbidden_for_this_break:
+    - mode_admin_suppression
+
+break_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:credential-compromise:01:break
+  intended_delivery_surface_class: os_notification
+  intended_privacy_payload_class: lock_screen_safe_generic
+  intended_interruptibility_tier: tier_critical_safety
+  suppression_class: held_quiet_hours_user_policy
+  suppression_outcome: released_on_escalation
+  active_quiet_hours_modes_at_decision:
+    - mode_quiet_hours_user
+  release_step:
+    release_trigger_class: escalation_to_critical_safety
+    released_to_delivery_surface_class: contextual_banner
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:security-review-canvas:credential-compromise:01
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: severity_increased
+  escalated_from_tier: tier_durable
+  escalated_to_tier: tier_critical_safety
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:security-review-canvas:credential-compromise:01
+  must_route_through_approval_workflow: false
+  approval_workflow_ref: null
+  requires_revalidation: true
+  revalidation_reason_label: >
+    Credential compromise requires explicit user re-authentication
+    before the credential is reused.
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:credential-compromise:01
+
+privacy_redaction_proof:
+  record_kind: privacy_redaction_block
+  applied_payload_class: lock_screen_safe_generic
+  redacted_summary_label: >
+    Security review required
+  redaction_template_tokens:
+    - "{category}"
+    - "{severity_class}"
+    - "{audit_only_marker}"
+  stripped_label_kinds:
+    - raw_secret_material
+    - actor_real_name_on_lock_screen
+    - object_identity_on_lock_screen
+  lock_screen_safe: true
+  companion_safe: true
+  system_notification_safe: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - suppression_record_release_recorded
+    - suppression_record_redaction_recorded
+    - audit_trail_record_ref_present
+    - interaction_safety_packet_id_ref_present
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/notification_event.schema.json#notification_event_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:security_notices
+  record_kind: badge_record
+  badge_class: security_notices
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+reviewer_checks:
+  - id: tier_target_critical_safety
+    description: >
+      The break resolves to tier_critical_safety; lower tiers would
+      deny under interruption_tier_escalated_without_trigger.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      The lineage records severity_increased (from the closed
+      escalation set); decorative escalation would deny.
+    pass: true
+  - id: review_sheet_required
+    description: >
+      bypass_protection.must_route_through_review_sheet is true and
+      review_sheet_ref is non-null.
+    pass: true
+  - id: redaction_complete
+    description: >
+      Every forbidden label kind is stripped and recorded;
+      privacy_payload_class is lock_screen_safe_generic.
+    pass: true
+  - id: admin_suppression_not_overridden
+    description: >
+      mode_admin_suppression is on the forbidden_modes list; the
+      override row never crosses admin_overridable = false.
+    pass: true
+
+denial_reasons_avoided:
+  - quiet_hours_hold_discarded_durable_history
+  - quiet_hours_hold_discarded_critical_safety_tier
+  - admin_suppression_blocked_critical_safety
+  - escalation_reason_missing_on_tier_change
+  - high_risk_shortcut_bypassed_review_sheet
+  - override_justification_generic

@@ -1,0 +1,143 @@
+# Trust-downgrade quiet-hours break.
+#
+# Reviewer-side fixture for
+# artifacts/ux/quiet_hours_override_matrix.yaml row
+# ux:quiet-hours-override:trust_downgrade_break:01.
+__fixture__:
+  name: trust_downgrade_quiet_hours_break
+  scenario: >
+    A workspace's trust state moves from trusted to restricted
+    while the user is in mode_focus_mode_user. The override row
+    breaks the hold at tier_blocking_trust, renders an in-product
+    contextual banner plus an attention item, mirrors a
+    lock_screen_safe_scoped OS notification with the workspace
+    label only, and denies reopen until the user re-enters the
+    trust review canvas. The active workflow cannot continue
+    safely without the interruption.
+  override_row_ref: quiet_hours_override_matrix#ux:quiet-hours-override:trust_downgrade_break:01
+  contract_sections:
+    - "Override rows §trust_downgrade_break"
+  exercised_axes:
+    override_event_class: trust_downgrade_break
+    override_scope_class: workspace_trust_state_active
+    allowed_break_target_tier: tier_blocking_trust
+    escalation_reason: trust_state_changed
+    privacy_payload_class: lock_screen_safe_scoped
+
+audit_binding:
+  canonical_event_id: ux:event:trust-state-change:workspace-A:01
+  event_lineage_id_ref: ux:lineage:trust-state-change:workspace-A:01
+  canonical_object_target_ref: obj:trust-state:workspace-A
+  source_subsystem: workspace_trust
+  actor_identity_ref: id:actor:system:trust-resolver
+
+quiet_hours_state_at_decision:
+  active_modes:
+    - mode_focus_mode_user
+  forbidden_for_this_break:
+    - mode_admin_suppression
+
+break_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:trust-state-change:workspace-A:break
+  intended_delivery_surface_class: os_notification
+  intended_privacy_payload_class: lock_screen_safe_scoped
+  intended_interruptibility_tier: tier_blocking_trust
+  suppression_class: held_focus_mode_user_policy
+  suppression_outcome: released_on_escalation
+  active_quiet_hours_modes_at_decision:
+    - mode_focus_mode_user
+  release_step:
+    release_trigger_class: escalation_to_critical_safety
+    released_to_delivery_surface_class: contextual_banner
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:trust-review-canvas:workspace-A:01
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: trust_state_changed
+  escalated_from_tier: tier_durable
+  escalated_to_tier: tier_blocking_trust
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:trust-review-canvas:workspace-A:01
+  must_route_through_approval_workflow: false
+  approval_workflow_ref: null
+  requires_revalidation: true
+  revalidation_reason_label: >
+    Trust state changed; reopen denies until the user re-enters the
+    trust review canvas.
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:trust-state-change:workspace-A:01
+
+privacy_redaction_proof:
+  record_kind: privacy_redaction_block
+  applied_payload_class: lock_screen_safe_scoped
+  redacted_summary_label: >
+    Workspace trust changed in {workspace_label}
+  redaction_template_tokens:
+    - "{category}"
+    - "{workspace_label}"
+    - "{lifecycle_phase}"
+  stripped_label_kinds:
+    - raw_path
+    - raw_url
+    - object_identity_on_lock_screen
+  lock_screen_safe: true
+  companion_safe: true
+  system_notification_safe: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - suppression_record_release_recorded
+    - audit_trail_record_ref_present
+    - interaction_safety_packet_id_ref_present
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:security_notices
+  record_kind: badge_record
+  badge_class: security_notices
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+reviewer_checks:
+  - id: tier_target_blocking_trust
+    description: >
+      The break resolves to tier_blocking_trust; the active workflow
+      cannot continue safely without the interruption.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      trust_state_changed is recorded on the lineage step.
+    pass: true
+  - id: revalidation_required_on_reopen
+    description: >
+      bypass_protection.requires_revalidation is true; reopen
+      denies with reopen_denied_requires_revalidation until the
+      user re-enters the trust review canvas.
+    pass: true
+  - id: scoped_payload_only
+    description: >
+      privacy_payload_class is lock_screen_safe_scoped; only the
+      workspace label appears, not the trust object identity.
+    pass: true
+
+denial_reasons_avoided:
+  - quiet_hours_hold_discarded_durable_history
+  - quiet_hours_hold_discarded_critical_safety_tier
+  - admin_suppression_blocked_critical_safety
+  - escalation_reason_missing_on_tier_change
+  - privacy_payload_class_widened_across_clients
+  - override_justification_generic
