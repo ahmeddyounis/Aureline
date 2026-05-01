@@ -1,0 +1,120 @@
+# Network transition — remote unreachable, local fallback explicit.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = network_transition_remote_unreachable.
+# Binds the upstream system_affordance_case_record (terminal-originated
+# open against a managed workspace whose remote is unreachable) and
+# proves that the user keeps editing local files while remote authority
+# advertises Reconnecting and the in-product surface offers an
+# explicit Local fallback once the user accepts.
+__fixture__:
+  name: network_transition_remote_unreachable
+  scenario: >
+    The laptop roams off the corporate VPN mid-session. The remote
+    workspace transport drops, the managed-workspace attach lapses,
+    and provider callbacks become unreachable. The editor and local
+    terminal continue. The remote terminal, debug, and managed-workspace
+    surfaces advertise Reconnecting; the user accepts Continue local
+    and the surface advertises Local fallback. No write replays into
+    the remote workspace and no provider grant is reused without
+    revalidation.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 network_transition_remote_unreachable"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: network_transition_remote_unreachable
+    lifecycle_state_class: wake_from_sleep
+    expected_state_token_initial: Reconnecting
+    expected_state_token_after_user_accept: Local fallback
+    expected_outcome_class: context_preserved_revalidation_required
+
+case_id: native-lifecycle-case:network-transition:remote-unreachable:01
+drill_case_class: network_transition_remote_unreachable
+lifecycle_state_class: wake_from_sleep
+expected_state_token: Reconnecting
+expected_state_token_after_user_accept: Local fallback
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: fixtures/platform/system_affordance_cases/open_from_terminal_wake_revalidation.json
+  window_display_verification_case_ref: fixtures/platform/window_display_cases/suspend_resume_remote_rebind.json
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:workspace.resume_managed
+  object_identity_ref: obj:managed-workspace:payments:dev:01
+  canonical_event_id_ref: ux:event:managed-workspace:network-transition:01
+  event_lineage_ref: ux:lineage:managed-workspace:network-transition:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:managed-workspace:01
+  trust_state: restricted
+  tenant_or_workspace_scope_ref: scope:managed-workspace:payments:dev
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: wake_from_sleep
+  preserves_context: true
+  revalidation_required: true
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+session_execution_postures:
+  - surface_class: editor_pane
+    posture: live_session_continued
+  - surface_class: local_terminal
+    posture: live_session_continued
+  - surface_class: terminal_pane
+    posture: reconnect_available
+  - surface_class: task_runner
+    posture: rerun_required
+  - surface_class: debug_session
+    posture: reconnect_available
+  - surface_class: preview_route
+    posture: context_unavailable
+
+expected_outcome_class: context_preserved_revalidation_required
+replay_posture: single_use
+fallback_class: continue_local_only
+
+safe_actions:
+  - Continue local
+  - Reconnect
+  - Reauthenticate
+  - Export restore details
+
+must_not_happen:
+  - silent retry of a remote write or remote command
+  - managed workspace authority resumes without user-driven reconnect
+  - dirty buffers are flushed to the unreachable remote on transient connectivity
+  - provider grant is reused after the transport drops without revalidation
+
+audit_event_id: platform.lifecycle_recovery_preserved_context
+
+reviewer_checks:
+  - id: local_work_continues
+    description: >
+      Editor and local terminal continue without interruption while
+      remote surfaces advertise Reconnecting.
+    pass: true
+  - id: explicit_local_fallback
+    description: >
+      Continue local promotes the surface to Local fallback only after
+      explicit user acceptance; no surface silently downgrades.
+    pass: true
+  - id: no_remote_write_replay
+    description: >
+      Pending remote writes are held, not replayed; the user is shown
+      what is pending before any reconnect resumes them.
+    pass: true
+  - id: reauth_routes_through_review
+    description: >
+      Reauthenticate routes through the in-product trust review surface
+      and not through a silent OS keychain unlock.
+    pass: true
+
+denial_reasons_avoided:
+  - lifecycle_recovery_silent_authority_rebind
+  - lifecycle_recovery_destructive_cleanup
+  - replay_denied_origin_mismatch_returned_silently
+  - reopen_to_generic_home_screen

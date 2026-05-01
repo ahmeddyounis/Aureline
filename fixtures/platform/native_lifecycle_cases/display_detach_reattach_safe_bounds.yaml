@@ -1,0 +1,117 @@
+# Display detach / reattach — windows return to safe bounds, layout adjusted.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = display_detach_reattach_safe_bounds.
+# Binds the upstream window_display_verification_case for display
+# detach / redock and proves that windows move into reachable bounds,
+# pane identity and dialog ownership survive, and focus stays visible.
+__fixture__:
+  name: display_detach_reattach_safe_bounds
+  scenario: >
+    A multi-display workspace loses the secondary display when the
+    user undocks a laptop, then regains it on redock. Windows that
+    were on the disconnected display move into reachable bounds on the
+    primary display while preserving pane identity, split intent, and
+    dialog ownership. On redock, the user can accept the recommended
+    re-spread or keep the consolidated layout. Focus remains visible
+    throughout.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 display_detach_reattach_safe_bounds"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: display_detach_reattach_safe_bounds
+    lifecycle_state_class: display_reconnect
+    expected_state_token: Layout adjusted
+    expected_outcome_class: degraded_placeholder
+
+case_id: native-lifecycle-case:display-detach-reattach:safe-bounds:01
+drill_case_class: display_detach_reattach_safe_bounds
+lifecycle_state_class: display_reconnect
+expected_state_token: Layout adjusted
+secondary_state_tokens:
+  - Safe bounds restored
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: null
+  window_display_verification_case_ref: fixtures/platform/window_display_cases/display_detach_dock_safe_bounds.json
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:window.recenter_into_safe_bounds
+  object_identity_ref: obj:workspace-window:payments:detached:01
+  canonical_event_id_ref: ux:event:window-display:topology-change:01
+  event_lineage_ref: ux:lineage:window-display:topology-change:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:window-state:01
+  trust_state: trusted
+  tenant_or_workspace_scope_ref: scope:workspace:payments
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: display_reconnect
+  preserves_context: true
+  revalidation_required: false
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+topology_adjustment_classes:
+  - moved_to_primary_display
+  - stacking_repaired
+
+focus_return_rule: preserve_primary_focus_visible
+restore_provenance_expectation: visible_after_reopen
+
+expected_outcome_class: degraded_placeholder
+replay_posture: read_only_resumable
+fallback_class: open_intent_review_sheet
+
+safe_actions:
+  - Recenter window
+  - Review layout
+  - Re-spread to original displays
+  - Keep consolidated layout
+
+must_not_happen:
+  - dialog left attached to a window that is no longer reachable
+  - window stranded on the disconnected display
+  - focus left on a hidden or off-screen pane
+  - pane id, split intent, or window role lost on detach
+  - re-spread on redock happens without an explicit user choice
+
+audit_event_id: platform.system_affordance_case_exercised
+
+reviewer_checks:
+  - id: safe_bounds_remap
+    description: >
+      Every window that was on the disconnected display moves into
+      reachable bounds on the primary display; raw pixel coordinates
+      are not authoritative.
+    pass: true
+  - id: pane_identity_preserved
+    description: >
+      Pane ids, split intent, and window role survive the detach;
+      placeholder hydration preserves topology if a pane is missing.
+    pass: true
+  - id: dialog_ownership_window_local
+    description: >
+      Modal sheets follow the originating window after move; dismiss /
+      cancel / confirm return focus to the owning surface.
+    pass: true
+  - id: redock_requires_intent
+    description: >
+      Re-spread on redock is offered, not applied silently; the user
+      can accept or keep the consolidated layout.
+    pass: true
+  - id: restore_history_records_adjustment
+    description: >
+      The restore-history record names topology_changed and the
+      adjustment classes applied so the change is inspectable.
+    pass: true
+
+denial_reasons_avoided:
+  - lifecycle_recovery_hidden_focus_steal
+  - off_screen_dialog_orphaned
+  - layout_silent_re_spread
+  - pane_identity_collapsed_on_detach

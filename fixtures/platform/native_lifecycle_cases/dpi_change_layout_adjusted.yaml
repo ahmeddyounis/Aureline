@@ -1,0 +1,105 @@
+# DPI change — readable scale, layout adjusted, controls reachable.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = dpi_change_layout_adjusted.
+# Binds the upstream window_display_verification_case for per-monitor
+# DPI / scale change and proves that readable scale, sheet ownership,
+# and keyboard recovery remain intact across a scale-bucket change.
+__fixture__:
+  name: dpi_change_layout_adjusted
+  scenario: >
+    A window crosses from a Retina or HiDPI display to a non-HiDPI
+    secondary monitor (or vice versa) and the per-monitor DPI bucket
+    changes. The shell reflows readable scale, command surfaces remain
+    reachable, owned sheets follow their owner, and keyboard focus
+    stays visible. Restore history records the scale-bucket change so
+    the adjustment is inspectable.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 dpi_change_layout_adjusted"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: dpi_change_layout_adjusted
+    lifecycle_state_class: dpi_or_topology_change
+    expected_state_token: Layout adjusted
+    expected_outcome_class: degraded_placeholder
+
+case_id: native-lifecycle-case:dpi-change:layout-adjusted:01
+drill_case_class: dpi_change_layout_adjusted
+lifecycle_state_class: dpi_or_topology_change
+expected_state_token: Layout adjusted
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: null
+  window_display_verification_case_ref: fixtures/platform/window_display_cases/mixed_dpi_cross_monitor_reflow.json
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:window.reflow_for_scale_bucket
+  object_identity_ref: obj:workspace-window:payments:reflow:01
+  canonical_event_id_ref: ux:event:window-display:scale-bucket-change:01
+  event_lineage_ref: ux:lineage:window-display:scale-bucket-change:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:window-state:01
+  trust_state: trusted
+  tenant_or_workspace_scope_ref: scope:workspace:payments
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: dpi_or_topology_change
+  preserves_context: true
+  revalidation_required: false
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+topology_adjustment_classes:
+  - scale_normalized
+  - stacking_repaired
+
+focus_return_rule: keep_recovery_actions_keyboard_reachable
+restore_provenance_expectation: topology_adjustment_note_required
+
+expected_outcome_class: degraded_placeholder
+replay_posture: read_only_resumable
+fallback_class: open_intent_review_sheet
+
+safe_actions:
+  - Reflow to readable scale
+  - Recenter sheet on owner
+  - Review layout
+
+must_not_happen:
+  - scale change hides command surface or recovery actions
+  - owned sheet stranded on a different display from its owner
+  - keyboard focus lost across the scale change
+  - readable text becomes illegibly small or comically large
+
+audit_event_id: platform.system_affordance_case_exercised
+
+reviewer_checks:
+  - id: readable_scale_preserved
+    description: >
+      Reflow lands at a readable scale; the active pane, owner dialog,
+      and reflowed inspectors stay visible.
+    pass: true
+  - id: sheet_ownership_preserved
+    description: >
+      Owned sheets follow their owner across the scale-bucket change;
+      none are stranded on a previous display.
+    pass: true
+  - id: keyboard_recovery_intact
+    description: >
+      Keyboard focus stays on the active pane or the next reachable
+      command surface; no focus is lost on the scale change.
+    pass: true
+  - id: restore_history_records_scale
+    description: >
+      The restore-history entry names scale_bucket_changed and the
+      adjustment class so the change is inspectable.
+    pass: true
+
+denial_reasons_avoided:
+  - density_changed_focus_visibility
+  - owned_sheet_stranded_after_scale_change
+  - lifecycle_recovery_hidden_focus_steal

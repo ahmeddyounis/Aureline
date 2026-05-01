@@ -1,0 +1,115 @@
+# Removable volume return — reopen required, identity reconciled, writes held.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = removable_volume_return_review_required.
+# Binds the upstream system_affordance_case_record for removable-volume
+# return and proves the returning root is reconciled against the
+# last-seen identity, writes stay blocked until the user reviews the
+# match, and Local fallback is the resting state until the review
+# completes.
+__fixture__:
+  name: removable_volume_return_review_required
+  scenario: >
+    A workspace root on removable storage returns after the volume
+    was disconnected. Aureline preserves cached context, marks the
+    returning root as stale until identity is reconciled, requires the
+    user to confirm the match, and blocks writes until the review
+    completes. The user can keep editing in Local fallback or accept
+    the match and resume writes.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 removable_volume_return_review_required"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: removable_volume_return_review_required
+    lifecycle_state_class: removable_volume_return
+    expected_state_token: Reopen required
+    expected_outcome_class: context_preserved_revalidation_required
+
+case_id: native-lifecycle-case:removable-volume:return:01
+drill_case_class: removable_volume_return_review_required
+lifecycle_state_class: removable_volume_return
+expected_state_token: Reopen required
+expected_state_token_after_user_accept: Local fallback
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: fixtures/platform/system_affordance_cases/removable_volume_return_cached_context.json
+  window_display_verification_case_ref: null
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:workspace.open_folder
+  object_identity_ref: obj:workspace-root:client-drive:payments:01
+  canonical_event_id_ref: ux:event:workspace-root:volume-return:01
+  event_lineage_ref: ux:lineage:workspace-root:volume-return:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:vfs:01
+  trust_state: restricted
+  tenant_or_workspace_scope_ref: scope:workspace:payments
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: removable_volume_return
+  preserves_context: true
+  revalidation_required: true
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+target_state_on_return:
+  target_kind: workspace_root
+  availability_class: stale_available
+  freshness_class: degraded_cached
+  last_known_good_ref: snapshot:workspace-root:client-drive:payments:cached
+
+expected_outcome_class: context_preserved_revalidation_required
+replay_posture: read_only_resumable
+fallback_class: open_cached_context
+
+safe_actions:
+  - Review returned root
+  - Open cached context
+  - Locate target
+  - Continue local
+
+must_not_happen:
+  - returning volume silently re-enables writes
+  - workspace root is retargeted to a different mount without review
+  - cached dirty buffers are discarded as cleanup
+  - identity reconciliation is skipped because the volume label matches
+
+audit_event_id: platform.lifecycle_recovery_preserved_context
+
+reviewer_checks:
+  - id: identity_reconciled
+    description: >
+      The returning volume is matched against the last-seen identity
+      ref, not just the volume label, before writes are admitted.
+    pass: true
+  - id: writes_held_until_review
+    description: >
+      All writes against the returning root are held until the user
+      explicitly accepts the match through the in-product review.
+    pass: true
+  - id: local_fallback_resting_state
+    description: >
+      The user can keep editing in Local fallback indefinitely; the
+      product never times out into a silent retarget.
+    pass: true
+  - id: cached_context_preserved
+    description: >
+      Cached editor buffers and history remain available across the
+      review; nothing is lost or duplicated.
+    pass: true
+  - id: reopen_routes_to_review
+    description: >
+      Reopen lands on the in-product workspace-trust review surface,
+      not on a generic home screen, and disclosure carries source
+      identity, freshness, and recovery actions.
+    pass: true
+
+denial_reasons_avoided:
+  - lifecycle_recovery_silent_authority_rebind
+  - workspace_root_silent_retarget
+  - lifecycle_recovery_destructive_cleanup
+  - reopen_to_generic_home_screen

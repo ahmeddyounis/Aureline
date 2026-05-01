@@ -1,0 +1,115 @@
+# Expired callback after sleep — reopen required, replay denied.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = expired_callback_after_sleep_reopen_required.
+# Proves that an auth or provider callback that expired during sleep
+# resolves to Reopen required with replay_denied_expired and routes
+# the user back to the in-product reauth flow without silent
+# authority widening.
+__fixture__:
+  name: expired_callback_after_sleep_reopen_required
+  scenario: >
+    The user kicked off a system-default-browser auth handoff before
+    sleep. The laptop sleeps long enough for the browser-handoff
+    return token and the auth approval ticket to expire. After wake,
+    the OS opens the callback URL through Aureline's protocol handler.
+    The deep-link intent resolves to replay_denied_expired, the
+    intent record is preserved as audit, and the in-product reauth
+    sheet opens with the original tenant scope, action class, and
+    fallback. No authority is widened, no token is reused, no
+    placeholder masquerades as a live session.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 expired_callback_after_sleep_reopen_required"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: expired_callback_after_sleep_reopen_required
+    lifecycle_state_class: expired_session
+    expected_state_token: Reopen required
+    expected_outcome_class: denied_with_recovery
+
+case_id: native-lifecycle-case:expired-callback:after-sleep:01
+drill_case_class: expired_callback_after_sleep_reopen_required
+lifecycle_state_class: expired_session
+expected_state_token: Reopen required
+secondary_state_tokens:
+  - Expired session
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: fixtures/platform/system_affordance_cases/deep_link_remote_review_replay_denied.json
+  window_display_verification_case_ref: fixtures/platform/window_display_cases/suspend_resume_remote_rebind.json
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:auth.complete_step_up
+  object_identity_ref: obj:auth-session:tenant-payments:01
+  canonical_event_id_ref: ux:event:auth-callback:expired-after-sleep:01
+  event_lineage_ref: ux:lineage:auth-callback:expired-after-sleep:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:auth:01
+  trust_state: pending_evaluation
+  tenant_or_workspace_scope_ref: scope:tenant:payments
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: expired_session
+  preserves_context: true
+  revalidation_required: true
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+expected_outcome_class: denied_with_recovery
+replay_posture: replay_denied_expired
+policy_resolution_class: denied_replay
+fallback_class: open_intent_review_sheet
+
+safe_actions:
+  - Reauthenticate
+  - Continue local
+  - Export restore details
+
+must_not_happen:
+  - expired callback completes the auth step-up silently
+  - expired token is reused after wake
+  - placeholder masquerades as an active auth session
+  - callback opens a generic home screen instead of the reauth sheet
+  - browser-handoff return widens authority beyond the original scope
+
+audit_event_id: platform.deep_link_intent_denied
+
+reviewer_checks:
+  - id: replay_denied_expired
+    description: >
+      The deep-link intent resolves to replay_denied_expired and
+      policy_resolution_class is denied_replay.
+    pass: true
+  - id: reauth_routes_through_in_product_sheet
+    description: >
+      The reauth sheet opens with the original tenant scope, action
+      class, and fallback; the user re-enters credentials in the
+      system browser through a fresh handoff packet.
+    pass: true
+  - id: no_authority_widening
+    description: >
+      No managed-workspace, provider, or remote authority is granted
+      from the expired callback path.
+    pass: true
+  - id: callback_window_does_not_steal_focus
+    description: >
+      The browser-callback handoff does not focus-grab over an active
+      typing or review surface; it lands on the durable review sheet
+      and announces itself.
+    pass: true
+  - id: audit_preserved
+    description: >
+      The denial is recorded with platform.deep_link_intent_denied
+      and the original intent ref is retained for support export.
+    pass: true
+
+denial_reasons_avoided:
+  - replay_denied_expired_returned_silently
+  - lifecycle_recovery_silent_authority_rebind
+  - reopen_to_generic_home_screen
+  - auth_callback_window_focus_grab
+  - browser_handoff_authority_widened_after_expiry

@@ -1,0 +1,845 @@
+# Lock-screen privacy rows.
+#
+# Companion artifact to /artifacts/platform/native_lifecycle_drill_packet.md
+# and to /docs/ux/desktop_affordance_contract.md §7 (lock-screen privacy)
+# and §8 (notifications, badges, and collaboration presence).
+#
+# This file freezes the closed lock-screen privacy row table for OS
+# notifications and auth / device handoff surfaces. Each row pins one
+# notification source class (or auth / device handoff source class) to
+# one privacy_payload_class, the closed allowed-label kinds the OS
+# payload may carry, the closed allowed-action kinds a lock-screen
+# quick action may surface, the closed forbidden-shortcut-action
+# classes the row blocks, and the exact-reopen target the row routes
+# to on unlock.
+#
+# Rules (frozen):
+#   - This file does not mint new privacy_payload classes, allowed
+#     label kinds, allowed action kinds, forbidden shortcut action
+#     classes, reopen target kinds, delivery surface classes, or
+#     audit event ids. Every value is re-exported verbatim from
+#     /schemas/ux/notification_suppression_record.schema.json,
+#     /schemas/platform/deep_link_intent.schema.json, and
+#     /schemas/integration/browser_handoff_packet.schema.json.
+#   - Every row resolves to exactly one privacy_payload_class. The
+#     closed five values (lock_screen_safe_generic,
+#     lock_screen_safe_scoped, in_product_only, redacted_metadata_only,
+#     policy_forbidden_on_lock_screen) are the only legal values.
+#   - Every row resolves to exactly one reopen_target_kind from the
+#     closed seven; reopen_target_kind = generic_home_screen is
+#     intentionally not a value and a row that needs it is
+#     non-conforming.
+#   - Every row asserts must_resolve_through_in_product_surface =
+#     true. High-risk shortcut actions are never completable from
+#     lock-screen quick actions, dock / taskbar progress mirrors,
+#     system tray summaries, or companion push surfaces.
+#   - Every row carries a policy_override block naming whether
+#     admin-or-user policy MAY widen disclosure (and which
+#     widened_payload_class is allowed if it does). Defaults are
+#     narrow; widening requires a typed policy override.
+#   - Auth / device-handoff rows additionally pin handoff_class
+#     (browser_handoff, device_handoff_companion,
+#     device_handoff_security_key, protocol_handler_callback) and
+#     restate that callback windows MUST NOT focus-grab over an
+#     active typing, review, presentation, or voice-capture surface.
+
+schema_version: 1
+matrix_id: aureline.platform.lock_screen_privacy_rows.v1
+status: seeded
+
+source_doc_refs:
+  desktop_affordance_contract: docs/ux/desktop_affordance_contract.md
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  desktop_platform_conformance_matrix: docs/platform/desktop_platform_conformance_matrix.md
+  notification_privacy_dedupe_audit: docs/ux/notification_privacy_dedupe_audit.md
+  native_lifecycle_drill_packet: artifacts/platform/native_lifecycle_drill_packet.md
+
+companion_artifact_refs:
+  notification_suppression_record_schema: schemas/ux/notification_suppression_record.schema.json
+  deep_link_intent_schema: schemas/platform/deep_link_intent.schema.json
+  browser_handoff_packet_schema: schemas/integration/browser_handoff_packet.schema.json
+  notification_event_schema: schemas/ux/notification_event.schema.json
+  event_lineage_schema: schemas/ux/event_lineage.schema.json
+  quiet_hours_policy_matrix: artifacts/ux/quiet_hours_policy_matrix.yaml
+  quiet_hours_override_matrix: artifacts/ux/quiet_hours_override_matrix.yaml
+  badge_class_review: artifacts/ux/badge_class_review.yaml
+  native_lifecycle_cases: fixtures/platform/native_lifecycle_cases/
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from the upstream schemas. Tooling reads
+# these blocks; rows MUST NOT use values outside the enumerations below.
+# ---------------------------------------------------------------------------
+
+privacy_payload_classes:
+  - lock_screen_safe_generic
+  - lock_screen_safe_scoped
+  - in_product_only
+  - redacted_metadata_only
+  - policy_forbidden_on_lock_screen
+
+allowed_label_kinds:
+  - category_label_only
+  - scoped_workspace_label
+  - scoped_session_label
+  - next_action_label
+  - summary_member_count_label
+  - privacy_redacted_placeholder
+  - actor_role_label
+  - severity_class_label
+  - lifecycle_phase_label
+  - audit_only_marker
+
+forbidden_label_kinds:
+  - raw_path
+  - raw_url
+  - raw_email
+  - raw_provider_payload
+  - raw_secret_material
+  - raw_prompt_text
+  - raw_completion_text
+  - raw_command_body
+  - customer_owned_identifier
+  - destructive_intent_phrase
+  - object_identity_on_lock_screen
+  - actor_real_name_on_lock_screen
+  - review_diff_excerpt_on_lock_screen
+
+allowed_action_kinds:
+  - open_in_product
+  - open_review_context_in_product
+  - open_canonical_object_in_product
+  - open_durable_row_in_product
+  - open_digest_group_in_product
+  - open_attention_item_in_product
+  - snooze_until_unlocked
+  - snooze_until_resume_condition
+  - acknowledge_clears_badge_only
+  - dismiss_transient_only
+  - show_held_in_product
+
+forbidden_shortcut_action_classes:
+  - destructive_publish_or_apply
+  - secret_or_credential_reveal
+  - irreversible_high_blast
+  - bypass_review_sheet
+  - bypass_approval_workflow
+  - cross_workspace_mutation
+  - direct_mutation_from_lock_screen
+  - direct_mutation_from_companion_push
+  - direct_mutation_from_dock_or_taskbar
+  - direct_mutation_from_system_tray
+  - policy_override_from_os_shortcut
+  - trust_state_change_from_os_shortcut
+  - provider_grant_change_from_os_shortcut
+
+reopen_target_kinds:
+  - canonical_object
+  - canonical_route
+  - review_context
+  - durable_activity_row
+  - digest_group
+  - placeholder_announced
+  - denied_requires_revalidation
+
+delivery_surface_classes_in_scope:
+  - os_notification
+  - os_badge_app_icon
+  - lock_screen_summary
+  - companion_push
+  - status_item
+  - durable_job_row
+
+handoff_classes:
+  - browser_handoff
+  - device_handoff_companion
+  - device_handoff_security_key
+  - protocol_handler_callback
+
+# ---------------------------------------------------------------------------
+# Default privacy posture. Rows below override only where a typed policy
+# override widens. The default is narrow; widening always requires a
+# named override.
+# ---------------------------------------------------------------------------
+
+default_posture:
+  os_notification_payload_class: lock_screen_safe_generic
+  lock_screen_summary_payload_class: lock_screen_safe_generic
+  companion_push_payload_class: lock_screen_safe_generic
+  os_badge_app_icon_payload_class: lock_screen_safe_generic
+  status_item_payload_class: redacted_metadata_only
+  durable_job_row_payload_class: in_product_only
+  must_resolve_through_in_product_surface: true
+  reopen_routes_to_canonical_object_or_durable_row: true
+  high_risk_shortcuts_route_through_review: true
+  callback_window_focus_steal_forbidden: true
+
+# ---------------------------------------------------------------------------
+# Notification source rows. One row per source class that may render
+# on a lock-screen / OS-notification surface.
+# ---------------------------------------------------------------------------
+
+notification_rows:
+  - row_id: lock-screen-row:notification:review_request:01
+    source_class: review_request
+    source_subsystem: review_and_diff
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - lifecycle_phase_label
+      - severity_class_label
+      - privacy_redacted_placeholder
+    forbidden_label_kinds_enforced:
+      - raw_url
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+      - actor_real_name_on_lock_screen
+      - review_diff_excerpt_on_lock_screen
+    redacted_summary_template_label: >
+      Review pending
+    redaction_template_tokens:
+      - "{category}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - snooze_until_unlocked
+      - acknowledge_clears_badge_only
+      - dismiss_transient_only
+    forbidden_shortcut_action_classes_enforced:
+      - destructive_publish_or_apply
+      - bypass_review_sheet
+      - bypass_approval_workflow
+      - direct_mutation_from_lock_screen
+      - direct_mutation_from_companion_push
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: true
+      widened_payload_class: lock_screen_safe_scoped
+      widened_label_kinds_allowed_if_overridden:
+        - scoped_workspace_label
+      override_audit_event_id: platform.handler_ownership_reviewed
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs:
+      - native-lifecycle-case:lock-screen:notification-suppressed:01
+
+  - row_id: lock-screen-row:notification:trust_review:01
+    source_class: workspace_trust_review
+    source_subsystem: workspace_trust
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - lifecycle_phase_label
+      - severity_class_label
+      - privacy_redacted_placeholder
+    forbidden_label_kinds_enforced:
+      - raw_url
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+      - actor_real_name_on_lock_screen
+    redacted_summary_template_label: >
+      Trust review pending
+    redaction_template_tokens:
+      - "{category}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - snooze_until_unlocked
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - trust_state_change_from_os_shortcut
+      - policy_override_from_os_shortcut
+      - bypass_review_sheet
+      - direct_mutation_from_lock_screen
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs:
+      - native-lifecycle-case:lock-screen:notification-suppressed:01
+
+  - row_id: lock-screen-row:notification:security_advisory:01
+    source_class: security_advisory
+    source_subsystem: secret_broker
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - severity_class_label
+      - audit_only_marker
+    forbidden_label_kinds_enforced:
+      - raw_secret_material
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+      - actor_real_name_on_lock_screen
+      - review_diff_excerpt_on_lock_screen
+    redacted_summary_template_label: >
+      Security review required
+    redaction_template_tokens:
+      - "{category}"
+      - "{severity_class}"
+      - "{audit_only_marker}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - secret_or_credential_reveal
+      - destructive_publish_or_apply
+      - direct_mutation_from_lock_screen
+      - bypass_review_sheet
+    reopen_target_kind: denied_requires_revalidation
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs:
+      - native-lifecycle-case:lock-screen:notification-suppressed:01
+
+  - row_id: lock-screen-row:notification:failed_run:01
+    source_class: failed_run
+    source_subsystem: build_system
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - summary_member_count_label
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_path
+      - raw_command_body
+      - customer_owned_identifier
+      - object_identity_on_lock_screen
+    redacted_summary_template_label: >
+      Build failed
+    redaction_template_tokens:
+      - "{category}"
+      - "{member_count}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_durable_row_in_product
+      - acknowledge_clears_badge_only
+      - dismiss_transient_only
+    forbidden_shortcut_action_classes_enforced:
+      - destructive_publish_or_apply
+      - direct_mutation_from_lock_screen
+      - direct_mutation_from_dock_or_taskbar
+    reopen_target_kind: durable_activity_row
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: true
+      widened_payload_class: lock_screen_safe_scoped
+      widened_label_kinds_allowed_if_overridden:
+        - scoped_workspace_label
+        - scoped_session_label
+      override_audit_event_id: platform.handler_ownership_reviewed
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs: []
+
+  - row_id: lock-screen-row:notification:mention:01
+    source_class: mention_or_collaboration_message
+    source_subsystem: collaboration
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - actor_role_label
+      - lifecycle_phase_label
+      - privacy_redacted_placeholder
+    forbidden_label_kinds_enforced:
+      - actor_real_name_on_lock_screen
+      - review_diff_excerpt_on_lock_screen
+      - object_identity_on_lock_screen
+      - raw_url
+    redacted_summary_template_label: >
+      Mention pending
+    redaction_template_tokens:
+      - "{category}"
+      - "{actor_role}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_attention_item_in_product
+      - snooze_until_unlocked
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - cross_workspace_mutation
+      - direct_mutation_from_lock_screen
+      - direct_mutation_from_companion_push
+    reopen_target_kind: attention_item_exact_in_product
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: true
+      widened_payload_class: lock_screen_safe_scoped
+      widened_label_kinds_allowed_if_overridden:
+        - scoped_workspace_label
+      override_audit_event_id: platform.handler_ownership_reviewed
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs: []
+
+  - row_id: lock-screen-row:notification:approval_expiry:01
+    source_class: approval_ticket_expiry
+    source_subsystem: review_and_diff
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - lifecycle_phase_label
+      - severity_class_label
+    forbidden_label_kinds_enforced:
+      - object_identity_on_lock_screen
+      - actor_real_name_on_lock_screen
+      - review_diff_excerpt_on_lock_screen
+    redacted_summary_template_label: >
+      Approval expires soon
+    redaction_template_tokens:
+      - "{category}"
+      - "{lifecycle_phase}"
+      - "{severity_class}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - snooze_until_unlocked
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - bypass_approval_workflow
+      - bypass_review_sheet
+      - direct_mutation_from_lock_screen
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs: []
+
+  - row_id: lock-screen-row:notification:provider_route_warning:01
+    source_class: provider_route_warning
+    source_subsystem: provider_bearing
+    delivery_surface_class: lock_screen_summary
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - severity_class_label
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+      - customer_owned_identifier
+    redacted_summary_template_label: >
+      Provider route review required
+    redaction_template_tokens:
+      - "{category}"
+      - "{severity_class}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - provider_grant_change_from_os_shortcut
+      - bypass_review_sheet
+      - direct_mutation_from_lock_screen
+    reopen_target_kind: denied_requires_revalidation
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs: []
+
+  - row_id: lock-screen-row:notification:durable_job_progress:01
+    source_class: durable_job_progress_summary
+    source_subsystem: task_runner
+    delivery_surface_class: os_badge_app_icon
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - summary_member_count_label
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_path
+      - raw_command_body
+      - object_identity_on_lock_screen
+    redacted_summary_template_label: >
+      {member_count} jobs running
+    redaction_template_tokens:
+      - "{category}"
+      - "{member_count}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_durable_row_in_product
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - destructive_publish_or_apply
+      - direct_mutation_from_dock_or_taskbar
+      - direct_mutation_from_system_tray
+    reopen_target_kind: durable_activity_row
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: true
+      widened_payload_class: lock_screen_safe_scoped
+      widened_label_kinds_allowed_if_overridden:
+        - scoped_workspace_label
+      override_audit_event_id: platform.handler_ownership_reviewed
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs: []
+
+  - row_id: lock-screen-row:notification:companion_push_fanout:01
+    source_class: cross_client_companion_fanout
+    source_subsystem: collaboration
+    delivery_surface_class: companion_push
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - lifecycle_phase_label
+      - privacy_redacted_placeholder
+    forbidden_label_kinds_enforced:
+      - actor_real_name_on_lock_screen
+      - object_identity_on_lock_screen
+      - review_diff_excerpt_on_lock_screen
+      - raw_url
+    redacted_summary_template_label: >
+      Update available
+    redaction_template_tokens:
+      - "{category}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_attention_item_in_product
+      - snooze_until_resume_condition
+      - acknowledge_clears_badge_only
+      - show_held_in_product
+    forbidden_shortcut_action_classes_enforced:
+      - direct_mutation_from_companion_push
+      - cross_workspace_mutation
+      - bypass_approval_workflow
+    reopen_target_kind: attention_item_exact_in_product
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.notification_clickthrough_resolved
+    drill_packet_row_refs: []
+
+# ---------------------------------------------------------------------------
+# Auth / device-handoff rows. One row per surface that returns the user
+# from the system browser, a security key, or a companion device into
+# Aureline. Rows additionally pin handoff_class and restate that the
+# returning window MUST NOT focus-grab over an active product surface.
+# ---------------------------------------------------------------------------
+
+auth_handoff_rows:
+  - row_id: lock-screen-row:auth-handoff:default_browser_callback:01
+    source_class: default_browser_auth_callback_return
+    handoff_class: browser_handoff
+    delivery_surface_class: os_notification
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_url
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+      - actor_real_name_on_lock_screen
+    redacted_summary_template_label: >
+      Sign-in step required
+    redaction_template_tokens:
+      - "{category}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - snooze_until_unlocked
+    forbidden_shortcut_action_classes_enforced:
+      - bypass_review_sheet
+      - bypass_approval_workflow
+      - policy_override_from_os_shortcut
+      - trust_state_change_from_os_shortcut
+      - provider_grant_change_from_os_shortcut
+      - direct_mutation_from_lock_screen
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    callback_window_focus_steal_forbidden: true
+    callback_focus_steal_denial_classes:
+      - auth_callback_window_focus_grab
+      - browser_handoff_authority_widened_after_expiry
+    replay_posture_default: single_use
+    expired_resolution: replay_denied_expired_routes_to_reauth_sheet
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.deep_link_intent_admitted
+    drill_packet_row_refs:
+      - native-lifecycle-case:expired-callback:after-sleep:01
+
+  - row_id: lock-screen-row:auth-handoff:protocol_handler_callback:01
+    source_class: protocol_handler_deep_link_return
+    handoff_class: protocol_handler_callback
+    delivery_surface_class: os_notification
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_url
+      - raw_provider_payload
+      - object_identity_on_lock_screen
+    redacted_summary_template_label: >
+      Continuation requested
+    redaction_template_tokens:
+      - "{category}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - snooze_until_unlocked
+      - dismiss_transient_only
+    forbidden_shortcut_action_classes_enforced:
+      - bypass_review_sheet
+      - bypass_approval_workflow
+      - direct_mutation_from_lock_screen
+      - cross_workspace_mutation
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    callback_window_focus_steal_forbidden: true
+    callback_focus_steal_denial_classes:
+      - auth_callback_window_focus_grab
+    replay_posture_default: single_use
+    expired_resolution: replay_denied_expired_routes_to_reauth_sheet
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.deep_link_intent_admitted
+    drill_packet_row_refs:
+      - native-lifecycle-case:expired-callback:after-sleep:01
+
+  - row_id: lock-screen-row:auth-handoff:device_handoff_companion_approval:01
+    source_class: companion_device_approval_return
+    handoff_class: device_handoff_companion
+    delivery_surface_class: companion_push
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - severity_class_label
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_secret_material
+      - actor_real_name_on_lock_screen
+      - object_identity_on_lock_screen
+    redacted_summary_template_label: >
+      Approve sign-in on this device
+    redaction_template_tokens:
+      - "{category}"
+      - "{severity_class}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - acknowledge_clears_badge_only
+      - dismiss_transient_only
+    forbidden_shortcut_action_classes_enforced:
+      - direct_mutation_from_companion_push
+      - bypass_approval_workflow
+      - bypass_review_sheet
+      - secret_or_credential_reveal
+      - trust_state_change_from_os_shortcut
+      - provider_grant_change_from_os_shortcut
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    callback_window_focus_steal_forbidden: true
+    callback_focus_steal_denial_classes:
+      - auth_callback_window_focus_grab
+      - companion_push_replay_after_dismiss
+    replay_posture_default: single_use
+    expired_resolution: replay_denied_expired_routes_to_reauth_sheet
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.deep_link_intent_admitted
+    drill_packet_row_refs:
+      - native-lifecycle-case:expired-callback:after-sleep:01
+
+  - row_id: lock-screen-row:auth-handoff:device_handoff_security_key:01
+    source_class: security_key_attestation_return
+    handoff_class: device_handoff_security_key
+    delivery_surface_class: os_notification
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - severity_class_label
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_secret_material
+      - object_identity_on_lock_screen
+      - actor_real_name_on_lock_screen
+    redacted_summary_template_label: >
+      Security key step required
+    redaction_template_tokens:
+      - "{category}"
+      - "{severity_class}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - dismiss_transient_only
+    forbidden_shortcut_action_classes_enforced:
+      - secret_or_credential_reveal
+      - direct_mutation_from_lock_screen
+      - bypass_review_sheet
+      - bypass_approval_workflow
+      - trust_state_change_from_os_shortcut
+    reopen_target_kind: denied_requires_revalidation
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    callback_window_focus_steal_forbidden: true
+    callback_focus_steal_denial_classes:
+      - auth_callback_window_focus_grab
+    replay_posture_default: single_use
+    expired_resolution: replay_denied_expired_routes_to_reauth_sheet
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.deep_link_intent_admitted
+    drill_packet_row_refs:
+      - native-lifecycle-case:expired-callback:after-sleep:01
+
+  - row_id: lock-screen-row:auth-handoff:provider_console_return:01
+    source_class: provider_console_handoff_return
+    handoff_class: browser_handoff
+    delivery_surface_class: os_notification
+    privacy_payload_class: lock_screen_safe_generic
+    allowed_label_kinds:
+      - category_label_only
+      - severity_class_label
+      - lifecycle_phase_label
+    forbidden_label_kinds_enforced:
+      - raw_provider_payload
+      - raw_url
+      - object_identity_on_lock_screen
+      - customer_owned_identifier
+    redacted_summary_template_label: >
+      Provider review required
+    redaction_template_tokens:
+      - "{category}"
+      - "{severity_class}"
+      - "{lifecycle_phase}"
+    allowed_action_kinds:
+      - open_review_context_in_product
+      - acknowledge_clears_badge_only
+    forbidden_shortcut_action_classes_enforced:
+      - provider_grant_change_from_os_shortcut
+      - bypass_review_sheet
+      - bypass_approval_workflow
+      - direct_mutation_from_lock_screen
+    reopen_target_kind: review_context
+    reopen_routes_to_in_product_surface: true
+    must_resolve_through_in_product_surface: true
+    callback_window_focus_steal_forbidden: true
+    callback_focus_steal_denial_classes:
+      - auth_callback_window_focus_grab
+      - browser_handoff_authority_widened_after_expiry
+    replay_posture_default: single_use
+    expired_resolution: replay_denied_expired_routes_to_reauth_sheet
+    policy_override:
+      admin_overridable: false
+      widened_payload_class: null
+      widened_label_kinds_allowed_if_overridden: []
+      override_audit_event_id: null
+    audit_event_id: platform.deep_link_intent_admitted
+    drill_packet_row_refs:
+      - native-lifecycle-case:expired-callback:after-sleep:01
+
+# ---------------------------------------------------------------------------
+# Conformance assertions every row above must satisfy.
+# ---------------------------------------------------------------------------
+
+conformance_assertions:
+  - id: privacy_payload_class_resolved
+    description: >
+      Every row names exactly one privacy_payload_class from the
+      closed five values; rows missing or widening this class deny.
+    enforced: true
+  - id: reopen_routes_to_in_product
+    description: >
+      Every row asserts reopen_routes_to_in_product_surface = true and
+      reopen_target_kind is one of the closed seven; reopen to a
+      generic home screen is forbidden.
+    enforced: true
+  - id: high_risk_shortcut_routed_through_review
+    description: >
+      Every row enumerates at least one forbidden_shortcut_action_class
+      it blocks, and high-risk actions never complete from lock-screen
+      quick actions, dock / taskbar shortcuts, system-tray summaries,
+      or companion push surfaces.
+    enforced: true
+  - id: callback_window_focus_steal_forbidden
+    description: >
+      Every auth / device-handoff row asserts
+      callback_window_focus_steal_forbidden = true and names at least
+      one callback_focus_steal_denial_class it blocks.
+    enforced: true
+  - id: redaction_template_within_closed_set
+    description: >
+      Every row's redaction_template_tokens is a subset of the eight
+      closed tokens defined by the upstream notification suppression
+      schema.
+    enforced: true
+  - id: durable_history_preserved_on_dismiss
+    description: >
+      Lock-screen and companion dismiss never clears the durable
+      attention item, the canonical event id, or the object identity;
+      only transient OS chrome dismisses.
+    enforced: true
+  - id: admin_overridable_widening_audited
+    description: >
+      A row whose policy_override.admin_overridable is true names the
+      single widened_payload_class admin policy may permit and the
+      audit_event_id the override fires; widening into raw label
+      kinds, mutation shortcuts, or generic-home reopen is forbidden.
+    enforced: true
+
+# ---------------------------------------------------------------------------
+# Denial reasons every row contributes to. These names are re-exported
+# from the upstream schemas; rows do not mint parallel denial reasons.
+# ---------------------------------------------------------------------------
+
+denial_reasons_enforced:
+  - privacy_payload_class_missing_on_lock_screen
+  - privacy_payload_class_widened_across_clients
+  - raw_body_forbidden_on_os_notification
+  - raw_secret_forbidden_on_any_surface
+  - raw_prompt_text_forbidden_on_os_notification
+  - reopen_to_generic_home_screen
+  - high_risk_shortcut_bypassed_review_sheet
+  - durable_history_cleared_on_transient_dismiss
+  - auth_callback_window_focus_grab
+  - browser_handoff_authority_widened_after_expiry
+  - companion_push_replay_after_dismiss
+  - lifecycle_recovery_silent_authority_rebind

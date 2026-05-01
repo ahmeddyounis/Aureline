@@ -1,0 +1,122 @@
+# Removable volume loss — root unavailable, placeholder preserves intent.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = removable_volume_loss_root_unavailable.
+# Proves that an unmounted workspace root degrades to an evidence-only
+# placeholder, dirty buffers are preserved, recovery actions are
+# offered, and no destructive cleanup or silent retarget happens.
+__fixture__:
+  name: removable_volume_loss_root_unavailable
+  scenario: >
+    A workspace root on a removable drive is unmounted (cable pulled,
+    network share dropped, or external SSD ejected without dismount)
+    while the user has dirty editor buffers and a running task. The
+    pane slot for the missing root degrades to a Root unavailable
+    placeholder; dirty buffers are preserved in cache; the running
+    task transitions to context_unavailable. Recovery actions include
+    Locate, Reconnect, and Export context. No buffer is discarded as
+    cleanup and no silent retarget to a different mount happens.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 removable_volume_loss_root_unavailable"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: removable_volume_loss_root_unavailable
+    lifecycle_state_class: unavailable_target
+    expected_state_token: Root unavailable
+    expected_outcome_class: degraded_placeholder
+
+case_id: native-lifecycle-case:removable-volume:loss:01
+drill_case_class: removable_volume_loss_root_unavailable
+lifecycle_state_class: unavailable_target
+expected_state_token: Root unavailable
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: fixtures/platform/system_affordance_cases/removable_volume_return_cached_context.json
+  window_display_verification_case_ref: fixtures/platform/window_display_cases/restart_reopen_missing_dependency_placeholder.json
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:workspace.open_folder
+  object_identity_ref: obj:workspace-root:client-drive:payments:01
+  canonical_event_id_ref: ux:event:workspace-root:volume-loss:01
+  event_lineage_ref: ux:lineage:workspace-root:volume-loss:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:vfs:01
+  trust_state: restricted
+  tenant_or_workspace_scope_ref: scope:workspace:payments
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: unavailable_target
+  preserves_context: true
+  revalidation_required: true
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+target_state_after_loss:
+  target_kind: workspace_root
+  availability_class: missing_or_unmounted
+  freshness_class: stale
+  last_known_good_ref: snapshot:workspace-root:client-drive:payments:cached
+
+session_execution_postures:
+  - surface_class: editor_pane
+    posture: live_session_continued
+  - surface_class: task_runner
+    posture: context_unavailable
+
+expected_outcome_class: degraded_placeholder
+replay_posture: read_only_resumable
+fallback_class: open_read_only_placeholder
+
+safe_actions:
+  - Locate target
+  - Reconnect volume
+  - Open cached context
+  - Export context
+  - Remove root
+
+must_not_happen:
+  - dirty editor buffers are discarded as cleanup
+  - workspace root is silently retargeted to a different mount
+  - the missing pane slot collapses and reflows neighboring panes
+  - a write is replayed against the placeholder without review
+  - recent items hide the unavailable root
+
+audit_event_id: platform.system_affordance_case_exercised
+
+reviewer_checks:
+  - id: placeholder_preserves_topology
+    description: >
+      Only the unavailable pane degrades to placeholder; pane ids, tab
+      order, and split intent remain intact.
+    pass: true
+  - id: dirty_buffers_preserved
+    description: >
+      Editor dirty buffers are preserved in cache and surfaced as
+      recoverable; nothing is silently discarded.
+    pass: true
+  - id: recovery_actions_offered
+    description: >
+      Locate, Reconnect, Open cached context, Export context, and
+      Remove root are reachable and keyboard-navigable.
+    pass: true
+  - id: no_silent_retarget
+    description: >
+      The product never silently rebinds the workspace root to a
+      different mount with the same volume label.
+    pass: true
+  - id: recent_items_disclose_unavailability
+    description: >
+      Dock / taskbar / recents disclose the root as stale or
+      unavailable; reopen lands on the placeholder with the original
+      target identity intact.
+    pass: true
+
+denial_reasons_avoided:
+  - lifecycle_recovery_destructive_cleanup
+  - workspace_root_silent_retarget
+  - placeholder_collapsed_into_neighboring_pane
+  - dirty_buffer_discarded_on_unmount

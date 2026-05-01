@@ -1,0 +1,122 @@
+# Wake-from-sleep — local context preserved, live authority reconnects.
+#
+# Reviewer-side native-lifecycle drill case for
+# /artifacts/platform/native_lifecycle_drill_packet.md §4
+# row drill_case_class = wake_from_sleep_local_context_preserved.
+# Binds the upstream system_affordance_case_record (terminal-originated
+# open after wake) and the upstream window_display_verification_case
+# (sleep/wake with remote/debug/task surfaces) and proves that local
+# edit context survives, live authority advertises Reconnecting until
+# revalidation, and no command silently re-runs.
+__fixture__:
+  name: wake_from_sleep_local_context_preserved
+  scenario: >
+    A workspace with editor tabs, a remote terminal, a task runner, a
+    debug session, and a managed-workspace attach is suspended for the
+    night and resumes on AC power. Editor dirty buffers, terminal
+    transcripts, and pane identities survive the wake. Remote, debug,
+    callback, and managed-workspace authority advertise Reconnecting
+    until the user accepts revalidation. No command, callback, or
+    privileged session reuses authority silently.
+  drill_packet_ref: artifacts/platform/native_lifecycle_drill_packet.md
+  contract_sections:
+    - "§4 wake_from_sleep_local_context_preserved"
+    - "§6 Conformance assertions"
+  exercised_axes:
+    drill_case_class: wake_from_sleep_local_context_preserved
+    lifecycle_state_class: wake_from_sleep
+    expected_state_token: Reconnecting
+    expected_outcome_class: context_preserved_revalidation_required
+
+case_id: native-lifecycle-case:wake-from-sleep:local-context-preserved:01
+drill_case_class: wake_from_sleep_local_context_preserved
+lifecycle_state_class: wake_from_sleep
+expected_state_token: Reconnecting
+
+upstream_fixture_refs:
+  system_affordance_case_record_ref: fixtures/platform/system_affordance_cases/open_from_terminal_wake_revalidation.json
+  window_display_verification_case_ref: fixtures/platform/window_display_cases/suspend_resume_remote_rebind.json
+  notification_suppression_record_ref: null
+
+canonical_backing_refs:
+  command_id_ref: cmd:workspace.resume_managed
+  object_identity_ref: obj:managed-workspace:payments:dev:01
+  canonical_event_id_ref: ux:event:managed-workspace:wake-revalidation:01
+  event_lineage_ref: ux:lineage:managed-workspace:wake-revalidation:01
+
+policy_context:
+  policy_epoch: pe:2026-04-24:managed-workspace:01
+  trust_state: restricted
+  tenant_or_workspace_scope_ref: scope:managed-workspace:payments:dev
+
+lifecycle_recovery_proof:
+  lifecycle_state_class: wake_from_sleep
+  preserves_context: true
+  revalidation_required: true
+  destructive_cleanup_forbidden: true
+  hidden_focus_steal_forbidden: true
+
+session_execution_postures:
+  - surface_class: editor_pane
+    posture: live_session_continued
+  - surface_class: terminal_pane
+    posture: reconnect_available
+  - surface_class: task_runner
+    posture: rerun_required
+  - surface_class: debug_session
+    posture: reconnect_available
+  - surface_class: preview_route
+    posture: context_unavailable
+
+expected_outcome_class: context_preserved_revalidation_required
+replay_posture: single_use
+fallback_class: continue_local_only
+
+safe_actions:
+  - Continue local
+  - Reconnect
+  - Reauthenticate
+  - Export restore details
+
+must_not_happen:
+  - wake silently replays a remote, debug, or task command
+  - managed workspace authority rebinds without explicit revalidation
+  - focus lands on a hidden, off-screen, or disconnected surface
+  - dirty editor buffers are discarded as cleanup
+
+audit_event_id: platform.lifecycle_recovery_preserved_context
+
+reviewer_checks:
+  - id: local_context_preserved
+    description: >
+      Editor tabs, dirty markers, terminal transcript, and pane
+      identities survive the wake; lifecycle_recovery.preserves_context
+      is true.
+    pass: true
+  - id: live_authority_reconnecting
+    description: >
+      Remote terminal, debug session, callback, and managed workspace
+      advertise Reconnecting until revalidation completes.
+    pass: true
+  - id: no_silent_replay
+    description: >
+      No live surface re-issues a command, callback, or privileged
+      session reuse on wake.
+    pass: true
+  - id: focus_visible
+    description: >
+      Focus returns to the recorded focus target or the next visible
+      pane; the case never hands focus to a hidden surface.
+    pass: true
+  - id: revalidation_routes_through_review
+    description: >
+      Reauthenticate and Reconnect actions land on the in-product
+      review or trust surface, not on a generic home screen.
+    pass: true
+
+denial_reasons_avoided:
+  - lifecycle_recovery_silent_authority_rebind
+  - lifecycle_recovery_hidden_focus_steal
+  - lifecycle_recovery_destructive_cleanup
+  - replay_denied_consumed_returned_silently
+  - reopen_to_generic_home_screen
