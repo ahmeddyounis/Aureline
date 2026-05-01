@@ -1,0 +1,134 @@
+# Modal focus-steal denied on review.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml row
+# ux:arbitration:review_canvas_active and the
+# product_owned_nested_overlay_forbidden invariant. A product-owned
+# confirmation modal attempts to stack on top of an active permission
+# review sheet. The arbitration denies the nested overlay; the
+# parent sheet updates in place. No focus loss; durable audit
+# preserved.
+__fixture__:
+  name: modal_focus_steal_denied_on_review
+  scenario: >
+    A permission review sheet is on screen on the trust prompt canvas.
+    A product-owned confirmation dialog tries to open as a second
+    overlay for the same grant. The arbitration row denies the
+    nested overlay with product_owned_nested_overlay_forbidden /
+    focus_steal_on_protected_path; the parent sheet updates in place
+    rather than stacking. Focus stays on the parent sheet's safe
+    default focus action.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:review_canvas_active
+  upstream_dialog_sheet_fixture_ref: fixtures/ux/dialog_sheet_cases/nested_product_overlay_denied.json
+  contract_sections:
+    - "Arbitration rules §4.1"
+    - "Arbitration rules §4.5"
+  exercised_axes:
+    active_flow_class: review_canvas_active
+    incoming_interruptibility_tier: tier_blocking_trust
+    arbitration_outcome_class: denied_product_owned_nested_overlay
+    escalation_required_trigger: required_authority_changed
+    privacy_payload_class: in_product_only
+    reopen_target_kind: review_sheet
+
+audit_binding:
+  canonical_event_id: ux:event:permission-review:nested-confirm:01
+  event_lineage_id_ref: ux:lineage:permission-review:nested-confirm:01
+  canonical_object_target_ref: obj:permission-request:provider-grant:01
+  source_subsystem: provider_bearing
+  actor_identity_ref: id:actor:user:current
+
+active_flow_state_at_decision:
+  active_flow_class: review_canvas_active
+  active_flow_target_ref: obj:permission-request:provider-grant:01
+  concurrent_active_flow_classes:
+    - review_canvas_active
+    - patch_approval_active
+  active_quiet_hours_modes: []
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:permission-review:nested-confirm:01
+  arbitration_row_id: ux:arbitration:review_canvas_active
+  active_flow_class: review_canvas_active
+  incoming_interruptibility_tier: tier_blocking_trust
+  arbitration_outcome_class: denied_product_owned_nested_overlay
+  delivery_surface_class: not_delivered_held
+  surface_escalation_tier: tier.sheet_attached_to_window
+  escalation_required_triggers_cited:
+    - required_authority_changed
+  focus_steal_attempt_classes_denied:
+    - nested_product_overlay_stacked_on_sheet
+    - product_owned_modal_attempted_during_review
+    - product_owned_banner_replaced_review_focus
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:permission-review:01
+  reopen_target_ref: ux:reopen:permission-review:nested-confirm:parent-sheet
+  reopen_target_kind: review_sheet
+
+denial_proof:
+  record_kind: arbitration_denial_block
+  denial_reason: focus_steal_on_protected_path
+  upstream_denial_reasons_resolved_to:
+    - focus_steal_on_protected_path
+    - product_owned_nested_overlay_forbidden
+  parent_surface_ref: surface:permission-sheet:provider-grant:01
+  parent_surface_action: update_in_place_with_consequence_block
+  child_overlay_attempted_kind: modal_dialog
+  child_overlay_allowed: false
+
+focus_return_proof:
+  record_kind: focus_return_block
+  focus_return_state: focus_loss_denied
+  invoker_identity_ref: surface:permission-sheet:provider-grant:01
+  return_target_identity_ref: surface:permission-sheet:provider-grant:01
+  announcement_label: >
+    Nested confirmation denied; review continues on the permission
+    sheet.
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - audit_trail_record_ref_present
+    - interaction_safety_packet_id_ref_present
+  retained_record_refs:
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/interaction_safety.schema.json#interaction_safety_packet_record
+    - schemas/ux/review_surface.schema.json#review_surface_record
+    - schemas/ux/activity_event_envelope.schema.json#activity_event_envelope_record
+
+reviewer_checks:
+  - id: nested_overlay_denied
+    description: >
+      The arbitration outcome is denied_product_owned_nested_overlay;
+      the parent sheet updates in place rather than stacking.
+    pass: true
+  - id: review_canvas_no_modal
+    description: >
+      tier.dialog_modal is on the review_canvas_active row's
+      forbidden_escalation_tiers; the child modal would have stolen
+      focus from the active review sheet.
+    pass: true
+  - id: focus_loss_denied_announced
+    description: >
+      focus_return_state is focus_loss_denied with an announcement
+      label; the user is told why the nested overlay did not open.
+    pass: true
+  - id: durable_audit_preserved
+    description: >
+      The activity-event envelope is emitted with
+      delivery_surface_class = not_delivered_held and at least one
+      suppression / denial reason; durable history is preserved.
+    pass: true
+
+denial_reasons_avoided:
+  - reopen_to_generic_home_forbidden
+  - reopen_requires_revalidation
+  - quiet_hours_hold_discarded_durable_history
+  - admin_suppression_blocked_critical_safety
+  - held_event_missing_audit_trail
+
+denial_reasons_recorded:
+  - focus_steal_on_protected_path
+  - product_owned_nested_overlay_forbidden

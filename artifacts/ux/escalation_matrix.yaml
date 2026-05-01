@@ -1,0 +1,1313 @@
+# Interruptibility arbitration / escalation-surface matrix.
+#
+# Companion to docs/ux/interruptibility_arbitration_contract.md and to
+# the upstream attention, notification, navigation, dialog / sheet, OS
+# notification / quiet-hours, durable-work, and quiet-hours-override
+# contracts. This file binds every (active_flow_class,
+# interruptibility_tier, quiet_hours_mode) triple to one row that
+# names: the allowed delivery_surface_class set, the allowed
+# escalation_tier, the typed escalation_required_triggers, the
+# arbitration_outcome_class, the focus_steal_attempt_class set the row
+# denies, and the upstream denial_reason the row resolves to when the
+# arbitration refuses.
+#
+# Rules (frozen):
+#   - This file does not mint new interruptibility tiers, quiet-hours
+#     modes, delivery-surface classes, attention classes, escalation
+#     triggers, escalation tiers, dedupe schemes, reopen-target kinds,
+#     dismissal verbs, suppression reasons, privacy payload classes,
+#     or denial reasons. Every value is re-exported from upstream.
+#   - The three matrix-local closed vocabularies are
+#     active_flow_class, arbitration_outcome_class, and
+#     focus_steal_attempt_class. New values are additive-minor and
+#     require a decision row; repurposing a value is breaking.
+#   - Every row asserts preserves_durable_history = true and
+#     preserves_critical_safety_tier = true. A row that discards
+#     either is non-conforming.
+#   - Surfaces quote rows by arbitration_row_id; they MUST NOT re-mint
+#     per-flow surface sets locally.
+
+schema_version: 1
+matrix_id: aureline.ux.escalation_matrix.v1
+status: seeded
+
+source_doc_refs:
+  interruptibility_arbitration_contract: docs/ux/interruptibility_arbitration_contract.md
+  attention_activity_taxonomy: docs/ux/attention_activity_taxonomy.md
+  shell_interaction_safety_contract: docs/ux/shell_interaction_safety_contract.md
+  dialog_sheet_contract: docs/ux/dialog_sheet_contract.md
+  navigation_and_escalation_contract: docs/ux/navigation_and_escalation_contract.md
+  notification_contract: docs/ux/notification_contract.md
+  notification_delivery_contract: docs/ux/notification_delivery_contract.md
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  voice_and_dictation_contract: docs/ux/voice_and_dictation_contract.md
+  durable_work_contract: docs/ux/durable_work_contract.md
+  exact_reopen_drill_map: docs/ux/exact_reopen_drill_map.md
+  quiet_hours_policy_matrix: artifacts/ux/quiet_hours_policy_matrix.yaml
+  quiet_hours_override_matrix: artifacts/ux/quiet_hours_override_matrix.yaml
+  interruptibility_escalation_seed: artifacts/ux/interruptibility_escalation_seed.yaml
+  navigation_hierarchy: artifacts/ux/navigation_hierarchy.yaml
+
+companion_artifact_refs:
+  activity_event_envelope_schema: schemas/ux/activity_event_envelope.schema.json
+  notification_event_schema: schemas/ux/notification_event.schema.json
+  notification_suppression_record_schema: schemas/ux/notification_suppression_record.schema.json
+  event_lineage_schema: schemas/ux/event_lineage.schema.json
+  interaction_safety_schema: schemas/ux/interaction_safety.schema.json
+  job_row_schema: schemas/ux/job_row.schema.json
+  interruptibility_cases: fixtures/ux/interruptibility_cases/
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies mirrored from upstream. Tooling reads these blocks;
+# rows MUST NOT use values outside the enumerations below.
+# ---------------------------------------------------------------------------
+
+interruptibility_tiers:
+  - tier_ambient
+  - tier_transient
+  - tier_durable
+  - tier_actionable
+  - tier_blocking_trust
+  - tier_critical_safety
+
+delivery_surface_classes:
+  - toast
+  - contextual_banner
+  - status_item
+  - durable_job_row
+  - attention_item
+  - activity_center_digest_card
+  - digest_group_row
+  - os_notification
+  - os_badge_app_icon
+  - lock_screen_summary
+  - companion_push
+  - not_delivered_held
+
+escalation_tiers:
+  - tier.inline_in_target_surface
+  - tier.contextual_inline_overlay
+  - tier.panel_attached_to_surface
+  - tier.sheet_attached_to_window
+  - tier.dialog_modal
+  - tier.full_surface_takeover
+
+quiet_hours_modes:
+  - mode_none
+  - mode_quiet_hours_user
+  - mode_do_not_disturb_user
+  - mode_focus_mode_user
+  - mode_presentation
+  - mode_screen_share
+  - mode_privacy_mode
+  - mode_reduced_attention_policy
+  - mode_power_saver_runtime
+  - mode_admin_suppression
+
+escalation_required_triggers:
+  - severity_increased
+  - duration_threshold_crossed
+  - required_authority_changed
+  - consequence_class_escalated
+  - basis_snapshot_drifted
+  - policy_epoch_changed
+  - trust_state_changed
+  - provider_grant_narrowed
+  - recovery_class_downgraded_to_no_recovery
+  - repeated_dedupe_threshold_crossed
+
+upstream_protected_paths:
+  - save
+  - recovery
+  - trust_review
+  - debugging
+  - ai_apply
+  - patch_approval
+  - restore_from_crash
+
+reopen_target_kinds:
+  - canonical_object_target_exact
+  - review_sheet
+  - diff_view
+  - evidence_packet_row
+  - activity_center_item
+  - history_lane_row
+  - attention_item_exact
+  - durable_job_row_exact
+  - placeholder_announced
+  - reopen_denied_requires_revalidation
+
+upstream_denial_reasons:
+  - focus_steal_on_protected_path
+  - interruption_tier_escalated_without_trigger
+  - product_owned_nested_overlay_forbidden
+  - reopen_to_generic_home_forbidden
+  - reopen_requires_revalidation
+  - quiet_hours_hold_discarded_durable_history
+  - quiet_hours_hold_discarded_critical_safety_tier
+  - admin_suppression_blocked_critical_safety
+  - held_event_missing_audit_trail
+  - companion_cross_client_divergence
+  - dedupe_violated_stacked_toasts
+  - toast_only_forbidden_for_durable_work
+
+# ---------------------------------------------------------------------------
+# Matrix-local closed vocabularies. New values are additive-minor and
+# require a decision row; repurposing is breaking.
+# ---------------------------------------------------------------------------
+
+active_flow_class_vocabulary:
+  - editor_typing_active
+  - review_canvas_active
+  - full_screen_presentation_active
+  - screen_share_active
+  - assistive_tech_active
+  - voice_capture_active
+  - voice_command_preview_active
+  - save_in_flight
+  - recovery_in_flight
+  - restore_from_crash_active
+  - trust_review_active
+  - debugging_active
+  - ai_apply_active
+  - patch_approval_active
+  - auth_callback_pending
+  - update_install_pending
+  - repair_pending
+  - none
+
+arbitration_outcome_class_vocabulary:
+  - delivered_inline_in_target_surface
+  - delivered_contextual_banner
+  - delivered_status_item
+  - delivered_durable_job_row
+  - delivered_attention_item
+  - delivered_activity_center_digest_card
+  - delivered_digest_group_row
+  - delivered_os_notification_lock_screen_safe
+  - delivered_companion_push_lock_screen_safe
+  - routed_via_review_sheet
+  - routed_via_attached_sheet
+  - routed_via_modal_dialog
+  - routed_via_full_surface_takeover
+  - held_not_delivered_release_pending
+  - denied_focus_steal_on_protected_path
+  - denied_product_owned_nested_overlay
+  - denied_admin_suppression_blocked_critical_safety
+  - denied_interruption_tier_escalated_without_trigger
+  - denied_reopen_to_generic_home
+  - denied_reopen_requires_revalidation
+
+focus_steal_attempt_class_vocabulary:
+  - product_owned_modal_attempted_during_typing
+  - product_owned_modal_attempted_during_review
+  - product_owned_modal_attempted_during_presentation
+  - product_owned_modal_attempted_during_voice_capture
+  - product_owned_modal_attempted_during_repair
+  - product_owned_banner_replaced_typing_focus
+  - product_owned_banner_replaced_review_focus
+  - activity_item_burst_attempted_during_typing
+  - auth_callback_window_focus_grab
+  - update_install_modal_attempted_during_typing
+  - update_install_modal_attempted_during_presentation
+  - os_notification_replay_after_dismiss
+  - companion_push_replay_after_dismiss
+  - voice_command_inline_apply_attempted
+  - extension_repair_modal_attempted
+  - nested_product_overlay_stacked_on_sheet
+
+# ---------------------------------------------------------------------------
+# Active-flow rows. One row per active_flow_class. Each row binds the
+# upstream protected_path / quiet_hours_mode it composes with, the
+# allowed-tier set, the allowed-surface set, the forbidden-tier set
+# (which deny with focus_steal_on_protected_path), and the
+# focus_steal_attempt_class set the row denies.
+# ---------------------------------------------------------------------------
+
+active_flow_rows:
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:editor_typing_active
+    active_flow_class: editor_typing_active
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_typing
+      - product_owned_banner_replaced_typing_focus
+      - activity_item_burst_attempted_during_typing
+      - update_install_modal_attempted_during_typing
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Keystrokes are reaching a buffer. Transient toasts hold and
+      release as a digest when typing pauses; durable rows update
+      silently. Modal dialogs are forbidden during typing; trust /
+      auth / update / repair escalations route via the review sheet.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:review_canvas_active
+    active_flow_class: review_canvas_active
+    binds_upstream_protected_paths:
+      - patch_approval
+      - ai_apply
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_review
+      - product_owned_banner_replaced_review_focus
+      - nested_product_overlay_stacked_on_sheet
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Review / diff / approval canvas is on screen. The sheet may
+      update in place or hand off to a dedicated review surface; a
+      product-owned modal stacked on the sheet denies with
+      product_owned_nested_overlay_forbidden.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:full_screen_presentation_active
+    active_flow_class: full_screen_presentation_active
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes:
+      - mode_presentation
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - digest_group_row
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+      - activity_center_digest_card
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_presentation
+      - update_install_modal_attempted_during_presentation
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Audience-visible surface. Toasts, OS notifications, companion
+      push, and lock-screen summaries suppressed; durable rows update
+      silently. Held bursts release as one grouped digest on mode
+      exit (per quiet_hours_policy_matrix.yaml).
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:screen_share_active
+    active_flow_class: screen_share_active
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes:
+      - mode_screen_share
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - digest_group_row
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - os_notification
+      - os_badge_app_icon
+      - companion_push
+      - lock_screen_summary
+      - activity_center_digest_card
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_presentation
+      - update_install_modal_attempted_during_presentation
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Active screen share. Mirrors presentation posture; default
+      privacy posture routes collaboration pings to the session
+      digest.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:assistive_tech_active
+    active_flow_class: assistive_tech_active
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes:
+      - mode_reduced_attention_policy
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_actionable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+      - contextual_banner
+      - lock_screen_summary
+      - not_delivered_held
+      - os_notification
+    forbidden_delivery_surfaces:
+      - toast
+      - companion_push
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers: []
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_typing
+      - activity_item_burst_attempted_during_typing
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Reduced-attention accessibility posture. Toasts route to
+      status_item; announcements use the same screen-reader
+      announcement lane the keyboard route uses. App-icon badges
+      and lock-screen summaries remain truthful.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:voice_capture_active
+    active_flow_class: voice_capture_active
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_voice_capture
+      - voice_command_inline_apply_attempted
+      - extension_repair_modal_attempted
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Mic indicator is hot. Voice-issued privileged actions land on
+      the same preview / apply / revert posture a keyboard-issued
+      action lands on; transient toasts route to status_item.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:voice_command_preview_active
+    active_flow_class: voice_command_preview_active
+    binds_upstream_protected_paths:
+      - ai_apply
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - voice_command_inline_apply_attempted
+      - product_owned_modal_attempted_during_voice_capture
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      A voice-issued command is in preview awaiting confirmation.
+      Other tiers compete for focus with the approval decision and
+      MUST NOT interrupt.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:save_in_flight
+    active_flow_class: save_in_flight
+    binds_upstream_protected_paths:
+      - save
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_typing
+      - product_owned_banner_replaced_typing_focus
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Save lifecycle mid-write. Non-critical notices hold; durable
+      rows update silently until the save finishes.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:recovery_in_flight
+    active_flow_class: recovery_in_flight
+    binds_upstream_protected_paths:
+      - recovery
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - extension_repair_modal_attempted
+      - product_owned_modal_attempted_during_repair
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Restore / repair active. Repair durable updates may render;
+      transient toasts and unrelated actionable items route to the
+      activity center.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:restore_from_crash_active
+    active_flow_class: restore_from_crash_active
+    binds_upstream_protected_paths:
+      - restore_from_crash
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - status_item
+      - os_notification
+      - os_badge_app_icon
+      - lock_screen_summary
+      - companion_push
+      - activity_center_digest_card
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_repair
+      - extension_repair_modal_attempted
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      The first surface after a crash is the recovery review itself.
+      Ambient, transient, and actionable chrome MUST NOT interpose
+      before the user sees the recovery review.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:trust_review_active
+    active_flow_class: trust_review_active
+    binds_upstream_protected_paths:
+      - trust_review
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - status_item
+      - os_notification
+      - os_badge_app_icon
+      - lock_screen_summary
+      - companion_push
+    allowed_escalation_tiers:
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_review
+      - nested_product_overlay_stacked_on_sheet
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Trust review focuses the user on an authority decision.
+      Ambient / transient / durable / actionable deliveries collapse
+      into the activity center until the decision is resolved.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:debugging_active
+    active_flow_class: debugging_active
+    binds_upstream_protected_paths:
+      - debugging
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_review
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Debug session preserves step / watch / breakpoint focus.
+      Transient toasts and attention-item escalations route to the
+      activity center until the session pauses.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:ai_apply_active
+    active_flow_class: ai_apply_active
+    binds_upstream_protected_paths:
+      - ai_apply
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_durable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - status_item
+      - os_notification
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_review
+      - voice_command_inline_apply_attempted
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      AI apply is itself tier_durable. Other tiers compete for focus
+      with the approval decision and MUST NOT interrupt.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:patch_approval_active
+    active_flow_class: patch_approval_active
+    binds_upstream_protected_paths:
+      - patch_approval
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+    allowed_delivery_surfaces:
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - status_item
+      - os_notification
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - product_owned_modal_attempted_during_review
+      - nested_product_overlay_stacked_on_sheet
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Patch approval is a consequence-bearing decision. Unrelated
+      notices may not compete with approve / deny.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:auth_callback_pending
+    active_flow_class: auth_callback_pending
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_actionable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - os_notification
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - auth_callback_window_focus_grab
+      - os_notification_replay_after_dismiss
+      - companion_push_replay_after_dismiss
+    denial_reason_when_violated: reopen_requires_revalidation
+    notes_label: >
+      Provider handoff or browser-handoff approval mid-flight.
+      Reopen denies with reopen_denied_requires_revalidation until
+      the user re-enters the provider grant review canvas.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:update_install_pending
+    active_flow_class: update_install_pending
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_actionable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - os_notification
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    denies_focus_steal_attempts:
+      - update_install_modal_attempted_during_typing
+      - update_install_modal_attempted_during_presentation
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Update download / staging is tier_durable (durable row +
+      status item). Reboot-required promotion is tier_blocking_trust
+      and routes via the review sheet, not a focus-stealing modal.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:repair_pending
+    active_flow_class: repair_pending
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes: []
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_durable
+      - tier_actionable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers:
+      - tier_transient
+    allowed_delivery_surfaces:
+      - status_item
+      - os_badge_app_icon
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - not_delivered_held
+    forbidden_delivery_surfaces:
+      - toast
+      - lock_screen_summary
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    denies_focus_steal_attempts:
+      - extension_repair_modal_attempted
+      - product_owned_modal_attempted_during_repair
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      Extension crash / restart / repair card is tier_durable
+      (attention_item + contextual_banner). Promotion to
+      tier_blocking_trust requires consequence_class_escalated or
+      recovery_class_downgraded_to_no_recovery and routes via the
+      review sheet.
+
+  - record_kind: active_flow_row_record
+    arbitration_row_id: ux:arbitration:none
+    active_flow_class: none
+    binds_upstream_protected_paths: []
+    binds_upstream_quiet_hours_modes:
+      - mode_none
+    allowed_interruptibility_tiers:
+      - tier_ambient
+      - tier_transient
+      - tier_durable
+      - tier_actionable
+      - tier_blocking_trust
+      - tier_critical_safety
+    forbidden_interruptibility_tiers: []
+    allowed_delivery_surfaces:
+      - toast
+      - contextual_banner
+      - status_item
+      - durable_job_row
+      - attention_item
+      - activity_center_digest_card
+      - digest_group_row
+      - os_notification
+      - os_badge_app_icon
+      - lock_screen_summary
+      - companion_push
+      - not_delivered_held
+    forbidden_delivery_surfaces: []
+    allowed_escalation_tiers:
+      - tier.inline_in_target_surface
+      - tier.contextual_inline_overlay
+      - tier.panel_attached_to_surface
+      - tier.sheet_attached_to_window
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    forbidden_escalation_tiers: []
+    denies_focus_steal_attempts:
+      - os_notification_replay_after_dismiss
+      - companion_push_replay_after_dismiss
+      - nested_product_overlay_stacked_on_sheet
+    denial_reason_when_violated: focus_steal_on_protected_path
+    notes_label: >
+      No protected flow active. Default escalation matrix applies
+      subject to the upstream tier rules in
+      interruptibility_escalation_seed.yaml and the quiet-hours
+      policy rows.
+
+# ---------------------------------------------------------------------------
+# Per-tier escalation rows. One row per (interruptibility_tier,
+# representative active_flow_class) combination demonstrating the
+# arbitration_outcome_class produced and the escalation_required_triggers
+# that justify advancing past tier.contextual_inline_overlay.
+# ---------------------------------------------------------------------------
+
+tier_escalation_rows:
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_ambient:default
+    interruptibility_tier: tier_ambient
+    representative_active_flow_class: any
+    default_escalation_tier: tier.inline_in_target_surface
+    default_arbitration_outcome_class: delivered_status_item
+    requires_escalation_trigger_to_advance: false
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    notes_label: >
+      Passive ambient state. status_item / os_badge_app_icon only.
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_transient:none
+    interruptibility_tier: tier_transient
+    representative_active_flow_class: none
+    default_escalation_tier: tier.contextual_inline_overlay
+    default_arbitration_outcome_class: delivered_inline_in_target_surface
+    requires_escalation_trigger_to_advance: true
+    required_escalation_triggers_to_advance:
+      - severity_increased
+      - duration_threshold_crossed
+      - repeated_dedupe_threshold_crossed
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    notes_label: >
+      Toast or inline acknowledgement. Escalation to durable / actionable
+      requires a typed trigger.
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_transient:protected_flow_held
+    interruptibility_tier: tier_transient
+    representative_active_flow_class: editor_typing_active
+    default_escalation_tier: tier.inline_in_target_surface
+    default_arbitration_outcome_class: held_not_delivered_release_pending
+    requires_escalation_trigger_to_advance: true
+    required_escalation_triggers_to_advance:
+      - severity_increased
+      - required_authority_changed
+      - trust_state_changed
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+      - tier.full_surface_takeover
+    notes_label: >
+      Transient deliveries hold under any protected flow and release
+      as a digest when the flow ends.
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_durable:default
+    interruptibility_tier: tier_durable
+    representative_active_flow_class: any
+    default_escalation_tier: tier.panel_attached_to_surface
+    default_arbitration_outcome_class: delivered_durable_job_row
+    requires_escalation_trigger_to_advance: true
+    required_escalation_triggers_to_advance:
+      - severity_increased
+      - duration_threshold_crossed
+      - required_authority_changed
+      - consequence_class_escalated
+      - basis_snapshot_drifted
+      - provider_grant_narrowed
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    notes_label: >
+      Long-running work lives on a durable row. Toast may mirror but
+      MUST NOT replace the durable row.
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_actionable:default
+    interruptibility_tier: tier_actionable
+    representative_active_flow_class: none
+    default_escalation_tier: tier.panel_attached_to_surface
+    default_arbitration_outcome_class: delivered_attention_item
+    requires_escalation_trigger_to_advance: true
+    required_escalation_triggers_to_advance:
+      - severity_increased
+      - duration_threshold_crossed
+      - required_authority_changed
+      - consequence_class_escalated
+      - policy_epoch_changed
+      - trust_state_changed
+      - provider_grant_narrowed
+      - recovery_class_downgraded_to_no_recovery
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    notes_label: >
+      Item that needs a named human action. Attention-item with
+      next_action_label; advances to review sheet on typed trigger.
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_blocking_trust:default
+    interruptibility_tier: tier_blocking_trust
+    representative_active_flow_class: any
+    default_escalation_tier: tier.sheet_attached_to_window
+    default_arbitration_outcome_class: routed_via_review_sheet
+    requires_escalation_trigger_to_advance: true
+    required_escalation_triggers_to_advance:
+      - severity_increased
+      - consequence_class_escalated
+      - policy_epoch_changed
+      - trust_state_changed
+      - recovery_class_downgraded_to_no_recovery
+    forbidden_escalation_tiers:
+      - tier.dialog_modal
+    notes_label: >
+      Trust / policy / authority decision routes through the
+      interaction-safety review sheet. A product-owned generic
+      modal denies with focus_steal_on_protected_path.
+
+  - record_kind: tier_escalation_row_record
+    escalation_row_id: ux:escalation:tier_critical_safety:default
+    interruptibility_tier: tier_critical_safety
+    representative_active_flow_class: any
+    default_escalation_tier: tier.sheet_attached_to_window
+    default_arbitration_outcome_class: routed_via_review_sheet
+    requires_escalation_trigger_to_advance: false
+    required_escalation_triggers_to_advance: []
+    forbidden_escalation_tiers: []
+    notes_label: >
+      tier_critical_safety always renders. The arbitration outcome
+      is routed_via_review_sheet (default), delivered_contextual_banner
+      (when the review sheet is open on target), delivered_attention_item
+      (when away from target), or delivered_os_notification_lock_screen_safe
+      / delivered_companion_push_lock_screen_safe (when away from
+      product). A generic product-owned modal with no review-sheet
+      origin denies with focus_steal_on_protected_path.
+
+# ---------------------------------------------------------------------------
+# Reopen-and-revalidation rows. One row per reopen path the matrix
+# admits. Rows binding the reopen_target_kind, the active_flow_class
+# under which reopen lands, and the revalidation posture.
+# ---------------------------------------------------------------------------
+
+reopen_rows:
+
+  - record_kind: reopen_row_record
+    reopen_row_id: ux:reopen:durable_job_row_exact
+    reopen_target_kind: durable_job_row_exact
+    requires_revalidation: false
+    delivered_via:
+      - durable_job_row
+      - status_item
+      - os_badge_app_icon
+      - toast
+    forbidden_when:
+      - active_flow_class: trust_review_active
+        denial_reason: focus_steal_on_protected_path
+    notes_label: >
+      Toast / badge / status-item invocations reopen to the durable
+      job row exactly; reopening to a generic home screen denies
+      with reopen_to_generic_home_forbidden.
+
+  - record_kind: reopen_row_record
+    reopen_row_id: ux:reopen:attention_item_exact
+    reopen_target_kind: attention_item_exact
+    requires_revalidation: false
+    delivered_via:
+      - attention_item
+      - os_notification
+      - companion_push
+    forbidden_when:
+      - active_flow_class: review_canvas_active
+        denial_reason: focus_steal_on_protected_path
+    notes_label: >
+      OS notification / companion push reopens to the canonical
+      attention item; cross-client divergence denies with
+      companion_cross_client_divergence.
+
+  - record_kind: reopen_row_record
+    reopen_row_id: ux:reopen:review_sheet
+    reopen_target_kind: review_sheet
+    requires_revalidation: false
+    delivered_via:
+      - contextual_banner
+      - attention_item
+      - os_notification
+    forbidden_when: []
+    notes_label: >
+      Trust / blocking-trust / critical-safety deliveries reopen to
+      the interaction-safety review sheet on the canonical target.
+
+  - record_kind: reopen_row_record
+    reopen_row_id: ux:reopen:reopen_denied_requires_revalidation
+    reopen_target_kind: reopen_denied_requires_revalidation
+    requires_revalidation: true
+    delivered_via:
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+      - os_notification
+      - companion_push
+    forbidden_when: []
+    notes_label: >
+      Wake from sleep, display reconnect, policy-epoch change,
+      provider grant narrowed. Reopen denies rather than silently
+      replaying a mutating action; the durable row exposes the
+      revalidation route.
+
+  - record_kind: reopen_row_record
+    reopen_row_id: ux:reopen:placeholder_announced
+    reopen_target_kind: placeholder_announced
+    requires_revalidation: false
+    delivered_via:
+      - durable_job_row
+      - attention_item
+      - contextual_banner
+    forbidden_when: []
+    notes_label: >
+      Target missing / moved / policy-blocked / extension
+      unavailable / display topology lost. The surface renders a
+      placeholder whose announcement explains why reopen could not
+      return to the exact target.
+
+# ---------------------------------------------------------------------------
+# Invariants reviewed by later conformance gates.
+# ---------------------------------------------------------------------------
+
+invariants:
+
+  - id: protected_path_focus_steal_denied
+    description: >
+      A delivery whose interruptibility_tier is on the
+      forbidden_interruptibility_tiers list for the current
+      active_flow_class denies with focus_steal_on_protected_path
+      and routes to the activity center rather than interrupting.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: focus_steal_on_protected_path
+
+  - id: escalation_requires_typed_trigger
+    description: >
+      Advancing past tier.contextual_inline_overlay requires naming
+      one escalation_required_triggers value on the lineage.
+      Decorative escalation denies with
+      interruption_tier_escalated_without_trigger.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: interruption_tier_escalated_without_trigger
+
+  - id: product_owned_nested_overlay_forbidden
+    description: >
+      A product-owned modal MUST NOT stack on a product-owned sheet,
+      modal, or full-surface takeover. Stacking denies with
+      product_owned_nested_overlay_forbidden; the platform-auth-
+      dialog and platform-file-picker-dialog exception is the only
+      allowed nested overlay.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: focus_steal_on_protected_path
+
+  - id: critical_safety_always_renders
+    description: >
+      tier_critical_safety renders regardless of quiet_hours_mode
+      or active_flow_class. A row that suppresses
+      tier_critical_safety denies with
+      quiet_hours_hold_discarded_critical_safety_tier; an admin
+      policy that silently blocks it denies with
+      admin_suppression_blocked_critical_safety.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: quiet_hours_hold_discarded_critical_safety_tier
+
+  - id: durable_history_always_preserved
+    description: >
+      Every arbitration outcome (delivered, held, denied) emits an
+      activity_event_envelope_record. A delivery that bypassed the
+      audit trail denies with held_event_missing_audit_trail.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: held_event_missing_audit_trail
+
+  - id: reopen_lands_on_canonical_durable_identity
+    description: >
+      Invoking a notification / badge / toast / banner / OS
+      notification / companion push reopens to the narrowest
+      truthful destination named on the reopen_target_record.
+      Reopening to a generic home screen denies with
+      reopen_to_generic_home_forbidden.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: reopen_to_generic_home_forbidden
+
+  - id: reopen_revalidation_denies_silent_replay
+    description: >
+      When the originating target requires fresh user intent,
+      reopen denies with reopen_denied_requires_revalidation rather
+      than silently replaying a mutating action.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: reopen_requires_revalidation
+
+  - id: dismiss_authoritative_across_clients
+    description: >
+      An OS notification or companion push that replays the same
+      canonical_event_id after the user dismissed it in-product
+      denies with os_notification_replay_after_dismiss /
+      companion_push_replay_after_dismiss; cross-client divergence
+      denies with companion_cross_client_divergence.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: companion_cross_client_divergence
+
+  - id: voice_command_lands_on_keyboard_preview_lane
+    description: >
+      A voice-issued privileged action lands on the same preview /
+      apply / revert posture a keyboard-issued action lands on.
+      Inline apply outside the review-sheet preview lane denies
+      with focus_steal_on_protected_path and routes back to the
+      review sheet.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: focus_steal_on_protected_path
+
+  - id: durable_only_states_do_not_escalate_to_modal
+    description: >
+      Long-running work, held bursts, suppressed security notices,
+      update download, extension repair, voice-mode mic state, and
+      auth-callback pending stay on durable_job_row /
+      attention_item / contextual_banner / status_item /
+      digest_group_row. Escalation to dialog_modal /
+      full_surface_takeover requires the upstream tier rules and
+      the active_flow_row to both admit it.
+    failure_event: activity_event_denial_emitted
+    failure_denial_reason: toast_only_forbidden_for_durable_work
+
+  - id: schema_version_alignment
+    description: >
+      All emitted interruptibility_arbitration_decision_record
+      instances share schema_version with the registry; surfaces
+      lagging behind a schema bump are denied.
+    failure_event: activity_event_envelope_schema_version_bumped
+    failure_denial_reason: activity_event_envelope_schema_version_lagging

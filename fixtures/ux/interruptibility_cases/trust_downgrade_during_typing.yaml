@@ -1,0 +1,167 @@
+# Trust downgrade during typing.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml row
+# ux:arbitration:editor_typing_active and the trust_downgrade_break
+# override row in artifacts/ux/quiet_hours_override_matrix.yaml. Binds
+# the canonical trust-review record, the suppression-record release
+# step, the lineage's typed escalation reason, and the evidence-
+# preservation block to prove that a workspace trust downgrade may
+# break editor_typing_active at tier_blocking_trust, route through the
+# interaction-safety review sheet, and preserve every required audit
+# trail.
+__fixture__:
+  name: trust_downgrade_during_typing
+  scenario: >
+    The policy resolver records trust_state changing from trusted to
+    restricted while the user is typing in the editor canvas. The
+    arbitration row routes the event via the trust-review sheet at
+    tier_blocking_trust; no toast, no banner pre-empting the
+    keystroke buffer, no product-owned modal. Reopen denies with
+    reopen_denied_requires_revalidation until the user re-enters the
+    trust review canvas. mode_admin_suppression remains forbidden so
+    the break operates inside admin policy.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:editor_typing_active
+  override_row_ref: quiet_hours_override_matrix#ux:quiet-hours-override:trust_downgrade_break:01
+  contract_sections:
+    - "Arbitration rules §4.1"
+    - "Arbitration rules §4.3"
+    - "Arbitration rules §4.4"
+  exercised_axes:
+    active_flow_class: editor_typing_active
+    incoming_interruptibility_tier: tier_blocking_trust
+    arbitration_outcome_class: routed_via_review_sheet
+    escalation_required_trigger: trust_state_changed
+    privacy_payload_class: lock_screen_safe_scoped
+    reopen_target_kind: reopen_denied_requires_revalidation
+
+audit_binding:
+  canonical_event_id: ux:event:trust:workspace-downgrade:01
+  event_lineage_id_ref: ux:lineage:trust:workspace-downgrade:01
+  canonical_object_target_ref: obj:trust-review:workspace-downgrade:01
+  source_subsystem: workspace_trust
+  actor_identity_ref: id:actor:system:policy-resolver
+
+active_flow_state_at_decision:
+  active_flow_class: editor_typing_active
+  active_flow_target_ref: obj:editor:document:current
+  concurrent_active_flow_classes:
+    - editor_typing_active
+  active_quiet_hours_modes:
+    - mode_focus_mode_user
+  forbidden_for_this_break:
+    - mode_admin_suppression
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:trust-downgrade:01
+  arbitration_row_id: ux:arbitration:editor_typing_active
+  active_flow_class: editor_typing_active
+  incoming_interruptibility_tier: tier_blocking_trust
+  arbitration_outcome_class: routed_via_review_sheet
+  delivery_surface_class: contextual_banner
+  surface_escalation_tier: tier.sheet_attached_to_window
+  escalation_required_triggers_cited:
+    - trust_state_changed
+  focus_steal_attempt_classes_denied:
+    - product_owned_modal_attempted_during_typing
+    - product_owned_banner_replaced_typing_focus
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:trust-downgrade:01
+  reopen_target_ref: ux:reopen:trust:workspace-downgrade:review-sheet
+  reopen_target_kind: reopen_denied_requires_revalidation
+
+suppression_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:trust-downgrade:01
+  intended_delivery_surface_class: contextual_banner
+  intended_privacy_payload_class: lock_screen_safe_scoped
+  intended_interruptibility_tier: tier_blocking_trust
+  suppression_class: held_focus_mode_user_policy
+  suppression_outcome: released_on_escalation
+  active_quiet_hours_modes_at_decision:
+    - mode_focus_mode_user
+  release_step:
+    release_trigger_class: escalation_to_blocking_trust
+    released_to_delivery_surface_class: contextual_banner
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:trust-review-canvas:workspace-downgrade:01
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: trust_state_changed
+  escalated_from_tier: tier_durable
+  escalated_to_tier: tier_blocking_trust
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:trust-review-canvas:workspace-downgrade:01
+  must_route_through_approval_workflow: false
+  approval_workflow_ref: null
+  requires_revalidation: true
+  revalidation_reason_label: >
+    Workspace trust downgraded; user re-enters trust review canvas
+    before consequence-bearing actions resume.
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:trust-downgrade:01
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - suppression_record_release_recorded
+    - audit_trail_record_ref_present
+    - interaction_safety_packet_id_ref_present
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/interaction_safety.schema.json#interaction_safety_packet_record
+    - schemas/ux/activity_event_envelope.schema.json#activity_event_envelope_record
+
+reviewer_checks:
+  - id: typing_protected_no_modal
+    description: >
+      The active_flow_class is editor_typing_active; tier.dialog_modal
+      is on forbidden_escalation_tiers. Routing chose
+      tier.sheet_attached_to_window via review_sheet rather than a
+      product-owned modal.
+    pass: true
+  - id: toast_forbidden_during_typing
+    description: >
+      The active flow forbids toast; the suppression record holds the
+      toast surface and the durable banner takes over.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      The lineage records trust_state_changed (from the closed
+      escalation set); decorative escalation would deny.
+    pass: true
+  - id: review_sheet_required
+    description: >
+      bypass_protection.must_route_through_review_sheet is true and
+      review_sheet_ref is non-null.
+    pass: true
+  - id: revalidation_required
+    description: >
+      reopen_target_kind is reopen_denied_requires_revalidation; the
+      durable row exposes the revalidation route.
+    pass: true
+  - id: admin_suppression_not_overridden
+    description: >
+      mode_admin_suppression is on the override row's forbidden_modes
+      list; the break never crosses admin_overridable = false.
+    pass: true
+
+denial_reasons_avoided:
+  - focus_steal_on_protected_path
+  - interruption_tier_escalated_without_trigger
+  - product_owned_nested_overlay_forbidden
+  - quiet_hours_hold_discarded_durable_history
+  - admin_suppression_blocked_critical_safety
+  - reopen_to_generic_home_forbidden
+  - held_event_missing_audit_trail

@@ -1,0 +1,213 @@
+# Critical safety during typing.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml row
+# ux:arbitration:editor_typing_active and the security_advisory_break
+# override row in artifacts/ux/quiet_hours_override_matrix.yaml. The
+# secret broker confirms a credential compromise while the user is
+# typing in mode_focus_mode_user. tier_critical_safety always renders;
+# the arbitration routes via the security review canvas, contextual
+# banner, and a lock_screen_safe_generic OS notification. No focus-
+# stealing modal; no silent block; reopen denies until revalidation.
+__fixture__:
+  name: critical_safety_during_typing
+  scenario: >
+    The secret broker confirms a compromise of an active credential
+    while the user is typing in the editor canvas under
+    mode_focus_mode_user. tier_critical_safety always renders. The
+    arbitration row routes the durable security-review attention
+    item, raises a contextual banner on the editor zone, and emits a
+    lock_screen_safe_generic OS notification. mode_admin_suppression
+    MAY narrow but MAY NOT silently block; this row records the
+    admin-suppression denial path for posterity.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:editor_typing_active
+  override_row_ref: quiet_hours_override_matrix#ux:quiet-hours-override:security_advisory_break:01
+  contract_sections:
+    - "Arbitration rules §4.1"
+    - "Arbitration rules §4.4"
+  exercised_axes:
+    active_flow_class: editor_typing_active
+    incoming_interruptibility_tier: tier_critical_safety
+    arbitration_outcome_class: routed_via_review_sheet
+    escalation_required_trigger: severity_increased
+    privacy_payload_class: lock_screen_safe_generic
+    reopen_target_kind: reopen_denied_requires_revalidation
+
+audit_binding:
+  canonical_event_id: ux:event:security-advisory:credential-compromise:02
+  event_lineage_id_ref: ux:lineage:security-advisory:credential-compromise:02
+  canonical_object_target_ref: obj:security-advisory:credential-compromise:02
+  source_subsystem: secret_broker
+  actor_identity_ref: id:actor:system:secret-broker
+
+active_flow_state_at_decision:
+  active_flow_class: editor_typing_active
+  active_flow_target_ref: obj:editor:document:current
+  concurrent_active_flow_classes:
+    - editor_typing_active
+  active_quiet_hours_modes:
+    - mode_focus_mode_user
+  forbidden_for_this_break:
+    - mode_admin_suppression
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:security-advisory:typing:01
+  arbitration_row_id: ux:arbitration:editor_typing_active
+  active_flow_class: editor_typing_active
+  incoming_interruptibility_tier: tier_critical_safety
+  arbitration_outcome_class: routed_via_review_sheet
+  delivery_surface_class: contextual_banner
+  surface_escalation_tier: tier.sheet_attached_to_window
+  escalation_required_triggers_cited:
+    - severity_increased
+    - consequence_class_escalated
+    - recovery_class_downgraded_to_no_recovery
+  focus_steal_attempt_classes_denied:
+    - product_owned_modal_attempted_during_typing
+    - product_owned_banner_replaced_typing_focus
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:credential-compromise:02
+  reopen_target_ref: ux:reopen:security-advisory:credential-compromise:02:revalidate
+  reopen_target_kind: reopen_denied_requires_revalidation
+  cross_client_lineage_refs:
+    - ux:lineage:security-advisory:credential-compromise:02#client:desktop
+    - ux:lineage:security-advisory:credential-compromise:02#client:companion
+
+suppression_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:credential-compromise:02
+  intended_delivery_surface_class: os_notification
+  intended_privacy_payload_class: lock_screen_safe_generic
+  intended_interruptibility_tier: tier_critical_safety
+  suppression_class: held_focus_mode_user_policy
+  suppression_outcome: released_on_critical_safety
+  active_quiet_hours_modes_at_decision:
+    - mode_focus_mode_user
+  release_step:
+    release_trigger_class: escalation_to_critical_safety
+    released_to_delivery_surface_class: contextual_banner
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:security-review-canvas:credential-compromise:02
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: severity_increased
+  escalated_from_tier: tier_blocking_trust
+  escalated_to_tier: tier_critical_safety
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:security-review-canvas:credential-compromise:02
+  must_route_through_approval_workflow: false
+  approval_workflow_ref: null
+  requires_revalidation: true
+  revalidation_reason_label: >
+    Credential compromise requires explicit user re-authentication
+    before the credential is reused.
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:credential-compromise:02
+
+privacy_redaction_proof:
+  record_kind: privacy_redaction_block
+  applied_payload_class: lock_screen_safe_generic
+  redacted_summary_label: >
+    Security review required
+  redaction_template_tokens:
+    - "{category}"
+    - "{severity_class}"
+    - "{audit_only_marker}"
+  stripped_label_kinds:
+    - raw_secret_material
+    - actor_real_name_on_lock_screen
+    - object_identity_on_lock_screen
+  lock_screen_safe: true
+  companion_safe: true
+  system_notification_safe: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - suppression_record_release_recorded
+    - suppression_record_redaction_recorded
+    - audit_trail_record_ref_present
+    - interaction_safety_packet_id_ref_present
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/interaction_safety.schema.json#interaction_safety_packet_record
+    - schemas/ux/notification_event.schema.json#notification_event_record
+    - schemas/ux/activity_event_envelope.schema.json#activity_event_envelope_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:security_notices
+  record_kind: badge_record
+  badge_class: security_notices
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+admin_suppression_invariant_proof:
+  description: >
+    mode_admin_suppression is on the override row's forbidden_modes
+    list. A managed policy that silently blocks this delivery would
+    deny with admin_suppression_blocked_critical_safety; this row
+    records the audit trail even when admin policy narrows OS
+    surfaces.
+  admin_suppression_path:
+    if_admin_narrows_os_surfaces: durable_audit_trail_preserved
+    silent_block_attempt_denial_reason: admin_suppression_blocked_critical_safety
+
+reviewer_checks:
+  - id: critical_safety_always_renders
+    description: >
+      tier_critical_safety on a typing-active row routes via the
+      review sheet rather than denying; the contextual banner,
+      attention item, and lock_screen_safe_generic OS notification
+      all render.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      The lineage records severity_increased (from the closed
+      escalation set); decorative escalation would deny.
+    pass: true
+  - id: review_sheet_required
+    description: >
+      bypass_protection.must_route_through_review_sheet is true and
+      review_sheet_ref is non-null.
+    pass: true
+  - id: revalidation_required_on_reopen
+    description: >
+      reopen_target_kind is reopen_denied_requires_revalidation;
+      OS notification reopen does not silently re-authenticate.
+    pass: true
+  - id: redaction_complete
+    description: >
+      Every forbidden label kind is stripped and recorded;
+      privacy_payload_class is lock_screen_safe_generic.
+    pass: true
+  - id: admin_suppression_not_overridden
+    description: >
+      mode_admin_suppression is on the forbidden_modes list; the
+      override never crosses admin_overridable = false.
+    pass: true
+  - id: cross_client_dedupe_preserved
+    description: >
+      desktop and companion deliveries collapse to one
+      canonical_event_id; per-client lineage is preserved.
+    pass: true
+
+denial_reasons_avoided:
+  - focus_steal_on_protected_path
+  - quiet_hours_hold_discarded_critical_safety_tier
+  - quiet_hours_hold_discarded_durable_history
+  - admin_suppression_blocked_critical_safety
+  - interruption_tier_escalated_without_trigger
+  - companion_cross_client_divergence
+  - reopen_to_generic_home_forbidden
+  - held_event_missing_audit_trail

@@ -1,0 +1,134 @@
+# Assistive-tech transient held.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml row
+# ux:arbitration:assistive_tech_active. Under
+# mode_reduced_attention_policy a transient toast (e.g. "Saved")
+# routes to the persistent status_item rather than animating into the
+# user's reading flow. The same screen-reader announcement lane the
+# keyboard route uses is used for the announcement; assistive-tech
+# parity is preserved.
+__fixture__:
+  name: assistive_tech_transient_held
+  scenario: >
+    Under mode_reduced_attention_policy a routine save completes and
+    the editor would normally render a transient "Saved" toast. The
+    arbitration row holds the toast (it is on
+    forbidden_delivery_surfaces for assistive_tech_active) and routes
+    the acknowledgement onto the persistent status_item with a
+    keyboard-parity screen-reader announcement. App-icon badges and
+    lock-screen summaries remain truthful.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:assistive_tech_active
+  contract_sections:
+    - "Arbitration rules §4.1"
+  exercised_axes:
+    active_flow_class: assistive_tech_active
+    incoming_interruptibility_tier: tier_transient
+    arbitration_outcome_class: delivered_status_item
+    escalation_required_trigger: severity_increased
+    privacy_payload_class: in_product_only
+    reopen_target_kind: canonical_object_target_exact
+
+audit_binding:
+  canonical_event_id: ux:event:editor:save-completed:01
+  event_lineage_id_ref: ux:lineage:editor:save-completed:01
+  canonical_object_target_ref: obj:editor:document:current
+  source_subsystem: vfs_save
+  actor_identity_ref: id:actor:user:current
+
+active_flow_state_at_decision:
+  active_flow_class: assistive_tech_active
+  active_flow_target_ref: obj:editor:document:current
+  concurrent_active_flow_classes:
+    - assistive_tech_active
+    - editor_typing_active
+  active_quiet_hours_modes:
+    - mode_reduced_attention_policy
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:save:assistive-tech:01
+  arbitration_row_id: ux:arbitration:assistive_tech_active
+  active_flow_class: assistive_tech_active
+  incoming_interruptibility_tier: tier_transient
+  arbitration_outcome_class: delivered_status_item
+  delivery_surface_class: status_item
+  surface_escalation_tier: tier.inline_in_target_surface
+  escalation_required_triggers_cited: []
+  focus_steal_attempt_classes_denied:
+    - product_owned_modal_attempted_during_typing
+    - activity_item_burst_attempted_during_typing
+  interaction_safety_packet_id_ref: null
+  reopen_target_ref: ux:reopen:editor:save-completed:01
+  reopen_target_kind: canonical_object_target_exact
+
+suppression_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:save:assistive-tech:01
+  intended_delivery_surface_class: toast
+  intended_privacy_payload_class: in_product_only
+  intended_interruptibility_tier: tier_transient
+  suppression_class: held_reduced_attention_posture
+  suppression_outcome: routed_to_status_item
+  active_quiet_hours_modes_at_decision:
+    - mode_reduced_attention_policy
+  release_step:
+    release_trigger_class: routed_durable_only
+    released_to_delivery_surface_class: status_item
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: canonical_object_target_exact
+    target_identity_ref: obj:editor:document:current
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+assistive_tech_parity_proof:
+  record_kind: assistive_tech_parity_block
+  screen_reader_announcement_lane: keyboard_parity
+  announcement_label_ref: a11y:announcement:save-completed
+  same_undo_stack: true
+  status_item_role_label: status
+  status_item_polite_announcement: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - suppression_record_release_recorded
+    - audit_trail_record_ref_present
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/activity_event_envelope.schema.json#activity_event_envelope_record
+
+reviewer_checks:
+  - id: toast_held_under_reduced_attention
+    description: >
+      toast is on forbidden_delivery_surfaces for
+      assistive_tech_active; the suppression record holds the toast
+      and routes to status_item.
+    pass: true
+  - id: keyboard_parity_announcement_lane
+    description: >
+      The screen-reader announcement uses the same lane the keyboard
+      route uses; assistive-tech parity is preserved.
+    pass: true
+  - id: lock_screen_summary_remains_truthful
+    description: >
+      lock_screen_summary remains on allowed_delivery_surfaces for
+      assistive_tech_active; the user can still see critical state
+      at a glance.
+    pass: true
+  - id: durable_history_preserved
+    description: >
+      The activity-event envelope is emitted with
+      delivery_surface_class = status_item; durable history is
+      preserved.
+    pass: true
+
+denial_reasons_avoided:
+  - focus_steal_on_protected_path
+  - dedupe_violated_stacked_toasts
+  - quiet_hours_hold_discarded_durable_history
+  - held_event_missing_audit_trail

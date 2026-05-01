@@ -1,0 +1,153 @@
+# OS reopen after quiet-hours exit.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml reopen row
+# ux:reopen:durable_job_row_exact and the dismiss-authoritative-
+# across-clients invariant. Three task completions arrive during
+# mode_quiet_hours_user; the held envelopes preserve durable history.
+# On mode exit the grouped digest releases as one digest grouped by
+# source and severity, and tapping the OS notification reopens to the
+# canonical durable_job_row_exact — never to a generic home screen.
+__fixture__:
+  name: os_reopen_after_quiet_hours_exit
+  scenario: >
+    Three routine task completions for the same canonical durable
+    object are held during mode_quiet_hours_user. On mode exit the
+    grouped_burst_record releases as one digest grouped by source and
+    severity. The OS notification carries lock_screen_safe_generic;
+    invoking it reopens to the canonical durable_job_row_exact via
+    the activity-center suppressed_held partition. A reopen attempt
+    that lands on the generic home screen would deny with
+    reopen_to_generic_home_forbidden.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:none
+  reopen_row_ref: escalation_matrix#ux:reopen:durable_job_row_exact
+  contract_sections:
+    - "Arbitration rules §4.6"
+    - "Arbitration rules §4.8"
+  exercised_axes:
+    active_flow_class: none
+    incoming_interruptibility_tier: tier_durable
+    arbitration_outcome_class: delivered_durable_job_row
+    escalation_required_trigger: repeated_dedupe_threshold_crossed
+    privacy_payload_class: lock_screen_safe_generic
+    reopen_target_kind: durable_job_row_exact
+
+audit_binding:
+  canonical_event_id: ux:event:task-completions:quiet-hours-held:01
+  event_lineage_id_ref: ux:lineage:task-completions:quiet-hours-held:01
+  canonical_object_target_ref: obj:task-runner:quiet-hours-digest
+  source_subsystem: task_runner
+  actor_identity_ref: id:actor:system:task-runner
+
+active_flow_state_at_decision:
+  active_flow_class: none
+  active_flow_target_ref: null
+  concurrent_active_flow_classes: []
+  active_quiet_hours_modes_during_hold:
+    - mode_quiet_hours_user
+  active_quiet_hours_modes_at_release:
+    - mode_none
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:task-completions:reopen:01
+  arbitration_row_id: ux:arbitration:none
+  active_flow_class: none
+  incoming_interruptibility_tier: tier_durable
+  arbitration_outcome_class: delivered_durable_job_row
+  delivery_surface_class: durable_job_row
+  surface_escalation_tier: tier.panel_attached_to_surface
+  escalation_required_triggers_cited:
+    - repeated_dedupe_threshold_crossed
+  focus_steal_attempt_classes_denied:
+    - os_notification_replay_after_dismiss
+    - companion_push_replay_after_dismiss
+  interaction_safety_packet_id_ref: null
+  reopen_target_ref: ux:reopen:task-completions:quiet-hours-held:durable
+  reopen_target_kind: durable_job_row_exact
+
+grouped_burst_proof:
+  record_kind: grouped_burst_record
+  grouped_burst_id: ux:grouped-burst:task-completions:quiet-hours-held:01
+  member_count: 3
+  first_event_id_ref: ux:event:task-completions:quiet-hours-held:01:member:01
+  latest_event_id_ref: ux:event:task-completions:quiet-hours-held:01:member:03
+  grouping_reason_label: >
+    Three routine task completions for the same canonical durable
+    object held during mode_quiet_hours_user.
+  digest_released_after_hold: true
+  release_trigger_class: mode_exit_grouped_digest_release
+
+reopen_proof:
+  record_kind: reopen_target_record
+  reopen_target_id: ux:reopen:task-completions:quiet-hours-held:durable
+  reopen_target_kind: durable_job_row_exact
+  resolves_to_target_ref: ux:job-row:task-completions:quiet-hours-held
+  resolves_via_canonical_object_target_ref: obj:task-runner:quiet-hours-digest
+  generic_home_fallback_attempted: false
+  placeholder_announced: false
+  revalidation_required: false
+
+cross_client_lineage_proof:
+  cross_client_lineage_refs:
+    - ux:lineage:task-completions:quiet-hours-held:01#client:desktop
+    - ux:lineage:task-completions:quiet-hours-held:01#client:companion
+  collapses_to_canonical_event_id: ux:event:task-completions:quiet-hours-held:01
+  divergent_lineage_attempt: false
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - suppression_record_release_recorded
+    - lineage_reopen_recorded
+    - audit_trail_record_ref_present
+    - badge_record_updated
+  retained_record_refs:
+    - schemas/ux/activity_event_envelope.schema.json#grouped_burst_record
+    - schemas/ux/activity_event_envelope.schema.json#reopen_target_record
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/job_row.schema.json#job_row_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:completion_unread
+  record_kind: badge_record
+  badge_class: completion_unread
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+reviewer_checks:
+  - id: durable_history_preserved_during_hold
+    description: >
+      Held envelopes carry delivery_surface_class = not_delivered_held
+      and at least one suppression_reason; durable history is
+      preserved across the hold.
+    pass: true
+  - id: grouped_digest_release_on_mode_exit
+    description: >
+      digest_released_after_hold is true; held bursts release as one
+      grouped digest grouped by source and severity.
+    pass: true
+  - id: reopen_lands_on_canonical_durable_identity
+    description: >
+      reopen_target_kind is durable_job_row_exact and resolves to the
+      canonical job-row via canonical_object_target_ref. A reopen
+      that landed on a generic home screen would deny with
+      reopen_to_generic_home_forbidden.
+    pass: true
+  - id: cross_client_lineage_collapsed
+    description: >
+      Desktop and companion deliveries collapse to one
+      canonical_event_id; cross-client divergence would deny with
+      companion_cross_client_divergence.
+    pass: true
+
+denial_reasons_avoided:
+  - reopen_to_generic_home_forbidden
+  - reopen_target_lost
+  - reopen_requires_revalidation
+  - companion_cross_client_divergence
+  - quiet_hours_hold_discarded_durable_history
+  - dedupe_violated_stacked_toasts
+  - held_event_missing_audit_trail

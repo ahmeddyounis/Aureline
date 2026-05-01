@@ -1,0 +1,191 @@
+# Auth callback during presentation.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml row
+# ux:arbitration:full_screen_presentation_active and the
+# approval_expiry_break override row in
+# artifacts/ux/quiet_hours_override_matrix.yaml. A provider-handoff
+# approval ticket nears expiry while the user is presenting; the
+# arbitration row routes via the durable provider-handoff row and a
+# scoped lock-screen summary; reopen denies until the user re-enters
+# the provider grant review canvas. No product-owned modal; no toast;
+# no audience-visible workspace identifier.
+__fixture__:
+  name: auth_callback_during_presentation
+  scenario: >
+    A connected-provider browser-handoff approval ticket attached to
+    an active provider handoff session is two minutes from expiry.
+    The user is in mode_presentation. The arbitration row holds the
+    OS notification (audience-visible), routes the durable provider-
+    handoff row + attention_item, and emits a lock_screen_safe_scoped
+    summary on the lock screen only. Reopen denies with
+    reopen_denied_requires_revalidation until the user re-enters the
+    provider grant review canvas after the presentation.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:full_screen_presentation_active
+  override_row_ref: quiet_hours_override_matrix#ux:quiet-hours-override:approval_expiry_break:01
+  contract_sections:
+    - "Arbitration rules §4.1"
+    - "Arbitration rules §4.3"
+    - "Arbitration rules §4.6"
+  exercised_axes:
+    active_flow_class: full_screen_presentation_active
+    incoming_interruptibility_tier: tier_blocking_trust
+    arbitration_outcome_class: delivered_attention_item
+    escalation_required_trigger: duration_threshold_crossed
+    privacy_payload_class: lock_screen_safe_scoped
+    reopen_target_kind: reopen_denied_requires_revalidation
+
+audit_binding:
+  canonical_event_id: ux:event:provider-handoff:approval-expiry:01
+  event_lineage_id_ref: ux:lineage:provider-handoff:approval-expiry:01
+  canonical_object_target_ref: obj:provider-grant:browser-handoff:01
+  source_subsystem: provider_bearing
+  actor_identity_ref: id:actor:system:provider-handoff-broker
+
+active_flow_state_at_decision:
+  active_flow_class: full_screen_presentation_active
+  active_flow_target_ref: obj:presentation:slides:current
+  concurrent_active_flow_classes:
+    - full_screen_presentation_active
+    - auth_callback_pending
+  active_quiet_hours_modes:
+    - mode_presentation
+  forbidden_for_this_break:
+    - mode_privacy_mode
+    - mode_admin_suppression
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:approval-expiry:presentation:01
+  arbitration_row_id: ux:arbitration:full_screen_presentation_active
+  active_flow_class: full_screen_presentation_active
+  incoming_interruptibility_tier: tier_blocking_trust
+  arbitration_outcome_class: delivered_attention_item
+  delivery_surface_class: attention_item
+  surface_escalation_tier: tier.panel_attached_to_surface
+  escalation_required_triggers_cited:
+    - duration_threshold_crossed
+    - required_authority_changed
+  focus_steal_attempt_classes_denied:
+    - product_owned_modal_attempted_during_presentation
+    - auth_callback_window_focus_grab
+    - update_install_modal_attempted_during_presentation
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:approval-expiry:01
+  reopen_target_ref: ux:reopen:provider-handoff:approval-expiry:revalidate
+  reopen_target_kind: reopen_denied_requires_revalidation
+
+suppression_proof:
+  record_kind: notification_suppression_record
+  suppression_record_id: ux:suppression:approval-expiry:presentation:01
+  intended_delivery_surface_class: os_notification
+  intended_privacy_payload_class: lock_screen_safe_scoped
+  intended_interruptibility_tier: tier_blocking_trust
+  suppression_class: held_presentation_mode
+  suppression_outcome: routed_durable_only
+  active_quiet_hours_modes_at_decision:
+    - mode_presentation
+  release_step:
+    release_trigger_class: routed_durable_only
+    released_to_delivery_surface_class: attention_item
+    released_with_privacy_payload_class: in_product_only
+  preserved_durable_linkback:
+    kind: review_sheet
+    target_identity_ref: obj:provider-grant-review-canvas:browser-handoff:01
+    is_durable: true
+    preserves_canonical_event_id: true
+    preserves_canonical_object_identity: true
+
+escalation_proof:
+  record_kind: escalation_step_record
+  escalation_reason: duration_threshold_crossed
+  escalated_from_tier: tier_actionable
+  escalated_to_tier: tier_blocking_trust
+
+bypass_protection_proof:
+  record_kind: bypass_protection_block
+  must_route_through_review_sheet: true
+  review_sheet_ref: obj:provider-grant-review-canvas:browser-handoff:01
+  must_route_through_approval_workflow: true
+  approval_workflow_ref: workflow:browser-handoff-approval:01
+  requires_revalidation: true
+  revalidation_reason_label: >
+    Provider grant approaching expiry; user re-enters provider grant
+    review canvas before re-approving or re-routing.
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:approval-expiry:01
+
+privacy_redaction_proof:
+  record_kind: privacy_redaction_block
+  applied_payload_class: lock_screen_safe_scoped
+  redacted_summary_label: >
+    Approval needs revalidation
+  redaction_template_tokens:
+    - "{category}"
+    - "{workspace_label}"
+  stripped_label_kinds:
+    - raw_provider_url
+    - raw_provider_name_on_lock_screen
+    - object_identity_on_lock_screen
+  lock_screen_safe: true
+  companion_safe: true
+  system_notification_safe: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - lineage_reopen_recorded
+    - suppression_record_release_recorded
+    - audit_trail_record_ref_present
+    - badge_record_updated
+  retained_record_refs:
+    - schemas/ux/notification_suppression_record.schema.json#suppression_record
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/notification_event.schema.json#notification_event_record
+    - schemas/ux/activity_event_envelope.schema.json#activity_event_envelope_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:needs_review
+  record_kind: badge_record
+  badge_class: needs_review
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+reviewer_checks:
+  - id: presentation_suppresses_audience_visible_surfaces
+    description: >
+      mode_presentation is active. os_notification, os_badge_app_icon,
+      companion_push, lock_screen_summary, and toast all on the
+      forbidden_delivery_surfaces list; only the durable attention
+      item renders in-product.
+    pass: true
+  - id: typed_escalation_reason
+    description: >
+      The lineage records duration_threshold_crossed (from the closed
+      escalation set); decorative escalation would deny.
+    pass: true
+  - id: revalidation_required_on_reopen
+    description: >
+      reopen_target_kind is reopen_denied_requires_revalidation; OS
+      notification reopen does not silently re-approve.
+    pass: true
+  - id: review_sheet_required
+    description: >
+      bypass_protection.must_route_through_review_sheet is true and
+      review_sheet_ref is non-null; the approval workflow record is
+      cited.
+    pass: true
+  - id: lock_screen_safe_scoped_only
+    description: >
+      privacy_payload_class is lock_screen_safe_scoped; raw URLs and
+      provider names never reach the OS sink.
+    pass: true
+
+denial_reasons_avoided:
+  - focus_steal_on_protected_path
+  - reopen_to_generic_home_forbidden
+  - reopen_requires_revalidation
+  - product_owned_nested_overlay_forbidden
+  - companion_cross_client_divergence
+  - quiet_hours_hold_discarded_durable_history
+  - held_event_missing_audit_trail

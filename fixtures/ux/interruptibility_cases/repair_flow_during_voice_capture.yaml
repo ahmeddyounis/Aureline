@@ -1,0 +1,135 @@
+# Repair flow during voice capture.
+#
+# Reviewer-side fixture for
+# artifacts/ux/escalation_matrix.yaml row
+# ux:arbitration:voice_capture_active and the repair_pending
+# active-flow row. An extension host crash arrives while the user is
+# dictating in voice-mode. The arbitration row routes the repair card
+# to attention_item + contextual_banner in the embedding zone; the
+# extension repair MUST NOT raise a modal that would land the user's
+# spoken sentence on a button. Voice mode preserves the persistent
+# mic indicator, the same undo stack, and the same screen-reader
+# announcement lane.
+__fixture__:
+  name: repair_flow_during_voice_capture
+  scenario: >
+    The extension host detects a crash and surfaces a repair card
+    while voice_capture_active is the user's flow. The arbitration
+    routes the durable repair attention_item, mirrors a contextual
+    banner in the affected zone, holds the toast, and denies any
+    extension-attempted modal. The voice-mode session keeps the
+    persistent mic-indicator state and the screen-reader announcement
+    lane; voice-issued privileged actions remain locked into the
+    review-sheet preview lane until the user confirms.
+  arbitration_row_ref: escalation_matrix#ux:arbitration:voice_capture_active
+  contract_sections:
+    - "Arbitration rules §4.1"
+    - "Arbitration rules §4.3"
+    - "Arbitration rules §4.7"
+  exercised_axes:
+    active_flow_class: voice_capture_active
+    incoming_interruptibility_tier: tier_durable
+    arbitration_outcome_class: delivered_attention_item
+    escalation_required_trigger: consequence_class_escalated
+    privacy_payload_class: in_product_only
+    reopen_target_kind: attention_item_exact
+
+audit_binding:
+  canonical_event_id: ux:event:extension-host:crash:01
+  event_lineage_id_ref: ux:lineage:extension-host:crash:01
+  canonical_object_target_ref: obj:extension-host:crashed:01
+  source_subsystem: extension_host
+  actor_identity_ref: id:actor:system:extension-host
+
+active_flow_state_at_decision:
+  active_flow_class: voice_capture_active
+  active_flow_target_ref: obj:voice-mode-session:dictation:current
+  concurrent_active_flow_classes:
+    - voice_capture_active
+    - repair_pending
+  active_quiet_hours_modes: []
+
+arbitration_decision:
+  record_kind: interruptibility_arbitration_decision_record
+  arbitration_decision_id: ux:arbitration-decision:repair:voice-capture:01
+  arbitration_row_id: ux:arbitration:voice_capture_active
+  active_flow_class: voice_capture_active
+  incoming_interruptibility_tier: tier_durable
+  arbitration_outcome_class: delivered_attention_item
+  delivery_surface_class: attention_item
+  surface_escalation_tier: tier.panel_attached_to_surface
+  escalation_required_triggers_cited:
+    - consequence_class_escalated
+  focus_steal_attempt_classes_denied:
+    - extension_repair_modal_attempted
+    - product_owned_modal_attempted_during_voice_capture
+    - voice_command_inline_apply_attempted
+  interaction_safety_packet_id_ref: ux:interaction-safety-packet:extension-repair:01
+  reopen_target_ref: ux:reopen:extension-host:crash:attention-item
+  reopen_target_kind: attention_item_exact
+
+voice_mode_invariants:
+  record_kind: voice_mode_invariant_block
+  mic_indicator_preserved: true
+  same_undo_stack: true
+  screen_reader_announcement_lane: keyboard_parity
+  command_preview_phase_preserved: true
+  voice_issued_privileged_action_denied_inline_apply: true
+
+evidence_preservation_proof:
+  preserves_durable_history: true
+  preserves_critical_safety_tier: true
+  required_evidence_kinds_recorded:
+    - lineage_escalation_recorded
+    - audit_trail_record_ref_present
+    - interaction_safety_packet_id_ref_present
+    - badge_record_updated
+  retained_record_refs:
+    - schemas/ux/event_lineage.schema.json#event_lineage_record
+    - schemas/ux/activity_event_envelope.schema.json#activity_event_envelope_record
+    - schemas/ux/voice_mode_state.schema.json#voice_mode_session_record
+
+badge_proof:
+  badge_class_review_row_ref: ux:badge-review:failed_runs
+  record_kind: badge_record
+  badge_class: failed_runs
+  count_delta: 1
+  count_basis: deduped_durable_item
+
+reviewer_checks:
+  - id: voice_capture_no_modal
+    description: >
+      tier.dialog_modal is on the voice_capture_active row's
+      forbidden_escalation_tiers; the repair card lands on
+      attention_item + contextual_banner instead.
+    pass: true
+  - id: extension_repair_modal_denied
+    description: >
+      extension_repair_modal_attempted is on the row's
+      denies_focus_steal_attempts list; the extension cannot raise a
+      modal during voice capture.
+    pass: true
+  - id: voice_command_inline_apply_denied
+    description: >
+      voice_command_inline_apply_attempted is on the denied list;
+      voice-issued privileged actions stay on the review-sheet
+      preview lane.
+    pass: true
+  - id: mic_indicator_preserved
+    description: >
+      The persistent mic indicator keeps rendering on the status
+      strip; the voice-mode session is not silently torn down.
+    pass: true
+  - id: same_screen_reader_lane
+    description: >
+      The repair attention announcement uses the same screen-reader
+      announcement lane the keyboard route uses; assistive-tech
+      parity is preserved.
+    pass: true
+
+denial_reasons_avoided:
+  - focus_steal_on_protected_path
+  - product_owned_nested_overlay_forbidden
+  - toast_only_forbidden_for_durable_work
+  - reopen_to_generic_home_forbidden
+  - held_event_missing_audit_trail
