@@ -1,0 +1,584 @@
+# Feature-availability and support-scope vocabulary catalogue.
+#
+# Machine-readable companion to docs/ux/feature_availability_contract.md.
+# This file groups the closed vocabularies referenced by every
+# availability row, support-scope badge, and "Why unavailable" handoff:
+#
+#   - workflow_capability_class
+#   - environment_mode_class
+#   - dependency_marker_class
+#   - availability_state_class (with required label, handoff class,
+#     and required evidence ref)
+#   - support_class (re-exported from the certified-archetype rubric)
+#   - lifecycle_state, release_channel, client_scope, freshness_class,
+#     certified_archetype_state, marker_kind, effect_on_parent
+#     (re-exported from the capability axis matrix)
+#   - why_unavailable_handoff_class
+#   - configuration_kind
+#   - consumer_surface_class
+#
+# Tooling reads this file. The narrative companion is
+# docs/ux/feature_availability_contract.md. If the two disagree,
+# the contract doc wins and this file is updated in the same change.
+#
+# Rules:
+#   - Adding a value is additive-minor; the schema enum, this file,
+#     the narrative doc, and at least one fixture under
+#     fixtures/ux/feature_availability_cases/ MUST all land in the
+#     same change.
+#   - Repurposing a value is breaking and opens a new decision row in
+#     artifacts/governance/decision_index.yaml.
+#   - Re-exported vocabularies (support_class, lifecycle_state,
+#     release_channel, client_scope, freshness_class,
+#     certified_archetype_state, marker_kind, effect_on_parent) are
+#     mirrored here for tooling discovery only; the upstream schemas
+#     remain authoritative.
+
+support_scope_vocabulary_schema_version: 1
+
+sources:
+  feature_availability_contract_ref: docs/ux/feature_availability_contract.md
+  feature_availability_schema_ref: schemas/ux/feature_availability_row.schema.json
+  capability_axis_matrix_ref: docs/governance/capability_axis_matrix.md
+  capability_badge_axes_ref: artifacts/governance/capability_badge_axes.yaml
+  capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+  capability_lifecycle_adr_ref: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+  archetype_rubric_ref: artifacts/compat/archetype_rubric.yaml
+  reference_workspace_rows_ref: artifacts/compat/reference_workspace_rows.yaml
+  certified_archetype_template_ref: docs/release/certified_archetype_report_template.md
+  known_limits_contract_ref: docs/product/known_limits_contract.md
+  disabled_reason_classes_ref: artifacts/ux/disabled_reason_classes.yaml
+  transport_environment_contract_ref: docs/ux/transport_and_environment_status_contract.md
+  fixture_corpus_ref: fixtures/ux/feature_availability_cases/
+
+# ---------------------------------------------------------------------------
+# Closed availability state vocabulary.
+#
+# Every state has a required label, a required handoff class, and a
+# required evidence ref the schema enforces. A state with no handoff is
+# `ready`; every other state pairs with exactly one handoff class.
+# ---------------------------------------------------------------------------
+
+availability_states:
+  - state_id: ready
+    label_text: Ready
+    short_definition: >
+      The workflow can be invoked here under the current archetype,
+      environment mode, and policy posture without any narrowing
+      handoff.
+    handoff_class: none_state_is_ready
+    required_evidence_ref: none
+    invariant_summary: >
+      ready_state forbids attaching a why_unavailable_handoff and forces
+      the visible label to "Ready".
+
+  - state_id: ready_with_caveats
+    label_text: Ready with caveats
+    short_definition: >
+      The workflow is invokable, but at least one dependency marker has
+      narrowed the effective lifecycle, support, channel, or client
+      scope axis. The user is not blocked.
+    handoff_class: open_capability_axis_inspector
+    required_evidence_ref: capability_lifecycle_row_ref
+    invariant_summary: >
+      The handoff cites the capability lifecycle row whose dependency
+      markers narrow at least one axis. The visible label is exactly
+      "Ready with caveats".
+
+  - state_id: partial_index
+    label_text: Partial index
+    short_definition: >
+      A required index (semantic, project graph, search, diagnostics,
+      provider) is warming, partial, or stale. The workflow is available
+      against the indexed scope but not against the remainder.
+    handoff_class: open_index_status_repair
+    required_evidence_ref: index_dependency_ref
+    invariant_summary: >
+      The dependency marker list MUST contain at least one
+      index_warming_dependency or freshness_floor_dependency entry. The
+      handoff cites the warming/stale index.
+
+  - state_id: missing_toolchain
+    label_text: Missing toolchain
+    short_definition: >
+      A required interpreter, SDK, runtime, or language pack is absent
+      or below the required version. The user must install or locate
+      the named dependency before the workflow can run.
+    handoff_class: install_or_locate_toolchain
+    required_evidence_ref: toolchain_or_sdk_or_runtime_dependency_ref
+    invariant_summary: >
+      The dependency marker list MUST contain at least one
+      toolchain_or_sdk_or_runtime_dependency entry whose marker_state
+      is one of absent, below_required_version, blocked, or unknown.
+
+  - state_id: not_configured
+    label_text: Not configured
+    short_definition: >
+      The capability shipped, the toolchain is present, but workspace,
+      workset, or user setup has not declared the configuration the
+      workflow needs (no test runner pinned, no debug target chosen,
+      no provider linked, no archetype declared).
+    handoff_class: open_configuration_setup
+    required_evidence_ref: setup_target_ref
+    invariant_summary: >
+      The handoff carries a non-null setup_target_ref and a non-null
+      configuration_kind from the closed configuration_kind_vocabulary.
+
+  - state_id: policy_blocked
+    label_text: Policy blocked
+    short_definition: >
+      The active policy bundle, organization policy, workspace trust,
+      extension publisher policy, or kill switch blocks the workflow
+      in the current scope.
+    handoff_class: open_policy_explainer
+    required_evidence_ref: active_policy_bundle_ref_and_policy_rule_ref
+    invariant_summary: >
+      The handoff carries non-null active_policy_bundle_ref and
+      non-null policy_rule_ref. The handoff opens a non-modal policy
+      explainer; it never silently retries.
+
+  - state_id: not_certified_in_this_mode
+    label_text: Not certified in this mode
+    short_definition: >
+      The workflow has a certified-archetype claim for one or more
+      modes, but the active environment mode is not in the certified
+      set. The badge names the modes where the row is certified.
+    handoff_class: open_compatibility_report_for_mode
+    required_evidence_ref: certified_archetype_report_ref_and_active_environment_mode
+    invariant_summary: >
+      effective_environment_mode_set MUST be non-empty (the modes the
+      row IS certified in). The handoff cites the certified-archetype
+      report ref and the active environment mode the row is NOT
+      certified in.
+
+  - state_id: not_supported
+    label_text: Not supported
+    short_definition: >
+      The workflow does not exist on this client scope, archetype, or
+      host. For example, a desktop-only workflow on the CLI, or a
+      workflow not in the active reference-workspace row's archetype.
+    handoff_class: open_archetype_status_or_request_support
+    required_evidence_ref: reference_workspace_row_ref_or_archetype_rubric_row_ref
+    invariant_summary: >
+      The handoff cites either a reference-workspace row ref or an
+      archetype rubric row ref. The label never collapses to "Coming
+      soon" or "Maybe later".
+
+  - state_id: unknown_repair_required
+    label_text: Unknown repair required
+    short_definition: >
+      The availability resolver could not determine state — the
+      capability lifecycle row failed to resolve, the dependency probe
+      timed out, the policy bundle is unreachable, or the archetype
+      row is unresolved.
+    handoff_class: open_diagnostics_repair
+    required_evidence_ref: doctor_finding_ref_or_diagnostics_card_ref
+    invariant_summary: >
+      The handoff cites either a doctor finding ref or a diagnostics
+      card ref. The state never collapses to a generic "Try again"
+      string.
+
+# ---------------------------------------------------------------------------
+# Closed why-unavailable handoff vocabulary.
+# ---------------------------------------------------------------------------
+
+why_unavailable_handoff_classes:
+  - handoff_id: none_state_is_ready
+    pairs_with_state: ready
+    handoff_label_examples:
+      - null
+    description: >
+      Ready rows render no handoff. handoff_command_ref and every
+      evidence ref slot remain null.
+
+  - handoff_id: open_capability_axis_inspector
+    pairs_with_state: ready_with_caveats
+    handoff_label_examples:
+      - Inspect capability axes
+    description: >
+      Opens the capability lifecycle inspector for the row. The
+      inspector surfaces the seven axes and the narrowing dependency
+      markers without retrying any action.
+
+  - handoff_id: open_index_status_repair
+    pairs_with_state: partial_index
+    handoff_label_examples:
+      - Open index status
+      - Reindex this scope
+    description: >
+      Opens the index status / doctor entry for the named index. The
+      handoff names which index is warming or stale and offers the
+      named repair.
+
+  - handoff_id: install_or_locate_toolchain
+    pairs_with_state: missing_toolchain
+    handoff_label_examples:
+      - Install Python
+      - Locate Rust toolchain
+      - Choose a Java SDK
+    description: >
+      Opens the install-or-locate flow for the named toolchain, SDK,
+      or runtime. The label MUST name the dependency by class, never
+      a generic "Install dependencies" phrase.
+
+  - handoff_id: open_configuration_setup
+    pairs_with_state: not_configured
+    handoff_label_examples:
+      - Choose a test target
+      - Pin a debug target
+      - Link a provider
+      - Declare archetype
+    description: >
+      Opens the named setup flow. The handoff carries a configuration
+      kind from the closed configuration_kind_vocabulary so the user
+      sees what configuration is missing.
+
+  - handoff_id: open_policy_explainer
+    pairs_with_state: policy_blocked
+    handoff_label_examples:
+      - Open policy explainer
+    description: >
+      Opens the non-modal policy explainer that names the active
+      policy bundle ref and the matching policy rule ref. The handoff
+      never silently retries; the user must read the explainer first.
+
+  - handoff_id: open_compatibility_report_for_mode
+    pairs_with_state: not_certified_in_this_mode
+    handoff_label_examples:
+      - Open managed compatibility report
+      - Open remote-mode compatibility report
+    description: >
+      Opens the certified-archetype report for the active mode. The
+      report row names the modes the workflow IS certified in and
+      links the supporting evidence.
+
+  - handoff_id: open_archetype_status_or_request_support
+    pairs_with_state: not_supported
+    handoff_label_examples:
+      - Request archetype support
+      - View archetype status
+    description: >
+      Opens the archetype rubric status row or the request-support
+      flow. The handoff cites a reference-workspace row ref or
+      archetype rubric row ref so the user sees why the workflow is
+      not supported here.
+
+  - handoff_id: open_diagnostics_repair
+    pairs_with_state: unknown_repair_required
+    handoff_label_examples:
+      - Open diagnostics
+      - Run availability probe
+    description: >
+      Opens the diagnostics card or the doctor entry. The handoff
+      names the unresolved axis or unreachable dependency so the user
+      knows what to repair.
+
+# ---------------------------------------------------------------------------
+# Closed configuration kind vocabulary used by open_configuration_setup.
+# ---------------------------------------------------------------------------
+
+configuration_kinds:
+  - kind_id: test_runner_pin
+    description: A test runner has not been chosen for the active workspace or workset.
+  - kind_id: debug_target_pin
+    description: A debug target / launch configuration has not been chosen for the active session.
+  - kind_id: build_target_pin
+    description: A build target has not been chosen for the active workspace.
+  - kind_id: provider_link
+    description: A required provider account / project / SDK has not been linked.
+  - kind_id: archetype_declaration
+    description: The active workspace has not declared an archetype row that the workflow needs.
+  - kind_id: environment_pin
+    description: A required environment mode pin (for example, devcontainer or remote target) has not been chosen.
+  - kind_id: credential_link
+    description: A required credential broker handle has not been linked or is below the required scope.
+  - kind_id: workspace_trust_grant
+    description: Workspace trust has not been granted at the scope the workflow requires.
+  - kind_id: extension_link
+    description: A required first-party or marketplace extension has not been installed or linked.
+
+# ---------------------------------------------------------------------------
+# Closed workflow-capability class vocabulary.
+#
+# Mirrors the closed workflow capability set used by entry points,
+# command palette, and AI-assist planners. Adding a class is additive-
+# minor; the schema enum and this list MUST land in the same change.
+# ---------------------------------------------------------------------------
+
+workflow_capability_classes:
+  - class_id: edit_language_aware
+    description: Language-aware text editing (semantic completion, signature help, code actions).
+  - class_id: navigate_find_references
+    description: Find-references and call-hierarchy navigation.
+  - class_id: navigate_workspace_search
+    description: Workspace-wide text and structured search.
+  - class_id: navigate_symbol_index
+    description: Symbol or definition navigation backed by a project graph or LSP.
+  - class_id: run_tests
+    description: Test discovery and execution against a chosen test runner.
+  - class_id: run_debug_session
+    description: Debug session attach / launch against a chosen debug target.
+  - class_id: run_build
+    description: Build / compile / assemble for a chosen build target.
+  - class_id: run_task
+    description: User-defined task or script run.
+  - class_id: format_or_lint
+    description: Formatter or linter run on the active scope.
+  - class_id: refactor_apply
+    description: Structured refactor (rename, extract, inline) requiring a fresh index.
+  - class_id: ai_assist_inline
+    description: Inline AI suggestions in the editor.
+  - class_id: ai_assist_chat
+    description: Chat-style AI assistance.
+  - class_id: ai_assist_apply
+    description: AI-proposed multi-file edit application.
+  - class_id: vcs_commit_or_review
+    description: VCS commit, review, and history surfaces.
+  - class_id: container_or_devcontainer_attach
+    description: Container or devcontainer attach / start.
+  - class_id: remote_session_attach
+    description: Remote attach (SSH, agent, or managed connection).
+  - class_id: managed_workspace_session
+    description: Managed-workspace session start, suspend, hibernate, or resume.
+  - class_id: extension_install_or_manage
+    description: Extension install, update, configure, or remove.
+  - class_id: marketplace_browse
+    description: Marketplace listing browse / search.
+  - class_id: package_manager_action
+    description: Package manager add / restore / lock action.
+  - class_id: notebook_kernel_action
+    description: Notebook kernel start, run, or restart.
+  - class_id: preview_render_or_export
+    description: Preview render or export action.
+  - class_id: data_query_or_compute
+    description: Data query / compute against a connected provider.
+  - class_id: diagnostics_or_doctor
+    description: Diagnostics, doctor, or health check action.
+  - class_id: settings_or_profile_action
+    description: Settings or profile read / write action.
+  - class_id: migration_action
+    description: Migration / importer action.
+
+# ---------------------------------------------------------------------------
+# Closed environment-mode class vocabulary.
+# ---------------------------------------------------------------------------
+
+environment_mode_classes:
+  - mode_id: local_only
+    description: Local desktop session with no remote attach.
+  - mode_id: remote_attach
+    description: Remote attach (SSH, agent, or managed connection) without container.
+  - mode_id: devcontainer_or_container
+    description: Container or devcontainer attach.
+  - mode_id: managed_workspace
+    description: Managed-cloud workspace mode.
+  - mode_id: air_gapped
+    description: Air-gapped offline-only mode.
+  - mode_id: mixed_local_plus_remote
+    description: Local plus remote-target attach in the same session.
+  - mode_id: notebook_kernel_local
+    description: Local notebook kernel.
+  - mode_id: notebook_kernel_remote
+    description: Remote notebook kernel.
+  - mode_id: companion_surface
+    description: Companion surface (browser-embedded or external companion app).
+  - mode_id: cli_or_headless
+    description: CLI / headless invocation outside the desktop product.
+
+# ---------------------------------------------------------------------------
+# Re-exported axis vocabularies (authoritative copies live upstream).
+#
+# These are mirrored here for tooling discovery. Adding a value goes in
+# upstream first; this file follows in the same change.
+# ---------------------------------------------------------------------------
+
+re_exported_axis_vocabularies:
+  lifecycle_state:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/lifecycle_state
+    values:
+      - labs
+      - preview
+      - beta
+      - stable
+      - lts_facing
+      - deprecated
+      - disabled_by_policy
+      - retired
+      - unresolved_axis_lifecycle_state
+
+  support_class:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/support_class
+    values:
+      - best_effort
+      - community_supported
+      - standard_support
+      - extended_support
+      - operator_only_support
+      - no_support
+      - unresolved_axis_support_class
+    archetype_rubric_mapping_ref: artifacts/compat/archetype_rubric.yaml
+
+  release_channel:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/release_channel
+    values:
+      - nightly_channel
+      - experimental_channel
+      - preview_channel
+      - stable_channel
+      - lts_channel
+      - managed_only_channel
+      - unresolved_axis_release_channel
+
+  client_scope:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/client_scope
+    values:
+      - desktop_product
+      - cli
+      - companion_surface
+      - remote_agent
+      - sdk_or_api
+      - managed_admin_surface
+
+  freshness_class:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/freshness_class
+    values:
+      - authoritative_live
+      - warm_cached
+      - degraded_cached
+      - stale
+      - unverified
+      - unresolved_axis_freshness_class
+
+  certified_archetype_state:
+    source_ref: schemas/release/compatibility_row.schema.json#/$defs/current_state
+    values:
+      - not_applicable
+      - supported
+      - best_effort
+      - untested
+      - degraded
+      - unsupported
+      - unresolved_axis_certified_archetype_state
+
+  marker_kind:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/marker_kind
+    values:
+      - no_live_markers
+      - non_stable_capability_dependency
+      - disabled_by_policy_dependency
+      - deprecated_dependency
+      - retired_dependency
+      - provider_linked_dependency
+      - client_scope_restricted_dependency
+      - freshness_floor_dependency
+      - kill_switch_dependency
+      - managed_only_dependency
+      - toolchain_or_sdk_or_runtime_dependency
+      - language_pack_dependency
+      - index_warming_dependency
+      - credential_dependency
+      - extension_dependency
+      - archetype_row_dependency
+    notes: >
+      The last six markers are introduced by this contract for the
+      availability row family. They share the upstream marker-kind
+      vocabulary surface and are landed against the upstream schema in
+      the same additive-minor change.
+
+  effect_on_parent:
+    source_ref: schemas/governance/capability_lifecycle.schema.json#/$defs/effect_on_parent
+    values:
+      - no_effect
+      - narrows_effective_lifecycle_state
+      - narrows_effective_support_class
+      - narrows_effective_release_channel
+      - narrows_effective_client_scopes
+      - narrows_effective_freshness_class
+      - narrows_effective_environment_mode_set
+      - gates_entire_capability
+
+# ---------------------------------------------------------------------------
+# Closed consumer-surface vocabulary.
+# ---------------------------------------------------------------------------
+
+consumer_surface_classes:
+  entry_point_surfaces:
+    - entry_point_start_center
+    - entry_point_project_entry
+    - entry_point_command_palette
+    - entry_point_run_or_debug_or_test_picker
+    - entry_point_search_row
+    - entry_point_marketplace_card
+    - entry_point_restore_card
+  help_surfaces:
+    - help_contextual_trigger
+    - help_docs_pane
+    - help_about_pane
+  governance_surfaces:
+    - compatibility_report_row
+    - claim_manifest_row
+    - migration_guide_row
+    - issue_template_row
+  in_product_state_surfaces:
+    - empty_state_row
+    - command_result_message
+  export_surfaces:
+    - support_export_row
+
+# ---------------------------------------------------------------------------
+# Forbidden generic copy.
+#
+# A row that renders any of these as the entire visible label or
+# explanation sentence is non-conforming. The schema rejects any of
+# these tokens as the entire reviewable_sentence body.
+# ---------------------------------------------------------------------------
+
+forbidden_generic_copy:
+  - Available
+  - Unavailable
+  - Supported
+  - Coming soon
+  - Sometimes
+  - Maybe
+  - In progress
+  - Try again later
+  - See docs
+  - Generic error
+
+# ---------------------------------------------------------------------------
+# Explanation-rule summary.
+#
+# Re-stated here for tooling that wants to enforce the rules without
+# parsing the doc. Authoritative narrative lives in
+# docs/ux/feature_availability_contract.md.
+# ---------------------------------------------------------------------------
+
+explanation_rules:
+  archetype_scoping_required: >
+    Every availability row that names a language, framework, or tool
+    MUST cite an archetype_row_ref or render the explicit
+    archetype_not_applicable sentinel. A row that asserts a "supports
+    Python" / "supports Rust" / "supports Bazel" claim with no row in
+    artifacts/compat/reference_workspace_rows.yaml is non-conforming.
+  toolchain_scoping_required: >
+    Every claim row MUST cite a non-empty
+    toolchain_or_runtime_dependency_refs list. A row that asserts a
+    language claim with no toolchain dependency is non-conforming.
+  environment_mode_set_non_empty: >
+    Every claim row MUST cite a non-empty
+    effective_environment_mode_set. The empty set is rendered as the
+    explicit unsupported_in_every_observed_mode sentinel and forces
+    availability_state to not_supported or
+    not_certified_in_this_mode.
+  support_class_evidence_required: >
+    standard_support and extended_support badges MUST cite a non-null
+    archetype_row_ref and a non-null support_window_ref. Lower
+    classes (best_effort, community_supported) MAY omit the support
+    window only when an explicit known-limit note carries the caveat.
+  no_collapsed_chips: >
+    A surface MUST NOT collapse two axes into one chip. A "stable"
+    chip that asserts both lifecycle_state = stable and support_class
+    = standard_support without naming both tokens is non-conforming.
+  no_generic_copy: >
+    The forbidden_generic_copy list above is rejected as the entire
+    visible label or explanation sentence body.
