@@ -1,0 +1,658 @@
+# Owner/origin chrome review for embedded surfaces.
+#
+# Companion to:
+#   - ADR 0015
+#     (docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md)
+#   - the render-side card contract
+#     (docs/ux/embedded_surface_boundary_cards.md)
+#   - the upstream boundary record schema
+#     (schemas/ux/embedded_surface_boundary.schema.json)
+#   - the boundary card schema
+#     (schemas/ux/embedded_boundary_card.schema.json)
+#   - the owner/origin chrome seed
+#     (artifacts/ux/owner_origin_chrome_seed.yaml)
+#   - the audit packet
+#     (artifacts/ux/embedded_surface_audit_packet.md)
+#   - the boundary-case corpus
+#     (fixtures/ux/embedded_boundary_cases/)
+#
+# Purpose:
+#   Freeze the review rules that keep native product actions visibly
+#   separate from embedded ones across docs/help, marketplace/account,
+#   service-dashboard, auth-confirmation, and extension-hosted surfaces.
+#   This file is the per-row review companion to the audit packet:
+#   reviewers grade each surface row against the rules below, and the
+#   packet aggregates the verdicts.
+#
+# Rules:
+#   - If this file and ADR 0015 disagree, ADR 0015 wins and this file
+#     MUST be updated in the same change.
+#   - Every token quoted below is sourced from one of the schemas above
+#     by value. Adding a new token requires a schema bump and a
+#     decision-row update.
+#   - Compact layouts may rearrange these fields but may not hide the
+#     required field set for the surface family.
+#   - Per-task and per-milestone identifiers stay out of this file.
+
+schema_version: 1
+
+adr_source: docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+decision_id: D-0021
+decision_register: artifacts/governance/decision_index.yaml
+boundary_record_schema: schemas/ux/embedded_surface_boundary.schema.json
+boundary_card_schema: schemas/ux/embedded_boundary_card.schema.json
+upstream_seed: artifacts/ux/owner_origin_chrome_seed.yaml
+audit_packet: artifacts/ux/embedded_surface_audit_packet.md
+boundary_case_corpus: fixtures/ux/embedded_boundary_cases/
+
+linked_packets:
+  safe_preview: schemas/security/trust_class.schema.json
+  browser_handoff_packet: schemas/integration/browser_handoff_packet.schema.json
+  approval_ticket: schemas/integration/approval_ticket.schema.json
+  help_status_badge: schemas/docs/help_status_badge.schema.json
+
+# Reused closed vocabularies. These mirror the schemas above by value;
+# new tokens require a schema bump and a parallel decision row.
+axes:
+  surface_family:
+    values:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - embedded_auth_confirmation
+      - extension_hosted_surface
+
+  action_partition_role:
+    values:
+      - product_owned_native
+      - product_owned_handoff
+      - embedded_inspect_only
+      - embedded_request_only
+
+  permission_class:
+    values:
+      - host_owned_full_authority
+      - host_owned_inspect_only
+      - host_owned_browser_only
+      - host_owned_copy_export_only
+      - host_owned_with_native_step_up_required
+      - embedded_lower_trust_session_refresh
+      - embedded_lower_trust_password_exception
+      - no_permission_within_product
+
+  browser_fallback_posture_class:
+    values:
+      - system_browser_first
+      - device_code_fallback_offered
+      - external_open_blocked_by_policy
+      - external_open_unavailable_offline
+      - browser_fallback_not_applicable
+
+  fallback_target_class:
+    values:
+      - system_browser_handoff_packet
+      - device_code_companion_card
+      - platform_authenticator_native
+      - host_native_review_or_approval
+      - local_inspect_or_export
+      - no_fallback_available
+
+  native_reserved_surface:
+    values:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+
+  required_chrome_field:
+    values:
+      - owner_label
+      - origin_label
+      - publisher_or_service_label
+      - data_boundary_label
+      - boundary_state_label
+      - primary_actions
+      - source_version_freshness
+      - provider_scope_and_actor
+      - flow_type_and_return_target
+      - fallback_state
+      - capability_limitations
+
+  layout_constraint_id:
+    values:
+      - card_visually_distinct_from_embedded_body
+      - card_not_obscured_by_embedded_body
+      - card_required_fields_never_hover_only
+      - card_compact_layout_preserves_required_fields
+      - card_actions_render_in_host_chrome
+      - embedded_body_cannot_overlap_card_actions
+      - card_remains_visible_when_embedded_body_is_withheld
+
+  chrome_inheritance_axis:
+    values:
+      - theme_palette_inherits_from_host
+      - density_class_inherits_from_host
+      - zoom_level_inherits_from_host
+      - focus_ring_inherits_from_host
+      - reduced_motion_posture_inherits_from_host
+      - high_contrast_mode_inherits_from_host
+      - forced_colors_mode_inherits_from_host
+
+# Per-surface-family review rows. Each row pins the host-native action
+# set, the embedded action set, the action ids that always remain
+# product-owned, and the disclosure requirements that keep native and
+# embedded chrome visibly separated.
+surface_family_review_rows:
+  - surface_family: embedded_docs_help
+    host_native_actions:
+      - reload_embedded_surface
+      - open_in_system_browser
+      - open_support_evidence
+    permitted_embedded_actions:
+      - reload_embedded_surface
+      - inspect_certificate_details
+      - inspect_policy_reason
+    forbidden_in_embedded_body:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+    chrome_separation_rules:
+      - "Source / version / freshness MUST render on the card and
+         MUST quote the upstream help_status_badge_record."
+      - "Project docs outrank vendor / provider docs on in-scope
+         topics; an override disclosure is required when vendor docs
+         are rendered for an in-scope topic."
+      - "Inspect / copy / open-in-browser MUST be partitioned as
+         embedded_inspect_only or product_owned_handoff. Docs/help
+         embedded surfaces never carry product_owned_native actions
+         that mutate trust, update, rollback, or AI-apply state."
+
+  - surface_family: embedded_marketplace_or_account
+    host_native_actions:
+      - inspect_policy_reason
+      - open_in_system_browser
+      - continue_local_without_surface
+      - open_support_evidence
+    permitted_embedded_actions:
+      - reload_embedded_surface
+      - inspect_certificate_details
+    forbidden_in_embedded_body:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+    chrome_separation_rules:
+      - "Provider class, scope, acting identity, and health/expiry
+         MUST render as separate slots. A generic Connected chip is
+         forbidden."
+      - "Account-link, scope-grant, billing, and admin-policy actions
+         MUST stay product_owned_native or product_owned_handoff. The
+         embedded body MAY render embedded_inspect_only and
+         embedded_request_only rows but never product_owned_native."
+      - "Stale, offline, policy-blocked, and cross-origin-limited
+         states MUST degrade the card to inspect / copy / export or
+         browser handoff; they may not strip the card and strand the
+         user."
+
+  - surface_family: embedded_service_dashboard
+    host_native_actions:
+      - inspect_certificate_details
+      - inspect_policy_reason
+      - open_in_system_browser
+      - continue_local_without_surface
+      - open_support_evidence
+    permitted_embedded_actions:
+      - reload_embedded_surface
+    forbidden_in_embedded_body:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+    chrome_separation_rules:
+      - "Provider class, provider scope, target object label, health
+         state, and freshness / fetch-time MUST render on the card so
+         dashboards never masquerade as local or native authority."
+      - "certificate_failed states MUST withhold the embedded body. The
+         card alone remains visible with inspect_certificate_details
+         and a system_browser_handoff_packet or local_inspect_or_export
+         fallback."
+      - "Open in provider console MUST be partitioned as
+         product_owned_handoff (host owns the handoff packet and policy
+         decision) rather than embedded_request_only."
+
+  - surface_family: embedded_auth_confirmation
+    host_native_actions:
+      - open_in_system_browser
+      - switch_to_device_code
+      - copy_device_code
+      - retry_auth_handoff
+      - view_auth_exception_record
+    permitted_embedded_actions:
+      - reload_embedded_surface
+    forbidden_in_embedded_body:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+    chrome_separation_rules:
+      - "Supported auth rows are system-browser-first. The default
+         card carries flow_class: system_browser and a
+         system_browser_handoff_packet fallback target."
+      - "When system browser is unavailable or blocked, the card MUST
+         switch to flow_class: device_code with a
+         device_code_companion_card fallback target plus device-code
+         copy, code-expiry label, and return / help fallback rows."
+      - "embedded_session_refresh is allowed only when the permission
+         class is embedded_lower_trust_session_refresh, no password is
+         collected, no scope widens, and no native step-up is skipped.
+         The card MUST mark embedded_auth_lower_trust as a capability
+         limitation."
+      - "embedded_password_exception requires permission_class:
+         embedded_lower_trust_password_exception,
+         host_native_step_up_required: true, an exception_id_ref, and
+         a visible lower-trust badge through capability limitations.
+         The card MUST also render an exit path to system browser or
+         device code where available."
+      - "The card MUST never render final approval, trust elevation,
+         rollback / restore confirmation, AI apply review, update
+         verification, or any other native-reserved surface, even when
+         the embedded auth flow completes successfully."
+
+  - surface_family: extension_hosted_surface
+    host_native_actions:
+      - inspect_policy_reason
+      - open_in_system_browser
+      - open_support_evidence
+    permitted_embedded_actions:
+      - reload_embedded_surface
+      - inspect_certificate_details
+    forbidden_in_embedded_body:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+    chrome_separation_rules:
+      - "owner_identity.class MUST be extension_bundle and the card
+         MUST disclose the publisher / service identity separately
+         from the host product."
+      - "The card MUST render the upstream safe-preview trust class
+         summary in plain_language_summary so users can see whether
+         the extension surface is SanitizedRich, TrustedLocalActive,
+         or IsolatedRemoteActive."
+      - "Extension-hosted cards MUST keep their action partition
+         strictly inside embedded_inspect_only and
+         embedded_request_only unless the host shell has explicitly
+         opted into a product_owned_handoff action for the extension
+         family."
+      - "cross_origin_limited and policy_blocked states MUST name the
+         exact reduced capability rather than collapsing to a generic
+         limited badge."
+
+# Native vs embedded action ledger. Reviewers consult this when grading
+# a card's action_partition: every action visible near the embedded
+# surface must resolve to exactly one role from the closed set.
+native_vs_embedded_ledger:
+  product_owned_native_actions:
+    - inspect_policy_reason
+    - inspect_certificate_details
+    - continue_local_without_surface
+    - view_auth_exception_record
+  product_owned_handoff_actions:
+    - open_in_system_browser
+    - switch_to_device_code
+    - copy_device_code
+    - retry_auth_handoff
+    - open_support_evidence
+  embedded_inspect_only_actions:
+    - reload_embedded_surface
+  embedded_request_only_actions:
+    - reload_embedded_surface
+  rules:
+    - "Native-reserved surfaces MUST be rendered as
+       product_owned_native only. An action whose role is
+       embedded_inspect_only or embedded_request_only may not be
+       styled to look like a product_owned_native action."
+    - "Browser, device-code, and platform-authenticator handoffs MUST
+       be product_owned_handoff and MUST quote an upstream
+       browser_handoff_packet or device_code_ref so support and audit
+       can attribute the handoff to the same object family."
+    - "The action partition is the single source of truth for chrome
+       placement. A surface that lets the embedded body paint over or
+       intercept a product_owned_* action is non-conforming."
+    - "An action label is allowed to drift from the schema's
+       boundary_action_id (e.g. Reload status page versus
+       reload_embedded_surface) only when the action_id and
+       partition_role still resolve to the closed vocabularies above."
+
+# Chrome separation invariants. Every audit row MUST satisfy each
+# invariant; a row that fails any invariant fails the review.
+chrome_separation_invariants:
+  - id: native_actions_render_in_host_chrome
+    rule: >
+      product_owned_native actions render in host chrome only and never
+      inside the embedded body.
+  - id: embedded_actions_never_claim_final_authority
+    rule: >
+      embedded_inspect_only and embedded_request_only actions stay
+      inside the embedded body and never claim final authority over
+      native-reserved surfaces.
+  - id: native_reserved_disclosure_stable
+    rule: >
+      reserved_native_surfaces_host_owned is non-empty on every record
+      and every state, including live_verified. The set never shrinks
+      across states.
+  - id: embedded_body_cannot_paint_native_chrome
+    rule: >
+      The embedded body MUST NEVER paint a header, banner, or sheet
+      that visually impersonates product_security_messaging,
+      update_verification, workspace_trust_elevation,
+      rollback_or_restore_confirmation, ai_apply_review, or
+      high_risk_approval_sheet.
+  - id: handoff_actions_quote_packets
+    rule: >
+      open_in_system_browser, switch_to_device_code, and
+      retry_auth_handoff actions MUST quote a browser_handoff_packet_ref
+      or device_code_ref. Raw URLs and local synonyms are forbidden.
+  - id: card_remains_visible_when_body_withheld
+    rule: >
+      When the embedded body is withheld (certificate_failed,
+      policy_blocked, external_open_only), the boundary card and its
+      product_owned_* actions remain visible and inspectable.
+  - id: required_chrome_fields_never_hover_only
+    rule: >
+      Every required chrome field for the surface family renders in
+      the primary view. Hover-only, inspector-only, or devtools-only
+      disclosure is non-conforming.
+  - id: chrome_inheritance_axes_complete
+    rule: >
+      The card inherits theme palette, density class, zoom level,
+      focus ring, reduced-motion posture, high-contrast mode, and
+      forced-colors mode from the host shell. Embedded body MUST NOT
+      paint a parallel theme, density, zoom, or focus model.
+
+# Boundary-state to required posture. Reviewers use this when grading
+# rows in §3 of the audit packet.
+boundary_state_to_required_posture:
+  - state: live_verified
+    required_browser_fallback_posture: browser_fallback_not_applicable
+    required_capability_limitations: []
+    required_actions: []
+    notes: >
+      Optional fallback row; if present, posture is
+      browser_fallback_not_applicable.
+  - state: stale_snapshot
+    required_browser_fallback_posture: system_browser_first
+    required_capability_limitations:
+      - provider_scope_may_be_narrower_than_page_claims
+      - live_network_mutation_disabled_when_offline
+    required_actions:
+      - reload_embedded_surface
+      - open_in_system_browser
+    notes: >
+      At least one of the listed limitations renders. snapshot_age_label
+      and origin remain visible together.
+  - state: policy_blocked
+    required_browser_fallback_posture: external_open_blocked_by_policy
+    required_capability_limitations:
+      - cookies_or_storage_outside_product_boundary
+      - cross_origin_dom_or_storage_hidden
+    required_actions:
+      - inspect_policy_reason
+      - open_support_evidence
+    notes: >
+      The capability the policy denies is named explicitly. external
+      open is allowed only when policy permits it; otherwise posture
+      stays external_open_blocked_by_policy.
+  - state: certificate_failed
+    required_browser_fallback_posture: external_open_blocked_by_policy
+    required_capability_limitations:
+      - cookies_or_storage_outside_product_boundary
+      - cross_origin_dom_or_storage_hidden
+    required_actions:
+      - inspect_certificate_details
+      - open_in_system_browser
+    notes: >
+      The embedded body is withheld. Fallback target class is one of
+      local_inspect_or_export or host_native_review_or_approval; open
+      in browser is allowed only when policy permits it.
+  - state: cross_origin_limited
+    required_browser_fallback_posture: system_browser_first
+    required_capability_limitations:
+      - cross_origin_dom_or_storage_hidden
+    required_actions:
+      - open_in_system_browser
+      - open_support_evidence
+    notes: >
+      Only the honest subset of capabilities renders. The missing
+      capability is named in capability_limitations and
+      plain_language_summary.
+  - state: offline_snapshot
+    required_browser_fallback_posture: external_open_unavailable_offline
+    required_capability_limitations:
+      - live_network_mutation_disabled_when_offline
+    required_actions:
+      - continue_local_without_surface
+      - open_support_evidence
+    notes: >
+      Snapshot-aged body may render. Live auth and mutation claims are
+      removed and a local-continuity note is required.
+  - state: external_open_only
+    required_browser_fallback_posture: device_code_fallback_offered
+    required_capability_limitations:
+      - cookies_or_storage_outside_product_boundary
+      - provider_scope_may_be_narrower_than_page_claims
+    required_actions:
+      - open_in_system_browser
+      - switch_to_device_code
+    notes: >
+      No embedded body. Fallback target class is one of
+      system_browser_handoff_packet, device_code_companion_card,
+      host_native_review_or_approval, or platform_authenticator_native.
+
+# Per-row review checklist. Reviewers tick each item against the row's
+# upstream record and boundary card.
+review_checklist:
+  - id: surface_id_matches_card_surface_id_ref
+    asks: >
+      Does the boundary card's surface_id_ref point at the upstream
+      embedded_surface_boundary_record under review?
+  - id: required_chrome_fields_present_for_family
+    asks: >
+      Does the card render every required_chrome_field for its
+      surface_family per artifacts/ux/owner_origin_chrome_seed.yaml?
+  - id: action_partition_complete_and_typed
+    asks: >
+      Is every action visible near the embedded surface assigned a
+      role from action_partition_role, and does the role match the
+      native_vs_embedded_ledger?
+  - id: native_reserved_disclosure_stable
+    asks: >
+      Is reserved_native_surfaces_host_owned non-empty on the card,
+      and does it preserve the full native-reserved set across states?
+  - id: browser_fallback_posture_matches_state
+    asks: >
+      Does the boundary state's required browser-fallback posture
+      match the boundary_state_to_required_posture row above?
+  - id: capability_limitations_match_state
+    asks: >
+      Does capability_limitations name every limitation required by
+      the boundary state, the permission class, and the auth flow?
+  - id: handoff_actions_quote_packets
+    asks: >
+      Do open_in_system_browser, switch_to_device_code, and
+      retry_auth_handoff actions all carry an upstream
+      browser_handoff_packet_ref or device_code_ref?
+  - id: chrome_inheritance_complete
+    asks: >
+      Does chrome_inheritance_axes include the seven mandatory axes
+      and does the embedded body avoid painting a parallel
+      theme/density/zoom/focus/motion/contrast/forced-colors model?
+  - id: layout_constraints_complete
+    asks: >
+      Does layout_constraints include the seven mandatory constraint
+      ids and does the embedded body avoid overlapping or hiding the
+      card?
+  - id: redaction_class_present
+    asks: >
+      Does redaction_class resolve to one of the closed redaction
+      classes and is the card's content safe under that class?
+  - id: policy_context_present
+    asks: >
+      Does policy_context carry identity_mode, policy_epoch, and
+      trust_state so audit and release evidence can distinguish
+      account-free, self-hosted-org, and managed-workspace renderings?
+
+# Worked examples. These cite the boundary-case corpus by file path so
+# reviewers can scan one row per surface family while grading.
+worked_examples:
+  - surface_family: embedded_docs_help
+    boundary_state: live_verified
+    fixture: fixtures/ux/embedded_boundary_cases/docs_help_live_verified_card.yaml
+    summary: >
+      Live-verified docs/help card with project_docs / exact_build_match
+      / authoritative_live source-truth and an inspect/copy partition.
+  - surface_family: embedded_docs_help
+    boundary_state: stale_snapshot
+    fixture: fixtures/ux/embedded_boundary_cases/docs_help_stale_snapshot_card.yaml
+    summary: >
+      Mirrored vendor docs that drifted off the running build. The card
+      keeps source / version / freshness visible, narrows to inspect /
+      open-in-browser, and removes mutating affordances.
+  - surface_family: embedded_docs_help
+    boundary_state: external_open_only
+    fixture: fixtures/ux/embedded_boundary_cases/docs_help_external_open_only_card.yaml
+    summary: >
+      Curated knowledge pack disabled by policy. The card preserves
+      object identity, shows the policy reason, and offers the system
+      browser as the only path with a host-native review fallback.
+  - surface_family: embedded_marketplace_or_account
+    boundary_state: stale_snapshot
+    fixture: fixtures/ux/embedded_boundary_cases/marketplace_account_stale_scope.json
+    summary: >
+      Marketplace/account page with provider scope/actor chrome and a
+      stale snapshot downgrade.
+  - surface_family: embedded_marketplace_or_account
+    boundary_state: offline_snapshot
+    fixture: fixtures/ux/embedded_boundary_cases/marketplace_account_offline_snapshot_card.yaml
+    summary: >
+      Marketplace/account card with offline_snapshot state and an
+      external_open_unavailable_offline browser-fallback posture.
+  - surface_family: embedded_marketplace_or_account
+    boundary_state: external_open_only
+    fixture: fixtures/ux/embedded_boundary_cases/marketplace_account_external_open_only_card.yaml
+    summary: >
+      Marketplace/account card narrowed to external-open-only with a
+      device_code_companion_card fallback target.
+  - surface_family: embedded_service_dashboard
+    boundary_state: certificate_failed
+    fixture: fixtures/ux/embedded_boundary_cases/service_dashboard_certificate_failed_card.yaml
+    summary: >
+      Service-dashboard card with certificate_failed state, withheld
+      body, and a host-native inspect-certificate fallback.
+  - surface_family: embedded_service_dashboard
+    boundary_state: policy_blocked
+    fixture: fixtures/ux/embedded_boundary_cases/service_dashboard_policy_blocked_card.yaml
+    summary: >
+      Service-dashboard card whose embedded body is denied by managed
+      policy. The card stays visible with inspect_policy_reason, an
+      external_open_blocked_by_policy posture, and a host-native review
+      fallback.
+  - surface_family: embedded_auth_confirmation
+    boundary_state: live_verified
+    fixture: fixtures/ux/embedded_boundary_cases/auth_confirmation_system_browser_first_card.yaml
+    summary: >
+      Auth-confirmation card using system_browser_first posture and
+      system_browser flow class.
+  - surface_family: embedded_auth_confirmation
+    boundary_state: external_open_only
+    fixture: fixtures/ux/embedded_boundary_cases/auth_confirmation_device_code_fallback.json
+    summary: >
+      Auth handoff card showing system-browser-first with explicit
+      device-code fallback.
+  - surface_family: embedded_auth_confirmation
+    boundary_state: live_verified
+    fixture: fixtures/ux/embedded_boundary_cases/auth_confirmation_password_exception_card.yaml
+    summary: >
+      Auth-confirmation card backed by an active embedded-password
+      exception register row, embedded_password_exception flow class,
+      and lower-trust capability limitation.
+  - surface_family: extension_hosted_surface
+    boundary_state: cross_origin_limited
+    fixture: fixtures/ux/embedded_boundary_cases/extension_hosted_cross_origin_limited_card.yaml
+    summary: >
+      Extension-hosted card with cross_origin_limited state and a
+      system_browser_first fallback posture.
+  - surface_family: extension_hosted_surface
+    boundary_state: cross_origin_limited
+    fixture: fixtures/ux/embedded_boundary_cases/extension_hosted_unsupported_capability_card.yaml
+    summary: >
+      Extension-hosted card whose embedded body cannot honor an
+      unsupported capability (clipboard write to a privileged native
+      surface). The card names the exact missing capability rather than
+      a generic limited badge.
+  - surface_family: extension_hosted_surface
+    boundary_state: live_verified
+    fixture: fixtures/ux/embedded_boundary_cases/native_impersonation_denied_event.json
+    summary: >
+      Audit event proving an embedded extension page was denied when it
+      attempted to request a native-reserved trust-elevation sheet.
+
+# Acceptance gates for the review. A row passes when every gate
+# resolves to pass; pass_with_notes is allowed when the reviewer
+# annotates the deviation against the closed vocabularies, never by
+# widening them.
+acceptance_gates:
+  - id: chrome_field_set_complete
+    rule: >
+      Every required chrome field for the surface family is rendered
+      on the card.
+  - id: native_actions_kept_native
+    rule: >
+      Every action visible near the embedded surface that touches a
+      native-reserved surface is partitioned as product_owned_native
+      and renders in host chrome only.
+  - id: embedded_actions_kept_embedded
+    rule: >
+      Every embedded_inspect_only and embedded_request_only action
+      stays inside the embedded body and does not claim final
+      authority over a native-reserved surface.
+  - id: handoff_attributability
+    rule: >
+      Every product_owned_handoff action quotes an upstream
+      browser_handoff_packet_ref or device_code_ref.
+  - id: degraded_state_card_visible
+    rule: >
+      Every state below live_verified renders the card and a typed
+      browser_fallback row, with an action set drawn from the
+      boundary_state_to_required_posture row above.
+  - id: native_reserved_disclosure_stable
+    rule: >
+      reserved_native_surfaces_host_owned is non-empty on every record
+      and the set never shrinks across states.
+  - id: chrome_inheritance_complete
+    rule: >
+      The card inherits the seven mandatory chrome inheritance axes
+      from the host shell, and the embedded body never paints a
+      parallel theme/density/zoom/focus/motion/contrast/forced-colors
+      model.
+  - id: layout_constraints_complete
+    rule: >
+      The card honors the seven mandatory layout constraint ids and
+      remains visible when the embedded body is withheld.
+  - id: audit_attributability
+    rule: >
+      Every denial or downgrade emits a typed audit_event_id with the
+      required refs and (where applicable) a closed denial_reason.

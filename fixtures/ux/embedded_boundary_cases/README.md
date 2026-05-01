@@ -60,12 +60,27 @@ canonical vocabulary lives in the record fields.
 - [`docs_help_live_verified_card.yaml`](./docs_help_live_verified_card.yaml)
   — embedded docs/help card with `live_verified` state, exact build
   match, and inspect/copy partition.
+- [`docs_help_stale_snapshot_card.yaml`](./docs_help_stale_snapshot_card.yaml)
+  — embedded docs/help card with `stale_snapshot` state for a mirrored
+  vendor docs pack that has drifted off the running build, including a
+  snapshot-age label and a `system_browser_first` upstream-docs
+  handoff.
+- [`docs_help_external_open_only_card.yaml`](./docs_help_external_open_only_card.yaml)
+  — embedded docs/help card narrowed to `external_open_only` for a
+  policy-disabled curated knowledge pack, preserving source / version
+  / freshness chrome and routing to a `system_browser_handoff_packet`
+  fallback target.
 - [`marketplace_account_offline_snapshot_card.yaml`](./marketplace_account_offline_snapshot_card.yaml)
   — marketplace/account card narrowed to `offline_snapshot` with an
   `external_open_unavailable_offline` browser-fallback posture.
 - [`service_dashboard_certificate_failed_card.yaml`](./service_dashboard_certificate_failed_card.yaml)
   — service-dashboard card with `certificate_failed` state, withheld
   body, and a host-native inspect-certificate fallback.
+- [`service_dashboard_policy_blocked_card.yaml`](./service_dashboard_policy_blocked_card.yaml)
+  — service-dashboard card with `policy_blocked` state where managed
+  policy denies the embedded body. The card stays visible with an
+  `external_open_blocked_by_policy` posture and a
+  `host_native_review_or_approval` fallback target.
 - [`auth_confirmation_system_browser_first_card.yaml`](./auth_confirmation_system_browser_first_card.yaml)
   — auth-confirmation card using `system_browser_first` posture and
   `system_browser` flow class.
@@ -76,6 +91,21 @@ canonical vocabulary lives in the record fields.
 - [`extension_hosted_cross_origin_limited_card.yaml`](./extension_hosted_cross_origin_limited_card.yaml)
   — extension-hosted card with `cross_origin_limited` state and a
   `system_browser_first` fallback posture.
+- [`extension_hosted_unsupported_capability_card.yaml`](./extension_hosted_unsupported_capability_card.yaml)
+  — extension-hosted card whose embedded body cannot honor an
+  unsupported capability (workspace trust elevation), naming the exact
+  missing capability and routing to a `host_native_review_or_approval`
+  fallback target.
 - [`marketplace_account_external_open_only_card.yaml`](./marketplace_account_external_open_only_card.yaml)
   — marketplace/account card narrowed to `external_open_only` with a
   `device_code_companion_card` fallback target.
+
+## Audit packet and owner/origin chrome review
+
+The audit packet at
+[`/artifacts/ux/embedded_surface_audit_packet.md`](../../../artifacts/ux/embedded_surface_audit_packet.md)
+and the owner/origin chrome review at
+[`/artifacts/ux/owner_origin_chrome_review.yaml`](../../../artifacts/ux/owner_origin_chrome_review.yaml)
+score real surfaces against this corpus. Their boundary-state coverage
+matrix and per-surface-family review rows cite the fixtures above by
+file path.
