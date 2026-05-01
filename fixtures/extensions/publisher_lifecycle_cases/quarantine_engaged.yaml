@@ -1,0 +1,236 @@
+# Publisher-lifecycle case: publisher-quarantine-engaged event with
+# install-disabled fan-out across discovery, installed rows, and
+# support/export.
+#
+# Companion to docs/extensions/publisher_lifecycle_and_registry_parity_contract.md,
+# schemas/extensions/publisher_lifecycle_event.schema.json, and
+# schemas/extensions/registry_parity.schema.json. Validates against
+# publisher_lifecycle_event_record (first document),
+# installed_package_lifecycle_notification_record (second document),
+# and registry_parity_assertion_record (third document).
+#
+# Exercises: publisher_quarantine_engaged event from the automated
+# anti-abuse detector, trust badge forced to
+# trust_badge_forced_quarantined_cannot_inherit on every installed
+# copy, anti-abuse register row engaged, installed-row notification
+# disposition notify_with_install_disabled_pending_review with typed
+# denial reason publisher_quarantine_engaged, and a public-registry
+# parity assertion resolving parity_held_full_vocabulary_match.
+
+# yaml-language-server: $schema=../../../schemas/extensions/publisher_lifecycle_event.schema.json
+__fixture__:
+  name: quarantine_engaged
+  scenario: >
+    The automated anti-abuse detector observes a signing-key
+    compromise on the publisher 'rogue-namespace' and engages
+    publisher_quarantine_engaged with reason signing_key_compromised.
+    The trust badge on every installed copy is forced to
+    quarantined_cannot_inherit; the publisher_namespace_recently_quarantined_blocking
+    anti-abuse register row is engaged; discovery removes affected
+    rows from ranking and renders them in detail-only review;
+    installed copies receive a notify_with_install_disabled_pending_review
+    notification with open_install_review_sheet, consult_workspace_admin,
+    and open_publisher_continuity_packet repair affordances. The
+    public-registry parity record resolves
+    parity_held_full_vocabulary_match.
+  contract_section: >
+    Publisher transfer or revocation changes trust state visibly
+    across discovery, installed rows, and support/export fixtures.
+  exercised_classes:
+    record_kinds:
+      - publisher_lifecycle_event_record
+      - installed_package_lifecycle_notification_record
+      - registry_parity_assertion_record
+    lifecycle_event_class: publisher_quarantine_engaged
+    actor_class: automated_anti_abuse_detector
+    reason_class: signing_key_compromised
+    effect_on_trust_badge_class: trust_badge_forced_quarantined_cannot_inherit
+    effect_on_anti_abuse_state_class: anti_abuse_state_engaged
+    installed_package_notification_disposition_class: notify_with_install_disabled_pending_review
+    parity_overall_state_class: parity_held_full_vocabulary_match
+
+---
+
+# Lifecycle event row.
+record_kind: publisher_lifecycle_event_record
+publisher_lifecycle_event_schema_version: 1
+publisher_lifecycle_event_record_id: ple-rogue-namespace-quarantine-engaged-2026-04-27
+publisher_continuity_ref: pub-rogue-namespace
+successor_publisher_continuity_ref: null
+subject_registry_source_class: public_registry
+subject_registry_endpoint_ref: endpoint-public-registry-aureline-default
+subject_extension_identity: null
+subject_extension_version: null
+subject_registry_manifest_row_ref: null
+mirror_continuity_row_ref: null
+lifecycle_event_class: publisher_quarantine_engaged
+actor_class: automated_anti_abuse_detector
+actor_identity_ref: actor-anti-abuse-detector-aureline-default
+reason_class: signing_key_compromised
+reason_label: >
+  The publisher's signing key is compromised; the anti-abuse detector
+  engages a publisher-namespace quarantine pending moderation review.
+effective_at: 2026-04-27T16:00:00Z
+prior_publisher_lifecycle_event_record_ref: null
+effect_on_trust_badge_class: trust_badge_forced_quarantined_cannot_inherit
+effect_on_compatibility_badge_class: compatibility_badge_demoted_to_unknown_pending_reverification
+effect_on_runtime_cost_badge_class: runtime_cost_badge_unchanged
+effect_on_anti_abuse_state_class: anti_abuse_state_engaged
+anti_abuse_state_row_refs:
+  - anti-abuse-state-publisher-namespace-recently-quarantined-blocking
+policy_pack_applicable_refs:
+  - policy-acme-org-default-v3
+evidence_refs:
+  - anti-abuse-signal-rogue-namespace-key-compromise-2026-04-27
+  - signing-key-compromise-evidence-rogue-namespace-2026-04-27
+installed_package_notification_required: true
+audit_event_refs:
+  - audit-publisher-lifecycle-event-recorded-rogue-namespace-quarantine-engaged
+denial_reason_class: publisher_quarantine_engaged
+redaction_class: support_bundle
+
+---
+
+# Installed-row notification fanned out to one workspace install.
+record_kind: installed_package_lifecycle_notification_record
+publisher_lifecycle_event_schema_version: 1
+installed_package_lifecycle_notification_record_id: ipln-globex-acme-default-rogue-namespace-utility-0-9-3-quarantine
+publisher_lifecycle_event_record_ref: ple-rogue-namespace-quarantine-engaged-2026-04-27
+installed_extension_identity: rogue-namespace/utility
+installed_extension_version: 0.9.3
+installed_workspace_ref: workspace-globex-internal-acme-default
+installed_registry_source_class: public_registry
+installed_registry_manifest_row_ref: reg-mf-rogue-namespace-utility-0-9-3-public-prod
+installed_local_archive_ref: null
+disposition_class: notify_with_install_disabled_pending_review
+repair_affordance_class_set:
+  - open_install_review_sheet
+  - consult_workspace_admin
+  - open_publisher_continuity_packet
+rendered_label: Publisher quarantine engaged; install disabled pending review
+explanation_label: >
+  The publisher 'rogue-namespace' is quarantined after a signing-key
+  compromise. Install on this row is disabled pending moderation
+  review; the trust badge is forced to quarantined_cannot_inherit and
+  the compatibility claim demotes to unknown pending reverification.
+  Open the install review sheet to read the publisher-continuity
+  packet; the workspace admin can request a managed-only continuation.
+trust_badge_after_event_class: trust_badge_forced_quarantined_cannot_inherit
+compatibility_badge_after_event_class: compatibility_badge_demoted_to_unknown_pending_reverification
+runtime_cost_badge_after_event_class: runtime_cost_badge_unchanged
+denial_reason_class: publisher_quarantine_engaged
+evidence_refs:
+  - ple-rogue-namespace-quarantine-engaged-2026-04-27
+  - anti-abuse-state-publisher-namespace-recently-quarantined-blocking
+audit_event_refs:
+  - audit-installed-package-lifecycle-notification-emitted-globex-acme-default-rogue-namespace-utility
+notified_at: 2026-04-27T16:01:00Z
+acknowledged_at: null
+redaction_class: support_bundle
+
+---
+
+# Registry-parity assertion for the public-registry lane.
+record_kind: registry_parity_assertion_record
+registry_parity_schema_version: 1
+registry_parity_assertion_record_id: rpa-public-registry-rogue-namespace-utility-0-9-3-2026-04-27
+subject_registry_source_class: public_registry
+subject_registry_endpoint_ref: endpoint-public-registry-aureline-default
+subject_registry_manifest_row_ref: reg-mf-rogue-namespace-utility-0-9-3-public-prod
+registry_source_named: true
+trust_badge_inheritance_rule_carried: quarantined_cannot_inherit
+publisher_continuity_ref: pub-rogue-namespace
+publisher_lifecycle_event_record_refs:
+  - ple-rogue-namespace-quarantine-engaged-2026-04-27
+anti_abuse_state_row_refs:
+  - anti-abuse-state-publisher-namespace-recently-quarantined-blocking
+discovery_result_row_ref: disc-rogue-namespace-utility-0-9-3-public-prod
+axis_assertion_set:
+  - axis_class: trust_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Trust vocabulary held in full; quarantine forces unverified
+    explanation_label: >
+      The quarantine forces trust_badge_forced_quarantined_cannot_inherit
+      on every consumer surface; the parity assertion exposes the
+      forced state directly so it cannot be silently dropped.
+    evidence_class_set:
+      - publisher_continuity_row_evidence
+      - publisher_lifecycle_event_record_evidence
+      - anti_abuse_state_row_evidence
+  - axis_class: provenance_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Provenance vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: compatibility_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Compatibility vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: runtime_cost_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Runtime-cost vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: safety_policy_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Safety / policy vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+      - policy_pack_constraint_row_evidence
+  - axis_class: maintainership_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Maintainership vocabulary held in full
+    evidence_class_set:
+      - publisher_continuity_row_evidence
+  - axis_class: bridge_state_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Bridge-state vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: anti_abuse_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Anti-abuse vocabulary held in full
+    explanation_label: >
+      The publisher_namespace_recently_quarantined_blocking row from
+      the anti-abuse register is engaged on every consumer surface
+      and cited verbatim by the parity record.
+    evidence_class_set:
+      - anti_abuse_state_row_evidence
+    evidence_refs:
+      - anti-abuse-state-publisher-namespace-recently-quarantined-blocking
+  - axis_class: publisher_lifecycle_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Publisher-lifecycle vocabulary held in full
+    evidence_class_set:
+      - publisher_lifecycle_event_record_evidence
+    evidence_refs:
+      - ple-rogue-namespace-quarantine-engaged-2026-04-27
+  - axis_class: registry_source_naming_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Registry source class named directly
+    evidence_class_set:
+      - registry_manifest_row_evidence
+parity_overall_state_class: parity_held_full_vocabulary_match
+parity_overall_consequence_class: no_consequence_parity_held
+rendered_label: Public-registry lane holds full vocabulary parity through quarantine
+explanation_label: >
+  The public-registry lane projects the registry-manifest row through
+  the closed lifecycle / anti-abuse / discovery vocabulary verbatim,
+  cites the quarantine-engaged event and the engaged anti-abuse-state
+  row, and renders the forced quarantined-cannot-inherit trust badge
+  on every consumer surface.
+audit_event_refs:
+  - audit-registry-parity-assertion-recorded-public-registry-rogue-namespace-utility-0-9-3
+asserted_at: 2026-04-27T16:02:00Z
+redaction_class: support_bundle

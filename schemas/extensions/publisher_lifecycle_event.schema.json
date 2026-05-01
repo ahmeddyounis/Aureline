@@ -1,0 +1,991 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/publisher_lifecycle_event.schema.json",
+  "title": "Aureline extension publisher-lifecycle-event and installed-package lifecycle-notification vocabulary",
+  "description": "Boundary schema for publisher-lifecycle events (verification, transfer, suspension, abandonment, revocation, quarantine, restoration, mirror promotion) and the installed-package lifecycle notifications they fan out to. Reuses the registry / mirror / offline-bundle / publisher-continuity vocabulary frozen by schemas/extensions/registry_manifest.schema.json and schemas/extensions/effective_permission.schema.json, the discovery-row vocabulary frozen by schemas/extensions/discovery_ranking_reason.schema.json, the badge / warning vocabulary frozen by schemas/extensions/discovery_badge.schema.json, and the anti-abuse register at artifacts/extensions/anti_abuse_states.yaml. Discovery, install-review, installed-row, support-export, and moderation surfaces project these records verbatim; minting per-surface lifecycle vocabulary is non-conforming. Adding a new lifecycle_event_class, lifecycle_actor_class, lifecycle_reason_class, lifecycle_effect_*_class, installed_package_notification_disposition_class, or lifecycle_audit_event_id is additive-minor with a publisher_lifecycle_event_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw attestation-bundle bytes, raw URLs, raw publisher-private data, raw repository paths, and raw popularity counts MUST NOT appear in any record; records carry refs and class labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/publisher_lifecycle_event_record" },
+    { "$ref": "#/$defs/installed_package_lifecycle_notification_record" }
+  ],
+  "$defs": {
+    "publisher_lifecycle_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this publisher-lifecycle vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "publisher_lifecycle_event_record",
+        "installed_package_lifecycle_notification_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "extension_identity": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$",
+      "description": "Namespaced extension id of the form 'publisher_id/extension_id' (mirrors registry_manifest.schema.json)."
+    },
+
+    "semver_string": {
+      "type": "string",
+      "minLength": 1,
+      "description": "SemVer string the lifecycle row resolves to. Pinning is a policy-pack concern; this field carries the declared candidate version."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/registry_source_class verbatim. A lifecycle event MUST name the registry source it applies to; private-registry events do not bypass disclosure simply because they are internal."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "profile_export",
+        "sync"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/redaction_class. Raw artifact bytes, raw URLs, raw repository paths, raw publisher-private fields MUST NOT appear on any sink."
+    },
+
+    "lifecycle_event_class": {
+      "type": "string",
+      "enum": [
+        "publisher_verification_admitted",
+        "publisher_verification_revalidated",
+        "publisher_verification_lapsed",
+        "publisher_transfer_announced",
+        "publisher_transfer_completed",
+        "publisher_suspension_pending_review",
+        "publisher_suspension_lifted",
+        "publisher_abandonment_observed",
+        "publisher_abandonment_cleared",
+        "publisher_revocation_emergency",
+        "publisher_revocation_administrative",
+        "publisher_quarantine_engaged",
+        "publisher_quarantine_cleared",
+        "publisher_restoration_after_review",
+        "artifact_emergency_disable_engaged",
+        "artifact_emergency_disable_cleared",
+        "artifact_revocation_engaged",
+        "mirror_promotion_admitted",
+        "mirror_promotion_revoked"
+      ],
+      "description": "Closed lifecycle-event-class vocabulary. Every lifecycle event carries exactly one class. The set covers verification, transfer, suspension, abandonment, revocation (emergency and administrative), quarantine, restoration, artifact-level emergency disable / revocation, and mirror promotion. Discovery, install-review, installed-row, and support-export surfaces project these classes verbatim; minting per-surface lifecycle classes is non-conforming."
+    },
+
+    "lifecycle_actor_class": {
+      "type": "string",
+      "enum": [
+        "registry_operator",
+        "mirror_operator",
+        "private_registry_administrator",
+        "workspace_admin",
+        "moderation_review",
+        "automated_publisher_continuity_detector",
+        "automated_anti_abuse_detector",
+        "publisher_self_service",
+        "successor_publisher_self_service"
+      ],
+      "description": "Closed actor-class vocabulary. Every event carries exactly one actor class so support-export and moderation review surfaces can render a typed actor chip. Raw user identity is never carried; the per-actor identity ref rides actor_identity_ref."
+    },
+
+    "lifecycle_reason_class": {
+      "type": "string",
+      "enum": [
+        "identity_proof_completed",
+        "identity_proof_lapsed",
+        "signing_key_rotated_with_continuity",
+        "signing_key_compromised",
+        "publisher_org_dissolution",
+        "successor_publisher_acknowledged",
+        "publisher_inactivity_observed",
+        "publisher_inactivity_cleared",
+        "moderation_review_concluded_admit",
+        "moderation_review_concluded_block",
+        "emergency_safety_review",
+        "artifact_supply_chain_compromise",
+        "artifact_namespace_collision",
+        "mirror_continuity_recertified",
+        "mirror_continuity_lost",
+        "private_registry_admin_decision",
+        "policy_pack_constraint_change",
+        "workspace_trust_revoked",
+        "workspace_trust_restored",
+        "successor_publisher_review_completed",
+        "reason_class_unknown_requires_review"
+      ],
+      "description": "Closed reason-class vocabulary. Every event names a typed reason. A row without a typed reason is non-conforming; honesty demands reason_class_unknown_requires_review over an empty value."
+    },
+
+    "lifecycle_effect_on_trust_badge_class": {
+      "type": "string",
+      "enum": [
+        "trust_badge_unchanged",
+        "trust_badge_promoted_to_verified",
+        "trust_badge_promoted_to_managed_approved",
+        "trust_badge_promoted_to_organisational",
+        "trust_badge_demoted_to_organisational",
+        "trust_badge_demoted_to_unverified",
+        "trust_badge_forced_quarantined_cannot_inherit",
+        "trust_badge_cleared_after_restoration"
+      ],
+      "description": "Closed effect-on-trust-badge vocabulary. The lifecycle event's effect on the publisher / artifact trust badge that discovery, installed rows, and install-review render. Surfaces MUST project this class verbatim; silent retention of a high trust badge after a revocation / quarantine / suspension event is denied with installed_package_stale_high_trust_badge."
+    },
+
+    "lifecycle_effect_on_compatibility_badge_class": {
+      "type": "string",
+      "enum": [
+        "compatibility_badge_unchanged",
+        "compatibility_badge_demoted_to_unknown_pending_reverification",
+        "compatibility_badge_promoted_to_compatible_after_reverification",
+        "compatibility_badge_blocked_on_policy"
+      ],
+      "description": "Closed effect-on-compatibility-badge vocabulary. After a publisher transfer / restoration / suspension the compatibility claim MAY require reverification before the row credits compatibility-first; this class names the projected effect."
+    },
+
+    "lifecycle_effect_on_runtime_cost_badge_class": {
+      "type": "string",
+      "enum": [
+        "runtime_cost_badge_unchanged",
+        "runtime_cost_badge_quarantined",
+        "runtime_cost_badge_cleared_after_quarantine",
+        "runtime_cost_badge_unknown_pending_evidence"
+      ],
+      "description": "Closed effect-on-runtime-cost-badge vocabulary. Quarantine engagement forces the quarantined badge; quarantine clearance restores the prior class only after a fresh activation-evidence packet."
+    },
+
+    "lifecycle_effect_on_anti_abuse_state_class": {
+      "type": "string",
+      "enum": [
+        "anti_abuse_state_unchanged",
+        "anti_abuse_state_engaged",
+        "anti_abuse_state_widened",
+        "anti_abuse_state_narrowed",
+        "anti_abuse_state_cleared"
+      ],
+      "description": "Closed effect-on-anti-abuse-state vocabulary. The lifecycle event's effect on the anti-abuse register row(s) bound to the publisher / artifact. A surface that hides a widened or engaged anti-abuse state is denied with review_disclosure_incomplete."
+    },
+
+    "installed_package_notification_disposition_class": {
+      "type": "string",
+      "enum": [
+        "notify_only_no_action_required",
+        "notify_with_optional_update_offered",
+        "notify_with_required_update_pending",
+        "notify_with_required_review_pending",
+        "notify_with_install_disabled_pending_review",
+        "notify_with_uninstall_offered",
+        "notify_with_uninstall_required_no_recovery",
+        "notify_with_workspace_admin_review_required",
+        "notify_with_managed_only_continuation",
+        "notify_class_unknown_requires_review"
+      ],
+      "description": "Closed installed-package notification-disposition vocabulary. Every notification fanned out to an installed row carries exactly one disposition. A revocation / quarantine / emergency-disable lifecycle event MUST NOT resolve to notify_only_no_action_required; doing so denies with installed_package_stale_high_trust_badge."
+    },
+
+    "installed_package_repair_affordance_class": {
+      "type": "string",
+      "enum": [
+        "run_offered_update_now",
+        "run_required_update_now",
+        "open_install_review_sheet",
+        "open_publisher_continuity_packet",
+        "open_permission_inspector",
+        "open_runtime_status_pill",
+        "open_policy_pack_constraint_row",
+        "consult_workspace_admin",
+        "request_admin_policy_exception",
+        "uninstall_now",
+        "uninstall_now_no_recovery",
+        "acknowledge_disclosure",
+        "no_recovery_review_only"
+      ],
+      "description": "Closed installed-package repair-affordance vocabulary. Every notification carries at least one typed repair affordance so the user / admin always has a typed next step; silent dead-ends are non-conforming."
+    },
+
+    "lifecycle_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "publisher_lifecycle_event_recorded",
+        "publisher_lifecycle_event_revoked",
+        "publisher_lifecycle_event_amended",
+        "publisher_restoration_after_review_recorded",
+        "installed_package_lifecycle_notification_emitted",
+        "installed_package_lifecycle_notification_acknowledged",
+        "installed_package_required_update_completed",
+        "installed_package_uninstalled_after_lifecycle_event",
+        "installed_package_stale_high_trust_badge_detected",
+        "mirror_promotion_admitted_recorded",
+        "mirror_promotion_revoked_recorded"
+      ],
+      "description": "Frozen lifecycle audit-event-id vocabulary. Additive-minor. Raw artifact bytes, raw signing-key material, raw attestation bytes, and raw publisher-private data MUST NOT appear on any event."
+    },
+
+    "lifecycle_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_denial_admissible",
+        "publisher_quarantine_engaged",
+        "publisher_revocation_emergency",
+        "publisher_revocation_administrative",
+        "artifact_revocation_engaged",
+        "artifact_emergency_disable_engaged",
+        "publisher_suspension_pending_review",
+        "publisher_transfer_pending_user_acknowledgement",
+        "publisher_transfer_pending_admin_policy_exception",
+        "installed_package_stale_high_trust_badge",
+        "lifecycle_event_unverified_actor",
+        "lifecycle_event_missing_typed_reason",
+        "lifecycle_event_missing_effective_at",
+        "review_disclosure_incomplete"
+      ],
+      "description": "Closed lifecycle denial-reason vocabulary. Silent fallback to a generic 'publisher event' chip is forbidden; every denial emits the corresponding audit event with a typed reason and a repair-affordance label."
+    },
+
+    "publisher_lifecycle_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publisher_lifecycle_event_schema_version",
+        "publisher_lifecycle_event_record_id",
+        "publisher_continuity_ref",
+        "subject_registry_source_class",
+        "lifecycle_event_class",
+        "actor_class",
+        "actor_identity_ref",
+        "reason_class",
+        "effective_at",
+        "effect_on_trust_badge_class",
+        "effect_on_compatibility_badge_class",
+        "effect_on_runtime_cost_badge_class",
+        "effect_on_anti_abuse_state_class",
+        "installed_package_notification_required",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "publisher_lifecycle_event_record" },
+        "publisher_lifecycle_event_schema_version": { "$ref": "#/$defs/publisher_lifecycle_event_schema_version" },
+        "publisher_lifecycle_event_record_id": { "$ref": "#/$defs/opaque_id" },
+        "publisher_continuity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 publisher_continuity_row the event applies to. Required even on artifact-scoped revocation / emergency disable events so installed-row notifications resolve back to the same publisher row."
+        },
+        "successor_publisher_continuity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the successor publisher's continuity row when lifecycle_event_class is publisher_transfer_announced / publisher_transfer_completed. Null otherwise."
+        },
+        "subject_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "subject_registry_endpoint_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the registry endpoint record (public registry, approved mirror, private registry, offline bundle id). Null when subject_registry_source_class is local_archive or quarantined_local_copy."
+        },
+        "subject_extension_identity": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/extension_identity" }
+          ],
+          "description": "Namespaced extension id when the event is artifact-scoped (artifact_revocation_engaged, artifact_emergency_disable_engaged, artifact_emergency_disable_cleared). Null when the event is publisher-scoped."
+        },
+        "subject_extension_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/semver_string" }
+          ],
+          "description": "Subject artifact version when artifact-scoped. Null otherwise."
+        },
+        "subject_registry_manifest_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the registry_manifest_row when the event is artifact-scoped. Null when publisher-scoped."
+        },
+        "mirror_continuity_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the mirror_continuity_row when lifecycle_event_class is mirror_promotion_admitted or mirror_promotion_revoked. Null otherwise."
+        },
+        "lifecycle_event_class": { "$ref": "#/$defs/lifecycle_event_class" },
+        "actor_class": { "$ref": "#/$defs/lifecycle_actor_class" },
+        "actor_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the actor identity row (operator decision row, admin decision row, automated detector row). Raw user identity / email never carried."
+        },
+        "reason_class": { "$ref": "#/$defs/lifecycle_reason_class" },
+        "reason_label": {
+          "type": "string",
+          "description": "Human-legible reason rendered on review surfaces. Raw publisher-private material forbidden."
+        },
+        "effective_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Effective date of the lifecycle event. Discovery, installed-row, install-review, and support-export surfaces render this date verbatim; back-dating is forbidden by the surface (the schema pins the field's presence)."
+        },
+        "prior_publisher_lifecycle_event_record_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the prior lifecycle event the current event amends or supersedes. Required (non-null) for publisher_restoration_after_review, publisher_suspension_lifted, publisher_quarantine_cleared, publisher_abandonment_cleared, artifact_emergency_disable_cleared, mirror_promotion_revoked, and publisher_verification_revalidated; null otherwise."
+        },
+        "effect_on_trust_badge_class": { "$ref": "#/$defs/lifecycle_effect_on_trust_badge_class" },
+        "effect_on_compatibility_badge_class": { "$ref": "#/$defs/lifecycle_effect_on_compatibility_badge_class" },
+        "effect_on_runtime_cost_badge_class": { "$ref": "#/$defs/lifecycle_effect_on_runtime_cost_badge_class" },
+        "effect_on_anti_abuse_state_class": { "$ref": "#/$defs/lifecycle_effect_on_anti_abuse_state_class" },
+        "anti_abuse_state_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to anti_abuse_state_id rows from artifacts/extensions/anti_abuse_states.yaml engaged, widened, narrowed, or cleared by this event. A surface that hides an engaged or widened state is denied with review_disclosure_incomplete."
+        },
+        "policy_pack_applicable_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to policy_pack_constraint_row rows whose scope covers the publisher / artifact at the moment of the event."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to the rows that justify the event (signing-continuity row, attestation-bundle ref, moderation review row, anti-abuse signal entry source, mirror continuity row, policy-pack constraint row). Raw evidence bodies never carried."
+        },
+        "installed_package_notification_required": {
+          "type": "boolean",
+          "description": "True when the event MUST fan out an installed_package_lifecycle_notification_record to every installed copy. False only for events that have no installed-row impact (publisher_verification_admitted on a brand-new publisher with no installed copies; publisher_inactivity_cleared on a publisher whose installed copies were already up to date)."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "denial_reason_class": {
+          "$ref": "#/$defs/lifecycle_denial_reason_class",
+          "description": "Denial reason rendered on install / installed-row review when the event blocks an install path (publisher_quarantine_engaged, publisher_revocation_*, artifact_revocation_engaged, artifact_emergency_disable_engaged, publisher_suspension_pending_review). no_denial_admissible on advisory / informational events."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Publisher-scoped events MUST have null subject_extension_identity, null subject_extension_version, and null subject_registry_manifest_row_ref. Artifact-scoped events MUST have non-null values for all three.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "artifact_revocation_engaged",
+                  "artifact_emergency_disable_engaged",
+                  "artifact_emergency_disable_cleared"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "subject_extension_identity": { "not": { "type": "null" } },
+              "subject_extension_version": { "not": { "type": "null" } },
+              "subject_registry_manifest_row_ref": { "not": { "type": "null" } }
+            },
+            "required": [
+              "subject_extension_identity",
+              "subject_extension_version",
+              "subject_registry_manifest_row_ref"
+            ]
+          }
+        },
+        {
+          "description": "Mirror-promotion events MUST cite a non-null mirror_continuity_row_ref.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": ["mirror_promotion_admitted", "mirror_promotion_revoked"]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "mirror_continuity_row_ref": { "not": { "type": "null" } }
+            },
+            "required": ["mirror_continuity_row_ref"]
+          }
+        },
+        {
+          "description": "Mirror-promotion events MUST have subject_registry_source_class = approved_mirror.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": ["mirror_promotion_admitted", "mirror_promotion_revoked"]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "subject_registry_source_class": { "const": "approved_mirror" }
+            },
+            "required": ["subject_registry_source_class"]
+          }
+        },
+        {
+          "description": "Publisher-transfer events MUST cite a non-null successor_publisher_continuity_ref.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "publisher_transfer_announced",
+                  "publisher_transfer_completed"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "successor_publisher_continuity_ref": { "not": { "type": "null" } }
+            },
+            "required": ["successor_publisher_continuity_ref"]
+          }
+        },
+        {
+          "description": "Publisher-verification-admitted MUST promote the trust badge to verified, managed_approved, or organisational; it MUST NOT leave the badge unchanged or demote it.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": { "const": "publisher_verification_admitted" }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_on_trust_badge_class": {
+                "enum": [
+                  "trust_badge_promoted_to_verified",
+                  "trust_badge_promoted_to_managed_approved",
+                  "trust_badge_promoted_to_organisational"
+                ]
+              }
+            },
+            "required": ["effect_on_trust_badge_class"]
+          }
+        },
+        {
+          "description": "Publisher-revocation, publisher-suspension-pending-review, artifact-revocation, and artifact-emergency-disable-engaged events MUST demote the trust badge to unverified or force quarantined-cannot-inherit; leaving the badge unchanged is non-conforming.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "publisher_revocation_emergency",
+                  "publisher_revocation_administrative",
+                  "publisher_suspension_pending_review",
+                  "artifact_revocation_engaged",
+                  "artifact_emergency_disable_engaged"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_on_trust_badge_class": {
+                "enum": [
+                  "trust_badge_demoted_to_unverified",
+                  "trust_badge_forced_quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["effect_on_trust_badge_class"]
+          }
+        },
+        {
+          "description": "Publisher-quarantine-engaged MUST force trust_badge_forced_quarantined_cannot_inherit and engage the anti-abuse register row.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": { "const": "publisher_quarantine_engaged" }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_on_trust_badge_class": {
+                "const": "trust_badge_forced_quarantined_cannot_inherit"
+              },
+              "effect_on_anti_abuse_state_class": {
+                "enum": ["anti_abuse_state_engaged", "anti_abuse_state_widened"]
+              }
+            },
+            "required": [
+              "effect_on_trust_badge_class",
+              "effect_on_anti_abuse_state_class"
+            ]
+          }
+        },
+        {
+          "description": "Publisher-transfer-completed MUST cap the rendered trust badge at organisational until the successor publisher row clears its first verification review.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": { "const": "publisher_transfer_completed" }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_on_trust_badge_class": {
+                "enum": [
+                  "trust_badge_demoted_to_organisational",
+                  "trust_badge_demoted_to_unverified"
+                ]
+              }
+            },
+            "required": ["effect_on_trust_badge_class"]
+          }
+        },
+        {
+          "description": "Publisher-restoration-after-review MUST cite a non-null prior_publisher_lifecycle_event_record_ref and MUST NOT leave the trust badge unchanged.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": { "const": "publisher_restoration_after_review" }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "prior_publisher_lifecycle_event_record_ref": {
+                "not": { "type": "null" }
+              },
+              "effect_on_trust_badge_class": {
+                "not": { "const": "trust_badge_unchanged" }
+              }
+            },
+            "required": [
+              "prior_publisher_lifecycle_event_record_ref",
+              "effect_on_trust_badge_class"
+            ]
+          }
+        },
+        {
+          "description": "Publisher-quarantine-cleared, publisher-suspension-lifted, publisher-abandonment-cleared, artifact-emergency-disable-cleared, mirror-promotion-revoked, and publisher-verification-revalidated MUST cite a non-null prior_publisher_lifecycle_event_record_ref so the cleared event resolves back to the engaging event.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "publisher_quarantine_cleared",
+                  "publisher_suspension_lifted",
+                  "publisher_abandonment_cleared",
+                  "artifact_emergency_disable_cleared",
+                  "mirror_promotion_revoked",
+                  "publisher_verification_revalidated"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "prior_publisher_lifecycle_event_record_ref": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["prior_publisher_lifecycle_event_record_ref"]
+          }
+        },
+        {
+          "description": "Publisher-revocation, publisher-quarantine-engaged, artifact-revocation, artifact-emergency-disable-engaged, and publisher-suspension-pending-review events MUST cite a typed denial_reason_class other than no_denial_admissible.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "publisher_revocation_emergency",
+                  "publisher_revocation_administrative",
+                  "publisher_quarantine_engaged",
+                  "artifact_revocation_engaged",
+                  "artifact_emergency_disable_engaged",
+                  "publisher_suspension_pending_review"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "not": { "const": "no_denial_admissible" }
+              }
+            },
+            "required": ["denial_reason_class"]
+          }
+        },
+        {
+          "description": "Publisher-revocation, publisher-quarantine-engaged, publisher-suspension-pending-review, artifact-revocation, artifact-emergency-disable-engaged, and publisher-transfer-completed events MUST set installed_package_notification_required = true so installed copies cannot retain stale high-trust badges.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "publisher_revocation_emergency",
+                  "publisher_revocation_administrative",
+                  "publisher_quarantine_engaged",
+                  "publisher_suspension_pending_review",
+                  "artifact_revocation_engaged",
+                  "artifact_emergency_disable_engaged",
+                  "publisher_transfer_completed"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "installed_package_notification_required": { "const": true }
+            },
+            "required": ["installed_package_notification_required"]
+          }
+        },
+        {
+          "description": "Quarantine-clearance and emergency-disable-clearance events MUST narrow or clear the anti-abuse state, never widen or engage it.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": {
+                "enum": [
+                  "publisher_quarantine_cleared",
+                  "artifact_emergency_disable_cleared",
+                  "publisher_suspension_lifted"
+                ]
+              }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_on_anti_abuse_state_class": {
+                "enum": [
+                  "anti_abuse_state_narrowed",
+                  "anti_abuse_state_cleared"
+                ]
+              }
+            },
+            "required": ["effect_on_anti_abuse_state_class"]
+          }
+        },
+        {
+          "description": "Mirror-promotion-admitted MUST set effect_on_trust_badge_class to either trust_badge_unchanged or trust_badge_demoted_to_unverified; a mirror promotion never widens trust above the origin tier.",
+          "if": {
+            "properties": {
+              "lifecycle_event_class": { "const": "mirror_promotion_admitted" }
+            },
+            "required": ["lifecycle_event_class"]
+          },
+          "then": {
+            "properties": {
+              "effect_on_trust_badge_class": {
+                "enum": [
+                  "trust_badge_unchanged",
+                  "trust_badge_demoted_to_unverified"
+                ]
+              }
+            },
+            "required": ["effect_on_trust_badge_class"]
+          }
+        }
+      ],
+      "description": "One publisher-lifecycle event. Discovery, install-review, installed-row, support-export, and moderation surfaces project the same record; minting per-surface lifecycle vocabulary is non-conforming."
+    },
+
+    "installed_package_lifecycle_notification_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "publisher_lifecycle_event_schema_version",
+        "installed_package_lifecycle_notification_record_id",
+        "publisher_lifecycle_event_record_ref",
+        "installed_extension_identity",
+        "installed_extension_version",
+        "installed_workspace_ref",
+        "installed_registry_source_class",
+        "disposition_class",
+        "repair_affordance_class_set",
+        "rendered_label",
+        "explanation_label",
+        "trust_badge_after_event_class",
+        "compatibility_badge_after_event_class",
+        "runtime_cost_badge_after_event_class",
+        "denial_reason_class",
+        "notified_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "installed_package_lifecycle_notification_record" },
+        "publisher_lifecycle_event_schema_version": { "$ref": "#/$defs/publisher_lifecycle_event_schema_version" },
+        "installed_package_lifecycle_notification_record_id": { "$ref": "#/$defs/opaque_id" },
+        "publisher_lifecycle_event_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the publisher_lifecycle_event_record this notification fans out from. Raw event bodies never carried; the notification reads the typed effect_*_class fields from the event."
+        },
+        "installed_extension_identity": { "$ref": "#/$defs/extension_identity" },
+        "installed_extension_version": { "$ref": "#/$defs/semver_string" },
+        "installed_workspace_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the workspace where the installed copy lives. Raw workspace path / id never carried."
+        },
+        "installed_registry_source_class": {
+          "$ref": "#/$defs/registry_source_class",
+          "description": "Registry source class of the installed copy. Discovery and installed-row surfaces render this verbatim; private-registry installs MUST NOT bypass lifecycle disclosure on the basis of being internal."
+        },
+        "installed_registry_manifest_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the registry_manifest_row the installed copy resolved against at install time. Null when the installed copy is a local_archive_import_row."
+        },
+        "installed_local_archive_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the local_archive_import_row when the installed copy was imported as a local archive or quarantined local copy. Null otherwise."
+        },
+        "disposition_class": { "$ref": "#/$defs/installed_package_notification_disposition_class" },
+        "repair_affordance_class_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/installed_package_repair_affordance_class" },
+          "description": "At least one typed repair affordance the user / admin can take from the installed-row notification. A notification with no repair affordance is non-conforming."
+        },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the installed-row notification card. Raw publisher-private material forbidden."
+        },
+        "explanation_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Inspectable explanation rendered when the user opens the notification. Raw publisher-private material forbidden."
+        },
+        "trust_badge_after_event_class": {
+          "$ref": "#/$defs/lifecycle_effect_on_trust_badge_class",
+          "description": "Projected trust-badge state on the installed row after the event. Discovery and installed-row surfaces MUST render this class verbatim; silent retention of a high-trust badge after a revocation / quarantine / suspension event is denied with installed_package_stale_high_trust_badge."
+        },
+        "compatibility_badge_after_event_class": {
+          "$ref": "#/$defs/lifecycle_effect_on_compatibility_badge_class"
+        },
+        "runtime_cost_badge_after_event_class": {
+          "$ref": "#/$defs/lifecycle_effect_on_runtime_cost_badge_class"
+        },
+        "denial_reason_class": {
+          "$ref": "#/$defs/lifecycle_denial_reason_class",
+          "description": "Denial reason rendered on the installed-row review when the notification disposition blocks an install / activation path. no_denial_admissible on advisory / informational notifications."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "notified_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "acknowledged_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp the user / admin acknowledged the notification, when applicable. Null when the disposition is notify_only_no_action_required or when the notification has not yet been acknowledged."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "notify_with_uninstall_required_no_recovery MUST cite repair_affordance_class_set containing both no_recovery_review_only and uninstall_now_no_recovery, and denial_reason_class != no_denial_admissible.",
+          "if": {
+            "properties": {
+              "disposition_class": { "const": "notify_with_uninstall_required_no_recovery" }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "repair_affordance_class_set": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "type": "string",
+                      "const": "no_recovery_review_only"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "type": "string",
+                      "const": "uninstall_now_no_recovery"
+                    }
+                  }
+                ]
+              },
+              "denial_reason_class": {
+                "not": { "const": "no_denial_admissible" }
+              }
+            },
+            "required": ["repair_affordance_class_set", "denial_reason_class"]
+          }
+        },
+        {
+          "description": "notify_with_install_disabled_pending_review MUST cite a denial_reason_class other than no_denial_admissible.",
+          "if": {
+            "properties": {
+              "disposition_class": { "const": "notify_with_install_disabled_pending_review" }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "not": { "const": "no_denial_admissible" }
+              }
+            },
+            "required": ["denial_reason_class"]
+          }
+        },
+        {
+          "description": "notify_with_required_review_pending MUST cite a denial_reason_class other than no_denial_admissible (review is pending; the install path is gated).",
+          "if": {
+            "properties": {
+              "disposition_class": { "const": "notify_with_required_review_pending" }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": {
+                "not": { "const": "no_denial_admissible" }
+              }
+            },
+            "required": ["denial_reason_class"]
+          }
+        },
+        {
+          "description": "notify_only_no_action_required MUST be paired with denial_reason_class = no_denial_admissible. A revocation / quarantine / emergency-disable / suspension event that resolves the installed row to notify_only_no_action_required is denied with installed_package_stale_high_trust_badge.",
+          "if": {
+            "properties": {
+              "disposition_class": { "const": "notify_only_no_action_required" }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason_class": { "const": "no_denial_admissible" },
+              "trust_badge_after_event_class": {
+                "not": {
+                  "enum": [
+                    "trust_badge_demoted_to_unverified",
+                    "trust_badge_forced_quarantined_cannot_inherit"
+                  ]
+                }
+              }
+            },
+            "required": ["denial_reason_class", "trust_badge_after_event_class"]
+          }
+        },
+        {
+          "description": "When trust_badge_after_event_class is trust_badge_demoted_to_unverified or trust_badge_forced_quarantined_cannot_inherit, the disposition MUST NOT be notify_only_no_action_required or notify_with_optional_update_offered.",
+          "if": {
+            "properties": {
+              "trust_badge_after_event_class": {
+                "enum": [
+                  "trust_badge_demoted_to_unverified",
+                  "trust_badge_forced_quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_after_event_class"]
+          },
+          "then": {
+            "properties": {
+              "disposition_class": {
+                "not": {
+                  "enum": [
+                    "notify_only_no_action_required",
+                    "notify_with_optional_update_offered"
+                  ]
+                }
+              }
+            },
+            "required": ["disposition_class"]
+          }
+        },
+        {
+          "description": "Installed copies sourced from local_archive or quarantined_local_copy MUST cite a non-null installed_local_archive_ref.",
+          "if": {
+            "properties": {
+              "installed_registry_source_class": {
+                "enum": ["local_archive", "quarantined_local_copy"]
+              }
+            },
+            "required": ["installed_registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "installed_local_archive_ref": { "not": { "type": "null" } }
+            },
+            "required": ["installed_local_archive_ref"]
+          }
+        },
+        {
+          "description": "Installed copies sourced from public_registry, approved_mirror, private_registry, or offline_bundle MUST cite a non-null installed_registry_manifest_row_ref.",
+          "if": {
+            "properties": {
+              "installed_registry_source_class": {
+                "enum": [
+                  "public_registry",
+                  "approved_mirror",
+                  "private_registry",
+                  "offline_bundle"
+                ]
+              }
+            },
+            "required": ["installed_registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "installed_registry_manifest_row_ref": { "not": { "type": "null" } }
+            },
+            "required": ["installed_registry_manifest_row_ref"]
+          }
+        }
+      ],
+      "description": "One notification fanned out to one installed copy after a publisher-lifecycle event. Discovery, installed-row, install-review, and support-export surfaces project the same record; private-registry installs do not bypass lifecycle disclosure simply because they are internal."
+    }
+  }
+}

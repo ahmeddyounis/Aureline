@@ -1,0 +1,556 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/registry_parity.schema.json",
+  "title": "Aureline registry-parity assertion vocabulary",
+  "description": "Boundary schema for registry-parity assertion records. A parity-assertion record binds a public-registry, approved-mirror, private-registry, offline-bundle, or local-archive subject row to the closed trust / provenance / compatibility / runtime-cost / safety-policy / maintainership / bridge-state / anti-abuse / publisher-lifecycle vocabulary frozen by schemas/extensions/registry_manifest.schema.json, schemas/extensions/discovery_ranking_reason.schema.json, schemas/extensions/discovery_badge.schema.json, schemas/extensions/publisher_lifecycle_event.schema.json, and artifacts/extensions/anti_abuse_states.yaml. The assertion forces enterprise / private registries and approved mirrors to use exactly the same vocabulary as public discovery surfaces while still naming the registry source directly. Adding a new parity_axis_class, parity_state_class, parity_violation_consequence_class, parity_evidence_class, or parity_audit_event_id is additive-minor with a registry_parity_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw URLs, raw publisher-private data, raw repository paths, and raw popularity counts MUST NOT appear in any record; records carry refs and class labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/registry_parity_assertion_record" }
+  ],
+  "$defs": {
+    "registry_parity_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this registry-parity vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["registry_parity_assertion_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / claim manifests."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "approved_mirror",
+        "private_registry",
+        "offline_bundle",
+        "local_archive",
+        "quarantined_local_copy"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/registry_source_class verbatim. Every parity assertion explicitly names the registry source it applies to; private / mirror / offline-bundle / local-archive lanes never bypass disclosure simply because they are internal or on-disk."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "traces_local",
+        "support_bundle",
+        "evidence_packet",
+        "mutation_journal_entry",
+        "save_manifest",
+        "claim_manifest",
+        "profile_export",
+        "sync"
+      ],
+      "description": "Mirrors registry_manifest.schema.json#/$defs/redaction_class. Raw artifact bytes, raw URLs, raw repository paths, raw publisher-private fields MUST NOT appear on any sink."
+    },
+
+    "parity_axis_class": {
+      "type": "string",
+      "enum": [
+        "trust_vocabulary_axis",
+        "provenance_vocabulary_axis",
+        "compatibility_vocabulary_axis",
+        "runtime_cost_vocabulary_axis",
+        "safety_policy_vocabulary_axis",
+        "maintainership_vocabulary_axis",
+        "bridge_state_vocabulary_axis",
+        "anti_abuse_vocabulary_axis",
+        "publisher_lifecycle_vocabulary_axis",
+        "registry_source_naming_axis"
+      ],
+      "description": "Closed parity-axis vocabulary. Every parity-axis row asserts that the subject registry / mirror / private-registry / offline-bundle / local-archive lane projects the same closed vocabulary that public discovery surfaces project. registry_source_naming_axis pins that the lane names its registry_source_class directly rather than smuggling a public-registry-shaped class onto a non-public lane."
+    },
+
+    "parity_state_class": {
+      "type": "string",
+      "enum": [
+        "parity_held_full_vocabulary_match",
+        "parity_held_with_documented_narrowing",
+        "parity_held_with_capped_inheritance",
+        "parity_violated_minted_marketplace_field",
+        "parity_violated_widened_trust_tier",
+        "parity_violated_hidden_warning",
+        "parity_violated_anti_abuse_state_not_cited",
+        "parity_violated_lifecycle_event_hidden",
+        "parity_violated_registry_source_not_named",
+        "parity_violated_compatibility_vocabulary_renamed",
+        "parity_violated_runtime_cost_vocabulary_renamed",
+        "parity_unknown_pending_review"
+      ],
+      "description": "Closed parity-state vocabulary. The 'parity_held_*' states admit the lane onto every consumer surface; the 'parity_violated_*' states block the lane from projecting onto discovery / install-review until the violation is repaired. parity_held_with_capped_inheritance is the honest default for approved-mirror, private-registry, offline-bundle, and local-archive lanes that cap the rendered trust tier at organisational / community / unverified per registry_manifest.schema.json's trust_badge_inheritance_rule."
+    },
+
+    "parity_violation_consequence_class": {
+      "type": "string",
+      "enum": [
+        "no_consequence_parity_held",
+        "emit_parity_violation_audit_event",
+        "render_disclosure_with_inspectable_explanation",
+        "block_install_pending_review",
+        "require_admin_policy_exception",
+        "remove_from_ranking_review_only"
+      ],
+      "description": "Closed parity-violation-consequence vocabulary. Every assertion names exactly one consequence. parity_held_* states pair with no_consequence_parity_held; parity_violated_* states pair with one of the active consequences. Silent fallback to a generic 'parity issue' chip is forbidden."
+    },
+
+    "parity_evidence_class": {
+      "type": "string",
+      "enum": [
+        "registry_manifest_row_evidence",
+        "mirror_continuity_row_evidence",
+        "channel_promotion_row_evidence",
+        "publisher_continuity_row_evidence",
+        "publisher_lifecycle_event_record_evidence",
+        "anti_abuse_state_row_evidence",
+        "policy_pack_constraint_row_evidence",
+        "discovery_result_row_evidence",
+        "discovery_badge_record_evidence",
+        "discovery_warning_record_evidence",
+        "offline_bundle_manifest_row_evidence",
+        "local_archive_import_row_evidence"
+      ],
+      "description": "Closed evidence-class vocabulary the parity assertion may cite. A surface that hides a cited evidence row is denied with review_disclosure_incomplete."
+    },
+
+    "parity_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "registry_parity_assertion_recorded",
+        "registry_parity_assertion_revoked",
+        "registry_parity_violation_detected",
+        "registry_parity_violation_repaired",
+        "registry_parity_assertion_amended"
+      ],
+      "description": "Frozen parity audit-event-id vocabulary. Additive-minor."
+    },
+
+    "parity_axis_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "axis_class",
+        "state_class",
+        "consequence_class",
+        "rendered_label"
+      ],
+      "properties": {
+        "axis_class": { "$ref": "#/$defs/parity_axis_class" },
+        "state_class": { "$ref": "#/$defs/parity_state_class" },
+        "consequence_class": { "$ref": "#/$defs/parity_violation_consequence_class" },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the parity row of the support-export / moderation review surface. Raw publisher-private material forbidden."
+        },
+        "explanation_label": {
+          "type": "string",
+          "description": "Inspectable explanation rendered when the user opens the axis row. Raw publisher-private material forbidden."
+        },
+        "evidence_class_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parity_evidence_class" },
+          "description": "The closed evidence classes cited for this axis. Surfaces resolve evidence_refs through this typed list rather than dereferencing raw row bodies."
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      },
+      "allOf": [
+        {
+          "description": "parity_held_* states MUST pair with consequence_class = no_consequence_parity_held.",
+          "if": {
+            "properties": {
+              "state_class": {
+                "enum": [
+                  "parity_held_full_vocabulary_match",
+                  "parity_held_with_documented_narrowing",
+                  "parity_held_with_capped_inheritance"
+                ]
+              }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "consequence_class": { "const": "no_consequence_parity_held" }
+            },
+            "required": ["consequence_class"]
+          }
+        },
+        {
+          "description": "parity_violated_* states MUST pair with a consequence other than no_consequence_parity_held.",
+          "if": {
+            "properties": {
+              "state_class": {
+                "enum": [
+                  "parity_violated_minted_marketplace_field",
+                  "parity_violated_widened_trust_tier",
+                  "parity_violated_hidden_warning",
+                  "parity_violated_anti_abuse_state_not_cited",
+                  "parity_violated_lifecycle_event_hidden",
+                  "parity_violated_registry_source_not_named",
+                  "parity_violated_compatibility_vocabulary_renamed",
+                  "parity_violated_runtime_cost_vocabulary_renamed"
+                ]
+              }
+            },
+            "required": ["state_class"]
+          },
+          "then": {
+            "properties": {
+              "consequence_class": {
+                "not": { "const": "no_consequence_parity_held" }
+              }
+            },
+            "required": ["consequence_class"]
+          }
+        }
+      ],
+      "description": "One parity-axis assertion. Every parity record carries one axis assertion per parity_axis_class so consumers can render a typed table of (axis, state, consequence) without re-deriving the parity state per surface."
+    },
+
+    "registry_parity_assertion_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "registry_parity_schema_version",
+        "registry_parity_assertion_record_id",
+        "subject_registry_source_class",
+        "subject_registry_endpoint_ref",
+        "subject_registry_manifest_row_ref",
+        "registry_source_named",
+        "trust_badge_inheritance_rule_carried",
+        "publisher_continuity_ref",
+        "axis_assertion_set",
+        "parity_overall_state_class",
+        "parity_overall_consequence_class",
+        "asserted_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "registry_parity_assertion_record" },
+        "registry_parity_schema_version": { "$ref": "#/$defs/registry_parity_schema_version" },
+        "registry_parity_assertion_record_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "subject_registry_endpoint_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the registry / mirror / private-registry / offline-bundle / local-archive endpoint record. Raw URLs / repository paths never carried."
+        },
+        "subject_registry_manifest_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the registry_manifest_row the parity assertion applies to. The assertion always applies to a concrete row; lane-level parity assertions are recorded as a set of per-row records."
+        },
+        "registry_source_named": {
+          "type": "boolean",
+          "description": "True when the subject lane explicitly names its registry_source_class on every consumer surface. False values are non-conforming and MUST be paired with parity_overall_state_class = parity_violated_registry_source_not_named so the violation is captured by a typed audit event."
+        },
+        "trust_badge_inheritance_rule_carried": {
+          "type": "string",
+          "enum": [
+            "inherits_origin_tier",
+            "capped_at_organisational_on_private_registry",
+            "capped_at_community_on_approved_mirror",
+            "capped_at_unverified_on_local_archive",
+            "quarantined_cannot_inherit"
+          ],
+          "description": "Mirrors registry_manifest.schema.json#/$defs/trust_badge_inheritance_rule. Carried on the parity record so the moderation / support-export surface can render it directly without re-dereferencing the registry-manifest row."
+        },
+        "publisher_continuity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 publisher_continuity_row the subject row binds to. Raw publisher identity never carried."
+        },
+        "publisher_lifecycle_event_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to publisher_lifecycle_event_record rows whose effective_at falls inside the parity-window. Hiding any of these denies with review_disclosure_incomplete; private-registry lanes MUST cite the same lifecycle records as public-registry lanes."
+        },
+        "anti_abuse_state_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to anti_abuse_state_id rows from artifacts/extensions/anti_abuse_states.yaml engaged on the subject row. A private-registry lane MUST NOT hide an engaged anti-abuse state row simply because the lane is internal."
+        },
+        "discovery_result_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the discovery_result_row the subject row projects onto. Null when the subject row is suppressed from discovery (e.g. quarantined_local_copy)."
+        },
+        "axis_assertion_set": {
+          "type": "array",
+          "minItems": 10,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/parity_axis_assertion" },
+          "description": "Exactly ten parity-axis assertions, one per parity_axis_class. The complete set is required so surfaces never silently drop an axis; the schema enforces minItems = maxItems = 10."
+        },
+        "parity_overall_state_class": { "$ref": "#/$defs/parity_state_class" },
+        "parity_overall_consequence_class": { "$ref": "#/$defs/parity_violation_consequence_class" },
+        "rendered_label": {
+          "type": "string",
+          "description": "Human-legible label rendered on the parity row in support-export / moderation review surfaces."
+        },
+        "explanation_label": {
+          "type": "string",
+          "description": "Inspectable explanation rendered when the user opens the parity row."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "asserted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "parity_overall_state_class in parity_held_* MUST pair with parity_overall_consequence_class = no_consequence_parity_held.",
+          "if": {
+            "properties": {
+              "parity_overall_state_class": {
+                "enum": [
+                  "parity_held_full_vocabulary_match",
+                  "parity_held_with_documented_narrowing",
+                  "parity_held_with_capped_inheritance"
+                ]
+              }
+            },
+            "required": ["parity_overall_state_class"]
+          },
+          "then": {
+            "properties": {
+              "parity_overall_consequence_class": { "const": "no_consequence_parity_held" }
+            },
+            "required": ["parity_overall_consequence_class"]
+          }
+        },
+        {
+          "description": "parity_overall_state_class in parity_violated_* MUST pair with parity_overall_consequence_class != no_consequence_parity_held.",
+          "if": {
+            "properties": {
+              "parity_overall_state_class": {
+                "enum": [
+                  "parity_violated_minted_marketplace_field",
+                  "parity_violated_widened_trust_tier",
+                  "parity_violated_hidden_warning",
+                  "parity_violated_anti_abuse_state_not_cited",
+                  "parity_violated_lifecycle_event_hidden",
+                  "parity_violated_registry_source_not_named",
+                  "parity_violated_compatibility_vocabulary_renamed",
+                  "parity_violated_runtime_cost_vocabulary_renamed"
+                ]
+              }
+            },
+            "required": ["parity_overall_state_class"]
+          },
+          "then": {
+            "properties": {
+              "parity_overall_consequence_class": {
+                "not": { "const": "no_consequence_parity_held" }
+              }
+            },
+            "required": ["parity_overall_consequence_class"]
+          }
+        },
+        {
+          "description": "registry_source_named = false MUST pair with parity_overall_state_class = parity_violated_registry_source_not_named.",
+          "if": {
+            "properties": { "registry_source_named": { "const": false } },
+            "required": ["registry_source_named"]
+          },
+          "then": {
+            "properties": {
+              "parity_overall_state_class": {
+                "const": "parity_violated_registry_source_not_named"
+              }
+            },
+            "required": ["parity_overall_state_class"]
+          }
+        },
+        {
+          "description": "approved_mirror, private_registry, offline_bundle, and local_archive subjects MUST carry a trust_badge_inheritance_rule_carried in {capped_at_organisational_on_private_registry, capped_at_community_on_approved_mirror, capped_at_unverified_on_local_archive, quarantined_cannot_inherit, inherits_origin_tier} and pair the trust axis to parity_held_with_capped_inheritance unless the lane re-verified the origin signature with a fresh revocation snapshot. Public-registry subjects MAY use inherits_origin_tier with parity_held_full_vocabulary_match.",
+          "if": {
+            "properties": {
+              "subject_registry_source_class": {
+                "enum": ["local_archive", "quarantined_local_copy"]
+              }
+            },
+            "required": ["subject_registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule_carried": {
+                "enum": [
+                  "capped_at_unverified_on_local_archive",
+                  "quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_inheritance_rule_carried"]
+          }
+        },
+        {
+          "description": "approved_mirror subjects MUST carry trust_badge_inheritance_rule_carried in {inherits_origin_tier, capped_at_community_on_approved_mirror, quarantined_cannot_inherit}.",
+          "if": {
+            "properties": {
+              "subject_registry_source_class": { "const": "approved_mirror" }
+            },
+            "required": ["subject_registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule_carried": {
+                "enum": [
+                  "inherits_origin_tier",
+                  "capped_at_community_on_approved_mirror",
+                  "quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_inheritance_rule_carried"]
+          }
+        },
+        {
+          "description": "private_registry subjects MUST carry trust_badge_inheritance_rule_carried in {inherits_origin_tier, capped_at_organisational_on_private_registry, quarantined_cannot_inherit}.",
+          "if": {
+            "properties": {
+              "subject_registry_source_class": { "const": "private_registry" }
+            },
+            "required": ["subject_registry_source_class"]
+          },
+          "then": {
+            "properties": {
+              "trust_badge_inheritance_rule_carried": {
+                "enum": [
+                  "inherits_origin_tier",
+                  "capped_at_organisational_on_private_registry",
+                  "quarantined_cannot_inherit"
+                ]
+              }
+            },
+            "required": ["trust_badge_inheritance_rule_carried"]
+          }
+        },
+        {
+          "description": "axis_assertion_set MUST contain exactly one assertion per parity_axis_class; the closed set is asserted via a contains gate per axis so surfaces cannot silently drop an axis.",
+          "properties": {
+            "axis_assertion_set": {
+              "type": "array",
+              "allOf": [
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "trust_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "provenance_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "compatibility_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "runtime_cost_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "safety_policy_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "maintainership_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "bridge_state_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "anti_abuse_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "publisher_lifecycle_vocabulary_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                },
+                {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "axis_class": { "const": "registry_source_naming_axis" }
+                    },
+                    "required": ["axis_class"]
+                  }
+                }
+              ]
+            }
+          },
+          "required": ["axis_assertion_set"]
+        }
+      ],
+      "description": "One registry-parity assertion. Discovery, install-review, installed-row, support-export, and moderation surfaces project the same record; private-registry / approved-mirror / offline-bundle / local-archive lanes do not bypass any axis simply because they are internal."
+    }
+  }
+}

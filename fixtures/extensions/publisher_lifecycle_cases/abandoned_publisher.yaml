@@ -1,0 +1,243 @@
+# Publisher-lifecycle case: abandoned-publisher advisory event with
+# private-registry parity assertion.
+#
+# Companion to docs/extensions/publisher_lifecycle_and_registry_parity_contract.md,
+# schemas/extensions/publisher_lifecycle_event.schema.json, and
+# schemas/extensions/registry_parity.schema.json. Validates against
+# publisher_lifecycle_event_record (first document),
+# installed_package_lifecycle_notification_record (second document),
+# and registry_parity_assertion_record (third document).
+#
+# Exercises: publisher_abandonment_observed event from the automated
+# publisher-continuity detector, advisory disposition that does not
+# block install, installed-row notification disposition
+# notify_with_optional_update_offered, and a private-registry parity
+# assertion resolving parity_held_with_capped_inheritance to
+# demonstrate that org-private rows do not bypass lifecycle disclosure
+# simply because they are internal.
+
+# yaml-language-server: $schema=../../../schemas/extensions/publisher_lifecycle_event.schema.json
+__fixture__:
+  name: abandoned_publisher
+  scenario: >
+    The org-private publisher 'globex-internal-archive' has had no
+    signing or release activity inside the configured maintainer-
+    coverage window. The publisher-continuity detector raises a
+    publisher_abandonment_observed event with reason
+    publisher_inactivity_observed. Discovery surfaces render
+    maintainership_badge_abandoned advisory; install-review surfaces
+    keep install admitted but ask the user to acknowledge.
+    Installed copies in the workspace receive a
+    notify_with_optional_update_offered notification with
+    run_offered_update_now and acknowledge_disclosure repair
+    affordances. The private-registry parity assertion explicitly
+    cites the lifecycle event and the engaged anti-abuse register
+    row, demonstrating that org-private lanes do not bypass lifecycle
+    or anti-abuse disclosure.
+  contract_section: >
+    Private-registry packages do not bypass trust vocabulary or
+    lifecycle disclosure merely because they are internal.
+  exercised_classes:
+    record_kinds:
+      - publisher_lifecycle_event_record
+      - installed_package_lifecycle_notification_record
+      - registry_parity_assertion_record
+    lifecycle_event_class: publisher_abandonment_observed
+    actor_class: automated_publisher_continuity_detector
+    reason_class: publisher_inactivity_observed
+    effect_on_trust_badge_class: trust_badge_unchanged
+    effect_on_anti_abuse_state_class: anti_abuse_state_engaged
+    installed_package_notification_disposition_class: notify_with_optional_update_offered
+    parity_overall_state_class: parity_held_with_capped_inheritance
+
+---
+
+# Lifecycle event row.
+record_kind: publisher_lifecycle_event_record
+publisher_lifecycle_event_schema_version: 1
+publisher_lifecycle_event_record_id: ple-globex-internal-archive-abandonment-observed-2026-04-22
+publisher_continuity_ref: pub-globex-internal-archive
+successor_publisher_continuity_ref: null
+subject_registry_source_class: private_registry
+subject_registry_endpoint_ref: endpoint-private-registry-globex-internal
+subject_extension_identity: null
+subject_extension_version: null
+subject_registry_manifest_row_ref: null
+mirror_continuity_row_ref: null
+lifecycle_event_class: publisher_abandonment_observed
+actor_class: automated_publisher_continuity_detector
+actor_identity_ref: actor-publisher-continuity-detector-globex-internal
+reason_class: publisher_inactivity_observed
+reason_label: >
+  No signing or release activity recorded for the publisher inside
+  the maintainer-coverage window of the workspace's policy pack.
+effective_at: 2026-04-22T08:00:00Z
+prior_publisher_lifecycle_event_record_ref: null
+effect_on_trust_badge_class: trust_badge_unchanged
+effect_on_compatibility_badge_class: compatibility_badge_unchanged
+effect_on_runtime_cost_badge_class: runtime_cost_badge_unchanged
+effect_on_anti_abuse_state_class: anti_abuse_state_engaged
+anti_abuse_state_row_refs:
+  - anti-abuse-state-abandoned-publisher-advisory
+policy_pack_applicable_refs:
+  - policy-globex-org-default-v3
+  - policy-globex-org-managed-only-v1
+evidence_refs:
+  - publisher-continuity-snapshot-globex-internal-archive-2026-04-22
+installed_package_notification_required: false
+audit_event_refs:
+  - audit-publisher-lifecycle-event-recorded-globex-internal-archive-abandonment
+denial_reason_class: no_denial_admissible
+redaction_class: support_bundle
+
+---
+
+# Installed-row notification fanned out to one workspace install.
+record_kind: installed_package_lifecycle_notification_record
+publisher_lifecycle_event_schema_version: 1
+installed_package_lifecycle_notification_record_id: ipln-globex-internal-archive-tooling-3-2-1-abandonment
+publisher_lifecycle_event_record_ref: ple-globex-internal-archive-abandonment-observed-2026-04-22
+installed_extension_identity: globex-internal-archive/tooling
+installed_extension_version: 3.2.1
+installed_workspace_ref: workspace-globex-internal-default
+installed_registry_source_class: private_registry
+installed_registry_manifest_row_ref: reg-mf-globex-internal-archive-tooling-3-2-1-private-prod
+installed_local_archive_ref: null
+disposition_class: notify_with_optional_update_offered
+repair_affordance_class_set:
+  - run_offered_update_now
+  - acknowledge_disclosure
+  - open_publisher_continuity_packet
+rendered_label: Publisher inactivity observed; an optional update is offered
+explanation_label: >
+  The publisher-continuity detector recorded no signing or release
+  activity for 'globex-internal-archive' inside the maintainer-
+  coverage window. The trust badge is unchanged, but discovery now
+  renders the abandoned-publisher advisory. Run the optional update
+  if a successor or replacement is published; otherwise acknowledge
+  the disclosure to dismiss the notification on this installed row.
+trust_badge_after_event_class: trust_badge_unchanged
+compatibility_badge_after_event_class: compatibility_badge_unchanged
+runtime_cost_badge_after_event_class: runtime_cost_badge_unchanged
+denial_reason_class: no_denial_admissible
+evidence_refs:
+  - ple-globex-internal-archive-abandonment-observed-2026-04-22
+audit_event_refs:
+  - audit-installed-package-lifecycle-notification-emitted-globex-internal-archive-tooling-3-2-1
+notified_at: 2026-04-22T08:01:00Z
+acknowledged_at: null
+redaction_class: support_bundle
+
+---
+
+# Registry-parity assertion for the private-registry lane.
+record_kind: registry_parity_assertion_record
+registry_parity_schema_version: 1
+registry_parity_assertion_record_id: rpa-private-registry-globex-internal-archive-tooling-3-2-1-2026-04-22
+subject_registry_source_class: private_registry
+subject_registry_endpoint_ref: endpoint-private-registry-globex-internal
+subject_registry_manifest_row_ref: reg-mf-globex-internal-archive-tooling-3-2-1-private-prod
+registry_source_named: true
+trust_badge_inheritance_rule_carried: capped_at_organisational_on_private_registry
+publisher_continuity_ref: pub-globex-internal-archive
+publisher_lifecycle_event_record_refs:
+  - ple-globex-internal-archive-abandonment-observed-2026-04-22
+anti_abuse_state_row_refs:
+  - anti-abuse-state-abandoned-publisher-advisory
+discovery_result_row_ref: disc-globex-internal-archive-tooling-3-2-1-private-prod
+axis_assertion_set:
+  - axis_class: trust_vocabulary_axis
+    state_class: parity_held_with_capped_inheritance
+    consequence_class: no_consequence_parity_held
+    rendered_label: Trust vocabulary held with organisational cap
+    explanation_label: >
+      The private-registry inheritance rule caps the rendered trust
+      tier at organisational. The parity assertion notes the cap so
+      consumers do not mistake the cap for a violation.
+    evidence_class_set:
+      - registry_manifest_row_evidence
+      - publisher_continuity_row_evidence
+  - axis_class: provenance_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Provenance vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: compatibility_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Compatibility vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: runtime_cost_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Runtime-cost vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: safety_policy_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Safety / policy vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+      - policy_pack_constraint_row_evidence
+  - axis_class: maintainership_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Maintainership vocabulary held in full
+    explanation_label: >
+      The abandoned advisory is rendered using the closed
+      maintainership_badge_abandoned class shared with public lanes.
+    evidence_class_set:
+      - publisher_continuity_row_evidence
+      - publisher_lifecycle_event_record_evidence
+  - axis_class: bridge_state_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Bridge-state vocabulary held in full
+    evidence_class_set:
+      - registry_manifest_row_evidence
+  - axis_class: anti_abuse_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Anti-abuse vocabulary held in full
+    explanation_label: >
+      The private-registry lane cites the same anti-abuse-state row
+      (abandoned_publisher_advisory) as a public-registry lane would.
+    evidence_class_set:
+      - anti_abuse_state_row_evidence
+    evidence_refs:
+      - anti-abuse-state-abandoned-publisher-advisory
+  - axis_class: publisher_lifecycle_vocabulary_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Publisher-lifecycle vocabulary held in full
+    evidence_class_set:
+      - publisher_lifecycle_event_record_evidence
+    evidence_refs:
+      - ple-globex-internal-archive-abandonment-observed-2026-04-22
+  - axis_class: registry_source_naming_axis
+    state_class: parity_held_full_vocabulary_match
+    consequence_class: no_consequence_parity_held
+    rendered_label: Registry source class named directly
+    explanation_label: >
+      Discovery and installed-row surfaces render the
+      provenance_badge_private_registry chip; private-registry rows
+      never present as if they were public-registry rows.
+    evidence_class_set:
+      - registry_manifest_row_evidence
+parity_overall_state_class: parity_held_with_capped_inheritance
+parity_overall_consequence_class: no_consequence_parity_held
+rendered_label: Private-registry lane holds vocabulary parity with capped trust tier
+explanation_label: >
+  The private-registry lane projects the registry-manifest row through
+  the closed lifecycle / anti-abuse / discovery vocabulary verbatim,
+  cites the abandonment-observed event, and explicitly names the
+  private-registry source class. The trust axis is held with capped
+  inheritance because the inheritance rule caps the rendered tier at
+  organisational by design.
+audit_event_refs:
+  - audit-registry-parity-assertion-recorded-private-registry-globex-internal-archive-tooling-3-2-1
+asserted_at: 2026-04-22T08:02:00Z
+redaction_class: support_bundle
