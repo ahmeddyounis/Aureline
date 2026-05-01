@@ -1,0 +1,1034 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_conflict_review.schema.json",
+  "title": "Aureline provider conflict review, compare/reconcile flow, and last-writer-wins prohibition vocabulary",
+  "description": "Boundary schema for the provider_conflict_review_record frozen in docs/providers/provider_conflict_review_contract.md. The conflict review record is the typed snapshot of one human or admin review pass that compares the local draft, the last imported remote snapshot, the current remote snapshot, and the intended publish result for one externally-owned provider object so Aureline never falls back to a hidden last-writer-wins default. Conflict-class vocabulary covers text, structured fields, review metadata, transitions, comments, status updates, attachments, permissions, and target identity drift. Reconcile-action vocabulary covers compare, rebase, edit-local-draft, discard-local-draft, export-local-draft, open-in-provider, accept-remote-as-authoritative, fork-into-new-target, and escalate-for-admin-review with typed conditions on when each is admissible. Freshness, actor, and scope cues disclose whether the conflict came from remote edits, stale imports, changed permissions, or target identity drift. Export / support fields let conflict reviews ride support bundles, audit packets, and migration notes without revealing raw credentials or tenant-private payloads. The record is reusable across code-host, issue / planning, CI / checks, docs / portal, artifact-registry, release-publisher, identity-provider, AI-provider, and managed-admin surfaces. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw preview / draft / remote-snapshot bodies never cross this boundary; the record carries opaque refs and structured fields only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new conflict_class, diff_signal_class, drift_source_class, actor_drift_class, scope_drift_class, freshness_class, reconcile_action_class, review_state_class, blocked_reason_class, resolution_disposition_class, support_export_channel_class, or surface_class is additive-minor and requires a provider_conflict_review_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_conflict_review_record" }
+  ],
+  "$defs": {
+    "provider_conflict_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider conflict-review vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["provider_conflict_review_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / activity-center rollups / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in conflict-review rows, support exports, activity-center rows, audit-event payloads, and the originating provider-link header. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw preview / draft / remote-snapshot bodies never appear here."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 / ADR-0010 redaction posture. Raw URLs, raw callback bodies, raw webhook bodies, raw delegated-token bodies, raw provider payloads, and raw preview / draft / remote-snapshot bodies never cross this boundary regardless of class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the conflict review was authored under."
+    },
+
+    "reviewer_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "admin_reviewer",
+        "unknown_actor_class"
+      ],
+      "description": "Actor class allowed to author a conflict review. Extends the ADR-0010 actor set with admin_reviewer for admin-console-led reviews. unknown_actor_class is repair-only and forbids any disposition other than escalate_for_admin_review."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "code_host_surface",
+        "issue_or_planning_surface",
+        "ci_or_checks_surface",
+        "docs_or_portal_surface",
+        "artifact_registry_surface",
+        "release_publisher_surface",
+        "identity_provider_surface",
+        "ai_provider_surface",
+        "managed_admin_surface"
+      ],
+      "description": "Frozen provider-linked surface class the conflict review is scoped to. The same record shape is reusable across issue, review, planning, CI / status, and provider-backed docs or portal surfaces."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "pull_request",
+            "issue_or_work_item",
+            "check_run",
+            "release_artifact",
+            "docs_page",
+            "audit_entry",
+            "admin_surface",
+            "consent_flow",
+            "package_version",
+            "registry_entry",
+            "other"
+          ]
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity of the target object the conflict review is about."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "bounded_stale",
+        "unbounded_stale",
+        "unknown_freshness_repair_required"
+      ],
+      "description": "Freshness cue for the last imported remote snapshot relative to the current remote snapshot. fresh and bounded_stale admit an automated compare; unbounded_stale and unknown_freshness_repair_required require typed user reconciliation through the review record."
+    },
+
+    "actor_drift_class": {
+      "type": "string",
+      "enum": [
+        "actor_unchanged",
+        "actor_subject_changed_since_draft",
+        "actor_class_changed_since_draft",
+        "actor_grant_revoked_since_draft",
+        "actor_token_expired_since_draft",
+        "actor_unknown_repair_required"
+      ],
+      "description": "Frozen actor-drift cue. Names whether the intended actor on the provider has changed between the moment the local draft was authored and the current review pass; actor_unknown_repair_required is repair-only and forbids any disposition other than escalate_for_admin_review."
+    },
+
+    "scope_drift_class": {
+      "type": "string",
+      "enum": [
+        "scope_unchanged",
+        "additional_scopes_required_since_draft",
+        "surplus_scopes_since_draft",
+        "tenant_or_org_scope_realigned_since_draft",
+        "project_scope_realigned_since_draft",
+        "delegated_grant_lapsed_since_draft"
+      ],
+      "description": "Frozen scope-drift cue. Names whether the actor's effective scope still covers the intended publish action; surfaces MUST quote this verbatim and MAY NOT collapse a non-trivial scope drift into a generic 'permissions error'."
+    },
+
+    "drift_source_class": {
+      "type": "string",
+      "enum": [
+        "remote_edit_since_import",
+        "stale_import_snapshot",
+        "changed_permissions",
+        "target_identity_drift",
+        "actor_or_scope_change",
+        "unknown_drift_repair_required"
+      ],
+      "description": "Frozen drift-source cue. Names where the conflict actually came from so the reviewer can tell remote edits apart from stale imports apart from permission / target-identity drift; unknown_drift_repair_required is repair-only and forbids any disposition other than escalate_for_admin_review."
+    },
+
+    "conflict_class": {
+      "type": "string",
+      "enum": [
+        "text_conflict",
+        "structured_field_conflict",
+        "review_metadata_conflict",
+        "transition_conflict",
+        "comment_conflict",
+        "status_update_conflict",
+        "attachment_conflict",
+        "permission_conflict",
+        "target_identity_conflict"
+      ],
+      "description": "Frozen conflict class. Conflict-review surfaces render this verbatim; surfaces MAY NOT collapse a non-trivial conflict class into a generic 'conflict' label."
+    },
+
+    "diff_signal_class": {
+      "type": "string",
+      "enum": [
+        "text_diff",
+        "structured_field_change",
+        "review_metadata_change",
+        "transition_change",
+        "comment_added_or_removed",
+        "comment_body_changed",
+        "status_update_added",
+        "attachment_added_or_removed",
+        "permission_changed",
+        "target_renamed",
+        "target_relocated",
+        "target_replaced",
+        "target_deleted"
+      ],
+      "description": "Frozen per-row diff-signal class. The signal-class taxonomy refines the conflict_class taxonomy: a single conflict_class MAY surface several diff signals (e.g. text_conflict on a docs_page MAY carry text_diff plus comment_body_changed)."
+    },
+
+    "draft_state_class": {
+      "type": "string",
+      "enum": [
+        "draft_unchanged_since_compare",
+        "draft_modified_since_compare",
+        "draft_rolled_back_since_compare",
+        "draft_deleted_since_compare"
+      ],
+      "description": "State of the originating local draft relative to its state when the compare was minted. Surfaces MUST disclose this so a reviewer can tell whether the queued mutation still matches the local truth the user originally confirmed."
+    },
+
+    "snapshot_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["snapshot_ref", "snapshot_class", "captured_at"],
+      "properties": {
+        "snapshot_ref": { "$ref": "#/$defs/non_empty_string" },
+        "snapshot_class": {
+          "type": "string",
+          "enum": [
+            "local_draft_snapshot",
+            "last_imported_remote_snapshot",
+            "current_remote_snapshot",
+            "intended_publish_snapshot"
+          ],
+          "description": "Frozen snapshot class. Every conflict review carries one of each class: local_draft (what the user authored locally), last_imported_remote (what the user thought they were diverging from when the draft started), current_remote (what the provider currently holds), intended_publish (what the queued mutation would write)."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "snapshot_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "evidence_store_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local evidence-store handle holding the structured snapshot body (never raw provider payload)."
+        }
+      },
+      "description": "Typed envelope for one of the four snapshots a conflict review reconciles. Raw URLs, raw provider payloads, raw draft bodies, and raw remote-snapshot bodies never cross this boundary; only opaque snapshot_ref and reviewable_sentence summaries do."
+    },
+
+    "conflict_signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_signal_index",
+        "conflict_class",
+        "diff_signal_class",
+        "drift_source_class",
+        "signal_summary"
+      ],
+      "properties": {
+        "conflict_signal_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based ordering index. Conflict-review surfaces render the signal table in ascending order so reviewers see the same row sequence in the desktop, CLI, support-export, and admin-reconciliation surfaces."
+        },
+        "conflict_class": { "$ref": "#/$defs/conflict_class" },
+        "diff_signal_class": { "$ref": "#/$defs/diff_signal_class" },
+        "drift_source_class": { "$ref": "#/$defs/drift_source_class" },
+        "signal_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "field_path_ref": {
+          "type": "string",
+          "description": "Opaque ref to the structured field path the signal applies to (e.g. provider_object.title, provider_object.assignees[2], provider_object.body)."
+        },
+        "local_value_ref": {
+          "type": "string",
+          "description": "Opaque ref to the structured local-draft value at this field path (never the raw value)."
+        },
+        "remote_value_ref": {
+          "type": "string",
+          "description": "Opaque ref to the structured current-remote value at this field path (never the raw value)."
+        },
+        "imported_value_ref": {
+          "type": "string",
+          "description": "Opaque ref to the structured last-imported-remote value at this field path (never the raw value)."
+        }
+      },
+      "allOf": [
+        {
+          "description": "target_identity_conflict MUST carry one of the target_renamed / target_relocated / target_replaced / target_deleted diff signals.",
+          "if": {
+            "properties": { "conflict_class": { "const": "target_identity_conflict" } },
+            "required": ["conflict_class"]
+          },
+          "then": {
+            "properties": {
+              "diff_signal_class": {
+                "enum": [
+                  "target_renamed",
+                  "target_relocated",
+                  "target_replaced",
+                  "target_deleted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "permission_conflict MUST carry the permission_changed diff signal.",
+          "if": {
+            "properties": { "conflict_class": { "const": "permission_conflict" } },
+            "required": ["conflict_class"]
+          },
+          "then": {
+            "properties": {
+              "diff_signal_class": { "const": "permission_changed" }
+            }
+          }
+        }
+      ],
+      "description": "One row of the conflict table. Every signal carries the typed conflict class, the typed diff-signal class, the typed drift source, and a short reviewable summary. Surfaces MUST quote the typed classes verbatim; collapsing a row into a generic 'conflict' label is forbidden."
+    },
+
+    "reconcile_action_class": {
+      "type": "string",
+      "enum": [
+        "compare_local_with_remote",
+        "compare_intended_publish_with_remote",
+        "rebase_local_on_remote",
+        "edit_local_draft",
+        "discard_local_draft",
+        "export_local_draft",
+        "open_in_provider",
+        "accept_remote_as_authoritative",
+        "fork_into_new_target",
+        "escalate_for_admin_review"
+      ],
+      "description": "Frozen reconcile-action class. compare_local_with_remote and compare_intended_publish_with_remote are read-only inspections always admissible; rebase_local_on_remote is forbidden when any conflict_signal carries target_identity_conflict or permission_conflict; edit_local_draft requires draft_state_class other than draft_deleted_since_compare or draft_rolled_back_since_compare; discard_local_draft, export_local_draft, open_in_provider, and escalate_for_admin_review are always admissible; accept_remote_as_authoritative is forbidden when review_state_class is blocked_by_policy; fork_into_new_target requires a target_identity_conflict signal."
+    },
+
+    "reconcile_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reconcile_action_class", "action_summary", "admissible"],
+      "properties": {
+        "reconcile_action_class": { "$ref": "#/$defs/reconcile_action_class" },
+        "action_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "admissible": {
+          "type": "boolean",
+          "description": "True when the action is admissible under the current freshness, draft, scope, and review state. Conflict-review surfaces MUST disable inadmissible actions visibly rather than silently dropping them so reviewers see the closed action set."
+        },
+        "blocked_reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence quoting why the action is inadmissible. Required when admissible is false."
+        },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed record the action routes through (rebased local draft ref, replacement queue item ref, exported evidence packet ref, browser-handoff sheet ref, escalation queue ref). Required when the action is admissible and routes through another record."
+        }
+      },
+      "allOf": [
+        {
+          "description": "An inadmissible action MUST quote a blocked_reason_summary.",
+          "if": {
+            "properties": { "admissible": { "const": false } },
+            "required": ["admissible"]
+          },
+          "then": { "required": ["blocked_reason_summary"] }
+        }
+      ]
+    },
+
+    "review_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_user_review",
+        "in_review",
+        "blocked_by_freshness",
+        "blocked_by_actor_unknown",
+        "blocked_by_permission_loss",
+        "blocked_by_target_identity_drift",
+        "blocked_by_policy",
+        "resolved_with_rebase",
+        "resolved_with_edit_local",
+        "resolved_with_discard_local",
+        "resolved_with_accept_remote",
+        "resolved_with_fork_into_new_target",
+        "resolved_with_open_in_provider",
+        "cancelled"
+      ],
+      "description": "Frozen review state. Surfaces render this verbatim; reviewers MUST be able to tell whether a conflict is waiting on freshness, actor identity, permissions, target identity drift, or admin policy review, or whether it has resolved through one of the typed reconcile paths."
+    },
+
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "waiting_freshness_refresh",
+        "waiting_actor_resolution",
+        "waiting_permission_repair",
+        "waiting_target_identity_resolution",
+        "waiting_admin_policy_review"
+      ],
+      "description": "Frozen blocked-reason class. Required to be other than none whenever review_state_class is one of the blocked_by_* classes."
+    },
+
+    "resolution_disposition_class": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "rebase_local_on_remote",
+        "edit_local_then_review_again",
+        "discard_local_keep_remote",
+        "discard_local_cancel",
+        "accept_remote_as_authoritative",
+        "fork_into_new_target",
+        "open_in_provider_to_resolve",
+        "escalate_for_admin_review",
+        "cancel_review"
+      ],
+      "description": "Frozen resolution-disposition class. The conflict review records exactly one disposition; pending is the only disposition that may stay open. A resolved-* review state MUST be paired with the matching disposition; Aureline MAY NOT resolve a provider conflict through an unreviewed last-writer-wins default."
+    },
+
+    "support_export_channel_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle",
+        "audit_packet",
+        "migration_note",
+        "admin_assisted_handoff_packet",
+        "object_handoff_packet"
+      ],
+      "description": "Frozen export-channel class. Conflict reviews ride support bundles, audit packets, migration notes, admin-assisted handoff packets, and object handoff packets without revealing raw credentials or tenant-private payloads."
+    },
+
+    "support_export_channel_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_channel_class",
+        "channel_summary",
+        "linked_record_ref",
+        "redacts_raw_credentials",
+        "redacts_tenant_private_payloads"
+      ],
+      "properties": {
+        "support_export_channel_class": {
+          "$ref": "#/$defs/support_export_channel_class"
+        },
+        "channel_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redacts_raw_credentials": {
+          "type": "boolean",
+          "const": true,
+          "description": "Schema-enforced const true. Conflict reviews MUST NOT carry raw credentials onto any export channel."
+        },
+        "redacts_tenant_private_payloads": {
+          "type": "boolean",
+          "const": true,
+          "description": "Schema-enforced const true. Conflict reviews MUST NOT carry raw tenant-private bodies onto any export channel; structured field summaries and opaque refs only."
+        }
+      }
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the conflict review was authored under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the conflict review was authored under."
+    },
+
+    "provider_conflict_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_conflict_review_schema_version",
+        "conflict_review_id",
+        "connected_provider_record_id",
+        "surface_class",
+        "target_object_identity",
+        "reviewer_actor_class",
+        "review_state_class",
+        "blocked_reason_class",
+        "freshness_class",
+        "actor_drift_class",
+        "scope_drift_class",
+        "draft_state_class",
+        "local_draft_snapshot",
+        "last_imported_remote_snapshot",
+        "current_remote_snapshot",
+        "intended_publish_snapshot",
+        "conflict_signals",
+        "reconcile_actions",
+        "support_export_channels",
+        "resolution_disposition_class",
+        "notes_summary",
+        "origin_disclosure",
+        "policy_context",
+        "reviewed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_conflict_review_record" },
+        "provider_conflict_review_schema_version": {
+          "$ref": "#/$defs/provider_conflict_review_schema_version"
+        },
+        "conflict_review_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "reviewer_actor_class": { "$ref": "#/$defs/reviewer_actor_class" },
+        "reviewer_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the reviewer's actor subject. Empty string only when reviewer_actor_class is unknown_actor_class for a repair-only record."
+        },
+        "review_state_class": { "$ref": "#/$defs/review_state_class" },
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "actor_drift_class": { "$ref": "#/$defs/actor_drift_class" },
+        "scope_drift_class": { "$ref": "#/$defs/scope_drift_class" },
+        "draft_state_class": { "$ref": "#/$defs/draft_state_class" },
+        "local_draft_snapshot": { "$ref": "#/$defs/snapshot_envelope" },
+        "last_imported_remote_snapshot": { "$ref": "#/$defs/snapshot_envelope" },
+        "current_remote_snapshot": { "$ref": "#/$defs/snapshot_envelope" },
+        "intended_publish_snapshot": { "$ref": "#/$defs/snapshot_envelope" },
+        "conflict_signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/conflict_signal" },
+          "description": "Typed conflict signals. A conflict review MUST contain at least one signal; an empty signal list is forbidden because a review without conflicts is not a conflict review."
+        },
+        "reconcile_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/reconcile_action_record" },
+          "description": "Typed reconcile actions offered to the reviewer. Every conflict review MUST offer at least compare_local_with_remote and compare_intended_publish_with_remote (read-only inspections), plus at least one explicit retry / cancel / replace action so a non-pending disposition is reachable."
+        },
+        "support_export_channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_export_channel_record" },
+          "description": "Typed export channels the conflict review may ride. Every review MUST cite at least one export channel so support, audit, and migration consumers see the same record set."
+        },
+        "originating_local_draft_ref": {
+          "type": "string",
+          "description": "Opaque ref to the originating local draft record this conflict review reconciles."
+        },
+        "originating_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the deferred_publish_queue_item_record (or publish_later_queue_item_record) the conflict review parks. Empty string when the conflict review is authored ahead of any queued publish."
+        },
+        "originating_consequence_preview_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_consequence_preview_record the conflict review compares against. Empty string only when the review is for a target whose previewing path is governed elsewhere."
+        },
+        "linked_provider_object_relation_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_object_relation_record (publish_later_record.schema.json) for the target object."
+        },
+        "resolution_disposition_class": {
+          "$ref": "#/$defs/resolution_disposition_class"
+        },
+        "resolution_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining the resolution disposition. Required when resolution_disposition_class is anything other than pending."
+        },
+        "supersedes_review_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "superseded_by_review_ref": {
+          "type": "string",
+          "description": "Opaque ref to the conflict review that supersedes this one when a follow-on review pass replaces this record."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "reviewed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "audit_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the provider_handoff audit events emitted for this conflict review (provider_action_proposed, provider_action_denied, provider_action_deferred, provider_action_rolled_back, deferred_publish_queue_drained, deferred_publish_queue_rejected)."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "local_draft_snapshot MUST carry snapshot_class local_draft_snapshot.",
+          "properties": {
+            "local_draft_snapshot": {
+              "properties": {
+                "snapshot_class": { "const": "local_draft_snapshot" }
+              },
+              "required": ["snapshot_class"]
+            }
+          }
+        },
+        {
+          "description": "last_imported_remote_snapshot MUST carry snapshot_class last_imported_remote_snapshot.",
+          "properties": {
+            "last_imported_remote_snapshot": {
+              "properties": {
+                "snapshot_class": { "const": "last_imported_remote_snapshot" }
+              },
+              "required": ["snapshot_class"]
+            }
+          }
+        },
+        {
+          "description": "current_remote_snapshot MUST carry snapshot_class current_remote_snapshot.",
+          "properties": {
+            "current_remote_snapshot": {
+              "properties": {
+                "snapshot_class": { "const": "current_remote_snapshot" }
+              },
+              "required": ["snapshot_class"]
+            }
+          }
+        },
+        {
+          "description": "intended_publish_snapshot MUST carry snapshot_class intended_publish_snapshot.",
+          "properties": {
+            "intended_publish_snapshot": {
+              "properties": {
+                "snapshot_class": { "const": "intended_publish_snapshot" }
+              },
+              "required": ["snapshot_class"]
+            }
+          }
+        },
+        {
+          "description": "Blocked review states MUST cite a non-none blocked_reason_class.",
+          "if": {
+            "properties": {
+              "review_state_class": {
+                "enum": [
+                  "blocked_by_freshness",
+                  "blocked_by_actor_unknown",
+                  "blocked_by_permission_loss",
+                  "blocked_by_target_identity_drift",
+                  "blocked_by_policy"
+                ]
+              }
+            },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_reason_class": {
+                "enum": [
+                  "waiting_freshness_refresh",
+                  "waiting_actor_resolution",
+                  "waiting_permission_repair",
+                  "waiting_target_identity_resolution",
+                  "waiting_admin_policy_review"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-blocked review states MUST carry blocked_reason_class none.",
+          "if": {
+            "properties": {
+              "review_state_class": {
+                "enum": [
+                  "pending_user_review",
+                  "in_review",
+                  "resolved_with_rebase",
+                  "resolved_with_edit_local",
+                  "resolved_with_discard_local",
+                  "resolved_with_accept_remote",
+                  "resolved_with_fork_into_new_target",
+                  "resolved_with_open_in_provider",
+                  "cancelled"
+                ]
+              }
+            },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "none" } }
+          }
+        },
+        {
+          "description": "blocked_by_freshness review state requires blocked_reason_class waiting_freshness_refresh.",
+          "if": {
+            "properties": { "review_state_class": { "const": "blocked_by_freshness" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "waiting_freshness_refresh" } }
+          }
+        },
+        {
+          "description": "blocked_by_actor_unknown review state requires blocked_reason_class waiting_actor_resolution.",
+          "if": {
+            "properties": { "review_state_class": { "const": "blocked_by_actor_unknown" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "waiting_actor_resolution" } }
+          }
+        },
+        {
+          "description": "blocked_by_permission_loss review state requires blocked_reason_class waiting_permission_repair.",
+          "if": {
+            "properties": { "review_state_class": { "const": "blocked_by_permission_loss" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "waiting_permission_repair" } }
+          }
+        },
+        {
+          "description": "blocked_by_target_identity_drift review state requires blocked_reason_class waiting_target_identity_resolution.",
+          "if": {
+            "properties": { "review_state_class": { "const": "blocked_by_target_identity_drift" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "waiting_target_identity_resolution" } }
+          }
+        },
+        {
+          "description": "blocked_by_policy review state requires blocked_reason_class waiting_admin_policy_review.",
+          "if": {
+            "properties": { "review_state_class": { "const": "blocked_by_policy" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "waiting_admin_policy_review" } }
+          }
+        },
+        {
+          "description": "resolved_with_rebase review state requires resolution_disposition_class rebase_local_on_remote.",
+          "if": {
+            "properties": { "review_state_class": { "const": "resolved_with_rebase" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": { "const": "rebase_local_on_remote" }
+            }
+          }
+        },
+        {
+          "description": "resolved_with_edit_local review state requires resolution_disposition_class edit_local_then_review_again.",
+          "if": {
+            "properties": { "review_state_class": { "const": "resolved_with_edit_local" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": { "const": "edit_local_then_review_again" }
+            }
+          }
+        },
+        {
+          "description": "resolved_with_discard_local review state requires resolution_disposition_class discard_local_keep_remote or discard_local_cancel.",
+          "if": {
+            "properties": { "review_state_class": { "const": "resolved_with_discard_local" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": {
+                "enum": ["discard_local_keep_remote", "discard_local_cancel"]
+              }
+            }
+          }
+        },
+        {
+          "description": "resolved_with_accept_remote review state requires resolution_disposition_class accept_remote_as_authoritative.",
+          "if": {
+            "properties": { "review_state_class": { "const": "resolved_with_accept_remote" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": { "const": "accept_remote_as_authoritative" }
+            }
+          }
+        },
+        {
+          "description": "resolved_with_fork_into_new_target review state requires resolution_disposition_class fork_into_new_target.",
+          "if": {
+            "properties": { "review_state_class": { "const": "resolved_with_fork_into_new_target" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": { "const": "fork_into_new_target" }
+            }
+          }
+        },
+        {
+          "description": "resolved_with_open_in_provider review state requires resolution_disposition_class open_in_provider_to_resolve.",
+          "if": {
+            "properties": { "review_state_class": { "const": "resolved_with_open_in_provider" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": { "const": "open_in_provider_to_resolve" }
+            }
+          }
+        },
+        {
+          "description": "cancelled review state requires resolution_disposition_class cancel_review.",
+          "if": {
+            "properties": { "review_state_class": { "const": "cancelled" } },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": { "const": "cancel_review" }
+            }
+          }
+        },
+        {
+          "description": "Non-pending dispositions MUST quote a resolution_summary so the resolution path is observable.",
+          "if": {
+            "properties": {
+              "resolution_disposition_class": {
+                "enum": [
+                  "rebase_local_on_remote",
+                  "edit_local_then_review_again",
+                  "discard_local_keep_remote",
+                  "discard_local_cancel",
+                  "accept_remote_as_authoritative",
+                  "fork_into_new_target",
+                  "open_in_provider_to_resolve",
+                  "escalate_for_admin_review",
+                  "cancel_review"
+                ]
+              }
+            },
+            "required": ["resolution_disposition_class"]
+          },
+          "then": { "required": ["resolution_summary"] }
+        },
+        {
+          "description": "rebase_local_on_remote disposition is forbidden when any conflict_signal carries target_identity_conflict or permission_conflict; surfaces MUST route those reviews to fork_into_new_target or to repair instead.",
+          "if": {
+            "properties": {
+              "resolution_disposition_class": { "const": "rebase_local_on_remote" }
+            },
+            "required": ["resolution_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_signals": {
+                "type": "array",
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "conflict_class": {
+                        "enum": ["target_identity_conflict", "permission_conflict"]
+                      }
+                    },
+                    "required": ["conflict_class"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "edit_local_then_review_again disposition forbids draft_state_class draft_deleted_since_compare or draft_rolled_back_since_compare.",
+          "if": {
+            "properties": {
+              "resolution_disposition_class": { "const": "edit_local_then_review_again" }
+            },
+            "required": ["resolution_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "draft_state_class": {
+                "enum": ["draft_unchanged_since_compare", "draft_modified_since_compare"]
+              }
+            }
+          }
+        },
+        {
+          "description": "fork_into_new_target disposition requires at least one conflict_signal whose conflict_class is target_identity_conflict.",
+          "if": {
+            "properties": {
+              "resolution_disposition_class": { "const": "fork_into_new_target" }
+            },
+            "required": ["resolution_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_signals": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "conflict_class": { "const": "target_identity_conflict" }
+                  },
+                  "required": ["conflict_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "accept_remote_as_authoritative disposition is forbidden when review_state_class is blocked_by_policy.",
+          "if": {
+            "properties": {
+              "resolution_disposition_class": { "const": "accept_remote_as_authoritative" }
+            },
+            "required": ["resolution_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": {
+                "not": { "const": "blocked_by_policy" }
+              }
+            }
+          }
+        },
+        {
+          "description": "reviewer_actor_class unknown_actor_class is repair-only and forbids any disposition other than escalate_for_admin_review.",
+          "if": {
+            "properties": {
+              "reviewer_actor_class": { "const": "unknown_actor_class" }
+            },
+            "required": ["reviewer_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "resolution_disposition_class": {
+                "const": "escalate_for_admin_review"
+              }
+            }
+          }
+        },
+        {
+          "description": "actor_drift_class actor_unknown_repair_required forces blocked_by_actor_unknown review state and escalate_for_admin_review disposition.",
+          "if": {
+            "properties": {
+              "actor_drift_class": { "const": "actor_unknown_repair_required" }
+            },
+            "required": ["actor_drift_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": { "const": "blocked_by_actor_unknown" },
+              "resolution_disposition_class": { "const": "escalate_for_admin_review" }
+            }
+          }
+        },
+        {
+          "description": "Every conflict review MUST offer compare_local_with_remote as an admissible reconcile action.",
+          "properties": {
+            "reconcile_actions": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "reconcile_action_class": { "const": "compare_local_with_remote" },
+                  "admissible": { "const": true }
+                },
+                "required": ["reconcile_action_class", "admissible"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every conflict review MUST offer compare_intended_publish_with_remote as an admissible reconcile action.",
+          "properties": {
+            "reconcile_actions": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "reconcile_action_class": { "const": "compare_intended_publish_with_remote" },
+                  "admissible": { "const": true }
+                },
+                "required": ["reconcile_action_class", "admissible"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every conflict review MUST offer at least one resolving reconcile action (rebase_local_on_remote, edit_local_draft, discard_local_draft, accept_remote_as_authoritative, fork_into_new_target, open_in_provider, or escalate_for_admin_review) so a non-pending disposition is reachable; an implicit retry or last-writer-wins path is forbidden.",
+          "properties": {
+            "reconcile_actions": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "reconcile_action_class": {
+                    "enum": [
+                      "rebase_local_on_remote",
+                      "edit_local_draft",
+                      "discard_local_draft",
+                      "accept_remote_as_authoritative",
+                      "fork_into_new_target",
+                      "open_in_provider",
+                      "escalate_for_admin_review"
+                    ]
+                  }
+                },
+                "required": ["reconcile_action_class"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Typed snapshot of one human or admin conflict review pass over an externally-owned provider object. Compares the local draft, the last imported remote snapshot, the current remote snapshot, and the intended publish result; discloses the typed conflict-class, diff-signal, drift-source, freshness, actor-drift, and scope-drift cues; offers typed reconcile actions with explicit admissibility; and records exactly one resolution disposition. Aureline MAY NOT resolve a provider conflict through an unreviewed last-writer-wins default; surfaces MUST route the action through this record before any drain. The same record shape is reusable across code-host, issue / planning, CI / checks, docs / portal, artifact-registry, release-publisher, identity-provider, AI-provider, and managed-admin surfaces."
+    }
+  }
+}

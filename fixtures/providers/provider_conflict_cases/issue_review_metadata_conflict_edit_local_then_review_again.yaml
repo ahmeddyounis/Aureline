@@ -1,0 +1,213 @@
+__fixture__:
+  name: issue_review_metadata_conflict_edit_local_then_review_again
+  case_id: provider_conflict.issue_review_metadata_conflict_edit_local_then_review_again.v1
+  scenario: >-
+    An issue update draft conflicts with remote review-metadata
+    edits (assignees, labels, milestone) since the local draft
+    began. The conflict review reconciles the four typed
+    snapshots, names a structured_field_conflict and a
+    review_metadata_conflict signal pair under drift_source_class
+    remote_edit_since_import, and resolves with
+    edit_local_then_review_again so the user can hand-merge the
+    metadata before re-reviewing.
+  exercised:
+    record_kinds:
+      - provider_conflict_review_record
+    surface_class: issue_or_planning_surface
+    reviewer_actor_class: human_account
+    review_state_class: resolved_with_edit_local
+    blocked_reason_class: none
+    freshness_class: bounded_stale
+    actor_drift_class: actor_unchanged
+    scope_drift_class: scope_unchanged
+    draft_state_class: draft_modified_since_compare
+    conflict_classes:
+      - structured_field_conflict
+      - review_metadata_conflict
+    diff_signal_classes:
+      - structured_field_change
+      - review_metadata_change
+    drift_source_classes:
+      - remote_edit_since_import
+    reconcile_action_classes:
+      - compare_local_with_remote
+      - compare_intended_publish_with_remote
+      - rebase_local_on_remote
+      - edit_local_draft
+      - discard_local_draft
+      - export_local_draft
+      - open_in_provider
+      - accept_remote_as_authoritative
+      - escalate_for_admin_review
+    resolution_disposition_class: edit_local_then_review_again
+    support_export_channel_classes:
+      - support_bundle
+
+records:
+  - record_kind: provider_conflict_review_record
+    provider_conflict_review_schema_version: 1
+    conflict_review_id: pcr:issue:1207:metadata:0001
+    connected_provider_record_id: conn_prov:gitlab.com:aureline-org:primary
+    surface_class: issue_or_planning_surface
+    target_object_identity:
+      object_class: issue_or_work_item
+      provider_side_id: gitlab.com:aureline/runtime:issue:1207
+      provider_host: gitlab.com
+      tenant_or_org_scope: aureline-org
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:gitlab.com:ahmeddyounis:primary
+    review_state_class: resolved_with_edit_local
+    blocked_reason_class: none
+    freshness_class: bounded_stale
+    actor_drift_class: actor_unchanged
+    scope_drift_class: scope_unchanged
+    draft_state_class: draft_modified_since_compare
+    local_draft_snapshot:
+      snapshot_ref: snap:local_draft:issue.1207.metadata:0001
+      snapshot_class: local_draft_snapshot
+      captured_at: "2026-04-30T07:15:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Local draft renaming issue #1207 title and adding the
+        backend-only label.
+      evidence_store_ref: evidence:local_draft.metadata:0001
+    last_imported_remote_snapshot:
+      snapshot_ref: snap:imported_remote:issue.1207.metadata:2026-04-30T06:00:00Z
+      snapshot_class: last_imported_remote_snapshot
+      captured_at: "2026-04-30T06:00:00Z"
+      freshness_class: bounded_stale
+      snapshot_summary: >-
+        Last imported remote issue #1207 metadata at 06:00 UTC,
+        before the upstream maintainer reassigned the issue.
+      evidence_store_ref: evidence:imported_remote.metadata:0001
+    current_remote_snapshot:
+      snapshot_ref: snap:current_remote:issue.1207.metadata:2026-04-30T08:42:00Z
+      snapshot_class: current_remote_snapshot
+      captured_at: "2026-04-30T08:42:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Current remote issue #1207 metadata at 08:42 UTC; upstream
+        reassigned to a new maintainer and moved the milestone.
+      evidence_store_ref: evidence:current_remote.metadata:0001
+    intended_publish_snapshot:
+      snapshot_ref: snap:intended_publish:issue.1207.metadata:0001
+      snapshot_class: intended_publish_snapshot
+      captured_at: "2026-04-30T08:43:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Intended publish would overwrite the new assignee and
+        milestone with the locally-drafted ones; flagged as
+        ambiguous, edit-local-then-review-again is required.
+      evidence_store_ref: evidence:intended_publish.metadata:0001
+    conflict_signals:
+      - conflict_signal_index: 0
+        conflict_class: structured_field_conflict
+        diff_signal_class: structured_field_change
+        drift_source_class: remote_edit_since_import
+        signal_summary: >-
+          Issue title diverged: local draft renames; remote
+          tightened the title scope independently.
+        field_path_ref: field:provider_object.title
+        local_value_ref: value:local_draft.title:0001
+        remote_value_ref: value:current_remote.title:0001
+        imported_value_ref: value:imported_remote.title:0001
+      - conflict_signal_index: 1
+        conflict_class: review_metadata_conflict
+        diff_signal_class: review_metadata_change
+        drift_source_class: remote_edit_since_import
+        signal_summary: >-
+          Assignees and milestone diverged: upstream reassigned
+          issue #1207 and moved the milestone since import.
+        field_path_ref: field:provider_object.assignees
+        local_value_ref: value:local_draft.assignees:0001
+        remote_value_ref: value:current_remote.assignees:0001
+        imported_value_ref: value:imported_remote.assignees:0001
+    reconcile_actions:
+      - reconcile_action_class: compare_local_with_remote
+        action_summary: >-
+          Open the typed compare between the local draft metadata
+          and the current remote metadata.
+        admissible: true
+        linked_record_ref: compare:issue.1207.metadata.local_vs_remote:0001
+      - reconcile_action_class: compare_intended_publish_with_remote
+        action_summary: >-
+          Open the typed compare between the intended publish
+          metadata and the current remote metadata.
+        admissible: true
+        linked_record_ref: compare:issue.1207.metadata.intended_vs_remote:0001
+      - reconcile_action_class: rebase_local_on_remote
+        action_summary: >-
+          Rebase the local metadata on top of the current remote
+          metadata and re-mint a superseding queue item.
+        admissible: true
+        linked_record_ref: draft:issue.1207.metadata:rebased:0001
+      - reconcile_action_class: edit_local_draft
+        action_summary: >-
+          Open the local metadata draft for hand-merge before
+          re-reviewing.
+        admissible: true
+        linked_record_ref: draft:issue.1207.metadata:0001
+      - reconcile_action_class: discard_local_draft
+        action_summary: >-
+          Discard the local metadata draft and adopt the current
+          remote metadata.
+        admissible: true
+      - reconcile_action_class: export_local_draft
+        action_summary: >-
+          Export the local metadata draft via the typed object
+          handoff packet.
+        admissible: true
+        linked_record_ref: handoff:object_handoff_packet:issue.1207.metadata:0001
+      - reconcile_action_class: open_in_provider
+        action_summary: >-
+          Open issue #1207 in the system browser via the typed
+          provider-link header sheet.
+        admissible: true
+        linked_record_ref: handoff:browser_handoff_sheet:issue.1207:0001
+      - reconcile_action_class: accept_remote_as_authoritative
+        action_summary: >-
+          Adopt the current remote metadata as authoritative and
+          cancel the local metadata draft.
+        admissible: true
+      - reconcile_action_class: escalate_for_admin_review
+        action_summary: >-
+          Escalate the conflict to the admin-reconciliation queue.
+        admissible: true
+        linked_record_ref: queue:admin_reconciliation:issue.1207.metadata:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Conflict review attached to a support bundle without
+          raw credentials or tenant-private payloads.
+        linked_record_ref: support:bundle:issue.1207.metadata:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    originating_local_draft_ref: draft:issue.1207.metadata:0001
+    originating_queue_item_ref: dpq:issue_or_planning:issue:1207:update:0001
+    originating_consequence_preview_ref: preview:issue.1207.update:0001
+    linked_provider_object_relation_ref: rel:provider_object:issue.1207:0001
+    resolution_disposition_class: edit_local_then_review_again
+    resolution_summary: >-
+      The reviewer chose to hand-merge the assignees and
+      milestone changes locally before re-reviewing; the queue
+      item parks at pending_user_reconfirm with a re-review
+      prerequisite.
+    notes_summary: >-
+      Remote review-metadata moved independently of the local
+      changes; rebase would silently overwrite the upstream
+      reassignment, so the reviewer chose edit_local_then_review_again.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:runtime
+      actor_subject: account:human_account_link:gitlab.com:ahmeddyounis:primary
+      execution_context_id: execution-context:issue_or_planning.update_issue:1207
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:issue_or_planning.update_issue:1207
+    reviewed_at: "2026-04-30T08:45:30Z"
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T084530Z:0001
+      - audit:provider_action_deferred:20260430T084531Z:0001
+    redaction_class: metadata_safe_default

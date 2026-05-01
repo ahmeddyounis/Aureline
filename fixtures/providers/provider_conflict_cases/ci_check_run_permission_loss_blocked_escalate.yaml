@@ -1,0 +1,229 @@
+__fixture__:
+  name: ci_check_run_permission_loss_blocked_escalate
+  case_id: provider_conflict.ci_check_run_permission_loss_blocked_escalate.v1
+  scenario: >-
+    A check-run rerun draft conflicts with a remote permission
+    change: the actor's effective scope no longer covers the
+    rerun action. The conflict review reconciles the four typed
+    snapshots, names a permission_conflict signal under
+    drift_source_class changed_permissions and a
+    status_update_conflict signal under remote_edit_since_import,
+    parks the review at blocked_by_permission_loss, and
+    dispositions to escalate_for_admin_review. rebase and
+    accept_remote_as_authoritative are admissible=false because
+    the actor cannot act on the target.
+  exercised:
+    record_kinds:
+      - provider_conflict_review_record
+    surface_class: ci_or_checks_surface
+    reviewer_actor_class: human_account
+    review_state_class: blocked_by_permission_loss
+    blocked_reason_class: waiting_permission_repair
+    freshness_class: bounded_stale
+    actor_drift_class: actor_unchanged
+    scope_drift_class: surplus_scopes_since_draft
+    draft_state_class: draft_unchanged_since_compare
+    conflict_classes:
+      - permission_conflict
+      - status_update_conflict
+    diff_signal_classes:
+      - permission_changed
+      - status_update_added
+    drift_source_classes:
+      - changed_permissions
+      - remote_edit_since_import
+    reconcile_action_classes:
+      - compare_local_with_remote
+      - compare_intended_publish_with_remote
+      - rebase_local_on_remote
+      - edit_local_draft
+      - discard_local_draft
+      - export_local_draft
+      - open_in_provider
+      - accept_remote_as_authoritative
+      - escalate_for_admin_review
+    resolution_disposition_class: escalate_for_admin_review
+    support_export_channel_classes:
+      - support_bundle
+      - admin_assisted_handoff_packet
+
+records:
+  - record_kind: provider_conflict_review_record
+    provider_conflict_review_schema_version: 1
+    conflict_review_id: pcr:ci:check_run.4821.rerun:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    surface_class: ci_or_checks_surface
+    target_object_identity:
+      object_class: check_run
+      provider_side_id: github.com:aureline/aureline:check_run:9921
+      provider_host: github.com
+      tenant_or_org_scope: aureline
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+    review_state_class: blocked_by_permission_loss
+    blocked_reason_class: waiting_permission_repair
+    freshness_class: bounded_stale
+    actor_drift_class: actor_unchanged
+    scope_drift_class: surplus_scopes_since_draft
+    draft_state_class: draft_unchanged_since_compare
+    local_draft_snapshot:
+      snapshot_ref: snap:local_draft:ci.check_run.9921.rerun:0001
+      snapshot_class: local_draft_snapshot
+      captured_at: "2026-04-30T07:50:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Local draft requesting a rerun of check_run #9921 under
+        the human-account grant.
+      evidence_store_ref: evidence:local_draft.ci.check_run:0001
+    last_imported_remote_snapshot:
+      snapshot_ref: snap:imported_remote:ci.check_run.9921:2026-04-30T07:30:00Z
+      snapshot_class: last_imported_remote_snapshot
+      captured_at: "2026-04-30T07:30:00Z"
+      freshness_class: bounded_stale
+      snapshot_summary: >-
+        Last imported remote check_run #9921 with rerun_authorized
+        true under the prior policy bundle.
+      evidence_store_ref: evidence:imported_remote.ci.check_run:0001
+    current_remote_snapshot:
+      snapshot_ref: snap:current_remote:ci.check_run.9921:2026-04-30T08:55:00Z
+      snapshot_class: current_remote_snapshot
+      captured_at: "2026-04-30T08:55:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Current remote check_run #9921 with rerun_authorized
+        false; tightened policy revoked rerun authority for the
+        human-account grant.
+      evidence_store_ref: evidence:current_remote.ci.check_run:0001
+    intended_publish_snapshot:
+      snapshot_ref: snap:intended_publish:ci.check_run.9921.rerun:0001
+      snapshot_class: intended_publish_snapshot
+      captured_at: "2026-04-30T08:55:30Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Intended publish would issue rerun_request which the
+        provider would refuse under the tightened scope; queue
+        item is blocked at pending_rescope.
+      evidence_store_ref: evidence:intended_publish.ci.check_run:0001
+    conflict_signals:
+      - conflict_signal_index: 0
+        conflict_class: permission_conflict
+        diff_signal_class: permission_changed
+        drift_source_class: changed_permissions
+        signal_summary: >-
+          rerun_authorized flipped from true to false under the
+          tightened admin policy bundle.
+        field_path_ref: field:provider_object.permissions.rerun_authorized
+        local_value_ref: value:local_draft.rerun_authorized:0001
+        remote_value_ref: value:current_remote.rerun_authorized:0001
+        imported_value_ref: value:imported_remote.rerun_authorized:0001
+      - conflict_signal_index: 1
+        conflict_class: status_update_conflict
+        diff_signal_class: status_update_added
+        drift_source_class: remote_edit_since_import
+        signal_summary: >-
+          Remote check_run added a new status update annotation
+          since the local draft was authored.
+        field_path_ref: field:provider_object.status_updates
+        local_value_ref: value:local_draft.status_updates:0001
+        remote_value_ref: value:current_remote.status_updates:0001
+        imported_value_ref: value:imported_remote.status_updates:0001
+    reconcile_actions:
+      - reconcile_action_class: compare_local_with_remote
+        action_summary: >-
+          Open the typed compare between the local draft and the
+          current remote check_run.
+        admissible: true
+        linked_record_ref: compare:ci.check_run.9921.local_vs_remote:0001
+      - reconcile_action_class: compare_intended_publish_with_remote
+        action_summary: >-
+          Open the typed compare between the intended publish and
+          the current remote check_run.
+        admissible: true
+        linked_record_ref: compare:ci.check_run.9921.intended_vs_remote:0001
+      - reconcile_action_class: rebase_local_on_remote
+        action_summary: >-
+          Rebase is forbidden when permission_conflict is
+          present; surface the typed reason instead.
+        admissible: false
+        blocked_reason_summary: >-
+          rerun_authorized has been revoked by admin policy;
+          rebase_local_on_remote is forbidden when
+          permission_conflict is present.
+      - reconcile_action_class: edit_local_draft
+        action_summary: >-
+          Open the local draft for editing.
+        admissible: true
+        linked_record_ref: draft:ci.check_run.9921.rerun:0001
+      - reconcile_action_class: discard_local_draft
+        action_summary: >-
+          Discard the local rerun draft.
+        admissible: true
+      - reconcile_action_class: export_local_draft
+        action_summary: >-
+          Export the local rerun draft via the typed object
+          handoff packet so an authorised actor can replay it.
+        admissible: true
+        linked_record_ref: handoff:object_handoff_packet:ci.check_run.9921.rerun:0001
+      - reconcile_action_class: open_in_provider
+        action_summary: >-
+          Open check_run #9921 in the system browser via the
+          typed provider-link header sheet.
+        admissible: true
+        linked_record_ref: handoff:browser_handoff_sheet:ci.check_run.9921:0001
+      - reconcile_action_class: accept_remote_as_authoritative
+        action_summary: >-
+          Adopt the current remote state and cancel the local
+          rerun draft.
+        admissible: true
+      - reconcile_action_class: escalate_for_admin_review
+        action_summary: >-
+          Escalate the rerun to the admin-reconciliation queue
+          so a privileged actor can complete it.
+        admissible: true
+        linked_record_ref: queue:admin_reconciliation:ci.check_run.9921.rerun:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Conflict review attached to a support bundle without
+          raw credentials or tenant-private payloads.
+        linked_record_ref: support:bundle:ci.check_run.9921.rerun:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: admin_assisted_handoff_packet
+        channel_summary: >-
+          Conflict review attached to the admin-assisted-handoff
+          packet so a privileged actor can complete the rerun
+          out-of-band.
+        linked_record_ref: handoff:admin_assisted:ci.check_run.9921.rerun:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    originating_local_draft_ref: draft:ci.check_run.9921.rerun:0001
+    originating_queue_item_ref: dpq:ci_or_checks:check_run:9921:rerun:0001
+    originating_consequence_preview_ref: preview:ci.check_run.9921.rerun:0001
+    linked_provider_object_relation_ref: rel:provider_object:ci.check_run.9921:0001
+    resolution_disposition_class: escalate_for_admin_review
+    resolution_summary: >-
+      Permission to rerun was revoked by tightened policy;
+      escalated to the admin-reconciliation queue. The local
+      rerun draft survives offline review through the typed
+      admin-assisted-handoff packet.
+    notes_summary: >-
+      The reviewer cannot rerun the check under the current
+      effective scope; rebase forbidden under permission_conflict,
+      escalation is the only path that preserves the local
+      intent.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:github.com:ahmeddyounis:primary
+      execution_context_id: execution-context:ci_or_checks.rerun_check:9921
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:ci_or_checks.rerun_check:9921
+    reviewed_at: "2026-04-30T08:57:00Z"
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T085700Z:0001
+      - audit:provider_action_denied:20260430T085701Z:0001
+    redaction_class: operator_only_restricted

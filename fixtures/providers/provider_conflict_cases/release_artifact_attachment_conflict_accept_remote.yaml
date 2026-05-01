@@ -1,0 +1,201 @@
+__fixture__:
+  name: release_artifact_attachment_conflict_accept_remote
+  case_id: provider_conflict.release_artifact_attachment_conflict_accept_remote.v1
+  scenario: >-
+    A release-artifact attach draft conflicts with a remote
+    edit: the maintainer has already attached the artifact
+    upstream and the local snapshot is now stale. The conflict
+    review reconciles the four typed snapshots, names an
+    attachment_conflict signal under drift_source_class
+    stale_import_snapshot, and resolves with
+    accept_remote_as_authoritative so the local draft is
+    cancelled in favour of the upstream attach.
+  exercised:
+    record_kinds:
+      - provider_conflict_review_record
+    surface_class: release_publisher_surface
+    reviewer_actor_class: human_account
+    review_state_class: resolved_with_accept_remote
+    blocked_reason_class: none
+    freshness_class: unbounded_stale
+    actor_drift_class: actor_unchanged
+    scope_drift_class: scope_unchanged
+    draft_state_class: draft_unchanged_since_compare
+    conflict_classes:
+      - attachment_conflict
+    diff_signal_classes:
+      - attachment_added_or_removed
+    drift_source_classes:
+      - stale_import_snapshot
+    reconcile_action_classes:
+      - compare_local_with_remote
+      - compare_intended_publish_with_remote
+      - rebase_local_on_remote
+      - edit_local_draft
+      - discard_local_draft
+      - export_local_draft
+      - open_in_provider
+      - accept_remote_as_authoritative
+      - escalate_for_admin_review
+    resolution_disposition_class: accept_remote_as_authoritative
+    support_export_channel_classes:
+      - audit_packet
+
+records:
+  - record_kind: provider_conflict_review_record
+    provider_conflict_review_schema_version: 1
+    conflict_review_id: pcr:release:v2.13.0:artifact:aureline-darwin-arm64:attach:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    surface_class: release_publisher_surface
+    target_object_identity:
+      object_class: release_artifact
+      provider_side_id: github.com:aureline/aureline:release:v2.13.0:artifact:aureline-darwin-arm64
+      provider_host: github.com
+      tenant_or_org_scope: aureline
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+    review_state_class: resolved_with_accept_remote
+    blocked_reason_class: none
+    freshness_class: unbounded_stale
+    actor_drift_class: actor_unchanged
+    scope_drift_class: scope_unchanged
+    draft_state_class: draft_unchanged_since_compare
+    local_draft_snapshot:
+      snapshot_ref: snap:local_draft:release.v2.13.0.artifact.darwin-arm64:0001
+      snapshot_class: local_draft_snapshot
+      captured_at: "2026-04-29T14:00:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Local draft attaching aureline-darwin-arm64 to release
+        v2.13.0 with locally-built artifact bytes.
+      evidence_store_ref: evidence:local_draft.release.artifact:0001
+    last_imported_remote_snapshot:
+      snapshot_ref: snap:imported_remote:release.v2.13.0:2026-04-29T13:30:00Z
+      snapshot_class: last_imported_remote_snapshot
+      captured_at: "2026-04-29T13:30:00Z"
+      freshness_class: unbounded_stale
+      snapshot_summary: >-
+        Last imported remote of release v2.13.0 at 13:30 UTC the
+        previous day; no aureline-darwin-arm64 artifact attached
+        at that time.
+      evidence_store_ref: evidence:imported_remote.release:0001
+    current_remote_snapshot:
+      snapshot_ref: snap:current_remote:release.v2.13.0:2026-04-30T09:20:00Z
+      snapshot_class: current_remote_snapshot
+      captured_at: "2026-04-30T09:20:00Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Current remote release v2.13.0 already has an
+        aureline-darwin-arm64 artifact attached by another
+        maintainer with a matching content fingerprint.
+      evidence_store_ref: evidence:current_remote.release:0001
+    intended_publish_snapshot:
+      snapshot_ref: snap:intended_publish:release.v2.13.0.artifact.darwin-arm64:0001
+      snapshot_class: intended_publish_snapshot
+      captured_at: "2026-04-30T09:20:30Z"
+      freshness_class: fresh
+      snapshot_summary: >-
+        Intended publish would re-attach an artifact already
+        present remotely; reviewer chose to accept remote as
+        authoritative and cancel the local draft.
+      evidence_store_ref: evidence:intended_publish.release:0001
+    conflict_signals:
+      - conflict_signal_index: 0
+        conflict_class: attachment_conflict
+        diff_signal_class: attachment_added_or_removed
+        drift_source_class: stale_import_snapshot
+        signal_summary: >-
+          aureline-darwin-arm64 artifact already attached
+          remotely; local import snapshot is stale.
+        field_path_ref: field:provider_object.artifacts.aureline-darwin-arm64
+        local_value_ref: value:local_draft.artifact:0001
+        remote_value_ref: value:current_remote.artifact:0001
+        imported_value_ref: value:imported_remote.artifact:0001
+    reconcile_actions:
+      - reconcile_action_class: compare_local_with_remote
+        action_summary: >-
+          Open the typed compare between the local draft and the
+          current remote release.
+        admissible: true
+        linked_record_ref: compare:release.v2.13.0.local_vs_remote:0001
+      - reconcile_action_class: compare_intended_publish_with_remote
+        action_summary: >-
+          Open the typed compare between the intended publish and
+          the current remote release.
+        admissible: true
+        linked_record_ref: compare:release.v2.13.0.intended_vs_remote:0001
+      - reconcile_action_class: rebase_local_on_remote
+        action_summary: >-
+          Rebase the local draft on top of the current remote
+          release; would no-op because the artifact already
+          exists.
+        admissible: true
+        linked_record_ref: draft:release.v2.13.0.artifact.darwin-arm64:rebased:0001
+      - reconcile_action_class: edit_local_draft
+        action_summary: >-
+          Open the local draft for editing.
+        admissible: true
+        linked_record_ref: draft:release.v2.13.0.artifact.darwin-arm64:0001
+      - reconcile_action_class: discard_local_draft
+        action_summary: >-
+          Discard the local artifact draft.
+        admissible: true
+      - reconcile_action_class: export_local_draft
+        action_summary: >-
+          Export the local artifact draft via the typed object
+          handoff packet for archival.
+        admissible: true
+        linked_record_ref: handoff:object_handoff_packet:release.artifact:0001
+      - reconcile_action_class: open_in_provider
+        action_summary: >-
+          Open release v2.13.0 in the system browser via the
+          typed provider-link header sheet.
+        admissible: true
+        linked_record_ref: handoff:browser_handoff_sheet:release.v2.13.0:0001
+      - reconcile_action_class: accept_remote_as_authoritative
+        action_summary: >-
+          Adopt the current remote release as authoritative and
+          cancel the local artifact draft.
+        admissible: true
+      - reconcile_action_class: escalate_for_admin_review
+        action_summary: >-
+          Escalate the conflict to the admin-reconciliation queue
+          for double-attach review.
+        admissible: true
+        linked_record_ref: queue:admin_reconciliation:release.v2.13.0:0001
+    support_export_channels:
+      - support_export_channel_class: audit_packet
+        channel_summary: >-
+          Conflict review attached to the typed audit packet
+          alongside provider_handoff audit-event refs.
+        linked_record_ref: audit:packet:release.v2.13.0.artifact:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    originating_local_draft_ref: draft:release.v2.13.0.artifact.darwin-arm64:0001
+    originating_queue_item_ref: dpq:release_publisher:release:v2.13.0:artifact_attach:0001
+    originating_consequence_preview_ref: preview:release.v2.13.0.artifact_attach:0001
+    linked_provider_object_relation_ref: rel:provider_object:release.v2.13.0:0001
+    resolution_disposition_class: accept_remote_as_authoritative
+    resolution_summary: >-
+      Adopted the current remote release as authoritative; the
+      artifact draft was cancelled because the artifact is
+      already attached upstream with a matching fingerprint.
+    notes_summary: >-
+      Stale import snapshot caused a redundant attach proposal;
+      remote already holds the artifact, accept_remote is the
+      typed resolution.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:github.com:ahmeddyounis:primary
+      execution_context_id: execution-context:release_publisher.attach_artifact:darwin-arm64
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:release_publisher.attach_artifact:darwin-arm64
+    reviewed_at: "2026-04-30T09:21:30Z"
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T092130Z:0001
+      - audit:provider_action_rolled_back:20260430T092200Z:0001
+    redaction_class: metadata_safe_default
