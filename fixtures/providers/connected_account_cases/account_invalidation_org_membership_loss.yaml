@@ -1,0 +1,95 @@
+__fixture__:
+  name: account_invalidation_org_membership_loss
+  case_id: connected_account.account_invalidation_org_membership_loss.v1
+  scenario: >
+    The aureline-ci org install loses org membership on github.com (the
+    org admin removed the install). The registry emits an
+    `account_invalidation_event_record` with
+    `invalidation_cause_class = org_membership_loss` and
+    `downgrade_action_class = force_admin_review`; dependent approval
+    tickets, browser-handoff packets, publish-later queue items, and
+    cached effective-scope resolutions are listed as invalidated. The
+    badge for the install is re-rendered with a non-healthy
+    `health_state` and the surface routes to admin reconciliation.
+  exercised:
+    actor_class: installation_or_app_grant
+    invalidation_cause_class: org_membership_loss
+    downgrade_action_class: force_admin_review
+    label_class: install_label
+records:
+  - record_kind: installation_or_app_grant_record
+    connected_account_schema_version: 1
+    install_id: install:github.com:aureline-ci:0001
+    connected_provider_record_id: conn_prov:github.com:aureline-ci:install
+    install_kind_class: org_install
+    display_label: "aureline-ci"
+    scope_refs:
+      - scope:github.com:checks:write
+      - scope:github.com:contents:read
+      - scope:github.com:metadata:read
+    granted_operations:
+      - check_run:write
+      - check_run:rerequest
+      - workflow_run:read
+    org_restriction_refs:
+      - org_restriction:github.com:aureline:install:aureline-ci
+    review_status_class: approved
+    review_decision_ref: review_decision:github.com:aureline:install:aureline-ci:0001
+    suspension_or_revocation_state_class: org_suspended
+    suspension_or_revocation_observed_at: "2026-04-23T15:00:00Z"
+    installed_at: "2026-03-12T10:00:00Z"
+    expires_at: "2027-03-12T10:00:00Z"
+    health_state: suspended
+    trust_posture: trusted
+    policy_owner_class: org_managed
+    redaction_class: metadata_safe_default
+
+  - record_kind: acting_identity_badge_record
+    connected_account_schema_version: 1
+    badge_id: badge:install:github.com:aureline-ci:0002
+    connected_provider_record_id: conn_prov:github.com:aureline-ci:install
+    actor_class: installation_or_app_grant
+    label_class: install_label
+    label_surfaces:
+      - desktop_provider_badge
+      - desktop_notification
+      - support_export_summary
+      - audit_event_payload
+    display_label: "Install — aureline-ci (org membership lost — admin review required)"
+    secondary_label: "github.com · install: aureline-ci"
+    scope_summary: "checks: write; workflow_run: read"
+    tone_class: warning_repair_required
+    trust_posture: trusted
+    linked_record_ref: install:github.com:aureline-ci:0001
+    observed_at: "2026-04-23T15:00:01Z"
+    redaction_class: metadata_safe_default
+
+  - record_kind: account_invalidation_event_record
+    connected_account_schema_version: 1
+    event_id: account_invalidation:install:github.com:aureline-ci:0001
+    event_time: "2026-04-23T15:00:00Z"
+    connected_provider_record_id: conn_prov:github.com:aureline-ci:install
+    actor_class: installation_or_app_grant
+    subject_record_ref: install:github.com:aureline-ci:0001
+    subject_record_kind: installation_or_app_grant_record
+    invalidation_cause_class: org_membership_loss
+    downgrade_action_class: force_admin_review
+    rationale_summary: >-
+      The aureline-ci install lost org membership on github.com:aureline.
+      Pending check-run reruns, browser-handoff packets, and cached
+      effective-scope resolutions tied to this install are invalidated;
+      admin review is required before reconnecting.
+    target_object_identity:
+      object_class: install_target
+      provider_side_id: github.com:aureline:install:aureline-ci
+      provider_host: github.com
+      tenant_or_org_scope: aureline
+    invalidated_dependent_refs:
+      - ticket:ci_rerun:0001
+      - bhp:ci_rerun:0001
+      - queue_item:ci_rerun_check_run:78912:0001
+      - resolution:ci:rerun:check_run:78912:0001
+    policy_epoch: policy-epoch:42
+    trust_state: trusted
+    repair_hook_ref: repair_hook:admin_review:install:github.com:aureline-ci:0001
+    redaction_class: metadata_safe_default

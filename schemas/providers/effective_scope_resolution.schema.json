@@ -1,0 +1,660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/effective_scope_resolution.schema.json",
+  "title": "Aureline effective-scope resolution: requested action, target object, provider-declared scopes, local policy locks, trust posture, decision class, grant-resolution reason, least-privilege alternatives, and downstream invalidation vocabulary",
+  "description": "Boundary schema for the provider_scope_resolution_result_record, least_privilege_alternative_record, and effective_scope_invalidation_event_record frozen in docs/providers/connected_account_registry_contract.md. The resolution record combines provider-declared scopes, Aureline policy bundles (ADR-0008), object-level target rules, and local trust posture (ADR-0001) into one decision row reused by desktop, CLI, companion, audit, and support / export surfaces. Every record carries exactly one decision class (allowed, denied, browser_only, local_draft_only) and exactly one ADR-0010 grant_resolution_reason; permission explanations cite both so a surface can name the exact decision source and fallback path instead of one opaque 'Connected' or 'Not authorized' badge. Raw URLs, raw callback bodies, raw webhook bodies, raw delegated-token bodies, raw policy-injector material, and raw provider payloads never cross this boundary. The eventual connected-provider crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new requested_action_class, decision_class, alternative_class, policy_lock_class, or invalidation_trigger_class is additive-minor and requires an effective_scope_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_scope_resolution_result_record" },
+    { "$ref": "#/$defs/least_privilege_alternative_record" },
+    { "$ref": "#/$defs/effective_scope_invalidation_event_record" }
+  ],
+  "$defs": {
+    "effective_scope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this effective-scope vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "provider_scope_resolution_result_record",
+        "least_privilege_alternative_record",
+        "effective_scope_invalidation_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / audit streams. Raw URLs, raw tokens, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on desktop, CLI, notification, provider-linked header, queue-review, and support-export surfaces."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the resolution was computed under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 and ADR-0010 redaction posture."
+    },
+
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Mutation mode reused from ADR-0010. Disclosed at the point of intent."
+    },
+
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "denied",
+        "browser_only",
+        "local_draft_only"
+      ],
+      "description": "Top-level effective-scope decision class. Every resolution record names exactly one. allowed admits the requested action under the requested mutation mode; denied refuses with a typed grant_resolution_reason; browser_only routes through a typed browser_handoff_packet (ADR-0010); local_draft_only retains the action as a local_draft / deferred_publish queue item until prerequisites align. A single opaque 'Connected' or 'Not authorized' state is forbidden; the decision_class and grant_resolution_reason MUST always be visible together."
+    },
+
+    "grant_resolution_reason": {
+      "type": "string",
+      "enum": [
+        "allowed",
+        "allowed_with_downgrade",
+        "allowed_with_browser_handoff",
+        "allowed_with_deferred_publish",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_actor_class_forbidden",
+        "denied_target_conflict",
+        "denied_freshness_floor",
+        "denied_revoked",
+        "denied_suspended",
+        "denied_host_mismatch",
+        "denied_approval_ticket_missing",
+        "denied_approval_ticket_expired",
+        "denied_step_up_required",
+        "denied_unreachable",
+        "denied_unknown_actor_class"
+      ],
+      "description": "Frozen grant-resolution reason reused from schemas/integration/browser_handoff_packet.schema.json. Every resolution record names exactly one reason in addition to the top-level decision_class so callers can quote both the decision source and the fallback path."
+    },
+
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspection",
+        "human_authored_comment",
+        "review_decision_publish",
+        "issue_or_work_item_mutation",
+        "ci_run_or_check_mutation",
+        "docs_or_portal_publish",
+        "package_publish",
+        "release_publish",
+        "consent_or_admin_delegation",
+        "policy_or_trust_admin_change",
+        "credential_projection",
+        "high_risk_paste_or_injection"
+      ],
+      "description": "Frozen vocabulary for the requested action class the resolution adjudicates. Surfaces MUST quote this class on the resolution row; a surface that cannot place the requested action MUST route to read_only_inspection rather than default to a mutating class."
+    },
+
+    "policy_lock_class": {
+      "type": "string",
+      "enum": [
+        "no_local_policy_lock",
+        "policy_bundle_forbids_action",
+        "policy_bundle_narrows_actor_class",
+        "policy_bundle_requires_browser_handoff",
+        "policy_bundle_requires_deferred_publish",
+        "policy_bundle_requires_step_up",
+        "workspace_trust_restricted_lock",
+        "managed_provider_admin_lock",
+        "release_publisher_lock",
+        "credential_projection_lock"
+      ],
+      "description": "Frozen vocabulary for the local policy lock applied on top of provider-declared scope. Every resolution carries an array of locks (or no_local_policy_lock); a denied / browser_only / local_draft_only decision MUST cite at least one lock or one denial-class grant_resolution_reason so the user can repair."
+    },
+
+    "alternative_class": {
+      "type": "string",
+      "enum": [
+        "narrower_scope_request",
+        "switch_actor_class",
+        "switch_to_inspect_only",
+        "switch_to_local_draft",
+        "switch_to_deferred_publish",
+        "route_through_browser_handoff",
+        "route_through_admin_delegation",
+        "request_step_up_authenticator",
+        "request_workspace_trust_grant",
+        "request_admin_review",
+        "no_alternative_available"
+      ],
+      "description": "Frozen vocabulary for the least-privilege alternative the resolution offers. A denied / browser_only / local_draft_only resolution MUST offer at least one alternative; no_alternative_available is repair-only and MUST be paired with an admin-routed repair hook."
+    },
+
+    "invalidation_trigger_class": {
+      "type": "string",
+      "enum": [
+        "actor_class_revoked",
+        "actor_class_suspended",
+        "actor_class_changed",
+        "delegated_credential_expired",
+        "host_mismatch_detected",
+        "tenant_switch_detected",
+        "org_membership_lost",
+        "policy_epoch_rolled",
+        "trust_state_downgraded",
+        "freshness_floor_drifted",
+        "approval_ticket_revoked",
+        "provider_health_degraded"
+      ],
+      "description": "Frozen trigger vocabulary for an effective-scope invalidation event. Every event names exactly one trigger; cached scopes that depend on the affected actor class / host / tenant / policy epoch / trust state are invalidated deterministically and MUST visibly degrade rather than silently keep claiming authority."
+    },
+
+    "downgrade_action_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade_required",
+        "force_inspect_only_until_repair",
+        "force_local_draft_only_until_repair",
+        "force_browser_handoff_only_until_repair",
+        "force_step_up_authenticator",
+        "force_account_reselection",
+        "force_admin_review",
+        "force_disconnect_until_repair"
+      ],
+      "description": "Frozen downgrade-action vocabulary reused from connected_account_record.schema.json so an effective-scope invalidation and an account invalidation render through the same vocabulary."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "pull_request",
+            "issue_or_work_item",
+            "check_run",
+            "release_artifact",
+            "docs_page",
+            "audit_entry",
+            "admin_surface",
+            "consent_flow",
+            "package_version",
+            "registry_entry",
+            "principal_subject",
+            "install_target",
+            "tenant_or_org",
+            "other"
+          ]
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity of the object the resolution adjudicates."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the resolution was computed under. Re-evaluated when a downstream invalidation fires."
+    },
+
+    "freshness_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_at", "staleness_class"],
+      "properties": {
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "freshness_floor_ref": { "type": "string" },
+        "staleness_class": {
+          "type": "string",
+          "enum": ["fresh", "bounded_stale", "unbounded_stale"]
+        },
+        "staleness_rationale": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Freshness posture for cached provider state the resolution depends on. bounded_stale MUST cite a freshness_floor_ref; unbounded_stale MUST carry a staleness_rationale."
+    },
+
+    "least_privilege_alternative_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_scope_schema_version",
+        "alternative_id",
+        "originating_resolution_id",
+        "alternative_class",
+        "alternative_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "least_privilege_alternative_record" },
+        "effective_scope_schema_version": {
+          "$ref": "#/$defs/effective_scope_schema_version"
+        },
+        "alternative_id": { "$ref": "#/$defs/opaque_id" },
+        "originating_resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "alternative_class": { "$ref": "#/$defs/alternative_class" },
+        "alternative_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "suggested_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "suggested_mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "narrowed_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to the narrower provider-declared scopes the alternative would request."
+        },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the repair hook the surface routes the user to (account reselection, browser recovery, step-up authenticator, admin review). Empty string only when alternative_class is no_alternative_available."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "no_alternative_available MUST cite a repair hook (admin reconciliation) or carry an explicit empty repair_hook_ref to make the absence visible.",
+          "if": {
+            "properties": {
+              "alternative_class": { "const": "no_alternative_available" }
+            },
+            "required": ["alternative_class"]
+          },
+          "then": { "required": ["repair_hook_ref"] }
+        }
+      ],
+      "description": "One typed least-privilege alternative attached to a denied / browser_only / local_draft_only resolution. Surfaces render alternative_class plus alternative_summary; widening to a non-frozen alternative class is forbidden."
+    },
+
+    "provider_scope_resolution_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_scope_schema_version",
+        "resolution_id",
+        "connected_provider_record_id",
+        "actor_class",
+        "actor_subject_ref",
+        "requested_action_class",
+        "requested_mutation_mode",
+        "target_object_identity",
+        "provider_declared_scope_refs",
+        "policy_lock_classes",
+        "trust_posture",
+        "decision_class",
+        "grant_resolution_reason",
+        "decision_summary",
+        "policy_context",
+        "computed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_scope_resolution_result_record" },
+        "effective_scope_schema_version": {
+          "$ref": "#/$defs/effective_scope_schema_version"
+        },
+        "resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "actor_subject_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the human_account_link / installation_or_app_grant / delegated_credential_binding / project_scoped_grant / policy_injected_service_identity record the resolution acts under."
+        },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "requested_mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "provider_declared_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to the provider-declared scope rows currently held by the actor for the target. Raw provider scope tokens never appear here."
+        },
+        "policy_lock_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/policy_lock_class" },
+          "description": "Policy-lock array. A resolution with no local policy override MUST contain exactly one entry: no_local_policy_lock; a resolution with at least one active lock MUST list all of them."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "grant_resolution_reason": { "$ref": "#/$defs/grant_resolution_reason" },
+        "decision_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the desktop, CLI, notification, provider-linked header, and support-export surfaces render. Names the decision_class, the grant_resolution_reason, and (for non-allowed decisions) the next-safe-action."
+        },
+        "freshness": { "$ref": "#/$defs/freshness_block" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the approval-ticket record that admits the requested action. Required when decision_class is allowed and requested_mutation_mode is publish_now or open_in_provider; empty string for inspect_only and local_draft_only."
+        },
+        "browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_packet_record the user will be routed through. Required when decision_class is browser_only."
+        },
+        "publish_later_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish_later_queue_item_record the action is parked under. Required when decision_class is local_draft_only."
+        },
+        "least_privilege_alternative_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to least_privilege_alternative_records offered alongside this resolution. Required (minItems 1) when decision_class is denied, browser_only, or local_draft_only."
+        },
+        "computed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Optional expiry; an expired resolution is re-evaluated rather than reused. Resolutions whose underlying actor / scope / policy state changed before expiry are invalidated through an effective_scope_invalidation_event_record."
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the provider_handoff audit events emitted for this resolution (grant_scope_resolved, provider_action_proposed, provider_action_denied, provider_action_deferred)."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "decision_class allowed MUST pair with grant_resolution_reason in the allowed* family.",
+          "if": {
+            "properties": { "decision_class": { "const": "allowed" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "grant_resolution_reason": {
+                "enum": [
+                  "allowed",
+                  "allowed_with_downgrade",
+                  "allowed_with_browser_handoff",
+                  "allowed_with_deferred_publish"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "decision_class browser_only MUST pair with grant_resolution_reason allowed_with_browser_handoff and MUST cite a browser_handoff_packet_ref.",
+          "if": {
+            "properties": { "decision_class": { "const": "browser_only" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "grant_resolution_reason": {
+                "const": "allowed_with_browser_handoff"
+              },
+              "browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "decision_class local_draft_only MUST pair with grant_resolution_reason allowed_with_deferred_publish and MUST cite a publish_later_queue_item_ref.",
+          "if": {
+            "properties": { "decision_class": { "const": "local_draft_only" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "grant_resolution_reason": {
+                "const": "allowed_with_deferred_publish"
+              },
+              "publish_later_queue_item_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["publish_later_queue_item_ref"]
+          }
+        },
+        {
+          "description": "decision_class denied MUST pair with a denied_* grant_resolution_reason.",
+          "if": {
+            "properties": { "decision_class": { "const": "denied" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "grant_resolution_reason": {
+                "enum": [
+                  "denied_scope_missing",
+                  "denied_policy_bundle",
+                  "denied_workspace_trust",
+                  "denied_actor_class_forbidden",
+                  "denied_target_conflict",
+                  "denied_freshness_floor",
+                  "denied_revoked",
+                  "denied_suspended",
+                  "denied_host_mismatch",
+                  "denied_approval_ticket_missing",
+                  "denied_approval_ticket_expired",
+                  "denied_step_up_required",
+                  "denied_unreachable",
+                  "denied_unknown_actor_class"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "denied / browser_only / local_draft_only resolutions MUST offer at least one least_privilege_alternative_ref.",
+          "if": {
+            "properties": {
+              "decision_class": {
+                "enum": ["denied", "browser_only", "local_draft_only"]
+              }
+            },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "least_privilege_alternative_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["least_privilege_alternative_refs"]
+          }
+        },
+        {
+          "description": "denied_workspace_trust MUST pair with a workspace_trust_restricted_lock policy lock so the surface can route to a trust-grant repair.",
+          "if": {
+            "properties": {
+              "grant_resolution_reason": { "const": "denied_workspace_trust" }
+            },
+            "required": ["grant_resolution_reason"]
+          },
+          "then": {
+            "properties": {
+              "policy_lock_classes": {
+                "contains": { "const": "workspace_trust_restricted_lock" }
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_bundle_forbids_action lock MUST be paired with a denied decision class.",
+          "if": {
+            "properties": {
+              "policy_lock_classes": {
+                "contains": { "const": "policy_bundle_forbids_action" }
+              }
+            },
+            "required": ["policy_lock_classes"]
+          },
+          "then": {
+            "properties": {
+              "decision_class": { "const": "denied" }
+            }
+          }
+        },
+        {
+          "description": "actor_class unknown_actor_class MUST decide denied with grant_resolution_reason denied_unknown_actor_class.",
+          "if": {
+            "properties": { "actor_class": { "const": "unknown_actor_class" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "decision_class": { "const": "denied" },
+              "grant_resolution_reason": { "const": "denied_unknown_actor_class" }
+            }
+          }
+        }
+      ],
+      "description": "One effective-scope decision row. Combines provider-declared scopes, local policy locks, trust posture, and the requested action / mutation mode into a single inspectable adjudication. Reused by desktop, CLI, companion, audit, and support / export surfaces; permission explanations cite decision_class plus grant_resolution_reason so the surface can name the exact decision source and fallback path."
+    },
+
+    "effective_scope_invalidation_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_scope_schema_version",
+        "event_id",
+        "event_time",
+        "originating_resolution_id",
+        "connected_provider_record_id",
+        "actor_class",
+        "invalidation_trigger_class",
+        "downgrade_action_class",
+        "rationale_summary",
+        "policy_epoch",
+        "trust_state",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "effective_scope_invalidation_event_record" },
+        "effective_scope_schema_version": {
+          "$ref": "#/$defs/effective_scope_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "originating_resolution_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "invalidation_trigger_class": {
+          "$ref": "#/$defs/invalidation_trigger_class"
+        },
+        "originating_account_invalidation_event_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream account_invalidation_event_record (in connected_account_record.schema.json) when the trigger originates in the registry. Empty string when the trigger originates in the policy resolver / freshness / approval-ticket lane."
+        },
+        "downgrade_action_class": { "$ref": "#/$defs/downgrade_action_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "invalidated_dependent_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to dependent resolution / approval-ticket / browser-handoff-packet / publish-later queue-item records invalidated by this event."
+        },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the repair hook the surface routes to (account reselection, browser recovery, step-up authenticator, admin reconciliation). Empty string only when downgrade_action_class is no_downgrade_required."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "host_mismatch_detected, tenant_switch_detected, and org_membership_lost MUST NOT downgrade to no_downgrade_required.",
+          "if": {
+            "properties": {
+              "invalidation_trigger_class": {
+                "enum": [
+                  "host_mismatch_detected",
+                  "tenant_switch_detected",
+                  "org_membership_lost"
+                ]
+              }
+            },
+            "required": ["invalidation_trigger_class"]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "downgrade_action_class": { "const": "no_downgrade_required" }
+              },
+              "required": ["downgrade_action_class"]
+            }
+          }
+        },
+        {
+          "description": "Every non-no-downgrade event MUST cite a repair_hook_ref.",
+          "if": {
+            "not": {
+              "properties": {
+                "downgrade_action_class": { "const": "no_downgrade_required" }
+              },
+              "required": ["downgrade_action_class"]
+            }
+          },
+          "then": {
+            "properties": {
+              "repair_hook_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["repair_hook_ref"]
+          }
+        }
+      ],
+      "description": "Downstream invalidation of cached effective-scope resolutions. Triggered by a connected-account invalidation, a policy-epoch roll, a trust-state downgrade, a freshness drift, an approval-ticket revocation, or a provider health degrade. Names the typed downgrade action surfaces MUST render; silent reuse of an invalidated resolution is forbidden."
+    }
+  }
+}

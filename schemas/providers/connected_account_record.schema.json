@@ -1,0 +1,1043 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/connected_account_record.schema.json",
+  "title": "Aureline connected-account registry: human account, installation / app / bot, delegated credential, project-scoped grant, policy-injected service identity, acting-identity badge, and invalidation-event vocabulary",
+  "description": "Boundary schema for the connected-account registry frozen in docs/providers/connected_account_registry_contract.md. The registry is separate from the local user profile, the secret broker, and the settings registry; it names the identity a provider-linked action will execute as. The connected_provider_record family is exported by schemas/integration/browser_handoff_packet.schema.json (ADR-0010); this schema exports the constituent link / grant / credential / identity / badge / invalidation records the provider record points at. Seven record kinds are exported: human_account_link_record, installation_or_app_grant_record, delegated_credential_binding_record, project_scoped_grant_record, policy_injected_service_identity_record, acting_identity_badge_record, and account_invalidation_event_record. Raw tokens, raw install secrets, raw delegated-token bodies, raw policy-injector material, raw URLs, and raw provider payloads never cross this boundary; records carry opaque refs, fingerprints, and structured fields only. The eventual connected-provider crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new actor class, badge surface, badge-label class, invalidation cause class, downgrade-action class, or revocation-trigger class is additive-minor and requires a connected_account_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/human_account_link_record" },
+    { "$ref": "#/$defs/installation_or_app_grant_record" },
+    { "$ref": "#/$defs/delegated_credential_binding_record" },
+    { "$ref": "#/$defs/project_scoped_grant_record" },
+    { "$ref": "#/$defs/policy_injected_service_identity_record" },
+    { "$ref": "#/$defs/acting_identity_badge_record" },
+    { "$ref": "#/$defs/account_invalidation_event_record" }
+  ],
+  "$defs": {
+    "connected_account_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this connected-account vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "human_account_link_record",
+        "installation_or_app_grant_record",
+        "delegated_credential_binding_record",
+        "project_scoped_grant_record",
+        "policy_injected_service_identity_record",
+        "acting_identity_badge_record",
+        "account_invalidation_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, and raw policy-injector material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on desktop, CLI, notifications, provider-linked headers, queue-review surfaces, and support exports."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Frozen provider-actor class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. A generic 'Connected' state is forbidden on every product, CLI, notification, provider-linked header, support-export, queue-review, and audit surface; 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the link, grant, credential, identity, badge, or invalidation event was captured under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 and ADR-0010 redaction posture. Raw tokens, raw install secrets, raw delegated-token bodies, raw policy-injector material, raw URLs, and raw provider payloads never cross this boundary regardless of class."
+    },
+
+    "health_state": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "degraded",
+        "unavailable",
+        "revoked",
+        "suspended",
+        "expired"
+      ],
+      "description": "Provider-side health state the link, grant, credential, or identity is currently observed under. Reused from schemas/integration/browser_handoff_packet.schema.json."
+    },
+
+    "verification_state_class": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "pending_verification",
+        "verification_expired",
+        "verification_failed",
+        "verification_not_required"
+      ],
+      "description": "Verification posture for the underlying provider-side principal. A link whose verification has expired or failed MUST NOT silently keep claiming a fresh verified state."
+    },
+
+    "review_status_class": {
+      "type": "string",
+      "enum": [
+        "pending_admin_review",
+        "approved",
+        "rejected",
+        "review_not_required",
+        "review_expired"
+      ],
+      "description": "Admin / org review status for an installation / app / bot grant. A grant MUST NOT silently flip from pending to approved without naming a review record."
+    },
+
+    "suspension_or_revocation_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "user_suspended",
+        "admin_suspended",
+        "org_suspended",
+        "user_revoked",
+        "admin_revoked",
+        "policy_revoked",
+        "rotation_revoked",
+        "expired"
+      ],
+      "description": "Suspension / revocation state for an installation grant, project-scoped grant, delegated credential, or policy-injected service identity. Names exactly one cause; silent retry under a different cause is forbidden."
+    },
+
+    "token_type_class": {
+      "type": "string",
+      "enum": [
+        "delegated_user_oauth",
+        "delegated_user_oidc",
+        "delegated_workload_assertion",
+        "delegated_signed_jwt",
+        "delegated_pat_alias",
+        "delegated_session_cookie_handle"
+      ],
+      "description": "Token-shape class for a delegated credential binding. Raw token bodies live behind the ADR-0007 broker; this field carries shape only, never raw material."
+    },
+
+    "projection_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_projection",
+        "in_process_handle_only",
+        "scoped_subprocess_projection",
+        "redact_on_read",
+        "redact_on_write",
+        "reveal_on_demand_bounded_ui",
+        "clipboard_projection_bounded_window",
+        "external_projection_forbidden"
+      ],
+      "description": "ADR-0007 secret-broker projection mode declared on the credential binding. external_projection_forbidden MUST be set on signing-class credentials by default."
+    },
+
+    "storage_class": {
+      "type": "string",
+      "enum": [
+        "in_memory_only",
+        "session_keychain",
+        "device_keychain",
+        "managed_secret_store",
+        "policy_injector_session_only"
+      ],
+      "description": "ADR-0007 storage class for a delegated credential. Raw bytes live behind the broker; this field names where the broker is authoritative for the binding."
+    },
+
+    "materialisation_scope_class": {
+      "type": "string",
+      "enum": [
+        "per_call_materialisation",
+        "per_session_materialisation",
+        "per_workspace_materialisation",
+        "per_workset_materialisation"
+      ],
+      "description": "Lifetime scope for a policy-injected service identity. Per-call is the safest default; broader scopes MUST be admin-approved and re-validated on policy-epoch roll."
+    },
+
+    "linked_account_kind_class": {
+      "type": "string",
+      "enum": [
+        "primary_human_link",
+        "secondary_human_link",
+        "verified_email_only_link",
+        "deactivated_human_link"
+      ],
+      "description": "Sub-classification of a human account link. A surface that surfaces multiple links MUST distinguish primary from secondary and MUST NOT silently publish under a deactivated link."
+    },
+
+    "install_kind_class": {
+      "type": "string",
+      "enum": [
+        "user_install",
+        "org_install",
+        "tenant_install",
+        "marketplace_install",
+        "self_hosted_install"
+      ],
+      "description": "Install / app / bot kind class. user_install is bound to a single principal; org_install and tenant_install survive human session boundaries and require separate review."
+    },
+
+    "label_surface_class": {
+      "type": "string",
+      "enum": [
+        "desktop_provider_badge",
+        "desktop_surface_header",
+        "desktop_notification",
+        "desktop_status_bar",
+        "cli_status_line",
+        "cli_command_output",
+        "companion_provider_header",
+        "support_export_summary",
+        "audit_event_payload",
+        "review_overlay_label",
+        "queue_review_row",
+        "ai_context_capture_label"
+      ],
+      "description": "Surface family the acting-identity badge / label is rendered into. Every protected surface that surfaces an actor class MUST cite at least one label_surface_class so 'you', 'install', 'bot', 'delegated', and 'policy-injected service' never collapse into one generic state."
+    },
+
+    "label_class": {
+      "type": "string",
+      "enum": [
+        "you_label",
+        "install_label",
+        "bot_label",
+        "delegated_label",
+        "policy_injected_service_label",
+        "project_scoped_grant_label",
+        "unknown_actor_repair_label"
+      ],
+      "description": "Frozen acting-identity label vocabulary. Every protected surface renders exactly one label class; widening, redefining, or aliasing a label class is forbidden."
+    },
+
+    "tone_class": {
+      "type": "string",
+      "enum": [
+        "neutral_metadata",
+        "informational",
+        "warning_review_recommended",
+        "warning_repair_required",
+        "blocking_step_up_required"
+      ],
+      "description": "Tone the badge / label is rendered with. unknown_actor_repair_label MUST be paired with warning_repair_required; widening tone is forbidden."
+    },
+
+    "invalidation_cause_class": {
+      "type": "string",
+      "enum": [
+        "user_revocation",
+        "admin_revocation",
+        "policy_revocation",
+        "rotation_revocation",
+        "user_suspension",
+        "admin_suspension",
+        "org_suspension",
+        "credential_expiry",
+        "verification_expiry",
+        "host_mismatch",
+        "tenant_switch",
+        "org_membership_loss",
+        "actor_class_changed",
+        "policy_epoch_rolled",
+        "trust_state_downgraded",
+        "provider_unreachable",
+        "provider_health_revoked",
+        "provider_health_suspended"
+      ],
+      "description": "Frozen cause class an invalidation event names. Every account_invalidation_event_record names exactly one cause; silent retry under a different cause is forbidden."
+    },
+
+    "downgrade_action_class": {
+      "type": "string",
+      "enum": [
+        "no_downgrade_required",
+        "force_inspect_only_until_repair",
+        "force_local_draft_only_until_repair",
+        "force_browser_handoff_only_until_repair",
+        "force_step_up_authenticator",
+        "force_account_reselection",
+        "force_admin_review",
+        "force_disconnect_until_repair"
+      ],
+      "description": "Frozen downgrade action invalidation triggers. Surfaces MUST render the named downgrade and MUST NOT invent surface-local downgrades outside this set."
+    },
+
+    "policy_owner_class": {
+      "type": "string",
+      "enum": [
+        "user_only",
+        "user_with_org_overlay",
+        "org_managed",
+        "tenant_managed",
+        "policy_injector_managed",
+        "support_managed_during_break_glass"
+      ],
+      "description": "Who owns the policy bundle that governs this connected provider link / grant / credential / identity at observation time."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "pull_request",
+            "issue_or_work_item",
+            "check_run",
+            "release_artifact",
+            "docs_page",
+            "audit_entry",
+            "admin_surface",
+            "consent_flow",
+            "package_version",
+            "registry_entry",
+            "principal_subject",
+            "install_target",
+            "tenant_or_org",
+            "other"
+          ]
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity an invalidation event or badge record references. Extends the ADR-0010 set with principal_subject, install_target, and tenant_or_org so account-side events render without inventing a parallel vocabulary."
+    },
+
+    "human_account_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "account_id",
+        "connected_provider_record_id",
+        "display_label",
+        "linked_account_kind_class",
+        "verification_state_class",
+        "verification_observed_at",
+        "granted_scope_refs",
+        "health_state",
+        "trust_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "human_account_link_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "account_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Human-readable display label used on every desktop / CLI / notification / provider-linked header / support-export surface. Never a raw token, raw email body, or raw provider payload; the label is the user-visible projection only."
+        },
+        "linked_account_kind_class": {
+          "$ref": "#/$defs/linked_account_kind_class"
+        },
+        "provider_side_principal_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider-side principal subject. Empty string when the provider has not yet returned a stable subject and the link is still in pending_verification."
+        },
+        "verification_state_class": {
+          "$ref": "#/$defs/verification_state_class"
+        },
+        "verification_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "verification_expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "granted_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to the provider-declared scope rows the link grants. Raw provider scope tokens never appear here."
+        },
+        "last_successful_use_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "session_expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "policy_owner_class": { "$ref": "#/$defs/policy_owner_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "verified MUST carry a non-empty provider_side_principal_ref.",
+          "if": {
+            "properties": {
+              "verification_state_class": { "const": "verified" }
+            },
+            "required": ["verification_state_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_side_principal_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["provider_side_principal_ref"]
+          }
+        },
+        {
+          "description": "verification_expired and verification_failed MUST NOT be rendered as authoritative; the link MUST also carry a non-healthy health_state on every rendered surface.",
+          "if": {
+            "properties": {
+              "verification_state_class": {
+                "enum": ["verification_expired", "verification_failed"]
+              }
+            },
+            "required": ["verification_state_class"]
+          },
+          "then": {
+            "properties": {
+              "health_state": {
+                "enum": ["degraded", "unavailable", "revoked", "suspended", "expired"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One human account link on a connected provider. Names the human principal Aureline acts as for human_account-class actions. Prevents 'signed in' from implying unbounded authorization; verification_state_class, granted_scope_refs, and session_expires_at all degrade visibly."
+    },
+
+    "installation_or_app_grant_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "install_id",
+        "connected_provider_record_id",
+        "install_kind_class",
+        "display_label",
+        "scope_refs",
+        "granted_operations",
+        "review_status_class",
+        "suspension_or_revocation_state_class",
+        "health_state",
+        "trust_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "installation_or_app_grant_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "install_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "install_kind_class": { "$ref": "#/$defs/install_kind_class" },
+        "display_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "granted_operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to the provider-declared operation rows this grant admits (for example, 'pull_request:write', 'check_run:write'). Raw provider scope strings live behind the broker; this field carries opaque ids the registry resolves at the narrowest possible projection boundary."
+        },
+        "org_restriction_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to org / tenant restrictions the install is narrowed by."
+        },
+        "review_status_class": { "$ref": "#/$defs/review_status_class" },
+        "review_decision_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admin / org review decision row that admitted (or rejected) the install."
+        },
+        "suspension_or_revocation_state_class": {
+          "$ref": "#/$defs/suspension_or_revocation_state_class"
+        },
+        "suspension_or_revocation_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "installed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "policy_owner_class": { "$ref": "#/$defs/policy_owner_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "rejected, expired, and revoked installs MUST carry a non-healthy health_state.",
+          "if": {
+            "properties": {
+              "suspension_or_revocation_state_class": {
+                "enum": [
+                  "user_revoked",
+                  "admin_revoked",
+                  "policy_revoked",
+                  "rotation_revoked",
+                  "expired"
+                ]
+              }
+            },
+            "required": ["suspension_or_revocation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "health_state": {
+                "enum": ["unavailable", "revoked", "suspended", "expired"]
+              }
+            }
+          }
+        },
+        {
+          "description": "approved review_status MUST cite a review_decision_ref unless the install kind is review_not_required at the provider.",
+          "if": {
+            "properties": {
+              "review_status_class": { "const": "approved" }
+            },
+            "required": ["review_status_class"]
+          },
+          "then": {
+            "anyOf": [
+              { "required": ["review_decision_ref"] },
+              {
+                "properties": {
+                  "install_kind_class": { "const": "self_hosted_install" }
+                },
+                "required": ["install_kind_class"]
+              }
+            ]
+          }
+        }
+      ],
+      "description": "One installation / app / bot grant on a connected provider. Install grants outlive human sessions; the record keeps install_kind_class, scope_refs, granted_operations, review_status_class, and suspension_or_revocation_state_class visible so the install never silently aliases a human account."
+    },
+
+    "delegated_credential_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "binding_id",
+        "connected_provider_record_id",
+        "token_type_class",
+        "issuer_ref",
+        "scope_refs",
+        "projection_mode_class",
+        "storage_class",
+        "credential_alias_ref",
+        "issued_at",
+        "expires_at",
+        "suspension_or_revocation_state_class",
+        "health_state",
+        "trust_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "delegated_credential_binding_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "binding_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "token_type_class": { "$ref": "#/$defs/token_type_class" },
+        "issuer_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the upstream identity issuer (workspace identity provider, federation root, policy injector). Raw issuer URLs and raw discovery documents never appear here."
+        },
+        "delegated_principal_ref": {
+          "type": "string",
+          "description": "Opaque ref to the principal subject the delegated credential is forwarded for. Empty string only when token_type_class is delegated_workload_assertion and no human principal applies."
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "projection_mode_class": { "$ref": "#/$defs/projection_mode_class" },
+        "storage_class": { "$ref": "#/$defs/storage_class" },
+        "credential_alias_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "ADR-0007 broker handle. The handle resolves to projected material at the narrowest possible projection boundary; raw token bytes never appear in the registry."
+        },
+        "rotation_path_ref": {
+          "type": "string",
+          "description": "Opaque ref to the rotation path the broker uses to refresh this binding. Empty string only for short-lived per-call bindings with no rotation."
+        },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_refreshed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "suspension_or_revocation_state_class": {
+          "$ref": "#/$defs/suspension_or_revocation_state_class"
+        },
+        "suspension_or_revocation_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "policy_owner_class": { "$ref": "#/$defs/policy_owner_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Expired, revoked, and suspended bindings MUST carry a non-healthy health_state on every surface.",
+          "if": {
+            "properties": {
+              "suspension_or_revocation_state_class": {
+                "enum": [
+                  "user_revoked",
+                  "admin_revoked",
+                  "policy_revoked",
+                  "rotation_revoked",
+                  "expired"
+                ]
+              }
+            },
+            "required": ["suspension_or_revocation_state_class"]
+          },
+          "then": {
+            "properties": {
+              "health_state": {
+                "enum": ["unavailable", "revoked", "suspended", "expired"]
+              }
+            }
+          }
+        },
+        {
+          "description": "external_projection_forbidden MUST be set when token_type_class is delegated_signed_jwt or delegated_workload_assertion of signing-class material; surfaces MAY narrow further but MUST NOT widen.",
+          "if": {
+            "properties": {
+              "projection_mode_class": { "const": "external_projection_forbidden" }
+            },
+            "required": ["projection_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_class": {
+                "enum": [
+                  "operator_only_restricted",
+                  "internal_support_restricted",
+                  "signing_evidence_only"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One delegated credential binding on a connected provider. The binding names the broker handle (credential_alias_ref) the action will project through; raw delegated-token bodies live behind ADR-0007 and never enter this record."
+    },
+
+    "project_scoped_grant_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "grant_id",
+        "connected_provider_record_id",
+        "scope_ref",
+        "granted_operations",
+        "parent_actor_class",
+        "suspension_or_revocation_state_class",
+        "health_state",
+        "trust_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "project_scoped_grant_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "grant_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the project / repo / tenant scope row the grant narrows to."
+        },
+        "scope_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable label for the scope (project, repo, tenant). Surfaces MUST render this; collapsing the label into the parent actor class is forbidden."
+        },
+        "granted_operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "parent_actor_class": {
+          "$ref": "#/$defs/provider_actor_class",
+          "description": "Actor class the project-scoped grant is narrowed from (typically human_account or installation_or_app_grant). project_scoped_grant and policy_injected_service_identity MUST NOT be self-parents."
+        },
+        "parent_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the parent subject the grant narrows from."
+        },
+        "suspension_or_revocation_state_class": {
+          "$ref": "#/$defs/suspension_or_revocation_state_class"
+        },
+        "suspension_or_revocation_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "policy_owner_class": { "$ref": "#/$defs/policy_owner_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "parent_actor_class MUST NOT be project_scoped_grant or policy_injected_service_identity (no self-parenting).",
+          "not": {
+            "properties": {
+              "parent_actor_class": {
+                "enum": [
+                  "project_scoped_grant",
+                  "policy_injected_service_identity"
+                ]
+              }
+            },
+            "required": ["parent_actor_class"]
+          }
+        }
+      ],
+      "description": "One project / repo / tenant narrowing on a connected provider. The grant record keeps the narrowing visible rather than letting it hide under the parent actor class."
+    },
+
+    "policy_injected_service_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "identity_id",
+        "connected_provider_record_id",
+        "issued_by_policy_ref",
+        "policy_epoch",
+        "materialisation_scope_class",
+        "expires_at",
+        "suspension_or_revocation_state_class",
+        "health_state",
+        "trust_posture",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "policy_injected_service_identity_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "identity_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "issued_by_policy_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the policy bundle row that materialises this identity."
+        },
+        "policy_epoch": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Policy epoch at materialisation. A policy-epoch roll between materialisation and use re-evaluates the identity; silent continued-use is forbidden."
+        },
+        "materialisation_scope_class": {
+          "$ref": "#/$defs/materialisation_scope_class"
+        },
+        "scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "suspension_or_revocation_state_class": {
+          "$ref": "#/$defs/suspension_or_revocation_state_class"
+        },
+        "suspension_or_revocation_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "health_state": { "$ref": "#/$defs/health_state" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "policy_owner_class": { "$ref": "#/$defs/policy_owner_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "description": "One policy-injected service identity on a connected provider. Carries an explicit policy_epoch so policy-epoch rolls invalidate cached effective scopes deterministically; silent continued-use after a roll is forbidden."
+    },
+
+    "acting_identity_badge_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "badge_id",
+        "connected_provider_record_id",
+        "actor_class",
+        "label_class",
+        "label_surfaces",
+        "display_label",
+        "tone_class",
+        "trust_posture",
+        "observed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "acting_identity_badge_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "badge_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "label_class": { "$ref": "#/$defs/label_class" },
+        "label_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/label_surface_class" }
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "User-visible label string projected onto the named surfaces (for example, 'You — ahmedyounis@github.com', 'Install — aureline-ci-bot', 'Delegated for ahmedyounis@github.com', 'Policy-injected service — release-publisher@policy-epoch:42'). Raw tokens, raw URLs, and raw provider payloads never appear."
+        },
+        "secondary_label": {
+          "type": "string",
+          "description": "Optional secondary-line label (host, scope, expiry hint). Empty string when the surface only renders the primary label."
+        },
+        "scope_summary": {
+          "type": "string",
+          "description": "Optional short scope summary (project, repo, tenant). Empty string when no narrowing applies."
+        },
+        "tone_class": { "$ref": "#/$defs/tone_class" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the human_account_link / installation_or_app_grant / delegated_credential_binding / project_scoped_grant / policy_injected_service_identity record the badge is rendering. Empty string only for unknown_actor_repair_label badges that exist solely to route to repair."
+        },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "actor_class human_account MUST render label_class you_label.",
+          "if": {
+            "properties": { "actor_class": { "const": "human_account" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": { "label_class": { "const": "you_label" } }
+          }
+        },
+        {
+          "description": "actor_class installation_or_app_grant MUST render label_class install_label or bot_label.",
+          "if": {
+            "properties": { "actor_class": { "const": "installation_or_app_grant" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "label_class": { "enum": ["install_label", "bot_label"] }
+            }
+          }
+        },
+        {
+          "description": "actor_class delegated_user_token MUST render label_class delegated_label.",
+          "if": {
+            "properties": { "actor_class": { "const": "delegated_user_token" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": { "label_class": { "const": "delegated_label" } }
+          }
+        },
+        {
+          "description": "actor_class project_scoped_grant MUST render label_class project_scoped_grant_label.",
+          "if": {
+            "properties": { "actor_class": { "const": "project_scoped_grant" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": { "label_class": { "const": "project_scoped_grant_label" } }
+          }
+        },
+        {
+          "description": "actor_class policy_injected_service_identity MUST render label_class policy_injected_service_label.",
+          "if": {
+            "properties": { "actor_class": { "const": "policy_injected_service_identity" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": { "label_class": { "const": "policy_injected_service_label" } }
+          }
+        },
+        {
+          "description": "actor_class unknown_actor_class MUST render label_class unknown_actor_repair_label and tone warning_repair_required.",
+          "if": {
+            "properties": { "actor_class": { "const": "unknown_actor_class" } },
+            "required": ["actor_class"]
+          },
+          "then": {
+            "properties": {
+              "label_class": { "const": "unknown_actor_repair_label" },
+              "tone_class": { "const": "warning_repair_required" }
+            }
+          }
+        },
+        {
+          "description": "unknown_actor_repair_label MUST be paired with tone warning_repair_required.",
+          "if": {
+            "properties": {
+              "label_class": { "const": "unknown_actor_repair_label" }
+            },
+            "required": ["label_class"]
+          },
+          "then": {
+            "properties": {
+              "tone_class": { "const": "warning_repair_required" }
+            }
+          }
+        }
+      ],
+      "description": "One acting-identity badge / label rendered on a desktop, CLI, notification, provider-linked header, or support-export surface. Freezes the label vocabulary so 'you', 'install', 'bot', 'delegated', and 'policy-injected service' never collapse into one generic state."
+    },
+
+    "account_invalidation_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "connected_account_schema_version",
+        "event_id",
+        "event_time",
+        "connected_provider_record_id",
+        "actor_class",
+        "subject_record_ref",
+        "subject_record_kind",
+        "invalidation_cause_class",
+        "downgrade_action_class",
+        "rationale_summary",
+        "policy_epoch",
+        "trust_state",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "account_invalidation_event_record" },
+        "connected_account_schema_version": {
+          "$ref": "#/$defs/connected_account_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "subject_record_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the human_account_link / installation_or_app_grant / delegated_credential_binding / project_scoped_grant / policy_injected_service_identity record the invalidation applies to."
+        },
+        "subject_record_kind": {
+          "type": "string",
+          "enum": [
+            "human_account_link_record",
+            "installation_or_app_grant_record",
+            "delegated_credential_binding_record",
+            "project_scoped_grant_record",
+            "policy_injected_service_identity_record"
+          ]
+        },
+        "invalidation_cause_class": { "$ref": "#/$defs/invalidation_cause_class" },
+        "downgrade_action_class": { "$ref": "#/$defs/downgrade_action_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "invalidated_dependent_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to dependent approval-ticket, browser-handoff-packet, publish-later queue-item, and provider-scope-resolution-result records that are invalidated by this event."
+        },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the repair hook the surface routes to (account reselection, browser recovery, step-up authenticator, admin reconciliation). Empty string only when downgrade_action_class is no_downgrade_required."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Every non-no-downgrade event MUST cite a repair_hook_ref so the surface has a concrete reopen path.",
+          "if": {
+            "not": {
+              "properties": {
+                "downgrade_action_class": { "const": "no_downgrade_required" }
+              },
+              "required": ["downgrade_action_class"]
+            }
+          },
+          "then": {
+            "properties": {
+              "repair_hook_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["repair_hook_ref"]
+          }
+        },
+        {
+          "description": "host_mismatch, tenant_switch, and org_membership_loss MUST NOT downgrade to no_downgrade_required; the action MUST visibly degrade.",
+          "if": {
+            "properties": {
+              "invalidation_cause_class": {
+                "enum": ["host_mismatch", "tenant_switch", "org_membership_loss"]
+              }
+            },
+            "required": ["invalidation_cause_class"]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "downgrade_action_class": { "const": "no_downgrade_required" }
+              },
+              "required": ["downgrade_action_class"]
+            }
+          }
+        },
+        {
+          "description": "credential_expiry MUST apply only to delegated_credential_binding subjects.",
+          "if": {
+            "properties": {
+              "invalidation_cause_class": { "const": "credential_expiry" }
+            },
+            "required": ["invalidation_cause_class"]
+          },
+          "then": {
+            "properties": {
+              "subject_record_kind": {
+                "const": "delegated_credential_binding_record"
+              }
+            }
+          }
+        }
+      ],
+      "description": "An observable invalidation / downgrade event on a connected-account record. Names the cause (revocation, suspension, host mismatch, tenant switch, org-membership loss, expired delegated credential, policy-epoch roll, trust-state downgrade) and the typed downgrade action surfaces MUST render. Silent continued-use is forbidden; every non-no-downgrade event names a repair hook."
+    }
+  }
+}

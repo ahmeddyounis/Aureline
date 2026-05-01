@@ -1,0 +1,119 @@
+__fixture__:
+  name: project_scoped_grant_local_draft_only_offline
+  case_id: connected_account.project_scoped_grant_local_draft_only_offline.v1
+  scenario: >
+    A project-scoped grant narrows a parent human account to the
+    aureline/aureline repo. While the user is offline, an issue-tracker
+    publish would be parked as a `local_draft_only` decision under
+    `grant_resolution_reason = allowed_with_deferred_publish`; the
+    least-privilege alternative offers `switch_to_deferred_publish` and
+    cites the publish-later queue item the action is parked under. The
+    badge renders as `project_scoped_grant_label` with the scope label
+    visible.
+  exercised:
+    actor_class: project_scoped_grant
+    label_class: project_scoped_grant_label
+    decision_class: local_draft_only
+    grant_resolution_reason: allowed_with_deferred_publish
+    policy_lock_classes:
+      - policy_bundle_requires_deferred_publish
+    requested_action_class: issue_or_work_item_mutation
+    requested_mutation_mode: deferred_publish
+    alternative_class: switch_to_deferred_publish
+records:
+  - record_kind: project_scoped_grant_record
+    connected_account_schema_version: 1
+    grant_id: grant:project_scoped:github.com:aureline/aureline:human_account:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    scope_ref: scope:github.com:repo:aureline/aureline:write
+    scope_label: "aureline/aureline"
+    granted_operations:
+      - issue:write
+      - issue:comment
+    parent_actor_class: human_account
+    parent_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+    suspension_or_revocation_state_class: active
+    issued_at: "2026-04-01T08:00:00Z"
+    expires_at: "2026-07-01T08:00:00Z"
+    health_state: healthy
+    trust_posture: trusted
+    policy_owner_class: user_with_org_overlay
+    redaction_class: metadata_safe_default
+
+  - record_kind: acting_identity_badge_record
+    connected_account_schema_version: 1
+    badge_id: badge:project_scoped_grant:github.com:aureline/aureline:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    actor_class: project_scoped_grant
+    label_class: project_scoped_grant_label
+    label_surfaces:
+      - desktop_provider_badge
+      - desktop_surface_header
+      - queue_review_row
+      - audit_event_payload
+    display_label: "Project grant — aureline/aureline (parent: ahmedyounis@github.com)"
+    secondary_label: "github.com · scope: aureline/aureline"
+    scope_summary: "issue: write; issue: comment"
+    tone_class: informational
+    trust_posture: trusted
+    linked_record_ref: grant:project_scoped:github.com:aureline/aureline:human_account:0001
+    observed_at: "2026-04-23T11:30:00Z"
+    redaction_class: metadata_safe_default
+
+  - record_kind: provider_scope_resolution_result_record
+    effective_scope_schema_version: 1
+    resolution_id: resolution:issue_tracker:work_item_publish:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    actor_class: project_scoped_grant
+    actor_subject_ref: grant:project_scoped:github.com:aureline/aureline:human_account:0001
+    requested_action_class: issue_or_work_item_mutation
+    requested_mutation_mode: deferred_publish
+    target_object_identity:
+      object_class: issue_or_work_item
+      provider_side_id: github.com:aureline/aureline:issue:1234
+      provider_host: github.com
+      tenant_or_org_scope: aureline
+    provider_declared_scope_refs:
+      - scope:github.com:repo:aureline/aureline:write
+    policy_lock_classes:
+      - policy_bundle_requires_deferred_publish
+    trust_posture: trusted
+    decision_class: local_draft_only
+    grant_resolution_reason: allowed_with_deferred_publish
+    decision_summary: >-
+      Local-draft-only: connectivity is offline; the issue update is
+      retained as a deferred-publish queue item and will publish once
+      connectivity is restored under approval ticket
+      ticket:deferred_publish_drain:issue:1234.
+    freshness:
+      observed_at: "2026-04-23T11:30:00Z"
+      freshness_floor_ref: freshness-floor:issue.1234:2026-04-23T11:00:00Z
+      staleness_class: bounded_stale
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:issue.publish:0001
+    browser_handoff_packet_ref: ""
+    publish_later_queue_item_ref: queue_item:issue_publish:1234:0001
+    least_privilege_alternative_refs:
+      - alternative:issue_publish:1234:0001
+    computed_at: "2026-04-23T11:30:00Z"
+    expires_at: "2026-04-23T12:30:00Z"
+    audit_event_refs:
+      - audit:grant_scope_resolved:20260423T113000Z:0001
+      - audit:provider_action_deferred:20260423T113000Z:0001
+    redaction_class: metadata_safe_default
+
+  - record_kind: least_privilege_alternative_record
+    effective_scope_schema_version: 1
+    alternative_id: alternative:issue_publish:1234:0001
+    originating_resolution_id: resolution:issue_tracker:work_item_publish:0001
+    alternative_class: switch_to_deferred_publish
+    alternative_summary: >-
+      Park the issue update as a deferred-publish queue item; the
+      drain runs under a fresh approval ticket once connectivity and
+      freshness floor are restored.
+    suggested_actor_class: project_scoped_grant
+    suggested_mutation_mode: deferred_publish
+    repair_hook_ref: repair_hook:queue_review:queue_item:issue_publish:1234:0001
+    redaction_class: metadata_safe_default
