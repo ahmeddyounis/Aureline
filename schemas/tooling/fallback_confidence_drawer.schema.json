@@ -1,0 +1,1312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/tooling/fallback_confidence_drawer.schema.json",
+  "title": "Aureline fallback-confidence drawer, missing-capability grammar, and safer-alternative handoff contract",
+  "description": "Boundary schema for the fallback_confidence_drawer_record every consumer surface (run / test / build / debug picker detail card, quick-open detail pane, command palette result card, problems pane detail row, output pane header drawer, AI action sheet detail card, CI overlay detail card, support-bundle export viewer, issue-handoff prefill card, command-result message card) renders when build / test / run / debug capability is inferred, partially supported, unavailable because the active adapter has no coverage, or blocked by environment / toolchain / extension / policy drift. The drawer is the user-facing presentation layer over the fallback_confidence_record and degraded_capability_handoff_record frozen in schemas/tooling/fallback_confidence.schema.json and the adapter_drift_event_record frozen in schemas/tooling/adapter_drift_event.schema.json. It freezes one missing-capability grammar (the closed capability_loss_explanation_class vocabulary plus matching label text) and one safer-alternative-handoff vocabulary (inspect-only, rerun last, external handoff, repair toolchain, widen scope, reopen with native adapter, plus typed escalations) so support bundles, issue handoffs, and command results reproduce exactly the same confidence explanation without leaking internal jargon. Companion narrative: docs/tooling/fallback_confidence_drawer_contract.md. Generic capability-loss copy (Not available, Cannot run, Try again later, See docs, Failed, Error, Sometimes) is forbidden when a more exact capability-loss explanation exists. Raw URLs, raw absolute paths, raw command lines, raw secret values, raw env bodies, raw lockfile contents, raw stdout, raw stderr, raw provider payload bytes, raw clipboard bytes, raw notebook output bytes, and raw OAuth tokens never cross this boundary; producers retain raw inputs out-of-band and cite opaque refs. Adding a new drawer_state_class, capability_loss_explanation_class, safer_alternative_handoff_class, drawer_consumer_surface_class, copy_export_disclosure_class, or copy_export_redaction_class is additive-minor and bumps fallback_confidence_drawer_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/fallback_confidence_drawer_record",
+  "$defs": {
+    "fallback_confidence_drawer_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the fallback-confidence drawer, missing-capability grammar, and safer-alternative handoff contract. Current value is 1. Bumped only on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths, raw URLs, raw command lines, and raw payload bytes never appear here."
+    },
+
+    "dotted_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Dotted lower-snake id used for adapter_id refs and producer_tool refs."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "not": {
+        "anyOf": [
+          { "pattern": "^\\s*Not available\\s*$" },
+          { "pattern": "^\\s*Unavailable\\s*$" },
+          { "pattern": "^\\s*Available\\s*$" },
+          { "pattern": "^\\s*Cannot run\\s*$" },
+          { "pattern": "^\\s*Cannot debug\\s*$" },
+          { "pattern": "^\\s*Cannot build\\s*$" },
+          { "pattern": "^\\s*Cannot test\\s*$" },
+          { "pattern": "^\\s*Coming soon\\s*$" },
+          { "pattern": "^\\s*Sometimes\\s*$" },
+          { "pattern": "^\\s*Maybe\\s*$" },
+          { "pattern": "^\\s*Try again later\\s*$" },
+          { "pattern": "^\\s*See docs\\s*$" },
+          { "pattern": "^\\s*Failed\\s*$" },
+          { "pattern": "^\\s*Error\\s*$" },
+          { "pattern": "^\\s*Generic error\\s*$" },
+          { "pattern": "^\\s*Unknown\\s*$" },
+          { "pattern": "^\\s*In progress\\s*$" }
+        ]
+      },
+      "description": "Bounded reviewer-facing sentence safe for drawers, detail cards, support exports, and issue handoffs. Generic capability-loss chip words (Not available, Unavailable, Cannot run, Cannot debug, Cannot build, Cannot test, Coming soon, Sometimes, Maybe, Try again later, See docs, Failed, Error, Generic error, Unknown, In progress) are forbidden as the entire sentence so a vague label can never stand in for an exact capability-loss explanation. Raw payload bytes, raw command lines, raw env bodies, raw URLs, raw paths, and raw secret values never appear here."
+    },
+
+    "short_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180,
+      "description": "Short reviewer-facing label safe for drawer headers, chip text, and command-result message titles."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Re-export of schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class. Drawer copy MUST NOT raise the confidence tier above the active adapter's adapter_confidence_ceiling on the linked fallback_confidence_record."
+    },
+
+    "workspace_scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of schemas/runtime/execution_context.schema.json#/$defs/scope_class."
+    },
+
+    "adapter_class": {
+      "type": "string",
+      "enum": [
+        "native_build_runner",
+        "build_server_protocol_client",
+        "bazel_build_event_protocol",
+        "structured_importer",
+        "heuristic_target_inferrer",
+        "fallback_opaque_preservation"
+      ],
+      "description": "Re-export of schemas/tooling/adapter_descriptor.schema.json#/$defs/adapter_class. Drawer copy MUST name the adapter class so a heuristic posture is never confused with a native runner posture."
+    },
+
+    "source_kind_class": {
+      "type": "string",
+      "enum": [
+        "native_runner_active",
+        "build_server_protocol_session",
+        "bazel_build_event_stream",
+        "structured_importer_export",
+        "heuristic_target_inferrer_ruleset",
+        "support_bundle_replay",
+        "import_probe_export",
+        "ai_proposed_pending_review",
+        "opaque_unsupported_preservation",
+        "no_adapter_attached"
+      ],
+      "description": "Re-export of schemas/tooling/fallback_confidence.schema.json#/$defs/source_kind_class."
+    },
+
+    "affected_action_class": {
+      "type": "string",
+      "enum": ["run", "test", "build", "debug"],
+      "description": "Re-export of the action class set in schemas/tooling/fallback_confidence.schema.json. One drawer record per (target_id, action) pair when the loss narrows specific actions; the workspace-wide drawer scope sets affected_action_class_set with cardinality > 1 instead."
+    },
+
+    "drawer_scope_class": {
+      "type": "string",
+      "enum": [
+        "scope_target_action_pair",
+        "scope_target_all_actions",
+        "scope_workspace_wide_no_target"
+      ],
+      "description": "Closed drawer-scope vocabulary. scope_target_action_pair pairs the drawer with a single (target_id, action); scope_target_all_actions pairs the drawer with a target across all four run / test / build / debug actions (for example a target on an opaque preservation adapter); scope_workspace_wide_no_target carries no target_id_ref (for example no_adapter_attached)."
+    },
+
+    "drawer_state_class": {
+      "type": "string",
+      "enum": [
+        "capability_currently_inferred",
+        "capability_partially_supported",
+        "capability_unavailable_missing_adapter_coverage",
+        "capability_blocked_by_toolchain_drift",
+        "capability_blocked_by_environment_drift",
+        "capability_blocked_by_extension_pack_state",
+        "capability_blocked_by_active_policy_review",
+        "capability_known_unsupported_in_adapter_class",
+        "capability_replayed_from_support_bundle",
+        "capability_no_adapter_attached"
+      ],
+      "description": "Closed drawer-state vocabulary. Names the user-visible posture the drawer renders. capability_currently_inferred names heuristic / AI-proposed stand-ins; capability_partially_supported names partial-truth coverage (for example sparse_slice); capability_unavailable_missing_adapter_coverage names known-missing capability (for example a heuristic adapter that never publishes debug); capability_blocked_by_toolchain_drift / capability_blocked_by_environment_drift / capability_blocked_by_extension_pack_state / capability_blocked_by_active_policy_review name environment / toolchain / extension / policy drift; capability_known_unsupported_in_adapter_class names structurally-unsupported capabilities (for example any action on fallback_opaque_preservation); capability_replayed_from_support_bundle names support-bundle replay; capability_no_adapter_attached names a workspace with no attached adapter. Pickers, problems pane, output pane header, AI action sheets, CI overlays, issue handoffs, support exports, and command-result messages all read this class so the four acceptance flavors known_missing / known_unsupported / currently_inferred / blocked_by_environment_or_toolchain_state stay distinct."
+    },
+
+    "drawer_state_label_text": {
+      "type": "string",
+      "enum": [
+        "Currently inferred",
+        "Partially supported",
+        "Missing adapter coverage",
+        "Blocked by toolchain drift",
+        "Blocked by environment drift",
+        "Blocked by extension pack state",
+        "Blocked by active policy review",
+        "Known unsupported in this adapter",
+        "Replayed from support bundle",
+        "No adapter attached"
+      ],
+      "description": "Closed drawer-state label vocabulary. One label per drawer_state_class so pickers, problems pane chips, output pane header chips, AI action sheets, CI overlays, command-result messages, issue handoffs, and support exports render the same label for the same posture. Generic Not available, Unavailable, Failed, Coming soon, Try again later, See docs, Generic error, In progress, and Unknown labels are forbidden by reviewable_sentence and by the bound-pair invariants below."
+    },
+
+    "result_class": {
+      "type": "string",
+      "enum": [
+        "known_missing",
+        "known_unsupported",
+        "currently_inferred",
+        "partially_supported",
+        "blocked_by_environment_or_toolchain_state",
+        "replayed_from_support_bundle",
+        "no_adapter_attached"
+      ],
+      "description": "Closed user-visible result-class vocabulary. The acceptance criterion (users can see whether a result is known missing, known unsupported, currently inferred, or blocked by environment / toolchain state) is satisfied by this projection: each drawer_state_class binds to exactly one result_class. partially_supported / replayed_from_support_bundle / no_adapter_attached extend the four acceptance flavors so partial-truth coverage, support-bundle replay, and unattached-workspace cases stay typed rather than collapsing into known_missing."
+    },
+
+    "capability_loss_explanation_class": {
+      "type": "string",
+      "enum": [
+        "inferred_from_heuristic_target_inferrer_ruleset",
+        "inferred_from_ai_proposed_pending_review",
+        "imported_from_structured_importer_export",
+        "replayed_from_support_bundle_only",
+        "imported_from_import_probe_export",
+        "partially_covered_by_active_workset_slice",
+        "partially_streamed_pending_completion_event",
+        "partially_loaded_pending_full_resolution",
+        "missing_run_action_in_active_adapter",
+        "missing_test_action_in_active_adapter",
+        "missing_build_action_in_active_adapter",
+        "missing_debug_action_in_active_adapter",
+        "missing_artifact_publication_event_stream",
+        "missing_streaming_target_graph_updates",
+        "missing_target_descriptors_for_target",
+        "missing_target_health_observations",
+        "missing_target_id_continuity_across_adapter_swap",
+        "missing_inspect_only_external_handoff",
+        "missing_partial_workset_scope_capability",
+        "missing_authoritative_confidence_ceiling",
+        "missing_structured_confidence_ceiling",
+        "missing_native_runner_for_active_archetype",
+        "missing_build_server_protocol_session",
+        "missing_bazel_build_event_stream",
+        "missing_debug_subprotocol_in_build_server",
+        "blocked_by_toolchain_unavailable_in_active_context",
+        "blocked_by_runtime_unavailable_in_active_context",
+        "blocked_by_managed_workspace_environment_mode",
+        "blocked_by_remote_session_environment_mode",
+        "blocked_by_extension_pack_uninstalled_or_disabled",
+        "blocked_by_active_policy_review_admin_only",
+        "structurally_unsupported_in_adapter_class",
+        "no_adapter_attached_to_workspace"
+      ],
+      "description": "Closed missing-capability grammar. Names the exact capability-loss explanation the drawer renders. Pickers, problems pane, output pane header, AI action sheets, CI overlays, issue handoffs, support exports, and command-result messages all read this class so a user-facing explanation never falls back to a generic Not available label. Mirrors the missing_capability_class vocabulary in schemas/tooling/fallback_confidence.schema.json plus typed environment / toolchain / extension / policy / archetype losses, plus the structurally-unsupported and no-adapter-attached terminals. inferred_* / imported_* / replayed_* / partially_* explanations name the source posture rather than a missing capability flag; missing_* explanations name a missing capability flag; blocked_* explanations name typed environment / toolchain / extension / policy drift; structurally_unsupported_in_adapter_class and no_adapter_attached_to_workspace are the two terminal explanations."
+    },
+
+    "capability_loss_explanation_label_text": {
+      "type": "string",
+      "enum": [
+        "Inferred from heuristic ruleset",
+        "Inferred from AI-proposed target pending review",
+        "Imported from structured importer export",
+        "Replayed from support bundle",
+        "Imported from import probe export",
+        "Partially covered by active workset slice",
+        "Partially streamed; awaiting completion",
+        "Partially loaded; full resolution pending",
+        "Run action missing in active adapter",
+        "Test action missing in active adapter",
+        "Build action missing in active adapter",
+        "Debug action missing in active adapter",
+        "Artifact-publication event stream missing",
+        "Streaming target-graph updates missing",
+        "Target descriptors missing for this target",
+        "Target health observations missing",
+        "Target id continuity across adapter swap missing",
+        "Inspect-only external handoff missing",
+        "Partial workset scope capability missing",
+        "Authoritative confidence ceiling missing",
+        "Structured confidence ceiling missing",
+        "Native runner missing for active archetype",
+        "Build-server-protocol session missing",
+        "Bazel build-event stream missing",
+        "Debug subprotocol missing on the active build server",
+        "Toolchain unavailable in active context",
+        "Runtime unavailable in active context",
+        "Blocked by managed workspace environment mode",
+        "Blocked by remote session environment mode",
+        "Extension pack uninstalled or disabled",
+        "Blocked by active policy review (admin only)",
+        "Structurally unsupported in this adapter",
+        "No adapter attached to this workspace"
+      ],
+      "description": "Closed missing-capability label-text vocabulary. One label per capability_loss_explanation_class so the drawer header, chips on every consumer surface, support-export rows, issue-handoff prefill, and command-result messages render exactly the same wording. Generic Not available, Unavailable, Cannot run, Failed, Error, Try again later, See docs, Coming soon, and Unknown labels are forbidden by reviewable_sentence and by the bound-pair invariants below. Adding a new capability_loss_explanation_class MUST add a matching label here."
+    },
+
+    "capability_loss_explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_loss_explanation_class",
+        "capability_loss_explanation_label_text",
+        "capability_loss_explanation_sentence",
+        "names_active_adapter_class",
+        "names_typed_reason"
+      ],
+      "properties": {
+        "capability_loss_explanation_class": { "$ref": "#/$defs/capability_loss_explanation_class" },
+        "capability_loss_explanation_label_text": { "$ref": "#/$defs/capability_loss_explanation_label_text" },
+        "capability_loss_explanation_sentence": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "User-facing sentence the drawer renders below the capability-loss label. Names the active adapter class plus the typed reason; never falls back to a generic Not available copy."
+        },
+        "names_active_adapter_class": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: the explanation MUST name the active adapter class so a heuristic posture is never confused with a native runner posture."
+        },
+        "names_typed_reason": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: the explanation MUST name a typed reason from the missing-capability grammar so a vague Not available copy can never stand in for an exact explanation."
+        }
+      },
+      "description": "Typed missing-capability grammar block. Bound to a closed explanation class plus matching label text plus a reviewer-safe sentence so support exports, issue handoffs, and command-result messages reproduce the same explanation everywhere."
+    },
+
+    "safer_alternative_handoff_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only_with_keyboard_inspect_path",
+        "rerun_last_known_invocation_via_review",
+        "external_handoff_open_in_provider_run_console",
+        "external_handoff_open_in_provider_debug_console",
+        "external_handoff_open_in_provider_test_explorer",
+        "external_handoff_copy_command_to_terminal",
+        "external_handoff_open_external_documentation",
+        "repair_toolchain_via_extension_review",
+        "repair_runtime_via_extension_review",
+        "install_or_attach_native_runner_via_extension_review",
+        "attach_build_server_protocol_session_via_extension_review",
+        "import_structured_graph_via_review",
+        "widen_workset_scope_via_review",
+        "narrow_workset_scope_via_review",
+        "reopen_with_native_adapter_via_review",
+        "admit_ai_proposed_target_via_review_ticket",
+        "user_invoked_refresh_with_authoritative_adapter",
+        "escalate_to_workspace_admin_via_policy_review",
+        "escalate_to_extension_publisher_via_support_export",
+        "no_safer_alternative_admissible_review_only"
+      ],
+      "description": "Closed safer-alternative-handoff vocabulary. Names the typed safer-alternative the drawer offers next to the capability-loss explanation. The six high-level shapes the spec calls out (inspect-only, rerun last, external handoff, repair toolchain, widen scope, reopen with native adapter) project onto inspect_only_with_keyboard_inspect_path, rerun_last_known_invocation_via_review, the external_handoff_* family, repair_toolchain_via_extension_review / repair_runtime_via_extension_review, widen_workset_scope_via_review, and reopen_with_native_adapter_via_review respectively; the install / attach / import / admit / refresh / escalate classes name the additional safer-alternative escalations. no_safer_alternative_admissible_review_only is the legitimate single-element value when the only honest action is opening a review thread for support."
+    },
+
+    "safer_alternative_handoff_label_text": {
+      "type": "string",
+      "enum": [
+        "Inspect only",
+        "Rerun last known invocation (review)",
+        "Open in provider run console",
+        "Open in provider debug console",
+        "Open in provider test explorer",
+        "Copy command to terminal",
+        "Open external documentation",
+        "Repair toolchain (extension review)",
+        "Repair runtime (extension review)",
+        "Install or attach native runner (extension review)",
+        "Attach build-server-protocol session (extension review)",
+        "Import structured graph (review)",
+        "Widen workset scope (review)",
+        "Narrow workset scope (review)",
+        "Reopen with native adapter (review)",
+        "Admit AI-proposed target (review)",
+        "Refresh with authoritative adapter",
+        "Escalate to workspace admin (policy review)",
+        "Escalate to extension publisher (support export)",
+        "Open review thread (no safer alternative)"
+      ],
+      "description": "Closed safer-alternative-handoff label vocabulary. One label per safer_alternative_handoff_class so the drawer button text, support-export disclosure, issue-handoff prefill, and command-result message render the same wording. Adding a new safer_alternative_handoff_class MUST add a matching label here."
+    },
+
+    "safer_alternative_presentation_class": {
+      "type": "string",
+      "enum": [
+        "primary_button_in_drawer",
+        "secondary_button_in_drawer",
+        "tertiary_link_in_drawer",
+        "list_row_in_drawer",
+        "overflow_menu_only"
+      ],
+      "description": "Closed presentation vocabulary. Drawers MUST mark exactly one safer-alternative as primary_button_in_drawer when the safer-alternative set is non-trivial; the rest project as secondary / tertiary / list-row / overflow-only entries."
+    },
+
+    "external_handoff_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_kind", "provider_class", "handoff_payload_ref"],
+      "properties": {
+        "handoff_kind": {
+          "type": "string",
+          "enum": [
+            "open_in_provider_run_console",
+            "open_in_provider_debug_console",
+            "open_in_provider_test_explorer",
+            "copy_command_to_terminal",
+            "open_external_documentation",
+            "no_handoff_admissible"
+          ],
+          "description": "Re-export of schemas/tooling/adapter_descriptor.schema.json#/$defs/external_handoff_kind."
+        },
+        "provider_class": {
+          "type": "string",
+          "enum": [
+            "system_terminal_emulator",
+            "system_default_browser",
+            "code_provider_run_console",
+            "code_provider_debug_console",
+            "code_provider_test_explorer",
+            "ci_provider_console",
+            "documentation_site",
+            "no_provider"
+          ],
+          "description": "Re-export of schemas/tooling/target_descriptor.schema.json#/$defs/external_handoff_provider_class."
+        },
+        "handoff_payload_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the retained handoff payload. Raw URLs, raw command lines, raw secret values, and raw paths never appear inline. MUST be non-null when handoff_kind is not no_handoff_admissible."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+
+    "rerun_last_invocation_payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task_event_envelope_id_ref", "captured_at"],
+      "properties": {
+        "task_event_envelope_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the prior task_event_envelope (in schemas/tooling/task_event_envelope.schema.json) the rerun re-binds to. Raw command lines never appear inline."
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+
+    "safer_alternative_handoff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "safer_alternative_handoff_class",
+        "safer_alternative_handoff_label_text",
+        "safer_alternative_presentation_class",
+        "preserves_current_work",
+        "routes_through_safe_review",
+        "linked_recovery_or_escalation_action_class",
+        "external_handoff",
+        "rerun_last_invocation",
+        "summary"
+      ],
+      "properties": {
+        "safer_alternative_handoff_class": { "$ref": "#/$defs/safer_alternative_handoff_class" },
+        "safer_alternative_handoff_label_text": { "$ref": "#/$defs/safer_alternative_handoff_label_text" },
+        "safer_alternative_presentation_class": { "$ref": "#/$defs/safer_alternative_presentation_class" },
+        "preserves_current_work": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: safer-alternative handoffs never discard current work or session state to regain capability."
+        },
+        "routes_through_safe_review": {
+          "type": "boolean",
+          "description": "MUST be true for actions that mutate workspace, extension, policy, or adapter attachment state. external_handoff_open_external_documentation and the external_handoff_open_in_provider_* / external_handoff_copy_command_to_terminal / user_invoked_refresh_with_authoritative_adapter classes MAY set this to false because they delegate to an external provider or to a non-mutating client refresh."
+        },
+        "linked_recovery_or_escalation_action_class": {
+          "type": "string",
+          "enum": [
+            "user_invoked_refresh_with_authoritative_adapter",
+            "install_or_attach_native_runner_via_extension_review",
+            "attach_build_server_protocol_session_via_extension_review",
+            "import_structured_graph_via_review",
+            "open_in_provider_run_console_external_handoff",
+            "open_in_provider_debug_console_external_handoff",
+            "open_in_provider_test_explorer_external_handoff",
+            "copy_command_to_terminal_external_handoff",
+            "open_external_documentation",
+            "rerun_last_known_invocation_via_review",
+            "narrow_workset_scope_via_review",
+            "widen_workset_scope_via_review",
+            "admit_ai_proposed_target_via_review_ticket",
+            "escalate_to_workspace_admin_via_policy_review",
+            "escalate_to_extension_publisher_via_support_export",
+            "no_recovery_admissible_review_only"
+          ],
+          "description": "Re-export of schemas/tooling/fallback_confidence.schema.json#/$defs/recovery_or_escalation_action_class. Every safer-alternative-handoff entry MUST cite exactly one recovery / escalation action so the drawer's safer-alternative payload is traceable to the same vocabulary the fallback record consumes."
+        },
+        "external_handoff": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/external_handoff_payload" }
+          ],
+          "description": "External-handoff payload when safer_alternative_handoff_class is one of the external_handoff_* classes. MUST be non-null with handoff_kind not equal to no_handoff_admissible in that case; MUST be null otherwise."
+        },
+        "rerun_last_invocation": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/rerun_last_invocation_payload" }
+          ],
+          "description": "Rerun payload when safer_alternative_handoff_class is rerun_last_known_invocation_via_review. MUST be non-null in that case; MUST be null otherwise."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "external_handoff_open_in_provider_run_console / debug_console / test_explorer / copy_command_to_terminal / open_external_documentation MUST carry a non-null external_handoff payload whose handoff_kind matches the class.",
+          "if": {
+            "properties": {
+              "safer_alternative_handoff_class": {
+                "enum": [
+                  "external_handoff_open_in_provider_run_console",
+                  "external_handoff_open_in_provider_debug_console",
+                  "external_handoff_open_in_provider_test_explorer",
+                  "external_handoff_copy_command_to_terminal",
+                  "external_handoff_open_external_documentation"
+                ]
+              }
+            },
+            "required": ["safer_alternative_handoff_class"]
+          },
+          "then": {
+            "properties": {
+              "external_handoff": {
+                "type": "object",
+                "properties": {
+                  "handoff_kind": { "not": { "const": "no_handoff_admissible" } }
+                },
+                "required": ["handoff_kind"]
+              }
+            },
+            "required": ["external_handoff"]
+          }
+        },
+        {
+          "description": "Non-external_handoff classes MUST set external_handoff to null.",
+          "if": {
+            "properties": {
+              "safer_alternative_handoff_class": {
+                "not": {
+                  "enum": [
+                    "external_handoff_open_in_provider_run_console",
+                    "external_handoff_open_in_provider_debug_console",
+                    "external_handoff_open_in_provider_test_explorer",
+                    "external_handoff_copy_command_to_terminal",
+                    "external_handoff_open_external_documentation"
+                  ]
+                }
+              }
+            },
+            "required": ["safer_alternative_handoff_class"]
+          },
+          "then": {
+            "properties": {
+              "external_handoff": { "type": "null" }
+            },
+            "required": ["external_handoff"]
+          }
+        },
+        {
+          "description": "rerun_last_known_invocation_via_review MUST carry a non-null rerun_last_invocation payload.",
+          "if": {
+            "properties": {
+              "safer_alternative_handoff_class": { "const": "rerun_last_known_invocation_via_review" }
+            },
+            "required": ["safer_alternative_handoff_class"]
+          },
+          "then": {
+            "properties": {
+              "rerun_last_invocation": { "type": "object" }
+            },
+            "required": ["rerun_last_invocation"]
+          }
+        },
+        {
+          "description": "Non-rerun classes MUST set rerun_last_invocation to null.",
+          "if": {
+            "properties": {
+              "safer_alternative_handoff_class": {
+                "not": { "const": "rerun_last_known_invocation_via_review" }
+              }
+            },
+            "required": ["safer_alternative_handoff_class"]
+          },
+          "then": {
+            "properties": {
+              "rerun_last_invocation": { "type": "null" }
+            },
+            "required": ["rerun_last_invocation"]
+          }
+        }
+      ]
+    },
+
+    "drawer_consumer_surface_class": {
+      "type": "string",
+      "enum": [
+        "run_test_build_debug_picker_detail_card",
+        "quick_open_detail_pane",
+        "command_palette_result_card",
+        "problems_pane_detail_row",
+        "output_pane_header_drawer",
+        "ai_action_sheet_detail_card",
+        "ci_overlay_detail_card",
+        "support_export_viewer",
+        "issue_handoff_prefill_card",
+        "command_result_message_card"
+      ],
+      "description": "Closed consumer-surface vocabulary for the drawer. Every fallback_confidence_drawer_record MUST cite at least one consumer surface so the drawer is visible somewhere; MUST cite support_export_viewer so the drawer survives a support bundle export."
+    },
+
+    "copy_export_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "exported_with_full_capability_loss_disclosure",
+        "exported_with_capability_loss_summary_only",
+        "exported_inspect_only_no_action_disclosure",
+        "redacted_pending_policy_review"
+      ],
+      "description": "Closed copy / export disclosure vocabulary. Mirrors schemas/tooling/fallback_confidence.schema.json#/$defs/support_export_disclosure_class so support bundles, issue handoffs, and command-result messages all render the same disclosure posture for the same drawer."
+    },
+
+    "copy_export_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Closed redaction-class vocabulary. Mirrors schemas/ux/feature_availability_row.schema.json#/$defs/redaction_class so the drawer's copy / export representation cites the same redaction posture review uses elsewhere."
+    },
+
+    "support_bundle_export_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copy_export_disclosure_class",
+        "copy_export_redaction_class",
+        "includes_capability_loss_explanation",
+        "includes_active_adapter_snapshot",
+        "includes_safer_alternative_handoff_summary",
+        "includes_drift_event_summary",
+        "raw_payloads_excluded",
+        "summary"
+      ],
+      "properties": {
+        "copy_export_disclosure_class": { "$ref": "#/$defs/copy_export_disclosure_class" },
+        "copy_export_redaction_class": { "$ref": "#/$defs/copy_export_redaction_class" },
+        "includes_capability_loss_explanation": {
+          "type": "boolean",
+          "description": "MUST be true unless copy_export_disclosure_class is redacted_pending_policy_review: support exports MUST reproduce the same capability-loss explanation the in-product drawer renders."
+        },
+        "includes_active_adapter_snapshot": {
+          "type": "boolean",
+          "description": "MUST be true unless copy_export_disclosure_class is redacted_pending_policy_review: support exports MUST cite the active adapter class plus confidence ceiling so the loss is traceable to the adapter posture."
+        },
+        "includes_safer_alternative_handoff_summary": {
+          "type": "boolean",
+          "description": "MUST be true unless copy_export_disclosure_class is redacted_pending_policy_review: support exports MUST cite at least the primary safer-alternative-handoff label so support engineers see the same recovery path the user saw."
+        },
+        "includes_drift_event_summary": {
+          "type": "boolean",
+          "description": "True when the drawer projects from an adapter_drift_event_record; the support export carries the drift class plus drift reason so the loss is anchored to a typed cause."
+        },
+        "raw_payloads_excluded": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: support exports never carry raw URLs, raw absolute paths, raw command lines, raw secret values, raw env bodies, raw lockfile contents, raw stdout, or raw stderr inline; raw payloads are retained out-of-band and cited via opaque refs."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Typed support-bundle copy / export representation. Pickers, problems pane, output pane header, AI action sheets, CI overlays, issue handoffs, and command-result messages all read this block so the support export reproduces the same explanation."
+    },
+
+    "issue_handoff_prefill_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copy_export_redaction_class",
+        "includes_capability_loss_explanation",
+        "includes_active_adapter_snapshot",
+        "includes_safer_alternative_handoff_summary",
+        "workspace_id_only_no_raw_paths",
+        "raw_payloads_excluded",
+        "summary"
+      ],
+      "properties": {
+        "copy_export_redaction_class": { "$ref": "#/$defs/copy_export_redaction_class" },
+        "includes_capability_loss_explanation": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: issue handoffs MUST reproduce the same capability-loss explanation the in-product drawer renders."
+        },
+        "includes_active_adapter_snapshot": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: issue handoffs MUST cite the active adapter class plus confidence ceiling."
+        },
+        "includes_safer_alternative_handoff_summary": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: issue handoffs MUST cite at least the primary safer-alternative-handoff label."
+        },
+        "workspace_id_only_no_raw_paths": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: issue handoffs cite the opaque workspace id rather than raw absolute paths."
+        },
+        "raw_payloads_excluded": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: issue handoffs never carry raw URLs, raw absolute paths, raw command lines, raw secret values, raw env bodies, raw stdout, or raw stderr inline."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Typed issue-handoff copy / export representation. The drawer's issue-handoff prefill card carries exactly the same explanation as the in-product chip and the support export."
+    },
+
+    "command_result_message_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "delivery_surface_class_set",
+        "includes_capability_loss_label_text",
+        "includes_safer_alternative_handoff_label_text",
+        "includes_drawer_state_label_text",
+        "raw_payloads_excluded",
+        "summary"
+      ],
+      "properties": {
+        "delivery_surface_class_set": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "run_test_build_debug_picker_detail_card",
+              "quick_open_detail_pane",
+              "command_palette_result_card",
+              "output_pane_header_drawer",
+              "ai_action_sheet_detail_card",
+              "ci_overlay_detail_card",
+              "command_result_message_card"
+            ]
+          },
+          "description": "Set of in-product surfaces this command-result message renders on. MUST be non-empty so the command result is visible somewhere in product. The support_export_viewer / problems_pane_detail_row / issue_handoff_prefill_card surfaces are excluded here because they are owned by the support_bundle_export_card / drawer-state chip / issue_handoff_prefill_card respectively."
+        },
+        "includes_capability_loss_label_text": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: command-result messages MUST render the typed capability_loss_explanation_label_text rather than a generic Not available label."
+        },
+        "includes_safer_alternative_handoff_label_text": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: command-result messages MUST render at least the primary safer-alternative-handoff label so the user sees a typed next step."
+        },
+        "includes_drawer_state_label_text": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: command-result messages MUST render the drawer_state_label_text (Currently inferred / Partially supported / etc.) so users see the typed posture rather than guessing."
+        },
+        "raw_payloads_excluded": {
+          "type": "boolean",
+          "const": true,
+          "description": "MUST be true: command-result messages never carry raw URLs, raw absolute paths, raw command lines, raw secret values, or raw stdout / stderr inline."
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Typed command-result copy / export representation. Renders the drawer's typed labels in the picker detail card, quick-open, command palette, output pane header, AI action sheet, CI overlay, and command-result message card so the same explanation reaches every in-product surface."
+    },
+
+    "current_adapter_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter_id_ref",
+        "adapter_class",
+        "adapter_confidence_ceiling",
+        "publishing_graph_id_ref"
+      ],
+      "properties": {
+        "adapter_id_ref": { "$ref": "#/$defs/dotted_id" },
+        "adapter_class": { "$ref": "#/$defs/adapter_class" },
+        "adapter_confidence_ceiling": { "$ref": "#/$defs/confidence_class" },
+        "publishing_graph_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "snapshot_partial_truth_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "complete_for_workset_scope",
+                "partial_workset_subset_of_full_graph",
+                "partial_initial_load_pending_full_resolution",
+                "partial_streamed_pending_completion_event",
+                "partial_policy_limited_view",
+                "partial_outside_current_slice_omitted",
+                "partial_adapter_degraded_pending_recovery",
+                "partial_unsupported_subgraph_preserved_opaquely"
+              ]
+            }
+          ]
+        },
+        "snapshot_freshness_class": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": [
+                "live_streaming",
+                "warm_cached",
+                "cold_cached",
+                "stale_pending_refresh",
+                "unknown_freshness",
+                "support_bundle_replay_only"
+              ]
+            }
+          ]
+        },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      },
+      "description": "Snapshot of the active adapter at the moment the drawer was rendered. Mirrors schemas/tooling/fallback_confidence.schema.json#/$defs/current_adapter_snapshot. The drawer never guesses which adapter is attached."
+    },
+
+    "fallback_confidence_drawer_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "fallback_confidence_drawer_schema_version",
+        "drawer_record_id",
+        "captured_at",
+        "workspace_id",
+        "workset_scope_class",
+        "workset_scope_ref",
+        "drawer_scope_class",
+        "target_id_ref",
+        "publishing_graph_id_ref",
+        "affected_action_class_set",
+        "drawer_state_class",
+        "drawer_state_label_text",
+        "result_class",
+        "linked_fallback_confidence_record_id_ref",
+        "linked_adapter_drift_event_id_ref",
+        "linked_degraded_capability_handoff_record_id_ref",
+        "current_adapter_snapshot",
+        "source_kind_class",
+        "confidence_tier",
+        "capability_loss_explanation",
+        "safer_alternative_handoff_set",
+        "drawer_consumer_surface_class_set",
+        "support_bundle_export_card",
+        "issue_handoff_prefill_card",
+        "command_result_message_card",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "fallback_confidence_drawer_record"
+        },
+        "fallback_confidence_drawer_schema_version": { "$ref": "#/$defs/fallback_confidence_drawer_schema_version" },
+        "drawer_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "workset_scope_class": { "$ref": "#/$defs/workspace_scope_class" },
+        "workset_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional ref to the workset_scope object the drawer was resolved under. Null only when the drawer is workspace-wide before any scope has been resolved (for example no_adapter_attached)."
+        },
+        "drawer_scope_class": { "$ref": "#/$defs/drawer_scope_class" },
+        "target_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the target_descriptor_record target_id this drawer narrows. Non-null when drawer_scope_class is scope_target_action_pair or scope_target_all_actions; null when drawer_scope_class is scope_workspace_wide_no_target."
+        },
+        "publishing_graph_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Ref to the target_graph_snapshot_record graph_id this drawer resolves under. Null only when drawer_scope_class is scope_workspace_wide_no_target and no graph has been published yet."
+        },
+        "affected_action_class_set": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/affected_action_class" },
+          "description": "Set of run / test / build / debug actions the drawer narrows. MUST be non-empty: a drawer always narrows at least one action even when the loss is workspace-wide (workspace-wide drawers cite all four)."
+        },
+        "drawer_state_class": { "$ref": "#/$defs/drawer_state_class" },
+        "drawer_state_label_text": { "$ref": "#/$defs/drawer_state_label_text" },
+        "result_class": { "$ref": "#/$defs/result_class" },
+        "linked_fallback_confidence_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the fallback_confidence_record (in schemas/tooling/fallback_confidence.schema.json) this drawer projects from. MUST be non-null: the drawer is the user-facing presentation of an existing fallback record, never a parallel claim."
+        },
+        "linked_adapter_drift_event_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional ref to the adapter_drift_event_record (in schemas/tooling/adapter_drift_event.schema.json) the drawer fans out from. MUST be non-null when drawer_state_class is one of the capability_blocked_by_* classes (the drawer projects a drift cause)."
+        },
+        "linked_degraded_capability_handoff_record_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional ref to the degraded_capability_handoff_record (in schemas/tooling/fallback_confidence.schema.json) the drawer renders the detail view for. Non-null when the drawer is bound to a single (target_id, action) handoff; null when the drawer is workspace-wide."
+        },
+        "current_adapter_snapshot": { "$ref": "#/$defs/current_adapter_snapshot" },
+        "source_kind_class": { "$ref": "#/$defs/source_kind_class" },
+        "confidence_tier": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence tier projected onto the drawer. MUST NOT exceed current_adapter_snapshot.adapter_confidence_ceiling and MUST honor the same per-source-kind caps as schemas/tooling/fallback_confidence.schema.json (structured / heuristic / opaque caps enforced by the invariants below)."
+        },
+        "capability_loss_explanation": { "$ref": "#/$defs/capability_loss_explanation" },
+        "safer_alternative_handoff_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/safer_alternative_handoff_entry" },
+          "description": "Ordered list of safer-alternative-handoff entries the drawer offers. MUST be non-empty: the drawer is the user-facing detail card and never leaves the user with a typed loss and no typed next step. Order is presentation order; pickers, problems pane, output pane header, AI action sheets, CI overlays, support exports, issue handoffs, and command-result messages render the entries in this order."
+        },
+        "drawer_consumer_surface_class_set": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/drawer_consumer_surface_class" },
+          "description": "Set of consumer surfaces this drawer renders on. MUST include support_export_viewer so the drawer survives a support bundle export; MUST include at least one in-product surface (run_test_build_debug_picker_detail_card / quick_open_detail_pane / command_palette_result_card / problems_pane_detail_row / output_pane_header_drawer / ai_action_sheet_detail_card / ci_overlay_detail_card / issue_handoff_prefill_card / command_result_message_card)."
+        },
+        "support_bundle_export_card": { "$ref": "#/$defs/support_bundle_export_card" },
+        "issue_handoff_prefill_card": { "$ref": "#/$defs/issue_handoff_prefill_card" },
+        "command_result_message_card": { "$ref": "#/$defs/command_result_message_card" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One fallback-confidence drawer record. Pickers, problems pane, output pane header, AI action sheets, CI overlays, support-bundle exporters, issue-handoff prefill cards, and command-result message cards all read this record so heuristic / imported / replayed / partial / blocked posture never collapses into a generic Not available copy and the same explanation reaches every consumer surface."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "drawer_state_class capability_currently_inferred MUST pair with drawer_state_label_text Currently inferred and result_class currently_inferred.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_currently_inferred" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Currently inferred" },
+          "result_class": { "const": "currently_inferred" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_partially_supported MUST pair with Partially supported and result_class partially_supported.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_partially_supported" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Partially supported" },
+          "result_class": { "const": "partially_supported" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_unavailable_missing_adapter_coverage MUST pair with Missing adapter coverage and result_class known_missing.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_unavailable_missing_adapter_coverage" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Missing adapter coverage" },
+          "result_class": { "const": "known_missing" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_blocked_by_toolchain_drift MUST pair with Blocked by toolchain drift and result_class blocked_by_environment_or_toolchain_state.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_blocked_by_toolchain_drift" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Blocked by toolchain drift" },
+          "result_class": { "const": "blocked_by_environment_or_toolchain_state" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_blocked_by_environment_drift MUST pair with Blocked by environment drift and result_class blocked_by_environment_or_toolchain_state.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_blocked_by_environment_drift" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Blocked by environment drift" },
+          "result_class": { "const": "blocked_by_environment_or_toolchain_state" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_blocked_by_extension_pack_state MUST pair with Blocked by extension pack state and result_class blocked_by_environment_or_toolchain_state.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_blocked_by_extension_pack_state" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Blocked by extension pack state" },
+          "result_class": { "const": "blocked_by_environment_or_toolchain_state" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_blocked_by_active_policy_review MUST pair with Blocked by active policy review and result_class blocked_by_environment_or_toolchain_state.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_blocked_by_active_policy_review" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Blocked by active policy review" },
+          "result_class": { "const": "blocked_by_environment_or_toolchain_state" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_known_unsupported_in_adapter_class MUST pair with Known unsupported in this adapter and result_class known_unsupported.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_known_unsupported_in_adapter_class" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Known unsupported in this adapter" },
+          "result_class": { "const": "known_unsupported" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_replayed_from_support_bundle MUST pair with Replayed from support bundle and result_class replayed_from_support_bundle.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_replayed_from_support_bundle" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "Replayed from support bundle" },
+          "result_class": { "const": "replayed_from_support_bundle" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "drawer_state_class capability_no_adapter_attached MUST pair with No adapter attached and result_class no_adapter_attached.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_no_adapter_attached" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "drawer_state_label_text": { "const": "No adapter attached" },
+          "result_class": { "const": "no_adapter_attached" }
+        },
+        "required": ["drawer_state_label_text", "result_class"]
+      }
+    },
+    {
+      "description": "scope_target_action_pair MUST cite a non-null target_id_ref and a single affected_action_class_set element.",
+      "if": { "properties": { "drawer_scope_class": { "const": "scope_target_action_pair" } }, "required": ["drawer_scope_class"] },
+      "then": {
+        "properties": {
+          "target_id_ref": { "type": "string", "minLength": 1 },
+          "affected_action_class_set": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1
+          }
+        },
+        "required": ["target_id_ref", "affected_action_class_set"]
+      }
+    },
+    {
+      "description": "scope_target_all_actions MUST cite a non-null target_id_ref.",
+      "if": { "properties": { "drawer_scope_class": { "const": "scope_target_all_actions" } }, "required": ["drawer_scope_class"] },
+      "then": {
+        "properties": {
+          "target_id_ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["target_id_ref"]
+      }
+    },
+    {
+      "description": "scope_workspace_wide_no_target MUST set target_id_ref to null.",
+      "if": { "properties": { "drawer_scope_class": { "const": "scope_workspace_wide_no_target" } }, "required": ["drawer_scope_class"] },
+      "then": {
+        "properties": {
+          "target_id_ref": { "type": "null" }
+        },
+        "required": ["target_id_ref"]
+      }
+    },
+    {
+      "description": "structured_importer_export, support_bundle_replay, and import_probe_export source kinds MUST cap confidence_tier at structured_parse_match.",
+      "if": {
+        "properties": {
+          "source_kind_class": {
+            "enum": [
+              "structured_importer_export",
+              "support_bundle_replay",
+              "import_probe_export"
+            ]
+          }
+        },
+        "required": ["source_kind_class"]
+      },
+      "then": {
+        "properties": {
+          "confidence_tier": {
+            "enum": [
+              "structured_parse_match",
+              "heuristic_best_effort",
+              "degraded_partial",
+              "unknown"
+            ]
+          }
+        },
+        "required": ["confidence_tier"]
+      }
+    },
+    {
+      "description": "heuristic_target_inferrer_ruleset, ai_proposed_pending_review, opaque_unsupported_preservation, and no_adapter_attached source kinds MUST cap confidence_tier at heuristic_best_effort.",
+      "if": {
+        "properties": {
+          "source_kind_class": {
+            "enum": [
+              "heuristic_target_inferrer_ruleset",
+              "ai_proposed_pending_review",
+              "opaque_unsupported_preservation",
+              "no_adapter_attached"
+            ]
+          }
+        },
+        "required": ["source_kind_class"]
+      },
+      "then": {
+        "properties": {
+          "confidence_tier": {
+            "enum": [
+              "heuristic_best_effort",
+              "degraded_partial",
+              "unknown"
+            ]
+          }
+        },
+        "required": ["confidence_tier"]
+      }
+    },
+    {
+      "description": "opaque_unsupported_preservation source kind MUST cap confidence_tier at unknown and pair with adapter_class fallback_opaque_preservation.",
+      "if": { "properties": { "source_kind_class": { "const": "opaque_unsupported_preservation" } }, "required": ["source_kind_class"] },
+      "then": {
+        "properties": {
+          "confidence_tier": { "const": "unknown" },
+          "current_adapter_snapshot": {
+            "type": "object",
+            "properties": {
+              "adapter_class": { "const": "fallback_opaque_preservation" },
+              "adapter_confidence_ceiling": { "const": "unknown" }
+            },
+            "required": ["adapter_class", "adapter_confidence_ceiling"]
+          }
+        },
+        "required": ["confidence_tier", "current_adapter_snapshot"]
+      }
+    },
+    {
+      "description": "capability_currently_inferred MUST cap confidence_tier at heuristic_best_effort.",
+      "if": { "properties": { "drawer_state_class": { "const": "capability_currently_inferred" } }, "required": ["drawer_state_class"] },
+      "then": {
+        "properties": {
+          "confidence_tier": {
+            "enum": [
+              "heuristic_best_effort",
+              "degraded_partial",
+              "unknown"
+            ]
+          }
+        },
+        "required": ["confidence_tier"]
+      }
+    },
+    {
+      "description": "capability_blocked_by_toolchain_drift / capability_blocked_by_environment_drift / capability_blocked_by_extension_pack_state / capability_blocked_by_active_policy_review MUST cite a non-null linked_adapter_drift_event_id_ref so the drawer projects from a typed drift cause.",
+      "if": {
+        "properties": {
+          "drawer_state_class": {
+            "enum": [
+              "capability_blocked_by_toolchain_drift",
+              "capability_blocked_by_environment_drift",
+              "capability_blocked_by_extension_pack_state",
+              "capability_blocked_by_active_policy_review"
+            ]
+          }
+        },
+        "required": ["drawer_state_class"]
+      },
+      "then": {
+        "properties": {
+          "linked_adapter_drift_event_id_ref": { "type": "string", "minLength": 1 }
+        },
+        "required": ["linked_adapter_drift_event_id_ref"]
+      }
+    },
+    {
+      "description": "drawer_consumer_surface_class_set MUST include support_export_viewer so the drawer survives a support bundle export.",
+      "then": {
+        "properties": {
+          "drawer_consumer_surface_class_set": {
+            "type": "array",
+            "contains": { "const": "support_export_viewer" }
+          }
+        }
+      },
+      "if": { "type": "object" }
+    },
+    {
+      "description": "safer_alternative_handoff_set MUST contain exactly one primary_button_in_drawer entry unless the only safer-alternative is no_safer_alternative_admissible_review_only.",
+      "if": {
+        "properties": {
+          "safer_alternative_handoff_set": {
+            "type": "array",
+            "not": {
+              "items": {
+                "properties": {
+                  "safer_alternative_handoff_class": { "const": "no_safer_alternative_admissible_review_only" }
+                },
+                "required": ["safer_alternative_handoff_class"]
+              },
+              "minItems": 1
+            }
+          }
+        },
+        "required": ["safer_alternative_handoff_set"]
+      },
+      "then": {
+        "properties": {
+          "safer_alternative_handoff_set": {
+            "type": "array",
+            "contains": {
+              "properties": {
+                "safer_alternative_presentation_class": { "const": "primary_button_in_drawer" }
+              },
+              "required": ["safer_alternative_presentation_class"]
+            }
+          }
+        },
+        "required": ["safer_alternative_handoff_set"]
+      }
+    },
+    {
+      "description": "redacted_pending_policy_review export disclosure MAY suppress the capability-loss explanation, active-adapter snapshot, and safer-alternative-handoff summary on the support_bundle_export_card; all other disclosure classes MUST set the three include_* flags to true.",
+      "if": {
+        "properties": {
+          "support_bundle_export_card": {
+            "type": "object",
+            "properties": {
+              "copy_export_disclosure_class": {
+                "not": { "const": "redacted_pending_policy_review" }
+              }
+            },
+            "required": ["copy_export_disclosure_class"]
+          }
+        },
+        "required": ["support_bundle_export_card"]
+      },
+      "then": {
+        "properties": {
+          "support_bundle_export_card": {
+            "type": "object",
+            "properties": {
+              "includes_capability_loss_explanation": { "const": true },
+              "includes_active_adapter_snapshot": { "const": true },
+              "includes_safer_alternative_handoff_summary": { "const": true }
+            },
+            "required": [
+              "includes_capability_loss_explanation",
+              "includes_active_adapter_snapshot",
+              "includes_safer_alternative_handoff_summary"
+            ]
+          }
+        },
+        "required": ["support_bundle_export_card"]
+      }
+    }
+  ]
+}
