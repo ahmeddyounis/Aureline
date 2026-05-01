@@ -1,0 +1,201 @@
+__fixture__:
+  name: ai_provider_mirror_derived_mode_offline_capture
+  case_id: provider_sync_health.ai_provider_mirror_derived_mode_offline_capture.v1
+  scenario: >-
+    An AI-provider sync-health view publishes a typed mirror_derived
+    mode after the canonical host became unreachable and an
+    organisation mirror is now serving cached chat-thread state.
+    The cursor is lagging, a mirror_derived degraded-import entry
+    labels the imported chat-thread overlays as mirror-derived,
+    and the canonical host is named separately so consumers know
+    the rendered state is not from the canonical host.
+  exercised:
+    record_kinds:
+      - provider_sync_health_view_record
+    provider_class: ai_provider
+    current_mode_class: mirror_derived
+    failure_classes:
+      - provider_unreachable
+    cursor_state_class: cursor_lagging
+    object_classes:
+      - other
+    blast_radius_object_classes:
+      - other
+    degraded_import_classes:
+      - mirror_derived
+    escalation_surface_classes:
+      - toast_or_banner
+      - detail_view
+      - cli_inspection
+      - support_export
+      - audit_packet
+    support_export_channel_classes:
+      - support_bundle
+      - audit_packet
+      - admin_assisted_handoff_packet
+    redaction_class: signing_evidence_only
+
+records:
+  - record_kind: provider_sync_health_view_record
+    provider_sync_health_schema_version: 1
+    view_id: psh:ai_provider:mirror.aureline.internal:aureline:other:0001
+    connected_provider_record_id: conn_prov:claude.ai:aureline:primary
+    provider_identity:
+      provider_class: ai_provider
+      provider_host: mirror.aureline.internal
+      tenant_or_org_scope: aureline
+      provider_instance_ref: provider_instance:claude.ai:aureline:org_mirror:0001
+      canonical_host: claude.ai
+    object_scope:
+      - object_class: other
+        scope_summary: >-
+          Aureline AI-provider chat-thread overlays tracked
+          through the linked claude.ai connected-provider
+          record; canonical host claude.ai, currently served
+          through mirror.aureline.internal.
+        scope_ref: scope:provider_object_relation:claude.ai:aureline:chat_thread:0001
+    current_mode_class: mirror_derived
+    last_success_event:
+      has_prior_success: true
+      event_ref: prov_event:claude.ai:webhook:thread.update:20260430T072500Z:0001
+      captured_at: "2026-04-30T07:25:00Z"
+      summary: >-
+        Last verified delivery from canonical host applied at
+        07:25 UTC; canonical host became unreachable shortly
+        after and the organisation mirror has been serving
+        cached state since.
+    last_failure_event:
+      event_ref: prov_event:claude.ai:poll:thread.list:20260430T080000Z:0001
+      occurred_at: "2026-04-30T08:00:00Z"
+      failure_class: provider_unreachable
+      summary: >-
+        Canonical host claude.ai became unreachable at 08:00
+        UTC; the organisation mirror is now serving cached
+        state under the typed mirror_derived mode.
+    cursor_state:
+      cursor_state_class: cursor_lagging
+      cursor_ref: cursor:claude.ai:aureline:thread:0001
+      sequence_hint: "page=11;mirror_freshness=20260430T072500Z"
+      state_summary: >-
+        Cursor is lagging behind the canonical host; the mirror
+        is serving cached state at the freshness floor of the
+        last canonical delivery.
+    blast_radius_counts:
+      - object_class: other
+        impacted_count: 14
+        replayed_count: 0
+        delayed_count: 0
+        denied_count: 0
+        duplicate_count: 0
+        mirror_derived_count: 14
+        count_summary: >-
+          Fourteen chat-thread overlays rendered through the
+          organisation mirror; all fourteen are labelled
+          mirror_derived and not local live truth.
+    degraded_import_entries:
+      - degraded_import_class: mirror_derived
+        entry_summary: >-
+          Chat-thread overlays served through the organisation
+          mirror at mirror.aureline.internal; canonical host
+          claude.ai is unreachable. State is mirror-derived,
+          not live.
+        scope_ref: scope:import_session:claude.ai:org_mirror_sync:20260430T080100Z:0001
+        impacted_count: 14
+    correlation_refs:
+      replayed_event_refs: []
+      delayed_event_refs:
+        - prov_event:claude.ai:poll:thread.list:20260430T080000Z:0001
+      denied_event_refs: []
+      duplicate_event_refs: []
+      impacted_local_object_refs:
+        - rel:provider_object:claude.ai:thread:t-9001:0001
+        - rel:provider_object:claude.ai:thread:t-9002:0001
+      imported_overlay_refs:
+        - import_session:claude.ai:org_mirror_sync:20260430T080100Z:0001
+      stale_header_refs:
+        - link_header:claude.ai:thread:t-9001:0001
+        - link_header:claude.ai:thread:t-9002:0001
+      provider_linked_notification_refs:
+        - notif:activity_center:claude.ai:mirror_derived:0001
+    escalation_path:
+      - escalation_surface_class: toast_or_banner
+        surface_summary: >-
+          Toast / banner copy: "Claude.ai sync mirror-derived:
+          canonical host unreachable; 14 threads served from
+          org mirror" — quotes the typed mirror_derived mode
+          and degraded class verbatim.
+        label_ref: label:psh:claude.ai:mirror_derived:toast:0001
+      - escalation_surface_class: detail_view
+        surface_summary: >-
+          Detail view quotes the typed mirror_derived mode, the
+          provider_unreachable failure class, the cursor_lagging
+          cursor state, the canonical host claude.ai, and the
+          mirror_derived blast-radius row.
+        label_ref: label:psh:claude.ai:mirror_derived:detail:0001
+      - escalation_surface_class: cli_inspection
+        surface_summary: >-
+          CLI inspection renders current_mode_class=mirror_derived,
+          failure_class=provider_unreachable,
+          cursor_state_class=cursor_lagging, the canonical host,
+          and the structured mirror_derived counts row.
+        label_ref: label:psh:claude.ai:mirror_derived:cli:0001
+      - escalation_surface_class: support_export
+        surface_summary: >-
+          Support export bundle cites the org-mirror
+          import-session ref, the canonical host, and the
+          typed mirror_derived degraded entry through the
+          support-bundle channel.
+        label_ref: label:psh:claude.ai:mirror_derived:support:0001
+      - escalation_surface_class: audit_packet
+        surface_summary: >-
+          Audit packet cites the provider_event_held and
+          import_session_started audit-event refs and the
+          typed mirror_derived mode for the chat-thread scope.
+        label_ref: label:psh:claude.ai:mirror_derived:audit:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Mirror-derived sync-health view attached to a support
+          bundle without raw credentials or tenant-private
+          payloads.
+        linked_record_ref: support:bundle:psh:claude.ai:mirror_derived:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: audit_packet
+        channel_summary: >-
+          Mirror-derived sync-health view attached to the typed
+          audit packet alongside provider_handoff audit-event
+          refs.
+        linked_record_ref: audit:packet:psh:claude.ai:mirror_derived:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: admin_assisted_handoff_packet
+        channel_summary: >-
+          Mirror-derived sync-health view attached to an
+          admin-assisted-handoff packet so a privileged actor
+          can complete repair if the canonical host stays
+          unreachable.
+        linked_record_ref: handoff:admin_assisted:claude.ai:mirror_derived:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    forbids_generic_sync_failed_copy: true
+    notes_summary: >-
+      claude.ai chat-thread sync is mirror-derived because the
+      canonical host became unreachable; the organisation mirror
+      is serving cached state and every overlay is labelled
+      mirror_derived rather than local live truth.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:delegated_credential_binding:claude.ai:aureline:0001
+      execution_context_id: execution-context:provider_sync_health.ai_provider:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: restricted
+      execution_context_id: execution-context:provider_sync_health.ai_provider:0001
+    captured_at: "2026-04-30T08:01:30Z"
+    audit_event_refs:
+      - audit:provider_event_held:20260430T080000Z:0001
+      - audit:import_session_started:20260430T080100Z:0001
+    redaction_class: signing_evidence_only

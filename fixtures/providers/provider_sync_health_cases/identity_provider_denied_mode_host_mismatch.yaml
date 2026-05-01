@@ -1,0 +1,194 @@
+__fixture__:
+  name: identity_provider_denied_mode_host_mismatch
+  case_id: provider_sync_health.identity_provider_denied_mode_host_mismatch.v1
+  scenario: >-
+    An identity-provider sync-health view publishes a typed denied
+    mode after the provider returned a different canonical host
+    than the connected account names. Previously-imported principal
+    overlays are now labelled with a host_mismatch degraded entry
+    so the rendered state does not masquerade as fresh canonical
+    truth. The correlation block cites the denied event ref and
+    the impacted principal overlays.
+  exercised:
+    record_kinds:
+      - provider_sync_health_view_record
+    provider_class: identity_or_enterprise_provider
+    current_mode_class: denied
+    failure_classes:
+      - host_mismatch
+    cursor_state_class: cursor_paused
+    object_classes:
+      - principal_subject
+    blast_radius_object_classes:
+      - principal_subject
+    degraded_import_classes:
+      - host_mismatch
+    escalation_surface_classes:
+      - toast_or_banner
+      - detail_view
+      - cli_inspection
+      - support_export
+      - audit_packet
+    support_export_channel_classes:
+      - support_bundle
+      - audit_packet
+      - migration_note
+    redaction_class: internal_support_restricted
+
+records:
+  - record_kind: provider_sync_health_view_record
+    provider_sync_health_schema_version: 1
+    view_id: psh:identity_provider:okta.com:aureline:principal_subject:0001
+    connected_provider_record_id: conn_prov:okta.com:aureline:primary
+    provider_identity:
+      provider_class: identity_or_enterprise_provider
+      provider_host: okta.com
+      tenant_or_org_scope: aureline
+    object_scope:
+      - object_class: principal_subject
+        scope_summary: >-
+          Aureline workforce identity principals tracked through
+          the linked Okta connected-provider record.
+        scope_ref: scope:provider_object_relation:okta.com:aureline:principal_subject:0001
+    current_mode_class: denied
+    last_success_event:
+      has_prior_success: true
+      event_ref: prov_event:okta.com:webhook:user.update:20260430T064500Z:0001
+      captured_at: "2026-04-30T06:45:00Z"
+      summary: >-
+        Last verified delivery from canonical host okta.com
+        applied at 06:45 UTC; subsequent delivery returned a
+        different canonical host (okta-eu.com).
+    last_failure_event:
+      event_ref: prov_event:okta.com:webhook:user.update:20260430T084000Z:0001
+      occurred_at: "2026-04-30T08:40:00Z"
+      failure_class: host_mismatch
+      summary: >-
+        Provider returned canonical host okta-eu.com; the
+        connected account names okta.com. Delivery denied; tenant
+        migration review required.
+    cursor_state:
+      cursor_state_class: cursor_paused
+      cursor_ref: cursor:okta.com:aureline:principal:0001
+      sequence_hint: "page=2;paused_at=20260430T084000Z"
+      state_summary: >-
+        Cursor paused pending tenant-migration review; no
+        further deliveries will be processed until the
+        canonical host is reconciled.
+    blast_radius_counts:
+      - object_class: principal_subject
+        impacted_count: 132
+        replayed_count: 0
+        delayed_count: 0
+        denied_count: 1
+        duplicate_count: 0
+        mirror_derived_count: 0
+        count_summary: >-
+          One delivery denied; one hundred and thirty-two
+          previously-imported principal overlays are labelled
+          with the host_mismatch degraded class until tenant
+          migration review completes.
+    degraded_import_entries:
+      - degraded_import_class: host_mismatch
+        entry_summary: >-
+          Previously-imported principal overlays were last
+          materialised under canonical host okta.com; provider
+          now returns okta-eu.com. Overlays MUST NOT render as
+          fresh canonical truth until reconciled.
+        scope_ref: scope:import_session:okta.com:user.snapshot:20260430T064500Z:0001
+        impacted_count: 132
+    correlation_refs:
+      replayed_event_refs: []
+      delayed_event_refs: []
+      denied_event_refs:
+        - prov_event:okta.com:webhook:user.update:20260430T084000Z:0001
+      duplicate_event_refs: []
+      impacted_local_object_refs:
+        - rel:provider_object:okta.com:principal:user-1:0001
+        - rel:provider_object:okta.com:principal:user-2:0001
+      imported_overlay_refs:
+        - import_session:okta.com:user.snapshot:20260430T064500Z:0001
+      stale_header_refs:
+        - link_header:okta.com:principal:user-1:0001
+        - link_header:okta.com:principal:user-2:0001
+      provider_linked_notification_refs:
+        - notif:activity_center:okta.com:host_mismatch:0001
+    escalation_path:
+      - escalation_surface_class: toast_or_banner
+        surface_summary: >-
+          Toast / banner copy: "Okta sync denied: host mismatch
+          (okta.com vs. okta-eu.com); 132 principals labelled
+          host_mismatch" — quotes the typed denied mode and
+          host_mismatch degraded class verbatim.
+        label_ref: label:psh:okta.com:denied_host_mismatch:toast:0001
+      - escalation_surface_class: detail_view
+        surface_summary: >-
+          Detail view quotes the typed denied mode, the
+          host_mismatch failure class, the cursor_paused cursor
+          state, and the per-class blast-radius row.
+        label_ref: label:psh:okta.com:denied_host_mismatch:detail:0001
+      - escalation_surface_class: cli_inspection
+        surface_summary: >-
+          CLI inspection renders current_mode_class=denied,
+          failure_class=host_mismatch,
+          cursor_state_class=cursor_paused, and the structured
+          per-class blast-radius row.
+        label_ref: label:psh:okta.com:denied_host_mismatch:cli:0001
+      - escalation_surface_class: support_export
+        surface_summary: >-
+          Support export bundle cites the denied event ref,
+          the prior import-session ref, and the typed
+          host_mismatch degraded entry through the
+          support-bundle channel.
+        label_ref: label:psh:okta.com:denied_host_mismatch:support:0001
+      - escalation_surface_class: audit_packet
+        surface_summary: >-
+          Audit packet cites the provider_event_denied
+          audit-event ref and the typed denied mode for the
+          principal-subject scope.
+        label_ref: label:psh:okta.com:denied_host_mismatch:audit:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Denied-mode sync-health view attached to a support
+          bundle without raw credentials or tenant-private
+          payloads.
+        linked_record_ref: support:bundle:psh:okta.com:denied_host_mismatch:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: audit_packet
+        channel_summary: >-
+          Denied-mode sync-health view attached to the typed
+          audit packet alongside provider_handoff audit-event
+          refs.
+        linked_record_ref: audit:packet:psh:okta.com:denied_host_mismatch:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: migration_note
+        channel_summary: >-
+          Denied-mode sync-health view attached to a migration
+          note for the tenant-migration review.
+        linked_record_ref: migration:note:okta.com:host_mismatch:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    forbids_generic_sync_failed_copy: true
+    notes_summary: >-
+      Okta principal sync denied because the provider returned
+      canonical host okta-eu.com while the connected account
+      names okta.com; previously-imported principals labelled
+      host_mismatch pending tenant-migration review.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:installation_or_app_grant:okta.com:aureline:0001
+      execution_context_id: execution-context:provider_sync_health.identity_provider:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: restricted
+      execution_context_id: execution-context:provider_sync_health.identity_provider:0001
+    captured_at: "2026-04-30T08:41:30Z"
+    audit_event_refs:
+      - audit:provider_event_denied:20260430T084000Z:0001
+      - audit:policy_epoch_rolled_invalidations:20260430T084030Z:0001
+    redaction_class: internal_support_restricted

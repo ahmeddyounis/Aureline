@@ -1,0 +1,183 @@
+__fixture__:
+  name: issue_planning_delayed_mode_replay_held
+  case_id: provider_sync_health.issue_planning_delayed_mode_replay_held.v1
+  scenario: >-
+    An issue / planning provider sync-health view publishes a typed
+    delayed mode after the replay ledger held two deliveries pending
+    sequence resolution. The cursor is lagging, a backfilled
+    degraded-import entry labels the held import session, and the
+    correlation block cites the held event refs alongside the
+    impacted issue overlays.
+  exercised:
+    record_kinds:
+      - provider_sync_health_view_record
+    provider_class: issue_or_planning_tracker
+    current_mode_class: delayed
+    failure_classes:
+      - replay_held
+    cursor_state_class: cursor_lagging
+    object_classes:
+      - issue_or_work_item
+    blast_radius_object_classes:
+      - issue_or_work_item
+    degraded_import_classes:
+      - backfilled
+    escalation_surface_classes:
+      - toast_or_banner
+      - detail_view
+      - cli_inspection
+      - support_export
+      - audit_packet
+    support_export_channel_classes:
+      - support_bundle
+      - migration_note
+    redaction_class: operator_only_restricted
+
+records:
+  - record_kind: provider_sync_health_view_record
+    provider_sync_health_schema_version: 1
+    view_id: psh:issue_or_planning:linear.app:aureline:issue_or_work_item:0001
+    connected_provider_record_id: conn_prov:linear.app:aureline:primary
+    provider_identity:
+      provider_class: issue_or_planning_tracker
+      provider_host: linear.app
+      tenant_or_org_scope: aureline
+    object_scope:
+      - object_class: issue_or_work_item
+        scope_summary: >-
+          Active aureline workspace issues tracked through the
+          linked Linear connected-provider record.
+        scope_ref: scope:provider_object_relation:linear.app:aureline:issue:0001
+    current_mode_class: delayed
+    last_success_event:
+      has_prior_success: true
+      event_ref: prov_event:linear.app:webhook:issue.update:20260430T084500Z:0001
+      captured_at: "2026-04-30T08:45:00Z"
+      summary: >-
+        Last verified delivery applied at 08:45 UTC; subsequent
+        deliveries were held by the replay ledger pending sequence
+        resolution.
+    last_failure_event:
+      event_ref: prov_event:linear.app:webhook:issue.update:20260430T085800Z:0001
+      occurred_at: "2026-04-30T08:58:00Z"
+      failure_class: replay_held
+      summary: >-
+        Replay ledger held the 08:58 UTC delivery pending sequence
+        resolution; downstream deliveries are queued behind the gap.
+      operator_review_ref: operator_review:linear.app:replay_held:20260430T085800Z:0001
+    cursor_state:
+      cursor_state_class: cursor_lagging
+      cursor_ref: cursor:linear.app:aureline:issue:0001
+      sequence_hint: "page=18;monotonic_seq=901544;held_at=901546"
+      state_summary: >-
+        Cursor is bounded-stale; catch-up is queued behind two
+        held deliveries.
+    blast_radius_counts:
+      - object_class: issue_or_work_item
+        impacted_count: 12
+        replayed_count: 0
+        delayed_count: 9
+        denied_count: 0
+        duplicate_count: 3
+        mirror_derived_count: 0
+        count_summary: >-
+          Twelve issues impacted in the delayed window: nine
+          deliveries deferred behind the held sequence and three
+          deduped duplicates from provider redelivery.
+    degraded_import_entries:
+      - degraded_import_class: backfilled
+        entry_summary: >-
+          Backfilled snapshot from the last successful import
+          session; live state will resume once the held sequence
+          resolves.
+        scope_ref: scope:import_session:linear.app:issue.backfill:20260430T085900Z:0001
+        impacted_count: 12
+    correlation_refs:
+      replayed_event_refs: []
+      delayed_event_refs:
+        - prov_event:linear.app:webhook:issue.update:20260430T085800Z:0001
+        - prov_event:linear.app:webhook:issue.update:20260430T085900Z:0001
+      denied_event_refs: []
+      duplicate_event_refs:
+        - prov_event:linear.app:webhook:issue.update:20260430T085801Z:dup:0001
+        - prov_event:linear.app:webhook:issue.update:20260430T085801Z:dup:0002
+        - prov_event:linear.app:webhook:issue.update:20260430T085802Z:dup:0001
+      impacted_local_object_refs:
+        - rel:provider_object:linear.app:issue:AUR-401:0001
+        - rel:provider_object:linear.app:issue:AUR-402:0001
+        - rel:provider_object:linear.app:issue:AUR-403:0001
+      imported_overlay_refs:
+        - import_session:linear.app:issue.backfill:20260430T085900Z:0001
+      stale_header_refs:
+        - link_header:linear.app:issue:AUR-401:0001
+        - link_header:linear.app:issue:AUR-402:0001
+      provider_linked_notification_refs:
+        - notif:activity_center:linear.app:delayed:0001
+    escalation_path:
+      - escalation_surface_class: toast_or_banner
+        surface_summary: >-
+          Toast / banner copy: "Linear sync delayed: replay held;
+          12 issues showing backfilled snapshot" — quotes the
+          typed delayed mode and backfilled degraded class verbatim.
+        label_ref: label:psh:linear.app:delayed:toast:0001
+      - escalation_surface_class: detail_view
+        surface_summary: >-
+          Detail view quotes the typed delayed mode, the
+          replay_held failure class, the cursor_lagging cursor
+          state, and the per-class blast-radius row.
+        label_ref: label:psh:linear.app:delayed:detail:0001
+      - escalation_surface_class: cli_inspection
+        surface_summary: >-
+          CLI inspection renders current_mode_class=delayed,
+          failure_class=replay_held, cursor_state_class=cursor_lagging,
+          and the structured impacted/delayed/duplicate counts.
+        label_ref: label:psh:linear.app:delayed:cli:0001
+      - escalation_surface_class: support_export
+        surface_summary: >-
+          Support export bundle cites the held event refs, the
+          backfilled import-session ref, and the typed
+          replay_held failure class through the support-bundle
+          channel.
+        label_ref: label:psh:linear.app:delayed:support:0001
+      - escalation_surface_class: audit_packet
+        surface_summary: >-
+          Audit packet cites the provider_event_held audit-event
+          refs and the typed delayed mode for the scope.
+        label_ref: label:psh:linear.app:delayed:audit:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Delayed-mode sync-health view attached to a support
+          bundle without raw credentials or tenant-private
+          payloads.
+        linked_record_ref: support:bundle:psh:linear.app:delayed:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: migration_note
+        channel_summary: >-
+          Delayed-mode sync-health view attached to a migration
+          note for the held-sequence reconciliation.
+        linked_record_ref: migration:note:linear.app:replay_held:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    forbids_generic_sync_failed_copy: true
+    notes_summary: >-
+      Linear issue sync is delayed by a replay-held sequence;
+      issues are showing a backfilled snapshot until the held
+      deliveries clear.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:linear.app:ahmeddyounis:primary
+      execution_context_id: execution-context:provider_sync_health.issue_or_planning:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:provider_sync_health.issue_or_planning:0001
+    captured_at: "2026-04-30T09:00:15Z"
+    audit_event_refs:
+      - audit:provider_event_held:20260430T085800Z:0001
+      - audit:provider_event_held:20260430T085900Z:0001
+      - audit:webhook_replay_deduped_noop:20260430T085801Z:0001
+    redaction_class: operator_only_restricted

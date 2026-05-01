@@ -1,0 +1,873 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/provider_sync_health_view.schema.json",
+  "title": "Aureline provider sync-health view, replay-blast-radius summary, and degraded-import vocabulary",
+  "description": "Boundary schema for the provider_sync_health_view_record frozen in docs/providers/provider_sync_health_contract.md. The sync-health view record is the typed snapshot of one (connected provider, object scope) pair's current sync mode, last-success and last-failure provider-event references, cursor / reset state, blast-radius counts by object class, degraded-import entries, replay-blast-radius correlation refs, escalation path, and support-export channels so Aureline never falls back to a generic 'sync failed' label and so imported provider state never masquerades as live truth. The current-mode vocabulary covers live, delayed, partial, replayed, denied, offline, and mirror_derived. The degraded-import vocabulary covers partial, backfilled, mirror_derived, stale_permission, and host_mismatch. The cursor-state vocabulary covers cursor_current, cursor_lagging, cursor_paused, cursor_missing_page_detected, cursor_page_gap_detected, cursor_reset_pending, cursor_reset_in_progress, cursor_reset_completed, and cursor_unknown_repair_required. The failure-class vocabulary covers network_unreachable, credential_expired_or_revoked, host_mismatch, tenant_switch, signature_denied, policy_blocked, rate_limited, cursor_reset_required, missing_page_detected, stale_permission, replay_held, partial_failure, provider_unreachable, and unknown_failure_repair_required. The escalation path enumerates toast_or_banner, detail_view, cli_inspection, support_export, and audit_packet so language travels every consumer. Export channels cover support_bundle, audit_packet, migration_note, admin_assisted_handoff_packet, and object_handoff_packet without revealing raw credentials or tenant-private payloads. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw imported-snapshot bodies never cross this boundary; the record carries opaque refs and structured fields only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new current_mode_class, failure_class, cursor_state_class, degraded_import_class, escalation_surface_class, support_export_channel_class, or object_class is additive-minor and requires a provider_sync_health_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_sync_health_view_record" }
+  ],
+  "$defs": {
+    "provider_sync_health_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider sync-health vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["provider_sync_health_view_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / activity-center rollups / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in toast / banner copy, detail-view rows, CLI inspection output, support-export packet copy, audit-packet copy, and provider-linked notifications. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw imported-snapshot bodies never appear here."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 / ADR-0010 redaction posture. Raw URLs, raw callback bodies, raw webhook bodies, raw delegated-token bodies, raw provider payloads, and raw imported-snapshot bodies never cross this boundary regardless of class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the sync-health view was authored under."
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative integer count. Counts are always ≥ 0; a zero count is the typed signal that the row reports zero impacted objects of the named class."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "review_or_code_host",
+        "issue_or_planning_tracker",
+        "ci_or_check_provider",
+        "docs_or_portal_provider",
+        "identity_or_enterprise_provider",
+        "callback_or_event_provider",
+        "ai_provider",
+        "package_registry_provider",
+        "release_publisher_provider",
+        "managed_admin_provider"
+      ],
+      "description": "Frozen provider-class vocabulary reused from schemas/integration/browser_handoff_packet.schema.json. Every sync-health view names exactly one class so notifications, activity-center rows, exports, and audit events can quote the same class without a generic 'External' or 'Cloud' fallback."
+    },
+
+    "object_class": {
+      "type": "string",
+      "enum": [
+        "pull_request",
+        "issue_or_work_item",
+        "check_run",
+        "release_artifact",
+        "docs_page",
+        "audit_entry",
+        "admin_surface",
+        "consent_flow",
+        "package_version",
+        "registry_entry",
+        "principal_subject",
+        "install_target",
+        "tenant_or_org",
+        "other"
+      ],
+      "description": "Frozen provider-side object class vocabulary. Aligned with object_type_class in schemas/providers/provider_link_header.schema.json so a single sync-health view row reports counts for the same class the link header renders."
+    },
+
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_class", "provider_host"],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" },
+        "provider_instance_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider-instance the view reports on; empty string when the view applies at provider-host granularity."
+        },
+        "canonical_host": {
+          "type": "string",
+          "description": "Canonical provider host. Required when current_mode_class is mirror_derived so the view names the canonical host alongside the mirror posture."
+        }
+      },
+      "description": "Provider-side identity the sync-health view is scoped to."
+    },
+
+    "object_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "scope_summary"],
+      "properties": {
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "scope_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed object scope this entry covers (provider_object_relation_record ref, import_session_record ref, or scope-resolution row ref)."
+        }
+      },
+      "description": "One entry in the typed object scope the sync-health view reports on."
+    },
+
+    "current_mode_class": {
+      "type": "string",
+      "enum": [
+        "live",
+        "delayed",
+        "partial",
+        "replayed",
+        "denied",
+        "offline",
+        "mirror_derived"
+      ],
+      "description": "Frozen sync-mode vocabulary. Surfaces render this verbatim; collapsing two modes into a single 'sync failed' label is forbidden. live = current and verified; delayed = held / deferred / backed off; partial = some objects materialised, some did not; replayed = replay rewrote state; denied = at least one verified delivery denied; offline = provider unreachable or account suspended; mirror_derived = state served through a self-hosted or organisation mirror."
+    },
+
+    "failure_class": {
+      "type": "string",
+      "enum": [
+        "network_unreachable",
+        "credential_expired_or_revoked",
+        "host_mismatch",
+        "tenant_switch",
+        "signature_denied",
+        "policy_blocked",
+        "rate_limited",
+        "cursor_reset_required",
+        "missing_page_detected",
+        "stale_permission",
+        "replay_held",
+        "partial_failure",
+        "provider_unreachable",
+        "unknown_failure_repair_required"
+      ],
+      "description": "Frozen failure-class vocabulary. Required when current_mode_class is anything other than live; surfaces MUST quote this verbatim."
+    },
+
+    "cursor_state_class": {
+      "type": "string",
+      "enum": [
+        "cursor_current",
+        "cursor_lagging",
+        "cursor_paused",
+        "cursor_missing_page_detected",
+        "cursor_page_gap_detected",
+        "cursor_reset_pending",
+        "cursor_reset_in_progress",
+        "cursor_reset_completed",
+        "cursor_unknown_repair_required"
+      ],
+      "description": "Frozen cursor-state vocabulary. Required on every sync-health view; a generic 'behind' or 'stuck' label is forbidden."
+    },
+
+    "degraded_import_class": {
+      "type": "string",
+      "enum": [
+        "partial",
+        "backfilled",
+        "mirror_derived",
+        "stale_permission",
+        "host_mismatch"
+      ],
+      "description": "Frozen degraded-import vocabulary. Imported provider state MUST NOT masquerade as current canonical truth; every degraded import is rendered through one typed class."
+    },
+
+    "escalation_surface_class": {
+      "type": "string",
+      "enum": [
+        "toast_or_banner",
+        "detail_view",
+        "cli_inspection",
+        "support_export",
+        "audit_packet"
+      ],
+      "description": "Frozen escalation-surface vocabulary. The sync-health view's escalation_path lists every member exactly once so the same typed mode and degraded-import language travels every consumer."
+    },
+
+    "support_export_channel_class": {
+      "type": "string",
+      "enum": [
+        "support_bundle",
+        "audit_packet",
+        "migration_note",
+        "admin_assisted_handoff_packet",
+        "object_handoff_packet"
+      ],
+      "description": "Frozen export-channel class. Sync-health views ride support bundles, audit packets, migration notes, admin-assisted handoff packets, and object handoff packets without revealing raw credentials or tenant-private payloads."
+    },
+
+    "last_success_event_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["has_prior_success", "summary"],
+      "properties": {
+        "has_prior_success": {
+          "type": "boolean",
+          "description": "False is the explicit no_prior_success_event marker; the scope has never had a verified-and-applied sync. True requires event_ref and captured_at."
+        },
+        "event_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_event_record whose verified-and-applied delivery was the most recent successful sync for the scope. Required when has_prior_success is true; empty string otherwise."
+        },
+        "captured_at": {
+          "type": "string",
+          "description": "ISO 8601 UTC timestamp produced from a monotonic clock source for the last successful sync. Required when has_prior_success is true; empty string otherwise."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "When has_prior_success is true, event_ref and captured_at MUST be non-empty.",
+          "if": {
+            "properties": { "has_prior_success": { "const": true } },
+            "required": ["has_prior_success"]
+          },
+          "then": {
+            "properties": {
+              "event_ref": { "minLength": 1 },
+              "captured_at": { "minLength": 1, "format": "date-time" }
+            },
+            "required": ["event_ref", "captured_at"]
+          }
+        }
+      ],
+      "description": "Last verified-and-applied provider event for the scope."
+    },
+
+    "last_failure_event_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["event_ref", "occurred_at", "failure_class", "summary"],
+      "properties": {
+        "event_ref": { "$ref": "#/$defs/non_empty_string" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "failure_class": { "$ref": "#/$defs/failure_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "operator_review_ref": {
+          "type": "string",
+          "description": "Opaque ref to the operator review row when failure_class is unknown_failure_repair_required or replay_held."
+        }
+      },
+      "description": "Last failed provider event for the scope. Required whenever current_mode_class is anything other than live."
+    },
+
+    "cursor_state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cursor_state_class", "state_summary"],
+      "properties": {
+        "cursor_state_class": { "$ref": "#/$defs/cursor_state_class" },
+        "state_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "cursor_ref": {
+          "type": "string",
+          "description": "Opaque ref to the cursor / sequence state held by the broker for the scope (never a raw cursor token)."
+        },
+        "sequence_hint": {
+          "type": "string",
+          "description": "Short structured hint such as the page number, monotonic sequence number, or freshness floor; never a raw provider cursor."
+        }
+      },
+      "description": "Typed cursor / reset state for the scope."
+    },
+
+    "blast_radius_count_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "object_class",
+        "impacted_count",
+        "replayed_count",
+        "delayed_count",
+        "denied_count",
+        "duplicate_count",
+        "mirror_derived_count",
+        "count_summary"
+      ],
+      "properties": {
+        "object_class": { "$ref": "#/$defs/object_class" },
+        "impacted_count": { "$ref": "#/$defs/non_negative_integer" },
+        "replayed_count": { "$ref": "#/$defs/non_negative_integer" },
+        "delayed_count": { "$ref": "#/$defs/non_negative_integer" },
+        "denied_count": { "$ref": "#/$defs/non_negative_integer" },
+        "duplicate_count": { "$ref": "#/$defs/non_negative_integer" },
+        "mirror_derived_count": { "$ref": "#/$defs/non_negative_integer" },
+        "count_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One row of the typed blast-radius counts. Every row reports counts for one provider object_class so operators can judge the blast radius of a provider issue without reading raw event logs."
+    },
+
+    "degraded_import_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degraded_import_class",
+        "entry_summary",
+        "scope_ref",
+        "impacted_count"
+      ],
+      "properties": {
+        "degraded_import_class": { "$ref": "#/$defs/degraded_import_class" },
+        "entry_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_ref": { "$ref": "#/$defs/non_empty_string" },
+        "impacted_count": { "$ref": "#/$defs/non_negative_integer" }
+      },
+      "description": "One typed degraded-import entry. Imported provider state MUST NOT masquerade as current canonical truth; every degraded import is rendered through one typed class with an explicit reviewable summary, an opaque scope ref, and a non-negative impacted count."
+    },
+
+    "correlation_refs_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replayed_event_refs",
+        "delayed_event_refs",
+        "denied_event_refs",
+        "duplicate_event_refs",
+        "impacted_local_object_refs",
+        "imported_overlay_refs",
+        "stale_header_refs",
+        "provider_linked_notification_refs"
+      ],
+      "properties": {
+        "replayed_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to webhook_replay_record rows whose disposition rewrote, replayed, or rewound state for the scope."
+        },
+        "delayed_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_event_record rows whose envelope was held, deferred, or rate-limited."
+        },
+        "denied_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_event_record rows whose verification or policy denied the delivery."
+        },
+        "duplicate_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_event_record rows suppressed by the replay ledger as duplicates."
+        },
+        "impacted_local_object_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to local provider-linked records (provider_object_relation_record, publish_later_queue_item_record, deferred_publish_queue_item_record, conflict-review records) the degraded sync window touched."
+        },
+        "imported_overlay_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to import_session_record rows or imported-snapshot rows the view's degraded entries point at."
+        },
+        "stale_header_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_link_header rows whose local_or_provider_source is now mirror-derived, imported-snapshot-only, or whose freshness has degraded because of this sync window."
+        },
+        "provider_linked_notification_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the notifications, toasts, banners, or activity-center rows the view is the source of truth for."
+        }
+      },
+      "description": "Replay-blast-radius correlation block. Every typed array is required (may be empty for live mode); a non-live view MUST populate at least one of replayed_event_refs, delayed_event_refs, denied_event_refs, or duplicate_event_refs."
+    },
+
+    "escalation_path_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["escalation_surface_class", "surface_summary"],
+      "properties": {
+        "escalation_surface_class": { "$ref": "#/$defs/escalation_surface_class" },
+        "surface_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "label_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed label row the surface renders. The label row MUST quote the typed current_mode_class and (when applicable) the typed degraded_import_class verbatim."
+        }
+      },
+      "description": "One entry of the typed escalation path. Every sync-health view lists all five escalation_surface_class members exactly once so the same typed mode and degraded-import language travels every consumer."
+    },
+
+    "support_export_channel_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_export_channel_class",
+        "channel_summary",
+        "linked_record_ref",
+        "redacts_raw_credentials",
+        "redacts_tenant_private_payloads"
+      ],
+      "properties": {
+        "support_export_channel_class": {
+          "$ref": "#/$defs/support_export_channel_class"
+        },
+        "channel_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": { "$ref": "#/$defs/non_empty_string" },
+        "redacts_raw_credentials": {
+          "type": "boolean",
+          "const": true,
+          "description": "Schema-enforced const true. Sync-health views MUST NOT carry raw credentials onto any export channel."
+        },
+        "redacts_tenant_private_payloads": {
+          "type": "boolean",
+          "const": true,
+          "description": "Schema-enforced const true. Sync-health views MUST NOT carry raw tenant-private bodies onto any export channel; structured field summaries and opaque refs only."
+        }
+      }
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the sync-health view was authored under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the sync-health view was authored under."
+    },
+
+    "provider_sync_health_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_sync_health_schema_version",
+        "view_id",
+        "connected_provider_record_id",
+        "provider_identity",
+        "object_scope",
+        "current_mode_class",
+        "last_success_event",
+        "cursor_state",
+        "blast_radius_counts",
+        "degraded_import_entries",
+        "correlation_refs",
+        "escalation_path",
+        "support_export_channels",
+        "forbids_generic_sync_failed_copy",
+        "notes_summary",
+        "origin_disclosure",
+        "policy_context",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_sync_health_view_record" },
+        "provider_sync_health_schema_version": {
+          "$ref": "#/$defs/provider_sync_health_schema_version"
+        },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_identity": { "$ref": "#/$defs/provider_identity" },
+        "object_scope": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/object_scope_entry" },
+          "description": "Typed object scope the view reports on. An empty array is forbidden; the view names the (provider, object scope) pair."
+        },
+        "current_mode_class": { "$ref": "#/$defs/current_mode_class" },
+        "last_success_event": { "$ref": "#/$defs/last_success_event_block" },
+        "last_failure_event": {
+          "$ref": "#/$defs/last_failure_event_block",
+          "description": "Required whenever current_mode_class is anything other than live; forbidden when current_mode_class is live."
+        },
+        "cursor_state": { "$ref": "#/$defs/cursor_state_block" },
+        "blast_radius_counts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/blast_radius_count_row" },
+          "description": "Typed blast-radius counts by object_class. At least one row is required even when current_mode_class is live; the explicit zero-count row names the object scope the live mode is reporting on."
+        },
+        "degraded_import_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_import_entry" },
+          "description": "Typed degraded-import entries. MUST be empty when current_mode_class is live. partial mode requires at least one entry whose class is partial or backfilled. denied mode requires at least one entry whose class is host_mismatch or stale_permission. mirror_derived mode requires at least one entry whose class is mirror_derived."
+        },
+        "correlation_refs": { "$ref": "#/$defs/correlation_refs_block" },
+        "escalation_path": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/escalation_path_entry" },
+          "description": "Typed escalation path. Every sync-health view MUST list all five escalation_surface_class members exactly once so the same typed mode and degraded-import language travels every consumer."
+        },
+        "support_export_channels": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/support_export_channel_record" },
+          "description": "Typed export channels the sync-health view may ride. Every view MUST cite at least one export channel so support, audit, and migration consumers see the same record set."
+        },
+        "forbids_generic_sync_failed_copy": {
+          "type": "boolean",
+          "const": true,
+          "description": "Schema-enforced const true. Surfaces that read this record MAY NOT render a generic 'sync failed', 'last sync failed', 'out of date', or 'connection error' label whenever the record can name a narrower mode or degraded class. The contract pins the typed copy; this marker is the mechanical floor."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "audit_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the provider_handoff audit events emitted for this sync-health view (provider_event_accepted, provider_event_denied, provider_event_held, provider_event_replayed, import_session_started, import_session_completed, import_session_failed_partial, webhook_replay_applied_once, webhook_replay_deduped_noop, webhook_replay_held_pending_sequence)."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "live mode forbids last_failure_event.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "live" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "not": { "required": ["last_failure_event"] }
+          }
+        },
+        {
+          "description": "Non-live mode requires last_failure_event.",
+          "if": {
+            "properties": {
+              "current_mode_class": {
+                "enum": [
+                  "delayed",
+                  "partial",
+                  "replayed",
+                  "denied",
+                  "offline",
+                  "mirror_derived"
+                ]
+              }
+            },
+            "required": ["current_mode_class"]
+          },
+          "then": { "required": ["last_failure_event"] }
+        },
+        {
+          "description": "live mode requires cursor_state_class cursor_current and an empty degraded_import_entries array.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "live" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "cursor_state": {
+                "properties": {
+                  "cursor_state_class": { "const": "cursor_current" }
+                },
+                "required": ["cursor_state_class"]
+              },
+              "degraded_import_entries": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "partial mode requires at least one degraded_import_entry whose class is partial or backfilled.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "partial" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "degraded_import_entries": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "degraded_import_class": {
+                      "enum": ["partial", "backfilled"]
+                    }
+                  },
+                  "required": ["degraded_import_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "denied mode whose failure_class is host_mismatch or tenant_switch requires at least one degraded_import_entry whose class is host_mismatch (previously-imported state may now be host-mismatched and MUST be labelled rather than rendered as live).",
+          "if": {
+            "properties": {
+              "current_mode_class": { "const": "denied" },
+              "last_failure_event": {
+                "properties": {
+                  "failure_class": { "enum": ["host_mismatch", "tenant_switch"] }
+                },
+                "required": ["failure_class"]
+              }
+            },
+            "required": ["current_mode_class", "last_failure_event"]
+          },
+          "then": {
+            "properties": {
+              "degraded_import_entries": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "degraded_import_class": { "const": "host_mismatch" }
+                  },
+                  "required": ["degraded_import_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "denied mode whose failure_class is stale_permission requires at least one degraded_import_entry whose class is stale_permission so the previously-imported state is not rendered as live.",
+          "if": {
+            "properties": {
+              "current_mode_class": { "const": "denied" },
+              "last_failure_event": {
+                "properties": {
+                  "failure_class": { "const": "stale_permission" }
+                },
+                "required": ["failure_class"]
+              }
+            },
+            "required": ["current_mode_class", "last_failure_event"]
+          },
+          "then": {
+            "properties": {
+              "degraded_import_entries": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "degraded_import_class": { "const": "stale_permission" }
+                  },
+                  "required": ["degraded_import_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "mirror_derived mode requires at least one degraded_import_entry whose class is mirror_derived.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "mirror_derived" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "degraded_import_entries": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "degraded_import_class": { "const": "mirror_derived" }
+                  },
+                  "required": ["degraded_import_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "denied mode requires last_failure_event.failure_class in {signature_denied, policy_blocked, host_mismatch, tenant_switch, stale_permission}.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "denied" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "last_failure_event": {
+                "properties": {
+                  "failure_class": {
+                    "enum": [
+                      "signature_denied",
+                      "policy_blocked",
+                      "host_mismatch",
+                      "tenant_switch",
+                      "stale_permission"
+                    ]
+                  }
+                },
+                "required": ["failure_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "offline mode requires last_failure_event.failure_class in {network_unreachable, credential_expired_or_revoked, provider_unreachable}.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "offline" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "last_failure_event": {
+                "properties": {
+                  "failure_class": {
+                    "enum": [
+                      "network_unreachable",
+                      "credential_expired_or_revoked",
+                      "provider_unreachable"
+                    ]
+                  }
+                },
+                "required": ["failure_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "partial mode requires last_failure_event.failure_class in {partial_failure, missing_page_detected, rate_limited, stale_permission}.",
+          "if": {
+            "properties": { "current_mode_class": { "const": "partial" } },
+            "required": ["current_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "last_failure_event": {
+                "properties": {
+                  "failure_class": {
+                    "enum": [
+                      "partial_failure",
+                      "missing_page_detected",
+                      "rate_limited",
+                      "stale_permission"
+                    ]
+                  }
+                },
+                "required": ["failure_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every sync-health view MUST list a toast_or_banner escalation entry.",
+          "properties": {
+            "escalation_path": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "escalation_surface_class": { "const": "toast_or_banner" }
+                },
+                "required": ["escalation_surface_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every sync-health view MUST list a detail_view escalation entry.",
+          "properties": {
+            "escalation_path": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "escalation_surface_class": { "const": "detail_view" }
+                },
+                "required": ["escalation_surface_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every sync-health view MUST list a cli_inspection escalation entry.",
+          "properties": {
+            "escalation_path": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "escalation_surface_class": { "const": "cli_inspection" }
+                },
+                "required": ["escalation_surface_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every sync-health view MUST list a support_export escalation entry.",
+          "properties": {
+            "escalation_path": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "escalation_surface_class": { "const": "support_export" }
+                },
+                "required": ["escalation_surface_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Every sync-health view MUST list an audit_packet escalation entry.",
+          "properties": {
+            "escalation_path": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "escalation_surface_class": { "const": "audit_packet" }
+                },
+                "required": ["escalation_surface_class"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Typed snapshot of one (connected provider, object scope) pair's current sync mode, last-success and last-failure provider-event references, cursor / reset state, blast-radius counts by object class, degraded-import entries, replay-blast-radius correlation refs, escalation path, and support-export channels. Aureline MAY NOT render a generic 'sync failed' label whenever the record can name a narrower mode or degraded class; surfaces MUST quote the typed current_mode_class, the typed failure_class (when present), and the typed degraded_import_class (when present) verbatim. The same record shape is reusable across code-host, issue / planning, CI / checks, docs / portal, artifact-registry, release-publisher, identity-provider, AI-provider, and managed-admin surfaces."
+    }
+  }
+}

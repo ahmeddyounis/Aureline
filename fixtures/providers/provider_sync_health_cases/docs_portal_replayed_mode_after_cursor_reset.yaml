@@ -1,0 +1,195 @@
+__fixture__:
+  name: docs_portal_replayed_mode_after_cursor_reset
+  case_id: provider_sync_health.docs_portal_replayed_mode_after_cursor_reset.v1
+  scenario: >-
+    A docs / portal provider sync-health view publishes a typed
+    replayed mode after the provider issued a cursor-reset token
+    that forced rewind reconstruction. The cursor finished
+    rewinding (cursor_reset_completed), the docs pages are
+    rendered as replayed imports backed by a backfilled session,
+    and the correlation block cites the replayed event refs and
+    the imported-overlay refs.
+  exercised:
+    record_kinds:
+      - provider_sync_health_view_record
+    provider_class: docs_or_portal_provider
+    current_mode_class: replayed
+    failure_classes:
+      - cursor_reset_required
+    cursor_state_class: cursor_reset_completed
+    object_classes:
+      - docs_page
+    blast_radius_object_classes:
+      - docs_page
+    degraded_import_classes:
+      - backfilled
+    escalation_surface_classes:
+      - toast_or_banner
+      - detail_view
+      - cli_inspection
+      - support_export
+      - audit_packet
+    support_export_channel_classes:
+      - support_bundle
+      - audit_packet
+      - migration_note
+    redaction_class: operator_only_restricted
+
+records:
+  - record_kind: provider_sync_health_view_record
+    provider_sync_health_schema_version: 1
+    view_id: psh:docs_or_portal:notion.so:aureline:docs_page:0001
+    connected_provider_record_id: conn_prov:notion.so:aureline:primary
+    provider_identity:
+      provider_class: docs_or_portal_provider
+      provider_host: notion.so
+      tenant_or_org_scope: aureline
+    object_scope:
+      - object_class: docs_page
+        scope_summary: >-
+          Aureline product docs portal pages tracked through the
+          linked Notion connected-provider record.
+        scope_ref: scope:provider_object_relation:notion.so:aureline:docs_page:0001
+    current_mode_class: replayed
+    last_success_event:
+      has_prior_success: true
+      event_ref: prov_event:notion.so:webhook:page.update:20260430T072000Z:0001
+      captured_at: "2026-04-30T07:20:00Z"
+      summary: >-
+        Last verified delivery applied at 07:20 UTC; provider
+        issued a cursor reset shortly afterwards and the rewind
+        re-materialised the docs pages.
+    last_failure_event:
+      event_ref: prov_event:notion.so:webhook:cursor_reset:20260430T073000Z:0001
+      occurred_at: "2026-04-30T07:30:00Z"
+      failure_class: cursor_reset_required
+      summary: >-
+        Provider issued a cursor-reset token at 07:30 UTC; rewind
+        reconstruction reimported pages and labelled them
+        replayed_import.
+      operator_review_ref: operator_review:notion.so:cursor_reset:20260430T073000Z:0001
+    cursor_state:
+      cursor_state_class: cursor_reset_completed
+      cursor_ref: cursor:notion.so:aureline:docs_page:0001
+      sequence_hint: "page=1;reset_token=opaque-reset-handle-7421"
+      state_summary: >-
+        Cursor reset completed at 08:55 UTC; subsequent imports
+        are labelled replayed_import until a fresh live verified
+        delivery proves current.
+    blast_radius_counts:
+      - object_class: docs_page
+        impacted_count: 86
+        replayed_count: 86
+        delayed_count: 0
+        denied_count: 0
+        duplicate_count: 0
+        mirror_derived_count: 0
+        count_summary: >-
+          Eighty-six docs pages re-materialised through replay
+          after the cursor-reset rewind; all are labelled
+          replayed_import.
+    degraded_import_entries:
+      - degraded_import_class: backfilled
+        entry_summary: >-
+          Docs-page snapshots came through the rewind backfill,
+          not a live verified delivery; rendering is
+          replayed_import until a fresh live event proves
+          current.
+        scope_ref: scope:import_session:notion.so:docs.rewind_reconstruction:20260430T080000Z:0001
+        impacted_count: 86
+    correlation_refs:
+      replayed_event_refs:
+        - replay:notion.so:cursor_reset_rewind:20260430T080000Z:0001
+        - replay:notion.so:cursor_reset_rewind:20260430T080500Z:0001
+      delayed_event_refs: []
+      denied_event_refs: []
+      duplicate_event_refs: []
+      impacted_local_object_refs:
+        - rel:provider_object:notion.so:docs_page:welcome:0001
+        - rel:provider_object:notion.so:docs_page:install:0001
+      imported_overlay_refs:
+        - import_session:notion.so:docs.rewind_reconstruction:20260430T080000Z:0001
+      stale_header_refs:
+        - link_header:notion.so:docs_page:welcome:0001
+      provider_linked_notification_refs:
+        - notif:activity_center:notion.so:replayed:0001
+    escalation_path:
+      - escalation_surface_class: toast_or_banner
+        surface_summary: >-
+          Toast / banner copy: "Notion docs replayed after cursor
+          reset; 86 pages showing backfilled snapshot" — quotes
+          the typed replayed mode and backfilled degraded class
+          verbatim.
+        label_ref: label:psh:notion.so:replayed:toast:0001
+      - escalation_surface_class: detail_view
+        surface_summary: >-
+          Detail view quotes the typed replayed mode, the
+          cursor_reset_required failure class, the
+          cursor_reset_completed cursor state, and the
+          replayed/impacted blast-radius row.
+        label_ref: label:psh:notion.so:replayed:detail:0001
+      - escalation_surface_class: cli_inspection
+        surface_summary: >-
+          CLI inspection renders current_mode_class=replayed,
+          failure_class=cursor_reset_required,
+          cursor_state_class=cursor_reset_completed, and the
+          structured per-class blast-radius row.
+        label_ref: label:psh:notion.so:replayed:cli:0001
+      - escalation_surface_class: support_export
+        surface_summary: >-
+          Support export bundle cites the replay record refs,
+          the rewind import-session ref, and the typed
+          backfilled degraded entry through the support-bundle
+          channel.
+        label_ref: label:psh:notion.so:replayed:support:0001
+      - escalation_surface_class: audit_packet
+        surface_summary: >-
+          Audit packet cites the provider_event_replayed and
+          import_session_completed audit-event refs and the
+          typed replayed mode for the docs-page scope.
+        label_ref: label:psh:notion.so:replayed:audit:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Replayed-mode sync-health view attached to a support
+          bundle without raw credentials or tenant-private
+          payloads.
+        linked_record_ref: support:bundle:psh:notion.so:replayed:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: audit_packet
+        channel_summary: >-
+          Replayed-mode sync-health view attached to the typed
+          audit packet alongside provider_handoff audit-event
+          refs.
+        linked_record_ref: audit:packet:psh:notion.so:replayed:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: migration_note
+        channel_summary: >-
+          Replayed-mode sync-health view attached to a migration
+          note for the cursor-reset rewind.
+        linked_record_ref: migration:note:notion.so:cursor_reset:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    forbids_generic_sync_failed_copy: true
+    notes_summary: >-
+      Notion docs-page sync replayed after a provider-issued
+      cursor reset; pages are rendered as replayed_import until
+      the next live verified delivery confirms freshness.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:installation_or_app_grant:notion.so:aureline:0001
+      execution_context_id: execution-context:provider_sync_health.docs_or_portal:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:provider_sync_health.docs_or_portal:0001
+    captured_at: "2026-04-30T08:56:00Z"
+    audit_event_refs:
+      - audit:provider_event_replayed:20260430T080000Z:0001
+      - audit:import_session_completed:20260430T085500Z:0001
+      - audit:webhook_replay_applied_once:20260430T080500Z:0001
+    redaction_class: operator_only_restricted

@@ -1,0 +1,172 @@
+__fixture__:
+  name: release_publisher_denied_mode_signature_failure
+  case_id: provider_sync_health.release_publisher_denied_mode_signature_failure.v1
+  scenario: >-
+    A release-publisher provider sync-health view publishes a typed
+    denied mode after a webhook signature failed verification. The
+    delivery was rejected before any state was imported, so
+    degraded_import_entries is empty; the correlation block cites
+    the denied event ref and the impacted release-artifact scope.
+    The escalation path quotes the typed denied mode and
+    signature_denied failure class verbatim — generic "sync failed"
+    or "connection error" copy is forbidden.
+  exercised:
+    record_kinds:
+      - provider_sync_health_view_record
+    provider_class: release_publisher_provider
+    current_mode_class: denied
+    failure_classes:
+      - signature_denied
+    cursor_state_class: cursor_paused
+    object_classes:
+      - release_artifact
+    blast_radius_object_classes:
+      - release_artifact
+    degraded_import_classes: []
+    escalation_surface_classes:
+      - toast_or_banner
+      - detail_view
+      - cli_inspection
+      - support_export
+      - audit_packet
+    support_export_channel_classes:
+      - support_bundle
+      - audit_packet
+    redaction_class: internal_support_restricted
+
+records:
+  - record_kind: provider_sync_health_view_record
+    provider_sync_health_schema_version: 1
+    view_id: psh:release_publisher:registry.npmjs.org:aureline:release_artifact:0001
+    connected_provider_record_id: conn_prov:registry.npmjs.org:aureline:primary
+    provider_identity:
+      provider_class: release_publisher_provider
+      provider_host: registry.npmjs.org
+      tenant_or_org_scope: aureline
+    object_scope:
+      - object_class: release_artifact
+        scope_summary: >-
+          Recent npm release artifacts for the @aureline scope
+          tracked through the linked registry connected-provider
+          record.
+        scope_ref: scope:provider_object_relation:registry.npmjs.org:aureline:release_artifact:0001
+    current_mode_class: denied
+    last_success_event:
+      has_prior_success: true
+      event_ref: prov_event:registry.npmjs.org:webhook:package.publish:20260430T070000Z:0001
+      captured_at: "2026-04-30T07:00:00Z"
+      summary: >-
+        Last verified delivery applied at 07:00 UTC; subsequent
+        webhook delivery at 08:30 UTC failed signature
+        verification.
+    last_failure_event:
+      event_ref: prov_event:registry.npmjs.org:webhook:package.publish:20260430T083000Z:0001
+      occurred_at: "2026-04-30T08:30:00Z"
+      failure_class: signature_denied
+      summary: >-
+        Webhook signature verification denied the 08:30 UTC
+        delivery; no state was imported. Callback-deny audit
+        event captured the denial evidence.
+    cursor_state:
+      cursor_state_class: cursor_paused
+      cursor_ref: cursor:registry.npmjs.org:aureline:release_artifact:0001
+      sequence_hint: "page=8;paused_at=20260430T083000Z"
+      state_summary: >-
+        Cursor is paused pending signature-rotation review; no
+        further deliveries will be processed until the rotation
+        completes.
+    blast_radius_counts:
+      - object_class: release_artifact
+        impacted_count: 1
+        replayed_count: 0
+        delayed_count: 0
+        denied_count: 1
+        duplicate_count: 0
+        mirror_derived_count: 0
+        count_summary: >-
+          One release-artifact delivery denied; no impacted
+          artifacts were materialised because the delivery was
+          rejected before import.
+    degraded_import_entries: []
+    correlation_refs:
+      replayed_event_refs: []
+      delayed_event_refs: []
+      denied_event_refs:
+        - prov_event:registry.npmjs.org:webhook:package.publish:20260430T083000Z:0001
+      duplicate_event_refs: []
+      impacted_local_object_refs: []
+      imported_overlay_refs: []
+      stale_header_refs: []
+      provider_linked_notification_refs:
+        - notif:activity_center:registry.npmjs.org:denied:0001
+    escalation_path:
+      - escalation_surface_class: toast_or_banner
+        surface_summary: >-
+          Toast / banner copy: "npm registry sync denied:
+          signature verification failed" — quotes the typed
+          denied mode and signature_denied failure class
+          verbatim.
+        label_ref: label:psh:registry.npmjs.org:denied:toast:0001
+      - escalation_surface_class: detail_view
+        surface_summary: >-
+          Detail view quotes the typed denied mode, the
+          signature_denied failure class, the cursor_paused
+          cursor state, and the per-class blast-radius row.
+        label_ref: label:psh:registry.npmjs.org:denied:detail:0001
+      - escalation_surface_class: cli_inspection
+        surface_summary: >-
+          CLI inspection renders current_mode_class=denied,
+          failure_class=signature_denied,
+          cursor_state_class=cursor_paused, and the structured
+          per-class blast-radius row.
+        label_ref: label:psh:registry.npmjs.org:denied:cli:0001
+      - escalation_surface_class: support_export
+        surface_summary: >-
+          Support export bundle cites the denied event ref and
+          the callback-deny audit-event refs through the
+          support-bundle channel.
+        label_ref: label:psh:registry.npmjs.org:denied:support:0001
+      - escalation_surface_class: audit_packet
+        surface_summary: >-
+          Audit packet cites the provider_event_denied and
+          callback_deny_audit_event refs and the typed denied
+          mode for the release-artifact scope.
+        label_ref: label:psh:registry.npmjs.org:denied:audit:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Denied-mode sync-health view attached to a support
+          bundle without raw credentials or tenant-private
+          payloads; signature-denial evidence is preserved as
+          opaque refs only.
+        linked_record_ref: support:bundle:psh:registry.npmjs.org:denied:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: audit_packet
+        channel_summary: >-
+          Denied-mode sync-health view attached to the typed
+          audit packet alongside provider_handoff and
+          callback_deny audit-event refs.
+        linked_record_ref: audit:packet:psh:registry.npmjs.org:denied:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    forbids_generic_sync_failed_copy: true
+    notes_summary: >-
+      npm registry release-artifact webhook delivery denied because
+      signature verification failed; cursor paused pending
+      signature-rotation review.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:installation_or_app_grant:registry.npmjs.org:aureline:0001
+      execution_context_id: execution-context:provider_sync_health.release_publisher:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: restricted
+      execution_context_id: execution-context:provider_sync_health.release_publisher:0001
+    captured_at: "2026-04-30T08:31:00Z"
+    audit_event_refs:
+      - audit:provider_event_denied:20260430T083000Z:0001
+      - audit:callback_deny_audit_event:20260430T083000Z:0001
+    redaction_class: internal_support_restricted

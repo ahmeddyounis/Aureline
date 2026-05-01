@@ -1,0 +1,226 @@
+__fixture__:
+  name: managed_admin_partial_mode_stale_permission
+  case_id: provider_sync_health.managed_admin_partial_mode_stale_permission.v1
+  scenario: >-
+    A managed-admin sync-health view publishes a typed partial mode
+    after the actor's effective scope no longer covered the
+    audit-entry object class. Some objects still materialised
+    (admin-surface entries) but audit-entry imports were skipped.
+    The view carries a partial degraded entry for the materialised
+    scope and a stale_permission degraded entry for the skipped
+    scope so consumers can tell partial bounded materialisation
+    apart from permission-denied bounded materialisation.
+  exercised:
+    record_kinds:
+      - provider_sync_health_view_record
+    provider_class: managed_admin_provider
+    current_mode_class: partial
+    failure_classes:
+      - stale_permission
+    cursor_state_class: cursor_lagging
+    object_classes:
+      - admin_surface
+      - audit_entry
+    blast_radius_object_classes:
+      - admin_surface
+      - audit_entry
+    degraded_import_classes:
+      - partial
+      - stale_permission
+    escalation_surface_classes:
+      - toast_or_banner
+      - detail_view
+      - cli_inspection
+      - support_export
+      - audit_packet
+    support_export_channel_classes:
+      - support_bundle
+      - audit_packet
+      - object_handoff_packet
+    redaction_class: signing_evidence_only
+
+records:
+  - record_kind: provider_sync_health_view_record
+    provider_sync_health_schema_version: 1
+    view_id: psh:managed_admin:admin.aureline.dev:aureline:admin_surface:0001
+    connected_provider_record_id: conn_prov:admin.aureline.dev:aureline:primary
+    provider_identity:
+      provider_class: managed_admin_provider
+      provider_host: admin.aureline.dev
+      tenant_or_org_scope: aureline
+    object_scope:
+      - object_class: admin_surface
+        scope_summary: >-
+          Aureline managed-admin surface entries tracked through
+          the linked admin-console connected-provider record.
+        scope_ref: scope:provider_object_relation:admin.aureline.dev:aureline:admin_surface:0001
+      - object_class: audit_entry
+        scope_summary: >-
+          Aureline managed-admin audit entries tracked through
+          the linked admin-console connected-provider record.
+        scope_ref: scope:provider_object_relation:admin.aureline.dev:aureline:audit_entry:0001
+    current_mode_class: partial
+    last_success_event:
+      has_prior_success: true
+      event_ref: prov_event:admin.aureline.dev:webhook:admin_surface.update:20260430T082000Z:0001
+      captured_at: "2026-04-30T08:20:00Z"
+      summary: >-
+        Last verified delivery applied at 08:20 UTC for the
+        admin_surface scope; subsequent audit_entry import was
+        denied because the actor's effective scope no longer
+        covered the audit-entry object class.
+    last_failure_event:
+      event_ref: prov_event:admin.aureline.dev:poll:audit_entry.list:20260430T084500Z:0001
+      occurred_at: "2026-04-30T08:45:00Z"
+      failure_class: stale_permission
+      summary: >-
+        Provider returned 403 for the audit-entry list call;
+        actor's effective scope no longer covers
+        audit_entry:read after the last policy-epoch roll.
+    cursor_state:
+      cursor_state_class: cursor_lagging
+      cursor_ref: cursor:admin.aureline.dev:aureline:admin_surface:0001
+      sequence_hint: "page=7;admin_surface_seq=70112;audit_entry_seq=stale_permission"
+      state_summary: >-
+        admin_surface cursor is lagging behind a single delayed
+        delivery; audit_entry cursor is paused at the
+        stale-permission denial.
+    blast_radius_counts:
+      - object_class: admin_surface
+        impacted_count: 8
+        replayed_count: 0
+        delayed_count: 8
+        denied_count: 0
+        duplicate_count: 0
+        mirror_derived_count: 0
+        count_summary: >-
+          Eight admin_surface entries materialised partially;
+          all eight are deferred behind the partial sync window
+          but readable from the prior import.
+      - object_class: audit_entry
+        impacted_count: 41
+        replayed_count: 0
+        delayed_count: 0
+        denied_count: 41
+        duplicate_count: 0
+        mirror_derived_count: 0
+        count_summary: >-
+          Forty-one audit_entry imports denied by stale
+          permissions; rendered as stale_permission until the
+          actor's effective scope is repaired.
+    degraded_import_entries:
+      - degraded_import_class: partial
+        entry_summary: >-
+          Partial admin_surface import; pages 1 through 7
+          materialised, page 8 is pending the next verified
+          delivery.
+        scope_ref: scope:import_session:admin.aureline.dev:admin_surface.partial:20260430T084500Z:0001
+        impacted_count: 8
+      - degraded_import_class: stale_permission
+        entry_summary: >-
+          audit_entry imports denied because actor's effective
+          scope no longer covers audit_entry:read; rendered
+          state is stale-permission, not live.
+        scope_ref: scope:import_session:admin.aureline.dev:audit_entry.denied:20260430T084500Z:0001
+        impacted_count: 41
+    correlation_refs:
+      replayed_event_refs: []
+      delayed_event_refs:
+        - prov_event:admin.aureline.dev:poll:admin_surface.list:20260430T084200Z:0001
+      denied_event_refs:
+        - prov_event:admin.aureline.dev:poll:audit_entry.list:20260430T084500Z:0001
+      duplicate_event_refs: []
+      impacted_local_object_refs:
+        - rel:provider_object:admin.aureline.dev:admin_surface:billing:0001
+        - rel:provider_object:admin.aureline.dev:audit_entry:e-50001:0001
+      imported_overlay_refs:
+        - import_session:admin.aureline.dev:admin_surface.partial:20260430T084500Z:0001
+        - import_session:admin.aureline.dev:audit_entry.denied:20260430T084500Z:0001
+      stale_header_refs:
+        - link_header:admin.aureline.dev:audit_entry:e-50001:0001
+      provider_linked_notification_refs:
+        - notif:activity_center:admin.aureline.dev:partial_stale_permission:0001
+    escalation_path:
+      - escalation_surface_class: toast_or_banner
+        surface_summary: >-
+          Toast / banner copy: "Admin sync partial: 8 admin
+          surfaces deferred; 41 audit entries stale-permission" —
+          quotes the typed partial mode, partial degraded
+          class, and stale_permission degraded class verbatim.
+        label_ref: label:psh:admin.aureline.dev:partial_stale_permission:toast:0001
+      - escalation_surface_class: detail_view
+        surface_summary: >-
+          Detail view quotes the typed partial mode, the
+          stale_permission failure class, the cursor_lagging
+          cursor state, and the per-class blast-radius rows.
+        label_ref: label:psh:admin.aureline.dev:partial_stale_permission:detail:0001
+      - escalation_surface_class: cli_inspection
+        surface_summary: >-
+          CLI inspection renders current_mode_class=partial,
+          failure_class=stale_permission,
+          cursor_state_class=cursor_lagging, and the structured
+          per-class blast-radius rows.
+        label_ref: label:psh:admin.aureline.dev:partial_stale_permission:cli:0001
+      - escalation_surface_class: support_export
+        surface_summary: >-
+          Support export bundle cites the partial and denied
+          import-session refs and the typed partial plus
+          stale_permission degraded entries through the
+          support-bundle channel.
+        label_ref: label:psh:admin.aureline.dev:partial_stale_permission:support:0001
+      - escalation_surface_class: audit_packet
+        surface_summary: >-
+          Audit packet cites the provider_event_denied,
+          import_session_failed_partial, and
+          policy_epoch_rolled_invalidations audit-event refs
+          and the typed partial mode for the admin and audit
+          scopes.
+        label_ref: label:psh:admin.aureline.dev:partial_stale_permission:audit:0001
+    support_export_channels:
+      - support_export_channel_class: support_bundle
+        channel_summary: >-
+          Partial-stale-permission sync-health view attached to
+          a support bundle without raw credentials or
+          tenant-private payloads.
+        linked_record_ref: support:bundle:psh:admin.aureline.dev:partial_stale_permission:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: audit_packet
+        channel_summary: >-
+          Partial-stale-permission sync-health view attached to
+          the typed audit packet alongside provider_handoff
+          audit-event refs.
+        linked_record_ref: audit:packet:psh:admin.aureline.dev:partial_stale_permission:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+      - support_export_channel_class: object_handoff_packet
+        channel_summary: >-
+          Partial-stale-permission sync-health view attached to
+          the typed object-handoff packet so an external
+          reviewer sees the same record set during the
+          permission-repair workflow.
+        linked_record_ref: handoff:object_handoff_packet:admin.aureline.dev:partial_stale_permission:0001
+        redacts_raw_credentials: true
+        redacts_tenant_private_payloads: true
+    forbids_generic_sync_failed_copy: true
+    notes_summary: >-
+      Managed-admin sync is partial because the actor's effective
+      scope no longer covers audit-entry imports; admin_surface
+      imports are partial and audit_entry imports are
+      stale-permission. Permission-repair workflow required.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:policy_injected_service_identity:admin.aureline.dev:aureline:0001
+      execution_context_id: execution-context:provider_sync_health.managed_admin:0001
+      policy_epoch: policy-epoch:43
+    policy_context:
+      policy_epoch: policy-epoch:43
+      trust_state: restricted
+      execution_context_id: execution-context:provider_sync_health.managed_admin:0001
+    captured_at: "2026-04-30T08:46:00Z"
+    audit_event_refs:
+      - audit:provider_event_denied:20260430T084500Z:0001
+      - audit:import_session_failed_partial:20260430T084500Z:0001
+      - audit:policy_epoch_rolled_invalidations:20260430T084000Z:0001
+    redaction_class: signing_evidence_only
