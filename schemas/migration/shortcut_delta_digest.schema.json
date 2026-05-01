@@ -1,0 +1,569 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/shortcut_delta_digest.schema.json",
+  "title": "Aureline migration shortcut-delta digest contract",
+  "description": "Boundary schema for the migration shortcut-delta digest packet. Each row freezes one imported command and the gesture it now resolves to, the conflict resolution that landed it, the unresolved gap that prevented resolution, the suggested alternative that replaces the source binding, and the muscle-memory risk note that travels with the change. The packet wraps grouped rows with restore-fidelity envelope, claim-narrowing implication, scorecard linkage, docs/help refs, and support/export refs so migration center, docs, claim manifests, support exports, and issue templates quote one current row instead of folding shortcut deltas behind a generic 'imported successfully' result. Raw source profile bodies, raw keymap files, raw absolute paths, raw credentials, and raw workspace contents never cross this boundary; rows carry opaque refs, controlled vocabularies, and redaction-aware summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/shortcut_delta_digest_row_record" },
+    { "$ref": "#/$defs/shortcut_delta_digest_packet_record" }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the shortcut-delta digest contract."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, persist, cite, and export."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1200,
+      "description": "Short redaction-aware summary, caveat, or note. Exporters apply the active redaction policy before crossing support, docs, or telemetry boundaries."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "shortcut_digest_row_id": {
+      "type": "string",
+      "pattern": "^shortcut_delta_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "shortcut_digest_packet_id": {
+      "type": "string",
+      "pattern": "^shortcut_delta_digest:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "source_ecosystem_id": {
+      "type": "string",
+      "enum": [
+        "vs_code_code_oss",
+        "jetbrains_family",
+        "vim_neovim",
+        "emacs",
+        "sublime_textmate",
+        "native_aureline",
+        "mixed_imported_sources",
+        "generic_import"
+      ],
+      "description": "Source ecosystem vocabulary aligned with artifacts/migration/source_ecosystem_rows.yaml plus native and mixed-source handoff rows."
+    },
+    "shortcut_domain": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "file_navigation",
+        "editor_basic",
+        "editor_multi_cursor",
+        "editor_refactor",
+        "search_and_replace",
+        "tasks_and_run",
+        "launch_debug",
+        "source_control",
+        "terminal_and_panel",
+        "modal_editing",
+        "extension_provided",
+        "other"
+      ],
+      "description": "Closed shortcut-domain vocabulary used by the digest. Aligned with the high-frequency keymap families the migration claim covers."
+    },
+    "delta_state": {
+      "type": "string",
+      "enum": [
+        "imported_exact",
+        "imported_canonicalized",
+        "remapped_to_native",
+        "remapped_to_platform_default",
+        "conflict_resolved_keep_target",
+        "conflict_resolved_keep_imported",
+        "conflict_resolved_remap",
+        "conflict_unresolved",
+        "unresolved_gap_no_native_equivalent",
+        "unresolved_gap_blocked_by_policy",
+        "unresolved_gap_blocked_by_compatibility",
+        "skipped_user_declined",
+        "skipped_policy_excluded"
+      ],
+      "description": "Closed delta-state vocabulary describing how the imported gesture landed on the destination profile."
+    },
+    "conflict_resolution_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict",
+        "kept_target_existing",
+        "kept_imported_overriding_target",
+        "remapped_imported_to_alternate_chord",
+        "remapped_target_to_alternate_chord",
+        "deferred_to_user_review",
+        "blocked_by_reserved_chord",
+        "blocked_by_policy",
+        "blocked_by_extension_owner"
+      ],
+      "description": "Closed vocabulary for how the importer resolved (or failed to resolve) a chord collision with an existing target binding."
+    },
+    "conflict_decided_by": {
+      "type": "string",
+      "enum": [
+        "automatic_default_policy",
+        "user_review_decision",
+        "imported_profile_owner",
+        "platform_default_policy",
+        "extension_owner",
+        "policy_lock",
+        "no_decision_required"
+      ]
+    },
+    "unresolved_gap_class": {
+      "type": "string",
+      "enum": [
+        "no_native_equivalent_command",
+        "no_native_chord_capacity",
+        "modal_or_leader_gap",
+        "extension_runtime_gap",
+        "policy_or_trust_gap",
+        "compatibility_scorecard_blocked",
+        "deferred_pending_evidence",
+        "deferred_pending_native_path",
+        "not_applicable"
+      ],
+      "description": "Closed vocabulary describing why a row could not resolve to a stable destination binding."
+    },
+    "suggested_alternative_class": {
+      "type": "string",
+      "enum": [
+        "native_command_palette_path",
+        "native_command_with_new_chord",
+        "leader_sequence",
+        "modal_editing_motion",
+        "menu_or_pane_route",
+        "command_link_in_docs",
+        "platform_native_gesture",
+        "no_alternative_available",
+        "not_applicable"
+      ],
+      "description": "Closed vocabulary describing the alternative the user should rely on after import."
+    },
+    "muscle_memory_risk_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"],
+      "description": "How disruptive the delta is for users who relied on the source gesture daily."
+    },
+    "frequency_bucket": {
+      "type": "string",
+      "enum": ["daily_driver", "frequent", "occasional", "rare", "unknown"],
+      "description": "How often the imported command is expected to be used by the source-ecosystem audience."
+    },
+    "claim_narrowing_implication_class": {
+      "type": "string",
+      "enum": [
+        "no_narrowing_required",
+        "narrow_to_partial_keymap_claim",
+        "narrow_to_documented_remap_only",
+        "narrow_to_no_keymap_claim",
+        "add_explicit_known_limit",
+        "block_marketed_keymap_path"
+      ],
+      "description": "Whether this row forces narrowing the marketed switching/keymap claim, and how far."
+    },
+    "evidence_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "seed_only",
+        "warm_cached",
+        "stale",
+        "missing",
+        "retest_pending",
+        "not_applicable"
+      ]
+    },
+    "conflict_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resolution_class", "decided_by", "summary"],
+      "properties": {
+        "resolution_class": { "$ref": "#/$defs/conflict_resolution_class" },
+        "decided_by": { "$ref": "#/$defs/conflict_decided_by" },
+        "conflict_with_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the existing target binding the imported chord collided with."
+        },
+        "preserved_prior_artifact_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the preserved-prior-artifact captured before the resolution landed."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "unresolved_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gap_class", "summary"],
+      "properties": {
+        "gap_class": { "$ref": "#/$defs/unresolved_gap_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "blocking_compatibility_scorecard_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+    "suggested_alternative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alternative_class", "summary"],
+      "properties": {
+        "alternative_class": { "$ref": "#/$defs/suggested_alternative_class" },
+        "alternative_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "alternative_gesture": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "claim_narrowing_implication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["implication_class", "summary"],
+      "properties": {
+        "implication_class": { "$ref": "#/$defs/claim_narrowing_implication_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "rule_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "publication_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "docs_help_refs",
+        "support_export_refs",
+        "migration_report_refs",
+        "claim_manifest_refs",
+        "compatibility_row_refs"
+      ],
+      "properties": {
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "migration_report_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "claim_manifest_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "compatibility_row_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "issue_template_refs": { "$ref": "#/$defs/ref_array" },
+        "release_report_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "restore_fidelity_class": {
+      "type": "string",
+      "enum": [
+        "exact_restore",
+        "compatible_restore",
+        "approximated_restore",
+        "manual_review_after_restore",
+        "partial_restore_with_visible_gaps",
+        "restore_blocked",
+        "restore_not_applicable"
+      ],
+      "description": "Closed vocabulary for how faithfully the post-import or post-restore state matches the imported source profile."
+    },
+    "rollback_checkpoint_availability": {
+      "type": "string",
+      "enum": [
+        "available",
+        "restored",
+        "expired",
+        "cleanup_pending",
+        "policy_hidden",
+        "not_created"
+      ]
+    },
+    "restore_fidelity_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fidelity_class",
+        "rollback_checkpoint_availability",
+        "rollback_checkpoint_ref",
+        "restore_record_ref",
+        "post_restore_validation_refs",
+        "summary"
+      ],
+      "properties": {
+        "fidelity_class": { "$ref": "#/$defs/restore_fidelity_class" },
+        "rollback_checkpoint_availability": { "$ref": "#/$defs/rollback_checkpoint_availability" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_restore_validation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "preserved_prior_artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Restore-fidelity envelope binding the digest to the rollback checkpoint, restore record, and post-restore validation refs that protect the apply."
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["captured_at", "evidence_state", "source_revision"],
+      "properties": {
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "evidence_state": { "$ref": "#/$defs/evidence_state" },
+        "source_revision": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "shortcut_delta_digest_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "row_id",
+        "migration_session_ref",
+        "source_ecosystem_id",
+        "domain",
+        "imported_command_ref",
+        "imported_command_label",
+        "imported_gesture",
+        "delta_state",
+        "muscle_memory_risk_class",
+        "muscle_memory_risk_note",
+        "frequency_bucket",
+        "claim_narrowing_implication",
+        "docs_help_refs"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "shortcut_delta_digest_row_record"
+        },
+        "row_id": { "$ref": "#/$defs/shortcut_digest_row_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_ecosystem_id": { "$ref": "#/$defs/source_ecosystem_id" },
+        "domain": { "$ref": "#/$defs/shortcut_domain" },
+        "imported_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "imported_command_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "imported_gesture": { "$ref": "#/$defs/non_empty_string" },
+        "remapped_gesture": { "$ref": "#/$defs/non_empty_string" },
+        "remapped_target_command_ref": { "$ref": "#/$defs/opaque_id" },
+        "delta_state": { "$ref": "#/$defs/delta_state" },
+        "conflict_resolution": { "$ref": "#/$defs/conflict_resolution" },
+        "unresolved_gap": { "$ref": "#/$defs/unresolved_gap" },
+        "suggested_alternative": { "$ref": "#/$defs/suggested_alternative" },
+        "muscle_memory_risk_class": { "$ref": "#/$defs/muscle_memory_risk_class" },
+        "muscle_memory_risk_note": { "$ref": "#/$defs/redaction_aware_text" },
+        "frequency_bucket": { "$ref": "#/$defs/frequency_bucket" },
+        "compatibility_scorecard_ref": { "$ref": "#/$defs/opaque_id" },
+        "claim_narrowing_implication": { "$ref": "#/$defs/claim_narrowing_implication" },
+        "docs_help_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_export_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "delta_state": {
+                "enum": [
+                  "remapped_to_native",
+                  "remapped_to_platform_default",
+                  "conflict_resolved_remap"
+                ]
+              }
+            },
+            "required": ["delta_state"]
+          },
+          "then": {
+            "required": ["remapped_gesture", "remapped_target_command_ref"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "delta_state": {
+                "enum": [
+                  "conflict_resolved_keep_target",
+                  "conflict_resolved_keep_imported",
+                  "conflict_resolved_remap",
+                  "conflict_unresolved"
+                ]
+              }
+            },
+            "required": ["delta_state"]
+          },
+          "then": {
+            "required": ["conflict_resolution"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "delta_state": {
+                "enum": [
+                  "conflict_unresolved",
+                  "unresolved_gap_no_native_equivalent",
+                  "unresolved_gap_blocked_by_policy",
+                  "unresolved_gap_blocked_by_compatibility"
+                ]
+              }
+            },
+            "required": ["delta_state"]
+          },
+          "then": {
+            "required": ["unresolved_gap", "suggested_alternative"]
+          }
+        }
+      ]
+    },
+    "muscle_memory_risk_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "highest_risk_class",
+        "daily_driver_delta_count",
+        "high_risk_row_count",
+        "summary_notes"
+      ],
+      "properties": {
+        "highest_risk_class": { "$ref": "#/$defs/muscle_memory_risk_class" },
+        "daily_driver_delta_count": { "type": "integer", "minimum": 0 },
+        "high_risk_row_count": { "type": "integer", "minimum": 0 },
+        "summary_notes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/redaction_aware_text" }
+        }
+      },
+      "description": "Aggregate muscle-memory risk summary kept visible at the packet level so deltas do not collapse into a single 'imported successfully' line."
+    },
+    "claim_narrowing_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall_implication_class",
+        "narrowing_actions_required",
+        "summary",
+        "rule_refs"
+      ],
+      "properties": {
+        "overall_implication_class": {
+          "$ref": "#/$defs/claim_narrowing_implication_class"
+        },
+        "narrowing_actions_required": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "keep_claim_with_caveat",
+              "narrow_to_partial",
+              "narrow_to_documented_remap_only",
+              "narrow_to_asset_only",
+              "move_to_docs_only",
+              "remove_public_claim",
+              "add_known_limit_row",
+              "block_marketed_path",
+              "no_action_required"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "rule_refs": { "$ref": "#/$defs/ref_array" },
+        "known_limit_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "description": "Packet-level claim-narrowing summary so docs, claim manifest, support export, and release surfaces apply the same narrowing decision."
+    },
+    "shortcut_delta_digest_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "shortcut_digest_id",
+        "migration_session_ref",
+        "source_ecosystem_id",
+        "imported_command_rows",
+        "remapped_gesture_rows",
+        "conflict_resolution_rows",
+        "unresolved_gap_rows",
+        "skipped_rows",
+        "restore_fidelity_envelope",
+        "muscle_memory_risk_summary",
+        "claim_narrowing_summary",
+        "publication_links",
+        "freshness",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "shortcut_delta_digest_packet_record"
+        },
+        "shortcut_digest_id": { "$ref": "#/$defs/shortcut_digest_packet_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_ecosystem_id": { "$ref": "#/$defs/source_ecosystem_id" },
+        "importer_outcome_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "shortcut_digest_companion_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional ref to the lightweight migration_shortcut_digest_record this richer packet supersedes or extends."
+        },
+        "imported_command_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_digest_row_record" },
+          "description": "Rows whose imported gesture landed on the destination profile without remap or conflict beyond canonicalization."
+        },
+        "remapped_gesture_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_digest_row_record" },
+          "description": "Rows whose imported gesture changed gesture or command mapping on the destination profile."
+        },
+        "conflict_resolution_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_digest_row_record" },
+          "description": "Rows whose chord collided with an existing target binding and required a typed conflict resolution."
+        },
+        "unresolved_gap_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_digest_row_record" },
+          "description": "Rows that could not resolve to a destination binding and instead carry an unresolved-gap class plus a suggested alternative."
+        },
+        "skipped_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/shortcut_delta_digest_row_record" },
+          "description": "Rows the user declined or policy excluded; kept visible so support and docs do not have to reconstruct them."
+        },
+        "restore_fidelity_envelope": {
+          "$ref": "#/$defs/restore_fidelity_envelope"
+        },
+        "muscle_memory_risk_summary": {
+          "$ref": "#/$defs/muscle_memory_risk_summary"
+        },
+        "claim_narrowing_summary": {
+          "$ref": "#/$defs/claim_narrowing_summary"
+        },
+        "publication_links": { "$ref": "#/$defs/publication_links" },
+        "scoreboard_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs to migration_gap_scoreboard rows whose evidence the packet relies on."
+        },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
