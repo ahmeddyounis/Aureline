@@ -1,0 +1,46 @@
+__fixture__:
+  name: revoked_grant_packet_field_qualification
+  case_id: provider_qualification.revoked_grant_packet_field_qualification.v1
+  scenario: >-
+    An installation grant loses its provider-side org membership
+    while a queued issue publish is awaiting drain. The revoked-
+    grant packet names the revoked subject, the typed cause class
+    (`org_membership_loss`), and the typed repair action class
+    (`relink_install_to_admin_review`). The publish-later queue
+    item parks in `awaiting_account_reselection` rather than
+    retrying under the revoked grant; the support bundle and the
+    object-handoff packet preserve the typed fields without
+    leaking raw credentials.
+  exercises:
+    drill_id: revoked_grant_packet_field_qualification
+    parity_expectation: revoked_grant_routes_to_repair_not_silent_retry
+    required_fields:
+      - revoked_grant_subject
+      - revoked_grant_cause_class
+      - revoked_grant_repair_action_class
+    support_export_channels:
+      - support_bundle
+      - object_handoff_packet
+cited_records:
+  - kind: account_invalidation_event_record
+    fixture_ref: fixtures/providers/connected_account_cases/account_invalidation_org_membership_loss.yaml
+    note: >-
+      Account-invalidation event with cause class
+      `org_membership_loss`; the revoked-grant packet exports the
+      same typed cause class.
+acceptance_proof:
+  - claim: typed packet fields present
+    proof: >-
+      The packet carries the revoked subject, the typed cause
+      class, and the typed repair action class; "support failed"
+      copy is rejected.
+  - claim: queue routes to repair, not retry
+    proof: >-
+      The publish-later queue item transitions to
+      `awaiting_account_reselection`; silent retry under the
+      revoked grant is forbidden.
+  - claim: support bundle preserves typed fields
+    proof: >-
+      Support bundle and object-handoff packet name the revoked
+      subject and the repair action without leaking the raw token
+      or callback body.

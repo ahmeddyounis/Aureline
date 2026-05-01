@@ -1,0 +1,44 @@
+__fixture__:
+  name: host_mismatch_packet_field_qualification
+  case_id: provider_qualification.host_mismatch_packet_field_qualification.v1
+  scenario: >-
+    An identity provider returns a callback whose canonical host
+    does not match the connected-provider record. The host-mismatch
+    packet names the observed host, the expected host, and the
+    typed repair action class (`rebind_tenant_to_canonical_host`).
+    The callback envelope is denied with the frozen
+    `denied_host_mismatch` reason; the publish-later queue item is
+    rejected with the same typed reason; the admin-assisted handoff
+    packet carries the host-mismatch evidence without leaking raw
+    provider headers.
+  exercises:
+    drill_id: host_mismatch_packet_field_qualification
+    parity_expectation: host_mismatch_denies_with_typed_repair_action
+    required_fields:
+      - host_mismatch_observed_host
+      - host_mismatch_expected_host
+      - host_mismatch_repair_action_class
+    support_export_channels:
+      - support_bundle
+      - admin_assisted_handoff_packet
+cited_records:
+  - kind: provider_sync_health_view_record
+    fixture_ref: fixtures/providers/provider_sync_health_cases/identity_provider_denied_mode_host_mismatch.yaml
+    note: >-
+      Sync-health view in `denied` mode with the typed failure
+      class `host_mismatch` and the typed degraded-import class
+      `host_mismatch`.
+acceptance_proof:
+  - claim: typed packet fields present
+    proof: >-
+      The host-mismatch packet names the observed host, the
+      expected host, and the typed repair action class.
+  - claim: callback envelope denied with typed reason
+    proof: >-
+      The callback envelope is denied with `denied_host_mismatch`;
+      silent acceptance under a different host is forbidden.
+  - claim: admin-assisted handoff packet honesty
+    proof: >-
+      The admin-assisted handoff packet carries the host-mismatch
+      evidence with redaction posture preserving the canonical host
+      identity but not the raw provider headers.
