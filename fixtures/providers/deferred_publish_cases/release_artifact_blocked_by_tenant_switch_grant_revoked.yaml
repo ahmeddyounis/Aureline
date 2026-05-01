@@ -1,0 +1,297 @@
+__fixture__:
+  name: release_artifact_blocked_by_tenant_switch_grant_revoked
+  case_id: deferred_publish.release_artifact_blocked_by_tenant_switch_grant_revoked.v1
+  scenario: >-
+    A release-artifact attach is admitted at ready_for_drain on the
+    artifact-registry surface, but a tenant switch invalidates the
+    queue item before drain. A typed
+    tenant_switched_invalidated continuity event regresses three
+    dependencies (account_mapping_resolved, effective_scope_satisfied,
+    rescope_completed) and the queue item parks at
+    pending_admin_review. A second continuity event records the
+    grant revocation that follows the tenant switch. The review
+    record holds at blocked_by_actor_unknown with
+    cancel_at_user_request disposition; the user is offered a
+    typed export_for_admin_assisted_handoff fallback and a
+    cancel_queue_item action. The serialization envelope is
+    requires_repair_before_restart with restart_safe false because
+    the policy-injected service identity has been re-provisioned.
+  exercised:
+    record_kinds:
+      - deferred_publish_queue_item_record
+      - deferred_publish_continuity_event_record
+      - deferred_publish_review_record
+    action_kind: release_artifact_attach
+    mutation_mode: deferred_publish
+    surface_class: artifact_registry_surface
+    queue_state:
+      - ready_for_drain
+      - pending_admin_review
+      - cancelled_by_user
+    stale_target_risk_class: target_actor_scope_changed
+    dependency_classes:
+      - account_mapping_resolved
+      - effective_scope_satisfied
+      - rescope_completed
+      - approval_ticket_admitted
+      - consequence_preview_confirmed
+    retry_backoff_class: no_retry_manual_only
+    reauth_class: admin_re_authorisation_required
+    rescope_class: tenant_or_org_scope_realignment_required
+    serialization_format_class: requires_repair_before_restart
+    continuity_event_classes:
+      - tenant_switched_invalidated
+      - grant_revoked_invalidated
+    review_state_class: blocked_by_actor_unknown
+    blocked_reason_class: waiting_actor_resolution
+    review_disposition_class: cancel_at_user_request
+    review_action_classes:
+      - cancel_queue_item
+      - export_evidence_packet
+    export_or_copy_fallback_class: export_for_admin_assisted_handoff
+
+records:
+  - record_kind: deferred_publish_queue_item_record
+    deferred_publish_queue_schema_version: 1
+    queue_item_id: dpq:artifact_registry:release_artifact_attach:v0.41.0:0001
+    connected_provider_record_id: conn_prov:registry.aureline:policy_injected:registry-publisher
+    surface_class: artifact_registry_surface
+    action_kind: release_artifact_attach
+    mutation_mode: deferred_publish
+    target_object_identity:
+      object_class: release_artifact
+      provider_side_id: registry.aureline:package:aureline-cli:v0.41.0
+      provider_host: registry.aureline
+      tenant_or_org_scope: aureline-archived
+    target_freshness_floor:
+      freshness_floor_ref: freshness-floor:artifact_registry.aureline-cli:v0.41.0:2026-04-30T07:00:00Z
+      observed_at: "2026-04-30T07:00:00Z"
+      staleness_class: bounded_stale
+    intended_actor:
+      actor_class: unknown_actor_class
+      actor_subject_ref: ""
+      expected_authority_summary: >-
+        The previously-resolved policy_injected_service identity
+        for registry-publisher was revoked after the tenant
+        switched from aureline to aureline-archived; the actor is
+        unknown until repair completes.
+      account_mapping_binding_ref: amb:registry.aureline:registry-publisher:stale_after_tenant_switch:0001
+    dependency_chain:
+      - dependency_class: account_mapping_resolved
+        dependency_state: unmet
+        dependency_order_index: 0
+        rationale_summary: >-
+          Account mapping regressed to stale_after_account_switch
+          when the tenant switched from aureline to aureline-archived.
+        linked_record_ref: amb:registry.aureline:registry-publisher:stale_after_tenant_switch:0001
+      - dependency_class: rescope_completed
+        dependency_state: unmet
+        dependency_order_index: 1
+        rationale_summary: >-
+          Tenant-or-org scope realignment is required before any
+          actor can attach the artifact under the new tenant.
+        linked_record_ref: repair-hook:tenant-realignment:registry.aureline
+      - dependency_class: effective_scope_satisfied
+        dependency_state: unmet
+        dependency_order_index: 2
+        rationale_summary: >-
+          Effective scope set is empty after the grant was revoked.
+      - dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_order_index: 3
+        rationale_summary: >-
+          A fresh approval ticket cannot be minted under an unknown
+          actor.
+      - dependency_class: consequence_preview_confirmed
+        dependency_state: unmet
+        dependency_order_index: 4
+        rationale_summary: >-
+          Consequence preview must be re-computed against the new
+          tenant scope.
+        linked_record_ref: preview:artifact_registry.aureline-cli:v0.41.0:0001
+    retry_policy:
+      retry_backoff_class: no_retry_manual_only
+      max_attempts: 1
+      current_attempt_count: 1
+      last_attempt_outcome_summary: >-
+        Last drain attempt failed with denied_actor_class_forbidden
+        after the grant revocation; no background retry will be
+        attempted.
+    reauth_requirement:
+      reauth_class: admin_re_authorisation_required
+      rationale_summary: >-
+        An admin must re-authorise the registry-publisher install
+        on the new tenant before any actor may attach artifacts.
+      repair_hook_ref: repair-hook:admin-re-authorisation:registry-publisher:aureline-archived
+    rescope_requirement:
+      rescope_class: tenant_or_org_scope_realignment_required
+      rationale_summary: >-
+        The target tenant changed from aureline to aureline-archived;
+        the actor's grant scope must be realigned by an admin.
+      repair_hook_ref: repair-hook:tenant-realignment:registry.aureline
+    conflict_policy_class: refuse_on_remote_change
+    consequence_preview_ref: preview:artifact_registry.aureline-cli:v0.41.0:0001
+    local_draft_linkage:
+      originating_local_draft_ref: draft:artifact_registry.aureline-cli:v0.41.0:0001
+      draft_state_class: draft_unchanged_since_queue
+    publish_later_queue_item_ref: plq:artifact_registry:aureline-cli:v0.41.0:0001
+    stale_target_risk_class: target_actor_scope_changed
+    queue_state: pending_admin_review
+    blocked_reason_summary: >-
+      Tenant switched from aureline to aureline-archived; grant
+      was revoked; actor is unknown_actor_class. Admin re-
+      authorisation and tenant realignment required before any
+      retry; no background retry will be attempted.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:policy_injected_service:registry-publisher@policy-epoch:41
+      execution_context_id: execution-context:artifact_registry.aureline-cli:v0.41.0:0001
+      policy_epoch: policy-epoch:41
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:artifact_registry.aureline-cli:v0.41.0:0001
+    serialization_envelope:
+      serialization_format_class: requires_repair_before_restart
+      persisted_at: "2026-04-30T07:30:00Z"
+      restart_safe: false
+      schema_version_pinned: 1
+      repair_hook_ref: repair-hook:admin-re-authorisation:registry-publisher:aureline-archived
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T070000Z:0001
+      - audit:provider_action_deferred:20260430T070500Z:0001
+      - audit:browser_handoff_revoked:20260430T072500Z:0001
+      - audit:deferred_publish_queue_rejected:20260430T073000Z:0001
+    queued_at: "2026-04-30T07:00:30Z"
+    expires_at: "2026-05-01T07:00:30Z"
+    last_review_ref: dpr:artifact_registry.aureline-cli:v0.41.0:0001
+    item_summary: >-
+      release_artifact_attach v0.41.0 was ready_for_drain at 07:05
+      but tenant switched and grant was revoked; parked at
+      pending_admin_review with no background retry.
+    redaction_class: signing_evidence_only
+
+  - record_kind: deferred_publish_continuity_event_record
+    deferred_publish_queue_schema_version: 1
+    continuity_event_id: dpc:artifact_registry.aureline-cli:tenant_switch:0001
+    continuity_event_class: tenant_switched_invalidated
+    queue_item_ref: dpq:artifact_registry:release_artifact_attach:v0.41.0:0001
+    event_time: "2026-04-30T07:20:00Z"
+    from_queue_state: ready_for_drain
+    to_queue_state: pending_rescope
+    stale_target_risk_class: target_actor_scope_changed
+    invalidated_dependency_classes:
+      - account_mapping_resolved
+      - effective_scope_satisfied
+      - rescope_completed
+    rationale_summary: >-
+      Active tenant switched from aureline to aureline-archived;
+      the account mapping regressed to stale_after_account_switch,
+      effective scope set was invalidated, and tenant realignment
+      is now required.
+    linked_record_ref: amb:registry.aureline:registry-publisher:stale_after_tenant_switch:0001
+    audit_event_ref: audit:policy_epoch_rolled_invalidations:20260430T072000Z:0001
+    redaction_class: signing_evidence_only
+
+  - record_kind: deferred_publish_continuity_event_record
+    deferred_publish_queue_schema_version: 1
+    continuity_event_id: dpc:artifact_registry.aureline-cli:grant_revoked:0001
+    continuity_event_class: grant_revoked_invalidated
+    queue_item_ref: dpq:artifact_registry:release_artifact_attach:v0.41.0:0001
+    event_time: "2026-04-30T07:25:00Z"
+    from_queue_state: pending_rescope
+    to_queue_state: pending_admin_review
+    invalidated_dependency_classes:
+      - effective_scope_satisfied
+      - approval_ticket_admitted
+    rationale_summary: >-
+      The previously-resolved policy_injected_service grant for
+      registry-publisher was revoked after the tenant switch;
+      effective scope set went empty and any future drain will
+      require fresh admin re-authorisation.
+    linked_record_ref: account_invalidation:registry.aureline:registry-publisher:0001
+    audit_event_ref: audit:browser_handoff_revoked:20260430T072500Z:0001
+    redaction_class: signing_evidence_only
+
+  - record_kind: deferred_publish_review_record
+    deferred_publish_review_schema_version: 1
+    review_id: dpr:artifact_registry.aureline-cli:v0.41.0:0001
+    queue_item_refs:
+      - dpq:artifact_registry:release_artifact_attach:v0.41.0:0001
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:registry.aureline:ahmeddyounis:primary
+    review_state_class: blocked_by_actor_unknown
+    blocked_reason_class: waiting_actor_resolution
+    stale_target_risk_class: target_actor_scope_changed
+    dependency_order_disclosed:
+      - dependency_order_index: 0
+        dependency_class: account_mapping_resolved
+        dependency_state: unmet
+        dependency_summary: >-
+          Account mapping is stale_after_account_switch.
+      - dependency_order_index: 1
+        dependency_class: rescope_completed
+        dependency_state: unmet
+        dependency_summary: >-
+          Tenant-or-org scope realignment is required.
+      - dependency_order_index: 2
+        dependency_class: effective_scope_satisfied
+        dependency_state: unmet
+        dependency_summary: >-
+          Effective scope set is empty after the grant was revoked.
+      - dependency_order_index: 3
+        dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_summary: >-
+          No actor available to mint a fresh approval ticket.
+      - dependency_order_index: 4
+        dependency_class: consequence_preview_confirmed
+        dependency_state: unmet
+        dependency_summary: >-
+          Consequence preview must be re-computed under the new
+          tenant scope.
+    compare_or_rebase_options:
+      - compare_or_rebase_option_class: abandon_in_favor_of_remote
+        option_summary: >-
+          Cancel the queue item and adopt the remote artifact set
+          on aureline-archived as authoritative.
+        linked_record_ref: relation:artifact_registry.aureline-cli.v0.41.0:provider_authoritative_object:0001
+    export_or_copy_fallbacks:
+      - export_or_copy_fallback_class: export_for_admin_assisted_handoff
+        fallback_summary: >-
+          Hand the typed sheet to the registry-admin queue so a
+          privileged admin can complete or abandon the attach
+          out-of-band on the new tenant.
+        linked_record_ref: admin_queue:registry_admin:aureline-cli:v0.41.0:0001
+    review_actions:
+      - review_action_class: cancel_queue_item
+        action_summary: >-
+          Cancel the queue item; admin re-authorisation will be
+          required before any new attach attempt.
+      - review_action_class: export_evidence_packet
+        action_summary: >-
+          Export the typed evidence packet for the registry-admin
+          queue.
+        linked_record_ref: admin_queue:registry_admin:aureline-cli:v0.41.0:0001
+    review_disposition_class: cancel_at_user_request
+    notes_summary: >-
+      Tenant switch and grant revocation invalidated the queue item
+      under an unknown actor; user cancelled and exported the
+      typed evidence packet to the registry-admin queue. Drained
+      state is preserved as cancelled_by_user, distinguishable from
+      a successful provider commit.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:registry.aureline:ahmeddyounis:primary
+      execution_context_id: execution-context:artifact_registry.aureline-cli:v0.41.0:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:artifact_registry.aureline-cli:v0.41.0:0001
+    reviewed_at: "2026-04-30T07:35:00Z"
+    audit_event_refs:
+      - audit:deferred_publish_queue_rejected:20260430T073000Z:0001
+    redaction_class: signing_evidence_only

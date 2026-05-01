@@ -1,0 +1,236 @@
+__fixture__:
+  name: pull_request_merge_blocked_by_predecessor_dependency
+  case_id: deferred_publish.pull_request_merge_blocked_by_predecessor_dependency.v1
+  scenario: >-
+    A pull-request merge is admitted at pending_dependency because a
+    predecessor queue item (the pull-request-create that opens the
+    PR) must drain first. The dependency chain orders six
+    prerequisites: predecessor_queue_item (the create),
+    target_object_must_exist, conflict_resolved,
+    consequence_preview_confirmed, approval_ticket_admitted, and
+    freshness_floor_satisfied. The retry policy is
+    after_dependency_clears with linear bounded backoff. The review
+    record holds at blocked_by_dependency with hold_for_dependency
+    disposition; the user is offered a typed
+    export_via_object_handoff_packet fallback so support can see
+    the same record set.
+  exercised:
+    record_kinds:
+      - deferred_publish_queue_item_record
+      - deferred_publish_review_record
+    action_kind: pull_request_merge
+    mutation_mode: deferred_publish
+    surface_class: code_host_surface
+    queue_state: pending_dependency
+    stale_target_risk_class: target_unchanged
+    dependency_classes:
+      - predecessor_queue_item
+      - target_object_must_exist
+      - conflict_resolved
+      - consequence_preview_confirmed
+      - approval_ticket_admitted
+      - freshness_floor_satisfied
+    retry_backoff_class: after_dependency_clears
+    reauth_class: not_required
+    rescope_class: not_required
+    serialization_format_class: inline_record_safe
+    review_state_class: blocked_by_dependency
+    blocked_reason_class: waiting_dependency
+    review_disposition_class: hold_for_dependency
+    review_action_classes:
+      - defer_with_new_prerequisite
+      - export_evidence_packet
+    export_or_copy_fallback_class: export_via_object_handoff_packet
+
+records:
+  - record_kind: deferred_publish_queue_item_record
+    deferred_publish_queue_schema_version: 1
+    queue_item_id: dpq:code_host:pr:4900:merge:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    surface_class: code_host_surface
+    action_kind: pull_request_merge
+    mutation_mode: deferred_publish
+    target_object_identity:
+      object_class: pull_request
+      provider_side_id: github.com:aureline/aureline:pr:4900
+      provider_host: github.com
+      tenant_or_org_scope: aureline
+    target_freshness_floor:
+      freshness_floor_ref: freshness-floor:code_host.pr.4900:2026-04-30T08:00:00Z
+      observed_at: "2026-04-30T08:00:00Z"
+      staleness_class: fresh
+    intended_actor:
+      actor_class: human_account
+      actor_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+      expected_authority_summary: >-
+        ahmedyounis@github.com will merge PR 4900 once the open-PR
+        queue item drains.
+    dependency_chain:
+      - dependency_class: predecessor_queue_item
+        dependency_state: unmet
+        dependency_order_index: 0
+        rationale_summary: >-
+          The pull-request-create queue item that opens PR 4900 must
+          drain first; it is currently pending_target_refresh.
+        linked_record_ref: dpq:code_host:pr:4900:create:0001
+        predecessor_queue_item_ref: dpq:code_host:pr:4900:create:0001
+      - dependency_class: target_object_must_exist
+        dependency_state: unmet
+        dependency_order_index: 1
+        rationale_summary: >-
+          PR 4900 does not yet exist on github.com:aureline/aureline.
+      - dependency_class: conflict_resolved
+        dependency_state: met
+        dependency_order_index: 2
+        rationale_summary: >-
+          Local conflict resolution is complete; no merge conflict
+          remains.
+        cleared_at: "2026-04-30T08:00:30Z"
+      - dependency_class: consequence_preview_confirmed
+        dependency_state: met
+        dependency_order_index: 3
+        rationale_summary: >-
+          Consequence preview is current; merge is reversible.
+        linked_record_ref: preview:code_host.pr.4900.merge:0001
+        cleared_at: "2026-04-30T08:00:35Z"
+      - dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_order_index: 4
+        rationale_summary: >-
+          A fresh approval ticket will be minted at drain.
+      - dependency_class: freshness_floor_satisfied
+        dependency_state: met
+        dependency_order_index: 5
+        rationale_summary: >-
+          Base branch is unchanged since queue.
+        linked_record_ref: freshness-floor:code_host.pr.4900:2026-04-30T08:00:00Z
+        cleared_at: "2026-04-30T08:00:40Z"
+    retry_policy:
+      retry_backoff_class: after_dependency_clears
+      max_attempts: 5
+      current_attempt_count: 0
+    reauth_requirement:
+      reauth_class: not_required
+    rescope_requirement:
+      rescope_class: not_required
+    conflict_policy_class: refuse_on_remote_change
+    consequence_preview_ref: preview:code_host.pr.4900.merge:0001
+    local_draft_linkage:
+      originating_local_draft_ref: draft:code_host.pr.4900.merge:0001
+      draft_state_class: draft_unchanged_since_queue
+    publish_later_queue_item_ref: plq:code_host:pr:4900:merge:0001
+    stale_target_risk_class: target_unchanged
+    queue_state: pending_dependency
+    blocked_reason_summary: >-
+      Waiting on the predecessor pull_request_create queue item
+      (dpq:code_host:pr:4900:create:0001) to drain so PR 4900
+      exists on the remote.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:github.com:ahmeddyounis:primary
+      execution_context_id: execution-context:code_host.pr.4900.merge:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:code_host.pr.4900.merge:0001
+    serialization_envelope:
+      serialization_format_class: inline_record_safe
+      persisted_at: "2026-04-30T08:00:50Z"
+      restart_safe: true
+      schema_version_pinned: 1
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T080050Z:0001
+      - audit:provider_action_deferred:20260430T080051Z:0001
+    queued_at: "2026-04-30T08:00:50Z"
+    expires_at: "2026-05-01T08:00:50Z"
+    last_review_ref: dpr:code_host.pr.4900.merge:0001
+    item_summary: >-
+      pull_request_merge for PR 4900 is pending the predecessor
+      pull_request_create queue item; merge cannot drain until the
+      open-PR queue item resolves its target-refresh.
+    redaction_class: metadata_safe_default
+
+  - record_kind: deferred_publish_review_record
+    deferred_publish_review_schema_version: 1
+    review_id: dpr:code_host.pr.4900.merge:0001
+    queue_item_refs:
+      - dpq:code_host:pr:4900:merge:0001
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+    review_state_class: blocked_by_dependency
+    blocked_reason_class: waiting_dependency
+    stale_target_risk_class: target_unchanged
+    dependency_order_disclosed:
+      - dependency_order_index: 0
+        dependency_class: predecessor_queue_item
+        dependency_state: unmet
+        dependency_summary: >-
+          Waiting on the pull_request_create queue item that opens
+          PR 4900.
+      - dependency_order_index: 1
+        dependency_class: target_object_must_exist
+        dependency_state: unmet
+        dependency_summary: >-
+          PR 4900 does not yet exist on the remote.
+      - dependency_order_index: 2
+        dependency_class: conflict_resolved
+        dependency_state: met
+        dependency_summary: >-
+          Local conflict resolution is complete.
+      - dependency_order_index: 3
+        dependency_class: consequence_preview_confirmed
+        dependency_state: met
+        dependency_summary: >-
+          Consequence preview is current.
+      - dependency_order_index: 4
+        dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_summary: >-
+          A fresh approval ticket will be minted at drain.
+      - dependency_order_index: 5
+        dependency_class: freshness_floor_satisfied
+        dependency_state: met
+        dependency_summary: >-
+          Base branch unchanged since queue.
+    compare_or_rebase_options:
+      - compare_or_rebase_option_class: none_offered
+    export_or_copy_fallbacks:
+      - export_or_copy_fallback_class: export_via_object_handoff_packet
+        fallback_summary: >-
+          Hand the typed object-handoff packet (linking the merge
+          queue item, its predecessor create item, and the
+          consequence preview) to support so they see the same
+          record set.
+        linked_record_ref: object_handoff_packet:code_host.pr.4900:0001
+    review_actions:
+      - review_action_class: defer_with_new_prerequisite
+        action_summary: >-
+          Add a typed user_reconfirm_required dependency so the
+          merge requires a final user confirmation after the create
+          item drains.
+      - review_action_class: export_evidence_packet
+        action_summary: >-
+          Export the typed evidence packet for support review.
+        linked_record_ref: object_handoff_packet:code_host.pr.4900:0001
+    review_disposition_class: hold_for_dependency
+    notes_summary: >-
+      Holding merge at blocked_by_dependency; predecessor create
+      item must drain first. Added a user_reconfirm_required
+      dependency so merge requires explicit confirm even after
+      predecessor drains.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:github.com:ahmeddyounis:primary
+      execution_context_id: execution-context:code_host.pr.4900.merge:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:code_host.pr.4900.merge:0001
+    reviewed_at: "2026-04-30T08:05:00Z"
+    audit_event_refs:
+      - audit:provider_action_deferred:20260430T080500Z:0002
+    redaction_class: metadata_safe_default

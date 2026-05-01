@@ -1,0 +1,765 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/deferred_publish_review.schema.json",
+  "title": "Aureline deferred-publish queue review record vocabulary",
+  "description": "Boundary schema for the deferred_publish_review_record frozen in docs/providers/deferred_publish_queue_contract.md. The review record is the typed snapshot of a human or admin review pass over one or more deferred-publish queue items: it discloses the dependency order the reviewer saw, the stale-target risk on the target object, the typed blocked reason, the compare-or-rebase options offered, the export-or-copy fallback offered, the explicit retry / cancel / replace actions chosen, and the resulting review disposition. Queue-review surfaces, support exports, activity-center rows, audit-event payloads, and admin-reconciliation consoles render this record verbatim; widening to a non-frozen vocabulary member is forbidden. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw preview bodies never cross this boundary; the record carries opaque refs and structured fields only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new review_state_class, blocked_reason_class, compare_or_rebase_option_class, export_or_copy_fallback_class, review_action_class, or review_disposition_class is additive-minor and requires a deferred_publish_review_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/deferred_publish_review_record" }
+  ],
+  "$defs": {
+    "deferred_publish_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this deferred-publish review vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["deferred_publish_review_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / activity-center rollups / admin-reconciliation consoles."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in queue-review rows, support exports, activity-center rows, and audit-event payloads."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 / ADR-0010 redaction posture."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the review was authored under."
+    },
+
+    "reviewer_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "admin_reviewer",
+        "unknown_actor_class"
+      ],
+      "description": "Actor class allowed to author a review record. Extends the ADR-0010 actor set with admin_reviewer for admin-console-led reviews. unknown_actor_class is repair-only and forbids any disposition other than escalate_for_admin_review."
+    },
+
+    "review_state_class": {
+      "type": "string",
+      "enum": [
+        "pending_user_review",
+        "in_review",
+        "blocked_by_freshness",
+        "blocked_by_reauth",
+        "blocked_by_rescope",
+        "blocked_by_dependency",
+        "blocked_by_remote_unavailable",
+        "blocked_by_policy",
+        "blocked_by_conflict",
+        "blocked_by_actor_unknown",
+        "ready_for_drain",
+        "drained",
+        "cancelled"
+      ],
+      "description": "Frozen review state. Surfaces render this verbatim; reviewers MUST be able to tell whether the queue item is waiting on freshness, permission, dependency order, or remote availability."
+    },
+
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "waiting_freshness_refresh",
+        "waiting_reauth",
+        "waiting_rescope",
+        "waiting_dependency",
+        "waiting_remote_availability",
+        "waiting_admin_policy_review",
+        "waiting_user_reconfirm",
+        "waiting_conflict_resolution",
+        "waiting_actor_resolution"
+      ],
+      "description": "Frozen blocked-reason class. Required to be other than none whenever review_state_class is one of the blocked_by_* classes."
+    },
+
+    "compare_or_rebase_option_class": {
+      "type": "string",
+      "enum": [
+        "none_offered",
+        "compare_with_remote",
+        "rebase_local_on_remote",
+        "refresh_target_then_review",
+        "fork_into_new_target",
+        "abandon_in_favor_of_remote"
+      ],
+      "description": "Frozen compare-or-rebase option class. Reviewers see at least one option whenever the queue item carries a stale_target_risk_class other than target_unchanged; surfaces MUST NOT collapse a non-trivial stale-target risk into a single retry button."
+    },
+
+    "compare_or_rebase_option_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compare_or_rebase_option_class"],
+      "properties": {
+        "compare_or_rebase_option_class": {
+          "$ref": "#/$defs/compare_or_rebase_option_class"
+        },
+        "option_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the record the option routes through (rebased local draft ref, refreshed target import-session ref, forked target object identity, abandoned-in-favor-of provider_object_relation_record). Required for every option_class except none_offered."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every option_class except none_offered MUST cite a linked_record_ref and an option_summary.",
+          "if": {
+            "properties": {
+              "compare_or_rebase_option_class": {
+                "enum": [
+                  "compare_with_remote",
+                  "rebase_local_on_remote",
+                  "refresh_target_then_review",
+                  "fork_into_new_target",
+                  "abandon_in_favor_of_remote"
+                ]
+              }
+            },
+            "required": ["compare_or_rebase_option_class"]
+          },
+          "then": {
+            "required": ["linked_record_ref", "option_summary"],
+            "properties": {
+              "linked_record_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      ]
+    },
+
+    "export_or_copy_fallback_class": {
+      "type": "string",
+      "enum": [
+        "none_offered",
+        "copy_summary_for_offline",
+        "export_evidence_packet",
+        "export_via_object_handoff_packet",
+        "export_for_admin_assisted_handoff"
+      ],
+      "description": "Frozen export-or-copy fallback class. Queue-review surfaces MUST offer at least one fallback whenever the review_state_class is one of the blocked_by_* classes so inspect / copy / export remain available where safe."
+    },
+
+    "export_or_copy_fallback_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["export_or_copy_fallback_class"],
+      "properties": {
+        "export_or_copy_fallback_class": {
+          "$ref": "#/$defs/export_or_copy_fallback_class"
+        },
+        "fallback_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed record the fallback routes through (exported_evidence_record, object_handoff_packet_record, copied summary record, admin-assisted-handoff queue ref). Required for every fallback_class except none_offered."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every fallback_class except none_offered MUST cite a linked_record_ref and a fallback_summary.",
+          "if": {
+            "properties": {
+              "export_or_copy_fallback_class": {
+                "enum": [
+                  "copy_summary_for_offline",
+                  "export_evidence_packet",
+                  "export_via_object_handoff_packet",
+                  "export_for_admin_assisted_handoff"
+                ]
+              }
+            },
+            "required": ["export_or_copy_fallback_class"]
+          },
+          "then": {
+            "required": ["linked_record_ref", "fallback_summary"],
+            "properties": {
+              "linked_record_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      ]
+    },
+
+    "review_action_class": {
+      "type": "string",
+      "enum": [
+        "confirm_retry_now",
+        "confirm_retry_after_reauth",
+        "confirm_retry_after_rescope",
+        "confirm_retry_after_target_refresh",
+        "defer_with_new_prerequisite",
+        "cancel_queue_item",
+        "replace_with_superseding_item",
+        "escalate_for_admin_review",
+        "request_admin_assisted_handoff",
+        "compare_with_remote",
+        "rebase_local_on_remote",
+        "refresh_target_then_review",
+        "fork_into_new_target",
+        "abandon_in_favor_of_remote",
+        "copy_summary_for_offline",
+        "export_evidence_packet"
+      ],
+      "description": "Frozen review-action class. Surfaces MUST render explicit retry and cancel actions; a queue-review surface that exposes only an implicit retry-on-reconnect path is forbidden."
+    },
+
+    "review_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["review_action_class", "action_summary"],
+      "properties": {
+        "review_action_class": { "$ref": "#/$defs/review_action_class" },
+        "action_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the record the action routes through (replacement queue item, escalation queue ref, request_admin_assisted_handoff alternative ref, exported evidence packet, copied summary record). Required for replace_with_superseding_item, escalate_for_admin_review, request_admin_assisted_handoff, copy_summary_for_offline, and export_evidence_packet."
+        }
+      },
+      "allOf": [
+        {
+          "description": "replace_with_superseding_item, escalate_for_admin_review, request_admin_assisted_handoff, copy_summary_for_offline, and export_evidence_packet MUST cite a linked_record_ref.",
+          "if": {
+            "properties": {
+              "review_action_class": {
+                "enum": [
+                  "replace_with_superseding_item",
+                  "escalate_for_admin_review",
+                  "request_admin_assisted_handoff",
+                  "copy_summary_for_offline",
+                  "export_evidence_packet"
+                ]
+              }
+            },
+            "required": ["review_action_class"]
+          },
+          "then": {
+            "required": ["linked_record_ref"],
+            "properties": {
+              "linked_record_ref": { "$ref": "#/$defs/non_empty_string" }
+            }
+          }
+        }
+      ]
+    },
+
+    "review_disposition_class": {
+      "type": "string",
+      "enum": [
+        "admit_for_drain",
+        "hold_for_dependency",
+        "hold_for_reauth",
+        "hold_for_rescope",
+        "hold_for_target_refresh",
+        "hold_for_admin_review",
+        "revoke_item",
+        "replace_with_superseding_item",
+        "cancel_at_user_request",
+        "escalate_for_admin_review"
+      ],
+      "description": "Frozen review-disposition class. Queue-review records render exactly one disposition; admit_for_drain is the only disposition that may transition the queue item to ready_for_drain."
+    },
+
+    "stale_target_risk_class": {
+      "type": "string",
+      "enum": [
+        "target_unchanged",
+        "target_drifted_bounded",
+        "target_drifted_unbounded",
+        "target_renamed",
+        "target_relocated",
+        "target_replaced",
+        "target_deleted",
+        "target_scope_redefined",
+        "target_actor_scope_changed"
+      ],
+      "description": "Stale-target risk class quoted on the review record. Mirrors deferred_publish_queue_item.schema.json so reviewers and consumers see the same vocabulary across surfaces."
+    },
+
+    "dependency_order_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_order_index",
+        "dependency_class",
+        "dependency_state",
+        "dependency_summary"
+      ],
+      "properties": {
+        "dependency_order_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based dependency order index quoted from the queue item's dependency_chain."
+        },
+        "dependency_class": {
+          "type": "string",
+          "enum": [
+            "predecessor_queue_item",
+            "target_object_must_exist",
+            "approval_ticket_admitted",
+            "consequence_preview_confirmed",
+            "account_mapping_resolved",
+            "effective_scope_satisfied",
+            "freshness_floor_satisfied",
+            "conflict_resolved",
+            "reauth_completed",
+            "rescope_completed",
+            "browser_handoff_complete",
+            "connectivity_restored",
+            "provider_health_recovered",
+            "remote_availability_recovered",
+            "policy_epoch_stable",
+            "user_reconfirm_required"
+          ]
+        },
+        "dependency_state": {
+          "type": "string",
+          "enum": ["unmet", "met", "waived_by_reviewer", "waived_by_admin"]
+        },
+        "dependency_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One row of the dependency order the reviewer saw at review time. The review record carries the dependency order verbatim so reviewers, support exports, and admin reconciliation consoles see the same chain the queue item carried at review time, even after the queue item has been re-evaluated."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the review was authored under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the review was authored under."
+    },
+
+    "deferred_publish_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_publish_review_schema_version",
+        "review_id",
+        "queue_item_refs",
+        "reviewer_actor_class",
+        "review_state_class",
+        "blocked_reason_class",
+        "stale_target_risk_class",
+        "dependency_order_disclosed",
+        "compare_or_rebase_options",
+        "export_or_copy_fallbacks",
+        "review_actions",
+        "review_disposition_class",
+        "notes_summary",
+        "origin_disclosure",
+        "policy_context",
+        "reviewed_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_publish_review_record" },
+        "deferred_publish_review_schema_version": {
+          "$ref": "#/$defs/deferred_publish_review_schema_version"
+        },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "queue_item_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the deferred_publish_queue_item_records the review covers. A review record MUST cover at least one queue item; bulk reviews MAY cover several."
+        },
+        "reviewer_actor_class": { "$ref": "#/$defs/reviewer_actor_class" },
+        "reviewer_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the reviewer's actor subject. Empty string only when reviewer_actor_class is unknown_actor_class for a repair-only record."
+        },
+        "review_state_class": { "$ref": "#/$defs/review_state_class" },
+        "blocked_reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "stale_target_risk_class": { "$ref": "#/$defs/stale_target_risk_class" },
+        "dependency_order_disclosed": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dependency_order_entry" },
+          "description": "Snapshot of the queue item's dependency chain as the reviewer saw it. Surfaces render this in dependency_order_index order so reviewers can tell which prerequisite is next, not just which prerequisites exist."
+        },
+        "compare_or_rebase_options": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/compare_or_rebase_option_record" },
+          "description": "Typed compare-or-rebase options offered to the reviewer. A review whose stale_target_risk_class is target_unchanged MAY offer only none_offered; every other risk class MUST offer at least one option other than none_offered."
+        },
+        "export_or_copy_fallbacks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/export_or_copy_fallback_record" },
+          "description": "Typed export-or-copy fallbacks offered to the reviewer. A review whose review_state_class is one of the blocked_by_* classes MUST offer at least one fallback other than none_offered so inspect / copy / export remain available where safe."
+        },
+        "review_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": false,
+          "items": { "$ref": "#/$defs/review_action_record" },
+          "description": "Typed retry / cancel / replace / escalate / export actions taken in this review. A review record MUST contain at least one action; an empty action list is forbidden."
+        },
+        "review_disposition_class": {
+          "$ref": "#/$defs/review_disposition_class"
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "reviewed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "audit_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the provider_handoff audit events emitted for this review (provider_action_deferred, deferred_publish_queue_drained, deferred_publish_queue_rejected, provider_action_rolled_back)."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Blocked review states MUST cite a non-none blocked_reason_class.",
+          "if": {
+            "properties": {
+              "review_state_class": {
+                "enum": [
+                  "blocked_by_freshness",
+                  "blocked_by_reauth",
+                  "blocked_by_rescope",
+                  "blocked_by_dependency",
+                  "blocked_by_remote_unavailable",
+                  "blocked_by_policy",
+                  "blocked_by_conflict",
+                  "blocked_by_actor_unknown"
+                ]
+              }
+            },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "blocked_reason_class": {
+                "enum": [
+                  "waiting_freshness_refresh",
+                  "waiting_reauth",
+                  "waiting_rescope",
+                  "waiting_dependency",
+                  "waiting_remote_availability",
+                  "waiting_admin_policy_review",
+                  "waiting_user_reconfirm",
+                  "waiting_conflict_resolution",
+                  "waiting_actor_resolution"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-blocked review states MUST carry blocked_reason_class none.",
+          "if": {
+            "properties": {
+              "review_state_class": {
+                "enum": [
+                  "pending_user_review",
+                  "in_review",
+                  "ready_for_drain",
+                  "drained",
+                  "cancelled"
+                ]
+              }
+            },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": { "blocked_reason_class": { "const": "none" } }
+          }
+        },
+        {
+          "description": "Stale-target review records MUST offer at least one compare-or-rebase option other than none_offered.",
+          "if": {
+            "properties": {
+              "stale_target_risk_class": {
+                "enum": [
+                  "target_drifted_bounded",
+                  "target_drifted_unbounded",
+                  "target_renamed",
+                  "target_relocated",
+                  "target_replaced",
+                  "target_deleted",
+                  "target_scope_redefined",
+                  "target_actor_scope_changed"
+                ]
+              }
+            },
+            "required": ["stale_target_risk_class"]
+          },
+          "then": {
+            "properties": {
+              "compare_or_rebase_options": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "compare_or_rebase_option_class": {
+                      "enum": [
+                        "compare_with_remote",
+                        "rebase_local_on_remote",
+                        "refresh_target_then_review",
+                        "fork_into_new_target",
+                        "abandon_in_favor_of_remote"
+                      ]
+                    }
+                  },
+                  "required": ["compare_or_rebase_option_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocked review records MUST offer at least one export-or-copy fallback other than none_offered.",
+          "if": {
+            "properties": {
+              "review_state_class": {
+                "enum": [
+                  "blocked_by_freshness",
+                  "blocked_by_reauth",
+                  "blocked_by_rescope",
+                  "blocked_by_dependency",
+                  "blocked_by_remote_unavailable",
+                  "blocked_by_policy",
+                  "blocked_by_conflict",
+                  "blocked_by_actor_unknown"
+                ]
+              }
+            },
+            "required": ["review_state_class"]
+          },
+          "then": {
+            "properties": {
+              "export_or_copy_fallbacks": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "export_or_copy_fallback_class": {
+                      "enum": [
+                        "copy_summary_for_offline",
+                        "export_evidence_packet",
+                        "export_via_object_handoff_packet",
+                        "export_for_admin_assisted_handoff"
+                      ]
+                    }
+                  },
+                  "required": ["export_or_copy_fallback_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every review record MUST contain at least one explicit retry or cancel review_action.",
+          "properties": {
+            "review_actions": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "review_action_class": {
+                    "enum": [
+                      "confirm_retry_now",
+                      "confirm_retry_after_reauth",
+                      "confirm_retry_after_rescope",
+                      "confirm_retry_after_target_refresh",
+                      "defer_with_new_prerequisite",
+                      "cancel_queue_item",
+                      "replace_with_superseding_item",
+                      "escalate_for_admin_review",
+                      "request_admin_assisted_handoff",
+                      "abandon_in_favor_of_remote"
+                    ]
+                  }
+                },
+                "required": ["review_action_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "review_disposition_class admit_for_drain forbids review_state_class blocked_by_* and forbids stale_target_risk_class other than target_unchanged.",
+          "if": {
+            "properties": {
+              "review_disposition_class": { "const": "admit_for_drain" }
+            },
+            "required": ["review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": {
+                "enum": [
+                  "pending_user_review",
+                  "in_review",
+                  "ready_for_drain"
+                ]
+              },
+              "stale_target_risk_class": { "const": "target_unchanged" }
+            }
+          }
+        },
+        {
+          "description": "review_disposition_class hold_for_dependency requires review_state_class blocked_by_dependency.",
+          "if": {
+            "properties": {
+              "review_disposition_class": { "const": "hold_for_dependency" }
+            },
+            "required": ["review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": { "const": "blocked_by_dependency" }
+            }
+          }
+        },
+        {
+          "description": "review_disposition_class hold_for_reauth requires review_state_class blocked_by_reauth.",
+          "if": {
+            "properties": {
+              "review_disposition_class": { "const": "hold_for_reauth" }
+            },
+            "required": ["review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": { "const": "blocked_by_reauth" }
+            }
+          }
+        },
+        {
+          "description": "review_disposition_class hold_for_rescope requires review_state_class blocked_by_rescope.",
+          "if": {
+            "properties": {
+              "review_disposition_class": { "const": "hold_for_rescope" }
+            },
+            "required": ["review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": { "const": "blocked_by_rescope" }
+            }
+          }
+        },
+        {
+          "description": "review_disposition_class hold_for_target_refresh requires review_state_class blocked_by_freshness.",
+          "if": {
+            "properties": {
+              "review_disposition_class": { "const": "hold_for_target_refresh" }
+            },
+            "required": ["review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_state_class": { "const": "blocked_by_freshness" }
+            }
+          }
+        },
+        {
+          "description": "review_disposition_class replace_with_superseding_item MUST contain a review_action of class replace_with_superseding_item.",
+          "if": {
+            "properties": {
+              "review_disposition_class": {
+                "const": "replace_with_superseding_item"
+              }
+            },
+            "required": ["review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "review_actions": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "review_action_class": {
+                      "const": "replace_with_superseding_item"
+                    }
+                  },
+                  "required": ["review_action_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "reviewer_actor_class unknown_actor_class is repair-only and forbids any disposition other than escalate_for_admin_review.",
+          "if": {
+            "properties": {
+              "reviewer_actor_class": { "const": "unknown_actor_class" }
+            },
+            "required": ["reviewer_actor_class"]
+          },
+          "then": {
+            "properties": {
+              "review_disposition_class": {
+                "const": "escalate_for_admin_review"
+              }
+            }
+          }
+        }
+      ],
+      "description": "Typed snapshot of one human or admin review pass over one or more deferred-publish queue items. Discloses dependency order, stale-target risk, blocked reason, compare-or-rebase options, export-or-copy fallback, and explicit retry / cancel / replace actions; queue-review surfaces, support exports, activity-center rows, and admin-reconciliation consoles read this record verbatim."
+    }
+  }
+}

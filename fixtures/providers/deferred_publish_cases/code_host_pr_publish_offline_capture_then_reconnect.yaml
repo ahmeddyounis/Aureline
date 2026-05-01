@@ -1,0 +1,216 @@
+__fixture__:
+  name: code_host_pr_publish_offline_capture_then_reconnect
+  case_id: deferred_publish.code_host_pr_publish_offline_capture_then_reconnect.v1
+  scenario: >-
+    A pull-request review-comment publish is admitted into the
+    deferred-publish queue at captured_offline because the network
+    was unavailable. The intended actor is a human account on the
+    code-host provider. The dependency chain orders four
+    prerequisites: connectivity_restored, approval_ticket_admitted,
+    consequence_preview_confirmed, and freshness_floor_satisfied.
+    A continuity event fires when connectivity returns
+    (connectivity_restored_revalidated) and the queue item
+    transitions from captured_offline to ready_for_drain. The review
+    record admits the item for drain with a single
+    confirm_retry_now action.
+  exercised:
+    record_kinds:
+      - deferred_publish_queue_item_record
+      - deferred_publish_continuity_event_record
+      - deferred_publish_review_record
+    action_kind: pull_request_review_comment_publish
+    mutation_mode: deferred_publish
+    surface_class: code_host_surface
+    queue_state:
+      - captured_offline
+      - ready_for_drain
+    stale_target_risk_class: target_unchanged
+    dependency_classes:
+      - connectivity_restored
+      - approval_ticket_admitted
+      - consequence_preview_confirmed
+      - freshness_floor_satisfied
+    retry_backoff_class: linear_bounded
+    reauth_class: not_required
+    rescope_class: not_required
+    serialization_format_class: inline_record_safe
+    continuity_event_class: connectivity_restored_revalidated
+    review_state_class: ready_for_drain
+    review_disposition_class: admit_for_drain
+    review_action_class: confirm_retry_now
+
+records:
+  - record_kind: deferred_publish_queue_item_record
+    deferred_publish_queue_schema_version: 1
+    queue_item_id: dpq:code_host:pr:4821:review_comment:0001
+    connected_provider_record_id: conn_prov:github.com:ahmeddyounis:primary
+    surface_class: code_host_surface
+    action_kind: pull_request_review_comment_publish
+    mutation_mode: deferred_publish
+    target_object_identity:
+      object_class: pull_request
+      provider_side_id: github.com:aureline/aureline:pr:4821
+      provider_host: github.com
+      tenant_or_org_scope: aureline
+    target_freshness_floor:
+      freshness_floor_ref: freshness-floor:code_host.pr.4821:2026-04-30T08:55:00Z
+      observed_at: "2026-04-30T08:55:00Z"
+      staleness_class: fresh
+    intended_actor:
+      actor_class: human_account
+      actor_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+      expected_authority_summary: >-
+        ahmedyounis@github.com will publish the queued review comment
+        on aureline/aureline#4821 under the human-account grant.
+    dependency_chain:
+      - dependency_class: connectivity_restored
+        dependency_state: met
+        dependency_order_index: 0
+        rationale_summary: >-
+          Network connectivity was restored at 09:01 UTC; provider
+          health is recovered.
+        linked_record_ref: health:provider.code_host:github.com:2026-04-30T09:01:00Z
+        cleared_at: "2026-04-30T09:01:00Z"
+      - dependency_class: approval_ticket_admitted
+        dependency_state: met
+        dependency_order_index: 1
+        rationale_summary: >-
+          A fresh approval ticket has been admitted at drain time
+          (the queued request was carried in
+          originating_approval_ticket_ref).
+        linked_record_ref: ticket:deferred_publish_drain:0001
+        cleared_at: "2026-04-30T09:01:30Z"
+      - dependency_class: consequence_preview_confirmed
+        dependency_state: met
+        dependency_order_index: 2
+        rationale_summary: >-
+          The user-confirmed consequence preview is current; the
+          freshness floor has not drifted.
+        linked_record_ref: preview:code_host.pr.4821.review_comment:0001
+        cleared_at: "2026-04-30T09:01:35Z"
+      - dependency_class: freshness_floor_satisfied
+        dependency_state: met
+        dependency_order_index: 3
+        rationale_summary: >-
+          The PR head has not advanced past the queued freshness
+          floor.
+        linked_record_ref: freshness-floor:code_host.pr.4821:2026-04-30T08:55:00Z
+        cleared_at: "2026-04-30T09:01:40Z"
+    retry_policy:
+      retry_backoff_class: linear_bounded
+      max_attempts: 5
+      current_attempt_count: 0
+    reauth_requirement:
+      reauth_class: not_required
+    rescope_requirement:
+      rescope_class: not_required
+    conflict_policy_class: refuse_on_remote_change
+    consequence_preview_ref: preview:code_host.pr.4821.review_comment:0001
+    local_draft_linkage:
+      originating_local_draft_ref: draft:code_host.pr.4821.review_comment:0001
+      draft_state_class: draft_unchanged_since_queue
+    publish_later_queue_item_ref: plq:code_host:pr:4821:review_comment:0001
+    stale_target_risk_class: target_unchanged
+    queue_state: ready_for_drain
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:github.com:ahmeddyounis:primary
+      execution_context_id: execution-context:code_host.publish_review_comment:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:code_host.publish_review_comment:0001
+    serialization_envelope:
+      serialization_format_class: inline_record_safe
+      persisted_at: "2026-04-30T08:55:30Z"
+      restart_safe: true
+      schema_version_pinned: 1
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T085530Z:0001
+      - audit:provider_action_deferred:20260430T085531Z:0001
+      - audit:deferred_publish_queue_drained:20260430T090145Z:0001
+    queued_at: "2026-04-30T08:55:30Z"
+    expires_at: "2026-05-01T08:55:30Z"
+    last_review_ref: dpr:code_host.pr.4821.review_comment:0001
+    item_summary: >-
+      pull_request_review_comment_publish on aureline/aureline#4821
+      under the human_account grant; offline-captured at 08:55,
+      ready_for_drain at 09:01 after connectivity restored.
+    redaction_class: metadata_safe_default
+
+  - record_kind: deferred_publish_continuity_event_record
+    deferred_publish_queue_schema_version: 1
+    continuity_event_id: dpc:code_host.pr.4821.review_comment:reconnect:0001
+    continuity_event_class: connectivity_restored_revalidated
+    queue_item_ref: dpq:code_host:pr:4821:review_comment:0001
+    event_time: "2026-04-30T09:01:00Z"
+    from_queue_state: captured_offline
+    to_queue_state: ready_for_drain
+    rationale_summary: >-
+      Network connectivity returned at 09:01 UTC; the dependency
+      chain was re-evaluated and every required prerequisite
+      cleared. The item was admitted for drain through a fresh
+      approval ticket, not through the originating queued ticket.
+    linked_record_ref: health:provider.code_host:github.com:2026-04-30T09:01:00Z
+    audit_event_ref: audit:deferred_publish_queue_drained:20260430T090145Z:0001
+    redaction_class: metadata_safe_default
+
+  - record_kind: deferred_publish_review_record
+    deferred_publish_review_schema_version: 1
+    review_id: dpr:code_host.pr.4821.review_comment:0001
+    queue_item_refs:
+      - dpq:code_host:pr:4821:review_comment:0001
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:github.com:ahmeddyounis:primary
+    review_state_class: ready_for_drain
+    blocked_reason_class: none
+    stale_target_risk_class: target_unchanged
+    dependency_order_disclosed:
+      - dependency_order_index: 0
+        dependency_class: connectivity_restored
+        dependency_state: met
+        dependency_summary: >-
+          Network connectivity was restored at 09:01 UTC.
+      - dependency_order_index: 1
+        dependency_class: approval_ticket_admitted
+        dependency_state: met
+        dependency_summary: >-
+          A fresh approval ticket was admitted at drain.
+      - dependency_order_index: 2
+        dependency_class: consequence_preview_confirmed
+        dependency_state: met
+        dependency_summary: >-
+          Consequence preview is current; freshness floor unchanged.
+      - dependency_order_index: 3
+        dependency_class: freshness_floor_satisfied
+        dependency_state: met
+        dependency_summary: >-
+          PR head is unchanged since queue.
+    compare_or_rebase_options:
+      - compare_or_rebase_option_class: none_offered
+    export_or_copy_fallbacks:
+      - export_or_copy_fallback_class: none_offered
+    review_actions:
+      - review_action_class: confirm_retry_now
+        action_summary: >-
+          Drain the queue item now under a fresh approval ticket.
+    review_disposition_class: admit_for_drain
+    notes_summary: >-
+      Offline-captured review comment is ready to drain after
+      reconnect; no stale-target risk and no blocked dependencies.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:github.com:ahmeddyounis:primary
+      execution_context_id: execution-context:code_host.publish_review_comment:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:code_host.publish_review_comment:0001
+    reviewed_at: "2026-04-30T09:01:42Z"
+    audit_event_refs:
+      - audit:deferred_publish_queue_drained:20260430T090145Z:0001
+    redaction_class: metadata_safe_default

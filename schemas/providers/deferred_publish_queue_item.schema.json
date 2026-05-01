@@ -1,0 +1,1145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/providers/deferred_publish_queue_item.schema.json",
+  "title": "Aureline deferred-publish queue item, dependency chain, retry policy, reauth/re-scope requirement, and continuity-event vocabulary",
+  "description": "Boundary schema for the deferred_publish_queue_item_record and deferred_publish_continuity_event_record frozen in docs/providers/deferred_publish_queue_contract.md. The queue item is the typed durable record of one provider mutation that could not be committed inline because the network was offline, the provider was unavailable, the browser was blocked, the actor required reauth or re-scope, the target object had drifted past its freshness floor, an upstream queue item had to drain first, or an admin policy review was outstanding. The continuity-event record captures every offline / reconnect / tenant-switch / grant-revoked / target-scope-changed / freshness-drift / policy-epoch-roll / account-switch invalidation that re-evaluates a queued mutation so a queued action never silently looks already-committed remotely. This schema composes with publish_later_record.schema.json: a deferred_publish_queue_item_record MAY cite a publish_later_queue_item_ref and SHOULD reuse the publish-later vocabularies for mutation_mode, mode_admission_reason, conflict_policy_class, queue_state, origin_disclosure, and policy_context. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw preview bodies never cross this boundary; records carry opaque refs, fingerprints, and structured fields only. The eventual provider-mode crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new action_kind, dependency_class, dependency_state, retry_backoff_class, reauth_class, rescope_class, queue_state, stale_target_risk_class, serialization_format_class, or continuity_event_class is additive-minor and requires a deferred_publish_queue_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/deferred_publish_queue_item_record" },
+    { "$ref": "#/$defs/deferred_publish_continuity_event_record" }
+  ],
+  "$defs": {
+    "deferred_publish_queue_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this deferred-publish queue vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "deferred_publish_queue_item_record",
+        "deferred_publish_continuity_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / activity-center rows / admin-reconciliation consoles. Raw URLs, raw tokens, raw callback bodies, and raw provider payloads never appear here."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in queue-review rows, support exports, activity-center rows, audit-event payloads, and the originating provider-link header. Raw URLs, raw tokens, raw callback bodies, raw delegated-token bodies, raw provider payloads, and raw preview bodies never appear here."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class reused from ADR-0007 / ADR-0010 redaction posture. Raw URLs, raw callback bodies, raw webhook bodies, raw delegated-token bodies, raw provider payloads, and raw preview bodies never cross this boundary regardless of class."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the queue item or continuity event was captured under."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class reused from schemas/integration/browser_handoff_packet.schema.json. unknown_actor_class is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "mutation_mode": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Mutation mode reused from ADR-0010 and from publish_later_record.schema.json. inspect_only is forbidden in this queue (inspect_only state rides imported snapshots, never the deferred-publish queue)."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "code_host_surface",
+        "issue_or_planning_surface",
+        "ci_or_checks_surface",
+        "docs_or_portal_surface",
+        "artifact_registry_surface",
+        "release_publisher_surface",
+        "identity_provider_surface",
+        "ai_provider_surface",
+        "managed_admin_surface"
+      ],
+      "description": "Frozen provider-linked surface class reused from publish_later_record.schema.json that minted the queue item."
+    },
+
+    "action_kind": {
+      "type": "string",
+      "enum": [
+        "pull_request_create",
+        "pull_request_update",
+        "pull_request_review_comment_publish",
+        "pull_request_review_decision_publish",
+        "pull_request_merge",
+        "branch_push",
+        "issue_create",
+        "issue_update",
+        "issue_state_transition",
+        "issue_comment_publish",
+        "check_run_request_rerun",
+        "docs_page_publish",
+        "docs_page_update",
+        "artifact_version_publish",
+        "release_publish",
+        "release_artifact_attach",
+        "consent_grant_acknowledge",
+        "admin_console_action_request"
+      ],
+      "description": "Frozen provider-mutation action kind. Names what the queue item will do on the provider when it drains. A surface that cannot place its intended mutation in this list MUST route the action through inspect_only or open_in_provider rather than mint a queue item under a synthetic action kind."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "pull_request",
+            "issue_or_work_item",
+            "check_run",
+            "release_artifact",
+            "docs_page",
+            "audit_entry",
+            "admin_surface",
+            "consent_flow",
+            "package_version",
+            "registry_entry",
+            "other"
+          ]
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "type": "string" }
+      },
+      "description": "Provider-side identity of the target object the queue item mutates."
+    },
+
+    "freshness_floor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_floor_ref", "observed_at", "staleness_class"],
+      "properties": {
+        "freshness_floor_ref": { "$ref": "#/$defs/non_empty_string" },
+        "observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "staleness_class": {
+          "type": "string",
+          "enum": [
+            "fresh",
+            "bounded_stale",
+            "unbounded_stale",
+            "unknown_freshness_repair_required"
+          ]
+        }
+      },
+      "description": "Freshness floor the queue item was admitted under. Revalidated at drain; an item whose target has drifted past the floor MUST transition to a typed stale-target state and request review rather than drain silently."
+    },
+
+    "intended_actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor_class", "expected_authority_summary"],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "actor_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the resolved actor subject (linked human account, install, delegated credential, project-scoped grant, or policy-injected service identity). Empty string only when actor_class is unknown_actor_class for a repair-only record."
+        },
+        "expected_authority_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "account_mapping_binding_ref": {
+          "type": "string",
+          "description": "Opaque ref to the account_mapping_binding_record (publish_later_record.schema.json) the actor was queued under when the actor class / subject was not yet fully resolved at queue time."
+        }
+      },
+      "description": "Intended actor on the provider when the queue item drains. A queued mutation whose intended actor cannot be named MUST carry actor_class unknown_actor_class and MUST be parked in a blocked-by-actor-unknown queue state until repair completes; silent drain under an unresolved actor is forbidden."
+    },
+
+    "dependency_class": {
+      "type": "string",
+      "enum": [
+        "predecessor_queue_item",
+        "target_object_must_exist",
+        "approval_ticket_admitted",
+        "consequence_preview_confirmed",
+        "account_mapping_resolved",
+        "effective_scope_satisfied",
+        "freshness_floor_satisfied",
+        "conflict_resolved",
+        "reauth_completed",
+        "rescope_completed",
+        "browser_handoff_complete",
+        "connectivity_restored",
+        "provider_health_recovered",
+        "remote_availability_recovered",
+        "policy_epoch_stable",
+        "user_reconfirm_required"
+      ],
+      "description": "Frozen dependency class. The dependency chain is rendered in order on queue-review surfaces; surfaces MUST quote this class verbatim and MAY NOT collapse a dependency-class block into a generic 'waiting' label. connectivity_restored and provider_health_recovered are reused from the publish-later prerequisite vocabulary so reconnect / provider-recovery prerequisites round-trip across the publish-later and deferred-publish surfaces."
+    },
+
+    "dependency_state": {
+      "type": "string",
+      "enum": ["unmet", "met", "waived_by_reviewer", "waived_by_admin"],
+      "description": "State of one dependency in the chain. Drain authority is revalidated at drain: if any required dependency has regressed from met to unmet, the drain fails closed with the typed dependency_class as denial reason."
+    },
+
+    "dependency_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dependency_class",
+        "dependency_state",
+        "dependency_order_index",
+        "rationale_summary"
+      ],
+      "properties": {
+        "dependency_class": { "$ref": "#/$defs/dependency_class" },
+        "dependency_state": { "$ref": "#/$defs/dependency_state" },
+        "dependency_order_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Zero-based order index. Queue-review surfaces render the chain in ascending order so reviewers can tell which prerequisite is next, not just which prerequisites exist."
+        },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the record that will clear the dependency (predecessor queue item, account_mapping_binding_record, approval_ticket_record, consequence_preview_record, browser_handoff_packet_record, freshness probe record, policy-bundle record)."
+        },
+        "predecessor_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to a deferred_publish_queue_item_record that must drain first. Required when dependency_class is predecessor_queue_item."
+        },
+        "cleared_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Populated when dependency_state is met, waived_by_reviewer, or waived_by_admin."
+        },
+        "waiver_review_ref": {
+          "type": "string",
+          "description": "Opaque ref to the deferred_publish_review_record that recorded the waiver. Required when dependency_state is waived_by_reviewer or waived_by_admin."
+        }
+      },
+      "allOf": [
+        {
+          "description": "predecessor_queue_item dependency MUST cite a predecessor_queue_item_ref.",
+          "if": {
+            "properties": { "dependency_class": { "const": "predecessor_queue_item" } },
+            "required": ["dependency_class"]
+          },
+          "then": { "required": ["predecessor_queue_item_ref"] }
+        },
+        {
+          "description": "Met or waived dependencies MUST carry a cleared_at timestamp.",
+          "if": {
+            "properties": {
+              "dependency_state": {
+                "enum": ["met", "waived_by_reviewer", "waived_by_admin"]
+              }
+            },
+            "required": ["dependency_state"]
+          },
+          "then": { "required": ["cleared_at"] }
+        },
+        {
+          "description": "Waived dependencies MUST cite the review record that authorised the waiver.",
+          "if": {
+            "properties": {
+              "dependency_state": {
+                "enum": ["waived_by_reviewer", "waived_by_admin"]
+              }
+            },
+            "required": ["dependency_state"]
+          },
+          "then": { "required": ["waiver_review_ref"] }
+        }
+      ]
+    },
+
+    "retry_backoff_class": {
+      "type": "string",
+      "enum": [
+        "no_retry_manual_only",
+        "linear_bounded",
+        "exponential_bounded",
+        "after_dependency_clears",
+        "after_user_reconfirm"
+      ],
+      "description": "Frozen retry backoff class. no_retry_manual_only forbids any background re-attempt; the user MUST reopen the queue review to retry. after_dependency_clears defers retry until the dependency chain quietens; after_user_reconfirm requires an explicit user confirm-now action on the review surface."
+    },
+
+    "retry_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retry_backoff_class", "max_attempts", "current_attempt_count"],
+      "properties": {
+        "retry_backoff_class": { "$ref": "#/$defs/retry_backoff_class" },
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Hard upper bound on automatic drain attempts before the item is parked for user review."
+        },
+        "current_attempt_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of automatic drain attempts already made."
+        },
+        "next_eligible_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Earliest monotonic timestamp at which the next drain attempt is admissible. Surfaces render this so reviewers can tell the item is parked, not stuck."
+        },
+        "last_attempt_outcome_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence quoting the last attempt's typed outcome (e.g. denied_freshness_floor, denied_actor_class_forbidden, denied_target_conflict). Required once current_attempt_count is greater than zero."
+        }
+      },
+      "allOf": [
+        {
+          "description": "current_attempt_count MUST NOT exceed max_attempts.",
+          "properties": {
+            "current_attempt_count": { "type": "integer" },
+            "max_attempts": { "type": "integer" }
+          }
+        },
+        {
+          "description": "Once attempts have been made, last_attempt_outcome_summary MUST be present.",
+          "if": {
+            "properties": {
+              "current_attempt_count": { "type": "integer", "minimum": 1 }
+            },
+            "required": ["current_attempt_count"]
+          },
+          "then": { "required": ["last_attempt_outcome_summary"] }
+        }
+      ],
+      "description": "Bounded retry policy for the queue item. Aureline MAY NOT silently replay provider mutations: every retry reuses the same fresh approval ticket, the same consequence preview, the same dependency chain, and the same intended actor revalidated at drain time."
+    },
+
+    "reauth_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "session_renewal_required",
+        "step_up_authenticator_required",
+        "delegated_consent_re_grant_required",
+        "admin_re_authorisation_required",
+        "policy_injected_service_re_provision_required"
+      ],
+      "description": "Frozen reauth class. Reauth requirements MUST be disclosed on the queue-review surface and MUST cite a typed repair hook; Aureline MAY NOT silently retry a queued mutation that requires reauth."
+    },
+
+    "reauth_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reauth_class"],
+      "properties": {
+        "reauth_class": { "$ref": "#/$defs/reauth_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed repair hook (account-reselection flow, step-up authenticator flow, admin re-authorisation queue). Required for every reauth_class except not_required."
+        },
+        "browser_handoff_sheet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_sheet_record the user will see if reauth requires a system-browser handoff. Empty string when reauth is fully in-product (e.g. step-up via local authenticator)."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every reauth_class except not_required MUST cite a repair_hook_ref and a rationale_summary.",
+          "if": {
+            "properties": {
+              "reauth_class": {
+                "enum": [
+                  "session_renewal_required",
+                  "step_up_authenticator_required",
+                  "delegated_consent_re_grant_required",
+                  "admin_re_authorisation_required",
+                  "policy_injected_service_re_provision_required"
+                ]
+              }
+            },
+            "required": ["reauth_class"]
+          },
+          "then": { "required": ["repair_hook_ref", "rationale_summary"] }
+        }
+      ]
+    },
+
+    "rescope_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "additional_scopes_required",
+        "scope_downgrade_required",
+        "tenant_or_org_scope_realignment_required",
+        "project_scope_realignment_required",
+        "delegated_grant_re_authorisation_required"
+      ],
+      "description": "Frozen re-scope class. A queued mutation whose effective scope no longer covers the action MUST be parked at pending_rescope and MUST disclose the missing scopes verbatim; silent retry under a stale scope set is forbidden."
+    },
+
+    "rescope_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rescope_class"],
+      "properties": {
+        "rescope_class": { "$ref": "#/$defs/rescope_class" },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "missing_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to the typed scopes the actor is missing. Required for additional_scopes_required."
+        },
+        "surplus_scope_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Opaque refs to scopes the actor must shed before the mutation may proceed under tightened policy. Required for scope_downgrade_required."
+        },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed re-scope repair hook (consent re-grant, scope-upgrade flow, tenant realignment queue, admin re-authorisation queue). Required for every rescope_class except not_required."
+        }
+      },
+      "allOf": [
+        {
+          "description": "additional_scopes_required MUST cite missing_scope_refs.",
+          "if": {
+            "properties": { "rescope_class": { "const": "additional_scopes_required" } },
+            "required": ["rescope_class"]
+          },
+          "then": {
+            "properties": {
+              "missing_scope_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["missing_scope_refs"]
+          }
+        },
+        {
+          "description": "scope_downgrade_required MUST cite surplus_scope_refs.",
+          "if": {
+            "properties": { "rescope_class": { "const": "scope_downgrade_required" } },
+            "required": ["rescope_class"]
+          },
+          "then": {
+            "properties": {
+              "surplus_scope_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["surplus_scope_refs"]
+          }
+        },
+        {
+          "description": "Every rescope_class except not_required MUST cite a repair_hook_ref and a rationale_summary.",
+          "if": {
+            "properties": {
+              "rescope_class": {
+                "enum": [
+                  "additional_scopes_required",
+                  "scope_downgrade_required",
+                  "tenant_or_org_scope_realignment_required",
+                  "project_scope_realignment_required",
+                  "delegated_grant_re_authorisation_required"
+                ]
+              }
+            },
+            "required": ["rescope_class"]
+          },
+          "then": { "required": ["repair_hook_ref", "rationale_summary"] }
+        }
+      ]
+    },
+
+    "conflict_policy_class": {
+      "type": "string",
+      "enum": [
+        "refuse_on_remote_change",
+        "merge_if_auto_resolvable",
+        "user_decides_on_drain",
+        "force_overwrite_with_preview"
+      ],
+      "description": "Conflict policy reused from publish_later_record.schema.json. force_overwrite_with_preview MUST cite a consequence_preview_ref."
+    },
+
+    "stale_target_risk_class": {
+      "type": "string",
+      "enum": [
+        "target_unchanged",
+        "target_drifted_bounded",
+        "target_drifted_unbounded",
+        "target_renamed",
+        "target_relocated",
+        "target_replaced",
+        "target_deleted",
+        "target_scope_redefined",
+        "target_actor_scope_changed"
+      ],
+      "description": "Frozen stale-target risk class. Queue-review surfaces render this verbatim. target_unchanged is the only class that admits a silent drain; every other class MUST require user reconciliation through the review record before drain."
+    },
+
+    "queue_state": {
+      "type": "string",
+      "enum": [
+        "captured_offline",
+        "pending_dependency",
+        "pending_reauth",
+        "pending_rescope",
+        "pending_target_refresh",
+        "pending_user_reconfirm",
+        "pending_admin_review",
+        "ready_for_drain",
+        "draining",
+        "drained_committed",
+        "drained_failed_remote_rejected",
+        "drained_failed_origin_mismatch",
+        "cancelled_by_user",
+        "cancelled_by_admin",
+        "superseded",
+        "expired"
+      ],
+      "description": "Queue state rendered explicitly on every queue-review, support-export, activity-center, and admin-reconciliation surface. Aureline MAY NOT collapse drained_committed and drained_failed_* into a generic done state; failure modes stay distinguishable from successful provider commits."
+    },
+
+    "draft_state_class": {
+      "type": "string",
+      "enum": [
+        "draft_unchanged_since_queue",
+        "draft_modified_since_queue",
+        "draft_rolled_back_since_queue",
+        "draft_deleted_since_queue"
+      ],
+      "description": "State of the originating local draft relative to its state at queue time. Surfaces MUST disclose this so a reviewer can tell whether the queued mutation still matches the local truth the user originally confirmed."
+    },
+
+    "local_draft_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["originating_local_draft_ref", "draft_state_class"],
+      "properties": {
+        "originating_local_draft_ref": { "$ref": "#/$defs/non_empty_string" },
+        "draft_state_class": { "$ref": "#/$defs/draft_state_class" },
+        "draft_change_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the local-draft change since queue time. Required for every draft_state_class except draft_unchanged_since_queue."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Every draft_state_class except draft_unchanged_since_queue MUST quote a draft_change_summary.",
+          "if": {
+            "properties": {
+              "draft_state_class": {
+                "enum": [
+                  "draft_modified_since_queue",
+                  "draft_rolled_back_since_queue",
+                  "draft_deleted_since_queue"
+                ]
+              }
+            },
+            "required": ["draft_state_class"]
+          },
+          "then": { "required": ["draft_change_summary"] }
+        }
+      ]
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin a queue item was minted under. Revalidated at drain; a callback or drain against a mismatched origin is denied with browser_handoff_origin_mismatch."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the queue item was minted under. Revalidated at drain; a policy-epoch roll between queue and drain re-evaluates the item."
+    },
+
+    "serialization_format_class": {
+      "type": "string",
+      "enum": [
+        "inline_record_safe",
+        "offloaded_to_local_evidence_store",
+        "requires_repair_before_restart"
+      ],
+      "description": "Frozen serialization format class for the queue item. inline_record_safe means the typed record is small enough to persist inline in the queue manifest. offloaded_to_local_evidence_store means structured fields stay inline but supporting payloads (consequence preview body, evidence packet) live in the local evidence store under an opaque ref. requires_repair_before_restart marks an item the queue cannot safely rehydrate without a typed repair hook (e.g. an actor whose token has expired since persist)."
+    },
+
+    "serialization_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serialization_format_class",
+        "persisted_at",
+        "restart_safe",
+        "schema_version_pinned"
+      ],
+      "properties": {
+        "serialization_format_class": {
+          "$ref": "#/$defs/serialization_format_class"
+        },
+        "persisted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "restart_safe": {
+          "type": "boolean",
+          "description": "True when the queue item can be rehydrated after a process restart without a repair hook. requires_repair_before_restart MUST set this to false."
+        },
+        "schema_version_pinned": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "deferred_publish_queue_schema_version the persisted record was minted under. A rehydrating loader MUST refuse to silently upgrade a queue item across a breaking schema-version bump."
+        },
+        "evidence_store_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local evidence-store handle holding offloaded supporting payloads. Required when serialization_format_class is offloaded_to_local_evidence_store."
+        },
+        "repair_hook_ref": {
+          "type": "string",
+          "description": "Opaque ref to the typed repair hook required before the item can be safely rehydrated. Required when serialization_format_class is requires_repair_before_restart."
+        }
+      },
+      "allOf": [
+        {
+          "description": "offloaded_to_local_evidence_store MUST cite an evidence_store_ref.",
+          "if": {
+            "properties": {
+              "serialization_format_class": {
+                "const": "offloaded_to_local_evidence_store"
+              }
+            },
+            "required": ["serialization_format_class"]
+          },
+          "then": { "required": ["evidence_store_ref"] }
+        },
+        {
+          "description": "requires_repair_before_restart MUST cite a repair_hook_ref and MUST set restart_safe to false.",
+          "if": {
+            "properties": {
+              "serialization_format_class": {
+                "const": "requires_repair_before_restart"
+              }
+            },
+            "required": ["serialization_format_class"]
+          },
+          "then": {
+            "required": ["repair_hook_ref"],
+            "properties": { "restart_safe": { "const": false } }
+          }
+        },
+        {
+          "description": "inline_record_safe MUST set restart_safe to true.",
+          "if": {
+            "properties": {
+              "serialization_format_class": { "const": "inline_record_safe" }
+            },
+            "required": ["serialization_format_class"]
+          },
+          "then": { "properties": { "restart_safe": { "const": true } } }
+        }
+      ]
+    },
+
+    "continuity_event_class": {
+      "type": "string",
+      "enum": [
+        "offline_capture_taken",
+        "connectivity_restored_revalidated",
+        "tenant_switched_invalidated",
+        "grant_revoked_invalidated",
+        "target_scope_changed_invalidated",
+        "target_freshness_drift_invalidated",
+        "policy_epoch_rolled_invalidated",
+        "account_switched_invalidated",
+        "browser_unblocked_revalidated",
+        "remote_availability_recovered_revalidated",
+        "queue_item_rolled_back",
+        "queue_item_superseded"
+      ],
+      "description": "Frozen continuity event class. Every transition that re-evaluates a queued mutation fires one continuity event so a queued action is never silently advanced or silently dropped under a changed precondition."
+    },
+
+    "deferred_publish_queue_item_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_publish_queue_schema_version",
+        "queue_item_id",
+        "connected_provider_record_id",
+        "surface_class",
+        "action_kind",
+        "mutation_mode",
+        "target_object_identity",
+        "target_freshness_floor",
+        "intended_actor",
+        "dependency_chain",
+        "retry_policy",
+        "reauth_requirement",
+        "rescope_requirement",
+        "conflict_policy_class",
+        "local_draft_linkage",
+        "stale_target_risk_class",
+        "queue_state",
+        "origin_disclosure",
+        "policy_context",
+        "serialization_envelope",
+        "audit_event_refs",
+        "queued_at",
+        "expires_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_publish_queue_item_record" },
+        "deferred_publish_queue_schema_version": {
+          "$ref": "#/$defs/deferred_publish_queue_schema_version"
+        },
+        "queue_item_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "action_kind": { "$ref": "#/$defs/action_kind" },
+        "mutation_mode": { "$ref": "#/$defs/mutation_mode" },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "target_freshness_floor": { "$ref": "#/$defs/freshness_floor" },
+        "intended_actor": { "$ref": "#/$defs/intended_actor" },
+        "dependency_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/dependency_chain_entry" },
+          "description": "Ordered dependency chain. Queue-review surfaces render the chain in dependency_order_index order; reviewers MUST be able to tell whether the item is waiting on freshness, permission, dependency order, or remote availability."
+        },
+        "retry_policy": { "$ref": "#/$defs/retry_policy" },
+        "reauth_requirement": { "$ref": "#/$defs/reauth_requirement" },
+        "rescope_requirement": { "$ref": "#/$defs/rescope_requirement" },
+        "conflict_policy_class": { "$ref": "#/$defs/conflict_policy_class" },
+        "consequence_preview_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_consequence_preview_record the queue item commits to. Required when conflict_policy_class is force_overwrite_with_preview, when action_kind is release_publish, release_artifact_attach, or pull_request_merge, or when stale_target_risk_class is anything other than target_unchanged."
+        },
+        "local_draft_linkage": { "$ref": "#/$defs/local_draft_linkage" },
+        "originating_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the browser_handoff_packet_record the queue item parked. Required when mutation_mode is open_in_provider or when reauth_requirement.browser_handoff_sheet_ref is non-empty."
+        },
+        "publish_later_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the paired publish_later_queue_item_record (publish_later_record.schema.json). Empty string only when the deferred-publish item is the sole continuity record for the action; non-empty when the publish-later contract is the cross-tool surface that other consumers read."
+        },
+        "stale_target_risk_class": { "$ref": "#/$defs/stale_target_risk_class" },
+        "queue_state": { "$ref": "#/$defs/queue_state" },
+        "blocked_reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the queue-review, support-export, and activity-center surfaces render when queue_state is one of pending_dependency, pending_reauth, pending_rescope, pending_target_refresh, pending_user_reconfirm, pending_admin_review, drained_failed_remote_rejected, or drained_failed_origin_mismatch."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "serialization_envelope": { "$ref": "#/$defs/serialization_envelope" },
+        "audit_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the provider_handoff audit events emitted for this queue item (provider_action_proposed, provider_action_deferred, deferred_publish_queue_drained, deferred_publish_queue_rejected, browser_handoff_callback_validated, browser_handoff_callback_rejected, provider_action_rolled_back, policy_epoch_rolled_invalidations)."
+        },
+        "queued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp after which the queue item is no longer admissible for drain. An expired item is rejected with a typed denial reason rather than drained silently."
+        },
+        "supersedes_queue_item_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "superseded_by_queue_item_ref": {
+          "type": "string",
+          "description": "Opaque ref to the queue item that superseded this one when queue_state is superseded."
+        },
+        "last_review_ref": {
+          "type": "string",
+          "description": "Opaque ref to the most recent deferred_publish_review_record."
+        },
+        "item_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "inspect_only mutation_mode MAY NOT enter the deferred-publish queue; inspect_only state rides imported snapshots, not queue items.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "inspect_only" } },
+            "required": ["mutation_mode"]
+          },
+          "then": { "not": {} }
+        },
+        {
+          "description": "open_in_provider mutation_mode MUST cite an originating_browser_handoff_packet_ref.",
+          "if": {
+            "properties": { "mutation_mode": { "const": "open_in_provider" } },
+            "required": ["mutation_mode"]
+          },
+          "then": { "required": ["originating_browser_handoff_packet_ref"] }
+        },
+        {
+          "description": "Action kinds release_publish, release_artifact_attach, and pull_request_merge MUST cite a consequence_preview_ref.",
+          "if": {
+            "properties": {
+              "action_kind": {
+                "enum": [
+                  "release_publish",
+                  "release_artifact_attach",
+                  "pull_request_merge"
+                ]
+              }
+            },
+            "required": ["action_kind"]
+          },
+          "then": { "required": ["consequence_preview_ref"] }
+        },
+        {
+          "description": "force_overwrite_with_preview conflict policy MUST cite a consequence_preview_ref.",
+          "if": {
+            "properties": {
+              "conflict_policy_class": { "const": "force_overwrite_with_preview" }
+            },
+            "required": ["conflict_policy_class"]
+          },
+          "then": { "required": ["consequence_preview_ref"] }
+        },
+        {
+          "description": "stale_target_risk_class other than target_unchanged MUST cite a consequence_preview_ref.",
+          "if": {
+            "properties": {
+              "stale_target_risk_class": {
+                "enum": [
+                  "target_drifted_bounded",
+                  "target_drifted_unbounded",
+                  "target_renamed",
+                  "target_relocated",
+                  "target_replaced",
+                  "target_deleted",
+                  "target_scope_redefined",
+                  "target_actor_scope_changed"
+                ]
+              }
+            },
+            "required": ["stale_target_risk_class"]
+          },
+          "then": { "required": ["consequence_preview_ref"] }
+        },
+        {
+          "description": "queue_state pending_reauth requires reauth_requirement.reauth_class to be other than not_required.",
+          "if": {
+            "properties": { "queue_state": { "const": "pending_reauth" } },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "reauth_requirement": {
+                "properties": {
+                  "reauth_class": {
+                    "enum": [
+                      "session_renewal_required",
+                      "step_up_authenticator_required",
+                      "delegated_consent_re_grant_required",
+                      "admin_re_authorisation_required",
+                      "policy_injected_service_re_provision_required"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "queue_state pending_rescope requires rescope_requirement.rescope_class to be other than not_required.",
+          "if": {
+            "properties": { "queue_state": { "const": "pending_rescope" } },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "rescope_requirement": {
+                "properties": {
+                  "rescope_class": {
+                    "enum": [
+                      "additional_scopes_required",
+                      "scope_downgrade_required",
+                      "tenant_or_org_scope_realignment_required",
+                      "project_scope_realignment_required",
+                      "delegated_grant_re_authorisation_required"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "queue_state pending_target_refresh forbids stale_target_risk_class target_unchanged.",
+          "if": {
+            "properties": { "queue_state": { "const": "pending_target_refresh" } },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "stale_target_risk_class": {
+                "enum": [
+                  "target_drifted_bounded",
+                  "target_drifted_unbounded",
+                  "target_renamed",
+                  "target_relocated",
+                  "target_replaced",
+                  "target_deleted",
+                  "target_scope_redefined",
+                  "target_actor_scope_changed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "queue_state superseded MUST cite superseded_by_queue_item_ref.",
+          "if": {
+            "properties": { "queue_state": { "const": "superseded" } },
+            "required": ["queue_state"]
+          },
+          "then": { "required": ["superseded_by_queue_item_ref"] }
+        },
+        {
+          "description": "queue_state pending_dependency MUST contain at least one dependency_chain entry whose dependency_state is unmet.",
+          "if": {
+            "properties": { "queue_state": { "const": "pending_dependency" } },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "dependency_chain": {
+                "type": "array",
+                "contains": {
+                  "properties": { "dependency_state": { "const": "unmet" } },
+                  "required": ["dependency_state"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "queue_state ready_for_drain requires every dependency_chain entry to be met or waived.",
+          "if": {
+            "properties": { "queue_state": { "const": "ready_for_drain" } },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "dependency_chain": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "dependency_state": {
+                      "enum": ["met", "waived_by_reviewer", "waived_by_admin"]
+                    }
+                  },
+                  "required": ["dependency_state"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocked or failed queue states MUST quote a blocked_reason_summary.",
+          "if": {
+            "properties": {
+              "queue_state": {
+                "enum": [
+                  "pending_dependency",
+                  "pending_reauth",
+                  "pending_rescope",
+                  "pending_target_refresh",
+                  "pending_user_reconfirm",
+                  "pending_admin_review",
+                  "drained_failed_remote_rejected",
+                  "drained_failed_origin_mismatch"
+                ]
+              }
+            },
+            "required": ["queue_state"]
+          },
+          "then": { "required": ["blocked_reason_summary"] }
+        }
+      ],
+      "description": "Durable typed record of one provider mutation that could not be committed inline. Aureline MAY NOT silently replay this mutation when reauth, re-scope, or target-refresh is required: every drain attempt revalidates the dependency chain, the freshness floor, the intended actor, the consequence preview, and the policy context against a fresh approval ticket. Drained, cancelled, superseded, and expired states stay distinguishable from successful provider commits across desktop, CLI, support exports, and provider-specific surfaces."
+    },
+
+    "deferred_publish_continuity_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "deferred_publish_queue_schema_version",
+        "continuity_event_id",
+        "continuity_event_class",
+        "queue_item_ref",
+        "event_time",
+        "from_queue_state",
+        "to_queue_state",
+        "rationale_summary",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "deferred_publish_continuity_event_record" },
+        "deferred_publish_queue_schema_version": {
+          "$ref": "#/$defs/deferred_publish_queue_schema_version"
+        },
+        "continuity_event_id": { "$ref": "#/$defs/opaque_id" },
+        "continuity_event_class": { "$ref": "#/$defs/continuity_event_class" },
+        "queue_item_ref": { "$ref": "#/$defs/opaque_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "from_queue_state": { "$ref": "#/$defs/queue_state" },
+        "to_queue_state": { "$ref": "#/$defs/queue_state" },
+        "stale_target_risk_class": { "$ref": "#/$defs/stale_target_risk_class" },
+        "invalidated_dependency_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/dependency_class" },
+          "description": "Dependency classes that regressed from met to unmet because of this continuity event."
+        },
+        "rationale_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the record that triggered the continuity event (account_invalidation_event_record, effective_scope_invalidation_event_record, header_degradation_event_record, callback_deny_audit_event_record, account_mapping_binding_record)."
+        },
+        "audit_event_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_handoff audit event (policy_epoch_rolled_invalidations, browser_handoff_revoked, deferred_publish_queue_rejected, provider_action_rolled_back) emitted for this transition."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Invalidating continuity events MUST list at least one invalidated dependency class.",
+          "if": {
+            "properties": {
+              "continuity_event_class": {
+                "enum": [
+                  "tenant_switched_invalidated",
+                  "grant_revoked_invalidated",
+                  "target_scope_changed_invalidated",
+                  "target_freshness_drift_invalidated",
+                  "policy_epoch_rolled_invalidated",
+                  "account_switched_invalidated"
+                ]
+              }
+            },
+            "required": ["continuity_event_class"]
+          },
+          "then": {
+            "properties": {
+              "invalidated_dependency_classes": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["invalidated_dependency_classes"]
+          }
+        },
+        {
+          "description": "target_scope_changed_invalidated and target_freshness_drift_invalidated MUST cite a stale_target_risk_class other than target_unchanged.",
+          "if": {
+            "properties": {
+              "continuity_event_class": {
+                "enum": [
+                  "target_scope_changed_invalidated",
+                  "target_freshness_drift_invalidated"
+                ]
+              }
+            },
+            "required": ["continuity_event_class"]
+          },
+          "then": {
+            "required": ["stale_target_risk_class"],
+            "properties": {
+              "stale_target_risk_class": {
+                "enum": [
+                  "target_drifted_bounded",
+                  "target_drifted_unbounded",
+                  "target_renamed",
+                  "target_relocated",
+                  "target_replaced",
+                  "target_deleted",
+                  "target_scope_redefined",
+                  "target_actor_scope_changed"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Typed record of one continuity transition over a queue item. Every offline / reconnect / tenant-switch / grant-revoked / target-scope-changed / freshness-drift / policy-epoch-roll / account-switch invalidation fires one continuity event so a queued action never silently looks already-committed remotely. Drained, cancelled, superseded, and expired terminal states are reached only through an explicit transition that fires the corresponding continuity event."
+    }
+  }
+}

@@ -1,0 +1,215 @@
+__fixture__:
+  name: issue_create_blocked_by_rescope_additional_scopes
+  case_id: deferred_publish.issue_create_blocked_by_rescope_additional_scopes.v1
+  scenario: >-
+    An issue-create on the issue-or-planning surface is admitted at
+    pending_rescope because the delegated user token is missing two
+    typed scopes (issue:write, issue:label_apply) under a tightened
+    admin policy. The dependency chain orders four prerequisites
+    including rescope_completed and effective_scope_satisfied (both
+    unmet). The retry policy is after_dependency_clears: no timed
+    retry, the next attempt is admitted only when the dependency
+    chain quietens. The review record holds at blocked_by_rescope
+    with hold_for_rescope disposition; the user is offered a typed
+    copy_summary_for_offline fallback and a confirm_retry_after_
+    rescope action.
+  exercised:
+    record_kinds:
+      - deferred_publish_queue_item_record
+      - deferred_publish_review_record
+    action_kind: issue_create
+    mutation_mode: deferred_publish
+    surface_class: issue_or_planning_surface
+    queue_state: pending_rescope
+    stale_target_risk_class: target_unchanged
+    dependency_classes:
+      - rescope_completed
+      - effective_scope_satisfied
+      - approval_ticket_admitted
+      - account_mapping_resolved
+    retry_backoff_class: after_dependency_clears
+    reauth_class: not_required
+    rescope_class: additional_scopes_required
+    serialization_format_class: inline_record_safe
+    review_state_class: blocked_by_rescope
+    blocked_reason_class: waiting_rescope
+    review_disposition_class: hold_for_rescope
+    review_action_classes:
+      - confirm_retry_after_rescope
+      - copy_summary_for_offline
+    export_or_copy_fallback_class: copy_summary_for_offline
+
+records:
+  - record_kind: deferred_publish_queue_item_record
+    deferred_publish_queue_schema_version: 1
+    queue_item_id: dpq:issue_tracker:issue_create:bug-triage:0001
+    connected_provider_record_id: conn_prov:issues.aureline:delegated:ahmeddyounis
+    surface_class: issue_or_planning_surface
+    action_kind: issue_create
+    mutation_mode: deferred_publish
+    target_object_identity:
+      object_class: issue_or_work_item
+      provider_side_id: issues.aureline:project:bug-triage:new
+      provider_host: issues.aureline
+      tenant_or_org_scope: aureline
+    target_freshness_floor:
+      freshness_floor_ref: freshness-floor:issue_tracker.project.bug-triage:2026-04-30T08:30:00Z
+      observed_at: "2026-04-30T08:30:00Z"
+      staleness_class: fresh
+    intended_actor:
+      actor_class: delegated_user_token
+      actor_subject_ref: account:delegated_user_token:issues.aureline:ahmeddyounis
+      expected_authority_summary: >-
+        ahmedyounis (delegated user token) will create the issue on
+        the bug-triage project once the missing scopes are granted.
+      account_mapping_binding_ref: amb:issues.aureline:ahmeddyounis:0001
+    dependency_chain:
+      - dependency_class: rescope_completed
+        dependency_state: unmet
+        dependency_order_index: 0
+        rationale_summary: >-
+          The delegated user token is missing two typed scopes
+          required by tightened admin policy.
+        linked_record_ref: repair-hook:delegated-consent-re-grant:issues.aureline
+      - dependency_class: effective_scope_satisfied
+        dependency_state: unmet
+        dependency_order_index: 1
+        rationale_summary: >-
+          The effective scope set does not cover issue:write or
+          issue:label_apply.
+      - dependency_class: account_mapping_resolved
+        dependency_state: met
+        dependency_order_index: 2
+        rationale_summary: >-
+          Account mapping is resolved to ahmedyounis on
+          issues.aureline.
+        linked_record_ref: amb:issues.aureline:ahmeddyounis:0001
+        cleared_at: "2026-04-30T08:30:30Z"
+      - dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_order_index: 3
+        rationale_summary: >-
+          A fresh approval ticket will be minted at drain time after
+          the missing scopes are granted.
+    retry_policy:
+      retry_backoff_class: after_dependency_clears
+      max_attempts: 3
+      current_attempt_count: 0
+    reauth_requirement:
+      reauth_class: not_required
+    rescope_requirement:
+      rescope_class: additional_scopes_required
+      rationale_summary: >-
+        The delegated grant must be re-consented to add issue:write
+        and issue:label_apply scopes under the tightened admin
+        policy.
+      missing_scope_refs:
+        - scope:issues.aureline:issue:write
+        - scope:issues.aureline:issue:label_apply
+      repair_hook_ref: repair-hook:delegated-consent-re-grant:issues.aureline
+    conflict_policy_class: refuse_on_remote_change
+    local_draft_linkage:
+      originating_local_draft_ref: draft:issue_tracker.bug-triage.issue:0001
+      draft_state_class: draft_unchanged_since_queue
+    publish_later_queue_item_ref: plq:issue_tracker:bug-triage:issue_create:0001
+    stale_target_risk_class: target_unchanged
+    queue_state: pending_rescope
+    blocked_reason_summary: >-
+      Waiting on the user to re-grant two typed scopes
+      (issue:write, issue:label_apply) before issue creation can
+      proceed under the delegated user token.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:delegated_user_token:issues.aureline:ahmeddyounis
+      execution_context_id: execution-context:issue_tracker.issue_create:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:issue_tracker.issue_create:0001
+    serialization_envelope:
+      serialization_format_class: inline_record_safe
+      persisted_at: "2026-04-30T08:30:40Z"
+      restart_safe: true
+      schema_version_pinned: 1
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T083040Z:0001
+      - audit:provider_action_deferred:20260430T083041Z:0001
+    queued_at: "2026-04-30T08:30:40Z"
+    expires_at: "2026-05-01T08:30:40Z"
+    last_review_ref: dpr:issue_tracker.bug-triage.issue:0001
+    item_summary: >-
+      issue_create on issues.aureline/aureline/bug-triage under the
+      delegated user token is pending_rescope; missing
+      issue:write and issue:label_apply scopes.
+    redaction_class: metadata_safe_default
+
+  - record_kind: deferred_publish_review_record
+    deferred_publish_review_schema_version: 1
+    review_id: dpr:issue_tracker.bug-triage.issue:0001
+    queue_item_refs:
+      - dpq:issue_tracker:issue_create:bug-triage:0001
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:issues.aureline:ahmeddyounis:primary
+    review_state_class: blocked_by_rescope
+    blocked_reason_class: waiting_rescope
+    stale_target_risk_class: target_unchanged
+    dependency_order_disclosed:
+      - dependency_order_index: 0
+        dependency_class: rescope_completed
+        dependency_state: unmet
+        dependency_summary: >-
+          Two typed scopes must be re-consented before drain.
+      - dependency_order_index: 1
+        dependency_class: effective_scope_satisfied
+        dependency_state: unmet
+        dependency_summary: >-
+          Effective scope set does not yet cover issue:write or
+          issue:label_apply.
+      - dependency_order_index: 2
+        dependency_class: account_mapping_resolved
+        dependency_state: met
+        dependency_summary: >-
+          Account mapping resolved to ahmedyounis on issues.aureline.
+      - dependency_order_index: 3
+        dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_summary: >-
+          A fresh approval ticket will be minted after re-scope.
+    compare_or_rebase_options:
+      - compare_or_rebase_option_class: none_offered
+    export_or_copy_fallbacks:
+      - export_or_copy_fallback_class: copy_summary_for_offline
+        fallback_summary: >-
+          Copy the typed review summary (queue id, intended actor,
+          missing scopes, blocked reason) to the clipboard for
+          offline review.
+        linked_record_ref: copied-summary:issue_tracker.bug-triage.issue:0001
+    review_actions:
+      - review_action_class: confirm_retry_after_rescope
+        action_summary: >-
+          Admit the issue create for drain after the missing
+          delegated scopes are re-consented.
+      - review_action_class: copy_summary_for_offline
+        action_summary: >-
+          Copy the typed review summary for offline review.
+        linked_record_ref: copied-summary:issue_tracker.bug-triage.issue:0001
+    review_disposition_class: hold_for_rescope
+    notes_summary: >-
+      Issue create blocked by additional scopes required; user
+      offered confirm-retry-after-rescope and offline-copy fallback.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:issues.aureline:ahmeddyounis:primary
+      execution_context_id: execution-context:issue_tracker.issue_create:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:issue_tracker.issue_create:0001
+    reviewed_at: "2026-04-30T08:35:00Z"
+    audit_event_refs:
+      - audit:provider_action_deferred:20260430T083500Z:0002
+    redaction_class: metadata_safe_default

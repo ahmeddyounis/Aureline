@@ -1,0 +1,223 @@
+__fixture__:
+  name: release_publish_blocked_by_reauth_step_up
+  case_id: deferred_publish.release_publish_blocked_by_reauth_step_up.v1
+  scenario: >-
+    A release-publisher publish is admitted into the deferred-publish
+    queue at pending_reauth because the policy-injected service
+    identity requires step_up_authenticator_required reauth before
+    irreversible publish. The dependency chain orders four
+    prerequisites including reauth_completed (unmet) and
+    consequence_preview_confirmed. The retry policy is
+    after_user_reconfirm: there is no background retry, only an
+    explicit confirm-retry on the review surface. The review record
+    holds the item at blocked_by_reauth with a hold_for_reauth
+    disposition; the user is offered a typed export-evidence-packet
+    fallback, a typed request-admin-assisted-handoff action, and a
+    confirm_retry_after_reauth action.
+  exercised:
+    record_kinds:
+      - deferred_publish_queue_item_record
+      - deferred_publish_review_record
+    action_kind: release_publish
+    mutation_mode: deferred_publish
+    surface_class: release_publisher_surface
+    queue_state: pending_reauth
+    stale_target_risk_class: target_unchanged
+    dependency_classes:
+      - reauth_completed
+      - approval_ticket_admitted
+      - consequence_preview_confirmed
+      - freshness_floor_satisfied
+    retry_backoff_class: after_user_reconfirm
+    reauth_class: step_up_authenticator_required
+    rescope_class: not_required
+    serialization_format_class: offloaded_to_local_evidence_store
+    review_state_class: blocked_by_reauth
+    blocked_reason_class: waiting_reauth
+    review_disposition_class: hold_for_reauth
+    review_action_classes:
+      - confirm_retry_after_reauth
+      - request_admin_assisted_handoff
+      - export_evidence_packet
+    export_or_copy_fallback_class: export_evidence_packet
+
+records:
+  - record_kind: deferred_publish_queue_item_record
+    deferred_publish_queue_schema_version: 1
+    queue_item_id: dpq:release_publisher:release:v0.42.0:0001
+    connected_provider_record_id: conn_prov:releases.aureline:policy_injected:release-publisher
+    surface_class: release_publisher_surface
+    action_kind: release_publish
+    mutation_mode: deferred_publish
+    target_object_identity:
+      object_class: release_artifact
+      provider_side_id: releases.aureline:release:v0.42.0
+      provider_host: releases.aureline
+      tenant_or_org_scope: aureline
+    target_freshness_floor:
+      freshness_floor_ref: freshness-floor:release_publisher.release:v0.42.0:2026-04-30T08:50:00Z
+      observed_at: "2026-04-30T08:50:00Z"
+      staleness_class: fresh
+    intended_actor:
+      actor_class: policy_injected_service_identity
+      actor_subject_ref: account:policy_injected_service:release-publisher@policy-epoch:42
+      expected_authority_summary: >-
+        The policy-injected release-publisher service identity will
+        publish v0.42.0 once the step-up authenticator clears.
+    dependency_chain:
+      - dependency_class: reauth_completed
+        dependency_state: unmet
+        dependency_order_index: 0
+        rationale_summary: >-
+          Step-up authenticator is required before the policy-
+          injected service identity may sign the release.
+        linked_record_ref: repair-hook:step-up-authenticator:release-publisher
+      - dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_order_index: 1
+        rationale_summary: >-
+          A fresh approval ticket will be minted at drain time after
+          the step-up authenticator clears.
+      - dependency_class: consequence_preview_confirmed
+        dependency_state: met
+        dependency_order_index: 2
+        rationale_summary: >-
+          The user-confirmed consequence preview is current and
+          irreversible_release_class.
+        linked_record_ref: preview:release_publisher.release:v0.42.0
+        cleared_at: "2026-04-30T08:50:30Z"
+      - dependency_class: freshness_floor_satisfied
+        dependency_state: met
+        dependency_order_index: 3
+        rationale_summary: >-
+          Release artifact set is unchanged since queue.
+        linked_record_ref: freshness-floor:release_publisher.release:v0.42.0:2026-04-30T08:50:00Z
+        cleared_at: "2026-04-30T08:50:35Z"
+    retry_policy:
+      retry_backoff_class: after_user_reconfirm
+      max_attempts: 1
+      current_attempt_count: 0
+    reauth_requirement:
+      reauth_class: step_up_authenticator_required
+      rationale_summary: >-
+        Release publish is irreversible_release_class; policy
+        requires a step-up authenticator before the policy-injected
+        service identity may sign.
+      repair_hook_ref: repair-hook:step-up-authenticator:release-publisher
+    rescope_requirement:
+      rescope_class: not_required
+    conflict_policy_class: refuse_on_remote_change
+    consequence_preview_ref: preview:release_publisher.release:v0.42.0
+    local_draft_linkage:
+      originating_local_draft_ref: draft:release_publisher.release:v0.42.0
+      draft_state_class: draft_unchanged_since_queue
+    publish_later_queue_item_ref: plq:release_publisher:release:v0.42.0:0001
+    stale_target_risk_class: target_unchanged
+    queue_state: pending_reauth
+    blocked_reason_summary: >-
+      Waiting on step-up authenticator before the policy-injected
+      release-publisher service identity may sign v0.42.0.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:policy_injected_service:release-publisher@policy-epoch:42
+      execution_context_id: execution-context:release_publisher.release:v0.42.0:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:release_publisher.release:v0.42.0:0001
+    serialization_envelope:
+      serialization_format_class: offloaded_to_local_evidence_store
+      persisted_at: "2026-04-30T08:50:40Z"
+      restart_safe: true
+      schema_version_pinned: 1
+      evidence_store_ref: evidence-store:release_publisher.release:v0.42.0:0001
+    audit_event_refs:
+      - audit:provider_action_proposed:20260430T085040Z:0001
+      - audit:provider_action_deferred:20260430T085041Z:0001
+    queued_at: "2026-04-30T08:50:40Z"
+    expires_at: "2026-05-01T08:50:40Z"
+    last_review_ref: dpr:release_publisher.release:v0.42.0:0001
+    item_summary: >-
+      release_publish v0.42.0 under the policy_injected_service
+      identity is pending step-up reauth; no background retry, only
+      an explicit confirm-retry-after-reauth action.
+    redaction_class: signing_evidence_only
+
+  - record_kind: deferred_publish_review_record
+    deferred_publish_review_schema_version: 1
+    review_id: dpr:release_publisher.release:v0.42.0:0001
+    queue_item_refs:
+      - dpq:release_publisher:release:v0.42.0:0001
+    reviewer_actor_class: human_account
+    reviewer_subject_ref: account:human_account_link:releases.aureline:ahmeddyounis:primary
+    review_state_class: blocked_by_reauth
+    blocked_reason_class: waiting_reauth
+    stale_target_risk_class: target_unchanged
+    dependency_order_disclosed:
+      - dependency_order_index: 0
+        dependency_class: reauth_completed
+        dependency_state: unmet
+        dependency_summary: >-
+          Step-up authenticator is required before the policy-
+          injected service identity may sign the release.
+      - dependency_order_index: 1
+        dependency_class: approval_ticket_admitted
+        dependency_state: unmet
+        dependency_summary: >-
+          A fresh approval ticket will be minted after step-up.
+      - dependency_order_index: 2
+        dependency_class: consequence_preview_confirmed
+        dependency_state: met
+        dependency_summary: >-
+          Consequence preview is current and irreversible_release_class.
+      - dependency_order_index: 3
+        dependency_class: freshness_floor_satisfied
+        dependency_state: met
+        dependency_summary: >-
+          Release artifact set is unchanged since queue.
+    compare_or_rebase_options:
+      - compare_or_rebase_option_class: none_offered
+    export_or_copy_fallbacks:
+      - export_or_copy_fallback_class: export_evidence_packet
+        fallback_summary: >-
+          Export the typed evidence packet (consequence preview,
+          dependency chain, intended actor, redaction class) for
+          offline review.
+        linked_record_ref: evidence-store:release_publisher.release:v0.42.0:0001
+    review_actions:
+      - review_action_class: confirm_retry_after_reauth
+        action_summary: >-
+          Admit the release publish for drain after the step-up
+          authenticator flow clears.
+      - review_action_class: request_admin_assisted_handoff
+        action_summary: >-
+          Hand the typed sheet to the release-admin queue so a
+          privileged release admin can confirm the publish out-of-
+          band under the same policy-injected service identity.
+        linked_record_ref: admin_queue:release_admin:release:v0.42.0:0001
+      - review_action_class: export_evidence_packet
+        action_summary: >-
+          Export the typed evidence packet for offline review.
+        linked_record_ref: evidence-store:release_publisher.release:v0.42.0:0001
+    review_disposition_class: hold_for_reauth
+    notes_summary: >-
+      Holding release publish at pending_reauth; user offered
+      step-up confirm-retry-after-reauth, admin-assisted handoff,
+      and evidence-packet export. No background retry until reauth
+      clears.
+    origin_disclosure:
+      host_identity: host:aureline-desktop:ahmeddyounis-laptop
+      workspace_id: workspace:aureline:aureline
+      actor_subject: account:human_account_link:releases.aureline:ahmeddyounis:primary
+      execution_context_id: execution-context:release_publisher.release:v0.42.0:0001
+      policy_epoch: policy-epoch:42
+    policy_context:
+      policy_epoch: policy-epoch:42
+      trust_state: trusted
+      execution_context_id: execution-context:release_publisher.release:v0.42.0:0001
+    reviewed_at: "2026-04-30T08:55:00Z"
+    audit_event_refs:
+      - audit:provider_action_deferred:20260430T085500Z:0002
+    redaction_class: signing_evidence_only
