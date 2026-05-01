@@ -1,0 +1,618 @@
+# No-account switching scoreboard.
+#
+# Reviewer-readable companion to:
+#   - artifacts/ux/first_useful_work_corpus/   (qualification corpus)
+#   - artifacts/ux/startup_route_rehearsal_packet.md   (packet template)
+#   - artifacts/product/no_account_switching_scoreboard_seed.yaml
+#                                              (the seed scoreboard
+#                                               from the onboarding
+#                                               measurement plan)
+#
+# This scoreboard rolls the per-row qualification results from the
+# rehearsal packet up into one cross-route view. Three row families
+# carry one row per (entry_route_id, deployment_profile_id) pair:
+#
+#   1. fuw_no_account_by_route — qualifies that the route reached
+#      first-useful-work without account, managed service, or
+#      network on its profile.
+#   2. fuw_service_opt_in_decline_outcomes — qualifies that
+#      declining a non-identity service opt-in did not retroactively
+#      degrade prior local flow.
+#   3. fuw_account_required_exception — names every (route, profile)
+#      pair where Aureline genuinely requires account / managed
+#      service / explicit policy, with the typed reason and the
+#      Continue-local / Continue-in-restricted-mode decline path
+#      it MUST still preserve.
+#
+# A fourth family carries the managed-sign-in-skipped exception
+# rows so reviewers can see at-a-glance that Continue local was
+# offered same-weight on managed-cloud / enterprise-online routes
+# even when sign-in is the documented happy path.
+#
+# Every row pins exactly one source row in the
+# artifacts/product/no_account_switching_scoreboard_seed.yaml seed
+# (the upstream charter of these scoreboards) so this scoreboard
+# does not invent thresholds outside the benchmark-council
+# promotion path.
+#
+# Rules (frozen):
+#   1. Every row pins exactly one entry_route_id from the
+#      onboarding measurement plan §4 closed set, exactly one
+#      deployment_profile_id, and exactly one row family.
+#   2. Every row cites at least one fuw_row:* id from
+#      artifacts/ux/first_useful_work_corpus/.
+#   3. Every row cites the seed scoreboard rows it composes over
+#      (artifacts/product/no_account_switching_scoreboard_seed.yaml).
+#      Composition is read-only; widening a threshold here is a
+#      governance violation and reopens the seed-scoreboard
+#      promotion process.
+#   4. Threshold values are drawn from the closed set in
+#      threshold_state_vocabulary; free-form thresholds are
+#      non-conforming.
+#   5. Milestone slugs MUST NOT appear in any id field, threshold
+#      label, or notes.
+
+schema_version: 1
+
+sources:
+  corpus_dir: artifacts/ux/first_useful_work_corpus/
+  seed_scoreboard: artifacts/product/no_account_switching_scoreboard_seed.yaml
+  task_success_corpus_seed: artifacts/product/task_success_corpus_seed.yaml
+  measurement_plan: docs/product/onboarding_measurement_plan.md
+  rehearsal_packet: artifacts/ux/startup_route_rehearsal_packet.md
+  no_account_local_entry_contract: docs/ux/no_account_local_entry_contract.md
+  boundary_manifest: docs/product/boundary_manifest_strawman.md
+  deployment_profiles: artifacts/governance/deployment_profiles.yaml
+  benchmark_council_charter: docs/governance/benchmark_council_charter.md
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# -----------------------------------------------------------------------------
+
+threshold_state_vocabulary:
+  - must_succeed_on_every_attempt
+  - must_not_require_opt_in_prompt
+  - must_not_degrade_after_decline
+  - must_advertise_narrowing_before_commit
+  - must_offer_continue_local_same_weight
+  - must_offer_continue_in_restricted_mode_same_weight
+  - to_be_set_by_benchmark_council
+
+claim_class_vocabulary:
+  - account_free_local_claim
+  - decline_without_degradation_claim
+  - narrowing_advertised_claim
+  - account_required_with_continue_local_claim
+
+entry_route_id_vocabulary:
+  - er.start_center
+  - er.recent_work_reopen
+  - er.restore_prompt
+  - er.protocol_handler_reentry
+  - er.clone_or_import
+  - er.plain_open
+  - er.workspace_switch
+  - er.warm_start
+
+deployment_profile_id_vocabulary:
+  - individual_local
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+  - managed_cloud
+
+rehearsal_qualification_class_vocabulary:
+  - exact
+  - compatible
+  - partial
+  - failed
+
+# -----------------------------------------------------------------------------
+# Family 1: No-account by route × deployment profile.
+#
+# Each row qualifies that a (route, profile) combination reached
+# first-useful-work without account, managed service, or network
+# under the rehearsal packet.
+# -----------------------------------------------------------------------------
+fuw_no_account_by_route:
+  rows:
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.start_center_individual_local
+      claim_class: account_free_local_claim
+      entry_route_id: er.start_center
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:local_open.first_run_start_center_local_folder
+        - fuw_row:local_open.start_from_prebuild_minimal_bypass
+        - fuw_row:service_opt_in_declined.telemetry_optional_at_first_run
+        - fuw_row:service_opt_in_declined.marketplace_browse_declined_first_run
+        - fuw_row:managed_sign_in_available_but_skipped.individual_local_first_run_managed_sign_in_offered_skipped
+      seed_scoreboard_refs:
+        - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+        - scoreboard_row:no_account_local_work.local_git_available_offline
+        - scoreboard_row:no_account_local_work.prebuild_minimal_bypass_same_weight
+      acceptable_qualification_classes:
+        - exact
+        - compatible
+      threshold_state: to_be_set_by_benchmark_council
+      primary_dri_lane: aureline-buffer
+      co_review_lanes:
+        - aureline-vfs
+        - product_scope_review
+      notes: >
+        Floor row. Start Center first-run on individual_local
+        MUST reach first-useful-edit without sign-in, service
+        opt-in, or network. Compatible-class outcomes are
+        permitted only when narrowing is advertised before
+        commit (e.g. open_prebuild_minimal, optional decline).
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.start_center_air_gapped
+      claim_class: narrowing_advertised_claim
+      entry_route_id: er.start_center
+      deployment_profile_id: air_gapped
+      supporting_corpus_rows:
+        - fuw_row:offline_or_mirror_open.air_gapped_first_run_no_marketplace
+      seed_scoreboard_refs:
+        - scoreboard_row:intentionally_narrowed_capability.air_gapped_first_run_no_marketplace_prompt
+      acceptable_qualification_classes:
+        - compatible
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+      notes: >
+        Air-gapped first run never presents the hosted marketplace
+        UI. Narrowing to CLI / offline-bundle install MUST be
+        advertised before commit; the public-internet-forbidden
+        invariant holds.
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.plain_open_individual_local
+      claim_class: account_free_local_claim
+      entry_route_id: er.plain_open
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:local_open.plain_open_unknown_archetype
+      seed_scoreboard_refs:
+        - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+      acceptable_qualification_classes:
+        - exact
+      threshold_state: must_succeed_on_every_attempt
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - aureline-vfs
+        - product_scope_review
+      notes: >
+        Plain File > Open / palette open / CLI positional open
+        MUST reach first-useful-work without an opt-in prompt,
+        archetype recognition, or trust widening.
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.protocol_handler_individual_local
+      claim_class: account_free_local_claim
+      entry_route_id: er.protocol_handler_reentry
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:local_open.protocol_handler_single_file
+      seed_scoreboard_refs:
+        - scoreboard_row:no_account_local_work.protocol_handler_no_trust_widening
+      acceptable_qualification_classes:
+        - exact
+      threshold_state: must_not_require_opt_in_prompt
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - aureline-vfs
+        - product_scope_review
+      notes: >
+        OS file association / drag-and-drop / deep-link MUST NOT
+        widen trust as a side effect of the entry resolution.
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.recent_work_reopen_individual_local
+      claim_class: narrowing_advertised_claim
+      entry_route_id: er.recent_work_reopen
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:missing_target_reopen.local_repo_root_moved_on_disk
+        - fuw_row:missing_target_reopen.remote_repo_unreachable_offline
+      seed_scoreboard_refs:
+        - scoreboard_row:intentionally_narrowed_capability.recent_row_missing_target_advertised
+      acceptable_qualification_classes:
+        - exact
+        - compatible
+        - partial
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - aureline-vfs
+        - support_export
+      notes: >
+        Recent-work rows whose target is unreachable MUST
+        advertise target_state before click. Partial outcomes
+        are permitted when reaching first-useful-work requires
+        Locate or Continue in restricted mode; Open anyway is
+        never offered without a typed safe action same-weight.
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.restore_prompt_individual_local
+      claim_class: narrowing_advertised_claim
+      entry_route_id: er.restore_prompt
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:restore.compatible_restore_after_crash
+        - fuw_row:restore.failed_restore_corrupt_checkpoint
+      seed_scoreboard_refs:
+        - scoreboard_row:intentionally_narrowed_capability.layout_only_when_extension_host_missing
+      acceptable_qualification_classes:
+        - exact
+        - compatible
+        - partial
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: aureline-buffer
+      co_review_lanes:
+        - shell_command_system
+        - support_export
+      notes: >
+        Restore prompts MUST advertise the restore_level before
+        commit. Delivered level not exceeding advertised is the
+        rule; downgrade to no_restore is permitted as long as
+        Open without restore / Safe mode is offered same-weight
+        and the degradation is named before commit.
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.clone_or_import_individual_local
+      claim_class: account_free_local_claim
+      entry_route_id: er.clone_or_import
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:clone.clone_then_review_remote_repo
+        - fuw_row:import.vs_code_settings_dry_run_then_apply
+        - fuw_row:import.handoff_packet_inspect_only_no_apply
+      seed_scoreboard_refs:
+        - scoreboard_row:no_account_local_work.migration_without_opt_in
+        - scoreboard_row:intentionally_narrowed_capability.migration_blocked_item_advertises_reason
+      acceptable_qualification_classes:
+        - exact
+        - compatible
+      threshold_state: must_offer_continue_local_same_weight
+      primary_dri_lane: compatibility_ecosystem_review
+      co_review_lanes:
+        - shell_command_system
+        - product_scope_review
+      notes: >
+        Clone and import on individual_local MUST reach the
+        post-clone handoff / migration-center surface without
+        forced sign-in. Service opt-ins (model gateway, sync) are
+        offered same-weight with Continue local; declines never
+        block reaching first-useful-work.
+
+    - row_id: scoreboard_row:fuw_no_account_by_route.warm_start_individual_local
+      claim_class: account_free_local_claim
+      entry_route_id: er.warm_start
+      deployment_profile_id: individual_local
+      supporting_corpus_rows:
+        - fuw_row:offline_or_mirror_open.individual_local_offline_warm_start
+      seed_scoreboard_refs:
+        - scoreboard_row:no_account_local_work.local_git_available_offline
+      acceptable_qualification_classes:
+        - exact
+      threshold_state: must_succeed_on_every_attempt
+      primary_dri_lane: aureline-buffer
+      co_review_lanes:
+        - aureline-vfs
+        - shell_command_system
+      notes: >
+        Warm-start (no restore prompt) on individual_local MUST
+        reach first-useful-edit with no network, no opt-in,
+        and no managed-service touch.
+
+# -----------------------------------------------------------------------------
+# Family 2: Service-opt-in decline outcomes.
+#
+# Each row qualifies that declining a non-identity service opt-in
+# did not retroactively degrade prior local flow. The seed
+# scoreboard's service_opt_in_boundary_outcomes family is the
+# upstream charter; this family pins the rehearsal-packet
+# qualification per (boundary_row, profile).
+# -----------------------------------------------------------------------------
+fuw_service_opt_in_decline_outcomes:
+  rows:
+
+    - row_id: scoreboard_row:fuw_service_opt_in_decline_outcomes.telemetry_individual_local
+      claim_class: decline_without_degradation_claim
+      entry_route_id: er.start_center
+      deployment_profile_id: individual_local
+      boundary_manifest_row_id: telemetry_support_pipeline
+      supporting_corpus_rows:
+        - fuw_row:service_opt_in_declined.telemetry_optional_at_first_run
+      seed_scoreboard_refs:
+        - scoreboard_row:service_opt_in_boundary.telemetry_optional_at_first_run
+      acceptable_qualification_classes:
+        - exact
+        - compatible
+      threshold_state: must_not_degrade_after_decline
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - support_export
+        - docs_public_truth
+
+    - row_id: scoreboard_row:fuw_service_opt_in_decline_outcomes.model_gateway_individual_local
+      claim_class: decline_without_degradation_claim
+      entry_route_id: er.clone_or_import
+      deployment_profile_id: individual_local
+      boundary_manifest_row_id: model_gateway
+      supporting_corpus_rows:
+        - fuw_row:service_opt_in_declined.model_gateway_optional_at_clone
+      seed_scoreboard_refs:
+        - scoreboard_row:service_opt_in_boundary.clone_without_model_gateway
+      acceptable_qualification_classes:
+        - compatible
+      threshold_state: must_not_degrade_after_decline
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+
+    - row_id: scoreboard_row:fuw_service_opt_in_decline_outcomes.marketplace_individual_local
+      claim_class: decline_without_degradation_claim
+      entry_route_id: er.start_center
+      deployment_profile_id: individual_local
+      boundary_manifest_row_id: hosted_marketplace_ui
+      supporting_corpus_rows:
+        - fuw_row:service_opt_in_declined.marketplace_browse_declined_first_run
+      seed_scoreboard_refs:
+        - scoreboard_row:service_opt_in_boundary.marketplace_browse_declined
+      acceptable_qualification_classes:
+        - exact
+      threshold_state: must_not_require_opt_in_prompt
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - docs_public_truth
+
+# -----------------------------------------------------------------------------
+# Family 3: Managed-sign-in skipped (route, profile) exception rows.
+#
+# These rows record routes where managed sign-in is the documented
+# happy path, but Continue local / Continue in restricted mode is
+# offered same-weight and declining the sign-in did not
+# retroactively degrade prior local work.
+# -----------------------------------------------------------------------------
+fuw_managed_sign_in_skipped:
+  rows:
+
+    - row_id: scoreboard_row:fuw_managed_sign_in_skipped.individual_local_local_flow_continued
+      claim_class: decline_without_degradation_claim
+      entry_route_id: er.start_center
+      deployment_profile_id: individual_local
+      boundary_manifest_row_id: identity_policy_service
+      supporting_corpus_rows:
+        - fuw_row:managed_sign_in_available_but_skipped.individual_local_first_run_managed_sign_in_offered_skipped
+      seed_scoreboard_refs:
+        - scoreboard_row:no_account_local_work.first_useful_edit_without_opt_in
+      acceptable_qualification_classes:
+        - exact
+        - compatible
+      threshold_state: must_offer_continue_local_same_weight
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+      notes: >
+        On individual_local, a managed-organisation sign-in card
+        on Start Center MUST be optional and Continue local MUST
+        be same-weight; declining never blocks first-useful-edit.
+
+    - row_id: scoreboard_row:fuw_managed_sign_in_skipped.managed_cloud_local_flow_continued
+      claim_class: account_required_with_continue_local_claim
+      entry_route_id: er.protocol_handler_reentry
+      deployment_profile_id: managed_cloud
+      boundary_manifest_row_id: workspace_control_plane
+      supporting_corpus_rows:
+        - fuw_row:managed_sign_in_available_but_skipped.managed_cloud_resume_reauth_required_declined
+      seed_scoreboard_refs:
+        - scoreboard_row:service_opt_in_boundary.resume_managed_reauth_required
+      acceptable_qualification_classes:
+        - partial
+      threshold_state: must_offer_continue_in_restricted_mode_same_weight
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+      notes: >
+        Managed-cloud resume is genuinely account-required (the
+        workspace cannot be re-evaluated locally). The route
+        qualifies that Continue in restricted mode is offered
+        same-weight with the gated reauth and prior local work
+        is not retroactively degraded.
+
+# -----------------------------------------------------------------------------
+# Family 4: Account-required exception rows.
+#
+# These rows name (route, profile) pairs where Aureline genuinely
+# requires account / managed service / explicit policy. The row
+# names the typed reason and the decline path the route MUST
+# preserve. Rows in this family score only `partial` or `failed`
+# under the rehearsal packet (`exact` and `compatible` are
+# reserved for routes that actually reach first-useful-work; the
+# exception families pin the routes that do not, on purpose).
+# -----------------------------------------------------------------------------
+fuw_account_required_exception:
+  rows:
+
+    - row_id: scoreboard_row:fuw_account_required_exception.clone_or_import_enterprise_online
+      claim_class: account_required_with_continue_local_claim
+      entry_route_id: er.clone_or_import
+      deployment_profile_id: enterprise_online
+      reason_class: policy_gate
+      decline_path_class: continue_in_restricted_mode_same_weight
+      supporting_corpus_rows:
+        - fuw_row:clone.clone_admission_denied_policy
+      seed_scoreboard_refs: []
+      acceptable_qualification_classes:
+        - partial
+      threshold_state: must_offer_continue_in_restricted_mode_same_weight
+      primary_dri_lane: product_scope_review
+      co_review_lanes:
+        - security_trust_review
+        - docs_public_truth
+      notes: >
+        Managed-fleet policy denies clone destinations not on the
+        allowlist. The denial reason is typed (closed set);
+        Continue in restricted mode is offered same-weight.
+
+    - row_id: scoreboard_row:fuw_account_required_exception.clone_or_import_individual_local
+      claim_class: account_required_with_continue_local_claim
+      entry_route_id: er.clone_or_import
+      deployment_profile_id: individual_local
+      reason_class: hidden_setup
+      decline_path_class: roll_back_import_available
+      supporting_corpus_rows:
+        - fuw_row:import.hidden_setup_post_apply_discovered
+      seed_scoreboard_refs: []
+      acceptable_qualification_classes:
+        - failed
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: compatibility_ecosystem_review
+      co_review_lanes:
+        - product_scope_review
+        - docs_public_truth
+      notes: >
+        Negative-test row. Captures the failed shape for an
+        import that committed undisclosed setup work
+        post-apply. The row exists so reviewers can compare
+        compatible / failed import outcomes side-by-side.
+
+    - row_id: scoreboard_row:fuw_account_required_exception.restore_prompt_individual_local
+      claim_class: account_required_with_continue_local_claim
+      entry_route_id: er.restore_prompt
+      deployment_profile_id: individual_local
+      reason_class: restore_drift
+      decline_path_class: open_without_restore_same_weight
+      supporting_corpus_rows:
+        - fuw_row:restore.restore_drift_overclaim_negative
+      seed_scoreboard_refs: []
+      acceptable_qualification_classes:
+        - failed
+      threshold_state: must_advertise_narrowing_before_commit
+      primary_dri_lane: aureline-buffer
+      co_review_lanes:
+        - shell_command_system
+        - support_export
+      notes: >
+        Negative-test row. Captures the failed shape when the
+        restore prompt advertised one level and silently
+        delivered a lower level, or replayed mutating commands
+        on an exact_restore promise.
+
+    - row_id: scoreboard_row:fuw_account_required_exception.start_center_individual_local
+      claim_class: account_required_with_continue_local_claim
+      entry_route_id: er.start_center
+      deployment_profile_id: individual_local
+      reason_class: hidden_setup
+      decline_path_class: continue_in_restricted_mode_same_weight
+      supporting_corpus_rows:
+        - fuw_row:offline_or_mirror_open.network_required_for_local_entry_negative
+      seed_scoreboard_refs: []
+      acceptable_qualification_classes:
+        - failed
+      threshold_state: must_succeed_on_every_attempt
+      primary_dri_lane: shell_command_system
+      co_review_lanes:
+        - aureline-vfs
+        - security_trust_review
+      notes: >
+        Negative-test row. Captures the failed shape when a
+        local-folder Start Center entry on individual_local
+        requires public network reachability to admit. Hidden
+        network dependency on the no-account floor is
+        non-conforming.
+
+# -----------------------------------------------------------------------------
+# Coverage summary.
+#
+# Cross-check that every (entry_route_id, deployment_profile_id)
+# pair the corpus exercises has at least one scoreboard row.
+# Tooling can validate this section without re-parsing rows.
+# -----------------------------------------------------------------------------
+coverage:
+  by_entry_route_and_profile:
+    er.start_center:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.start_center_individual_local
+        - scoreboard_row:fuw_managed_sign_in_skipped.individual_local_local_flow_continued
+        - scoreboard_row:fuw_account_required_exception.start_center_individual_local
+        - scoreboard_row:fuw_service_opt_in_decline_outcomes.telemetry_individual_local
+        - scoreboard_row:fuw_service_opt_in_decline_outcomes.marketplace_individual_local
+      air_gapped:
+        - scoreboard_row:fuw_no_account_by_route.start_center_air_gapped
+    er.plain_open:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.plain_open_individual_local
+    er.protocol_handler_reentry:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.protocol_handler_individual_local
+      managed_cloud:
+        - scoreboard_row:fuw_managed_sign_in_skipped.managed_cloud_local_flow_continued
+    er.recent_work_reopen:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.recent_work_reopen_individual_local
+    er.restore_prompt:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.restore_prompt_individual_local
+        - scoreboard_row:fuw_account_required_exception.restore_prompt_individual_local
+    er.clone_or_import:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.clone_or_import_individual_local
+        - scoreboard_row:fuw_service_opt_in_decline_outcomes.model_gateway_individual_local
+        - scoreboard_row:fuw_account_required_exception.clone_or_import_individual_local
+      enterprise_online:
+        - scoreboard_row:fuw_account_required_exception.clone_or_import_enterprise_online
+    er.warm_start:
+      individual_local:
+        - scoreboard_row:fuw_no_account_by_route.warm_start_individual_local
+    er.workspace_switch: {}
+
+  reserved_pairs:
+    - entry_route_id: er.workspace_switch
+      deployment_profile_id: individual_local
+      reason: >
+        Workspace-switcher first-useful-work flows seed when the
+        command-palette workspace-switcher surface lands;
+        reserved so the scoreboard shape exists before the
+        scenario does.
+    - entry_route_id: er.start_center
+      deployment_profile_id: self_hosted
+      reason: >
+        Self-hosted Start Center exercise needs a customer-IdP
+        sign-in fixture; reserved until the customer-IdP fixture
+        seeds.
+    - entry_route_id: er.start_center
+      deployment_profile_id: enterprise_online
+      reason: >
+        Enterprise-online first-run with hybrid remote attach
+        seeds when the remote-agent fixture seeds; reserved
+        until then.
+
+# -----------------------------------------------------------------------------
+# Promotion process.
+#
+# This file composes over the seed scoreboard at
+# artifacts/product/no_account_switching_scoreboard_seed.yaml.
+# Promotion of any threshold_state away from
+# "to_be_set_by_benchmark_council" is reserved to the benchmark-
+# council charter §4 promotion path. Widening a row's
+# acceptable_qualification_classes set is breaking and opens a
+# decision row in artifacts/governance/decision_index.yaml.
+# Narrowing a row's acceptable set is allowed by the benchmark
+# council without a decision row, but the narrowing MUST be
+# recorded in the row's notes and signed by the primary_dri_lane.
+# -----------------------------------------------------------------------------
+promotion_process:
+  promotion_forum: benchmark_council
+  upstream_seed_scoreboard: artifacts/product/no_account_switching_scoreboard_seed.yaml
+  promotion_rule: >
+    Threshold values, acceptable_qualification_classes sets, and
+    new (entry_route_id, deployment_profile_id) pairs are
+    promoted only through the benchmark-council charter's §4
+    path. Composition over the seed scoreboard is read-only
+    here; this file MUST NOT widen a claim that the seed does
+    not already underwrite.
+  reserved_pair_policy: >
+    Reserved (route, profile) pairs are scoreboarded in shape
+    only and are not counted against promotion thresholds until
+    a supporting corpus row and fixture land.
