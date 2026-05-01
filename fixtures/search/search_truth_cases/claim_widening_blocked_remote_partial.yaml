@@ -1,0 +1,205 @@
+__fixture__:
+  name: claim_widening_blocked_remote_partial
+  scenario: >
+    Parity-audit window. Enterprise-audit audience. The audit
+    attempted to widen the search-relevance claim from "current
+    workspace" to "every connected repository" but two blocking
+    caveats stop the widening: a remote workspace shard returned a
+    partial load, and a deep-link cross-repo jump from a teammate's
+    review collection resolved as unresolvable under the current
+    viewer's policy. The packet is claim_widening_blocked and
+    enumerates both blocking caveats. Hidden-result aggregate
+    captures the remote-shard-unreachable rows.
+  contract_sections:
+    - Frozen vocabulary
+    - Truthfulness posture (normative)
+    - Bookmark / navigation-history continuity audit rules (normative)
+    - Hidden-result aggregate rules (normative)
+  exercised_axes:
+    audience_redaction_pairing: enterprise_audit_redacted
+    change_significance: claim_widening_blocked
+    bookmark_history_continuity: deep_link_unresolvable_present
+    scope_caveat: remote_workspace_partial_load
+record_kind: search_navigation_truth_packet_record
+search_truth_packet_schema_version: 1
+search_truth_packet_id: search:truth_packet:parity_audit:blocked:01
+window_kind_class: parity_audit_window
+audience_class: enterprise_audit
+redaction_profile_class: enterprise_audit_redacted
+schema_version_pins:
+  - schema_id: schemas/search/search_result_truth.schema.json
+    pinned_version: 1
+  - schema_id: schemas/search/query_session.schema.json
+    pinned_version: 1
+  - schema_id: schemas/search/saved_query_bundle.schema.json
+    pinned_version: 1
+  - schema_id: schemas/navigation/navigation_artifacts.schema.json
+    pinned_version: 1
+  - schema_id: schemas/workspace/cross_repo_result_group.schema.json
+    pinned_version: 1
+relevance_corpus_summary:
+  corpus_coverage_classes:
+    - covers_full_search_lexical_corpus
+    - covers_symbol_jump_structural_fallback_corpus
+    - covers_partial_index_progression_corpus
+  corpus_fixture_refs:
+    - search:fixture:result_truth_examples:full_search_partial_index
+    - search:fixture:result_truth_examples:deep_link_target_missing
+  result_truth_label_corpus_ref: search:result_truth_labels:current
+  summary_label: >-
+    Coverage focused on partial-index progression and unresolvable
+    deep-link evidence.
+result_kind_coverage:
+  - surface_class: full_search
+    exercised_readiness_states:
+      - partial_index
+      - hot_set_ready
+    exercised_result_truth_classes:
+      - exact
+      - heuristic
+    exercised_semantic_fallback_states:
+      - semantic_unavailable_lexical_only
+    exercised_scope_filter_classes:
+      - remote_workspace
+    evidence_search_result_packet_refs:
+      - search:packet:fullsearch:remote_partial:01
+    summary_label: Full search ran against a remote workspace partial load.
+  - surface_class: symbol_jump
+    exercised_readiness_states:
+      - partial_index
+    exercised_result_truth_classes:
+      - heuristic
+    exercised_semantic_fallback_states:
+      - semantic_not_applicable
+    exercised_scope_filter_classes:
+      - remote_workspace
+    evidence_search_result_packet_refs:
+      - search:packet:symboljump:remote_partial:01
+    summary_label: Symbol jump fell back to structural-fallback heuristics.
+hierarchy_fallback_classes:
+  - lexical_only_baseline
+  - structural_fallback_engaged
+  - graph_authority_unconfirmed_heuristic_only
+hidden_result_aggregate:
+  total_hidden_result_count: 28
+  count_is_approximate: true
+  hidden_by_policy_count: 0
+  hidden_by_scope_count: 28
+  hidden_scope_reason_histogram:
+    - hidden_scope_reason: remote_shard_unreachable
+      count: 22
+    - hidden_scope_reason: outside_loaded_scope
+      count: 6
+  summary_label: >-
+    Remote shard unreachable; aggregate count is an upper bound.
+scope_caveats:
+  - scope_caveat_class: remote_workspace_partial_load
+    workset_id_ref: wks:remote_partial:01
+    scope_binding_id_ref: search:scope_binding:remote_partial:01
+    cross_repo_result_group_id_ref: workspace:cross_repo_group:remote_partial:01
+    scope_diff_review_id_ref: null
+    summary_label: Remote workspace returned only a partial load.
+  - scope_caveat_class: scope_widening_blocked_by_trust_or_policy
+    workset_id_ref: wks:remote_partial:01
+    scope_binding_id_ref: search:scope_binding:remote_partial:01
+    cross_repo_result_group_id_ref: null
+    scope_diff_review_id_ref: workspace:scope_diff_review:remote_partial:01
+    summary_label: Scope widening to the remote root was blocked by trust gating.
+bookmark_history_continuity:
+  - caveat_class: deep_link_unresolvable_present
+    bookmark_id_ref: null
+    navigation_history_entry_id_ref: nav:history_entry:remote_partial:deep_link:01
+    search_deep_link_binding_id_ref: search:deep_link_binding:remote_partial:01
+    observed_bookmark_drift_state: null
+    observed_history_origin_class: deep_link_resolution
+    observed_deep_link_drift_state: unresolvable
+    summary_label: >-
+      Cross-repo deep link from a teammate's collection is unresolvable
+      under the current viewer's policy.
+  - caveat_class: deep_link_cross_repo_jump_present
+    bookmark_id_ref: null
+    navigation_history_entry_id_ref: nav:history_entry:remote_partial:cross_repo:01
+    search_deep_link_binding_id_ref: search:deep_link_binding:remote_partial:02
+    observed_bookmark_drift_state: null
+    observed_history_origin_class: deep_link_resolution
+    observed_deep_link_drift_state: target_scope_excluded
+    summary_label: Cross-repo jump landed outside the loaded scope.
+export_redaction_posture:
+  redaction_posture_classes:
+    - raw_query_text_never_crosses_boundary
+    - saved_query_literal_local_only_by_default
+    - saved_query_literal_hashed_with_local_salt_for_export
+    - exported_packet_preserves_hidden_by_policy_count
+    - exported_packet_preserves_hidden_scope_reasons
+    - exported_packet_preserves_partial_truth_causes
+    - exported_packet_preserves_semantic_fallback_state
+    - exported_packet_states_captured_results_not_current_truth
+    - shared_link_reopens_with_current_viewer_permissions
+    - shared_link_does_not_widen_authority_beyond_viewer
+    - support_export_redacts_raw_paths_and_urls
+  snapshot_export_field_floor:
+    - snapshot_includes_planner_pass_ref
+    - snapshot_includes_hidden_result_count_disclosure
+    - snapshot_includes_partial_truth_causes
+    - snapshot_includes_running_build_identity_pin
+    - snapshot_includes_policy_epoch_pin
+    - snapshot_includes_redaction_class_pin
+  default_sensitive_literal_handling_class: literal_hashed_with_local_salt
+  summary_label: Enterprise-audit floor with hashed-export literal handling.
+linked_artifact_families:
+  family_classes:
+    - search_readiness_vocabulary
+    - search_query_session_contract
+    - query_planner_contract_seed
+    - saved_query_bundle_contract
+    - saved_query_and_scope_binding_registry
+    - navigation_and_saved_query_contract
+    - navigation_artifacts_schema
+    - workset_scope_and_cross_repo_contract
+    - scope_widening_and_cross_repo_jump_contract
+    - cross_repo_result_group_schema
+    - scope_truth_packet
+  search_readiness_vocabulary_ref: docs:search:readiness_vocabulary
+  search_query_session_contract_ref: docs:search:query_session_contract
+  query_planner_contract_seed_ref: docs:search:query_planner_seed
+  saved_query_bundle_contract_ref: schema:search:saved_query_bundle
+  saved_query_and_scope_binding_registry_ref: schema:search:saved_query_registry
+  navigation_and_saved_query_contract_ref: docs:navigation:saved_query_contract
+  navigation_artifacts_schema_ref: schema:navigation:artifacts
+  workset_scope_and_cross_repo_contract_ref: docs:workspace:workset_cross_repo
+  scope_widening_and_cross_repo_jump_contract_ref: docs:workspace:scope_widening
+  cross_repo_result_group_schema_ref: schema:workspace:cross_repo_result_group
+  scope_truth_packet_ref: docs:workspace:scope_truth_packet
+change_significance_summary:
+  overall_significance_class: claim_widening_blocked
+  claim_manifest_row_id_refs:
+    - claim:manifest:every_connected_repository_search:00
+  blocking_caveat_classes:
+    - remote_workspace_partial_load
+    - deep_link_unresolvable_present
+  summary_label: >-
+    Widening to every-connected-repository is blocked by remote partial
+    load plus an unresolvable cross-repo deep link.
+consuming_surface_parity_floor:
+  - full_search_parity_required
+  - symbol_jump_parity_required
+  - support_export_parity_required
+  - cli_search_parity_required
+client_scopes:
+  - desktop_product
+  - cli
+  - remote_agent
+redaction_class: internal_support_restricted
+freshness_class: degraded_cached
+policy_context:
+  policy_epoch: pe:2026-04-30:remote_partial:01
+  trust_state: trusted
+  execution_context_id: exec:search_truth:remote_partial:01
+running_build_identity_ref: build:running:remote_partial:01
+summary_label: Search/navigation claim widening blocked by remote partial load.
+evaluated_at: "2026-04-30T22:00:00Z"
+minted_at: "2026-04-30T22:30:00Z"
+frozen_at: "2026-04-30T23:00:00Z"
+superseded_at: null
+withdrawn_at: null
+supersedes_packet_id_ref: null

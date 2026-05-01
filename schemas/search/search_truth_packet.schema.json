@@ -1,0 +1,1402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/search/search_truth_packet.schema.json",
+  "title": "Aureline search/navigation truth packet, bookmark-history audit, and query-export redaction contract",
+  "description": "Boundary schema for one search_navigation_truth_packet_record frozen in docs/search/search_navigation_truth_packet.md. The packet is the auditable evidence family that the milestone scorecard, the release-evidence shiproom packet, the support handoff bundle, the AI evidence packet, the parity-audit run, and the public-proof index quote so search and navigation claims (relevance, result-kind coverage, hierarchy fallback, hidden-result counts, scope/workset caveats, bookmark/history continuity, and query/result export redaction) can be reviewed as one record instead of as screenshot collections or ad-hoc demos. Every packet pins the typed packet window (milestone close, release train, weekly governance review, ad-hoc review, support handoff), the typed audience and redaction profile so the same packet body can serve engineering, support, enterprise audit, release readiness, and public-proof review without overexposing raw query/document/symbol material, the typed relevance-corpus summary (citing fixture corpora and corpus-coverage state), the typed query-session schema-version pin, the typed result-kind coverage matrix (every surface_class the packet covers and what readiness/truth/fallback states were exercised), the typed hierarchy-fallback matrix (lexical-only, structural fallback, semantic supplement, semantic disabled), the typed hidden-result aggregate (total hidden, hidden-by-policy subtotal, hidden-scope-reason histogram, count_is_approximate flag), the typed scope/workset caveat list (named workset refs, sparse-slice refs, partial-load caveats, cross-repo group caveats), the typed bookmark/history continuity audit (drift state histogram, restore continuity caveats, renamed/moved/scope-widened/cross-repo-jumped caveats), the typed query/result export redaction posture (privacy class, hidden-by-policy disclosure, partiality truth, raw-material refusal), the typed linked artifact families (search-readiness vocabulary, query-session contract, saved-query bundle / collection snapshot, navigation artifacts, deep-link binding registry, cross-repo result group, scope-widening review, workset artifact, citation-anchor object model), and the typed change-significance summary (informational, release-bearing, claim-narrowing, claim-widening-blocked) with schema-enforced pairings, plus the typed consuming-surface parity floor and the typed sample / fixture refs. Raw query bodies, raw document bodies, raw symbol definitions, raw notebook cell bodies, raw URLs, raw absolute paths, raw provider payloads, raw secrets, and raw destruction receipts MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. This schema does not redeclare per-record vocabulary already frozen in schemas/search/search_result_truth.schema.json (surface_class, readiness_state, result_truth_class, ranking_reason_class, hidden_scope_reason, partial_truth_cause, semantic_fallback_state, scope_filter_class, freshness_class, redaction_class, client_scope, deep_link_drift_state), schemas/search/saved_query_bundle.schema.json (saved_query_source_class, saved_query_share_policy_class, saved_query_provider_backing_class, saved_query_sensitive_literal_handling_class, saved_query_retention_class, snapshot_export_field_class, reopen_honesty_state), schemas/navigation/navigation_artifacts.schema.json (bookmark_drift_state, bookmark_kind_class, navigation_history_origin_class, navigation_history_direction_class, peek_projection_class), or schemas/workspace/cross_repo_result_group.schema.json (in_scope_marker, cross_repo_result_state) — it cites those vocabularies by name and re-exports the closed enum surface where a typed pivot is needed. Adding a new audience class, redaction-profile class, window-kind class, corpus-coverage class, hierarchy-fallback class, scope-caveat class, bookmark-history-continuity caveat class, export-redaction-posture class, linked-artifact-family class, change-significance class, parity-floor surface class, or denial reason is additive-minor and bumps search_truth_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/search_navigation_truth_packet_record" },
+    { "$ref": "#/$defs/search_truth_packet_audit_event_record" }
+  ],
+  "$defs": {
+    "search_truth_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the search/navigation truth packet payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "search_navigation_truth_packet_record",
+        "search_truth_packet_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, governance packets, and screenshots. Raw query bodies, raw document bodies, raw symbol definitions, raw notebook cell bodies, raw URLs, raw absolute paths, raw provider payloads, raw secrets, and raw destruction receipt bytes MUST NOT appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "nullable_monotonic_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label. Carries presentation-only summary copy; never carries raw query bodies, raw document bodies, raw symbol definitions, or raw URLs."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw query bodies, raw document bodies, raw symbol definitions, raw notebook cell bodies, raw URLs, raw absolute paths, raw provider payloads, and raw secrets MUST NOT appear."
+    },
+
+    "nullable_reviewable_label": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_label" }
+      ]
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "window_kind_class": {
+      "type": "string",
+      "enum": [
+        "milestone_close_window",
+        "release_train_window",
+        "weekly_governance_review_window",
+        "ad_hoc_review_window",
+        "support_handoff_window",
+        "parity_audit_window"
+      ],
+      "description": "Closed six-class window-kind vocabulary. A packet whose window cannot be typed denies with window_kind_class_unresolved rather than collapsing to ad_hoc_review_window."
+    },
+
+    "audience_class": {
+      "type": "string",
+      "enum": [
+        "engineering_internal",
+        "support_handoff",
+        "enterprise_audit",
+        "release_readiness",
+        "public_proof_safe"
+      ],
+      "description": "Closed five-class audience vocabulary. A packet whose audience cannot be typed denies with audience_class_unresolved rather than collapsing to engineering_internal."
+    },
+
+    "redaction_profile_class": {
+      "type": "string",
+      "enum": [
+        "engineering_internal_only",
+        "support_handoff_redacted",
+        "enterprise_audit_redacted",
+        "release_readiness_summary",
+        "public_proof_safe_zero_payload"
+      ],
+      "description": "Closed five-class redaction-profile vocabulary. The schema enforces redaction_profile_class matches audience_class per the contract's audience-redaction pairing table."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011) via the search family."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported verbatim from schemas/governance/capability_lifecycle.schema.json (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context the packet was minted under. Re-validated on every reopen / re-audit; a stale policy epoch denies with policy_epoch_expired."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "command_palette",
+        "full_search",
+        "symbol_jump",
+        "docs_search",
+        "graph_overlay",
+        "ai_explanation_overlay",
+        "support_export"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json. Names which protected surface the packet covered for result-kind coverage."
+    },
+
+    "readiness_state": {
+      "type": "string",
+      "enum": [
+        "not_indexed",
+        "hot_set_ready",
+        "partial_index",
+        "warm_index",
+        "fully_indexed",
+        "stale_index",
+        "reindexing",
+        "index_unavailable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json. Used in the result-kind coverage matrix to record what readiness states the corpus exercised."
+    },
+
+    "result_truth_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "imported",
+        "heuristic",
+        "hybrid"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "hidden_scope_reason": {
+      "type": "string",
+      "enum": [
+        "trust_state_excludes_surface",
+        "policy_narrows_source",
+        "sparse_scope_excludes_root",
+        "outside_loaded_scope",
+        "excluded_by_user_filter",
+        "client_scope_excludes_surface",
+        "provider_overlay_unauthorised",
+        "pack_quarantined",
+        "redaction_narrowed",
+        "remote_shard_unreachable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "partial_truth_cause": {
+      "type": "string",
+      "enum": [
+        "hot_set_only",
+        "manifest_only",
+        "cache_only",
+        "outside_loaded_scope",
+        "indexing_in_progress",
+        "semantic_service_unavailable",
+        "remote_shard_unreachable",
+        "provider_overlay_unreachable",
+        "policy_blocked_shard",
+        "freshness_floor_unmet",
+        "stale_index_served"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "semantic_fallback_state": {
+      "type": "string",
+      "enum": [
+        "semantic_unavailable_lexical_only",
+        "semantic_degraded_lexical_preferred",
+        "semantic_available_as_supplement",
+        "semantic_disabled_by_policy",
+        "semantic_not_applicable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "deep_link_drift_state": {
+      "type": "string",
+      "enum": [
+        "resolved_exact",
+        "resolved_remapped",
+        "resolved_ambiguous",
+        "target_missing",
+        "target_moved",
+        "target_renamed",
+        "target_branch_drifted",
+        "target_policy_blocked",
+        "target_scope_excluded",
+        "index_not_ready_for_target",
+        "unresolvable"
+      ],
+      "description": "Re-exported verbatim from schemas/search/search_result_truth.schema.json."
+    },
+
+    "bookmark_drift_state": {
+      "type": "string",
+      "enum": [
+        "bound",
+        "remapped",
+        "drifted",
+        "missing_target",
+        "scope_unavailable",
+        "archived"
+      ],
+      "description": "Re-exported verbatim from schemas/navigation/navigation_artifacts.schema.json. Used in the bookmark-continuity audit so the packet can summarise drift counts without redeclaring the drift state machine."
+    },
+
+    "navigation_history_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_invoked_jump",
+        "command_palette_jump",
+        "search_result_open",
+        "deep_link_resolution",
+        "back_or_forward_step",
+        "recent_locations_pick",
+        "ai_explanation_jump",
+        "review_walk_through",
+        "notebook_cell_jump",
+        "session_restore_replay"
+      ],
+      "description": "Re-exported verbatim from schemas/navigation/navigation_artifacts.schema.json. Used in the navigation-history audit to attribute restore-continuity caveats."
+    },
+
+    "saved_query_source_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_local",
+        "workspace_shared_committed",
+        "profile_imported_portable",
+        "org_shared_admin_curated",
+        "org_shared_admin_published_read_only",
+        "managed_workspace_provisioned",
+        "support_export_captured",
+        "ai_explanation_captured",
+        "session_restore_replayed",
+        "parity_audit_captured"
+      ],
+      "description": "Re-exported verbatim from schemas/search/saved_query_bundle.schema.json."
+    },
+
+    "saved_query_sensitive_literal_handling_class": {
+      "type": "string",
+      "enum": [
+        "literal_redacted_at_boundary_default",
+        "literal_hashed_with_local_salt",
+        "literal_kept_in_local_only_store",
+        "literal_kept_in_org_governed_vault",
+        "literal_disclosed_with_explicit_user_opt_in"
+      ],
+      "description": "Re-exported verbatim from schemas/search/saved_query_bundle.schema.json."
+    },
+
+    "snapshot_export_field_class": {
+      "type": "string",
+      "enum": [
+        "snapshot_includes_visible_row_ids_only",
+        "snapshot_includes_hidden_result_count_disclosure",
+        "snapshot_includes_partial_truth_causes",
+        "snapshot_includes_ranking_reason_classes",
+        "snapshot_includes_result_truth_classes",
+        "snapshot_includes_freshness_class_per_row",
+        "snapshot_includes_scope_filter_class_pin",
+        "snapshot_includes_workset_id_pin",
+        "snapshot_includes_planner_pass_ref",
+        "snapshot_includes_shard_authority_inventory",
+        "snapshot_includes_citation_anchor_refs",
+        "snapshot_includes_provider_attribution_chip",
+        "snapshot_includes_redaction_class_pin",
+        "snapshot_includes_running_build_identity_pin",
+        "snapshot_includes_policy_epoch_pin"
+      ],
+      "description": "Re-exported verbatim from schemas/search/saved_query_bundle.schema.json. The packet's export-redaction posture cites this vocabulary to declare which snapshot fields the current export pipeline guarantees."
+    },
+
+    "reopen_honesty_state": {
+      "type": "string",
+      "enum": [
+        "current_scope_matches_captured_scope_exact",
+        "current_scope_widened_versus_captured_scope_disclosed",
+        "current_scope_narrowed_versus_captured_scope_disclosed",
+        "current_scope_remapped_versus_captured_scope_disclosed",
+        "current_build_drifted_versus_captured_build_disclosed",
+        "current_policy_epoch_drifted_versus_captured_disclosed",
+        "current_provider_backing_changed_versus_captured_disclosed",
+        "current_index_readiness_lower_than_captured_disclosed",
+        "captured_results_unverifiable_at_current_build",
+        "captured_snapshot_unavailable_replay_offered_only_as_history"
+      ],
+      "description": "Re-exported verbatim from schemas/search/saved_query_bundle.schema.json."
+    },
+
+    "corpus_coverage_class": {
+      "type": "string",
+      "enum": [
+        "covers_palette_command_corpus",
+        "covers_full_search_lexical_corpus",
+        "covers_full_search_semantic_supplement_corpus",
+        "covers_symbol_jump_structural_fallback_corpus",
+        "covers_docs_pack_corpus",
+        "covers_graph_overlay_corpus",
+        "covers_ai_explanation_overlay_corpus",
+        "covers_support_export_quoted_corpus",
+        "covers_provider_overlay_corpus",
+        "covers_imported_pack_corpus",
+        "covers_partial_index_progression_corpus",
+        "covers_stale_index_recovery_corpus"
+      ],
+      "description": "Closed twelve-class corpus-coverage vocabulary. Names which relevance / readiness / fallback corpora the packet exercises. A packet that covers no corpus denies with relevance_corpus_summary_empty."
+    },
+
+    "hierarchy_fallback_class": {
+      "type": "string",
+      "enum": [
+        "lexical_only_baseline",
+        "structural_fallback_engaged",
+        "semantic_supplement_engaged",
+        "semantic_disabled_by_policy_engaged",
+        "semantic_unavailable_lexical_only_engaged",
+        "imported_pack_fallback_engaged",
+        "graph_authority_confirmed",
+        "graph_authority_unconfirmed_heuristic_only"
+      ],
+      "description": "Closed eight-class hierarchy-fallback matrix vocabulary. Names which fallback layers the packet exercised so reviewers can audit the relevance ladder without re-deriving it from individual search_result_packet_record rows."
+    },
+
+    "scope_caveat_class": {
+      "type": "string",
+      "enum": [
+        "named_workset_in_use",
+        "sparse_slice_in_use",
+        "policy_limited_view_in_use",
+        "remote_workspace_partial_load",
+        "cross_repo_group_outside_current_scope_present",
+        "cross_repo_group_imported_root_present",
+        "cross_repo_group_policy_overlay_present",
+        "scope_widening_proposed_but_not_committed",
+        "scope_widening_blocked_by_trust_or_policy",
+        "workset_warm_versus_cold_drift_present"
+      ],
+      "description": "Closed ten-class scope/workset caveat vocabulary. Names the scope/workset caveats the packet discloses so search and navigation claims can be narrowed by scope evidence."
+    },
+
+    "bookmark_history_continuity_caveat_class": {
+      "type": "string",
+      "enum": [
+        "bookmark_drift_present",
+        "bookmark_remapped_present",
+        "bookmark_missing_target_present",
+        "bookmark_scope_unavailable_present",
+        "bookmark_archived_tombstone_present",
+        "navigation_history_session_restore_replay_present",
+        "navigation_history_cross_surface_back_forward_exercised",
+        "deep_link_target_renamed_present",
+        "deep_link_target_moved_present",
+        "deep_link_target_branch_drifted_present",
+        "deep_link_scope_widened_on_resolve_present",
+        "deep_link_cross_repo_jump_present",
+        "deep_link_unresolvable_present"
+      ],
+      "description": "Closed thirteen-class bookmark/navigation-history continuity caveat vocabulary. Pairs with hidden-result and scope-caveat counts so the packet can disclose continuity exposure under restore, scope drift, and cross-repo navigation."
+    },
+
+    "export_redaction_posture_class": {
+      "type": "string",
+      "enum": [
+        "raw_query_text_never_crosses_boundary",
+        "saved_query_literal_local_only_by_default",
+        "saved_query_literal_hashed_with_local_salt_for_export",
+        "saved_query_literal_disclosed_with_explicit_user_opt_in",
+        "shared_link_reopens_with_current_viewer_permissions",
+        "shared_link_does_not_widen_authority_beyond_viewer",
+        "exported_packet_preserves_hidden_by_policy_count",
+        "exported_packet_preserves_hidden_scope_reasons",
+        "exported_packet_preserves_partial_truth_causes",
+        "exported_packet_preserves_semantic_fallback_state",
+        "exported_packet_preserves_provider_attribution_chip",
+        "exported_packet_states_captured_results_not_current_truth",
+        "support_export_redacts_raw_paths_and_urls",
+        "public_proof_export_carries_zero_raw_payload"
+      ],
+      "description": "Closed fourteen-class export-redaction posture vocabulary. Names the redaction guarantees the packet asserts for query exports, saved-query shares, deep-link shares, and result-export packets. Every packet MUST carry at minimum raw_query_text_never_crosses_boundary plus saved_query_literal_local_only_by_default plus exported_packet_preserves_hidden_by_policy_count plus exported_packet_preserves_partial_truth_causes plus shared_link_reopens_with_current_viewer_permissions; an export-redaction posture missing any of those denies with export_redaction_posture_minimum_floor_unmet."
+    },
+
+    "linked_artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "search_readiness_vocabulary",
+        "search_query_session_contract",
+        "search_explainability_contract",
+        "query_planner_contract_seed",
+        "saved_query_bundle_contract",
+        "saved_query_and_scope_binding_registry",
+        "navigation_and_saved_query_contract",
+        "navigation_artifacts_schema",
+        "scope_truth_packet",
+        "workset_scope_and_cross_repo_contract",
+        "scope_widening_and_cross_repo_jump_contract",
+        "cross_repo_result_group_schema",
+        "citation_anchor_object_model",
+        "result_truth_label_corpus"
+      ],
+      "description": "Closed fourteen-class linked-artifact-family vocabulary. Names the artifact families this packet links to. Every packet MUST cite at minimum search_readiness_vocabulary plus search_query_session_contract plus saved_query_bundle_contract plus navigation_and_saved_query_contract plus cross_repo_result_group_schema; a packet missing any of those denies with linked_artifact_family_minimum_floor_unmet."
+    },
+
+    "change_significance_class": {
+      "type": "string",
+      "enum": [
+        "informational",
+        "release_bearing",
+        "claim_narrowing",
+        "claim_widening_blocked"
+      ],
+      "description": "Closed four-class change-significance vocabulary mirroring the governance packet contract. claim_narrowing packets MUST cite claim_manifest_row_id_refs; claim_widening_blocked packets MUST cite the blocking caveat (stale corpus, partial coverage, restricted workset)."
+    },
+
+    "consuming_surface_parity_floor_class": {
+      "type": "string",
+      "enum": [
+        "command_palette_parity_required",
+        "full_search_parity_required",
+        "symbol_jump_parity_required",
+        "docs_search_parity_required",
+        "graph_overlay_parity_required",
+        "ai_explanation_overlay_parity_required",
+        "support_export_parity_required",
+        "cli_search_parity_required"
+      ],
+      "description": "Closed eight-class consuming-surface parity-floor vocabulary. Names which downstream surfaces the packet asserts parity for. A surface that diverges from the parity floor is non-conforming and denies with consuming_surface_parity_floor_unmet."
+    },
+
+    "search_truth_packet_denial_reason": {
+      "type": "string",
+      "enum": [
+        "search_truth_packet_unknown",
+        "audience_class_unresolved",
+        "redaction_profile_class_unresolved",
+        "redaction_profile_audience_pairing_mismatch",
+        "window_kind_class_unresolved",
+        "relevance_corpus_summary_empty",
+        "result_kind_coverage_empty",
+        "result_kind_coverage_surface_unresolved",
+        "hierarchy_fallback_matrix_empty",
+        "hidden_result_aggregate_unresolved",
+        "hidden_result_count_negative",
+        "hidden_result_reason_missing_for_non_zero_count",
+        "scope_caveat_class_unresolved",
+        "bookmark_history_continuity_caveat_unresolved",
+        "export_redaction_posture_minimum_floor_unmet",
+        "linked_artifact_family_minimum_floor_unmet",
+        "change_significance_class_unresolved",
+        "claim_narrowing_requires_claim_manifest_row_refs",
+        "claim_widening_blocked_requires_blocking_caveat",
+        "consuming_surface_parity_floor_unmet",
+        "query_session_schema_version_pin_missing",
+        "search_result_schema_version_pin_missing",
+        "saved_query_bundle_schema_version_pin_missing",
+        "navigation_artifacts_schema_version_pin_missing",
+        "raw_body_forbidden_on_boundary",
+        "search_truth_packet_schema_version_lagging",
+        "policy_epoch_expired",
+        "policy_blocked"
+      ],
+      "description": "Frozen denial-reason vocabulary on the search/navigation truth packet stream. Denials fail closed; silent collapse to a permissive default is forbidden."
+    },
+
+    "search_truth_packet_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "search_truth_packet_minted",
+        "search_truth_packet_updated",
+        "search_truth_packet_frozen_for_handoff",
+        "search_truth_packet_superseded",
+        "search_truth_packet_withdrawn",
+        "search_truth_packet_audit_denial_emitted",
+        "search_truth_packet_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event id vocabulary on the search/navigation truth packet stream."
+    },
+
+    "schema_version_pin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_id", "pinned_version"],
+      "properties": {
+        "schema_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable schema id (e.g. 'schemas/search/search_result_truth.schema.json' or 'schemas/search/query_session.schema.json'). The packet pins the integer version it audited against so reviewers can detect schema-version drift between the packet and its sources."
+        },
+        "pinned_version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Pinned integer schema version the packet audited."
+        }
+      }
+    },
+
+    "relevance_corpus_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_coverage_classes",
+        "corpus_fixture_refs",
+        "summary_label"
+      ],
+      "properties": {
+        "corpus_coverage_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/corpus_coverage_class" }
+        },
+        "corpus_fixture_refs": {
+          "$ref": "#/$defs/non_empty_ref_array",
+          "description": "Opaque refs to the worked-example fixture rows that back the corpus claim. Empty refs deny with relevance_corpus_summary_empty."
+        },
+        "result_truth_label_corpus_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to artifacts/search/result_truth_labels.yaml when the packet anchors its truth-label evidence in the labelled corpus."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Typed relevance-corpus summary. Captures which corpora the packet exercises and which fixture rows back the claim."
+    },
+
+    "result_kind_coverage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface_class",
+        "exercised_readiness_states",
+        "exercised_result_truth_classes",
+        "exercised_semantic_fallback_states"
+      ],
+      "properties": {
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "exercised_readiness_states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/readiness_state" }
+        },
+        "exercised_result_truth_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/result_truth_class" }
+        },
+        "exercised_semantic_fallback_states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/semantic_fallback_state" }
+        },
+        "exercised_scope_filter_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_filter_class" }
+        },
+        "evidence_search_result_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Opaque refs to the search_result_packet_record rows that back this surface's coverage entry. The packet stores ids only; raw row text never crosses the boundary."
+        },
+        "summary_label": { "$ref": "#/$defs/nullable_reviewable_label" }
+      },
+      "description": "One result-kind coverage entry. Names the surface class plus the readiness / truth / fallback states the packet exercised on that surface."
+    },
+
+    "hidden_result_aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_hidden_result_count",
+        "count_is_approximate",
+        "hidden_scope_reason_histogram"
+      ],
+      "properties": {
+        "total_hidden_result_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Aggregate hidden_result_count summed across every search_result_packet_record this packet covers."
+        },
+        "count_is_approximate": {
+          "type": "boolean",
+          "description": "True when at least one contributing row had count_is_approximate = true. The packet MUST NOT silently round an approximate aggregate to an exact one."
+        },
+        "hidden_by_policy_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Subtotal of hidden rows whose hidden_scope_reason was policy_narrows_source, trust_state_excludes_surface, redaction_narrowed, or pack_quarantined. Mirrored here so the export-redaction posture can preserve the policy-blocked subtotal even after redaction."
+        },
+        "hidden_by_scope_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Subtotal of hidden rows whose hidden_scope_reason was sparse_scope_excludes_root, outside_loaded_scope, excluded_by_user_filter, client_scope_excludes_surface, or remote_shard_unreachable."
+        },
+        "hidden_scope_reason_histogram": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["hidden_scope_reason", "count"],
+            "properties": {
+              "hidden_scope_reason": { "$ref": "#/$defs/hidden_scope_reason" },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "description": "Histogram of hidden-scope reasons across all rows the packet covers. A non-zero total_hidden_result_count with no histogram entries denies with hidden_result_reason_missing_for_non_zero_count."
+        },
+        "summary_label": { "$ref": "#/$defs/nullable_reviewable_label" }
+      },
+      "description": "Aggregate hidden-result disclosure across the packet's covered search_result_packet_record rows. The aggregate is the export-safe view; per-row counts stay on the original packets."
+    },
+
+    "scope_caveat_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_caveat_class", "summary_label"],
+      "properties": {
+        "scope_caveat_class": { "$ref": "#/$defs/scope_caveat_class" },
+        "workset_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_binding_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "cross_repo_result_group_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_diff_review_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One scope/workset caveat entry. Cites the workset / scope-binding / cross-repo result group / scope-diff-review row that exposes the caveat."
+    },
+
+    "bookmark_history_continuity_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["caveat_class", "summary_label"],
+      "properties": {
+        "caveat_class": { "$ref": "#/$defs/bookmark_history_continuity_caveat_class" },
+        "bookmark_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "navigation_history_entry_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "search_deep_link_binding_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "observed_bookmark_drift_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/bookmark_drift_state" }
+          ],
+          "description": "Bookmark drift state observed for the cited bookmark, when applicable. Null when the caveat does not name a bookmark (e.g. a deep-link cross-repo jump)."
+        },
+        "observed_history_origin_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/navigation_history_origin_class" }
+          ],
+          "description": "Navigation-history origin class observed for the cited history entry, when applicable."
+        },
+        "observed_deep_link_drift_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/deep_link_drift_state" }
+          ],
+          "description": "Deep-link drift state observed for the cited deep-link binding, when applicable."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One bookmark / navigation-history continuity audit entry. Pairs the caveat class to the cited bookmark / history / deep-link row and to the observed drift state."
+    },
+
+    "export_redaction_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_posture_classes",
+        "snapshot_export_field_floor",
+        "summary_label"
+      ],
+      "properties": {
+        "redaction_posture_classes": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_redaction_posture_class" },
+          "description": "Posture classes the packet asserts. minItems 5 because the export-redaction-posture floor (raw_query_text_never_crosses_boundary, saved_query_literal_local_only_by_default, exported_packet_preserves_hidden_by_policy_count, exported_packet_preserves_partial_truth_causes, shared_link_reopens_with_current_viewer_permissions) is enforced via the contains-floor allOf gates on the parent record."
+        },
+        "snapshot_export_field_floor": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/snapshot_export_field_class" },
+          "description": "Snapshot-export-field classes the packet asserts the export pipeline guarantees. minItems 2 because every honest snapshot MUST carry snapshot_includes_planner_pass_ref plus snapshot_includes_hidden_result_count_disclosure (mirrored from saved_query_bundle.schema.json)."
+        },
+        "default_sensitive_literal_handling_class": {
+          "$ref": "#/$defs/saved_query_sensitive_literal_handling_class",
+          "description": "Default sensitive-literal handling class for the packet's saved-query / shared-link surfaces. literal_redacted_at_boundary_default by default."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Typed query/result export redaction posture. Names the redaction guarantees the packet asserts so saved-query shares, shared deep links, and exported result packets remain explicit about privacy class, hidden-by-policy counts, and partiality truth."
+    },
+
+    "linked_artifact_families_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family_classes"],
+      "properties": {
+        "family_classes": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/linked_artifact_family_class" },
+          "description": "Linked artifact-family classes. minItems 5 because the linked-artifact-family floor (search_readiness_vocabulary, search_query_session_contract, saved_query_bundle_contract, navigation_and_saved_query_contract, cross_repo_result_group_schema) is enforced via contains-floor allOf gates on the parent record."
+        },
+        "search_readiness_vocabulary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "search_query_session_contract_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "search_explainability_contract_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "query_planner_contract_seed_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "saved_query_bundle_contract_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "saved_query_and_scope_binding_registry_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "navigation_and_saved_query_contract_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "navigation_artifacts_schema_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_truth_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "workset_scope_and_cross_repo_contract_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_widening_and_cross_repo_jump_contract_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "cross_repo_result_group_schema_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "citation_anchor_object_model_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Typed linked-artifact-families block. Names the artifact families this packet composes with by class plus optional opaque refs into each family for the support / audit reviewer to follow."
+    },
+
+    "change_significance_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_significance_class", "summary_label"],
+      "properties": {
+        "overall_significance_class": { "$ref": "#/$defs/change_significance_class" },
+        "claim_manifest_row_id_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Opaque refs to claim_manifest rows the packet narrows. Required (non-empty) when overall_significance_class = claim_narrowing."
+        },
+        "blocking_caveat_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              { "$ref": "#/$defs/scope_caveat_class" },
+              { "$ref": "#/$defs/bookmark_history_continuity_caveat_class" }
+            ]
+          },
+          "description": "Caveat classes that block claim widening. Required (non-empty) when overall_significance_class = claim_widening_blocked."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Change-significance summary. Mirrors the governance packet contract so a search-truth packet can declare informational, release-bearing, claim-narrowing, or claim-widening-blocked posture under the same vocabulary."
+    },
+
+    "search_navigation_truth_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_truth_packet_schema_version",
+        "search_truth_packet_id",
+        "window_kind_class",
+        "audience_class",
+        "redaction_profile_class",
+        "schema_version_pins",
+        "relevance_corpus_summary",
+        "result_kind_coverage",
+        "hierarchy_fallback_classes",
+        "hidden_result_aggregate",
+        "scope_caveats",
+        "bookmark_history_continuity",
+        "export_redaction_posture",
+        "linked_artifact_families",
+        "change_significance_summary",
+        "consuming_surface_parity_floor",
+        "client_scopes",
+        "redaction_class",
+        "freshness_class",
+        "policy_context",
+        "running_build_identity_ref",
+        "evaluated_at",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_navigation_truth_packet_record" },
+        "search_truth_packet_schema_version": { "$ref": "#/$defs/search_truth_packet_schema_version" },
+        "search_truth_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "window_kind_class": { "$ref": "#/$defs/window_kind_class" },
+        "audience_class": { "$ref": "#/$defs/audience_class" },
+        "redaction_profile_class": { "$ref": "#/$defs/redaction_profile_class" },
+        "schema_version_pins": {
+          "type": "array",
+          "minItems": 4,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/schema_version_pin" },
+          "description": "Pinned integer schema versions the packet audited. minItems 4 because the packet MUST pin schemas/search/search_result_truth.schema.json, schemas/search/query_session.schema.json, schemas/search/saved_query_bundle.schema.json, and schemas/navigation/navigation_artifacts.schema.json. The contains-floor allOf gates below enforce the four floor schemas."
+        },
+        "relevance_corpus_summary": { "$ref": "#/$defs/relevance_corpus_summary" },
+        "result_kind_coverage": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/result_kind_coverage_entry" },
+          "description": "Result-kind coverage matrix. minItems 1 because a packet that covers no surface denies with result_kind_coverage_empty."
+        },
+        "hierarchy_fallback_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/hierarchy_fallback_class" },
+          "description": "Hierarchy-fallback matrix the packet exercised. minItems 1 because a packet that exercised no fallback layer denies with hierarchy_fallback_matrix_empty."
+        },
+        "hidden_result_aggregate": { "$ref": "#/$defs/hidden_result_aggregate" },
+        "scope_caveats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/scope_caveat_entry" },
+          "description": "Scope/workset caveats the packet discloses. MAY be empty when a packet covers a single fully_indexed full_workspace run with no workset, sparse-slice, policy-limited-view, or cross-repo-group state. The schema does not force minItems here; the change-significance gates below force a non-empty list when overall_significance_class = claim_widening_blocked."
+        },
+        "bookmark_history_continuity": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bookmark_history_continuity_entry" },
+          "description": "Bookmark / navigation-history / deep-link continuity audit entries. MAY be empty when no bookmark, history, or deep-link surface was exercised by the packet window."
+        },
+        "export_redaction_posture": { "$ref": "#/$defs/export_redaction_posture" },
+        "linked_artifact_families": { "$ref": "#/$defs/linked_artifact_families_block" },
+        "change_significance_summary": { "$ref": "#/$defs/change_significance_summary" },
+        "consuming_surface_parity_floor": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/consuming_surface_parity_floor_class" },
+          "description": "Consuming-surface parity floor. Names which downstream surfaces the packet asserts parity for."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "running_build_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque pin to the running build identity the packet was minted under (D-0011)."
+        },
+        "summary_label": { "$ref": "#/$defs/nullable_reviewable_label" },
+        "evaluated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "frozen_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "superseded_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "withdrawn_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "supersedes_packet_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "fixture": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "audience-redaction pairing: engineering_internal pairs with engineering_internal_only.",
+          "if": {
+            "properties": { "audience_class": { "const": "engineering_internal" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile_class": { "const": "engineering_internal_only" }
+            }
+          }
+        },
+        {
+          "description": "audience-redaction pairing: support_handoff pairs with support_handoff_redacted.",
+          "if": {
+            "properties": { "audience_class": { "const": "support_handoff" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile_class": { "const": "support_handoff_redacted" }
+            }
+          }
+        },
+        {
+          "description": "audience-redaction pairing: enterprise_audit pairs with enterprise_audit_redacted.",
+          "if": {
+            "properties": { "audience_class": { "const": "enterprise_audit" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile_class": { "const": "enterprise_audit_redacted" }
+            }
+          }
+        },
+        {
+          "description": "audience-redaction pairing: release_readiness pairs with release_readiness_summary.",
+          "if": {
+            "properties": { "audience_class": { "const": "release_readiness" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile_class": { "const": "release_readiness_summary" }
+            }
+          }
+        },
+        {
+          "description": "audience-redaction pairing: public_proof_safe pairs with public_proof_safe_zero_payload.",
+          "if": {
+            "properties": { "audience_class": { "const": "public_proof_safe" } },
+            "required": ["audience_class"]
+          },
+          "then": {
+            "properties": {
+              "redaction_profile_class": { "const": "public_proof_safe_zero_payload" }
+            }
+          }
+        },
+        {
+          "description": "schema-version pin floor: search_result_truth.schema.json MUST be pinned.",
+          "properties": {
+            "schema_version_pins": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "schema_id": { "const": "schemas/search/search_result_truth.schema.json" }
+                },
+                "required": ["schema_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "schema-version pin floor: query_session.schema.json MUST be pinned.",
+          "properties": {
+            "schema_version_pins": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "schema_id": { "const": "schemas/search/query_session.schema.json" }
+                },
+                "required": ["schema_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "schema-version pin floor: saved_query_bundle.schema.json MUST be pinned.",
+          "properties": {
+            "schema_version_pins": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "schema_id": { "const": "schemas/search/saved_query_bundle.schema.json" }
+                },
+                "required": ["schema_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "schema-version pin floor: navigation_artifacts.schema.json MUST be pinned.",
+          "properties": {
+            "schema_version_pins": {
+              "type": "array",
+              "contains": {
+                "properties": {
+                  "schema_id": { "const": "schemas/navigation/navigation_artifacts.schema.json" }
+                },
+                "required": ["schema_id"]
+              }
+            }
+          }
+        },
+        {
+          "description": "export-redaction-posture floor: raw_query_text_never_crosses_boundary MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "redaction_posture_classes": {
+                  "type": "array",
+                  "contains": { "const": "raw_query_text_never_crosses_boundary" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "export-redaction-posture floor: saved_query_literal_local_only_by_default MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "redaction_posture_classes": {
+                  "type": "array",
+                  "contains": { "const": "saved_query_literal_local_only_by_default" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "export-redaction-posture floor: exported_packet_preserves_hidden_by_policy_count MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "redaction_posture_classes": {
+                  "type": "array",
+                  "contains": { "const": "exported_packet_preserves_hidden_by_policy_count" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "export-redaction-posture floor: exported_packet_preserves_partial_truth_causes MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "redaction_posture_classes": {
+                  "type": "array",
+                  "contains": { "const": "exported_packet_preserves_partial_truth_causes" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "export-redaction-posture floor: shared_link_reopens_with_current_viewer_permissions MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "redaction_posture_classes": {
+                  "type": "array",
+                  "contains": { "const": "shared_link_reopens_with_current_viewer_permissions" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "snapshot-export-field floor: snapshot_includes_planner_pass_ref MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "snapshot_export_field_floor": {
+                  "type": "array",
+                  "contains": { "const": "snapshot_includes_planner_pass_ref" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "snapshot-export-field floor: snapshot_includes_hidden_result_count_disclosure MUST be present.",
+          "properties": {
+            "export_redaction_posture": {
+              "properties": {
+                "snapshot_export_field_floor": {
+                  "type": "array",
+                  "contains": { "const": "snapshot_includes_hidden_result_count_disclosure" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked-artifact-family floor: search_readiness_vocabulary MUST be present.",
+          "properties": {
+            "linked_artifact_families": {
+              "properties": {
+                "family_classes": {
+                  "type": "array",
+                  "contains": { "const": "search_readiness_vocabulary" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked-artifact-family floor: search_query_session_contract MUST be present.",
+          "properties": {
+            "linked_artifact_families": {
+              "properties": {
+                "family_classes": {
+                  "type": "array",
+                  "contains": { "const": "search_query_session_contract" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked-artifact-family floor: saved_query_bundle_contract MUST be present.",
+          "properties": {
+            "linked_artifact_families": {
+              "properties": {
+                "family_classes": {
+                  "type": "array",
+                  "contains": { "const": "saved_query_bundle_contract" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked-artifact-family floor: navigation_and_saved_query_contract MUST be present.",
+          "properties": {
+            "linked_artifact_families": {
+              "properties": {
+                "family_classes": {
+                  "type": "array",
+                  "contains": { "const": "navigation_and_saved_query_contract" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked-artifact-family floor: cross_repo_result_group_schema MUST be present.",
+          "properties": {
+            "linked_artifact_families": {
+              "properties": {
+                "family_classes": {
+                  "type": "array",
+                  "contains": { "const": "cross_repo_result_group_schema" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "claim_narrowing significance MUST cite at least one claim_manifest_row.",
+          "if": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "overall_significance_class": { "const": "claim_narrowing" }
+                },
+                "required": ["overall_significance_class"]
+              }
+            },
+            "required": ["change_significance_summary"]
+          },
+          "then": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "claim_manifest_row_id_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+                },
+                "required": ["claim_manifest_row_id_refs"]
+              }
+            }
+          }
+        },
+        {
+          "description": "claim_widening_blocked significance MUST cite at least one blocking caveat.",
+          "if": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "overall_significance_class": { "const": "claim_widening_blocked" }
+                },
+                "required": ["overall_significance_class"]
+              }
+            },
+            "required": ["change_significance_summary"]
+          },
+          "then": {
+            "properties": {
+              "change_significance_summary": {
+                "properties": {
+                  "blocking_caveat_classes": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                },
+                "required": ["blocking_caveat_classes"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Frozen, superseded, and withdrawn packets MUST set frozen_at.",
+          "if": {
+            "anyOf": [
+              { "required": ["superseded_at"], "properties": { "superseded_at": { "type": "string" } } },
+              { "required": ["withdrawn_at"], "properties": { "withdrawn_at": { "type": "string" } } }
+            ]
+          },
+          "then": {
+            "required": ["frozen_at"],
+            "properties": {
+              "frozen_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        {
+          "description": "non-zero total_hidden_result_count MUST enumerate at least one hidden_scope_reason.",
+          "if": {
+            "properties": {
+              "hidden_result_aggregate": {
+                "properties": {
+                  "total_hidden_result_count": { "type": "integer", "minimum": 1 }
+                },
+                "required": ["total_hidden_result_count"]
+              }
+            },
+            "required": ["hidden_result_aggregate"]
+          },
+          "then": {
+            "properties": {
+              "hidden_result_aggregate": {
+                "properties": {
+                  "hidden_scope_reason_histogram": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One search/navigation truth packet record. The auditable evidence family that pins relevance corpus, query-session schema version, result-kind coverage, hierarchy fallback matrix, hidden-result aggregate, scope/workset caveats, bookmark/history continuity audit, query/result export redaction posture, linked artifact families, and change-significance posture for one window. Carries opaque ids, typed vocabulary, and bounded reviewable summaries only; raw query bodies, raw document bodies, raw symbol definitions, raw notebook cell bodies, raw URLs, raw absolute paths, raw provider payloads, and raw secrets MUST NOT appear."
+    },
+
+    "search_truth_packet_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "search_truth_packet_schema_version",
+        "search_truth_packet_audit_event_id",
+        "subject_id_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "search_truth_packet_audit_event_record" },
+        "search_truth_packet_schema_version": { "$ref": "#/$defs/search_truth_packet_schema_version" },
+        "search_truth_packet_audit_event_id": { "$ref": "#/$defs/search_truth_packet_audit_event_id" },
+        "subject_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the search_navigation_truth_packet_record the event names."
+        },
+        "search_truth_packet_denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/search_truth_packet_denial_reason" }
+          ],
+          "description": "Required (non-null) for search_truth_packet_audit_denial_emitted; null otherwise."
+        },
+        "summary_label": { "$ref": "#/$defs/nullable_reviewable_label" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "fixture": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "Denial events MUST carry a denial reason.",
+          "if": {
+            "properties": {
+              "search_truth_packet_audit_event_id": { "const": "search_truth_packet_audit_denial_emitted" }
+            },
+            "required": ["search_truth_packet_audit_event_id"]
+          },
+          "then": {
+            "required": ["search_truth_packet_denial_reason"],
+            "properties": {
+              "search_truth_packet_denial_reason": { "$ref": "#/$defs/search_truth_packet_denial_reason" }
+            }
+          }
+        }
+      ],
+      "description": "Audit event emitted on the search/navigation truth packet stream. Events MUST NOT carry raw query bodies, raw document bodies, raw symbol definitions, raw URLs, or raw absolute paths."
+    }
+  }
+}
