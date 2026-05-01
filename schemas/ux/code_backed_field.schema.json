@@ -1,0 +1,418 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/code_backed_field.schema.json",
+  "title": "Aureline code-backed field boundary",
+  "description": "Boundary schema for one code_backed_field_record frozen in docs/ux/path_code_and_multivalue_field_contract.md. The record covers code/JSON/YAML/structured fragment fields and their syntax-highlighting state, schema-hint state, unknown-field handling, comment preservation, diff/preview surface, and lossy-normalization disclosure. It composes with the field_rule_record (typically code_backed_expression) for redaction, validation, copy/export posture, and unsafe-value warnings, and with the field_row_record for label, source pill, and apply posture. Raw secret values, raw provider payloads, raw absolute paths, raw stdout/stderr, raw policy bodies, raw command lines, and raw clipboard bytes never cross this boundary; the record carries refs, format/state classes, presentation summaries, and normalization reports only. Adding an enum value is additive-minor and bumps code_backed_field_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/code_backed_field_record",
+  "$defs": {
+    "code_backed_field_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "code_backed_field_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:/-][a-z0-9]+)*$",
+      "description": "Stable opaque id safe for logs, RPC, support bundles, screenshots, and fixtures."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 760
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings_form",
+        "scaffolding_form",
+        "request_workspace_form",
+        "package_action_form",
+        "repair_action_form",
+        "data_connection_form",
+        "transport_form",
+        "notebook_form",
+        "support_export",
+        "generic_high_impact_form"
+      ]
+    },
+    "code_format_class": {
+      "type": "string",
+      "enum": [
+        "arbitrary_code_fragment",
+        "json",
+        "jsonc",
+        "yaml",
+        "toml",
+        "markdown",
+        "regex_pattern",
+        "glob_pattern",
+        "sql_fragment",
+        "hcl_fragment",
+        "structured_settings_fragment",
+        "command_template_body",
+        "notebook_assertion_expression"
+      ]
+    },
+    "syntax_highlighting_state": {
+      "type": "string",
+      "enum": [
+        "highlighting_active",
+        "highlighting_loading",
+        "highlighting_unavailable",
+        "highlighting_disabled_by_policy",
+        "highlighting_not_applicable"
+      ]
+    },
+    "highlighter_source_class": {
+      "type": "string",
+      "enum": [
+        "builtin_highlighter",
+        "extension_highlighter",
+        "fallback_plain_highlighter",
+        "no_highlighter"
+      ]
+    },
+    "schema_hint_state": {
+      "type": "string",
+      "enum": [
+        "hint_unavailable",
+        "hint_loading",
+        "hint_loaded",
+        "hint_partial",
+        "hint_stale",
+        "hint_unknown_field_warning_only",
+        "hint_strict_reject_unknown",
+        "hint_blocked_by_policy"
+      ]
+    },
+    "unknown_field_handling_class": {
+      "type": "string",
+      "enum": [
+        "preserve_unknown_fields",
+        "warn_on_unknown_fields_preserve",
+        "strip_unknown_fields_with_review",
+        "reject_unknown_fields",
+        "not_applicable_format_has_no_schema"
+      ]
+    },
+    "comment_preservation_class": {
+      "type": "string",
+      "enum": [
+        "preserve_comments",
+        "warn_comment_loss_on_canonical_write",
+        "strip_comments_with_review",
+        "comments_not_supported_by_format",
+        "not_applicable_format_has_no_comments"
+      ]
+    },
+    "diff_preview_state": {
+      "type": "string",
+      "enum": [
+        "inline_diff_available",
+        "side_by_side_diff_available",
+        "dry_run_preview_required_for_broad_change",
+        "preview_unavailable_blocks_apply",
+        "preview_skipped_with_explicit_ack"
+      ]
+    },
+    "code_normalization_class": {
+      "type": "string",
+      "enum": [
+        "lossless",
+        "whitespace_canonicalized",
+        "key_order_canonicalized",
+        "quote_style_canonicalized",
+        "comments_dropped",
+        "unknown_fields_stripped",
+        "numeric_format_canonicalized",
+        "string_escape_canonicalized",
+        "boolean_or_null_normalized"
+      ]
+    },
+    "presentation_class": {
+      "type": "string",
+      "enum": [
+        "raw_source_visible_inline",
+        "canonical_visible_with_raw_inspect",
+        "redacted_summary_only",
+        "ref_only_no_source_visible"
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "syntax_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "syntax_highlighting_state",
+        "highlighter_source_class",
+        "syntax_summary"
+      ],
+      "properties": {
+        "syntax_highlighting_state": { "$ref": "#/$defs/syntax_highlighting_state" },
+        "highlighter_source_class": { "$ref": "#/$defs/highlighter_source_class" },
+        "syntax_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "schema_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_hint_state",
+        "unknown_field_handling_class",
+        "comment_preservation_class",
+        "schema_hint_summary"
+      ],
+      "properties": {
+        "schema_hint_state": { "$ref": "#/$defs/schema_hint_state" },
+        "unknown_field_handling_class": { "$ref": "#/$defs/unknown_field_handling_class" },
+        "comment_preservation_class": { "$ref": "#/$defs/comment_preservation_class" },
+        "schema_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "schema_hint_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "diff_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "diff_preview_state",
+        "broad_change_requires_preview",
+        "diff_preview_summary"
+      ],
+      "properties": {
+        "diff_preview_state": { "$ref": "#/$defs/diff_preview_state" },
+        "broad_change_requires_preview": { "type": "boolean" },
+        "preview_skip_acknowledged": { "type": "boolean" },
+        "diff_preview_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "normalization_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalization_classes",
+        "lossy_normalization_warning_required",
+        "raw_entry_preserved_as_ref"
+      ],
+      "properties": {
+        "normalization_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/code_normalization_class" },
+          "uniqueItems": true
+        },
+        "lossy_normalization_warning_required": { "type": "boolean" },
+        "raw_entry_preserved_as_ref": { "type": "boolean" },
+        "raw_entry_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "normalization_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "code_backed_field_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "code_backed_field_id",
+        "field_rule_record_ref",
+        "field_row_record_ref",
+        "surface_families",
+        "field_label",
+        "code_format_class",
+        "syntax_state",
+        "schema_hint",
+        "diff_preview",
+        "normalization_report",
+        "presentation_class",
+        "narrative_refs",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/code_backed_field_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "code_backed_field_id": { "$ref": "#/$defs/opaque_id" },
+        "field_rule_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "field_row_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" },
+          "uniqueItems": true
+        },
+        "field_label": { "$ref": "#/$defs/non_empty_string" },
+        "code_format_class": { "$ref": "#/$defs/code_format_class" },
+        "syntax_state": { "$ref": "#/$defs/syntax_state" },
+        "schema_hint": { "$ref": "#/$defs/schema_hint" },
+        "diff_preview": { "$ref": "#/$defs/diff_preview" },
+        "normalization_report": { "$ref": "#/$defs/normalization_report" },
+        "presentation_class": { "$ref": "#/$defs/presentation_class" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "JSON disallows comments by format; JSON, regex, glob, SQL, HCL, structured-settings-fragment, and arbitrary-code-fragment formats either have no schema-managed comments or surface comment loss explicitly.",
+          "if": {
+            "properties": {
+              "code_format_class": { "const": "json" }
+            },
+            "required": ["code_format_class"]
+          },
+          "then": {
+            "properties": {
+              "schema_hint": {
+                "properties": {
+                  "comment_preservation_class": {
+                    "enum": [
+                      "comments_not_supported_by_format",
+                      "not_applicable_format_has_no_comments"
+                    ]
+                  }
+                },
+                "required": ["comment_preservation_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Lossy normalization must require a warning and preserve the raw entry as a ref.",
+          "if": {
+            "properties": {
+              "normalization_report": {
+                "properties": {
+                  "normalization_classes": {
+                    "type": "array",
+                    "contains": {
+                      "enum": [
+                        "whitespace_canonicalized",
+                        "key_order_canonicalized",
+                        "quote_style_canonicalized",
+                        "comments_dropped",
+                        "unknown_fields_stripped",
+                        "numeric_format_canonicalized",
+                        "string_escape_canonicalized",
+                        "boolean_or_null_normalized"
+                      ]
+                    }
+                  }
+                },
+                "required": ["normalization_classes"]
+              }
+            },
+            "required": ["normalization_report"]
+          },
+          "then": {
+            "properties": {
+              "normalization_report": {
+                "properties": {
+                  "lossy_normalization_warning_required": { "const": true },
+                  "raw_entry_preserved_as_ref": { "const": true }
+                },
+                "required": [
+                  "lossy_normalization_warning_required",
+                  "raw_entry_preserved_as_ref"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "A broad-change preview marked required cannot pair with preview_unavailable_blocks_apply unless the preview gate is honored; the diff_preview record must record an explicit acknowledgment when skipped.",
+          "if": {
+            "properties": {
+              "diff_preview": {
+                "properties": {
+                  "diff_preview_state": { "const": "preview_skipped_with_explicit_ack" }
+                },
+                "required": ["diff_preview_state"]
+              }
+            },
+            "required": ["diff_preview"]
+          },
+          "then": {
+            "properties": {
+              "diff_preview": {
+                "properties": {
+                  "preview_skip_acknowledged": { "const": true }
+                },
+                "required": ["preview_skip_acknowledged"]
+              }
+            }
+          }
+        },
+        {
+          "description": "When unknown-field handling strips unknown fields, normalization must declare unknown_fields_stripped and require warning.",
+          "if": {
+            "properties": {
+              "schema_hint": {
+                "properties": {
+                  "unknown_field_handling_class": { "const": "strip_unknown_fields_with_review" }
+                },
+                "required": ["unknown_field_handling_class"]
+              }
+            },
+            "required": ["schema_hint"]
+          },
+          "then": {
+            "properties": {
+              "normalization_report": {
+                "properties": {
+                  "normalization_classes": {
+                    "type": "array",
+                    "contains": { "const": "unknown_fields_stripped" }
+                  },
+                  "lossy_normalization_warning_required": { "const": true }
+                },
+                "required": [
+                  "normalization_classes",
+                  "lossy_normalization_warning_required"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,428 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/path_field.schema.json",
+  "title": "Aureline path / file / folder field boundary",
+  "description": "Boundary schema for one path_field_record frozen in docs/ux/path_code_and_multivalue_field_contract.md. The record covers basis, authority, picker / drag-drop compatibility, target-context resolution, missing-target handoff, and normalization disclosure for any field whose value names a filesystem, archive, remote, container, or provider-owned object. It composes with the field_rule_record (typically filesystem_path_ref) for redaction, validation, copy/export posture, and unsafe-value warnings, and with the field_row_record for label, source pill, and apply posture. Raw absolute paths, raw symlink targets, raw URLs, raw secret values, raw provider payloads, and raw container volume mount specs never cross this boundary; the record carries refs, basis, authority, presentation summary, and normalization reports only. Adding an enum value is additive-minor and bumps path_field_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/path_field_record",
+  "$defs": {
+    "path_field_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "path_field_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:/-][a-z0-9]+)*$",
+      "description": "Stable opaque id safe for logs, RPC, support bundles, screenshots, and fixtures. Raw absolute paths, raw URLs, raw secrets, and raw provider payloads never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 760
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings_form",
+        "scaffolding_form",
+        "request_workspace_form",
+        "package_action_form",
+        "repair_action_form",
+        "data_connection_form",
+        "transport_form",
+        "support_export",
+        "generic_high_impact_form"
+      ]
+    },
+    "path_basis_class": {
+      "type": "string",
+      "enum": [
+        "workspace_root",
+        "current_file",
+        "selected_target",
+        "current_working_directory",
+        "user_chosen_basis",
+        "absolute_anchor",
+        "archive_inner_anchor",
+        "provider_root",
+        "remote_host_anchor",
+        "container_volume_anchor"
+      ]
+    },
+    "path_authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_root_authority",
+        "current_file_workspace_authority",
+        "remote_host_authority",
+        "container_volume_authority",
+        "local_machine_authority",
+        "archive_overlay_authority",
+        "provider_owned_root_authority",
+        "generated_overlay_authority",
+        "support_export_scope_authority"
+      ]
+    },
+    "path_kind_class": {
+      "type": "string",
+      "enum": [
+        "any_filesystem_object",
+        "file_only",
+        "folder_only",
+        "executable_file_only",
+        "archive_inner_path_only",
+        "file_or_folder",
+        "glob_pattern",
+        "content_addressed_object"
+      ]
+    },
+    "picker_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "picker_supported_local",
+        "picker_supported_workspace_host",
+        "picker_supported_remote",
+        "picker_supported_archive",
+        "picker_supported_provider",
+        "picker_unsupported_manual_entry_only",
+        "picker_blocked_by_policy"
+      ]
+    },
+    "drag_drop_compatibility_class": {
+      "type": "string",
+      "enum": [
+        "drag_drop_blocked",
+        "drag_drop_local_only_with_disclosure",
+        "drag_drop_workspace_host_with_disclosure",
+        "drag_drop_remote_with_disclosure",
+        "drag_drop_archive_with_disclosure",
+        "drag_drop_cross_root_requires_review"
+      ]
+    },
+    "missing_target_state_class": {
+      "type": "string",
+      "enum": [
+        "target_present_in_context",
+        "target_missing_in_context",
+        "target_unknown_until_resolve",
+        "target_in_archive_inspect_only",
+        "target_behind_unmounted_root",
+        "target_blocked_by_authority",
+        "target_resolution_skipped"
+      ]
+    },
+    "missing_target_recovery_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "create_target_with_review",
+        "mount_root_with_review",
+        "switch_workspace_with_review",
+        "widen_workset_with_review",
+        "request_authority_with_review",
+        "accept_inspect_only_handoff",
+        "cancel_apply"
+      ]
+    },
+    "path_normalization_class": {
+      "type": "string",
+      "enum": [
+        "lossless",
+        "case_normalized",
+        "unicode_normalized",
+        "separator_normalized",
+        "redundant_segment_collapsed",
+        "symlink_resolved",
+        "alias_resolved_to_canonical",
+        "whitespace_trimmed",
+        "archive_inner_path_canonicalized"
+      ]
+    },
+    "presentation_class": {
+      "type": "string",
+      "enum": [
+        "raw_user_entry_visible",
+        "canonical_visible_with_raw_inspect",
+        "redacted_summary_only",
+        "handle_alias_only",
+        "ref_only_no_path_visible"
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "basis_resolution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_basis_class",
+        "path_authority_class",
+        "basis_resolved",
+        "basis_summary"
+      ],
+      "properties": {
+        "path_basis_class": { "$ref": "#/$defs/path_basis_class" },
+        "path_authority_class": { "$ref": "#/$defs/path_authority_class" },
+        "basis_resolved": {
+          "type": "boolean",
+          "description": "True only when basis is fully bound to a concrete root. False when a relative path lacks a basis and apply must block."
+        },
+        "basis_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "basis_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "missing_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missing_target_state_class",
+        "recovery_class",
+        "missing_target_summary"
+      ],
+      "properties": {
+        "missing_target_state_class": { "$ref": "#/$defs/missing_target_state_class" },
+        "recovery_class": { "$ref": "#/$defs/missing_target_recovery_class" },
+        "blocks_apply": {
+          "type": "boolean",
+          "description": "True when the missing-target state must block apply until recovery completes or the user accepts an inspect-only handoff."
+        },
+        "missing_target_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "normalization_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalization_classes",
+        "normalization_warning_required",
+        "raw_entry_preserved_as_ref"
+      ],
+      "properties": {
+        "normalization_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_normalization_class" },
+          "uniqueItems": true
+        },
+        "normalization_warning_required": { "type": "boolean" },
+        "raw_entry_preserved_as_ref": { "type": "boolean" },
+        "raw_entry_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "normalization_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "path_field_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "path_field_id",
+        "field_rule_record_ref",
+        "field_row_record_ref",
+        "surface_families",
+        "field_label",
+        "path_kind_class",
+        "basis_resolution",
+        "picker_compatibility_class",
+        "drag_drop_compatibility_class",
+        "missing_target",
+        "normalization_report",
+        "presentation_class",
+        "narrative_refs",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/path_field_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "path_field_id": { "$ref": "#/$defs/opaque_id" },
+        "field_rule_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "field_row_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "surface_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_family" },
+          "uniqueItems": true
+        },
+        "field_label": { "$ref": "#/$defs/non_empty_string" },
+        "path_kind_class": { "$ref": "#/$defs/path_kind_class" },
+        "basis_resolution": { "$ref": "#/$defs/basis_resolution" },
+        "picker_compatibility_class": { "$ref": "#/$defs/picker_compatibility_class" },
+        "drag_drop_compatibility_class": { "$ref": "#/$defs/drag_drop_compatibility_class" },
+        "missing_target": { "$ref": "#/$defs/missing_target" },
+        "normalization_report": { "$ref": "#/$defs/normalization_report" },
+        "presentation_class": { "$ref": "#/$defs/presentation_class" },
+        "path_truth_chip_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional reference to a path_truth_chip_record from the path-truth packet when alias / canonical-shift disclosure is active."
+        },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "An unresolved basis must block apply on the missing-target gate.",
+          "if": {
+            "properties": {
+              "basis_resolution": {
+                "properties": { "basis_resolved": { "const": false } },
+                "required": ["basis_resolved"]
+              }
+            },
+            "required": ["basis_resolution"]
+          },
+          "then": {
+            "properties": {
+              "missing_target": {
+                "properties": { "blocks_apply": { "const": true } },
+                "required": ["blocks_apply"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Absolute, archive, provider, remote-host, and container-volume anchors do not need an external basis ref but still must mark basis_resolved true.",
+          "if": {
+            "properties": {
+              "basis_resolution": {
+                "properties": {
+                  "path_basis_class": {
+                    "enum": [
+                      "absolute_anchor",
+                      "archive_inner_anchor",
+                      "provider_root",
+                      "remote_host_anchor",
+                      "container_volume_anchor"
+                    ]
+                  }
+                },
+                "required": ["path_basis_class"]
+              }
+            },
+            "required": ["basis_resolution"]
+          },
+          "then": {
+            "properties": {
+              "basis_resolution": {
+                "properties": { "basis_resolved": { "const": true } },
+                "required": ["basis_resolved"]
+              }
+            }
+          }
+        },
+        {
+          "description": "A missing-target state other than target_present_in_context must name a recovery class other than not_applicable.",
+          "if": {
+            "properties": {
+              "missing_target": {
+                "properties": {
+                  "missing_target_state_class": {
+                    "not": { "const": "target_present_in_context" }
+                  }
+                },
+                "required": ["missing_target_state_class"]
+              }
+            },
+            "required": ["missing_target"]
+          },
+          "then": {
+            "properties": {
+              "missing_target": {
+                "properties": {
+                  "recovery_class": {
+                    "not": { "const": "not_applicable" }
+                  }
+                },
+                "required": ["recovery_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Lossy normalization must require a warning and preserve the raw entry as a ref.",
+          "if": {
+            "properties": {
+              "normalization_report": {
+                "properties": {
+                  "normalization_classes": {
+                    "type": "array",
+                    "contains": {
+                      "enum": [
+                        "case_normalized",
+                        "unicode_normalized",
+                        "separator_normalized",
+                        "redundant_segment_collapsed",
+                        "symlink_resolved",
+                        "alias_resolved_to_canonical",
+                        "whitespace_trimmed",
+                        "archive_inner_path_canonicalized"
+                      ]
+                    }
+                  }
+                },
+                "required": ["normalization_classes"]
+              }
+            },
+            "required": ["normalization_report"]
+          },
+          "then": {
+            "properties": {
+              "normalization_report": {
+                "properties": {
+                  "normalization_warning_required": { "const": true },
+                  "raw_entry_preserved_as_ref": { "const": true }
+                },
+                "required": [
+                  "normalization_warning_required",
+                  "raw_entry_preserved_as_ref"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
