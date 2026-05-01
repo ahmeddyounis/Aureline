@@ -1,0 +1,1213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/requirement_status_snapshot.schema.json",
+  "title": "Aureline requirement-status snapshot, blocker-state grammar, and evidence-link summary contract",
+  "description": "Boundary schema for the requirement_status_snapshot_record frozen in docs/governance/requirement_status_snapshot_contract.md. The record replaces narrative milestone status with a machine-readable per-requirement snapshot of blocking requirements, current proof, narrowing, and waiver state. The snapshot is one object family: every requirement row names the canonical requirement id, the milestone row it closes against, the typed accountable and evidence ownership, the typed current state (pass, fail, partial, waived, deferred, narrowed, out-of-scope), the typed blocker class describing why a non-pass row is held, the typed blocker-state grammar (implementation state x verification state x release-readiness meaning x integrated-versus-complete-for-close), the linked evidence packets and decision-right cards, the linked known-limit notes / claim rows / waiver register entries that narrow truth without disappearing the row, and the last review chronology. The snapshot also carries summary rollups (by requirement family, launch wedge, protected workflow, claim family) so the ship-room dashboard, the architecture pack, the release packet, the support packet, and governance review flows consume the same source object rather than reconstructing milestone close from narrative status. Every row that is narrowed, waived, deferred, or out-of-scope MUST cite the linked narrowing object so a milestone close cannot quietly drop a requirement; a row that claims pass cannot also carry an unclosed blocker. Personal handles, raw email addresses, raw phone numbers, raw chat-room URLs, raw policy bodies, and raw waiver justifications MUST NOT appear; the record carries opaque refs, typed vocabulary, and bounded reviewable summaries only. Adding a new requirement-state class, blocker class, blocker-state vocabulary value, integrated-versus-complete class, narrowing-link kind, rollup-axis class, or export field is additive-minor and bumps requirement_status_snapshot_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/requirement_status_snapshot_record",
+  "$defs": {
+    "requirement_status_snapshot_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the requirement-status snapshot payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for live surfaces, support bundles, public-proof packets, claim manifests, release packets, governance packets, architecture-pack exports, and screenshots. Raw URLs, raw absolute paths, raw email addresses, raw phone numbers, raw chat-room URLs, raw on-call rotation entries, and raw secret material MUST NOT appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp."
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded reviewable display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Personal handles, raw email addresses, raw phone numbers, raw calendar URLs, raw chat-room URLs, raw on-call rotation entries, raw policy bodies, raw waiver justifications, and raw secret material MUST NOT appear."
+    },
+    "requirement_id": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[A-Z0-9]+-[0-9]{3}$",
+      "description": "Canonical requirement id from artifacts/governance/requirement_register_seed.yaml. Local packet labels and aliases are non-authoritative and resolve back to a canonical id through schemas/governance/requirement_register.schema.json."
+    },
+    "milestone_slug": {
+      "type": "string",
+      "enum": [
+        "foundations",
+        "prototype",
+        "alpha",
+        "first_beta",
+        "stable_v1",
+        "feature_train_v1",
+        "major_v2"
+      ],
+      "description": "Closed milestone-slug vocabulary mirroring schemas/governance/requirement_register.schema.json#milestone_slug verbatim. Planning-only ids (M0, M00, WP, internal task slugs) MUST NOT appear on product or shipped surfaces."
+    },
+    "requirement_class": {
+      "type": "string",
+      "enum": [
+        "FR",
+        "LANG",
+        "PERF",
+        "REL",
+        "SEC",
+        "A11Y",
+        "ECOS",
+        "AI",
+        "OPS",
+        "GOV",
+        "ARCH",
+        "TOOL",
+        "CERT",
+        "ENT",
+        "REPO",
+        "COMP"
+      ],
+      "description": "Closed requirement-class vocabulary mirroring schemas/governance/requirement_register.schema.json#requirement_class verbatim."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of the runtime record."
+    },
+
+    "requirement_state_class": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail",
+        "partial",
+        "waived",
+        "deferred",
+        "narrowed",
+        "out_of_scope"
+      ],
+      "description": "Closed seven-class requirement-state vocabulary. pass = the requirement is fully met against the target milestone with fresh, non-stale evidence and no open blockers. fail = the requirement is not met against the target milestone; at least one blocker entry is required. partial = the requirement is partly met; the blocker_state grammar names the implementation_state and verification_state separately so 'integrated' is not confused with 'complete for close'. waived = the requirement is held under an active waiver inside its expiry window; the waiver register entry MUST be linked. deferred = the requirement is acknowledged but pushed to a later milestone; the deferral target MUST be named. narrowed = the requirement is narrowed against a known-limit note or claim row; the narrowing link MUST be cited. out_of_scope = the requirement is explicitly out of scope for the milestone (or for the program); the rationale MUST be cited. A row whose state cannot be typed denies with requirement_state_class_unresolved rather than defaulting."
+    },
+    "blocker_class": {
+      "type": "string",
+      "enum": [
+        "no_blocker_pass",
+        "evidence_missing",
+        "evidence_stale",
+        "evidence_failing",
+        "evidence_partial_coverage",
+        "implementation_missing",
+        "implementation_partial",
+        "verification_class_unresolved",
+        "decision_route_unresolved",
+        "owner_unresolved",
+        "waiver_active_within_expiry",
+        "waiver_expired_no_renewal",
+        "narrowed_against_known_limit",
+        "narrowed_against_claim_row",
+        "deferred_to_later_milestone",
+        "out_of_scope_by_decision"
+      ],
+      "description": "Closed sixteen-class blocker vocabulary naming why a non-pass row is held. no_blocker_pass MUST be paired with requirement_state_class = pass and an empty blockers[] array. evidence_* classes name the evidence-side blocker (missing, stale, failing, partial coverage). implementation_* classes name the implementation-side blocker. verification_class_unresolved names a row where the verification-class assignment cannot be typed. decision_route_unresolved and owner_unresolved mirror the degraded vocabulary on schemas/governance/decision_right_card.schema.json. waiver_active_within_expiry pairs with requirement_state_class = waived and an active waiver register entry. waiver_expired_no_renewal pairs with degraded_waiver_expired and forces the parent state into fail. narrowed_against_known_limit / narrowed_against_claim_row pair with requirement_state_class = narrowed. deferred_to_later_milestone pairs with requirement_state_class = deferred. out_of_scope_by_decision pairs with requirement_state_class = out_of_scope."
+    },
+    "implementation_state_class": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "integrated_only",
+        "complete_for_close",
+        "rolled_back",
+        "not_required"
+      ],
+      "description": "Closed six-class implementation-state vocabulary. not_started = no implementation work has landed. in_progress = work is landing but the row is not integrated. integrated_only = code or contract has merged but is gated, flagged, or otherwise not on the milestone-close path. complete_for_close = implementation is on the milestone-close path; surfaces MUST distinguish this from integrated_only. rolled_back = a previously integrated change was rolled back. not_required = the row is contract-only, narrative-only, or otherwise carries no implementation surface (the verification_state still applies)."
+    },
+    "verification_state_class": {
+      "type": "string",
+      "enum": [
+        "no_evidence",
+        "evidence_partial",
+        "evidence_passing_fresh",
+        "evidence_passing_stale",
+        "evidence_failing",
+        "evidence_waived_within_expiry",
+        "evidence_waiver_expired",
+        "evidence_not_required"
+      ],
+      "description": "Closed eight-class verification-state vocabulary. no_evidence = no packet has been linked. evidence_partial = at least one packet is linked but coverage is partial against the requirement's verification classes. evidence_passing_fresh = passing evidence within freshness window. evidence_passing_stale = passing evidence aged out against schemas/governance/evidence_packet_header.schema.json#freshness. evidence_failing = at least one linked packet is failing. evidence_waived_within_expiry = a waiver inside its expiry window stands in for the evidence. evidence_waiver_expired = the waiver lapsed; surfaces MUST NOT render the row as held. evidence_not_required = closed-vocabulary administrative classes that do not require packets."
+    },
+    "release_readiness_class": {
+      "type": "string",
+      "enum": [
+        "ready_for_close",
+        "ready_with_named_narrowing",
+        "ready_under_active_waiver",
+        "not_ready_blockers_open",
+        "not_ready_waiver_expired",
+        "not_ready_decision_route_unresolved",
+        "deferred_to_later_milestone",
+        "out_of_scope_by_decision"
+      ],
+      "description": "Closed eight-class release-readiness vocabulary. ready_for_close = the row is on the milestone-close path with fresh passing evidence. ready_with_named_narrowing = the row is on the close path under a named narrowing (claim row or known-limit note). ready_under_active_waiver = the row is on the close path under an active waiver inside its expiry window. not_ready_blockers_open = at least one open blocker is held. not_ready_waiver_expired = a waiver lapsed; ship-room cannot collapse this into 'held'. not_ready_decision_route_unresolved = no forum is named for the next decision; surfaces MUST render degraded_decision_route_missing. deferred_to_later_milestone = the row is acknowledged but moved out. out_of_scope_by_decision = the row is explicitly excluded."
+    },
+    "integrated_versus_complete_class": {
+      "type": "string",
+      "enum": [
+        "complete_for_milestone_close",
+        "integrated_only_not_complete_for_close",
+        "complete_with_named_narrowing",
+        "complete_under_active_waiver",
+        "not_applicable_no_implementation_surface"
+      ],
+      "description": "Closed five-class integrated-versus-complete vocabulary. The class names whether the row is only integrated (code or contract has merged but the row is not on the milestone-close path) or complete for milestone close. complete_for_milestone_close requires implementation_state_class = complete_for_close and verification_state_class in { evidence_passing_fresh, evidence_not_required }. integrated_only_not_complete_for_close requires implementation_state_class = integrated_only or in_progress. complete_with_named_narrowing pairs with at least one linked claim row or known-limit note. complete_under_active_waiver pairs with an active waiver register entry. not_applicable_no_implementation_surface pairs with implementation_state_class = not_required."
+    },
+    "rollup_axis_class": {
+      "type": "string",
+      "enum": [
+        "requirement_family",
+        "launch_wedge",
+        "protected_workflow",
+        "claim_family"
+      ],
+      "description": "Closed four-axis rollup vocabulary. requirement_family = grouped by requirement_class (FR / LANG / PERF / REL / SEC / A11Y / ECOS / AI / OPS / GOV / ARCH / TOOL / CERT / ENT / REPO / COMP). launch_wedge = grouped by launch-wedge id from artifacts/milestones/<milestone>_design_evidence_index.yaml. protected_workflow = grouped by protected-workflow id from artifacts/governance/protected_change_budget.yaml. claim_family = grouped by claim_family from schemas/governance/claim_manifest.schema.json#claim_family."
+    },
+    "narrowing_link_kind_class": {
+      "type": "string",
+      "enum": [
+        "known_limit_note",
+        "claim_row",
+        "waiver_register_entry",
+        "deferral_decision",
+        "out_of_scope_decision"
+      ],
+      "description": "Closed five-class narrowing-link-kind vocabulary. known_limit_note = link into a known-limit note ref carried on the evidence-packet header. claim_row = link into a claim_row id from schemas/governance/claim_manifest.schema.json. waiver_register_entry = link into the waiver record on artifacts/governance/ownership_matrix.yaml or schemas/governance/waiver_expiry.schema.json. deferral_decision = link into the decision_register row that pushed the requirement to a later milestone. out_of_scope_decision = link into the decision_register row that explicitly excluded the requirement."
+    },
+    "decision_route_status_class": {
+      "type": "string",
+      "enum": [
+        "named_forum_owner",
+        "named_forum_owner_unresolved",
+        "no_forum_named_degraded",
+        "not_required_for_class"
+      ],
+      "description": "Closed four-class decision-route-status vocabulary. named_forum_owner = the row's gating decision-right card has a named forum and a named accountable owner. named_forum_owner_unresolved = a forum is named but the accountable owner does not resolve; surfaces MUST render degraded_owner_unresolved. no_forum_named_degraded = no forum can be named; surfaces MUST render degraded_decision_route_missing. not_required_for_class = the requirement does not require a decision-right card (closed-vocabulary administrative classes)."
+    },
+    "milestone_close_posture_class": {
+      "type": "string",
+      "enum": [
+        "milestone_close_clean",
+        "milestone_close_with_named_narrowing",
+        "milestone_close_with_active_waiver",
+        "milestone_close_blocked",
+        "milestone_close_blocked_decision_route_unresolved",
+        "milestone_close_pending_review_window_open",
+        "milestone_already_closed",
+        "milestone_rebaselined"
+      ],
+      "description": "Closed eight-class milestone-close-posture vocabulary. milestone_close_clean = every required row is pass with fresh evidence. milestone_close_with_named_narrowing = at least one row is narrowed but every narrowing is cited and visible. milestone_close_with_active_waiver = at least one row rides on an active waiver inside its expiry window. milestone_close_blocked = at least one required row is fail or waiver_expired_no_renewal. milestone_close_blocked_decision_route_unresolved = at least one row carries decision_route_unresolved. milestone_close_pending_review_window_open = the milestone close has not been called yet but the review window is open. milestone_already_closed = the milestone scorecard is closed. milestone_rebaselined = the milestone has been rebaselined."
+    },
+
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_dri",
+        "evidence_owner",
+        "owning_lane",
+        "decision_forum_ref",
+        "decision_route_status_class"
+      ],
+      "properties": {
+        "primary_dri": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Primary DRI handle. Resolves into artifacts/governance/ownership_matrix.yaml. No silent blanks."
+        },
+        "evidence_owner": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Evidence owner accountable for the proof carried by the row. May equal primary_dri."
+        },
+        "owning_lane": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Owning scorecard lane. MUST resolve to a value in ownership_matrix.scorecard_lane_index."
+        },
+        "decision_forum_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the forum register entry that gates the next decision for this row. Required to be non-null when decision_route_status_class is in { named_forum_owner, named_forum_owner_unresolved }. Required to be null when decision_route_status_class = no_forum_named_degraded."
+        },
+        "decision_route_status_class": { "$ref": "#/$defs/decision_route_status_class" }
+      }
+    },
+
+    "blocker_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "implementation_state_class",
+        "verification_state_class",
+        "release_readiness_class",
+        "integrated_versus_complete_class",
+        "blocker_state_summary"
+      ],
+      "properties": {
+        "implementation_state_class": { "$ref": "#/$defs/implementation_state_class" },
+        "verification_state_class": { "$ref": "#/$defs/verification_state_class" },
+        "release_readiness_class": { "$ref": "#/$defs/release_readiness_class" },
+        "integrated_versus_complete_class": { "$ref": "#/$defs/integrated_versus_complete_class" },
+        "blocker_state_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the blocker-state grammar. Surfaces MUST render the typed classes verbatim; free-text 'mostly done' / 'almost there' copy is non-conforming."
+        }
+      }
+    },
+
+    "blocker_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocker_class",
+        "decision_right_card_ref",
+        "linked_evidence_ref",
+        "blocker_summary"
+      ],
+      "properties": {
+        "blocker_class": { "$ref": "#/$defs/blocker_class" },
+        "decision_right_card_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the decision_right_card_record gating this blocker. Required to be non-null for blocker_class in { evidence_failing, evidence_stale, implementation_missing, implementation_partial, verification_class_unresolved, decision_route_unresolved, owner_unresolved, waiver_expired_no_renewal }. Null is admissible only for narrowing / deferral / out-of-scope blocker classes that ride on a decision-register row instead."
+        },
+        "linked_evidence_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the evidence packet, fitness-function row, claim row, scorecard lane, or governance packet that captured the blocker. Null only when the blocker is the absence of evidence (evidence_missing, owner_unresolved, decision_route_unresolved)."
+        },
+        "blocker_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming what is holding the row. Raw measurement bytes, raw policy bodies, and raw waiver justifications do not appear."
+        }
+      }
+    },
+
+    "narrowing_link_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "narrowing_link_kind_class",
+        "linked_ref",
+        "narrowing_summary"
+      ],
+      "properties": {
+        "narrowing_link_kind_class": { "$ref": "#/$defs/narrowing_link_kind_class" },
+        "linked_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the narrowing object. Resolves to a known_limit_ref on schemas/governance/evidence_packet_header.schema.json#known_limit_refs, a claim_row id on schemas/governance/claim_manifest.schema.json, a waiver record on artifacts/governance/ownership_matrix.yaml or schemas/governance/waiver_expiry.schema.json, or a decision-register row id from artifacts/governance/decision_register.yaml."
+        },
+        "linked_claim_surface_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Optional refs into the claim surfaces this narrowing influences (docs rows, About / Help destinations, public claim manifest rows). Carried so a narrowed row remains visible next to the surfaces it affects."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Expiry timestamp for waiver_register_entry / deferral_decision narrowings. Null for known_limit_note / claim_row / out_of_scope_decision narrowings."
+        },
+        "deferral_target_milestone": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/milestone_slug" }
+          ],
+          "description": "Required to be non-null when narrowing_link_kind_class = deferral_decision. Null otherwise."
+        },
+        "narrowing_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the narrowing posture. Names the narrowing object id, the affected scope, and the held release condition; raw policy bodies do not appear."
+        }
+      }
+    },
+
+    "evidence_link_summary_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_packet_ref",
+        "result_status",
+        "freshness_class",
+        "captured_at",
+        "stale_after",
+        "expires_at",
+        "evidence_link_summary"
+      ],
+      "properties": {
+        "evidence_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref into the evidence packet, governance packet, fitness-tile row, nightly-report row, scorecard lane, or claim manifest row. Resolves through schemas/governance/evidence_packet_header.schema.json or the equivalent packet-family schema."
+        },
+        "result_status": {
+          "type": "string",
+          "enum": [
+            "pass",
+            "fail",
+            "mixed",
+            "waived",
+            "seed_only",
+            "needs_review",
+            "blocked",
+            "not_applicable"
+          ],
+          "description": "Mirrors schemas/governance/evidence_packet_header.schema.json#result_status verbatim."
+        },
+        "freshness_class": {
+          "type": "string",
+          "enum": [
+            "live",
+            "warm_cached",
+            "cold_cached",
+            "stale",
+            "expired",
+            "unverified"
+          ],
+          "description": "Freshness class copied from the evidence packet header. Mirrors schemas/governance/capability_lifecycle.schema.json#freshness_class verbatim."
+        },
+        "captured_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "captured_at copied from the underlying evidence packet header. Null only when the evidence is missing rather than expired."
+        },
+        "stale_after": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "stale_after duration copied from the underlying evidence packet header (RFC 3339 / ISO 8601 duration token, or a stable token defined by the embedding packet family). Null only when the evidence is missing rather than expired."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_utc_datetime",
+          "description": "Computed captured_at + stale_after. Null only when the evidence is missing rather than expired."
+        },
+        "evidence_link_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the evidence linkage (what the packet substantiates, what is freshness-held, what is missing). Raw measurement bytes do not appear."
+        }
+      }
+    },
+
+    "rollup_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rollup_axis_class",
+        "rollup_key",
+        "row_count",
+        "pass_count",
+        "fail_count",
+        "partial_count",
+        "waived_count",
+        "deferred_count",
+        "narrowed_count",
+        "out_of_scope_count",
+        "milestone_close_posture_class",
+        "rollup_summary"
+      ],
+      "properties": {
+        "rollup_axis_class": { "$ref": "#/$defs/rollup_axis_class" },
+        "rollup_key": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable key for the rollup bucket (e.g. 'PERF', 'launch_wedge:editor_first_paint', 'protected_workflow:save_pipeline', 'claim_family:exact_build_identity'). MUST resolve against rollup_axis_class."
+        },
+        "row_count": { "$ref": "#/$defs/non_negative_integer" },
+        "pass_count": { "$ref": "#/$defs/non_negative_integer" },
+        "fail_count": { "$ref": "#/$defs/non_negative_integer" },
+        "partial_count": { "$ref": "#/$defs/non_negative_integer" },
+        "waived_count": { "$ref": "#/$defs/non_negative_integer" },
+        "deferred_count": { "$ref": "#/$defs/non_negative_integer" },
+        "narrowed_count": { "$ref": "#/$defs/non_negative_integer" },
+        "out_of_scope_count": { "$ref": "#/$defs/non_negative_integer" },
+        "milestone_close_posture_class": { "$ref": "#/$defs/milestone_close_posture_class" },
+        "linked_requirement_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/requirement_id" },
+          "uniqueItems": true,
+          "description": "Canonical requirement ids in this bucket. Optional but RECOMMENDED so reviewers can drill from the rollup back to the rows."
+        },
+        "rollup_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary of the bucket posture. Surfaces MUST NOT collapse this into a generic 'see milestone scorecard' link."
+        }
+      }
+    },
+
+    "requirement_status_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "requirement_id",
+        "requirement_class",
+        "milestone_row",
+        "ownership",
+        "requirement_state_class",
+        "blocker_state",
+        "blockers",
+        "narrowing_links",
+        "evidence_link_summary_entries",
+        "linked_decision_right_card_refs",
+        "linked_release_truth_summary_refs",
+        "last_review",
+        "row_summary",
+        "headline_label"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string",
+          "pattern": "^requirement_status_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by every consuming surface."
+        },
+        "requirement_id": { "$ref": "#/$defs/requirement_id" },
+        "requirement_class": { "$ref": "#/$defs/requirement_class" },
+        "milestone_row": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target_milestone", "scorecard_lane_ref", "milestone_close_posture_class"],
+          "properties": {
+            "target_milestone": { "$ref": "#/$defs/milestone_slug" },
+            "scorecard_lane_ref": {
+              "$ref": "#/$defs/opaque_id",
+              "description": "Opaque ref into the milestone scorecard lane. MUST resolve to a value in ownership_matrix.scorecard_lane_index and a lane in the matching milestone_scorecard.schema.json instance."
+            },
+            "milestone_scorecard_ref": {
+              "$ref": "#/$defs/nullable_opaque_id",
+              "description": "Opaque ref into the milestone scorecard packet that consumes this row. Null is admissible only when the row is in deferred or out_of_scope state."
+            },
+            "milestone_close_posture_class": { "$ref": "#/$defs/milestone_close_posture_class" }
+          }
+        },
+        "ownership": { "$ref": "#/$defs/ownership" },
+        "requirement_state_class": { "$ref": "#/$defs/requirement_state_class" },
+        "blocker_state": { "$ref": "#/$defs/blocker_state" },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocker_entry" },
+          "description": "Open and waived blockers gating the row. Empty admissible only when requirement_state_class = pass."
+        },
+        "narrowing_links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/narrowing_link_entry" },
+          "description": "Linked known-limit notes, claim rows, waiver register entries, deferral decisions, and out-of-scope decisions that narrow truth without disappearing the row. Required to be non-empty when requirement_state_class is in { waived, deferred, narrowed, out_of_scope }."
+        },
+        "evidence_link_summary_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_link_summary_entry" },
+          "description": "Linked evidence packet summaries with stable refs, result status, freshness, and capture / expiry timestamps. Empty admissible only when verification_state_class is in { no_evidence, evidence_not_required }."
+        },
+        "linked_decision_right_card_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the decision_right_card_records that gate this row. Required to be non-empty when blocker_state.release_readiness_class is in { not_ready_blockers_open, not_ready_waiver_expired, not_ready_decision_route_unresolved } or requirement_state_class is in { fail, waived }."
+        },
+        "linked_release_truth_summary_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the release_truth_summary_records that consume this row. Required to be non-empty for requirement_class in { PERF, REL, SEC, A11Y, ECOS, AI, CERT, ENT, COMP } when requirement_state_class is anything other than out_of_scope."
+        },
+        "linked_known_limit_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into known-limit notes carried alongside the row. Required to be non-empty when at least one narrowing_link_kind_class = known_limit_note."
+        },
+        "linked_claim_row_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into claim_row ids on schemas/governance/claim_manifest.schema.json that this row narrows or substantiates. Required to be non-empty when at least one narrowing_link_kind_class = claim_row."
+        },
+        "linked_waiver_register_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the waiver register entries narrowing the row. Required to be non-empty when requirement_state_class = waived or at least one narrowing_link_kind_class = waiver_register_entry."
+        },
+        "last_review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["last_reviewed_at", "last_reviewer_role_ref", "review_summary"],
+          "properties": {
+            "last_reviewed_at": {
+              "$ref": "#/$defs/utc_datetime",
+              "description": "Timestamp of the most recent review of the row. Distinct from underlying evidence captured_at; the row can be re-reviewed when blockers close, waivers expire, or evidence ages out."
+            },
+            "last_reviewer_role_ref": {
+              "$ref": "#/$defs/opaque_id",
+              "description": "Opaque ref into the role registry naming the role that last reviewed the row. Personal handles MUST NOT appear."
+            },
+            "review_summary": {
+              "$ref": "#/$defs/reviewable_sentence",
+              "description": "One-sentence reviewable summary of the most recent review (what was confirmed, what was deferred, what was rebaselined)."
+            }
+          }
+        },
+        "headline_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Bounded reviewable headline label rendered onto the row. Resolves against requirement_state_class plus the milestone scope; free-text 'all good' / 'at risk' copy is non-conforming."
+        },
+        "row_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One-sentence reviewable summary naming the requirement, the milestone scope, the current state, and the held release condition. Surfaces MUST render this verbatim; free-form prose is non-conforming."
+        }
+      }
+    },
+
+    "export_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "render_on_dashboard",
+        "render_on_milestone_scorecard",
+        "render_on_architecture_pack",
+        "render_on_release_packet",
+        "render_on_support_export",
+        "render_on_governance_packet",
+        "render_on_claim_manifest",
+        "render_on_enterprise_review"
+      ],
+      "properties": {
+        "render_on_dashboard": { "type": "boolean" },
+        "render_on_milestone_scorecard": { "type": "boolean" },
+        "render_on_architecture_pack": { "type": "boolean" },
+        "render_on_release_packet": { "type": "boolean" },
+        "render_on_support_export": { "type": "boolean" },
+        "render_on_governance_packet": { "type": "boolean" },
+        "render_on_claim_manifest": { "type": "boolean" },
+        "render_on_enterprise_review": { "type": "boolean" }
+      },
+      "description": "Visual / export parity floor. Every consuming surface that renders the snapshot MUST render the same row_id, requirement_id, milestone_row, ownership, requirement_state_class, blocker_state, blockers, narrowing_links, evidence_link_summary_entries, rollups, and milestone_close_posture_class. Setting render_on_release_packet, render_on_support_export, render_on_governance_packet, render_on_claim_manifest, or render_on_enterprise_review to true signals that the snapshot is part of public / release / support truth and MUST satisfy the per-state export rules in the schema's allOf block."
+    },
+
+    "requirement_status_snapshot_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirement_status_snapshot_schema_version",
+        "record_kind",
+        "snapshot_id",
+        "evaluated_at",
+        "snapshot_target",
+        "milestone_close_posture_class",
+        "rows",
+        "rollups",
+        "linked_milestone_scorecard_ref",
+        "linked_architecture_pack_ref",
+        "linked_release_truth_summary_refs",
+        "export_fields",
+        "contract_doc_ref",
+        "requirement_register_schema_ref",
+        "evidence_packet_header_schema_ref",
+        "milestone_scorecard_schema_ref",
+        "notes"
+      ],
+      "properties": {
+        "requirement_status_snapshot_schema_version": { "$ref": "#/$defs/requirement_status_snapshot_schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "requirement_status_snapshot_record"
+        },
+        "snapshot_id": {
+          "type": "string",
+          "pattern": "^requirement_status_snapshot:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "description": "Stable, machine-readable id quoted by the dashboard, the milestone scorecard, the architecture pack, the release packet, the support bundle, the governance packet, and the public claim manifest."
+        },
+        "evaluated_at": {
+          "$ref": "#/$defs/utc_datetime",
+          "description": "Timestamp at which the snapshot was projected. Distinct from the underlying evidence captured_at, decision-right card evaluated_at, and milestone scorecard evaluation; the snapshot can be reprojected when a row closes, a waiver expires, or evidence ages out."
+        },
+        "snapshot_target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_milestone",
+            "snapshot_scope_summary"
+          ],
+          "properties": {
+            "target_milestone": { "$ref": "#/$defs/milestone_slug" },
+            "snapshot_scope_summary": {
+              "$ref": "#/$defs/reviewable_sentence",
+              "description": "One-sentence reviewable summary naming the milestone scope, the requirement-class slice, and any narrowing applied to the snapshot. Raw absolute paths and raw URLs do not appear."
+            }
+          }
+        },
+        "milestone_close_posture_class": { "$ref": "#/$defs/milestone_close_posture_class" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/requirement_status_row" },
+          "description": "Per-requirement status rows in scope. Every required milestone-close requirement MUST appear with a typed state, even when state = waived / deferred / narrowed / out_of_scope; surfaces MUST NOT silently drop a row."
+        },
+        "rollups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/rollup_entry" },
+          "description": "Summary rollups by requirement family, launch wedge, protected workflow, and claim family. Every rollup_axis_class SHOULD appear at least once for snapshots that cover a milestone-close scope; per-axis presence is enforced by the snapshot consumer rather than by the schema."
+        },
+        "linked_milestone_scorecard_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the milestone_scorecard packet that consumes this snapshot. Required to be non-null when milestone_close_posture_class is in { milestone_close_clean, milestone_close_with_named_narrowing, milestone_close_with_active_waiver, milestone_close_blocked, milestone_close_blocked_decision_route_unresolved, milestone_already_closed, milestone_rebaselined }."
+        },
+        "linked_architecture_pack_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref into the milestone architecture pack that consumes this snapshot. Required to be non-null when render_on_architecture_pack = true."
+        },
+        "linked_release_truth_summary_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into the release_truth_summary_records that consume this snapshot. Required to be non-empty when render_on_release_packet = true."
+        },
+        "linked_support_export_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into support-export packets that quote the snapshot. Required to be non-empty when render_on_support_export = true."
+        },
+        "linked_governance_packet_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Refs into governance packets that quote the snapshot. Required to be non-empty when render_on_governance_packet = true."
+        },
+        "export_fields": { "$ref": "#/$defs/export_fields" },
+        "contract_doc_ref": {
+          "type": "string",
+          "const": "docs/governance/requirement_status_snapshot_contract.md"
+        },
+        "requirement_register_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/requirement_register.schema.json"
+        },
+        "evidence_packet_header_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/evidence_packet_header.schema.json"
+        },
+        "milestone_scorecard_schema_ref": {
+          "type": "string",
+          "const": "schemas/governance/milestone_scorecard.schema.json"
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "description": "requirement_state_class = pass requires no_blocker_pass on every blocker entry, an empty blockers[] array, blocker_state.release_readiness_class in { ready_for_close }, and blocker_state.integrated_versus_complete_class in { complete_for_milestone_close, not_applicable_no_implementation_surface }.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "pass" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": { "requirement_state_class": { "const": "pass" } },
+                    "required": ["requirement_state_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "blockers": { "maxItems": 0 },
+                      "blocker_state": {
+                        "properties": {
+                          "release_readiness_class": { "const": "ready_for_close" },
+                          "integrated_versus_complete_class": {
+                            "enum": [
+                              "complete_for_milestone_close",
+                              "not_applicable_no_implementation_surface"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "requirement_state_class = fail requires at least one blocker entry, blocker_state.release_readiness_class in { not_ready_blockers_open, not_ready_waiver_expired, not_ready_decision_route_unresolved }, and a non-empty linked_decision_right_card_refs array on the row.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "fail" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": { "requirement_state_class": { "const": "fail" } },
+                    "required": ["requirement_state_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "blockers": { "minItems": 1 },
+                      "blocker_state": {
+                        "properties": {
+                          "release_readiness_class": {
+                            "enum": [
+                              "not_ready_blockers_open",
+                              "not_ready_waiver_expired",
+                              "not_ready_decision_route_unresolved"
+                            ]
+                          }
+                        }
+                      },
+                      "linked_decision_right_card_refs": { "minItems": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "requirement_state_class = waived requires at least one waiver_register_entry narrowing link, blocker_state.release_readiness_class = ready_under_active_waiver, and a non-empty linked_waiver_register_refs array.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "waived" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": { "requirement_state_class": { "const": "waived" } },
+                    "required": ["requirement_state_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "narrowing_links": {
+                        "minItems": 1,
+                        "contains": {
+                          "properties": {
+                            "narrowing_link_kind_class": { "const": "waiver_register_entry" }
+                          }
+                        }
+                      },
+                      "blocker_state": {
+                        "properties": {
+                          "release_readiness_class": { "const": "ready_under_active_waiver" }
+                        }
+                      },
+                      "linked_waiver_register_refs": { "minItems": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "requirement_state_class = narrowed requires at least one known_limit_note or claim_row narrowing link and blocker_state.release_readiness_class = ready_with_named_narrowing.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "narrowed" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": { "requirement_state_class": { "const": "narrowed" } },
+                    "required": ["requirement_state_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "narrowing_links": {
+                        "minItems": 1,
+                        "contains": {
+                          "properties": {
+                            "narrowing_link_kind_class": {
+                              "enum": ["known_limit_note", "claim_row"]
+                            }
+                          }
+                        }
+                      },
+                      "blocker_state": {
+                        "properties": {
+                          "release_readiness_class": { "const": "ready_with_named_narrowing" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "requirement_state_class = deferred requires a deferral_decision narrowing link with a non-null deferral_target_milestone and blocker_state.release_readiness_class = deferred_to_later_milestone.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "deferred" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": { "requirement_state_class": { "const": "deferred" } },
+                    "required": ["requirement_state_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "narrowing_links": {
+                        "minItems": 1,
+                        "contains": {
+                          "properties": {
+                            "narrowing_link_kind_class": { "const": "deferral_decision" },
+                            "deferral_target_milestone": { "not": { "type": "null" } }
+                          }
+                        }
+                      },
+                      "blocker_state": {
+                        "properties": {
+                          "release_readiness_class": { "const": "deferred_to_later_milestone" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "requirement_state_class = out_of_scope requires an out_of_scope_decision narrowing link and blocker_state.release_readiness_class = out_of_scope_by_decision.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "out_of_scope" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": { "requirement_state_class": { "const": "out_of_scope" } },
+                    "required": ["requirement_state_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "narrowing_links": {
+                        "minItems": 1,
+                        "contains": {
+                          "properties": {
+                            "narrowing_link_kind_class": { "const": "out_of_scope_decision" }
+                          }
+                        }
+                      },
+                      "blocker_state": {
+                        "properties": {
+                          "release_readiness_class": { "const": "out_of_scope_by_decision" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "blocker_state.integrated_versus_complete_class = integrated_only_not_complete_for_close forbids requirement_state_class = pass; an integrated-only row cannot collapse into pass on any consuming surface.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "blocker_state": {
+                      "properties": {
+                        "integrated_versus_complete_class": {
+                          "const": "integrated_only_not_complete_for_close"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "blocker_state": {
+                        "properties": {
+                          "integrated_versus_complete_class": {
+                            "const": "integrated_only_not_complete_for_close"
+                          }
+                        },
+                        "required": ["integrated_versus_complete_class"]
+                      }
+                    },
+                    "required": ["blocker_state"]
+                  },
+                  "then": {
+                    "properties": {
+                      "requirement_state_class": {
+                        "not": { "const": "pass" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "blocker_state.verification_state_class = evidence_waiver_expired forces the row state out of waived and into fail; a lapsed waiver cannot render as held.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "blocker_state": {
+                      "properties": {
+                        "verification_state_class": { "const": "evidence_waiver_expired" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "blocker_state": {
+                        "properties": {
+                          "verification_state_class": { "const": "evidence_waiver_expired" }
+                        },
+                        "required": ["verification_state_class"]
+                      }
+                    },
+                    "required": ["blocker_state"]
+                  },
+                  "then": {
+                    "properties": {
+                      "requirement_state_class": { "const": "fail" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ownership.decision_route_status_class = no_forum_named_degraded forces decision_forum_ref = null and at least one blocker entry of class decision_route_unresolved on the row.",
+          "if": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "ownership": {
+                      "properties": {
+                        "decision_route_status_class": { "const": "no_forum_named_degraded" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "ownership": {
+                        "properties": {
+                          "decision_route_status_class": { "const": "no_forum_named_degraded" }
+                        },
+                        "required": ["decision_route_status_class"]
+                      }
+                    },
+                    "required": ["ownership"]
+                  },
+                  "then": {
+                    "properties": {
+                      "ownership": {
+                        "properties": {
+                          "decision_forum_ref": { "type": "null" }
+                        }
+                      },
+                      "blockers": {
+                        "minItems": 1,
+                        "contains": {
+                          "properties": {
+                            "blocker_class": { "const": "decision_route_unresolved" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "milestone_close_posture_class = milestone_close_blocked requires at least one row with requirement_state_class = fail.",
+          "if": {
+            "properties": {
+              "milestone_close_posture_class": { "const": "milestone_close_blocked" }
+            },
+            "required": ["milestone_close_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": { "requirement_state_class": { "const": "fail" } },
+                  "required": ["requirement_state_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "milestone_close_posture_class = milestone_close_blocked_decision_route_unresolved requires at least one row with a blocker of class decision_route_unresolved.",
+          "if": {
+            "properties": {
+              "milestone_close_posture_class": { "const": "milestone_close_blocked_decision_route_unresolved" }
+            },
+            "required": ["milestone_close_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "contains": {
+                  "properties": {
+                    "blockers": {
+                      "type": "array",
+                      "contains": {
+                        "properties": {
+                          "blocker_class": { "const": "decision_route_unresolved" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "milestone_close_posture_class = milestone_close_clean forbids any row with requirement_state_class in { fail, partial }; a clean close cannot ride on an open blocker.",
+          "if": {
+            "properties": {
+              "milestone_close_posture_class": { "const": "milestone_close_clean" }
+            },
+            "required": ["milestone_close_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "rows": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "requirement_state_class": {
+                      "not": { "enum": ["fail", "partial"] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
