@@ -1,0 +1,151 @@
+schema_version: 1
+record_kind: install_truth_record
+install_truth_id: install_truth:card.linux.x86_64.managed_deployed.stable
+install_profile_card_ref: card.linux.x86_64.managed_deployed.stable
+channel_identity_ref: channel_identity.stable
+
+scenario_summary: >
+  An admin deploys the managed-deployed Stable channel to a Linux fleet
+  host. A user separately runs a portable Stable copy from a different
+  directory. The managed install-truth record cites the
+  managed_and_portable channel-ownership audit row, projects updater
+  owner managed_fleet so the in-product update affordance is suppressed
+  in favor of the fleet update path, and pins managed admin-console
+  diagnostics scope.
+
+install_mode_class: managed_deployed
+channel_class: stable
+platform_class: linux
+architecture_class: x86_64
+updater_owner_class: managed_fleet
+binary_root_class: per_machine_program_area
+binary_root_ref: binary_root:per_machine_program_area_managed_stable
+
+durable_state_root_refs:
+  - state_root_ref: state.per_user_configuration_root.stable
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_user_recovery_root.stable
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_user_derived_cache_root.stable
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_machine_shared_data_root.stable
+    state_root_locality_class: per_machine_shared
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_machine_admin_policy_root.stable
+    state_root_locality_class: per_machine_shared
+    state_root_ownership_class: single_channel_owned
+
+side_by_side_relation_class: managed_and_portable
+rollback_target_class: last_broad_cut_same_channel
+rollback_target_ref: rollback:fleet_last_broad_cut_managed_stable
+
+file_association_owner:
+  registration_class: user_or_admin_selectable_candidate_handler
+  default_handler_selection_rule: user_or_admin_selectable_never_last_writer_wins
+  owner_channel_class: stable
+  collision_disclosure: >
+    Managed Stable registers candidate file-association handlers; the
+    default handler stays whichever channel the admin (or user, where
+    policy permits) selected. The portable neighbor never registers
+    file associations on the host.
+
+protocol_handler_owner:
+  ownership_class: per_channel_suffixed_scheme
+  scheme_placeholder: aureline-stable
+  shared_scheme_resolution_rule: user_or_admin_selected_default
+
+diagnostics_path_refs:
+  - install_topology_record_available
+  - exact_build_manifest_available
+  - state_root_audit_available
+  - support_bundle_available
+  - rollback_evidence_available
+
+support_bundle_inclusion_class: managed_admin_console_only
+update_marker_ref: update_marker.stable
+update_marker_ownership_class: per_channel_under_admin_policy_root
+running_build_identity_ref: null
+
+portable_mode_active: false
+portable_mode_limitation_refs: []
+
+channel_ownership_audit_refs:
+  - channel_ownership_audit:managed_and_portable
+  - channel_ownership_audit:stable_and_preview
+  - channel_ownership_audit:stable_and_lts
+
+surface_projections:
+  - surface: launcher
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - binary_root_class
+      - side_by_side_relation_class
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+  - surface: about
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - binary_root_class
+      - durable_state_roots
+      - side_by_side_relation_class
+      - rollback_target_class
+      - file_association_ownership
+      - protocol_handler_ownership
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#the-install_truth_record-projection
+  - surface: update_center
+    required_field_refs:
+      - channel_class
+      - updater_owner_class
+      - rollback_target_class
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+    notes: >
+      Update Center MUST NOT offer an in-product binary-replacement
+      affordance; the row whose updater_owner_class is managed_fleet
+      surfaces the fleet update path instead.
+  - surface: silent_deployment_summary
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - binary_root_class
+      - durable_state_roots
+      - rollback_target_class
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+  - surface: support_bundle
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - binary_root_class
+      - durable_state_roots
+      - rollback_target_class
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+
+audit_gate_results:
+  record_resolves_to_one_install_profile_card: pass
+  channel_identity_pinned: pass
+  state_roots_resolve_into_state_root_map: pass
+  no_silent_handler_capture: pass
+  updater_owner_governs_update_surface: pass
+  rollback_target_matches_ring: pass
+  diagnostics_minimum: pass
+  portable_record_carries_limitation_refs: not_applicable
+  side_by_side_record_carries_audit_refs: pass
+  running_build_identity_slot_reserved: pass
+  no_milestone_or_planning_id_in_user_visible_text: pass
+
+evidence_refs:
+  - artifacts/release/install_topology_matrix.yaml#card.linux.x86_64.managed_deployed.stable
+  - artifacts/release/channel_identity_and_state_roots.yaml#channel_identity.stable
+  - artifacts/release/channel_ownership_audit.yaml#channel_ownership_audit:managed_and_portable
+  - fixtures/release/install_matrix_cases/managed_install_with_portable_neighbor.yaml
+status: proposed

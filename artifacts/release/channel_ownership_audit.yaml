@@ -1,0 +1,911 @@
+# Channel-ownership audit.
+#
+# Machine-readable companion to
+# artifacts/release/install_update_about_truth_packet.md. One audit
+# row per side-by-side relation that the install topology admits
+# (Stable + Preview, Stable + Beta, Stable + long-support, Preview +
+# Beta, installed + portable, three-channel matrix, and
+# managed + portable). Each row pins which channel owns the durable
+# state roots, update markers, recent-item registrations, file-
+# association candidates, protocol-handler schemes, keychain service
+# names, and diagnostics paths on a host that runs both channels, and
+# pins the shared-state collision risks the pair MUST suppress.
+#
+# Tooling reads this file; the truth packet is the narrative companion.
+# If the two disagree, the packet wins and this file MUST be updated in
+# the same change.
+#
+# Rules.
+#   - Every audit row resolves to exactly one
+#     side_by_side_relation_class value re-exported from
+#     artifacts/release/install_topology_matrix.yaml; no row may invent
+#     a new relation class.
+#   - Every owning_channel field cites a channel_class re-exported
+#     from the install topology matrix.
+#   - Every separation_required_for axis cites a class re-exported
+#     from artifacts/release/state_root_map.yaml or
+#     artifacts/release/channel_identity_and_state_roots.yaml.
+#   - Every collision_risk row cites a forbidden_behavior class taken
+#     verbatim from the matching coexistence_rule in
+#     artifacts/release/channel_identity_and_state_roots.yaml.
+#   - Adding an audit row is additive-minor and requires bumping
+#     schema_version and updating the truth packet in the same change.
+#     Repurposing an existing value is breaking and opens a row in
+#     artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+audit_id: aureline.channel_ownership_audit
+status: seeded
+
+truth_packet_source: artifacts/release/install_update_about_truth_packet.md
+install_topology_matrix_source: artifacts/release/install_topology_matrix.yaml
+channel_identity_and_state_roots_source: artifacts/release/channel_identity_and_state_roots.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+install_artifact_families_source: artifacts/release/install_artifact_families.yaml
+silent_deployment_seed_source: artifacts/release/silent_deployment_seed.yaml
+install_profile_card_contract_source: docs/release/install_profile_card_contract.md
+install_topology_plan_source: docs/release/install_topology_plan.md
+fixtures_ref: fixtures/release/install_truth_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§9.11 Packaging, installation, and rollback matrix"
+      - "§9.12 Native OS integration and desktop management requirements"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "Appendix BA platform installation matrix and fleet rollout rings"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "§6.12 About, update, and diagnostics surfaces"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies (re-exported).
+#
+# Each vocabulary below is re-exported verbatim from an upstream source
+# so tooling can validate audit rows without cross-parsing every file.
+# The upstream source is authoritative; if a value diverges, this file
+# updates in the same change as the upstream.
+# -----------------------------------------------------------------------------
+
+# Re-exported from artifacts/release/install_topology_matrix.yaml.
+side_by_side_relation_class_vocabulary:
+  - none
+  - stable_and_preview
+  - stable_and_beta
+  - stable_and_lts
+  - preview_and_beta
+  - installed_and_portable
+  - three_channel_matrix
+  - managed_and_portable
+
+# Re-exported from artifacts/release/install_topology_matrix.yaml.
+channel_class_vocabulary:
+  - stable
+  - preview
+  - beta
+  - lts
+  - portable_stable
+  - portable_preview
+
+# Re-exported from artifacts/release/install_topology_matrix.yaml.
+install_mode_class_vocabulary:
+  - per_user_installed
+  - per_machine_installed
+  - portable
+  - offline_bundle
+  - managed_deployed
+  - side_by_side_preview
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+update_marker_ownership_class_vocabulary:
+  - per_channel_under_binary_root
+  - per_channel_under_user_profile
+  - per_channel_under_portable_root
+  - per_channel_under_admin_policy_root
+  - external_package_manager_owned
+  - none
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+recent_item_registration_class_vocabulary:
+  - per_channel_under_user_profile
+  - per_channel_under_portable_root
+  - not_registered
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+file_association_registration_class_vocabulary:
+  - user_or_admin_selectable_candidate_handler
+  - admin_only_default_handler
+  - not_registered
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+protocol_handler_ownership_class_vocabulary:
+  - per_channel_suffixed_scheme
+  - shared_scheme_with_user_or_admin_default
+  - not_registered
+
+# Pinned in the audit ledger and resolves into the keychain rows in
+# artifacts/release/state_root_map.yaml.
+keychain_service_naming_class_vocabulary:
+  - per_channel_suffixed_service_name
+  - admin_managed_service_name
+  - portable_colocated_secret_store
+  - not_applicable
+
+# Pinned in the audit ledger and resolves into the
+# diagnostics_export_class set in
+# artifacts/release/install_topology_matrix.yaml.
+diagnostics_path_ownership_class_vocabulary:
+  - per_channel_diagnostics_export
+  - admin_console_only_diagnostics_export
+  - portable_root_only_diagnostics_export
+  - external_package_manager_owned_diagnostics_export
+
+separation_axis_vocabulary:
+  - durable_state_roots
+  - update_markers
+  - recent_item_registrations
+  - file_association_candidates
+  - protocol_handler_schemes
+  - keychain_service_names
+  - diagnostics_paths
+  - support_bundle_scope
+  - cli_scriptability_namespace
+  - portable_colocated_state_root
+  - portable_update_marker
+  - portable_recent_items
+  - host_file_associations_suppressed
+  - host_protocol_handlers_suppressed
+  - host_services_suppressed
+  - managed_policy_root
+  - managed_fleet_update_marker
+  - package_manager_package_db
+  - aureline_user_state_roots
+  - channel_update_marker_disclosure
+
+# Each forbidden_behavior token below is taken verbatim from a
+# coexistence_rule.forbidden_behaviors entry in
+# artifacts/release/channel_identity_and_state_roots.yaml. Adding a
+# token here requires adding it there in the same change.
+collision_risk_class_vocabulary:
+  - read_other_channel_mutable_state_by_default
+  - write_other_channel_update_marker
+  - last_writer_wins_file_association
+  - last_writer_wins_shared_protocol_scheme
+  - merge_recent_items_without_review
+  - portable_writes_machine_global_state
+  - portable_claims_shared_protocol_scheme
+  - portable_registers_file_association_by_default
+  - portable_uses_installed_update_marker
+  - portable_reads_managed_policy_root
+  - portable_writes_managed_update_marker
+  - managed_uninstall_deletes_portable_root
+  - in_product_binary_replacement_when_package_manager_owns_update
+  - package_remove_deletes_user_authored_state
+
+operator_choice_class_vocabulary:
+  - shared_protocol_default_channel
+  - default_file_handler_channel
+  - admin_allowed_import_domains_if_import_requested
+  - default_file_handler_channel_if_managed_policy_sets_one
+  - optional_import_domains_if_user_requests_import
+
+# -----------------------------------------------------------------------------
+# Audit-row rules.
+# -----------------------------------------------------------------------------
+audit_row_rules:
+  - id: every_pair_pins_one_relation_class
+    description: >
+      Every audit row carries exactly one
+      side_by_side_relation_class value other than none. The
+      none relation is not audited (a single-channel host has no
+      cross-channel ownership question).
+  - id: every_pair_lists_owning_channels
+    description: >
+      Every audit row enumerates the channel_class values that share
+      the host. Cards admitted by the install topology matrix as
+      side_by_side_relation_class != none MUST appear in the
+      install_topology_card_refs of the matching audit row.
+  - id: every_owning_channel_owns_its_separation_axes
+    description: >
+      Each audit row declares one ownership_row per separation axis
+      naming exactly one owning_channel_class (or "shared_under_user_or_admin_choice"
+      for the shared protocol scheme and the default file handler).
+      Two channels MUST NOT both own the same axis.
+  - id: every_pair_lists_collision_risks
+    description: >
+      Every audit row enumerates collision_risks taken verbatim from
+      the matching coexistence_rule.forbidden_behaviors set in
+      artifacts/release/channel_identity_and_state_roots.yaml. A row
+      that elides a forbidden_behavior from its coexistence rule is
+      non-conforming.
+  - id: shared_default_requires_operator_choice
+    description: >
+      Audit rows whose owning_channel for shared default file handler
+      or for the shared protocol scheme is
+      shared_under_user_or_admin_choice MUST list the matching
+      operator_choice tokens in required_operator_choices.
+
+# -----------------------------------------------------------------------------
+# Audit rows.
+#
+# One row per side-by-side relation. Rows are ordered by relation
+# class.
+# -----------------------------------------------------------------------------
+audit_rows:
+
+  - id: channel_ownership_audit:stable_and_preview
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    coexistence_rule_ref: coexistence_rule.stable_preview_no_shared_state
+    install_topology_card_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.side_by_side_preview.preview
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.per_machine_installed.stable
+      - card.macos.universal_binary.side_by_side_preview.preview
+      - card.linux.x86_64.per_user_installed.stable
+    channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+    ownership_rows:
+      - axis: durable_state_roots
+        owning_channel_class: per_channel_isolated
+        owning_state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+          - state.per_user_keychain_or_secret_store.stable
+          - state.per_user_configuration_root.preview
+          - state.per_user_recovery_root.preview
+          - state.per_user_derived_cache_root.preview
+          - state.per_user_keychain_or_secret_store.preview
+        notes: >
+          Stable and Preview own disjoint per-user roots; neither
+          channel reads or writes the other channel's roots by default.
+      - axis: update_markers
+        owning_channel_class: per_channel_isolated
+        update_marker_ownership_class: per_channel_under_binary_root
+        update_marker_refs:
+          - update_marker.stable
+          - update_marker.preview
+      - axis: recent_item_registrations
+        owning_channel_class: per_channel_isolated
+        recent_item_registration_class: per_channel_under_user_profile
+        recent_item_registration_refs:
+          - recent_items.stable
+          - recent_items.preview
+      - axis: file_association_candidates
+        owning_channel_class: per_channel_isolated
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+        file_association_refs:
+          - file_association.stable
+          - file_association.preview
+      - axis: protocol_handler_schemes
+        owning_channel_class: per_channel_isolated
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+        protocol_handler_refs:
+          - protocol_handler.stable
+          - protocol_handler.preview
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+      - axis: keychain_service_names
+        owning_channel_class: per_channel_isolated
+        keychain_service_naming_class: per_channel_suffixed_service_name
+        state_root_refs:
+          - state.per_user_keychain_or_secret_store.stable
+          - state.per_user_keychain_or_secret_store.preview
+      - axis: diagnostics_paths
+        owning_channel_class: per_channel_isolated
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+        diagnostics_export_classes:
+          - install_topology_record_available
+          - exact_build_manifest_available
+          - state_root_audit_available
+      - axis: support_bundle_scope
+        owning_channel_class: per_channel_isolated
+        notes: >
+          Support exports stay in the family for whichever channel
+          produced the bundle; Stable and Preview support bundles MUST
+          NOT be merged.
+    collision_risks:
+      - read_other_channel_mutable_state_by_default
+      - write_other_channel_update_marker
+      - last_writer_wins_file_association
+      - last_writer_wins_shared_protocol_scheme
+      - merge_recent_items_without_review
+    required_operator_choices:
+      - shared_protocol_default_channel
+      - default_file_handler_channel
+    fixture_refs:
+      - fixtures/release/install_truth_cases/desktop_stable_about_truth.yaml
+      - fixtures/release/install_truth_cases/desktop_preview_side_by_side_about_truth.yaml
+      - fixtures/release/install_matrix_cases/stable_preview_desktop_coexistence.yaml
+    status: proposed
+
+  - id: channel_ownership_audit:stable_and_beta
+    side_by_side_relation_class: stable_and_beta
+    coexisting_channels: [stable, beta]
+    coexistence_rule_ref: coexistence_rule.stable_preview_no_shared_state
+    install_topology_card_refs: []
+    channel_identity_refs:
+      - channel_identity.stable
+    ownership_rows:
+      - axis: durable_state_roots
+        owning_channel_class: per_channel_isolated
+        notes: >
+          Beta channel-identity rows are reserved for a later milestone;
+          when they land, Beta MUST own its own per-user configuration,
+          recovery, derived-cache, and keychain roots, separate from
+          Stable.
+      - axis: update_markers
+        owning_channel_class: per_channel_isolated
+        update_marker_ownership_class: per_channel_under_binary_root
+      - axis: recent_item_registrations
+        owning_channel_class: per_channel_isolated
+        recent_item_registration_class: per_channel_under_user_profile
+      - axis: file_association_candidates
+        owning_channel_class: per_channel_isolated
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+      - axis: protocol_handler_schemes
+        owning_channel_class: per_channel_isolated
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+      - axis: keychain_service_names
+        owning_channel_class: per_channel_isolated
+        keychain_service_naming_class: per_channel_suffixed_service_name
+      - axis: diagnostics_paths
+        owning_channel_class: per_channel_isolated
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+      - axis: support_bundle_scope
+        owning_channel_class: per_channel_isolated
+    collision_risks:
+      - read_other_channel_mutable_state_by_default
+      - write_other_channel_update_marker
+      - last_writer_wins_file_association
+      - last_writer_wins_shared_protocol_scheme
+      - merge_recent_items_without_review
+    required_operator_choices:
+      - shared_protocol_default_channel
+      - default_file_handler_channel
+    notes: >
+      Reserved row. Beta channel-identity is not yet seeded; this row
+      pins the audit shape so the install topology can adopt a Beta
+      card without re-inventing the audit columns.
+    fixture_refs: []
+    status: proposed
+
+  - id: channel_ownership_audit:stable_and_lts
+    side_by_side_relation_class: stable_and_lts
+    coexisting_channels: [stable, lts]
+    coexistence_rule_ref: coexistence_rule.stable_preview_no_shared_state
+    install_topology_card_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.per_machine_installed.lts
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.per_machine_installed.stable
+      - card.linux.x86_64.per_user_installed.stable
+    channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.lts
+    ownership_rows:
+      - axis: durable_state_roots
+        owning_channel_class: per_channel_isolated
+        owning_state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+          - state.per_user_keychain_or_secret_store.stable
+          - state.per_machine_shared_data_root.stable
+          - state.per_user_configuration_root.lts
+          - state.per_user_recovery_root.lts
+          - state.per_user_derived_cache_root.lts
+          - state.per_machine_shared_data_root.lts
+          - state.per_machine_admin_policy_root.lts
+      - axis: update_markers
+        owning_channel_class: per_channel_isolated
+        update_marker_ownership_class: per_channel_under_binary_root
+        update_marker_refs:
+          - update_marker.stable
+      - axis: update_markers
+        owning_channel_class: per_channel_isolated
+        update_marker_ownership_class: per_channel_under_admin_policy_root
+        update_marker_refs:
+          - update_marker.lts
+      - axis: recent_item_registrations
+        owning_channel_class: per_channel_isolated
+        recent_item_registration_class: per_channel_under_user_profile
+        recent_item_registration_refs:
+          - recent_items.stable
+          - recent_items.lts
+      - axis: file_association_candidates
+        owning_channel_class: per_channel_isolated
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+        file_association_refs:
+          - file_association.stable
+      - axis: file_association_candidates
+        owning_channel_class: per_channel_isolated
+        file_association_registration_class: admin_only_default_handler
+        file_association_refs:
+          - file_association.lts
+      - axis: protocol_handler_schemes
+        owning_channel_class: per_channel_isolated
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+        protocol_handler_refs:
+          - protocol_handler.stable
+          - protocol_handler.lts
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+      - axis: keychain_service_names
+        owning_channel_class: per_channel_isolated
+        keychain_service_naming_class: per_channel_suffixed_service_name
+      - axis: diagnostics_paths
+        owning_channel_class: per_channel_isolated
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+      - axis: diagnostics_paths
+        owning_channel_class: admin_only
+        diagnostics_path_ownership_class: admin_console_only_diagnostics_export
+        notes: >
+          The long-support card carries support_bundle_available and
+          rollback_evidence_available exports admitted only via the
+          admin console.
+      - axis: support_bundle_scope
+        owning_channel_class: per_channel_isolated
+    collision_risks:
+      - read_other_channel_mutable_state_by_default
+      - write_other_channel_update_marker
+      - last_writer_wins_file_association
+      - last_writer_wins_shared_protocol_scheme
+      - merge_recent_items_without_review
+    required_operator_choices:
+      - shared_protocol_default_channel
+      - default_file_handler_channel
+    fixture_refs:
+      - fixtures/release/install_truth_cases/desktop_lts_admin_about_truth.yaml
+    status: proposed
+
+  - id: channel_ownership_audit:preview_and_beta
+    side_by_side_relation_class: preview_and_beta
+    coexisting_channels: [preview, beta]
+    coexistence_rule_ref: coexistence_rule.stable_preview_no_shared_state
+    install_topology_card_refs: []
+    channel_identity_refs:
+      - channel_identity.preview
+    ownership_rows:
+      - axis: durable_state_roots
+        owning_channel_class: per_channel_isolated
+        notes: >
+          Beta channel-identity is reserved; when it lands, Preview and
+          Beta MUST own disjoint per-user configuration, recovery,
+          derived-cache, and keychain roots.
+      - axis: update_markers
+        owning_channel_class: per_channel_isolated
+        update_marker_ownership_class: per_channel_under_binary_root
+      - axis: recent_item_registrations
+        owning_channel_class: per_channel_isolated
+        recent_item_registration_class: per_channel_under_user_profile
+      - axis: file_association_candidates
+        owning_channel_class: per_channel_isolated
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+      - axis: protocol_handler_schemes
+        owning_channel_class: per_channel_isolated
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+      - axis: keychain_service_names
+        owning_channel_class: per_channel_isolated
+        keychain_service_naming_class: per_channel_suffixed_service_name
+      - axis: diagnostics_paths
+        owning_channel_class: per_channel_isolated
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+      - axis: support_bundle_scope
+        owning_channel_class: per_channel_isolated
+    collision_risks:
+      - read_other_channel_mutable_state_by_default
+      - write_other_channel_update_marker
+      - last_writer_wins_file_association
+      - last_writer_wins_shared_protocol_scheme
+      - merge_recent_items_without_review
+    required_operator_choices:
+      - shared_protocol_default_channel
+      - default_file_handler_channel
+    notes: >
+      Reserved row pending Beta channel-identity adoption.
+    fixture_refs: []
+    status: proposed
+
+  - id: channel_ownership_audit:installed_and_portable
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    coexistence_rule_ref: coexistence_rule.installed_portable_no_host_mutation
+    install_topology_card_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.per_machine_installed.stable
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.per_user_installed.stable
+      - card.macos.universal_binary.per_machine_installed.stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.per_user_installed.stable
+      - card.linux.x86_64.portable.portable_stable
+    channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.portable_stable
+    ownership_rows:
+      - axis: durable_state_roots
+        owning_channel_class: stable
+        owning_state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+          - state.per_user_keychain_or_secret_store.stable
+      - axis: portable_colocated_state_root
+        owning_channel_class: portable_stable
+        owning_state_root_refs:
+          - state.portable_colocated_root.portable_stable
+      - axis: update_markers
+        owning_channel_class: stable
+        update_marker_ownership_class: per_channel_under_binary_root
+        update_marker_refs:
+          - update_marker.stable
+      - axis: portable_update_marker
+        owning_channel_class: portable_stable
+        update_marker_ownership_class: per_channel_under_portable_root
+        update_marker_refs:
+          - update_marker.portable_stable
+      - axis: recent_item_registrations
+        owning_channel_class: stable
+        recent_item_registration_class: per_channel_under_user_profile
+        recent_item_registration_refs:
+          - recent_items.stable
+      - axis: portable_recent_items
+        owning_channel_class: portable_stable
+        recent_item_registration_class: per_channel_under_portable_root
+        recent_item_registration_refs:
+          - recent_items.portable_stable
+      - axis: file_association_candidates
+        owning_channel_class: stable
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+        file_association_refs:
+          - file_association.stable
+      - axis: host_file_associations_suppressed
+        owning_channel_class: portable_stable
+        file_association_registration_class: not_registered
+        file_association_refs:
+          - file_association.portable_stable
+      - axis: protocol_handler_schemes
+        owning_channel_class: stable
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+        protocol_handler_refs:
+          - protocol_handler.stable
+      - axis: host_protocol_handlers_suppressed
+        owning_channel_class: portable_stable
+        protocol_handler_ownership_class: not_registered
+        protocol_handler_refs:
+          - protocol_handler.portable_stable
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+        notes: >
+          Portable MUST NOT claim the shared scheme; only the
+          installed Stable channel may register it as a candidate
+          subject to the user/admin default-selection rule.
+      - axis: keychain_service_names
+        owning_channel_class: stable
+        keychain_service_naming_class: per_channel_suffixed_service_name
+      - axis: keychain_service_names
+        owning_channel_class: portable_stable
+        keychain_service_naming_class: portable_colocated_secret_store
+        notes: >
+          Portable secret-store entries live under the portable root
+          and MUST NOT be written into the host keychain.
+      - axis: diagnostics_paths
+        owning_channel_class: stable
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+      - axis: diagnostics_paths
+        owning_channel_class: portable_stable
+        diagnostics_path_ownership_class: portable_root_only_diagnostics_export
+      - axis: host_services_suppressed
+        owning_channel_class: portable_stable
+        notes: >
+          Portable MUST NOT install services or shell hooks on the
+          host; the limitation ledger pins the suppression posture.
+    collision_risks:
+      - portable_writes_machine_global_state
+      - portable_claims_shared_protocol_scheme
+      - portable_registers_file_association_by_default
+      - portable_uses_installed_update_marker
+    required_operator_choices:
+      - optional_import_domains_if_user_requests_import
+    fixture_refs:
+      - fixtures/release/install_truth_cases/portable_zip_about_truth.yaml
+      - fixtures/release/install_matrix_cases/portable_zip_no_host_mutation.yaml
+    status: proposed
+
+  - id: channel_ownership_audit:three_channel_matrix
+    side_by_side_relation_class: three_channel_matrix
+    coexisting_channels: [stable, preview, portable_stable]
+    coexistence_rule_ref: coexistence_rule.installed_portable_no_host_mutation
+    install_topology_card_refs:
+      - card.windows.x86_64.per_user_installed.stable
+      - card.windows.x86_64.side_by_side_preview.preview
+      - card.windows.x86_64.portable.portable_stable
+    channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.preview
+      - channel_identity.portable_stable
+    ownership_rows:
+      - axis: durable_state_roots
+        owning_channel_class: per_channel_isolated
+        owning_state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_configuration_root.preview
+          - state.portable_colocated_root.portable_stable
+      - axis: update_markers
+        owning_channel_class: per_channel_isolated
+        update_marker_ownership_class: per_channel_under_binary_root
+        update_marker_refs:
+          - update_marker.stable
+          - update_marker.preview
+      - axis: portable_update_marker
+        owning_channel_class: portable_stable
+        update_marker_ownership_class: per_channel_under_portable_root
+        update_marker_refs:
+          - update_marker.portable_stable
+      - axis: recent_item_registrations
+        owning_channel_class: per_channel_isolated
+        recent_item_registration_class: per_channel_under_user_profile
+        recent_item_registration_refs:
+          - recent_items.stable
+          - recent_items.preview
+      - axis: portable_recent_items
+        owning_channel_class: portable_stable
+        recent_item_registration_class: per_channel_under_portable_root
+        recent_item_registration_refs:
+          - recent_items.portable_stable
+      - axis: file_association_candidates
+        owning_channel_class: per_channel_isolated
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+        file_association_refs:
+          - file_association.stable
+          - file_association.preview
+      - axis: host_file_associations_suppressed
+        owning_channel_class: portable_stable
+        file_association_registration_class: not_registered
+        file_association_refs:
+          - file_association.portable_stable
+      - axis: protocol_handler_schemes
+        owning_channel_class: per_channel_isolated
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+        protocol_handler_refs:
+          - protocol_handler.stable
+          - protocol_handler.preview
+      - axis: host_protocol_handlers_suppressed
+        owning_channel_class: portable_stable
+        protocol_handler_ownership_class: not_registered
+        protocol_handler_refs:
+          - protocol_handler.portable_stable
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+      - axis: keychain_service_names
+        owning_channel_class: per_channel_isolated
+        keychain_service_naming_class: per_channel_suffixed_service_name
+      - axis: keychain_service_names
+        owning_channel_class: portable_stable
+        keychain_service_naming_class: portable_colocated_secret_store
+      - axis: diagnostics_paths
+        owning_channel_class: per_channel_isolated
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+      - axis: diagnostics_paths
+        owning_channel_class: portable_stable
+        diagnostics_path_ownership_class: portable_root_only_diagnostics_export
+    collision_risks:
+      - read_other_channel_mutable_state_by_default
+      - write_other_channel_update_marker
+      - last_writer_wins_file_association
+      - last_writer_wins_shared_protocol_scheme
+      - merge_recent_items_without_review
+      - portable_writes_machine_global_state
+      - portable_claims_shared_protocol_scheme
+      - portable_registers_file_association_by_default
+      - portable_uses_installed_update_marker
+    required_operator_choices:
+      - shared_protocol_default_channel
+      - default_file_handler_channel
+      - optional_import_domains_if_user_requests_import
+    fixture_refs: []
+    status: proposed
+
+  - id: channel_ownership_audit:managed_and_portable
+    side_by_side_relation_class: managed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    coexistence_rule_ref: coexistence_rule.managed_portable_admin_boundary
+    install_topology_card_refs:
+      - card.windows.x86_64.managed_deployed.stable
+      - card.macos.universal_binary.managed_deployed.stable
+      - card.linux.x86_64.managed_deployed.stable
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    channel_identity_refs:
+      - channel_identity.stable
+      - channel_identity.portable_stable
+    ownership_rows:
+      - axis: managed_policy_root
+        owning_channel_class: stable
+        update_marker_ownership_class: per_channel_under_admin_policy_root
+        owning_state_root_refs:
+          - state.per_machine_admin_policy_root.stable
+          - state.per_machine_shared_data_root.stable
+      - axis: aureline_user_state_roots
+        owning_channel_class: stable
+        owning_state_root_refs:
+          - state.per_user_configuration_root.stable
+          - state.per_user_recovery_root.stable
+          - state.per_user_derived_cache_root.stable
+          - state.per_user_keychain_or_secret_store.stable
+      - axis: managed_fleet_update_marker
+        owning_channel_class: stable
+        update_marker_ownership_class: per_channel_under_admin_policy_root
+        update_marker_refs:
+          - update_marker.stable
+      - axis: portable_colocated_state_root
+        owning_channel_class: portable_stable
+        owning_state_root_refs:
+          - state.portable_colocated_root.portable_stable
+      - axis: portable_update_marker
+        owning_channel_class: portable_stable
+        update_marker_ownership_class: per_channel_under_portable_root
+        update_marker_refs:
+          - update_marker.portable_stable
+      - axis: portable_recent_items
+        owning_channel_class: portable_stable
+        recent_item_registration_class: per_channel_under_portable_root
+        recent_item_registration_refs:
+          - recent_items.portable_stable
+      - axis: host_file_associations_suppressed
+        owning_channel_class: portable_stable
+        file_association_registration_class: not_registered
+        file_association_refs:
+          - file_association.portable_stable
+      - axis: file_association_candidates
+        owning_channel_class: stable
+        file_association_registration_class: user_or_admin_selectable_candidate_handler
+        file_association_refs:
+          - file_association.stable
+      - axis: host_protocol_handlers_suppressed
+        owning_channel_class: portable_stable
+        protocol_handler_ownership_class: not_registered
+        protocol_handler_refs:
+          - protocol_handler.portable_stable
+      - axis: protocol_handler_schemes
+        owning_channel_class: stable
+        protocol_handler_ownership_class: per_channel_suffixed_scheme
+        protocol_handler_refs:
+          - protocol_handler.stable
+      - axis: protocol_handler_schemes
+        owning_channel_class: shared_under_user_or_admin_choice
+        protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+        protocol_handler_refs:
+          - protocol_handler.shared_aureline_default
+        required_operator_choice: shared_protocol_default_channel
+      - axis: keychain_service_names
+        owning_channel_class: stable
+        keychain_service_naming_class: per_channel_suffixed_service_name
+      - axis: keychain_service_names
+        owning_channel_class: portable_stable
+        keychain_service_naming_class: portable_colocated_secret_store
+      - axis: diagnostics_paths
+        owning_channel_class: stable
+        diagnostics_path_ownership_class: per_channel_diagnostics_export
+      - axis: diagnostics_paths
+        owning_channel_class: portable_stable
+        diagnostics_path_ownership_class: portable_root_only_diagnostics_export
+      - axis: host_services_suppressed
+        owning_channel_class: portable_stable
+    collision_risks:
+      - portable_reads_managed_policy_root
+      - portable_writes_managed_update_marker
+      - managed_uninstall_deletes_portable_root
+      - portable_claims_shared_protocol_scheme
+    required_operator_choices:
+      - admin_allowed_import_domains_if_import_requested
+      - default_file_handler_channel_if_managed_policy_sets_one
+    fixture_refs:
+      - fixtures/release/install_truth_cases/managed_with_portable_neighbor_about_truth.yaml
+      - fixtures/release/install_matrix_cases/managed_install_with_portable_neighbor.yaml
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Audit assertions.
+#
+# Statements a reviewer can check mechanically against the rows above.
+# Each assertion projects a rule that the truth packet pins.
+# -----------------------------------------------------------------------------
+audit_assertions:
+  - id: every_admitted_relation_has_an_audit_row
+    description: >
+      Every side_by_side_relation_class value other than none that
+      appears on at least one card in
+      artifacts/release/install_topology_matrix.yaml has exactly one
+      audit row in this file.
+  - id: no_axis_owned_by_two_channels
+    description: >
+      Within a single audit row, no separation axis carries two
+      ownership_rows that name the same owning_channel_class. A pair
+      that genuinely shares an axis MUST use
+      shared_under_user_or_admin_choice.
+  - id: shared_default_handler_requires_explicit_choice
+    description: >
+      Any audit row whose ownership_rows include a
+      shared_under_user_or_admin_choice entry MUST list
+      shared_protocol_default_channel and / or
+      default_file_handler_channel in required_operator_choices, and
+      the matching install summary MUST disclose the choice.
+  - id: portable_pairings_suppress_host_axes
+    description: >
+      Audit rows whose coexisting_channels include a portable channel
+      MUST list ownership_rows for host_file_associations_suppressed,
+      host_protocol_handlers_suppressed, and host_services_suppressed
+      with portable_stable (or portable_preview) as the owning channel
+      and registration_class not_registered.
+  - id: managed_pairings_pin_admin_boundary
+    description: >
+      Audit rows whose coexistence_rule_ref is
+      coexistence_rule.managed_portable_admin_boundary MUST cite
+      managed_policy_root, managed_fleet_update_marker, and
+      portable_colocated_state_root ownership rows with disjoint
+      owning_channel_class values, and MUST cite
+      managed_uninstall_deletes_portable_root in collision_risks.
+  - id: collision_risks_are_subset_of_coexistence_forbidden_behaviors
+    description: >
+      Every collision_risk token in an audit row appears verbatim in
+      the matching coexistence_rule.forbidden_behaviors set in
+      artifacts/release/channel_identity_and_state_roots.yaml. Tooling
+      MAY validate this by joining the two files on
+      coexistence_rule_ref.
+
+# -----------------------------------------------------------------------------
+# Coverage index.
+# -----------------------------------------------------------------------------
+coverage_by_relation:
+  stable_and_preview:
+    - channel_ownership_audit:stable_and_preview
+  stable_and_beta:
+    - channel_ownership_audit:stable_and_beta
+  stable_and_lts:
+    - channel_ownership_audit:stable_and_lts
+  preview_and_beta:
+    - channel_ownership_audit:preview_and_beta
+  installed_and_portable:
+    - channel_ownership_audit:installed_and_portable
+  three_channel_matrix:
+    - channel_ownership_audit:three_channel_matrix
+  managed_and_portable:
+    - channel_ownership_audit:managed_and_portable

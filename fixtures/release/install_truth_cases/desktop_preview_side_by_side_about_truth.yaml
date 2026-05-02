@@ -1,0 +1,139 @@
+schema_version: 1
+record_kind: install_truth_record
+install_truth_id: install_truth:card.macos.universal_binary.side_by_side_preview.preview
+install_profile_card_ref: card.macos.universal_binary.side_by_side_preview.preview
+channel_identity_ref: channel_identity.preview
+
+scenario_summary: >
+  A user runs Preview side-by-side with an installed Stable on macOS.
+  The Preview install-truth record carries its own channel-suffixed
+  protocol scheme, distinct user roots, and its own keychain service
+  name. About and Update Center disclose the channel verbatim and never
+  collapse Stable and Preview into one channel label. Diagnostics
+  exports stay scoped to Preview.
+
+install_mode_class: side_by_side_preview
+channel_class: preview
+platform_class: macos
+architecture_class: universal_binary
+updater_owner_class: user
+binary_root_class: per_user_profile_program_area
+binary_root_ref: binary_root:per_user_profile_program_area_preview
+
+durable_state_root_refs:
+  - state_root_ref: state.per_user_configuration_root.preview
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_user_recovery_root.preview
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_user_derived_cache_root.preview
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+  - state_root_ref: state.per_user_keychain_or_secret_store.preview
+    state_root_locality_class: per_user_only
+    state_root_ownership_class: single_channel_owned
+
+side_by_side_relation_class: stable_and_preview
+rollback_target_class: previous_build_same_channel
+rollback_target_ref: null
+
+file_association_owner:
+  registration_class: user_or_admin_selectable_candidate_handler
+  default_handler_selection_rule: user_or_admin_selectable_never_last_writer_wins
+  owner_channel_class: preview
+  collision_disclosure: >
+    Preview registers as a candidate handler under the Preview-suffixed
+    scheme. The default handler stays whichever channel the user or
+    admin selected; Preview never silently overrides Stable.
+
+protocol_handler_owner:
+  ownership_class: per_channel_suffixed_scheme
+  scheme_placeholder: aureline-preview
+  shared_scheme_resolution_rule: user_or_admin_selected_default
+
+diagnostics_path_refs:
+  - install_topology_record_available
+  - exact_build_manifest_available
+  - state_root_audit_available
+
+support_bundle_inclusion_class: installed_diagnostics_included
+update_marker_ref: update_marker.preview
+update_marker_ownership_class: per_channel_under_binary_root
+running_build_identity_ref: null
+
+portable_mode_active: false
+portable_mode_limitation_refs: []
+
+channel_ownership_audit_refs:
+  - channel_ownership_audit:stable_and_preview
+  - channel_ownership_audit:preview_and_beta
+  - channel_ownership_audit:installed_and_portable
+  - channel_ownership_audit:three_channel_matrix
+
+surface_projections:
+  - surface: launcher
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - binary_root_class
+      - side_by_side_relation_class
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+  - surface: about
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - binary_root_class
+      - durable_state_roots
+      - side_by_side_relation_class
+      - rollback_target_class
+      - file_association_ownership
+      - protocol_handler_ownership
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#the-install_truth_record-projection
+  - surface: update_center
+    required_field_refs:
+      - channel_class
+      - updater_owner_class
+      - rollback_target_class
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+  - surface: diagnostics_center
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - binary_root_class
+      - durable_state_roots
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+  - surface: support_bundle
+    required_field_refs:
+      - install_mode_class
+      - channel_class
+      - updater_owner_class
+      - binary_root_class
+      - durable_state_roots
+      - rollback_target_class
+      - diagnostics_export_actions
+    wording_source_ref: artifacts/release/install_update_about_truth_packet.md#required-surface-projections
+
+audit_gate_results:
+  record_resolves_to_one_install_profile_card: pass
+  channel_identity_pinned: pass
+  state_roots_resolve_into_state_root_map: pass
+  no_silent_handler_capture: pass
+  updater_owner_governs_update_surface: pass
+  rollback_target_matches_ring: pass
+  diagnostics_minimum: pass
+  portable_record_carries_limitation_refs: not_applicable
+  side_by_side_record_carries_audit_refs: pass
+  running_build_identity_slot_reserved: pass
+  no_milestone_or_planning_id_in_user_visible_text: pass
+
+evidence_refs:
+  - artifacts/release/install_topology_matrix.yaml#card.macos.universal_binary.side_by_side_preview.preview
+  - artifacts/release/channel_identity_and_state_roots.yaml#channel_identity.preview
+  - artifacts/release/channel_ownership_audit.yaml#channel_ownership_audit:stable_and_preview
+  - fixtures/release/install_matrix_cases/stable_preview_desktop_coexistence.yaml
+status: proposed

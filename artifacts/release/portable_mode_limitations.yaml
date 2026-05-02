@@ -1,0 +1,615 @@
+# Portable-mode limitation ledger.
+#
+# Machine-readable companion to
+# artifacts/release/install_update_about_truth_packet.md. One
+# limitation row per host-wide capability that a portable install
+# MUST NOT exercise: file-association registration, protocol-handler
+# claim, service install, shell hook, machine-global credential-
+# store write, machine-global recent-item write, machine-global
+# update marker, system-wide PATH mutation, autostart hook, and
+# kernel-extension or privileged-helper installation.
+#
+# The ledger exists so release notes, About panels, support replies,
+# enterprise materials, and silent-deployment summaries cannot
+# accidentally over-claim what the portable copy delivers on the
+# host. If a future row admits a labeled user opt-in for one of
+# these capabilities, the row uses posture_class
+# labeled_user_opt_in_with_explicit_disclosure rather than
+# changing the default suppression posture.
+#
+# Tooling reads this file; the truth packet is the narrative
+# companion. If the two disagree, the packet wins and this file
+# updates in the same change.
+#
+# Rules.
+#   - Every limitation row carries exactly one capability_class,
+#     posture_class, and rationale_class taken from the closed
+#     vocabularies below.
+#   - Every limitation row pins material_disclosure_required so
+#     About, update, installer, diagnostics, support, release-note,
+#     enterprise-materials, and silent-deployment surfaces know
+#     where the limitation MUST be disclosed.
+#   - Every limitation row cites the upstream coexistence_rule and
+#     the install-topology cards or channel-identity rows that the
+#     limitation governs.
+#   - Adding a row is additive-minor and requires updating the
+#     truth packet in the same change. Repurposing an existing
+#     value is breaking and opens a row in
+#     artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+ledger_id: aureline.portable_mode_limitations
+status: seeded
+
+truth_packet_source: artifacts/release/install_update_about_truth_packet.md
+channel_ownership_audit_source: artifacts/release/channel_ownership_audit.yaml
+install_topology_matrix_source: artifacts/release/install_topology_matrix.yaml
+channel_identity_and_state_roots_source: artifacts/release/channel_identity_and_state_roots.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+install_artifact_families_source: artifacts/release/install_artifact_families.yaml
+silent_deployment_seed_source: artifacts/release/silent_deployment_seed.yaml
+install_profile_card_contract_source: docs/release/install_profile_card_contract.md
+install_topology_plan_source: docs/release/install_topology_plan.md
+fixtures_ref: fixtures/release/install_truth_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§9.11 Packaging, installation, and rollback matrix"
+      - "§9.12 Native OS integration and desktop management requirements"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "Appendix BA platform installation matrix and fleet rollout rings"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "§6.12 About, update, and diagnostics surfaces"
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# -----------------------------------------------------------------------------
+
+# The set of host-wide capabilities the ledger explicitly governs.
+# Adding a value is additive-minor; the matching limitation row MUST be
+# added in the same change.
+capability_class_vocabulary:
+  - file_association_registration
+  - protocol_handler_registration
+  - service_install
+  - shell_hook_install
+  - machine_global_credential_store_write
+  - machine_global_recent_item_write
+  - machine_global_update_marker
+  - system_wide_path_mutation
+  - autostart_hook_install
+  - kernel_extension_or_privileged_helper_install
+
+# Posture taken verbatim from
+# schemas/release/install_row.schema.json#portable_integration_posture
+# plus an explicit labeled-opt-in posture for the future row that
+# admits a labeled user opt-in. The default posture for every row
+# in this ledger is suppressed.
+posture_class_vocabulary:
+  - suppressed
+  - labeled_user_opt_in_with_explicit_disclosure
+  - not_applicable
+
+# Why a capability is suppressed. Closed set; surface copy MUST
+# project from one of these tokens rather than inventing a phrase.
+rationale_class_vocabulary:
+  - portable_no_machine_global_mutation
+  - portable_colocated_only
+  - no_last_writer_wins_for_associations
+  - no_silent_claim_of_shared_scheme
+  - no_silent_install_of_long_lived_host_components
+  - portable_secret_store_must_remain_colocated
+  - host_recent_items_owned_by_installed_channels_only
+  - portable_update_marker_under_portable_root_only
+  - cli_scriptability_remains_portable_only_path
+  - host_kernel_or_privileged_helpers_require_admin_review
+
+# The surfaces that MUST disclose the limitation. Closed set
+# re-exported (extended slightly) from
+# schemas/release/install_row.schema.json#install_surface so the
+# ledger can also pin disclosure on release notes, support replies,
+# enterprise materials, and the silent-deployment summary.
+material_disclosure_class_vocabulary:
+  - about
+  - update_center
+  - installer_summary
+  - silent_deployment_summary
+  - diagnostics_center
+  - support_bundle
+  - release_notes
+  - enterprise_materials
+  - support_reply_template
+
+# The forbidden_behavior tokens taken verbatim from coexistence_rule
+# entries in
+# artifacts/release/channel_identity_and_state_roots.yaml. Adding a
+# token here requires adding it there in the same change.
+forbidden_behavior_class_vocabulary:
+  - portable_writes_machine_global_state
+  - portable_claims_shared_protocol_scheme
+  - portable_registers_file_association_by_default
+  - portable_uses_installed_update_marker
+  - portable_reads_managed_policy_root
+  - portable_writes_managed_update_marker
+  - managed_uninstall_deletes_portable_root
+
+# The portable channels this ledger governs. Re-exported from
+# artifacts/release/install_topology_matrix.yaml.
+portable_channel_class_vocabulary:
+  - portable_stable
+  - portable_preview
+
+# -----------------------------------------------------------------------------
+# Ledger rules.
+# -----------------------------------------------------------------------------
+ledger_rules:
+  - id: every_capability_has_one_row
+    description: >
+      Every value in capability_class_vocabulary has exactly one
+      limitation row whose capability_class equals that value.
+  - id: default_posture_is_suppressed
+    description: >
+      Every row's posture_class is suppressed by default. A row may
+      adopt labeled_user_opt_in_with_explicit_disclosure only if the
+      row also names the disclosure surface and the operator choice
+      that admits the opt-in.
+  - id: every_row_pins_a_rationale
+    description: >
+      Every row carries exactly one rationale_class from
+      rationale_class_vocabulary. Free-text justifications belong in
+      the row's notes, not as a substitute for the rationale class.
+  - id: every_row_lists_required_disclosure_surfaces
+    description: >
+      Every row carries a non-empty material_disclosure_required set.
+      About, installer_summary, support_reply_template, and
+      release_notes MUST appear on every row by default; rows MAY
+      add update_center, diagnostics_center, support_bundle,
+      enterprise_materials, or silent_deployment_summary as the
+      capability requires.
+  - id: every_row_cites_forbidden_behaviors
+    description: >
+      Every row cites the matching forbidden_behavior_class tokens
+      from
+      artifacts/release/channel_identity_and_state_roots.yaml. A row
+      with no forbidden_behaviors is non-conforming.
+  - id: portable_record_must_cite_every_row
+    description: >
+      Every install_truth_record whose portable_mode_active is true
+      MUST cite every limitation row id in
+      portable_mode_limitation_refs. A portable record that omits a
+      row is non-conforming.
+
+# -----------------------------------------------------------------------------
+# Limitation rows.
+#
+# One row per capability_class. Rows are ordered by capability class
+# in the order they appear in capability_class_vocabulary so the
+# ledger reads top-down for reviewers.
+# -----------------------------------------------------------------------------
+limitation_rows:
+
+  - id: portable_limitation:file_association_registration
+    capability_class: file_association_registration
+    posture_class: suppressed
+    rationale_class: portable_no_machine_global_mutation
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+      - coexistence_rule.managed_portable_admin_boundary
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_registers_file_association_by_default
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs:
+      - file_association.portable_stable
+      - file_association.portable_preview
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+      - diagnostics_center
+    user_visible_summary: >
+      Portable installs do not register as a candidate handler for
+      any file extension on the host. Installed channels keep any
+      user- or admin-selected default handler.
+    status: proposed
+
+  - id: portable_limitation:protocol_handler_registration
+    capability_class: protocol_handler_registration
+    posture_class: suppressed
+    rationale_class: no_silent_claim_of_shared_scheme
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+      - coexistence_rule.managed_portable_admin_boundary
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_claims_shared_protocol_scheme
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs:
+      - protocol_handler.portable_stable
+      - protocol_handler.portable_preview
+      - protocol_handler.shared_aureline_default
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+    user_visible_summary: >
+      Portable installs do not register a protocol handler on the
+      host. The shared aureline scheme remains owned by an installed
+      channel that the user or admin selected.
+    status: proposed
+
+  - id: portable_limitation:service_install
+    capability_class: service_install
+    posture_class: suppressed
+    rationale_class: no_silent_install_of_long_lived_host_components
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+      - coexistence_rule.managed_portable_admin_boundary
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs: []
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+      - support_bundle
+    user_visible_summary: >
+      Portable installs do not install host services or daemons.
+      Stopping or removing the portable copy requires no service
+      management action.
+    status: proposed
+
+  - id: portable_limitation:shell_hook_install
+    capability_class: shell_hook_install
+    posture_class: suppressed
+    rationale_class: no_silent_install_of_long_lived_host_components
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs: []
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+    user_visible_summary: >
+      Portable installs do not install shell hooks, completion
+      scripts, or login-shell modifications on the host. The user
+      may opt in to a labeled portable shell helper if a future row
+      admits one.
+    status: proposed
+
+  - id: portable_limitation:machine_global_credential_store_write
+    capability_class: machine_global_credential_store_write
+    posture_class: suppressed
+    rationale_class: portable_secret_store_must_remain_colocated
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+      - coexistence_rule.managed_portable_admin_boundary
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    related_handler_refs: []
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+      - support_bundle
+    user_visible_summary: >
+      Portable installs keep credentials and secret-store entries
+      under the portable root. Removing the portable directory
+      removes its secrets; the host keychain is not touched.
+    status: proposed
+
+  - id: portable_limitation:machine_global_recent_item_write
+    capability_class: machine_global_recent_item_write
+    posture_class: suppressed
+    rationale_class: host_recent_items_owned_by_installed_channels_only
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    related_handler_refs:
+      - recent_items.portable_stable
+      - recent_items.portable_preview
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - diagnostics_center
+    user_visible_summary: >
+      Portable installs maintain their recent-work list under the
+      portable root and do not write to any machine-global recent-
+      items list owned by installed channels.
+    status: proposed
+
+  - id: portable_limitation:machine_global_update_marker
+    capability_class: machine_global_update_marker
+    posture_class: suppressed
+    rationale_class: portable_update_marker_under_portable_root_only
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+      - coexistence_rule.managed_portable_admin_boundary
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_uses_installed_update_marker
+      - portable_writes_managed_update_marker
+      - portable_writes_machine_global_state
+    related_state_root_refs:
+      - state.portable_colocated_root.portable_stable
+    related_handler_refs:
+      - update_marker.portable_stable
+      - update_marker.portable_preview
+    material_disclosure_required:
+      - about
+      - update_center
+      - installer_summary
+      - silent_deployment_summary
+      - support_reply_template
+      - release_notes
+    user_visible_summary: >
+      Portable installs keep their update marker under the portable
+      root. Update Center MUST disclose that the portable copy is
+      user-owned and does not consume an installed channel's update
+      marker.
+    status: proposed
+
+  - id: portable_limitation:system_wide_path_mutation
+    capability_class: system_wide_path_mutation
+    posture_class: suppressed
+    rationale_class: cli_scriptability_remains_portable_only_path
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs: []
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+    user_visible_summary: >
+      Portable installs do not modify the system-wide PATH. The
+      bundled CLI is reachable from inside the portable directory
+      only; users who need a global CLI install a per-user or
+      per-machine channel.
+    notes: >
+      Maps to cli_scriptability_class == cli_portable_only on every
+      portable install-profile card.
+    status: proposed
+
+  - id: portable_limitation:autostart_hook_install
+    capability_class: autostart_hook_install
+    posture_class: suppressed
+    rationale_class: no_silent_install_of_long_lived_host_components
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs: []
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+    user_visible_summary: >
+      Portable installs do not register login items, autostart
+      entries, or scheduled tasks on the host.
+    status: proposed
+
+  - id: portable_limitation:kernel_extension_or_privileged_helper_install
+    capability_class: kernel_extension_or_privileged_helper_install
+    posture_class: suppressed
+    rationale_class: host_kernel_or_privileged_helpers_require_admin_review
+    governing_coexistence_rule_refs:
+      - coexistence_rule.installed_portable_no_host_mutation
+      - coexistence_rule.managed_portable_admin_boundary
+    governing_install_topology_card_refs:
+      - card.windows.x86_64.portable.portable_stable
+      - card.macos.universal_binary.portable.portable_stable
+      - card.linux.x86_64.portable.portable_stable
+    governing_channel_identity_refs:
+      - channel_identity.portable_stable
+      - channel_identity.portable_preview
+    forbidden_behaviors:
+      - portable_writes_machine_global_state
+    related_state_root_refs: []
+    related_handler_refs: []
+    material_disclosure_required:
+      - about
+      - installer_summary
+      - support_reply_template
+      - release_notes
+      - enterprise_materials
+      - support_bundle
+    user_visible_summary: >
+      Portable installs do not install kernel extensions, privileged
+      helpers, or any component that requires an admin elevation
+      prompt at run time.
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Disclosure cross-reference.
+#
+# Lightweight rollup so reviewers can see which surface is required to
+# disclose at least one limitation. A surface that does not appear in
+# any row's material_disclosure_required is not exempt; it simply has
+# no limitation row that requires it. The truth packet pins About,
+# installer_summary, release_notes, and support_reply_template as
+# baseline disclosure surfaces.
+# -----------------------------------------------------------------------------
+disclosure_required_by_surface:
+  about:
+    - portable_limitation:file_association_registration
+    - portable_limitation:protocol_handler_registration
+    - portable_limitation:service_install
+    - portable_limitation:shell_hook_install
+    - portable_limitation:machine_global_credential_store_write
+    - portable_limitation:machine_global_recent_item_write
+    - portable_limitation:machine_global_update_marker
+    - portable_limitation:system_wide_path_mutation
+    - portable_limitation:autostart_hook_install
+    - portable_limitation:kernel_extension_or_privileged_helper_install
+  installer_summary:
+    - portable_limitation:file_association_registration
+    - portable_limitation:protocol_handler_registration
+    - portable_limitation:service_install
+    - portable_limitation:shell_hook_install
+    - portable_limitation:machine_global_credential_store_write
+    - portable_limitation:machine_global_recent_item_write
+    - portable_limitation:machine_global_update_marker
+    - portable_limitation:system_wide_path_mutation
+    - portable_limitation:autostart_hook_install
+    - portable_limitation:kernel_extension_or_privileged_helper_install
+  release_notes:
+    - portable_limitation:file_association_registration
+    - portable_limitation:protocol_handler_registration
+    - portable_limitation:service_install
+    - portable_limitation:shell_hook_install
+    - portable_limitation:machine_global_credential_store_write
+    - portable_limitation:machine_global_recent_item_write
+    - portable_limitation:machine_global_update_marker
+    - portable_limitation:system_wide_path_mutation
+    - portable_limitation:autostart_hook_install
+    - portable_limitation:kernel_extension_or_privileged_helper_install
+  support_reply_template:
+    - portable_limitation:file_association_registration
+    - portable_limitation:protocol_handler_registration
+    - portable_limitation:service_install
+    - portable_limitation:shell_hook_install
+    - portable_limitation:machine_global_credential_store_write
+    - portable_limitation:machine_global_recent_item_write
+    - portable_limitation:machine_global_update_marker
+    - portable_limitation:system_wide_path_mutation
+    - portable_limitation:autostart_hook_install
+    - portable_limitation:kernel_extension_or_privileged_helper_install
+  enterprise_materials:
+    - portable_limitation:file_association_registration
+    - portable_limitation:protocol_handler_registration
+    - portable_limitation:service_install
+    - portable_limitation:machine_global_credential_store_write
+    - portable_limitation:machine_global_update_marker
+    - portable_limitation:system_wide_path_mutation
+    - portable_limitation:autostart_hook_install
+    - portable_limitation:kernel_extension_or_privileged_helper_install
+  diagnostics_center:
+    - portable_limitation:file_association_registration
+    - portable_limitation:machine_global_recent_item_write
+  update_center:
+    - portable_limitation:machine_global_update_marker
+  silent_deployment_summary:
+    - portable_limitation:machine_global_update_marker
+  support_bundle:
+    - portable_limitation:service_install
+    - portable_limitation:machine_global_credential_store_write
+    - portable_limitation:kernel_extension_or_privileged_helper_install
+
+# -----------------------------------------------------------------------------
+# Ledger assertions.
+# -----------------------------------------------------------------------------
+ledger_assertions:
+  - id: every_capability_in_vocabulary_has_a_row
+    description: >
+      Every capability_class_vocabulary value resolves to exactly one
+      limitation row.
+  - id: every_row_default_posture_is_suppressed
+    description: >
+      Every row currently uses posture_class suppressed. The future
+      labeled-opt-in posture is reserved and requires both a named
+      operator choice and a disclosure surface.
+  - id: portable_card_disclosure_minimum
+    description: >
+      Every portable install-profile card listed in
+      governing_install_topology_card_refs of any row resolves to a
+      portable channel-identity row whose handler suppression rules
+      already match this ledger; tooling MAY validate the join.
+  - id: managed_portable_pairing_includes_admin_review
+    description: >
+      Limitation rows whose governing_coexistence_rule_refs include
+      coexistence_rule.managed_portable_admin_boundary MUST list
+      enterprise_materials in material_disclosure_required.
