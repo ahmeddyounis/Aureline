@@ -1,0 +1,1063 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/learning_progress_retention.schema.json",
+  "title": "Aureline learning, presentation, and classroom retention / share / delete / export contract",
+  "description": "Boundary schema for the learning / presentation privacy and export contract frozen in docs/ux/learning_privacy_export_contract.md. Every learning artifact a user, facilitator, or policy bundle observes — per-surface progress rows, dismissal events, don't-show-again state, speaker notes, classroom artifacts, cited docs / glossary / command-tip / imported-teaching packs, replay data, teaching-session bundles, and learning-mode profile state — resolves through one learning_artifact_retention_row_record on this schema declaring its locality (local / private, shared, imported, or policy-managed), its retention class, its delete posture, its import provenance, and its export lane. Every export-sheet preflight resolves through one learning_artifact_export_review_record listing the artifacts that will cross the export boundary and the artifacts that are excluded with a typed reason. Every delete review resolves through one learning_artifact_delete_review_record naming the rows in scope, the delete origin, and the workspace-preservation guarantee. Every aggregator resolves through one learning_privacy_export_manifest_record declaring the const-true invariants. The contract mints no new dismissal_class, dont_show_again_scope_class, progress_export_class, share_state_class, replay_retention_class, speaker_note_locality_class, cached_pack_continuity_state_class, classroom_artifact_retention_class, evidence_hook_class, redaction_class, deployment_profile_id, or freshness_class vocabulary; those re-export verbatim from schemas/ux/guided_surface_state.schema.json, schemas/ux/learning_progress.schema.json, schemas/ux/presentation_mode_state.schema.json, schemas/learning/learning_presentation_packet.schema.json, schemas/governance/capability_lifecycle.schema.json, and artifacts/governance/deployment_profiles.yaml. Adding a new learning_artifact_class, locality_class, retention_class, delete_class, import_provenance_class, export_review_exclusion_reason, delete_origin_class, invariant_id, or denial_reason value is additive-minor and bumps learning_progress_retention_schema_version; repurposing an existing value is breaking and requires a new decision row. Raw paths, raw URLs, raw prompt / completion text, raw audience identifiers, raw account or billing identifiers, and raw credential material never cross this boundary; the schema carries only opaque ids, typed vocabulary, short privacy-safe labels, monotonic placeholder timestamps, and typed policy / redaction metadata.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/learning_artifact_retention_row_record" },
+    { "$ref": "#/$defs/learning_artifact_export_review_record" },
+    { "$ref": "#/$defs/learning_artifact_delete_review_record" },
+    { "$ref": "#/$defs/learning_privacy_export_manifest_record" }
+  ],
+  "$defs": {
+    "learning_progress_retention_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this learning-retention vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "learning_artifact_retention_row_record",
+        "learning_artifact_export_review_record",
+        "learning_artifact_delete_review_record",
+        "learning_privacy_export_manifest_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, portable profile packages, and support bundles. Raw URLs, raw absolute paths, raw audience identifiers, raw credential material, and raw account / billing identifiers never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short privacy-safe label text. MUST NOT embed raw paths, raw URLs, raw secret material, or raw AI prompt / completion text."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "learning_artifact_class": {
+      "type": "string",
+      "enum": [
+        "progress_row",
+        "dismissal_event",
+        "dont_show_again_state",
+        "speaker_note",
+        "classroom_artifact",
+        "cited_pack",
+        "replay_data",
+        "teaching_session_bundle",
+        "learning_mode_profile_state"
+      ],
+      "description": "Closed nine-class learning-artifact vocabulary. Names which kind of learning data the row classifies. progress_row covers per-surface progress; dismissal_event covers user-driven and policy-driven dismissals; dont_show_again_state covers persisted don't-show-again toggles; speaker_note covers authored speaker notes; classroom_artifact covers audience-visible retained artifacts on facilitator-led sessions; cited_pack covers docs / glossary / command-tip / imported-teaching packs the learning experience cites or caches; replay_data covers session replay or transcript metadata; teaching_session_bundle covers facilitator-led or classroom-managed session bundles; learning_mode_profile_state covers the learning-mode profile's portable defaults and bound packs."
+    },
+
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_only_private",
+        "shared_visible",
+        "imported_external_authored",
+        "policy_managed_pushed"
+      ],
+      "description": "Closed four-class locality vocabulary distinguishing the four privacy lanes in the contract. local_only_private stays on the user's machine and never reaches a portable profile package or audience surface. shared_visible is admissible to a named audience, classroom-managed pool, or facilitator-only adjunct under a shared share_state_class. imported_external_authored is data this profile imported from a portable profile package, an offline pack, or a support bundle authored elsewhere — it carries provenance and never overwrites locally-authored items silently. policy_managed_pushed is data the policy bundle owns; the user cannot delete or export it locally and a policy_context is required."
+    },
+
+    "retention_class": {
+      "type": "string",
+      "enum": [
+        "ephemeral_session",
+        "until_user_clears",
+        "until_session_ends",
+        "until_pack_revision_change",
+        "classroom_artifact_privacy_bounded",
+        "replay_blocked_by_policy",
+        "no_retention"
+      ],
+      "description": "Closed seven-class retention vocabulary. ephemeral_session is held in memory for the session and never persisted. until_user_clears persists until the user resets it via the governed reset surface. until_session_ends persists for the duration of an active facilitator-led or classroom-managed session and is then released. until_pack_revision_change persists until the bound pack revision changes (cited packs, command-tip packs). classroom_artifact_privacy_bounded ties the audience-visible retained artifact to the privacy-bounded classroom-artifact evidence hook on the presentation contract. replay_blocked_by_policy denies replay retention under the active policy bundle. no_retention asserts the row carries nothing retained beyond its render lifetime."
+    },
+
+    "delete_class": {
+      "type": "string",
+      "enum": [
+        "deletable_per_profile",
+        "deletable_per_device",
+        "deletable_per_account",
+        "deletable_by_policy_reset",
+        "not_deletable_locally"
+      ],
+      "description": "Closed five-class delete vocabulary. Names who can delete the artifact and at what scope. deletable_per_profile lets the user clear it from their portable profile state. deletable_per_device clears it from this device only. deletable_per_account clears it across the user's bound account scope. deletable_by_policy_reset is reserved for policy_managed_pushed rows that the user cannot clear locally — only a policy reset by the bundle owner clears them. not_deletable_locally captures imported support-bundle audit metadata that intentionally cannot be deleted from the local device."
+    },
+
+    "import_provenance_class": {
+      "type": "string",
+      "enum": [
+        "locally_authored",
+        "imported_from_portable_profile",
+        "imported_from_offline_pack",
+        "imported_from_support_bundle",
+        "policy_pushed_central"
+      ],
+      "description": "Closed five-class provenance vocabulary. Names where the artifact came from so reviewers can tell user-authored progress from imported state. locally_authored is the default for rows the user produced on this profile / device. imported_from_portable_profile is data carried in via a portable profile package import. imported_from_offline_pack is data carried in via an offline docs / glossary / command-tip / imported-teaching pack. imported_from_support_bundle is data carried in via a redacted support-bundle import (read-only audit only). policy_pushed_central is data pushed by the active policy bundle and pinned by a policy_context."
+    },
+
+    "delete_origin_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated_delete",
+        "policy_initiated_delete",
+        "imported_profile_package_carried_delete",
+        "device_clear_on_launch_delete",
+        "facilitator_session_end_delete"
+      ],
+      "description": "Closed five-class delete-origin vocabulary mirroring progress_reset_origin_class on schemas/ux/learning_progress.schema.json so a delete and a reset read the same lanes."
+    },
+
+    "export_review_exclusion_reason": {
+      "type": "string",
+      "enum": [
+        "excluded_local_only_machine_bound",
+        "excluded_policy_blocked",
+        "excluded_unavailable_in_envelope",
+        "excluded_redaction_required",
+        "excluded_replay_blocked_by_policy",
+        "excluded_classroom_artifact_privacy_bounded",
+        "excluded_imported_support_bundle_audit_only",
+        "excluded_speaker_note_audience_visible_denied",
+        "excluded_pack_offline_unverified"
+      ],
+      "description": "Closed nine-class exclusion-reason vocabulary an export-review record MUST cite for every excluded artifact ref so a reviewer can reconstruct why the row did not cross the export boundary. Hidden omission is non-conforming."
+    },
+
+    "dismissal_class": {
+      "type": "string",
+      "enum": [
+        "per_session_one_shot",
+        "per_profile_dismissable",
+        "per_device_dismissable",
+        "policy_locked",
+        "not_dismissable"
+      ],
+      "description": "Re-exported from schemas/ux/guided_surface_state.schema.json (via schemas/ux/learning_progress.schema.json) without modification."
+    },
+
+    "dont_show_again_scope_class": {
+      "type": "string",
+      "enum": [
+        "no_dont_show_again",
+        "dont_show_again_per_session",
+        "dont_show_again_per_profile",
+        "dont_show_again_per_device",
+        "dont_show_again_locked_by_policy"
+      ],
+      "description": "Re-exported from schemas/ux/learning_progress.schema.json without modification."
+    },
+
+    "progress_export_class": {
+      "type": "string",
+      "enum": [
+        "in_portable_profile_package",
+        "in_portable_profile_package_redacted",
+        "in_support_bundle_redacted",
+        "not_exported_machine_local",
+        "blocked_by_policy"
+      ],
+      "description": "Re-exported from schemas/ux/learning_progress.schema.json without modification."
+    },
+
+    "share_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "shared_to_named_audience",
+        "shared_to_classroom_managed_pool",
+        "shared_to_facilitator_only",
+        "shared_blocked_by_policy",
+        "shared_unavailable_in_envelope"
+      ],
+      "description": "Re-exported from schemas/ux/presentation_mode_state.schema.json without modification."
+    },
+
+    "replay_retention_class": {
+      "type": "string",
+      "enum": [
+        "no_replay_retained",
+        "metadata_only_replay_local_redacted",
+        "metadata_only_replay_in_support_bundle_redacted",
+        "replay_blocked_by_policy",
+        "classroom_artifact_privacy_bounded"
+      ],
+      "description": "Re-exported from schemas/ux/presentation_mode_state.schema.json without modification."
+    },
+
+    "speaker_note_locality_class": {
+      "type": "string",
+      "enum": [
+        "speaker_notes_facilitator_only_local",
+        "speaker_notes_co_presenter_visible",
+        "speaker_notes_hidden_no_facilitator_route",
+        "speaker_notes_blocked_by_policy"
+      ],
+      "description": "Re-exported from schemas/ux/presentation_mode_state.schema.json without modification."
+    },
+
+    "cached_pack_continuity_state_class": {
+      "type": "string",
+      "enum": [
+        "pack_live_authoritative_full_install",
+        "pack_not_installed_suppressed",
+        "pack_cached_within_ttl",
+        "pack_mirrored_disclosed",
+        "pack_stale_past_ttl_disclosed",
+        "pack_offline_bundle_verified",
+        "pack_offline_bundle_unverified_suppressed",
+        "pack_revoked_or_withdrawn_suppressed"
+      ],
+      "description": "Re-exported from schemas/learning/learning_presentation_packet.schema.json without modification."
+    },
+
+    "cached_pack_kind_class": {
+      "type": "string",
+      "enum": [
+        "docs_pack",
+        "glossary_pack",
+        "command_tip_pack",
+        "imported_teaching_pack"
+      ],
+      "description": "Re-exported from schemas/learning/learning_presentation_packet.schema.json without modification."
+    },
+
+    "classroom_artifact_retention_class": {
+      "type": "string",
+      "enum": [
+        "no_classroom_artifact_retained",
+        "metadata_only_local_redacted",
+        "metadata_only_in_support_bundle_redacted",
+        "classroom_artifact_privacy_bounded_disclosed",
+        "replay_blocked_by_policy_disclosed"
+      ],
+      "description": "Re-exported from schemas/learning/learning_presentation_packet.schema.json without modification."
+    },
+
+    "evidence_hook_class": {
+      "type": "string",
+      "enum": [
+        "tour_citation_audit",
+        "cached_pack_continuity",
+        "presentation_role_review",
+        "layout_restore_proof",
+        "privacy_bounded_classroom_artifact"
+      ],
+      "description": "Re-exported from schemas/ux/learning_progress.schema.json (and schemas/ux/presentation_mode_state.schema.json) without modification."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ],
+      "description": "Re-exported from artifacts/governance/deployment_profiles.yaml without modification."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Re-exported from schemas/docs/citation_anchor.schema.json without modification."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "learning_retention_local_only_private_exports_via_portable_lane",
+        "learning_retention_policy_managed_pushed_lacks_policy_context",
+        "learning_retention_imported_artifact_lacks_provenance",
+        "learning_retention_classroom_artifact_lacks_replay_retention_class",
+        "learning_retention_replay_blocked_by_policy_lacks_policy_context",
+        "learning_retention_speaker_note_audience_visible_under_local_only_share",
+        "learning_retention_cited_pack_offline_export_lacks_continuity_state",
+        "learning_retention_dont_show_again_scope_does_not_match_dismissal_class",
+        "learning_retention_delete_scope_does_not_match_locality_lane",
+        "learning_retention_export_review_excluded_artifact_lacks_reason",
+        "learning_retention_delete_review_widens_to_unrelated_workspace_content",
+        "learning_retention_share_state_does_not_match_envelope",
+        "learning_progress_retention_schema_version_lagging"
+      ],
+      "description": "Closed denial-reason vocabulary publishers MUST emit when a row would otherwise carry inconsistent state."
+    },
+
+    "invariant_assertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invariant_id", "asserted_true"],
+      "properties": {
+        "invariant_id": {
+          "type": "string",
+          "enum": [
+            "local_only_private_never_exports_via_portable_lane",
+            "policy_managed_pushed_carries_policy_context",
+            "imported_artifact_carries_provenance_class",
+            "classroom_artifact_carries_replay_retention_class",
+            "replay_blocked_by_policy_carries_policy_context",
+            "speaker_note_share_state_matches_ownership",
+            "cited_pack_offline_export_carries_continuity_state",
+            "dont_show_again_scope_matches_dismissal_class",
+            "delete_scope_matches_locality_lane",
+            "export_review_lists_excluded_artifacts_with_typed_reason",
+            "delete_review_preserves_unrelated_workspace_content",
+            "share_state_matches_deployment_envelope"
+          ]
+        },
+        "asserted_true": { "type": "boolean", "const": true },
+        "notes": { "$ref": "#/$defs/short_label_text" }
+      },
+      "description": "One const-true invariant. Any row with asserted_true=false is a schema violation."
+    },
+
+    "export_review_exclusion_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_ref", "exclusion_reason"],
+      "properties": {
+        "row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the learning_artifact_retention_row_record this exclusion applies to."
+        },
+        "exclusion_reason": { "$ref": "#/$defs/export_review_exclusion_reason" },
+        "exclusion_label": { "$ref": "#/$defs/short_label_text" }
+      },
+      "description": "One typed exclusion entry on an export review."
+    },
+
+    "learning_artifact_retention_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_retention_schema_version",
+        "row_id",
+        "learning_profile_ref",
+        "artifact_class",
+        "locality_class",
+        "retention_class",
+        "delete_class",
+        "import_provenance_class",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_artifact_retention_row_record" },
+        "learning_progress_retention_schema_version": {
+          "$ref": "#/$defs/learning_progress_retention_schema_version"
+        },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "learning_profile_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a learning_mode_profile_record on schemas/ux/guided_surface_state.schema.json or to a learning_mode_profile_artifact on schemas/ux/learning_mode_profile.schema.json."
+        },
+        "artifact_class": { "$ref": "#/$defs/learning_artifact_class" },
+        "locality_class": { "$ref": "#/$defs/locality_class" },
+        "retention_class": { "$ref": "#/$defs/retention_class" },
+        "delete_class": { "$ref": "#/$defs/delete_class" },
+        "import_provenance_class": { "$ref": "#/$defs/import_provenance_class" },
+        "progress_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a learning_progress_record on schemas/ux/learning_progress.schema.json. Required when artifact_class = progress_row."
+        },
+        "dismissal_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a learning_dismissal_record on schemas/ux/learning_progress.schema.json. Required when artifact_class = dismissal_event."
+        },
+        "speaker_note_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a speaker_note_artifact on schemas/ux/speaker_note.schema.json. Required when artifact_class = speaker_note."
+        },
+        "teaching_session_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a teaching_session_artifact on schemas/ux/teaching_session.schema.json or a presentation_session_record on schemas/ux/presentation_mode_state.schema.json. Required when artifact_class is one of teaching_session_bundle, classroom_artifact, replay_data."
+        },
+        "pack_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to a docs / glossary / command-tip / imported-teaching pack manifest. Required when artifact_class = cited_pack."
+        },
+        "pack_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the bound pack revision. Required when artifact_class = cited_pack and retention_class = until_pack_revision_change."
+        },
+        "pack_kind": { "$ref": "#/$defs/cached_pack_kind_class" },
+        "cached_pack_continuity_state_class": {
+          "$ref": "#/$defs/cached_pack_continuity_state_class"
+        },
+        "classroom_artifact_retention_class": {
+          "$ref": "#/$defs/classroom_artifact_retention_class"
+        },
+        "replay_retention_class": { "$ref": "#/$defs/replay_retention_class" },
+        "share_state_class": { "$ref": "#/$defs/share_state_class" },
+        "speaker_note_locality_class": { "$ref": "#/$defs/speaker_note_locality_class" },
+        "progress_export_class": { "$ref": "#/$defs/progress_export_class" },
+        "dismissal_class": { "$ref": "#/$defs/dismissal_class" },
+        "dont_show_again_scope_class": { "$ref": "#/$defs/dont_show_again_scope_class" },
+        "imported_profile_package_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the source portable profile package. Required when import_provenance_class = imported_from_portable_profile."
+        },
+        "imported_offline_pack_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the source offline pack. Required when import_provenance_class = imported_from_offline_pack."
+        },
+        "imported_support_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the source support bundle. Required when import_provenance_class = imported_from_support_bundle."
+        },
+        "active_policy_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the active policy bundle. Required when locality_class = policy_managed_pushed or import_provenance_class = policy_pushed_central or retention_class = replay_blocked_by_policy."
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "local_only_private rows never export via the portable profile lane.",
+          "if": {
+            "properties": { "locality_class": { "const": "local_only_private" } },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "properties": {
+              "progress_export_class": {
+                "enum": ["not_exported_machine_local", "in_support_bundle_redacted"]
+              },
+              "share_state_class": {
+                "enum": ["local_only_no_share", "shared_unavailable_in_envelope"]
+              }
+            }
+          }
+        },
+        {
+          "description": "policy_managed_pushed rows pin a policy bundle and a trusted/restricted policy context.",
+          "if": {
+            "properties": { "locality_class": { "const": "policy_managed_pushed" } },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "required": ["active_policy_bundle_ref"],
+            "properties": {
+              "delete_class": {
+                "enum": ["deletable_by_policy_reset", "not_deletable_locally"]
+              },
+              "import_provenance_class": { "const": "policy_pushed_central" }
+            }
+          }
+        },
+        {
+          "description": "imported_external_authored rows carry a provenance class and a source ref.",
+          "if": {
+            "properties": { "locality_class": { "const": "imported_external_authored" } },
+            "required": ["locality_class"]
+          },
+          "then": {
+            "properties": {
+              "import_provenance_class": {
+                "enum": [
+                  "imported_from_portable_profile",
+                  "imported_from_offline_pack",
+                  "imported_from_support_bundle"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_from_portable_profile pins the source profile package ref.",
+          "if": {
+            "properties": { "import_provenance_class": { "const": "imported_from_portable_profile" } },
+            "required": ["import_provenance_class"]
+          },
+          "then": { "required": ["imported_profile_package_ref"] }
+        },
+        {
+          "description": "imported_from_offline_pack pins the source offline pack ref.",
+          "if": {
+            "properties": { "import_provenance_class": { "const": "imported_from_offline_pack" } },
+            "required": ["import_provenance_class"]
+          },
+          "then": { "required": ["imported_offline_pack_ref"] }
+        },
+        {
+          "description": "imported_from_support_bundle pins the source support bundle ref and is read-only.",
+          "if": {
+            "properties": { "import_provenance_class": { "const": "imported_from_support_bundle" } },
+            "required": ["import_provenance_class"]
+          },
+          "then": {
+            "required": ["imported_support_bundle_ref"],
+            "properties": {
+              "delete_class": { "const": "not_deletable_locally" }
+            }
+          }
+        },
+        {
+          "description": "policy_pushed_central pins the active policy bundle ref.",
+          "if": {
+            "properties": { "import_provenance_class": { "const": "policy_pushed_central" } },
+            "required": ["import_provenance_class"]
+          },
+          "then": { "required": ["active_policy_bundle_ref"] }
+        },
+        {
+          "description": "progress_row rows pin the underlying progress record and align dismissal / dont-show-again / export lanes.",
+          "if": {
+            "properties": { "artifact_class": { "const": "progress_row" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": [
+              "progress_ref",
+              "dismissal_class",
+              "dont_show_again_scope_class",
+              "progress_export_class"
+            ]
+          }
+        },
+        {
+          "description": "dismissal_event rows pin the underlying dismissal record.",
+          "if": {
+            "properties": { "artifact_class": { "const": "dismissal_event" } },
+            "required": ["artifact_class"]
+          },
+          "then": { "required": ["dismissal_ref", "dismissal_class"] }
+        },
+        {
+          "description": "dont_show_again_state rows declare a dont_show_again_scope_class and the underlying dismissal_class.",
+          "if": {
+            "properties": { "artifact_class": { "const": "dont_show_again_state" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": ["dismissal_class", "dont_show_again_scope_class"]
+          }
+        },
+        {
+          "description": "speaker_note rows pin the speaker note artifact and declare share_state_class plus speaker_note_locality_class.",
+          "if": {
+            "properties": { "artifact_class": { "const": "speaker_note" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": [
+              "speaker_note_ref",
+              "share_state_class",
+              "speaker_note_locality_class"
+            ]
+          }
+        },
+        {
+          "description": "classroom_artifact rows pin the teaching session and declare a classroom_artifact_retention_class plus replay_retention_class.",
+          "if": {
+            "properties": { "artifact_class": { "const": "classroom_artifact" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": [
+              "teaching_session_ref",
+              "classroom_artifact_retention_class",
+              "replay_retention_class"
+            ]
+          }
+        },
+        {
+          "description": "replay_data rows pin the teaching session and declare replay_retention_class.",
+          "if": {
+            "properties": { "artifact_class": { "const": "replay_data" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": ["teaching_session_ref", "replay_retention_class"]
+          }
+        },
+        {
+          "description": "teaching_session_bundle rows pin the teaching session and a share_state_class plus replay_retention_class.",
+          "if": {
+            "properties": { "artifact_class": { "const": "teaching_session_bundle" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": [
+              "teaching_session_ref",
+              "share_state_class",
+              "replay_retention_class"
+            ]
+          }
+        },
+        {
+          "description": "cited_pack rows pin the pack ref, pack kind, and cached-pack continuity state.",
+          "if": {
+            "properties": { "artifact_class": { "const": "cited_pack" } },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": ["pack_ref", "pack_kind", "cached_pack_continuity_state_class"]
+          }
+        },
+        {
+          "description": "until_pack_revision_change retention pins a pack_revision_ref.",
+          "if": {
+            "properties": { "retention_class": { "const": "until_pack_revision_change" } },
+            "required": ["retention_class"]
+          },
+          "then": { "required": ["pack_revision_ref"] }
+        },
+        {
+          "description": "classroom_artifact_privacy_bounded retention reserves the privacy_bounded_classroom_artifact evidence hook.",
+          "if": {
+            "properties": { "retention_class": { "const": "classroom_artifact_privacy_bounded" } },
+            "required": ["retention_class"]
+          },
+          "then": {
+            "required": ["evidence_hooks_reserved"],
+            "properties": {
+              "evidence_hooks_reserved": {
+                "contains": { "const": "privacy_bounded_classroom_artifact" }
+              }
+            }
+          }
+        },
+        {
+          "description": "replay_blocked_by_policy retention pins a policy bundle ref.",
+          "if": {
+            "properties": { "retention_class": { "const": "replay_blocked_by_policy" } },
+            "required": ["retention_class"]
+          },
+          "then": { "required": ["active_policy_bundle_ref"] }
+        },
+        {
+          "description": "audience-visible speaker notes resolve through a shared share_state_class.",
+          "if": {
+            "allOf": [
+              { "properties": { "artifact_class": { "const": "speaker_note" } }, "required": ["artifact_class"] },
+              { "properties": { "speaker_note_locality_class": { "const": "speaker_notes_co_presenter_visible" } }, "required": ["speaker_note_locality_class"] }
+            ]
+          },
+          "then": {
+            "properties": {
+              "share_state_class": {
+                "enum": [
+                  "shared_to_named_audience",
+                  "shared_to_classroom_managed_pool",
+                  "shared_to_facilitator_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "facilitator-only-local speaker notes stay local-only.",
+          "if": {
+            "allOf": [
+              { "properties": { "artifact_class": { "const": "speaker_note" } }, "required": ["artifact_class"] },
+              { "properties": { "speaker_note_locality_class": { "const": "speaker_notes_facilitator_only_local" } }, "required": ["speaker_note_locality_class"] }
+            ]
+          },
+          "then": {
+            "properties": {
+              "share_state_class": {
+                "enum": [
+                  "local_only_no_share",
+                  "shared_to_facilitator_only",
+                  "shared_unavailable_in_envelope"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "policy-locked speaker notes carry the policy-blocked share state.",
+          "if": {
+            "allOf": [
+              { "properties": { "artifact_class": { "const": "speaker_note" } }, "required": ["artifact_class"] },
+              { "properties": { "speaker_note_locality_class": { "const": "speaker_notes_blocked_by_policy" } }, "required": ["speaker_note_locality_class"] }
+            ]
+          },
+          "then": {
+            "properties": {
+              "share_state_class": { "const": "shared_blocked_by_policy" }
+            },
+            "required": ["active_policy_bundle_ref"]
+          }
+        },
+        {
+          "description": "deletable_per_profile delete scope is admissible only on local_only_private or shared_visible rows.",
+          "if": {
+            "properties": { "delete_class": { "const": "deletable_per_profile" } },
+            "required": ["delete_class"]
+          },
+          "then": {
+            "properties": {
+              "locality_class": {
+                "enum": ["local_only_private", "shared_visible"]
+              }
+            }
+          }
+        },
+        {
+          "description": "deletable_by_policy_reset and not_deletable_locally apply to imported or policy-managed rows.",
+          "if": {
+            "properties": {
+              "delete_class": { "enum": ["deletable_by_policy_reset", "not_deletable_locally"] }
+            },
+            "required": ["delete_class"]
+          },
+          "then": {
+            "properties": {
+              "locality_class": {
+                "enum": [
+                  "imported_external_authored",
+                  "policy_managed_pushed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Air-gapped envelopes never carry share_state_class values that require a remote relay.",
+          "if": {
+            "properties": {
+              "deployment_profile_refs": {
+                "contains": { "const": "air_gapped" }
+              }
+            },
+            "required": ["deployment_profile_refs"]
+          },
+          "then": {
+            "properties": {
+              "share_state_class": {
+                "enum": [
+                  "local_only_no_share",
+                  "shared_blocked_by_policy",
+                  "shared_unavailable_in_envelope"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One per-artifact retention row. See learning_privacy_export_contract.md §4."
+    },
+
+    "learning_artifact_export_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_retention_schema_version",
+        "review_id",
+        "learning_profile_ref",
+        "selected_row_refs",
+        "excluded_entries",
+        "allowed_progress_export_classes",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_artifact_export_review_record" },
+        "learning_progress_retention_schema_version": {
+          "$ref": "#/$defs/learning_progress_retention_schema_version"
+        },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "learning_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "selected_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque pins to learning_artifact_retention_row_record rows that will cross the export boundary on this review. Empty when every retention row is excluded."
+        },
+        "excluded_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_review_exclusion_entry" },
+          "uniqueItems": true,
+          "description": "Typed exclusion entries for every retention row that will not cross the export boundary. Hidden omission is non-conforming."
+        },
+        "allowed_progress_export_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/progress_export_class" },
+          "uniqueItems": true,
+          "description": "Closed export-lane vocabulary the review asserts as admissible. Selected rows MUST resolve through one of these lanes."
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One export-review record. See learning_privacy_export_contract.md §6."
+    },
+
+    "learning_artifact_delete_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_retention_schema_version",
+        "review_id",
+        "learning_profile_ref",
+        "row_refs",
+        "delete_class",
+        "delete_origin_class",
+        "preserves_unrelated_workspace_content",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_artifact_delete_review_record" },
+        "learning_progress_retention_schema_version": {
+          "$ref": "#/$defs/learning_progress_retention_schema_version"
+        },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "learning_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque pins to learning_artifact_retention_row_record rows in scope for this delete review."
+        },
+        "delete_class": { "$ref": "#/$defs/delete_class" },
+        "delete_origin_class": { "$ref": "#/$defs/delete_origin_class" },
+        "preserves_unrelated_workspace_content": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const-true assertion that the delete is scoped to the named retention rows and does NOT touch unrelated workspace content, source files, workspace manifests, caches, or credential-store entries."
+        },
+        "active_policy_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required when delete_origin_class = policy_initiated_delete or delete_class = deletable_by_policy_reset."
+        },
+        "imported_profile_package_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required when delete_origin_class = imported_profile_package_carried_delete."
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "delete_origin_class": { "const": "policy_initiated_delete" } },
+            "required": ["delete_origin_class"]
+          },
+          "then": { "required": ["active_policy_bundle_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "delete_class": { "const": "deletable_by_policy_reset" } },
+            "required": ["delete_class"]
+          },
+          "then": { "required": ["active_policy_bundle_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "delete_origin_class": { "const": "imported_profile_package_carried_delete" } },
+            "required": ["delete_origin_class"]
+          },
+          "then": { "required": ["imported_profile_package_ref"] }
+        }
+      ],
+      "description": "One delete-review record. See learning_privacy_export_contract.md §7."
+    },
+
+    "learning_privacy_export_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "learning_progress_retention_schema_version",
+        "manifest_id",
+        "learning_profile_ref",
+        "retention_row_refs",
+        "allowed_locality_classes",
+        "allowed_progress_export_classes",
+        "deployment_profile_refs",
+        "invariants",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "learning_privacy_export_manifest_record" },
+        "learning_progress_retention_schema_version": {
+          "$ref": "#/$defs/learning_progress_retention_schema_version"
+        },
+        "manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "learning_profile_ref": { "$ref": "#/$defs/opaque_id" },
+        "retention_row_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "export_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "delete_review_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "allowed_locality_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/locality_class" },
+          "uniqueItems": true
+        },
+        "allowed_progress_export_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/progress_export_class" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "invariants": {
+          "type": "array",
+          "minItems": 12,
+          "items": { "$ref": "#/$defs/invariant_assertion" },
+          "uniqueItems": true,
+          "description": "Every manifest declares all twelve const-true invariants. See §9."
+        },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Top-level aggregator binding all retention rows, export reviews, and delete reviews for a learning profile. See learning_privacy_export_contract.md §9."
+    }
+  }
+}
