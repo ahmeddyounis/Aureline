@@ -1,0 +1,1059 @@
+# File-association and reopen ownership matrix.
+#
+# Machine-readable companion to
+# artifacts/platform/system_affordance_route_audit.md. One row per
+# (file_extension_class, side-by-side relation, owning_channel) tuple
+# that the install topology admits, plus per-relation rows for recent
+# -item registration, dock / taskbar reopen, and protocol-handler
+# default ownership. Each row pins which channel owns the registration,
+# which review state the surface advertises if the owning channel /
+# build would change, and which exact-target reopen rule applies under
+# side-by-side coexistence so a reviewer can detect when an ownership
+# change would strand users on the wrong file association, recent
+# item, dock entry, or deep-link handler.
+#
+# Tooling reads this file; the route-audit packet is the narrative
+# companion. If the two disagree, the route audit wins and this file
+# MUST be updated in the same change.
+#
+# Rules.
+#   - Every row resolves to exactly one
+#     side_by_side_relation_class value re-exported from
+#     artifacts/release/channel_ownership_audit.yaml; no row may invent
+#     a new relation.
+#   - Every owning_channel field cites a channel_class re-exported
+#     from artifacts/release/channel_ownership_audit.yaml.
+#   - Every file_association_registration_class,
+#     recent_item_registration_class, and
+#     protocol_handler_ownership_class field is re-exported from
+#     artifacts/release/state_root_map.yaml.
+#   - Every handler_ownership_class and ownership_change_review_state
+#     field is re-exported from
+#     schemas/platform/deep_link_intent.schema.json.
+#   - Every source_surface_class field is re-exported from
+#     schemas/platform/deep_link_intent.schema.json.
+#   - Every audit_event_id field is re-exported from
+#     schemas/platform/deep_link_intent.schema.json.
+#   - Adding a row is additive-minor and requires bumping
+#     schema_version and updating the route-audit packet in the same
+#     change. Repurposing an existing value is breaking and opens a
+#     row in artifacts/governance/decision_index.yaml.
+
+schema_version: 1
+matrix_id: aureline.file_association_ownership_matrix
+status: seeded
+
+route_audit_source: artifacts/platform/system_affordance_route_audit.md
+deep_link_intent_schema: schemas/platform/deep_link_intent.schema.json
+desktop_affordance_contract_source: docs/ux/desktop_affordance_contract.md
+channel_ownership_audit_source: artifacts/release/channel_ownership_audit.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+install_topology_matrix_source: artifacts/release/install_topology_matrix.yaml
+channel_identity_state_roots_source: artifacts/release/channel_identity_and_state_roots.yaml
+portable_mode_limitations_source: artifacts/release/portable_mode_limitations.yaml
+claimed_desktop_profiles_source: artifacts/platform/claimed_desktop_profiles.yaml
+fixtures_ref_system_affordance: fixtures/platform/system_affordance_cases
+fixtures_ref_deep_link_replay: fixtures/platform/deep_link_replay_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§9.12 Native OS integration and desktop management requirements"
+      - "§10.22 Deep-link, callback, and replay-deny contracts"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "Appendix AA Desktop-Platform Conformance Matrix"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Native desktop integration, deep-link, and system-affordance contract"
+
+# -----------------------------------------------------------------------------
+# Re-exported vocabularies.
+#
+# Each list below is re-exported verbatim from an upstream source so
+# tooling can validate matrix rows without cross-parsing every file.
+# The upstream source is authoritative; if a value diverges, this file
+# updates in the same change as the upstream.
+# -----------------------------------------------------------------------------
+
+# Re-exported from artifacts/release/channel_ownership_audit.yaml.
+side_by_side_relation_class_vocabulary:
+  - none
+  - stable_and_preview
+  - stable_and_beta
+  - stable_and_lts
+  - preview_and_beta
+  - installed_and_portable
+  - three_channel_matrix
+  - managed_and_portable
+
+# Re-exported from artifacts/release/channel_ownership_audit.yaml.
+channel_class_vocabulary:
+  - stable
+  - preview
+  - beta
+  - lts
+  - portable_stable
+  - portable_preview
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+file_association_registration_class_vocabulary:
+  - user_or_admin_selectable_candidate_handler
+  - admin_only_default_handler
+  - not_registered
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+recent_item_registration_class_vocabulary:
+  - per_channel_under_user_profile
+  - per_channel_under_portable_root
+  - not_registered
+
+# Re-exported from artifacts/release/state_root_map.yaml.
+protocol_handler_ownership_class_vocabulary:
+  - per_channel_suffixed_scheme
+  - shared_scheme_with_user_or_admin_default
+  - not_registered
+
+# Re-exported from schemas/platform/deep_link_intent.schema.json
+# `#/$defs/handler_ownership_class`.
+handler_ownership_class_vocabulary:
+  - machine_global_registered
+  - current_user_registered
+  - portable_local_only
+  - managed_policy_owned
+  - no_handler_ownership
+  - conflict_unknown_owner
+
+# Re-exported from schemas/platform/deep_link_intent.schema.json
+# `#/$defs/ownership_change_review_state`.
+ownership_change_review_state_vocabulary:
+  - no_change
+  - preview_required_before_change
+  - blocked_by_policy
+  - accepted_after_review
+  - denied_conflict
+
+# Re-exported from schemas/platform/deep_link_intent.schema.json
+# `#/$defs/source_surface_class`. Only the surfaces audited by this
+# matrix are listed; the full vocabulary lives in the schema.
+audited_source_surface_class_vocabulary:
+  - file_association
+  - open_with
+  - reveal_in_system_shell
+  - dock_taskbar_recent
+  - dock_taskbar_jump_action
+  - os_notification_click
+  - os_badge_activation
+  - protocol_handler
+  - default_browser_callback
+  - companion_handoff_return
+
+# Re-exported from schemas/platform/deep_link_intent.schema.json
+# `#/$defs/audit_event_id`.
+audit_event_id_vocabulary:
+  - platform.deep_link_intent_received
+  - platform.deep_link_intent_admitted
+  - platform.deep_link_intent_review_required
+  - platform.deep_link_intent_denied
+  - platform.system_affordance_case_exercised
+  - platform.handler_ownership_reviewed
+  - platform.notification_clickthrough_resolved
+  - platform.lifecycle_recovery_preserved_context
+
+# File-extension classes audited by this matrix. The class is the
+# durable category Aureline reasons about; concrete extensions are
+# implementation details that land with the eventual installer lane.
+# Adding a class here is additive-minor and requires bumping
+# schema_version and updating the route audit in the same change.
+file_extension_class_vocabulary:
+  - workspace_manifest
+  - workspace_recent_pointer
+  - source_text_default_handler_candidate
+  - source_text_strong_claim_candidate
+  - lockfile_or_manifest_lockfile
+  - generic_text_or_markdown
+  - non_text_artifact
+
+# Default-handler claim disposition per file-extension class. Resolves
+# into file_association_registration_class when the row claims a
+# handler.
+default_handler_claim_class_vocabulary:
+  - claim_as_default_per_channel
+  - claim_as_candidate_only
+  - admin_only_default
+  - never_claim
+  - portable_no_claim
+  - external_package_manager_owned
+
+# Reopen-rule vocabulary used per file-extension or reopen-surface row.
+# Pinned here (not re-exported) and resolves into the closed
+# expected-state-token vocabulary in
+# artifacts/platform/native_lifecycle_drill_packet.md when the reopen
+# is degraded.
+exact_target_reopen_rule_vocabulary:
+  - resolve_to_durable_object_via_canonical_command
+  - resolve_to_recent_work_entry_via_canonical_command
+  - resolve_to_review_object_via_event_lineage
+  - resolve_to_workspace_manifest_via_canonical_command
+  - resolve_to_placeholder_with_locate_or_reconnect
+  - resolve_to_open_intent_review_sheet
+  - never_reopen_directly_summary_only_surface
+
+# -----------------------------------------------------------------------------
+# Matrix-row rules.
+# -----------------------------------------------------------------------------
+matrix_row_rules:
+  - id: every_row_pins_one_relation_class
+    description: >
+      Every matrix row carries exactly one side_by_side_relation_class
+      value. The none relation is admitted only for single-channel
+      hosts; rows that claim none MUST NOT enumerate a neighbor
+      channel.
+  - id: every_extension_row_pins_one_owning_channel_per_default
+    description: >
+      Every file_extension_class row enumerates owning_channel exactly
+      once for default_handler_claim_class = claim_as_default_per_channel
+      under each side-by-side relation. Two channels MUST NOT both
+      claim default ownership of the same extension class on the same
+      host.
+  - id: every_extension_row_admits_candidate_handlers_for_each_channel
+    description: >
+      Every file_extension_class row whose
+      file_association_registration_class is
+      user_or_admin_selectable_candidate_handler enumerates one
+      candidate-handler entry per coexisting channel; the user or
+      admin selects which channel becomes default. A row that allows
+      one channel to silently override the existing default is non
+      -conforming.
+  - id: portable_rows_register_nothing_on_host
+    description: >
+      Every row whose owning_channel is portable_stable or
+      portable_preview pins
+      file_association_registration_class = not_registered,
+      protocol_handler_ownership_class = not_registered, and a
+      handler_ownership_class of portable_local_only. Portable rows
+      MUST cite a portable_mode_limitations.yaml row id for every
+      forbidden host-mutation axis they suppress.
+  - id: managed_rows_advertise_blocked_by_policy_under_managed_lock
+    description: >
+      Every managed_and_portable or managed_with_policy_lock row whose
+      owning_channel change would conflict with managed policy pins
+      ownership_change_review_state = blocked_by_policy and cites the
+      policy-injection class governing the lock.
+  - id: ownership_change_requires_review
+    description: >
+      Every row whose change_disposition is
+      change_owning_channel or change_default_handler MUST advertise
+      ownership_change_review_state = preview_required_before_change
+      (or blocked_by_policy under managed lock) and route to
+      audit_event_id = platform.handler_ownership_reviewed before
+      execution. Last-writer-wins ownership change is non-conforming.
+  - id: every_reopen_row_pins_exact_target_rule
+    description: >
+      Every recent-item, dock / taskbar, jump-action, notification
+      click-through, or protocol-handler reopen row pins one
+      exact_target_reopen_rule value. Rows whose reopen would land on
+      a generic Start Center or empty workspace shell are non
+      -conforming.
+  - id: side_by_side_relations_have_at_least_one_row_per_axis
+    description: >
+      Every side_by_side_relation_class except none MUST appear at
+      least once per axis (file_association, recent_items,
+      protocol_handler, notification_badge). Missing axes for a claimed
+      relation is non-conforming.
+  - id: every_row_carries_audit_event_id
+    description: >
+      Every row pins exactly one audit_event_id from the closed
+      vocabulary; rows whose ownership change or reopen would skip
+      audit are non-conforming.
+
+# -----------------------------------------------------------------------------
+# File-association rows.
+#
+# One row per (file_extension_class, side_by_side_relation_class,
+# owning_channel) tuple. Rows are ordered by extension class, then by
+# relation, then by channel.
+# -----------------------------------------------------------------------------
+file_association_rows:
+
+  - id: file_association:workspace_manifest:stable_and_preview:stable
+    file_extension_class: workspace_manifest
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel: stable
+    file_association_registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_claim_class: claim_as_default_per_channel
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    change_disposition: register_candidate_handler
+    candidate_handler_channels: [stable, preview]
+    user_or_admin_default_choice_required: true
+    operator_choice_class: default_file_handler_channel
+    exact_target_reopen_rule: resolve_to_workspace_manifest_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_folder
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs:
+      - fixtures/platform/system_affordance_cases/file_association_workspace_review.json
+    must_not_happen:
+      - last-writer-wins file association on .aureline workspace manifest
+      - silent override of existing default handler when preview installs
+      - workspace opens as trusted because it came from the OS shell
+    notes: >
+      Stable and Preview both register as candidate handlers for the
+      workspace manifest; the user or admin selects which channel
+      becomes default. The route-audit row binds the deep-link intent
+      to cmd:workspace.open_folder under
+      authority_delta_class = trust_boundary_crossing until trust is
+      resolved.
+    status: proposed
+
+  - id: file_association:workspace_manifest:stable_and_preview:preview
+    file_extension_class: workspace_manifest
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel: preview
+    file_association_registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_claim_class: claim_as_candidate_only
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    change_disposition: register_candidate_handler
+    candidate_handler_channels: [stable, preview]
+    user_or_admin_default_choice_required: true
+    operator_choice_class: default_file_handler_channel
+    exact_target_reopen_rule: resolve_to_workspace_manifest_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_folder
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs:
+      - fixtures/platform/system_affordance_cases/file_association_workspace_review.json
+    must_not_happen:
+      - preview installer claims the default workspace handler without admin or user choice
+      - preview build opens a stable workspace manifest as trusted
+    notes: >
+      Preview registers as a candidate handler only; the existing
+      default handler is preserved unless the user or admin elects to
+      change it through the preview-required-before-change review
+      sheet.
+    status: proposed
+
+  - id: file_association:workspace_manifest:stable_and_lts:lts
+    file_extension_class: workspace_manifest
+    side_by_side_relation_class: stable_and_lts
+    coexisting_channels: [stable, lts]
+    owning_channel: lts
+    file_association_registration_class: admin_only_default_handler
+    default_handler_claim_class: admin_only_default
+    handler_ownership_class: managed_policy_owned
+    ownership_change_review_state: blocked_by_policy
+    change_disposition: register_admin_locked_default
+    candidate_handler_channels: [stable, lts]
+    user_or_admin_default_choice_required: false
+    operator_choice_class: default_file_handler_channel_if_managed_policy_sets_one
+    exact_target_reopen_rule: resolve_to_workspace_manifest_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_folder
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs:
+      - fixtures/release/install_truth_cases/desktop_lts_admin_about_truth.yaml
+    must_not_happen:
+      - long-support default handler rebound by a non-admin Stable installer
+      - admin policy rebinding the default without a managed-deployment audit event
+    notes: >
+      The long-support channel default handler is admin-locked under
+      managed deployment. The matching managed-deployment fleet review
+      surface is the only path to change the default; the deep-link
+      intent for a workspace open under the long-support default
+      always advertises the managed-policy ownership class.
+    status: proposed
+
+  - id: file_association:workspace_manifest:installed_and_portable:stable
+    file_extension_class: workspace_manifest
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel: stable
+    file_association_registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_claim_class: claim_as_default_per_channel
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    change_disposition: register_candidate_handler
+    candidate_handler_channels: [stable]
+    user_or_admin_default_choice_required: true
+    operator_choice_class: default_file_handler_channel
+    exact_target_reopen_rule: resolve_to_workspace_manifest_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_folder
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs:
+      - fixtures/platform/system_affordance_cases/file_association_workspace_review.json
+    must_not_happen:
+      - portable launch claims default handler ownership
+    notes: >
+      Only the installed Stable side claims a candidate handler; the
+      portable side cannot register a host file association.
+    status: proposed
+
+  - id: file_association:workspace_manifest:installed_and_portable:portable_stable
+    file_extension_class: workspace_manifest
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel: portable_stable
+    file_association_registration_class: not_registered
+    default_handler_claim_class: portable_no_claim
+    handler_ownership_class: portable_local_only
+    ownership_change_review_state: blocked_by_policy
+    change_disposition: never_register
+    candidate_handler_channels: []
+    user_or_admin_default_choice_required: false
+    operator_choice_class: null
+    exact_target_reopen_rule: resolve_to_placeholder_with_locate_or_reconnect
+    canonical_command_id_family:
+      - cmd:workspace.open_folder
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    portable_limitation_refs:
+      - portable_mode_limitations:file_association_registration
+    fixture_refs: []
+    must_not_happen:
+      - portable mode registers a host file association
+      - portable mode silently widens into machine-global file-association ownership
+    notes: >
+      Portable rows MUST suppress every host file-association write;
+      the portable launch shell still admits a workspace_open intent
+      via the canonical command, but the OS file association points
+      at the installed Stable build. If the installed Stable build is
+      absent, the reopen surface lands on a placeholder with locate /
+      reconnect actions.
+    status: proposed
+
+  - id: file_association:source_text_default_handler_candidate:stable_and_preview:stable
+    file_extension_class: source_text_default_handler_candidate
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel: stable
+    file_association_registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_claim_class: claim_as_candidate_only
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    change_disposition: register_candidate_handler
+    candidate_handler_channels: [stable, preview]
+    user_or_admin_default_choice_required: true
+    operator_choice_class: default_file_handler_channel
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_file
+      - cmd:file.open_with
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - default text-handler rebinding without user or admin review
+      - silent claim of a popular text extension as default
+    notes: >
+      Aureline registers as a candidate handler for source-text
+      defaults; it never claims default ownership unilaterally.
+    status: proposed
+
+  - id: file_association:source_text_strong_claim_candidate:stable_and_preview:stable
+    file_extension_class: source_text_strong_claim_candidate
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel: stable
+    file_association_registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_claim_class: claim_as_default_per_channel
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    change_disposition: register_candidate_handler
+    candidate_handler_channels: [stable, preview]
+    user_or_admin_default_choice_required: true
+    operator_choice_class: default_file_handler_channel
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_file
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - preview claim outranks user-set stable default
+    notes: >
+      For extensions where Aureline is the dominant editor (the
+      strong-claim set), a per-channel default claim is permitted but
+      always user-or-admin selectable.
+    status: proposed
+
+  - id: file_association:lockfile_or_manifest_lockfile:stable_and_preview:stable
+    file_extension_class: lockfile_or_manifest_lockfile
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel: stable
+    file_association_registration_class: user_or_admin_selectable_candidate_handler
+    default_handler_claim_class: claim_as_candidate_only
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    change_disposition: register_candidate_handler
+    candidate_handler_channels: [stable, preview]
+    user_or_admin_default_choice_required: true
+    operator_choice_class: default_file_handler_channel
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    canonical_command_id_family:
+      - cmd:workspace.open_file
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - lockfile open silently uses a different channel's editor
+    notes: >
+      Lockfiles open as inspect-only by default and open through the
+      canonical workspace.open_file command so the open surface stays
+      attributable to one route record.
+    status: proposed
+
+  - id: file_association:non_text_artifact:any:any
+    file_extension_class: non_text_artifact
+    side_by_side_relation_class: none
+    coexisting_channels: []
+    owning_channel: stable
+    file_association_registration_class: not_registered
+    default_handler_claim_class: never_claim
+    handler_ownership_class: no_handler_ownership
+    ownership_change_review_state: no_change
+    change_disposition: never_register
+    candidate_handler_channels: []
+    user_or_admin_default_choice_required: false
+    operator_choice_class: null
+    exact_target_reopen_rule: never_reopen_directly_summary_only_surface
+    canonical_command_id_family: []
+    audit_event_id_on_change: platform.handler_ownership_reviewed
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - Aureline claims default handler for a binary or non-text artifact extension
+    notes: >
+      Aureline never registers as a handler for non-text artifacts;
+      these resolve through the OS default handler.
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Recent-item registration rows.
+#
+# One row per side_by_side_relation_class. Mirrors the recent-item
+# axis in artifacts/release/channel_ownership_audit.yaml so reviewers
+# can detect when a channel/build ownership change would strand users
+# on the wrong recent-item list.
+# -----------------------------------------------------------------------------
+recent_item_rows:
+
+  - id: recent_items:stable_and_preview
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel_class_per_channel: per_channel_isolated
+    recent_item_registration_class: per_channel_under_user_profile
+    handler_ownership_class: current_user_registered
+    ownership_change_review_state: preview_required_before_change
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    canonical_command_id_family:
+      - cmd:start_center.open_recent
+      - cmd:workspace.open_folder
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs:
+      - fixtures/platform/system_affordance_cases/removable_volume_return_cached_context.json
+      - fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+    must_not_happen:
+      - merging stable and preview recent items into one OS list
+      - reopening a stable recent entry under preview without review
+    notes: >
+      Side-by-side hosts render two recent-item lists, one per
+      channel. Each recent entry carries the owning-channel ref so the
+      OS shell can show the channel badge.
+    status: proposed
+
+  - id: recent_items:stable_and_lts
+    side_by_side_relation_class: stable_and_lts
+    coexisting_channels: [stable, lts]
+    owning_channel_class_per_channel: per_channel_isolated
+    recent_item_registration_class: per_channel_under_user_profile
+    handler_ownership_class: current_user_registered
+    ownership_change_review_state: preview_required_before_change
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    canonical_command_id_family:
+      - cmd:start_center.open_recent
+      - cmd:workspace.open_folder
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - merging stable and long-support recent items into one OS list
+    notes: >
+      The long-support channel's recent-items list lives under the
+      user profile, identical to Stable's. The admin-only default
+      handler does not change the recent-item ownership rule.
+    status: proposed
+
+  - id: recent_items:installed_and_portable:installed
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel_class_per_channel: stable
+    recent_item_registration_class: per_channel_under_user_profile
+    handler_ownership_class: current_user_registered
+    ownership_change_review_state: preview_required_before_change
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    canonical_command_id_family:
+      - cmd:start_center.open_recent
+      - cmd:workspace.open_folder
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - portable launch writes into the installed channel's recent-item list
+    notes: >
+      The installed Stable side uses per-channel-under-user-profile
+      recent items; portable does not.
+    status: proposed
+
+  - id: recent_items:installed_and_portable:portable
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel_class_per_channel: portable_stable
+    recent_item_registration_class: per_channel_under_portable_root
+    handler_ownership_class: portable_local_only
+    ownership_change_review_state: blocked_by_policy
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    canonical_command_id_family:
+      - cmd:start_center.open_recent
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    portable_limitation_refs:
+      - portable_mode_limitations:machine_global_recent_item_write
+    fixture_refs: []
+    must_not_happen:
+      - portable mode writes recent items into a machine-global OS list
+    notes: >
+      Portable's recent items live entirely under the portable root.
+      The OS shell does not see a portable recent-items list because
+      portable does not register one on the host.
+    status: proposed
+
+  - id: recent_items:managed_and_portable:managed
+    side_by_side_relation_class: managed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel_class_per_channel: stable
+    recent_item_registration_class: per_channel_under_user_profile
+    handler_ownership_class: managed_policy_owned
+    ownership_change_review_state: blocked_by_policy
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    canonical_command_id_family:
+      - cmd:start_center.open_recent
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - managed deployment merges fleet recent items with portable recent items
+    notes: >
+      Under managed coexistence with a portable neighbor, the managed
+      installed recent items remain isolated under the user profile
+      with a managed-policy ownership badge.
+    status: proposed
+
+  - id: recent_items:three_channel_matrix
+    side_by_side_relation_class: three_channel_matrix
+    coexisting_channels: [stable, preview, lts]
+    owning_channel_class_per_channel: per_channel_isolated
+    recent_item_registration_class: per_channel_under_user_profile
+    handler_ownership_class: current_user_registered
+    ownership_change_review_state: preview_required_before_change
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    canonical_command_id_family:
+      - cmd:start_center.open_recent
+      - cmd:workspace.open_folder
+    audit_event_id_on_reopen: platform.system_affordance_case_exercised
+    fixture_refs: []
+    must_not_happen:
+      - three-channel host merges any pair of recent-item lists
+    notes: >
+      Three-channel matrix renders three recent-item lists; the
+      ownership badge per entry distinguishes channel and build owner.
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Protocol-handler ownership rows.
+#
+# One row per side_by_side_relation_class. Mirrors the protocol
+# -handler axis in artifacts/release/channel_ownership_audit.yaml.
+# -----------------------------------------------------------------------------
+protocol_handler_rows:
+
+  - id: protocol_handler:stable_and_preview:per_channel_suffixed
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    protocol_handler_ownership_class: per_channel_suffixed_scheme
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: no_change
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:workspace.open_folder
+      - cmd:auth.complete_callback
+    audit_event_id_on_admit: platform.deep_link_intent_admitted
+    audit_event_id_on_deny: platform.deep_link_intent_denied
+    fixture_refs:
+      - fixtures/platform/deep_link_replay_cases/managed_resume_replay_denied_policy_epoch_changed.yaml
+      - fixtures/platform/deep_link_replay_cases/review_link_replay_denied_target_drifted.yaml
+    must_not_happen:
+      - per-channel suffixed scheme silently rebinds to another channel
+    notes: >
+      Per-channel suffixed schemes route deep links to one channel
+      unambiguously. No review state is required for normal use.
+    status: proposed
+
+  - id: protocol_handler:stable_and_preview:shared_default
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: preview_required_before_change
+    operator_choice_class: shared_protocol_default_channel
+    user_or_admin_default_choice_required: true
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:auth.complete_callback
+    audit_event_id_on_admit: platform.deep_link_intent_admitted
+    audit_event_id_on_deny: platform.deep_link_intent_denied
+    fixture_refs:
+      - fixtures/platform/deep_link_replay_cases/auth_callback_replay_denied_consumed.yaml
+      - fixtures/platform/deep_link_replay_cases/browser_return_replay_denied_origin_mismatch.yaml
+    must_not_happen:
+      - last-writer-wins shared protocol scheme
+      - shared scheme silently rebinds when preview installer runs
+    notes: >
+      The shared aureline:// scheme resolves to the user-or-admin
+      selected default. The matrix flags ownership-change review state
+      so a shared-scheme rebinding never happens silently.
+    status: proposed
+
+  - id: protocol_handler:installed_and_portable:installed
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    protocol_handler_ownership_class: per_channel_suffixed_scheme
+    handler_ownership_class: machine_global_registered
+    ownership_change_review_state: no_change
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:workspace.open_folder
+    audit_event_id_on_admit: platform.deep_link_intent_admitted
+    audit_event_id_on_deny: platform.deep_link_intent_denied
+    fixture_refs: []
+    must_not_happen:
+      - portable launch claims the per-channel suffixed scheme
+    notes: >
+      Only the installed Stable side carries the suffixed scheme. The
+      portable side is not_registered.
+    status: proposed
+
+  - id: protocol_handler:installed_and_portable:portable
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    protocol_handler_ownership_class: not_registered
+    handler_ownership_class: portable_local_only
+    ownership_change_review_state: blocked_by_policy
+    exact_target_reopen_rule: never_reopen_directly_summary_only_surface
+    canonical_command_id_family: []
+    audit_event_id_on_admit: platform.deep_link_intent_denied
+    audit_event_id_on_deny: platform.deep_link_intent_denied
+    portable_limitation_refs:
+      - portable_mode_limitations:protocol_handler_registration
+    fixture_refs: []
+    must_not_happen:
+      - portable mode claims any protocol scheme on the host
+    notes: >
+      Portable mode never registers a protocol handler. Deep links
+      arriving while only the portable build is running fall back to
+      the OS-default handler resolution.
+    status: proposed
+
+  - id: protocol_handler:managed_and_portable:managed
+    side_by_side_relation_class: managed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    protocol_handler_ownership_class: shared_scheme_with_user_or_admin_default
+    handler_ownership_class: managed_policy_owned
+    ownership_change_review_state: blocked_by_policy
+    operator_choice_class: shared_protocol_default_channel
+    user_or_admin_default_choice_required: false
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:auth.complete_callback
+    audit_event_id_on_admit: platform.deep_link_intent_admitted
+    audit_event_id_on_deny: platform.deep_link_intent_denied
+    fixture_refs:
+      - fixtures/platform/deep_link_replay_cases/managed_resume_replay_denied_policy_epoch_changed.yaml
+    must_not_happen:
+      - portable neighbor rebinds the managed shared protocol default
+    notes: >
+      Managed deployment locks the shared scheme; the matching
+      managed-deployment fleet review surface is the only path to
+      change the default.
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Notification badge and click-through reopen rows.
+#
+# One row per side_by_side_relation_class. Notifications and badges
+# are projections of the durable attention model; the rows pin the
+# owning channel and the exact-target reopen rule.
+# -----------------------------------------------------------------------------
+notification_badge_rows:
+
+  - id: notification_badge:stable_and_preview
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    owning_channel_class_per_channel: per_channel_isolated
+    handler_ownership_class: current_user_registered
+    ownership_change_review_state: no_change
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:activity.open_event
+      - cmd:run.open_run
+    audit_event_id_on_reopen: platform.notification_clickthrough_resolved
+    fixture_refs:
+      - fixtures/platform/system_affordance_cases/notification_clickthrough_lock_screen_privacy.json
+      - fixtures/platform/system_affordance_cases/badge_presence_traceable_count.json
+    must_not_happen:
+      - mixed-class badge inflation across channels
+      - lock-screen payload exposes review title or tenant identity
+      - notification quick action mutates a review without in-product review
+    notes: >
+      Each channel carries its own notification badge derived from
+      deduped durable objects. Click-through resolves to the durable
+      review or activity-center event via event lineage.
+    status: proposed
+
+  - id: notification_badge:installed_and_portable:installed
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel_class_per_channel: stable
+    handler_ownership_class: current_user_registered
+    ownership_change_review_state: no_change
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:activity.open_event
+    audit_event_id_on_reopen: platform.notification_clickthrough_resolved
+    fixture_refs:
+      - fixtures/platform/system_affordance_cases/notification_clickthrough_lock_screen_privacy.json
+    must_not_happen:
+      - portable launch claims the OS notification surface
+    notes: >
+      Only the installed Stable side delivers OS notifications and
+      badge counts on the host.
+    status: proposed
+
+  - id: notification_badge:installed_and_portable:portable
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel_class_per_channel: portable_stable
+    handler_ownership_class: portable_local_only
+    ownership_change_review_state: blocked_by_policy
+    exact_target_reopen_rule: never_reopen_directly_summary_only_surface
+    canonical_command_id_family: []
+    audit_event_id_on_reopen: platform.notification_clickthrough_resolved
+    portable_limitation_refs:
+      - portable_mode_limitations:shell_hook_install
+      - portable_mode_limitations:autostart_hook_install
+    fixture_refs: []
+    must_not_happen:
+      - portable mode delivers OS notifications under the host shell
+    notes: >
+      Portable mode does not register notification or badge surfaces
+      on the host. In-product activity remains visible inside the
+      portable session only.
+    status: proposed
+
+  - id: notification_badge:managed_and_portable
+    side_by_side_relation_class: managed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    owning_channel_class_per_channel: stable
+    handler_ownership_class: managed_policy_owned
+    ownership_change_review_state: blocked_by_policy
+    exact_target_reopen_rule: resolve_to_review_object_via_event_lineage
+    canonical_command_id_family:
+      - cmd:review.open_thread
+      - cmd:activity.open_event
+    audit_event_id_on_reopen: platform.notification_clickthrough_resolved
+    fixture_refs: []
+    must_not_happen:
+      - portable neighbor delivers OS notifications under managed deployment
+    notes: >
+      Managed deployment owns OS notification delivery on the host.
+      The portable neighbor does not.
+    status: proposed
+
+# -----------------------------------------------------------------------------
+# Channel-build ownership change drills.
+#
+# Reviewer-facing rows that bind ownership-change disposition to the
+# review state, the audit event id, and the must-not-happen
+# assertions. Tooling validates that every change_disposition value
+# resolves into the matching ownership_change_review_state.
+# -----------------------------------------------------------------------------
+ownership_change_drills:
+  - drill_id: ownership_change:install_new_channel_alongside_stable
+    change_disposition: install_neighbor_channel
+    affected_axes:
+      - file_association_candidates
+      - protocol_handler_schemes
+      - recent_item_registrations
+      - notification_badge
+    ownership_change_review_state: preview_required_before_change
+    audit_event_id: platform.handler_ownership_reviewed
+    canonical_command_id_family:
+      - cmd:settings.open
+      - cmd:about.open
+    must_not_happen:
+      - new neighbor channel claims existing default handler silently
+      - new neighbor channel rebinds the shared protocol scheme silently
+      - new neighbor channel merges its recent items into the existing list
+    notes: >
+      Installing a side-by-side neighbor (Preview alongside Stable, or
+      long-support alongside Stable) MUST surface a preview-required
+      review sheet for every shared default and MUST NOT mutate any
+      existing user-or-admin selected default.
+
+  - drill_id: ownership_change:promote_neighbor_to_default_handler
+    change_disposition: change_default_handler
+    affected_axes:
+      - file_association_candidates
+      - protocol_handler_schemes
+    ownership_change_review_state: preview_required_before_change
+    audit_event_id: platform.handler_ownership_reviewed
+    canonical_command_id_family:
+      - cmd:settings.open
+    must_not_happen:
+      - silent default-handler change after build update
+      - default-handler change without review under managed policy
+    notes: >
+      Changing the user-or-admin selected default handler MUST route
+      through a review sheet that names the previous owner, the new
+      owner, and the affected extension classes.
+
+  - drill_id: ownership_change:uninstall_default_handler_owner
+    change_disposition: remove_owning_channel
+    affected_axes:
+      - file_association_candidates
+      - protocol_handler_schemes
+      - recent_item_registrations
+      - notification_badge
+    ownership_change_review_state: preview_required_before_change
+    audit_event_id: platform.handler_ownership_reviewed
+    canonical_command_id_family:
+      - cmd:settings.open
+    must_not_happen:
+      - uninstall silently retargets default handler to a different channel
+      - uninstall destroys the neighbor channel's recent-item list
+      - uninstall destroys portable-root state of a coexisting portable build
+    notes: >
+      Uninstalling the channel that owns the default handler MUST
+      preview the resulting handler-ownership state and offer the
+      neighbor channel as a candidate; it MUST NOT silently rebind.
+
+  - drill_id: ownership_change:portable_launch_under_installed_host
+    change_disposition: portable_launch_only
+    affected_axes:
+      - file_association_candidates
+      - protocol_handler_schemes
+      - recent_item_registrations
+      - notification_badge
+    ownership_change_review_state: blocked_by_policy
+    audit_event_id: platform.handler_ownership_reviewed
+    canonical_command_id_family:
+      - cmd:about.open
+    must_not_happen:
+      - portable launch widens into machine-global registration
+      - portable launch silently uses the installed channel's recent items
+    notes: >
+      A portable launch under an installed-host coexistence row MUST
+      record handler_ownership_class = portable_local_only on every
+      OS-facing row and MUST NOT mutate the host shell.
+
+  - drill_id: ownership_change:managed_policy_lock_overrides_user_choice
+    change_disposition: managed_policy_lock
+    affected_axes:
+      - file_association_candidates
+      - protocol_handler_schemes
+      - notification_badge
+    ownership_change_review_state: blocked_by_policy
+    audit_event_id: platform.handler_ownership_reviewed
+    canonical_command_id_family:
+      - cmd:settings.open
+    must_not_happen:
+      - managed policy lock resets without admin-side review
+      - managed policy lock is hidden from About / Update / Diagnostics
+    notes: >
+      Managed deployment policy locks override user-or-admin choice
+      and surface the lock everywhere the install-truth packet
+      projects (About, Update Center, Diagnostics, Support Bundle).
+
+# -----------------------------------------------------------------------------
+# Conformance assertions.
+#
+# Tooling and reviewers compare every matrix change against this list.
+# A change that adds or alters a row MUST keep these assertions true.
+# -----------------------------------------------------------------------------
+conformance_assertions:
+  - id: every_audited_surface_resolves_to_canonical_command
+    description: >
+      Every file_association, recent_item, dock_taskbar_recent,
+      dock_taskbar_jump_action, os_notification_click,
+      os_badge_activation, protocol_handler, default_browser_callback,
+      and companion_handoff_return row pins at least one canonical
+      command_id_family entry. Rows that elide a canonical command
+      reference are non-conforming.
+  - id: every_ownership_change_carries_review_state
+    description: >
+      Every change_disposition that would change the owning channel
+      or default handler advertises
+      ownership_change_review_state = preview_required_before_change
+      (or blocked_by_policy under managed policy) and emits
+      audit_event_id = platform.handler_ownership_reviewed. Last
+      -writer-wins ownership change is non-conforming.
+  - id: every_relation_pair_audits_every_axis
+    description: >
+      Every side_by_side_relation_class except none has at least one
+      row in file_association_rows, recent_item_rows,
+      protocol_handler_rows, and notification_badge_rows. Reviewers
+      can detect a missing axis at a glance.
+  - id: every_portable_row_suppresses_host_mutation
+    description: >
+      Every row whose owning_channel is portable_stable or
+      portable_preview pins
+      file_association_registration_class = not_registered,
+      protocol_handler_ownership_class = not_registered, and
+      handler_ownership_class = portable_local_only, and cites a
+      portable_mode_limitations.yaml row id for every host-mutation
+      axis it suppresses.
+  - id: every_reopen_pins_exact_target_rule
+    description: >
+      Every recent_item, dock_taskbar_recent, jump_action,
+      notification, badge, and protocol-handler row pins one
+      exact_target_reopen_rule value. Rows whose reopen falls back to
+      a generic Start Center home or empty workspace shell are non
+      -conforming.
+  - id: every_replay_deny_path_is_referenced
+    description: >
+      Every protocol-handler row whose
+      audit_event_id_on_deny is platform.deep_link_intent_denied
+      cites at least one fixture under
+      fixtures/platform/deep_link_replay_cases/ that exercises the
+      replay-deny posture.
+  - id: shared_protocol_default_requires_operator_choice
+    description: >
+      Every protocol-handler row whose
+      protocol_handler_ownership_class is
+      shared_scheme_with_user_or_admin_default lists
+      operator_choice_class = shared_protocol_default_channel and
+      sets ownership_change_review_state to
+      preview_required_before_change (or blocked_by_policy under
+      managed policy).
