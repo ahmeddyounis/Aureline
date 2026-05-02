@@ -1,0 +1,716 @@
+# Workflow-bundle badge freshness rows.
+#
+# Machine-readable register of one bundle_badge_freshness_row_record per
+# upstream bundle_evidence_badge_id (Start Center bundle surfaces §3.2).
+# Every row binds the badge id to the manifest fields that back it, the
+# required evidence link kinds, the required proof classes, the
+# downgrade target when freshness fails, and the publish-gate verdict
+# the claim-publication automation reads.
+#
+# Tooling reads this file. The normative narrative is
+# docs/workflow/bundle_evidence_freshness_contract.md. If the two
+# disagree, this file is authoritative for tooling and the narrative is
+# updated in the same change.
+#
+# Scope.
+#   - Six rows: badge.certified, badge.managed_approved, badge.community,
+#     badge.imported, badge.local_draft, badge.retest_pending. The
+#     packaging-posture badges (badge.signed_offline_bundle,
+#     badge.mirror_only, badge.live_or_mirror, badge.live_origin_only,
+#     badge.offline_no_bundle) and the lifecycle badges
+#     (badge.deprecated, badge.status_unknown) re-export their freshness
+#     posture from these six rows by reading the manifest's
+#     mirror_or_offline_packaging_posture / lifecycle_state_class
+#     directly; this register pins the proof-marker rows so the
+#     publish gate can resolve verdicts.
+#   - Each row enumerates required_evidence_links (with
+#     badge_evidence_link_requirement_kind), required_proof_classes,
+#     freshness gates (aging / stale / signature_break / mirror_unknown),
+#     downgrade triggers, downgrade targets, disclosure surfaces, and
+#     marketing separation rules.
+#
+# Rules.
+#   - Every rendered bundle_evidence_badge_id resolves through one row
+#     in this file at evaluation time.
+#   - Adding a row, adding a backing status, adding a required evidence
+#     link, or shifting a downgrade target is additive-minor and bumps
+#     bundle_badge_freshness_rows_schema_version. Repurposing an
+#     existing row's stale_publish_gate from publish_allowed* to
+#     publish_fail_closed_* (or vice versa) is breaking and requires a
+#     decision row in artifacts/governance/decision_index.yaml.
+#   - Every row carries marketing_separation_rules with all four
+#     classes from contract §3.8 verbatim.
+#   - Milestone slugs MUST NOT appear in any row id, badge label,
+#     trigger, or gate value.
+
+schema_version: 1
+bundle_badge_freshness_rows_schema_version: 1
+catalog_id: aureline.workflow.bundle_badge_freshness_rows
+status: seeded
+contract_doc_ref: docs/workflow/bundle_evidence_freshness_contract.md
+
+# -----------------------------------------------------------------------------
+# Cross-references.
+# -----------------------------------------------------------------------------
+upstream_refs:
+  workflow_bundle_object_model_contract_ref: docs/workflow/workflow_bundle_object_model.md
+  bundle_manifest_schema_ref: schemas/workflow/bundle_manifest.schema.json
+  bundle_change_review_contract_ref: docs/workflow/bundle_change_review_contract.md
+  bundle_change_preview_schema_ref: schemas/workflow/bundle_change_preview.schema.json
+  bundle_drift_and_removal_contract_ref: docs/workflow/bundle_drift_and_removal_contract.md
+  bundle_drift_row_schema_ref: schemas/workflow/bundle_drift_row.schema.json
+  start_center_bundle_surfaces_contract_ref: docs/ux/start_center_bundle_surfaces.md
+  workflow_bundle_id_register_ref: artifacts/qe/workflow_bundle_ids.yaml
+  evidence_freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+  claim_publication_automation_contract_ref: docs/release/claim_publication_automation_contract.md
+  claim_publication_binding_schema_ref: schemas/governance/claim_publication_binding.schema.json
+  template_and_prebuild_contract_ref: docs/ux/template_and_prebuild_contract.md
+  waiver_register_ref: artifacts/governance/waiver_register.yaml
+  stale_badge_fail_rules_ref: artifacts/workflow/stale_badge_fail_rules.yaml
+
+# -----------------------------------------------------------------------------
+# Closed vocabularies (re-exported and minted by this contract).
+#
+# Adding a value is additive-minor and bumps the schema version.
+# Repurposing a value is breaking and requires a decision row.
+# -----------------------------------------------------------------------------
+
+badge_freshness_state_class_vocabulary:
+  - evidence_fresh_within_cadence
+  - evidence_aging_within_window
+  - evidence_stale_past_window
+  - evidence_age_unknown_offline_or_unreachable
+  - evidence_missing_required_link
+  - evidence_signature_or_continuity_broken
+
+badge_downgrade_trigger_class_vocabulary:
+  - evidence_aged_out_past_window
+  - evidence_link_missing_from_manifest
+  - mirror_or_source_signature_changed
+  - mirror_or_source_canonical_revision_changed
+  - mirror_or_source_mirror_mismatch
+  - compatibility_narrowed_below_runtime
+  - archetype_proof_stale_past_cadence
+  - channel_demoted_or_branch_forked
+  - policy_pinned_revision_recall
+  - lifecycle_deprecation_or_removal
+  - evidence_signature_invalidated_post_apply
+  - freshness_unknown_review_required
+
+badge_downgrade_target_class_vocabulary:
+  - target_retest_pending_badge
+  - target_deprecated_badge
+  - target_status_unknown_badge
+  - target_imported_pending_review_badge
+  - target_community_unreviewed_badge
+  - target_publish_blocked_no_badge
+  - none
+
+badge_publish_gate_class_vocabulary:
+  - publish_allowed
+  - publish_allowed_with_narrowing
+  - publish_fail_closed_warn
+  - publish_fail_closed_block
+
+stale_badge_blocker_class_vocabulary:
+  - required_evidence_link_missing
+  - required_evidence_link_stale_past_window
+  - archetype_proof_stale_past_cadence_blocker
+  - signer_continuity_or_signature_broken
+  - mirror_or_source_revision_recalled
+  - compatibility_narrowed_below_supported_floor
+  - manifest_status_class_does_not_back_badge
+  - policy_pinned_revision_recall_blocker
+  - evidence_freshness_unknown_blocker
+
+badge_evidence_link_requirement_kind_vocabulary:
+  - required_for_render
+  - required_for_freshness_evaluation
+  - recommended_for_audit_only
+
+badge_disclosure_surface_class_vocabulary:
+  - start_center_bundle_card
+  - bundle_detail_page
+  - gallery_or_browse_bundles
+  - update_detail_entry
+  - project_doctor_recommended_action
+  - support_export_packet
+  - certification_sheet_artifact
+  - release_evidence_packet
+  - claim_publication_destination
+  - cli_or_headless_listing
+  - marketing_copy_lane
+
+badge_marketing_separation_rule_class_vocabulary:
+  - badge_is_proof_marker_not_marketing_label
+  - badge_decoupled_from_workflow_bundle_ownership
+  - badge_decoupled_from_recommendation_ranking
+  - badge_decoupled_from_install_authority
+
+# Re-exported (read-only) — see upstream sources for canonical sets.
+bundle_evidence_badge_id_vocabulary:
+  - badge.certified
+  - badge.managed_approved
+  - badge.community
+  - badge.imported
+  - badge.local_draft
+  - badge.retest_pending
+  - badge.deprecated
+  - badge.status_unknown
+  - badge.signed_offline_bundle
+  - badge.mirror_only
+  - badge.live_or_mirror
+  - badge.live_origin_only
+  - badge.offline_no_bundle
+
+# -----------------------------------------------------------------------------
+# Standard marketing separation rules block. Every row carries the same
+# four classes per contract §3.8 rule 1.
+# -----------------------------------------------------------------------------
+standard_marketing_separation_rules: &standard_marketing_separation_rules
+  - rule_class: badge_is_proof_marker_not_marketing_label
+    notes: >
+      Renders through the typed bundle_evidence_badge_id. Marketing
+      copy that paraphrases the badge as "industry-leading",
+      "best-in-class", "premium", "officially endorsed", "approved",
+      "trusted", "recommended", or "popular" is forbidden by the
+      claim-publication automation forbidden-generic-copy gate.
+  - rule_class: badge_decoupled_from_workflow_bundle_ownership
+    notes: >
+      The badge identifies the proof posture (certified, managed
+      approved, community, imported, local draft, retest pending);
+      it does not identify Aureline or the org as the bundle's
+      owner for branding purposes. Bundle ownership rides through
+      bundle_signer_source_class and the workflow_bundle_id register.
+  - rule_class: badge_decoupled_from_recommendation_ranking
+    notes: >
+      The badge does not imply ranking; recommendation ordering is
+      owned by the recommendation contract.
+  - rule_class: badge_decoupled_from_install_authority
+    notes: >
+      Rendering the badge MUST NOT trigger install or activation;
+      install rides through the environment-starter summary
+      contract.
+
+# -----------------------------------------------------------------------------
+# Bundle badge freshness rows.
+#
+# One row per upstream bundle_evidence_badge_id that is a proof marker.
+# The packaging-posture and lifecycle badges read their freshness off
+# this register's signature_break_gate and mirror_unknown_gate fields
+# rather than carrying their own row.
+# -----------------------------------------------------------------------------
+rows:
+
+  - row_id: bundle_badge_freshness_row:certified
+    badge_id: badge.certified
+    title: Certified bundle badge
+    summary: >
+      Aureline-signed launch or org-approved bundle that passes every
+      required scoreboard family on the bound launch-wedge cutline
+      within the scoreboard's freshness cadence. Stale evidence
+      downgrades the row to badge.retest_pending; missing required
+      evidence link or broken signer continuity blocks publication
+      closed.
+    backing_bundle_status_classes:
+      - certified_current
+    backing_bundle_source_classes:
+      - certified
+    backing_bundle_classes:
+      - launch_bundle
+      - org_approved_bundle
+    required_evidence_links:
+      - evidence_link_kind: certification_sheet
+        requirement_kind: required_for_render
+        scoreboard_family_id: workflow_bundle_or_archetype_proof_scoreboard
+        public_proof_packet_shape: workflow_bundle_or_archetype_proof_packet
+      - evidence_link_kind: scoreboard_packet
+        requirement_kind: required_for_render
+        scoreboard_family_id: workflow_bundle_or_archetype_proof_scoreboard
+        public_proof_packet_shape: workflow_bundle_or_archetype_proof_packet
+      - evidence_link_kind: scoreboard_packet
+        requirement_kind: required_for_render
+        scoreboard_family_id: bootstrap_and_entry_parity_scoreboard
+        public_proof_packet_shape: bootstrap_entry_parity_packet
+      - evidence_link_kind: scoreboard_packet
+        requirement_kind: required_for_render
+        scoreboard_family_id: task_run_test_debug_parity_scoreboard
+        public_proof_packet_shape: task_run_test_debug_parity_packet
+      - evidence_link_kind: scoreboard_packet
+        requirement_kind: required_for_render
+        scoreboard_family_id: extension_or_package_bridge_parity_scoreboard
+        public_proof_packet_shape: extension_or_package_bridge_parity_packet
+      - evidence_link_kind: scoreboard_packet
+        requirement_kind: required_for_render
+        scoreboard_family_id: benchmark_and_public_proof_packet_scoreboard
+        public_proof_packet_shape: benchmark_public_proof_packet
+      - evidence_link_kind: docs_version_match
+        requirement_kind: required_for_render
+        scoreboard_family_id: docs_known_limits_support_copy_alignment_scoreboard
+        public_proof_packet_shape: docs_known_limits_support_copy_alignment_packet
+      - evidence_link_kind: claim_manifest_row
+        requirement_kind: recommended_for_audit_only
+        scoreboard_family_id: null
+        public_proof_packet_shape: null
+    required_proof_classes:
+      - benchmark_publication_proof
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+      - support_scenario_quality_proof
+    aging_downgrade_target: target_retest_pending_badge
+    stale_downgrade_target: target_retest_pending_badge
+    aging_publish_gate: publish_allowed_with_narrowing
+    stale_publish_gate: publish_fail_closed_block
+    signature_break_gate: publish_fail_closed_block
+    mirror_unknown_gate: publish_fail_closed_warn
+    aging_claim_narrowing_class: narrows_certification_target_pending_retest
+    stale_claim_narrowing_class: breaks_certification_target_recall
+    bundle_card_freshness_overlay_when_aging: freshness.aging_within_window
+    bundle_card_freshness_overlay_when_stale: freshness.stale_past_window
+    bundle_card_freshness_overlay_when_unknown: freshness.age_unknown
+    disclosure_surfaces:
+      - start_center_bundle_card
+      - bundle_detail_page
+      - gallery_or_browse_bundles
+      - update_detail_entry
+      - project_doctor_recommended_action
+      - support_export_packet
+      - certification_sheet_artifact
+      - release_evidence_packet
+      - claim_publication_destination
+      - cli_or_headless_listing
+      - marketing_copy_lane
+    marketing_separation_rules: *standard_marketing_separation_rules
+    notes: >
+      Certified rows are the strictest publish gate. Stale evidence,
+      missing required link, broken signer continuity, mirror
+      mismatch on an immutable revision, archetype proof staleness,
+      or compatibility narrowing below runtime each fail-close
+      publication. Aging within window narrows authority; stale past
+      window blocks publication and downgrades to badge.retest_pending.
+
+  - row_id: bundle_badge_freshness_row:managed_approved
+    badge_id: badge.managed_approved
+    title: Managed approved bundle badge
+    summary: >
+      Org or fleet-managed approved bundle signed by the team-managed
+      signer. Stale or missing evidence on a managed-approved row
+      narrows authority and gates publication; signer rotation or
+      signature revocation blocks publication closed.
+    backing_bundle_status_classes:
+      - managed_approved_current
+      - certified_current
+    backing_bundle_source_classes:
+      - managed_approved
+      - certified
+    backing_bundle_classes:
+      - org_approved_bundle
+    required_evidence_links:
+      - evidence_link_kind: certification_sheet
+        requirement_kind: required_for_render
+        scoreboard_family_id: null
+        public_proof_packet_shape: null
+        notes: >
+          Managed-approved rows MUST carry at least one of
+          certification_sheet OR scoreboard_packet (the row's
+          required-or pairing). Both are listed as
+          required_for_render so the freshness evaluator reads each
+          when present.
+      - evidence_link_kind: scoreboard_packet
+        requirement_kind: required_for_render
+        scoreboard_family_id: null
+        public_proof_packet_shape: null
+      - evidence_link_kind: docs_version_match
+        requirement_kind: required_for_render
+        scoreboard_family_id: docs_known_limits_support_copy_alignment_scoreboard
+        public_proof_packet_shape: docs_known_limits_support_copy_alignment_packet
+      - evidence_link_kind: compatibility_report
+        requirement_kind: required_for_freshness_evaluation
+        scoreboard_family_id: null
+        public_proof_packet_shape: null
+    required_proof_classes:
+      - compatibility_report_proof
+      - docs_claim_truth_proof
+    required_evidence_link_or_pairings:
+      - any_of:
+          - certification_sheet
+          - scoreboard_packet
+        requirement_kind: required_for_render
+    aging_downgrade_target: target_retest_pending_badge
+    stale_downgrade_target: target_retest_pending_badge
+    aging_publish_gate: publish_allowed_with_narrowing
+    stale_publish_gate: publish_fail_closed_block
+    signature_break_gate: publish_fail_closed_block
+    mirror_unknown_gate: publish_fail_closed_warn
+    aging_claim_narrowing_class: narrows_support_class_one_rung
+    stale_claim_narrowing_class: narrows_certification_target_pending_retest
+    bundle_card_freshness_overlay_when_aging: freshness.aging_within_window
+    bundle_card_freshness_overlay_when_stale: freshness.stale_past_window
+    bundle_card_freshness_overlay_when_unknown: freshness.age_unknown
+    disclosure_surfaces:
+      - start_center_bundle_card
+      - bundle_detail_page
+      - gallery_or_browse_bundles
+      - update_detail_entry
+      - project_doctor_recommended_action
+      - support_export_packet
+      - certification_sheet_artifact
+      - release_evidence_packet
+      - claim_publication_destination
+      - cli_or_headless_listing
+      - marketing_copy_lane
+    marketing_separation_rules: *standard_marketing_separation_rules
+    notes: >
+      Managed-approved rows narrow one rung when aging, downgrade to
+      badge.retest_pending when stale, and fail-close when signer
+      continuity breaks. The required-or pairing on
+      certification_sheet OR scoreboard_packet permits org bundles
+      that bind to either an internal certification sheet or the
+      first-party scoreboard family directly.
+
+  - row_id: bundle_badge_freshness_row:community
+    badge_id: badge.community
+    title: Community bundle badge
+    summary: >
+      Community-authored bundle distributed through a governed
+      community channel. The row renders even with a thin evidence
+      inventory; aging out narrows the row from community_reviewed
+      to community_unreviewed; stale evidence narrows publication.
+    backing_bundle_status_classes:
+      - community_reviewed
+      - community_unreviewed
+    backing_bundle_source_classes:
+      - community
+    backing_bundle_classes:
+      - design_partner_bundle
+      - imported_user_bundle
+    required_evidence_links:
+      - evidence_link_kind: docs_version_match
+        requirement_kind: recommended_for_audit_only
+        scoreboard_family_id: null
+        public_proof_packet_shape: null
+      - evidence_link_kind: known_limit_note
+        requirement_kind: recommended_for_audit_only
+        scoreboard_family_id: null
+        public_proof_packet_shape: null
+    required_proof_classes:
+      - docs_claim_truth_proof
+    aging_downgrade_target: target_community_unreviewed_badge
+    stale_downgrade_target: target_community_unreviewed_badge
+    aging_publish_gate: publish_allowed
+    stale_publish_gate: publish_allowed_with_narrowing
+    signature_break_gate: publish_fail_closed_warn
+    mirror_unknown_gate: publish_allowed
+    aging_claim_narrowing_class: no_narrowing_informational
+    stale_claim_narrowing_class: narrows_support_class_one_rung
+    bundle_card_freshness_overlay_when_aging: freshness.aging_within_window
+    bundle_card_freshness_overlay_when_stale: freshness.stale_past_window
+    bundle_card_freshness_overlay_when_unknown: freshness.age_unknown
+    disclosure_surfaces:
+      - start_center_bundle_card
+      - bundle_detail_page
+      - gallery_or_browse_bundles
+      - update_detail_entry
+      - project_doctor_recommended_action
+      - support_export_packet
+      - claim_publication_destination
+      - cli_or_headless_listing
+      - marketing_copy_lane
+    marketing_separation_rules: *standard_marketing_separation_rules
+    notes: >
+      Community rows MUST never project certified or managed-approved
+      claim language even when evidence is fresh; the proof is on
+      the manifest's source class. Community rows also do not render
+      on the certification_sheet_artifact or release_evidence_packet
+      surfaces (those are reserved for first-party / managed
+      bundles).
+
+  - row_id: bundle_badge_freshness_row:imported
+    badge_id: badge.imported
+    title: Imported user bundle badge
+    summary: >
+      Bundle composed from an imported user environment (settings,
+      profile, extension set, task / launch / debug recipes). Always
+      reviewable; ingress review must complete before the row is
+      promoted to managed-approved or certified. Stale evidence
+      narrows the row back to imported_pending_review.
+    backing_bundle_status_classes:
+      - imported_pending_review
+      - community_reviewed
+      - community_unreviewed
+    backing_bundle_source_classes:
+      - imported
+    backing_bundle_classes:
+      - imported_user_bundle
+    required_evidence_links: []
+    required_proof_classes: []
+    optional_evidence_links:
+      - evidence_link_kind: migration_note
+        requirement_kind: recommended_for_audit_only
+      - evidence_link_kind: support_export_reference
+        requirement_kind: recommended_for_audit_only
+    aging_downgrade_target: none
+    stale_downgrade_target: target_imported_pending_review_badge
+    aging_publish_gate: publish_allowed
+    stale_publish_gate: publish_allowed_with_narrowing
+    signature_break_gate: publish_fail_closed_warn
+    mirror_unknown_gate: publish_allowed
+    aging_claim_narrowing_class: no_narrowing_informational
+    stale_claim_narrowing_class: narrows_to_imported_pending_review
+    bundle_card_freshness_overlay_when_aging: freshness.aging_within_window
+    bundle_card_freshness_overlay_when_stale: freshness.stale_past_window
+    bundle_card_freshness_overlay_when_unknown: freshness.age_unknown
+    disclosure_surfaces:
+      - start_center_bundle_card
+      - bundle_detail_page
+      - gallery_or_browse_bundles
+      - project_doctor_recommended_action
+      - support_export_packet
+      - cli_or_headless_listing
+    marketing_separation_rules: *standard_marketing_separation_rules
+    notes: >
+      Imported rows never render on certification_sheet_artifact,
+      release_evidence_packet, claim_publication_destination, or
+      marketing_copy_lane surfaces. The badge stays a transparent
+      attribution marker for imported state and never claims
+      authority it has not been granted.
+
+  - row_id: bundle_badge_freshness_row:local_draft
+    badge_id: badge.local_draft
+    title: Local-draft bundle badge
+    summary: >
+      Locally authored bundle never promoted beyond the device.
+      Renders only on user-scope surfaces. Always fail-closes the
+      claim-publication automation gate so a local-draft badge
+      cannot leak onto docs / Help / About / service-health /
+      release-notes / CLI-help / evaluation /
+      certification-sheet / marketplace destinations.
+    backing_bundle_status_classes:
+      - local_draft
+    backing_bundle_source_classes:
+      - local_draft
+    backing_bundle_classes:
+      - local_draft_bundle
+    required_evidence_links: []
+    required_proof_classes: []
+    aging_downgrade_target: none
+    stale_downgrade_target: none
+    aging_publish_gate: publish_fail_closed_block
+    stale_publish_gate: publish_fail_closed_block
+    signature_break_gate: publish_fail_closed_block
+    mirror_unknown_gate: publish_fail_closed_block
+    aging_claim_narrowing_class: no_narrowing_informational
+    stale_claim_narrowing_class: no_narrowing_informational
+    bundle_card_freshness_overlay_when_aging: freshness.fresh_current
+    bundle_card_freshness_overlay_when_stale: freshness.fresh_current
+    bundle_card_freshness_overlay_when_unknown: freshness.age_unknown
+    disclosure_surfaces:
+      - bundle_detail_page
+      - support_export_packet
+      - cli_or_headless_listing
+    marketing_separation_rules: *standard_marketing_separation_rules
+    notes: >
+      Local-draft rows never render on Start Center, gallery,
+      certification sheet, release evidence, claim publication, or
+      marketing copy surfaces. The bundle has no prior accepted
+      revision in the workflow_bundle_id register and no required
+      evidence; freshness is intentionally not evaluated. The
+      publish gate is always fail-closed-block to prevent silent
+      leakage.
+
+  - row_id: bundle_badge_freshness_row:retest_pending
+    badge_id: badge.retest_pending
+    title: Retest pending bundle badge
+    summary: >
+      Already-downgraded row carrying retest pressure on a previously
+      certified or managed-approved bundle. The badge stays visible
+      so reviewers see the pending retest; further evidence aging
+      promotes the row to badge.status_unknown.
+    backing_bundle_status_classes:
+      - certified_retest_pending
+      - retest_needed
+    backing_bundle_source_classes:
+      - certified
+      - managed_approved
+    backing_bundle_classes:
+      - launch_bundle
+      - org_approved_bundle
+    required_evidence_links:
+      - evidence_link_kind: certification_sheet
+        requirement_kind: required_for_freshness_evaluation
+        scoreboard_family_id: workflow_bundle_or_archetype_proof_scoreboard
+        public_proof_packet_shape: workflow_bundle_or_archetype_proof_packet
+        notes: >
+          The certification sheet must be present — even if stale —
+          so the row can resolve the retest hook and the reviewer
+          can read which scoreboard families are pending.
+    required_proof_classes:
+      - compatibility_report_proof
+      - benchmark_publication_proof
+    aging_downgrade_target: none
+    stale_downgrade_target: target_status_unknown_badge
+    aging_publish_gate: publish_allowed_with_narrowing
+    stale_publish_gate: publish_fail_closed_warn
+    signature_break_gate: publish_fail_closed_block
+    mirror_unknown_gate: publish_fail_closed_warn
+    aging_claim_narrowing_class: narrows_certification_target_pending_retest
+    stale_claim_narrowing_class: pending_review_narrowing_unknown
+    bundle_card_freshness_overlay_when_aging: freshness.aging_within_window
+    bundle_card_freshness_overlay_when_stale: freshness.stale_past_window
+    bundle_card_freshness_overlay_when_unknown: freshness.age_unknown
+    disclosure_surfaces:
+      - start_center_bundle_card
+      - bundle_detail_page
+      - gallery_or_browse_bundles
+      - update_detail_entry
+      - project_doctor_recommended_action
+      - support_export_packet
+      - certification_sheet_artifact
+      - release_evidence_packet
+      - claim_publication_destination
+      - cli_or_headless_listing
+    marketing_separation_rules: *standard_marketing_separation_rules
+    notes: >
+      Retest-pending is the load-bearing transitional row. Aging
+      keeps the row narrowed; further staleness promotes the row to
+      badge.status_unknown so a stalled retest never silently
+      reverts to badge.certified.
+
+# -----------------------------------------------------------------------------
+# Lifecycle / packaging-posture badge mapping.
+#
+# These badges read their freshness posture by reference; they do not
+# carry a row of their own. The mapping is enumerated here so the
+# evaluator and the publish gate can resolve them deterministically.
+# -----------------------------------------------------------------------------
+secondary_badge_resolution:
+
+  - badge_id: badge.deprecated
+    backing_bundle_status_classes:
+      - deprecated_or_archived
+    backing_lifecycle_state_classes:
+      - soft_deprecated_with_successor
+      - hard_deprecated_remove_recommended
+      - removed_unavailable
+      - rollback_recommended
+    publish_gate_when_active: publish_allowed_with_narrowing
+    downgrade_target_when_unknown: target_status_unknown_badge
+    notes: >
+      Always renders with a successor_recommendation_class other
+      than successor_unknown; no_successor is permitted but never
+      silent. Reads the manifest's lifecycle and successor block
+      directly.
+
+  - badge_id: badge.status_unknown
+    backing_bundle_status_classes:
+      - status_unknown
+    backing_mirror_or_offline_packaging_postures:
+      - packaging_posture_unknown
+    backing_lifecycle_state_classes:
+      - lifecycle_unknown
+    publish_gate_when_active: publish_fail_closed_warn
+    downgrade_target_when_unknown: target_publish_blocked_no_badge
+    notes: >
+      Renders verbatim with the typed disabled_reason_code from
+      the manifest. The publish gate fail-closes-warn by default;
+      a waiver register entry is required for any publication.
+
+  - badge_id: badge.signed_offline_bundle
+    backing_mirror_or_offline_packaging_postures:
+      - signed_offline_bundle
+    publish_gate_when_active: publish_allowed_with_narrowing
+    downgrade_target_when_unknown: target_status_unknown_badge
+    notes: >
+      Pinned freshness from packaging time. Reads the
+      offline_bundle_freshness_ref directly; mirror unknowns
+      promote to badge.status_unknown.
+
+  - badge_id: badge.mirror_only
+    backing_mirror_or_offline_packaging_postures:
+      - mirror_only
+    publish_gate_when_active: publish_allowed_with_narrowing
+    downgrade_target_when_unknown: target_status_unknown_badge
+    notes: >
+      Renders with the typed mirror_freshness_ref. Mirror
+      mismatch downgrades through the source-change rule.
+
+  - badge_id: badge.live_or_mirror
+    backing_mirror_or_offline_packaging_postures:
+      - live_or_mirror
+    publish_gate_when_active: publish_allowed
+    downgrade_target_when_unknown: target_status_unknown_badge
+
+  - badge_id: badge.live_origin_only
+    backing_mirror_or_offline_packaging_postures:
+      - live_origin_only
+    publish_gate_when_active: publish_allowed
+    downgrade_target_when_unknown: target_status_unknown_badge
+
+  - badge_id: badge.offline_no_bundle
+    backing_mirror_or_offline_packaging_postures:
+      - offline_no_bundle
+    publish_gate_when_active: publish_fail_closed_warn
+    downgrade_target_when_unknown: target_publish_blocked_no_badge
+    notes: >
+      The bundle is unavailable in the current envelope; the
+      manifest still renders the row with the narrowing class.
+
+# -----------------------------------------------------------------------------
+# Register invariants. Validators read this file as a closed-world
+# rule set.
+# -----------------------------------------------------------------------------
+invariants:
+  - invariant_id: invariant:every_row_carries_marketing_separation_rules
+    statement: >
+      Every entry in rows[] carries marketing_separation_rules with
+      all four rule_class values from
+      badge_marketing_separation_rule_class_vocabulary verbatim.
+      Missing any class is non-conforming.
+  - invariant_id: invariant:every_proof_marker_row_carries_disclosure_surfaces
+    statement: >
+      Every entry in rows[] enumerates disclosure_surfaces[] from
+      badge_disclosure_surface_class_vocabulary. A row that does
+      not list a surface cannot render the badge on that surface.
+  - invariant_id: invariant:certified_and_managed_approved_require_render_evidence
+    statement: >
+      The certified and managed_approved rows MUST carry at least
+      one required_evidence_links[] entry whose requirement_kind is
+      required_for_render. A row missing the entry is non-
+      conforming.
+  - invariant_id: invariant:local_draft_publish_gate_always_fail_closed_block
+    statement: >
+      The local_draft row's aging_publish_gate, stale_publish_gate,
+      signature_break_gate, and mirror_unknown_gate all resolve to
+      publish_fail_closed_block. A local_draft row that admits
+      publication on any gate path is non-conforming.
+  - invariant_id: invariant:downgrade_target_never_widens_authority
+    statement: >
+      A row's aging_downgrade_target and stale_downgrade_target MUST
+      NOT widen authority. A row whose downgrade target promotes
+      community to certified, retest_pending to certified, or
+      imported to managed_approved is non-conforming.
+  - invariant_id: invariant:certified_row_signature_break_blocks_closed
+    statement: >
+      The certified, managed_approved, and retest_pending rows'
+      signature_break_gate resolves to publish_fail_closed_block.
+      A row that admits publication on signature_break is non-
+      conforming.
+  - invariant_id: invariant:every_row_carries_required_proof_classes_or_explicitly_empty
+    statement: >
+      Every entry in rows[] carries a required_proof_classes[] key
+      (empty list permitted for community / imported / local_draft).
+      Missing the key is non-conforming so reviewers see the
+      absence verbatim.
+  - invariant_id: invariant:downgrade_lattice_is_closed
+    statement: >
+      Every aging_downgrade_target and stale_downgrade_target value
+      is drawn from badge_downgrade_target_class_vocabulary. Free-
+      form downgrade target strings are non-conforming.
+  - invariant_id: invariant:scope_expansion_requires_decision_row
+    statement: >
+      Adding a row, adding a backing status class, adding a
+      required evidence link kind, or shifting a stale_publish_gate
+      from publish_allowed* to publish_fail_closed_* (or vice
+      versa) opens a decision row in
+      artifacts/governance/decision_index.yaml. Silent scope
+      expansion is non-conforming.

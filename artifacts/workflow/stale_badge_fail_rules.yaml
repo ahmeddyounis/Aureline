@@ -1,0 +1,836 @@
+# Stale-badge fail-gate rules.
+#
+# Machine-readable register of the fail-gate rules every claim-
+# publication binding pairing a workflow-bundle or certification badge
+# with a destination reads to decide whether the badge MAY publish.
+# Stale Certified or Managed approved badges cannot publish without
+# linked evidence: this register pins the closed verdict set, the
+# closed blocker set, and the per-rule resolution.
+#
+# Tooling reads this file. The normative narrative is
+# docs/workflow/bundle_evidence_freshness_contract.md §6 (stale-badge
+# fail gate). If the two disagree, this file is authoritative for
+# tooling and the narrative is updated in the same change.
+#
+# Scope.
+#   - The rules close around verdict_class
+#     (publish_allowed, publish_allowed_with_narrowing,
+#     publish_fail_closed_warn, publish_fail_closed_block) and
+#     stale_badge_blocker_class
+#     (required_evidence_link_missing,
+#     required_evidence_link_stale_past_window,
+#     archetype_proof_stale_past_cadence_blocker,
+#     signer_continuity_or_signature_broken,
+#     mirror_or_source_revision_recalled,
+#     compatibility_narrowed_below_supported_floor,
+#     manifest_status_class_does_not_back_badge,
+#     policy_pinned_revision_recall_blocker,
+#     evidence_freshness_unknown_blocker).
+#   - Every rule cites the bundle_evidence_badge_id it covers, the
+#     freshness state class that triggers it, the stale_badge_blocker
+#     _class it emits, the verdict_class the gate resolves to, and the
+#     paired disabled_reason_code from the change-preview vocabulary.
+#   - Fail-closed-by-default is the gate's invariant: any condition
+#     not enumerated below resolves to publish_fail_closed_block on
+#     the certified and managed_approved rows.
+#
+# Rules.
+#   - Adding a rule, adding a verdict class, adding a blocker class,
+#     or shifting a verdict from publish_allowed* to
+#     publish_fail_closed_* (or vice versa) opens a decision row in
+#     artifacts/governance/decision_index.yaml. Silent rule expansion
+#     is non-conforming.
+#   - Milestone slugs MUST NOT appear in any rule id, blocker, or
+#     verdict.
+
+schema_version: 1
+stale_badge_fail_rules_schema_version: 1
+catalog_id: aureline.workflow.stale_badge_fail_rules
+status: seeded
+contract_doc_ref: docs/workflow/bundle_evidence_freshness_contract.md
+
+# -----------------------------------------------------------------------------
+# Cross-references.
+# -----------------------------------------------------------------------------
+upstream_refs:
+  bundle_badge_freshness_rows_ref: artifacts/workflow/bundle_badge_freshness_rows.yaml
+  bundle_evidence_freshness_contract_ref: docs/workflow/bundle_evidence_freshness_contract.md
+  workflow_bundle_object_model_ref: docs/workflow/workflow_bundle_object_model.md
+  bundle_change_review_contract_ref: docs/workflow/bundle_change_review_contract.md
+  bundle_drift_and_removal_contract_ref: docs/workflow/bundle_drift_and_removal_contract.md
+  start_center_bundle_surfaces_ref: docs/ux/start_center_bundle_surfaces.md
+  evidence_freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+  workflow_bundle_id_register_ref: artifacts/qe/workflow_bundle_ids.yaml
+  claim_publication_automation_contract_ref: docs/release/claim_publication_automation_contract.md
+  claim_publication_binding_schema_ref: schemas/governance/claim_publication_binding.schema.json
+  decision_index_ref: artifacts/governance/decision_index.yaml
+  waiver_register_ref: artifacts/governance/waiver_register.yaml
+
+# -----------------------------------------------------------------------------
+# Closed verdict and blocker vocabularies (re-exported from the contract).
+# -----------------------------------------------------------------------------
+verdict_class_vocabulary:
+  - publish_allowed
+  - publish_allowed_with_narrowing
+  - publish_fail_closed_warn
+  - publish_fail_closed_block
+
+stale_badge_blocker_class_vocabulary:
+  - required_evidence_link_missing
+  - required_evidence_link_stale_past_window
+  - archetype_proof_stale_past_cadence_blocker
+  - signer_continuity_or_signature_broken
+  - mirror_or_source_revision_recalled
+  - compatibility_narrowed_below_supported_floor
+  - manifest_status_class_does_not_back_badge
+  - policy_pinned_revision_recall_blocker
+  - evidence_freshness_unknown_blocker
+
+disabled_reason_code_vocabulary:
+  - signature_review_required
+  - evidence_aged_review_required
+  - network_unreachable
+  - mirror_only_cached_subset
+  - policy_narrowed_admin
+  - policy_narrowed_fleet
+  - target_runtime_unavailable
+  - rebuild_required
+  - permission_grant_review_required
+  - non_reversible_review_required
+  - policy_narrowed_review_pending
+  - trust_review_required
+  - rollback_checkpoint_unavailable
+
+publication_destination_class_vocabulary:
+  - docs_pages
+  - help_pane
+  - about_pane
+  - service_health_page
+  - release_notes_pack
+  - cli_help_text
+  - evaluation_artifact
+  - certification_sheet_artifact
+  - workflow_bundle_or_certification_badge
+  - known_limits_destination
+  - marketplace_listing
+  - support_export_packet
+
+# -----------------------------------------------------------------------------
+# Fail-gate rules.
+#
+# Every rule is one closed condition that emits one verdict_class.
+# Multiple rules may apply to one evaluation; the strictest verdict
+# wins per the contract §3.4 rule 4.
+# -----------------------------------------------------------------------------
+rules:
+
+  # === Required evidence link missing ===
+  - rule_id: stale_badge_fail_rule:certified_required_evidence_link_missing
+    rule_summary: >
+      A badge.certified evaluation cannot resolve a required
+      evidence link kind on the manifest's evidence_link_refs[].
+      Missing any required_for_render link blocks publication
+      closed.
+    applies_to_badge_ids:
+      - badge.certified
+    triggering_freshness_states:
+      - evidence_missing_required_link
+    blocker_class: required_evidence_link_missing
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+      - evidence_aged_review_required
+    waiver_path_allowed: false
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - known_limits_destination
+      - marketplace_listing
+    notes: >
+      A certification sheet, scoreboard packet bound to the
+      cutline's required scoreboard families, or docs_version_match
+      that is absent on the manifest fails the gate closed. There
+      is no waiver path; the manifest revision MUST be amended.
+
+  - rule_id: stale_badge_fail_rule:managed_approved_required_evidence_link_missing
+    rule_summary: >
+      A badge.managed_approved evaluation cannot resolve a
+      required_for_render evidence link kind on the manifest.
+      Missing certification_sheet AND scoreboard_packet, or
+      missing docs_version_match, blocks publication closed.
+    applies_to_badge_ids:
+      - badge.managed_approved
+    triggering_freshness_states:
+      - evidence_missing_required_link
+    blocker_class: required_evidence_link_missing
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+    waiver_path_allowed: false
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - marketplace_listing
+
+  # === Required evidence link stale past window ===
+  - rule_id: stale_badge_fail_rule:certified_required_evidence_link_stale_past_window
+    rule_summary: >
+      A badge.certified evaluation produced
+      evidence_stale_past_window on at least one
+      required_for_render evidence link. Publishing certified
+      wording without a refreshed certification sheet, scoreboard
+      packet, or docs version match is non-conforming.
+    applies_to_badge_ids:
+      - badge.certified
+    triggering_freshness_states:
+      - evidence_stale_past_window
+    blocker_class: required_evidence_link_stale_past_window
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - evidence_aged_review_required
+    waiver_path_allowed: false
+    paired_downgrade_target: target_retest_pending_badge
+    paired_claim_narrowing_class: breaks_certification_target_recall
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - known_limits_destination
+      - marketplace_listing
+    notes: >
+      Mirrors the upstream evidence_freshness_slos profile
+      claim_narrow_and_hold; a stale required evidence link on
+      a certified row is a hold, not a cosmetic warning.
+
+  - rule_id: stale_badge_fail_rule:managed_approved_required_evidence_link_stale_past_window
+    rule_summary: >
+      A badge.managed_approved evaluation produced
+      evidence_stale_past_window. Publishing managed-approved
+      claim wording on a stale evidence link is non-conforming.
+    applies_to_badge_ids:
+      - badge.managed_approved
+    triggering_freshness_states:
+      - evidence_stale_past_window
+    blocker_class: required_evidence_link_stale_past_window
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - evidence_aged_review_required
+    waiver_path_allowed: false
+    paired_downgrade_target: target_retest_pending_badge
+    paired_claim_narrowing_class: narrows_certification_target_pending_retest
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - marketplace_listing
+
+  # === Required evidence link aging within window ===
+  - rule_id: stale_badge_fail_rule:certified_required_evidence_link_aging
+    rule_summary: >
+      A badge.certified evaluation produced
+      evidence_aging_within_window. Publication proceeds at the
+      narrowed posture; widened wording fail-closes at the
+      claim-publication forbidden-generic-copy gate.
+    applies_to_badge_ids:
+      - badge.certified
+    triggering_freshness_states:
+      - evidence_aging_within_window
+    blocker_class: null
+    verdict: publish_allowed_with_narrowing
+    disabled_reason_codes: []
+    waiver_path_allowed: true
+    paired_downgrade_target: target_retest_pending_badge
+    paired_claim_narrowing_class: narrows_certification_target_pending_retest
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - known_limits_destination
+      - marketplace_listing
+    notes: >
+      Aging-within-window is a narrowing, not a block; the
+      claim-publication binding inherits the narrowing class
+      verbatim and the support_class projection narrows by one
+      rung.
+
+  # === Archetype proof stale past cadence ===
+  - rule_id: stale_badge_fail_rule:certified_archetype_proof_stale_past_cadence
+    rule_summary: >
+      A badge.certified evaluation reads at least one
+      scoreboard_packet bound to
+      workflow_bundle_or_archetype_proof_scoreboard. The bound
+      archetype proof has aged past its proof class's
+      max_stale_after; certified wording on the archetype is
+      blocked closed.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+    triggering_freshness_states:
+      - evidence_stale_past_window
+    triggering_downgrade_triggers:
+      - archetype_proof_stale_past_cadence
+    blocker_class: archetype_proof_stale_past_cadence_blocker
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - evidence_aged_review_required
+    waiver_path_allowed: false
+    paired_downgrade_target: target_retest_pending_badge
+    paired_claim_narrowing_class: breaks_certification_target_recall
+    affected_destinations:
+      - certification_sheet_artifact
+      - release_notes_pack
+      - workflow_bundle_or_certification_badge
+      - evaluation_artifact
+      - marketplace_listing
+
+  # === Signer continuity or signature broken ===
+  - rule_id: stale_badge_fail_rule:certified_signer_continuity_or_signature_broken
+    rule_summary: >
+      A badge.certified or badge.managed_approved evaluation
+      produced evidence_signature_or_continuity_broken. The bundle
+      remains installed but its signature posture has diverged
+      from the state at apply; publication is blocked closed.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+      - badge.retest_pending
+    triggering_freshness_states:
+      - evidence_signature_or_continuity_broken
+    blocker_class: signer_continuity_or_signature_broken
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+    waiver_path_allowed: false
+    paired_downgrade_target: target_status_unknown_badge
+    paired_claim_narrowing_class: pending_review_narrowing_unknown
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - known_limits_destination
+      - marketplace_listing
+
+  # === Mirror or source revision recalled ===
+  - rule_id: stale_badge_fail_rule:mirror_or_source_revision_recalled
+    rule_summary: >
+      The applied revision has been recalled by the signer's
+      origin or by org policy. Publication on certified or
+      managed-approved destinations is blocked closed; community
+      and imported rows narrow but may still publish at the
+      narrower posture.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+      - badge.retest_pending
+    triggering_freshness_states:
+      - evidence_aging_within_window
+      - evidence_stale_past_window
+      - evidence_age_unknown_offline_or_unreachable
+    triggering_downgrade_triggers:
+      - mirror_or_source_canonical_revision_changed
+      - mirror_or_source_signature_changed
+      - policy_pinned_revision_recall
+    blocker_class: mirror_or_source_revision_recalled
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+      - mirror_only_cached_subset
+      - policy_narrowed_admin
+      - policy_narrowed_fleet
+    waiver_path_allowed: false
+    paired_downgrade_target: target_deprecated_badge
+    paired_claim_narrowing_class: breaks_certification_target_recall
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - marketplace_listing
+
+  # === Compatibility narrowed below supported floor ===
+  - rule_id: stale_badge_fail_rule:compatibility_narrowed_below_supported_floor
+    rule_summary: >
+      The bundle's compatible_aureline_range narrows below the
+      bundle's support_class_floor on the workflow_bundle_id
+      register, OR the compatibility_state_class is
+      incompatible_blocking. Publishing certified or
+      managed-approved wording is blocked closed.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+      - badge.retest_pending
+    triggering_freshness_states:
+      - evidence_aging_within_window
+      - evidence_stale_past_window
+    triggering_downgrade_triggers:
+      - compatibility_narrowed_below_runtime
+    blocker_class: compatibility_narrowed_below_supported_floor
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - target_runtime_unavailable
+      - rebuild_required
+      - mirror_only_cached_subset
+    waiver_path_allowed: false
+    paired_downgrade_target: target_retest_pending_badge
+    paired_claim_narrowing_class: narrows_support_class_one_rung
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - marketplace_listing
+
+  # === Manifest status class does not back the badge ===
+  - rule_id: stale_badge_fail_rule:manifest_status_class_does_not_back_badge
+    rule_summary: >
+      A surface attempted to render a bundle_evidence_badge_id
+      whose required backing_bundle_status_classes does not match
+      the manifest. For example, badge.certified rendered while
+      the manifest's bundle_status_class is community_unreviewed.
+      The render is non-conforming and the publish gate blocks
+      closed.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+      - badge.community
+      - badge.imported
+      - badge.local_draft
+      - badge.retest_pending
+    triggering_freshness_states:
+      - evidence_missing_required_link
+    blocker_class: manifest_status_class_does_not_back_badge
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+    waiver_path_allowed: false
+    paired_downgrade_target: target_publish_blocked_no_badge
+    paired_claim_narrowing_class: breaks_certification_target_recall
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - marketplace_listing
+      - support_export_packet
+
+  # === Policy-pinned revision recall ===
+  - rule_id: stale_badge_fail_rule:policy_pinned_revision_recall
+    rule_summary: >
+      An organisation or fleet policy has recalled the applied
+      revision. The bundle remains installed at the recalled
+      revision, but publication on certified, managed-approved,
+      or retest-pending rows is blocked closed.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+      - badge.retest_pending
+    triggering_freshness_states:
+      - evidence_age_unknown_offline_or_unreachable
+      - evidence_stale_past_window
+    triggering_downgrade_triggers:
+      - policy_pinned_revision_recall
+    blocker_class: policy_pinned_revision_recall_blocker
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - policy_narrowed_admin
+      - policy_narrowed_fleet
+    waiver_path_allowed: false
+    paired_downgrade_target: target_deprecated_badge
+    paired_claim_narrowing_class: breaks_certification_target_recall
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - marketplace_listing
+
+  # === Evidence freshness unknown ===
+  - rule_id: stale_badge_fail_rule:certified_evidence_freshness_unknown
+    rule_summary: >
+      A badge.certified or badge.managed_approved evaluation
+      produced evidence_age_unknown_offline_or_unreachable
+      because the registry was unreachable, the mirror returned a
+      cached subset, or evidence packet metadata was missing.
+      Publication fail-closes-warn on docs / Help / About /
+      service-health destinations and fail-closes-block on
+      certification-sheet / release-notes / marketplace
+      destinations.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+    triggering_freshness_states:
+      - evidence_age_unknown_offline_or_unreachable
+    blocker_class: evidence_freshness_unknown_blocker
+    verdict: publish_fail_closed_warn
+    disabled_reason_codes:
+      - network_unreachable
+      - mirror_only_cached_subset
+      - evidence_aged_review_required
+    waiver_path_allowed: true
+    paired_downgrade_target: target_status_unknown_badge
+    paired_claim_narrowing_class: pending_review_narrowing_unknown
+    waiver_register_ref_required: true
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - workflow_bundle_or_certification_badge
+    blocked_destinations:
+      - certification_sheet_artifact
+      - marketplace_listing
+
+  # === Local-draft never publishes through automation gate ===
+  - rule_id: stale_badge_fail_rule:local_draft_never_publishes_through_automation_gate
+    rule_summary: >
+      Every badge.local_draft evaluation resolves to
+      publish_fail_closed_block on every gate path. Local-draft
+      bundles render only on user-scope surfaces (bundle detail
+      panel, support export, CLI / headless listing). The
+      publication generator MUST treat any attempt to publish a
+      local-draft badge as a fail-closed condition with no
+      waiver path.
+    applies_to_badge_ids:
+      - badge.local_draft
+    triggering_freshness_states:
+      - evidence_fresh_within_cadence
+      - evidence_aging_within_window
+      - evidence_stale_past_window
+      - evidence_age_unknown_offline_or_unreachable
+      - evidence_missing_required_link
+      - evidence_signature_or_continuity_broken
+    blocker_class: manifest_status_class_does_not_back_badge
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+    waiver_path_allowed: false
+    paired_downgrade_target: target_publish_blocked_no_badge
+    paired_claim_narrowing_class: no_narrowing_informational
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - known_limits_destination
+      - marketplace_listing
+
+  # === Community / imported rows narrow but may publish ===
+  - rule_id: stale_badge_fail_rule:community_stale_narrows_publication
+    rule_summary: >
+      A badge.community row whose evidence is stale or aging
+      narrows publication to community_unreviewed wording but
+      proceeds at the narrowed posture. Signer continuity break
+      fails closed-warn so a community signer rotation must be
+      re-reviewed before continuing.
+    applies_to_badge_ids:
+      - badge.community
+    triggering_freshness_states:
+      - evidence_aging_within_window
+      - evidence_stale_past_window
+    blocker_class: null
+    verdict: publish_allowed_with_narrowing
+    disabled_reason_codes: []
+    waiver_path_allowed: true
+    paired_downgrade_target: target_community_unreviewed_badge
+    paired_claim_narrowing_class: narrows_support_class_one_rung
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - cli_help_text
+      - evaluation_artifact
+      - support_export_packet
+      - workflow_bundle_or_certification_badge
+
+  - rule_id: stale_badge_fail_rule:community_signer_break_warn
+    rule_summary: >
+      A badge.community row whose signer continuity broke
+      fail-closes-warn: a community signer rotation requires a
+      waiver register entry before continuing publication on
+      docs / Help / About destinations.
+    applies_to_badge_ids:
+      - badge.community
+    triggering_freshness_states:
+      - evidence_signature_or_continuity_broken
+    blocker_class: signer_continuity_or_signature_broken
+    verdict: publish_fail_closed_warn
+    disabled_reason_codes:
+      - signature_review_required
+    waiver_path_allowed: true
+    waiver_register_ref_required: true
+    paired_downgrade_target: target_community_unreviewed_badge
+    paired_claim_narrowing_class: narrows_support_class_one_rung
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - cli_help_text
+      - evaluation_artifact
+
+  - rule_id: stale_badge_fail_rule:imported_stale_narrows_to_imported_pending_review
+    rule_summary: >
+      A badge.imported row whose evidence is stale narrows the
+      row back to imported_pending_review; ingress review must
+      run again. Publication continues at the narrowed posture
+      on user-scope destinations only (support export, CLI /
+      headless listing). Imported rows never render on
+      certification_sheet_artifact, release_notes_pack, or
+      marketplace_listing destinations.
+    applies_to_badge_ids:
+      - badge.imported
+    triggering_freshness_states:
+      - evidence_stale_past_window
+      - evidence_age_unknown_offline_or_unreachable
+    blocker_class: null
+    verdict: publish_allowed_with_narrowing
+    disabled_reason_codes: []
+    waiver_path_allowed: true
+    paired_downgrade_target: target_imported_pending_review_badge
+    paired_claim_narrowing_class: narrows_to_imported_pending_review
+    affected_destinations:
+      - support_export_packet
+      - cli_help_text
+    blocked_destinations:
+      - certification_sheet_artifact
+      - release_notes_pack
+      - marketplace_listing
+      - workflow_bundle_or_certification_badge
+
+  # === Default fail-closed-by-default rule ===
+  - rule_id: stale_badge_fail_rule:default_fail_closed_by_default
+    rule_summary: >
+      Any condition not enumerated above on a badge.certified or
+      badge.managed_approved row resolves to
+      publish_fail_closed_block. This is the gate's invariant: a
+      missing rule cannot become a silent publish_allowed.
+    applies_to_badge_ids:
+      - badge.certified
+      - badge.managed_approved
+      - badge.retest_pending
+    triggering_freshness_states:
+      - evidence_missing_required_link
+      - evidence_signature_or_continuity_broken
+      - evidence_age_unknown_offline_or_unreachable
+    blocker_class: evidence_freshness_unknown_blocker
+    verdict: publish_fail_closed_block
+    disabled_reason_codes:
+      - signature_review_required
+      - evidence_aged_review_required
+      - network_unreachable
+      - mirror_only_cached_subset
+    waiver_path_allowed: false
+    paired_downgrade_target: target_publish_blocked_no_badge
+    paired_claim_narrowing_class: pending_review_narrowing_unknown
+    affected_destinations:
+      - docs_pages
+      - help_pane
+      - about_pane
+      - service_health_page
+      - release_notes_pack
+      - cli_help_text
+      - evaluation_artifact
+      - certification_sheet_artifact
+      - workflow_bundle_or_certification_badge
+      - known_limits_destination
+      - marketplace_listing
+    notes: >
+      Mirrors the upstream evidence_freshness_slos
+      metadata_evaluation_contract `Missing freshness metadata
+      fails closed for scorecard, signoff, claim, and promotion
+      use` rule verbatim.
+
+# -----------------------------------------------------------------------------
+# Strictest-verdict-wins ordering. The publish gate evaluates every
+# rule that applies to the row's freshness evaluation and emits the
+# strictest verdict. The ordering is closed.
+# -----------------------------------------------------------------------------
+strictest_verdict_ordering:
+  - publish_allowed
+  - publish_allowed_with_narrowing
+  - publish_fail_closed_warn
+  - publish_fail_closed_block
+
+strictest_verdict_ordering_rule: >
+  When multiple rules apply to one row evaluation, the publish gate
+  resolves to the right-most verdict in strictest_verdict_ordering
+  any rule emits. A row that emits both publish_allowed_with_
+  narrowing (from aging) and publish_fail_closed_block (from a
+  missing required evidence link) resolves to publish_fail_closed_
+  block.
+
+# -----------------------------------------------------------------------------
+# Waiver-path policy.
+# -----------------------------------------------------------------------------
+waiver_path_policy:
+  - applies_to_verdicts:
+      - publish_fail_closed_warn
+    rule: >
+      A publish_fail_closed_warn verdict that actually permits
+      publication MUST cite a waiver_register_ref from
+      artifacts/governance/waiver_register.yaml. A warn verdict
+      without a waiver MUST be treated by the publication
+      generator as publish_fail_closed_block.
+  - applies_to_verdicts:
+      - publish_fail_closed_block
+    rule: >
+      publish_fail_closed_block has no waiver path. The manifest
+      revision MUST be amended (refreshed evidence, restored
+      signer continuity, recalled revision corrected) before the
+      gate can re-evaluate.
+  - applies_to_badge_ids:
+      - badge.local_draft
+    rule: >
+      Local-draft rows have no waiver path on any verdict. A
+      local-draft bundle never publishes through the automation
+      gate.
+
+# -----------------------------------------------------------------------------
+# Register invariants. Validators read this file as a closed-world
+# rule set.
+# -----------------------------------------------------------------------------
+invariants:
+  - invariant_id: invariant:every_rule_carries_verdict_class_from_vocabulary
+    statement: >
+      Every entry in rules[] carries exactly one verdict drawn
+      from verdict_class_vocabulary. Free-text verdicts are
+      non-conforming.
+  - invariant_id: invariant:every_fail_closed_rule_cites_blocker_class
+    statement: >
+      Every rule whose verdict is publish_fail_closed_warn or
+      publish_fail_closed_block cites at least one blocker_class
+      drawn from stale_badge_blocker_class_vocabulary. A fail-
+      closed rule without a blocker class is non-conforming.
+  - invariant_id: invariant:certified_required_evidence_link_missing_blocks_closed
+    statement: >
+      The rule
+      stale_badge_fail_rule:certified_required_evidence_link_missing
+      MUST resolve to publish_fail_closed_block with
+      waiver_path_allowed = false. A loosened verdict on this
+      rule is breaking and requires a decision row.
+  - invariant_id: invariant:certified_required_evidence_link_stale_blocks_closed
+    statement: >
+      The rule
+      stale_badge_fail_rule:certified_required_evidence_link_stale_past_window
+      MUST resolve to publish_fail_closed_block with
+      waiver_path_allowed = false. A loosened verdict on this
+      rule is breaking and requires a decision row.
+  - invariant_id: invariant:managed_approved_required_evidence_link_missing_blocks_closed
+    statement: >
+      The rule
+      stale_badge_fail_rule:managed_approved_required_evidence_link_missing
+      MUST resolve to publish_fail_closed_block with
+      waiver_path_allowed = false. A loosened verdict on this
+      rule is breaking and requires a decision row.
+  - invariant_id: invariant:managed_approved_required_evidence_link_stale_blocks_closed
+    statement: >
+      The rule
+      stale_badge_fail_rule:managed_approved_required_evidence_link_stale_past_window
+      MUST resolve to publish_fail_closed_block with
+      waiver_path_allowed = false.
+  - invariant_id: invariant:signer_continuity_break_blocks_certified_and_managed
+    statement: >
+      The rule
+      stale_badge_fail_rule:certified_signer_continuity_or_signature_broken
+      MUST resolve to publish_fail_closed_block on badge.certified
+      and badge.managed_approved. Signer continuity break is
+      never silently waivable.
+  - invariant_id: invariant:archetype_proof_stale_blocks_certified
+    statement: >
+      The rule
+      stale_badge_fail_rule:certified_archetype_proof_stale_past_cadence
+      MUST resolve to publish_fail_closed_block on
+      certification_sheet_artifact, release_notes_pack,
+      workflow_bundle_or_certification_badge,
+      evaluation_artifact, and marketplace_listing destinations.
+  - invariant_id: invariant:local_draft_never_publishes
+    statement: >
+      The rule
+      stale_badge_fail_rule:local_draft_never_publishes_through_automation_gate
+      MUST resolve to publish_fail_closed_block on every gate
+      path with waiver_path_allowed = false.
+  - invariant_id: invariant:default_fail_closed_by_default_holds
+    statement: >
+      The rule stale_badge_fail_rule:default_fail_closed_by_default
+      MUST exist and MUST resolve to publish_fail_closed_block.
+      Removing the default is breaking and requires a decision
+      row.
+  - invariant_id: invariant:strictest_verdict_wins
+    statement: >
+      The strictest_verdict_ordering is a total order. The publish
+      gate emits the strictest applicable verdict; emitting a
+      weaker verdict than any applicable rule demands is non-
+      conforming.
+  - invariant_id: invariant:scope_expansion_requires_decision_row
+    statement: >
+      Adding a rule, adding a verdict class, adding a blocker
+      class, weakening a fail-closed verdict, or shifting a
+      verdict from publish_allowed* to publish_fail_closed_*
+      (or vice versa) opens a decision row in
+      artifacts/governance/decision_index.yaml. Silent rule
+      expansion is non-conforming.
