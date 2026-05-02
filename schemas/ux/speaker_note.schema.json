@@ -1,0 +1,259 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/speaker_note.schema.json",
+  "title": "Aureline speaker note authoring artifact",
+  "description": "Boundary schema for the speaker note authoring artifact frozen in docs/ux/learning_artifact_object_model.md. One speaker_note_artifact record per authored speaker note paired with a tour or exercise step. The record is the portable authoring object pack authors ship; the runtime guided_surface_state_record on schemas/ux/guided_surface_state.schema.json with surface_kind = speaker_note_adjunct or teaching_session_adjunct carries render-time state for an active note and resolves against this artifact by id. Speaker-note authority MUST NOT confer mutation. Notes preserve command identity on handoff: a note paired with a step pinning a command_id_ref MUST carry the same id on preserved_command_id_ref. The contract mints no new speaker_note_locality_class or share_state_class vocabulary; those re-export verbatim from schemas/ux/presentation_mode_state.schema.json.",
+  "type": "object",
+  "$ref": "#/$defs/speaker_note_artifact",
+  "$defs": {
+    "speaker_note_artifact_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "speaker_note_artifact"
+    },
+
+    "opaque_id": { "type": "string", "minLength": 1 },
+
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+
+    "short_label_text": { "type": "string", "minLength": 1, "maxLength": 200 },
+
+    "body_summary_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short privacy-safe speaker-note body. Raw URLs, raw paths, raw secrets, and raw prompt / completion text are forbidden."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "jargon_level_class": {
+      "type": "string",
+      "enum": ["beginner", "intermediate", "advanced", "expert"]
+    },
+
+    "ownership_class": {
+      "type": "string",
+      "enum": [
+        "presenter_owned_local",
+        "co_presenter_visible",
+        "facilitator_only_visible",
+        "facilitator_audience_visible",
+        "audience_visible"
+      ],
+      "description": "Closed speaker-note ownership vocabulary. presenter_owned_local stays on the presenter's machine; audience_visible MUST resolve through a shared share_state_class."
+    },
+
+    "share_state_class": {
+      "type": "string",
+      "enum": [
+        "local_only_no_share",
+        "shared_to_named_audience",
+        "shared_to_classroom_managed_pool",
+        "shared_to_facilitator_only",
+        "shared_blocked_by_policy",
+        "shared_unavailable_in_envelope"
+      ],
+      "description": "Re-exported from schemas/ux/presentation_mode_state.schema.json."
+    },
+
+    "speaker_note_locality_class": {
+      "type": "string",
+      "enum": [
+        "speaker_notes_facilitator_only_local",
+        "speaker_notes_co_presenter_visible",
+        "speaker_notes_hidden_no_facilitator_route",
+        "speaker_notes_blocked_by_policy"
+      ],
+      "description": "Re-exported from schemas/ux/presentation_mode_state.schema.json."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud",
+        "air_gapped_mirror_only"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "learning_artifact_speaker_note_share_state_mismatch",
+        "learning_artifact_speaker_note_command_identity_lost",
+        "learning_artifact_speaker_note_locality_envelope_mismatch",
+        "speaker_note_artifact_schema_version_lagging"
+      ]
+    },
+
+    "speaker_note_artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "speaker_note_artifact_schema_version",
+        "note_id",
+        "pack_ref",
+        "paired_step_ref",
+        "default_locale",
+        "body_summary",
+        "jargon_level_class",
+        "ownership_class",
+        "share_state_class",
+        "speaker_note_locality_class",
+        "deployment_profile_refs",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "speaker_note_artifact_schema_version": {
+          "$ref": "#/$defs/speaker_note_artifact_schema_version"
+        },
+        "note_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_ref": { "$ref": "#/$defs/opaque_id" },
+        "paired_step_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the tour_step_artifact or exercise_step_artifact this note is paired with."
+        },
+        "default_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "body_summary": { "$ref": "#/$defs/body_summary_text" },
+        "jargon_level_class": { "$ref": "#/$defs/jargon_level_class" },
+        "ownership_class": { "$ref": "#/$defs/ownership_class" },
+        "share_state_class": { "$ref": "#/$defs/share_state_class" },
+        "speaker_note_locality_class": { "$ref": "#/$defs/speaker_note_locality_class" },
+        "preserved_command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when the paired step pins a command_id_ref. MUST equal the paired step's command id; a note that names an action without preserving its command identity is non-conforming."
+        },
+        "preserved_docs_citation_anchor_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when the paired step pins a primary docs anchor."
+        },
+        "deployment_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "presentation_label": { "$ref": "#/$defs/short_label_text" },
+        "denial_reason_on_deny": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "audience_visible ownership MUST resolve through a shared share_state_class.",
+          "if": {
+            "properties": { "ownership_class": { "const": "audience_visible" } },
+            "required": ["ownership_class"]
+          },
+          "then": {
+            "properties": {
+              "share_state_class": {
+                "enum": [
+                  "shared_to_named_audience",
+                  "shared_to_classroom_managed_pool",
+                  "shared_to_facilitator_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "presenter_owned_local notes are not exposed to the audience and MUST set share_state_class to local_only_no_share.",
+          "if": {
+            "properties": { "ownership_class": { "const": "presenter_owned_local" } },
+            "required": ["ownership_class"]
+          },
+          "then": {
+            "properties": {
+              "share_state_class": { "const": "local_only_no_share" },
+              "speaker_note_locality_class": {
+                "enum": ["speaker_notes_facilitator_only_local", "speaker_notes_hidden_no_facilitator_route"]
+              }
+            }
+          }
+        },
+        {
+          "description": "facilitator_only_visible notes ride the facilitator-only speaker-note locality.",
+          "if": {
+            "properties": { "ownership_class": { "const": "facilitator_only_visible" } },
+            "required": ["ownership_class"]
+          },
+          "then": {
+            "properties": {
+              "speaker_note_locality_class": {
+                "enum": ["speaker_notes_facilitator_only_local", "speaker_notes_co_presenter_visible"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One speaker note authoring artifact. See docs/ux/learning_artifact_object_model.md §1.6."
+    }
+  }
+}
