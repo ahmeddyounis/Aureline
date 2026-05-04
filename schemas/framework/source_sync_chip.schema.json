@@ -1,0 +1,590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/framework/source_sync_chip.schema.json",
+  "title": "Aureline framework source-sync chip record",
+  "description": "Boundary schema for the source_sync_chip_record frozen in docs/framework/framework_certainty_and_source_sync_contract.md. Every preview card, route-explorer row, component-tree row, notebook framework-context inspector, diagnostics lane, and support export emits one chip when it needs one stable answer to: what source revision the framework knowledge was built against, what runtime revision the framework is bound to right now, what the hot-reload status is, what target device/context the runtime is rendering against, and which fallback-open actions the user can take. The chip projects from (and never duplicates) the cross-surface preview_snapshot_record and the preview_runtime_strip_record / hot_reload_state_record / framework_certainty_row_record companions; raw bytes never cross this boundary, only opaque snapshot / runtime / device / log / approval handles plus class labels. Adding a new preview_lane_class, source_sync_state_class, source_revision_class, runtime_revision_class, hot_reload_status_class, target_environment_class, device_target_class, viewport_preset_class, or fallback_open_action_class value is additive-minor and bumps source_sync_chip_schema_version; repurposing an existing field is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/source_sync_chip_record" }
+  ],
+  "$defs": {
+    "source_sync_chip_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "source_sync_chip_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, or persist. Raw URLs, raw absolute paths, raw IP addresses, raw hostnames, raw bearer tokens, and raw secret values never appear here."
+    },
+
+    "redacted_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "preview_lane_class": {
+      "type": "string",
+      "enum": [
+        "browser_preview_lane",
+        "native_preview_lane",
+        "embedded_preview_lane",
+        "notebook_preview_lane",
+        "no_preview_lane_attached"
+      ],
+      "description": "Closed preview-lane vocabulary. browser/native/embedded mirror schemas/preview/preview_snapshot.schema.json. notebook_preview_lane is reserved for chips emitted from a notebook framework-context inspector. no_preview_lane_attached is reserved for chips emitted from diagnostics/AI/support surfaces that have no preview attached."
+    },
+
+    "source_sync_state_class": {
+      "type": "string",
+      "enum": [
+        "source_in_sync",
+        "source_drifted_since_render",
+        "source_revision_unknown",
+        "source_revision_redacted",
+        "source_unmappable_for_runtime"
+      ],
+      "description": "Re-export of source_sync_state from schemas/preview/preview_snapshot.schema.json."
+    },
+
+    "source_revision_class": {
+      "type": "string",
+      "enum": [
+        "vcs_commit_pinned",
+        "working_tree_with_pending_edits",
+        "release_tag_pinned",
+        "build_artifact_digest_pinned",
+        "remote_ref_pinned",
+        "unknown_revision"
+      ],
+      "description": "Re-export of source_revision_class from schemas/preview/preview_snapshot.schema.json."
+    },
+
+    "source_revision_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_revision_class"],
+      "properties": {
+        "source_revision_class": { "$ref": "#/$defs/source_revision_class" },
+        "source_revision_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "drifted_paths_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+
+    "runtime_revision_class": {
+      "type": "string",
+      "enum": [
+        "runtime_revision_pinned_to_source",
+        "runtime_revision_drifted_from_source",
+        "runtime_revision_unknown",
+        "runtime_revision_redacted",
+        "runtime_revision_unattached_no_runtime"
+      ],
+      "description": "Closed runtime-revision vocabulary the chip displays. runtime_revision_pinned_to_source means the running framework runtime was built against the recorded source revision. runtime_revision_drifted_from_source means it was built against an older revision. runtime_revision_unknown means the runtime did not report its revision. runtime_revision_redacted is reserved for support-export contexts. runtime_revision_unattached_no_runtime means no runtime is currently attached (static preview, notebook framework context without a kernel, diagnostics/AI surfaces without a preview)."
+    },
+
+    "runtime_revision_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime_revision_class"],
+      "properties": {
+        "runtime_revision_class": { "$ref": "#/$defs/runtime_revision_class" },
+        "runtime_revision_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "framework_adapter_revision_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "hot_reload_status_class": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "partial",
+        "restart_required",
+        "rebuild_required",
+        "failed",
+        "unavailable"
+      ],
+      "description": "Re-export of hot_reload_state_class from schemas/preview/hot_reload_state.schema.json."
+    },
+
+    "device_target_class": {
+      "type": "string",
+      "enum": [
+        "viewport_preset_only",
+        "tethered_device",
+        "remote_attached_device",
+        "managed_device_pool",
+        "browser_window_target",
+        "browser_tab_target",
+        "embedded_canvas_target",
+        "no_device_target_attached"
+      ],
+      "description": "Re-export of device_target_class from schemas/preview/preview_snapshot.schema.json plus no_device_target_attached for chips emitted from notebook / diagnostics / AI / support surfaces with no preview device target attached."
+    },
+
+    "viewport_preset_class": {
+      "type": "string",
+      "enum": [
+        "desktop_default_preset",
+        "tablet_landscape_preset",
+        "tablet_portrait_preset",
+        "phone_landscape_preset",
+        "phone_portrait_preset",
+        "custom_preset",
+        "preset_not_applicable"
+      ],
+      "description": "Re-export of viewport_preset_class from schemas/preview/preview_snapshot.schema.json."
+    },
+
+    "target_environment_class": {
+      "type": "string",
+      "enum": [
+        "local_dev_server",
+        "remote_preview_runtime",
+        "managed_preview_runtime",
+        "containerised_preview_runtime",
+        "extension_host_preview_runtime",
+        "external_browser_handoff_target",
+        "external_device_handoff_target",
+        "static_render_only_no_runtime",
+        "no_runtime_target_attached"
+      ],
+      "description": "Re-export of target_environment_class from schemas/preview/preview_snapshot.schema.json plus no_runtime_target_attached for chips emitted from surfaces without a preview runtime."
+    },
+
+    "target_device_context_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device_target_class",
+        "viewport_preset_class",
+        "target_environment_class"
+      ],
+      "properties": {
+        "device_target_class": { "$ref": "#/$defs/device_target_class" },
+        "viewport_preset_class": { "$ref": "#/$defs/viewport_preset_class" },
+        "target_environment_class": { "$ref": "#/$defs/target_environment_class" },
+        "device_handle_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "redacted_target_label": {
+          "anyOf": [
+            { "$ref": "#/$defs/redacted_label" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "fallback_open_action_class": {
+      "type": "string",
+      "enum": [
+        "no_action_already_in_sync",
+        "open_canonical_source",
+        "open_diff_against_source",
+        "open_runtime_inspector",
+        "open_runtime_logs",
+        "export_metadata_only",
+        "request_managed_runtime",
+        "reload_preview_runtime",
+        "rebuild_preview_runtime",
+        "restart_preview_runtime",
+        "reattach_runtime_session",
+        "reveal_in_route_explorer",
+        "reveal_in_component_tree",
+        "open_notebook_kernel_inspector",
+        "open_framework_pack_status",
+        "request_policy_review"
+      ],
+      "description": "Closed fallback-open action vocabulary the chip may offer. no_action_already_in_sync is reserved for fully-in-sync chips. open_canonical_source / open_diff_against_source jump to source. open_runtime_inspector / open_runtime_logs route to runtime evidence. export_metadata_only / request_managed_runtime / open_framework_pack_status / request_policy_review escalate. reload / rebuild / restart / reattach trigger runtime recovery. reveal_in_route_explorer / reveal_in_component_tree / open_notebook_kernel_inspector route to framework consumers."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+
+    "source_sync_chip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "source_sync_chip_schema_version",
+        "source_sync_chip_id",
+        "captured_at",
+        "preview_lane_class",
+        "source_sync_state_class",
+        "source_revision_block",
+        "runtime_revision_block",
+        "hot_reload_status_class",
+        "target_device_context_block",
+        "fallback_open_actions",
+        "summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "source_sync_chip_schema_version": { "$ref": "#/$defs/source_sync_chip_schema_version" },
+        "source_sync_chip_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "preview_snapshot_record_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "preview_runtime_strip_record_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "hot_reload_state_record_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "framework_certainty_row_record_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+
+        "preview_lane_class": { "$ref": "#/$defs/preview_lane_class" },
+
+        "source_sync_state_class": { "$ref": "#/$defs/source_sync_state_class" },
+        "source_revision_block": { "$ref": "#/$defs/source_revision_block" },
+        "runtime_revision_block": { "$ref": "#/$defs/runtime_revision_block" },
+        "hot_reload_status_class": { "$ref": "#/$defs/hot_reload_status_class" },
+        "target_device_context_block": { "$ref": "#/$defs/target_device_context_block" },
+
+        "fallback_open_actions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_open_action_class" },
+          "uniqueItems": true,
+          "minItems": 1,
+          "description": "Fallback-open actions admissible from this chip. minItems 1: every chip offers at least one action so the user is never given a dead-end label."
+        },
+
+        "runtime_log_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "managed_runtime_request_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+        "framework_pack_status_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ]
+        },
+
+        "summary": { "$ref": "#/$defs/short_summary" },
+        "notes": {
+          "anyOf": [
+            { "$ref": "#/$defs/short_summary" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "source_sync_state_class = source_in_sync requires runtime_revision_class = runtime_revision_pinned_to_source AND fallback_open_actions to contain no_action_already_in_sync.",
+          "if": {
+            "properties": { "source_sync_state_class": { "const": "source_in_sync" } },
+            "required": ["source_sync_state_class"]
+          },
+          "then": {
+            "properties": {
+              "runtime_revision_block": {
+                "properties": {
+                  "runtime_revision_class": { "const": "runtime_revision_pinned_to_source" }
+                },
+                "required": ["runtime_revision_class"]
+              },
+              "fallback_open_actions": {
+                "contains": { "const": "no_action_already_in_sync" }
+              }
+            }
+          }
+        },
+        {
+          "description": "source_sync_state_class = source_drifted_since_render requires fallback_open_actions to contain at least one of {open_canonical_source, open_diff_against_source, reload_preview_runtime} and forbids no_action_already_in_sync.",
+          "if": {
+            "properties": { "source_sync_state_class": { "const": "source_drifted_since_render" } },
+            "required": ["source_sync_state_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_open_actions": {
+                "allOf": [
+                  {
+                    "anyOf": [
+                      { "contains": { "const": "open_canonical_source" } },
+                      { "contains": { "const": "open_diff_against_source" } },
+                      { "contains": { "const": "reload_preview_runtime" } }
+                    ]
+                  },
+                  { "not": { "contains": { "const": "no_action_already_in_sync" } } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "source_sync_state_class = source_revision_unknown forbids no_action_already_in_sync.",
+          "if": {
+            "properties": { "source_sync_state_class": { "const": "source_revision_unknown" } },
+            "required": ["source_sync_state_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_open_actions": {
+                "not": { "contains": { "const": "no_action_already_in_sync" } }
+              }
+            }
+          }
+        },
+        {
+          "description": "source_sync_state_class = source_unmappable_for_runtime requires fallback_open_actions to contain at least one of {open_runtime_inspector, export_metadata_only}.",
+          "if": {
+            "properties": { "source_sync_state_class": { "const": "source_unmappable_for_runtime" } },
+            "required": ["source_sync_state_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_open_actions": {
+                "anyOf": [
+                  { "contains": { "const": "open_runtime_inspector" } },
+                  { "contains": { "const": "export_metadata_only" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "runtime_revision_block.runtime_revision_class = runtime_revision_pinned_to_source requires source_sync_state_class = source_in_sync.",
+          "if": {
+            "properties": {
+              "runtime_revision_block": {
+                "properties": {
+                  "runtime_revision_class": { "const": "runtime_revision_pinned_to_source" }
+                },
+                "required": ["runtime_revision_class"]
+              }
+            },
+            "required": ["runtime_revision_block"]
+          },
+          "then": {
+            "properties": {
+              "source_sync_state_class": { "const": "source_in_sync" }
+            }
+          }
+        },
+        {
+          "description": "runtime_revision_block.runtime_revision_class = runtime_revision_unattached_no_runtime requires source_sync_state_class != source_in_sync AND target_environment_class in {static_render_only_no_runtime, no_runtime_target_attached, extension_host_preview_runtime}.",
+          "if": {
+            "properties": {
+              "runtime_revision_block": {
+                "properties": {
+                  "runtime_revision_class": { "const": "runtime_revision_unattached_no_runtime" }
+                },
+                "required": ["runtime_revision_class"]
+              }
+            },
+            "required": ["runtime_revision_block"]
+          },
+          "then": {
+            "properties": {
+              "source_sync_state_class": {
+                "not": { "const": "source_in_sync" }
+              },
+              "target_device_context_block": {
+                "properties": {
+                  "target_environment_class": {
+                    "enum": [
+                      "static_render_only_no_runtime",
+                      "no_runtime_target_attached",
+                      "extension_host_preview_runtime"
+                    ]
+                  }
+                },
+                "required": ["target_environment_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_status_class = failed requires fallback_open_actions to contain at least one of {open_runtime_logs, restart_preview_runtime, rebuild_preview_runtime}.",
+          "if": {
+            "properties": { "hot_reload_status_class": { "const": "failed" } },
+            "required": ["hot_reload_status_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_open_actions": {
+                "anyOf": [
+                  { "contains": { "const": "open_runtime_logs" } },
+                  { "contains": { "const": "restart_preview_runtime" } },
+                  { "contains": { "const": "rebuild_preview_runtime" } }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_status_class = restart_required requires fallback_open_actions to contain restart_preview_runtime.",
+          "if": {
+            "properties": { "hot_reload_status_class": { "const": "restart_required" } },
+            "required": ["hot_reload_status_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_open_actions": {
+                "contains": { "const": "restart_preview_runtime" }
+              }
+            }
+          }
+        },
+        {
+          "description": "hot_reload_status_class = rebuild_required requires fallback_open_actions to contain rebuild_preview_runtime.",
+          "if": {
+            "properties": { "hot_reload_status_class": { "const": "rebuild_required" } },
+            "required": ["hot_reload_status_class"]
+          },
+          "then": {
+            "properties": {
+              "fallback_open_actions": {
+                "contains": { "const": "rebuild_preview_runtime" }
+              }
+            }
+          }
+        },
+        {
+          "description": "open_runtime_logs in fallback_open_actions requires non-null runtime_log_ref.",
+          "if": {
+            "properties": {
+              "fallback_open_actions": {
+                "contains": { "const": "open_runtime_logs" }
+              }
+            },
+            "required": ["fallback_open_actions"]
+          },
+          "then": {
+            "properties": {
+              "runtime_log_ref": { "type": "string" }
+            },
+            "required": ["runtime_log_ref"]
+          }
+        },
+        {
+          "description": "request_managed_runtime in fallback_open_actions requires non-null managed_runtime_request_ref.",
+          "if": {
+            "properties": {
+              "fallback_open_actions": {
+                "contains": { "const": "request_managed_runtime" }
+              }
+            },
+            "required": ["fallback_open_actions"]
+          },
+          "then": {
+            "properties": {
+              "managed_runtime_request_ref": { "type": "string" }
+            },
+            "required": ["managed_runtime_request_ref"]
+          }
+        },
+        {
+          "description": "open_framework_pack_status in fallback_open_actions requires non-null framework_pack_status_ref.",
+          "if": {
+            "properties": {
+              "fallback_open_actions": {
+                "contains": { "const": "open_framework_pack_status" }
+              }
+            },
+            "required": ["fallback_open_actions"]
+          },
+          "then": {
+            "properties": {
+              "framework_pack_status_ref": { "type": "string" }
+            },
+            "required": ["framework_pack_status_ref"]
+          }
+        },
+        {
+          "description": "preview_lane_class = no_preview_lane_attached requires target_environment_class = no_runtime_target_attached AND device_target_class = no_device_target_attached AND runtime_revision_class = runtime_revision_unattached_no_runtime.",
+          "if": {
+            "properties": { "preview_lane_class": { "const": "no_preview_lane_attached" } },
+            "required": ["preview_lane_class"]
+          },
+          "then": {
+            "properties": {
+              "target_device_context_block": {
+                "properties": {
+                  "target_environment_class": { "const": "no_runtime_target_attached" },
+                  "device_target_class": { "const": "no_device_target_attached" }
+                },
+                "required": ["target_environment_class", "device_target_class"]
+              },
+              "runtime_revision_block": {
+                "properties": {
+                  "runtime_revision_class": { "const": "runtime_revision_unattached_no_runtime" }
+                },
+                "required": ["runtime_revision_class"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One source-sync chip record emitted by a route-explorer row, component-tree row, preview card, notebook framework-context inspector, diagnostics lane, AI-assist context lane, or support export."
+    }
+  }
+}
