@@ -1,0 +1,828 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/branch_agent_review_packet.schema.json",
+  "title": "Aureline AI background branch-agent review packet, landing-constraint, and audit-event vocabulary",
+  "description": "Boundary schema for the branch_agent_review_packet_record, branch_agent_landing_constraint_record, and branch_agent_review_packet_audit_event_record frozen in docs/ai/background_branch_agent_lifecycle.md. Every terminal branch-agent session that produced inspectable output (session_completed_review_only, session_completed_landed_via_review, every cancelled_* state, and every paused_for_checkpoint_review) mints exactly one branch_agent_review_packet_record so reviewers and support / replay / audit / landing surfaces can read the budget, secret-scope, mutation-surface, test-plan, and landing-constraint sections verbatim — without reading implementation code or provider logs. The packet preserves lineage to the originating composer session, turn-draft, request-workspace, assembly, plan, pack, and per-hop receipts; it never re-mints cost, origin, or charge state. Raw paths, raw URLs, raw branch names, raw worktree paths, raw cost amounts, raw token counts, raw provider payloads, and raw credential bodies never cross this boundary. The schema composes with (and does not replace) schemas/ai/branch_agent_session.schema.json (session, checkpoint, validation-plan), schemas/ai/provider_route_receipt.schema.json (per-hop route receipts and the chain rollup), schemas/ai/spend_receipt.schema.json (per-hop spend receipts and the chain rollup), schemas/ai/review_finding.schema.json (review findings the packet surfaces), schemas/vcs/review_pack.schema.json (must-run / advisory check classes), schemas/vcs/review_workspace.schema.json (no-self-merge / no-direct-protected-push invariants), and schemas/integration/approval_ticket.schema.json (admin-only override). Adding a new review_packet_state_class, landing_constraint_class, enforcement_class, must_run_summary_class, test_plan_summary_class, mutation_diff_summary_class, audit_event_id, or denial_reason value is additive-minor and requires a branch_agent_review_packet_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/branch_agent_review_packet_record" },
+    { "$ref": "#/$defs/branch_agent_landing_constraint_record" },
+    { "$ref": "#/$defs/branch_agent_review_packet_audit_event_record" }
+  ],
+  "$defs": {
+    "branch_agent_review_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this branch-agent review-packet vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "branch_agent_review_packet_record",
+        "branch_agent_landing_constraint_record",
+        "branch_agent_review_packet_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw URLs, raw paths, raw worktree paths, raw branch names, raw remote URIs, raw provider payloads, raw API keys, raw OAuth tokens, raw mTLS material, raw cost amounts, raw token counts, and raw user identifiers never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in branch-agent review, admin reconciliation, support exports, and replay surfaces. Never quotes raw URLs, raw paths, raw provider payloads, raw cost amounts, raw token counts, or raw user identifiers."
+    },
+
+    "review_packet_state_class": {
+      "type": "string",
+      "enum": [
+        "packet_draft_pending_completion",
+        "packet_ready_for_review",
+        "packet_in_review",
+        "packet_acknowledged_no_land",
+        "packet_landed_via_review",
+        "packet_cancelled",
+        "packet_superseded_by_replacement"
+      ],
+      "description": "Frozen review-packet-state vocabulary."
+    },
+
+    "dispatch_origin_class": {
+      "type": "string",
+      "enum": [
+        "dispatched_from_composer_turn",
+        "dispatched_from_slash_command",
+        "dispatched_from_review_handoff",
+        "dispatched_from_support_replay",
+        "dispatched_from_admin_console",
+        "dispatched_from_extension_provided",
+        "dispatched_from_mocked_test",
+        "dispatched_no_origin_disabled"
+      ],
+      "description": "Dispatch-origin vocabulary re-exported from schemas/ai/branch_agent_session.schema.json without modification."
+    },
+
+    "target_execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "current_worktree_assist",
+        "isolated_side_worktree",
+        "side_branch_no_worktree",
+        "ephemeral_workspace",
+        "managed_remote_workspace",
+        "mocked_test_locus",
+        "disabled_no_locus"
+      ],
+      "description": "Target-execution-locus vocabulary re-exported from schemas/ai/branch_agent_session.schema.json without modification."
+    },
+
+    "mutation_surface_class": {
+      "type": "string",
+      "enum": [
+        "no_mutation_read_only",
+        "proposes_diff_only_no_apply",
+        "mutates_isolated_worktree_only",
+        "mutates_active_worktree_under_user_view",
+        "mutates_managed_remote_workspace_only",
+        "mutates_through_review_pipeline_only",
+        "mutation_unknown_unverified",
+        "mutation_disabled"
+      ],
+      "description": "Mutation-surface vocabulary re-exported from schemas/ai/branch_agent_session.schema.json without modification."
+    },
+
+    "secret_scope_class": {
+      "type": "string",
+      "enum": [
+        "no_secrets_admitted",
+        "read_only_redacted_handles",
+        "bounded_user_scoped_handles",
+        "bounded_admin_scoped_handles",
+        "enterprise_broker_scoped_handles",
+        "secret_scope_unknown_unverified",
+        "secret_scope_policy_blocked"
+      ],
+      "description": "Secret-scope vocabulary re-exported from schemas/ai/branch_agent_session.schema.json without modification."
+    },
+
+    "agent_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "no_agent_invocations_admitted",
+        "single_invocation_no_recursion",
+        "bounded_recursion_depth_admitted",
+        "bounded_invocation_count_admitted",
+        "bounded_recursion_and_count_admitted",
+        "agent_invocation_unbounded_admin_only"
+      ],
+      "description": "Agent-ceiling class re-exported from schemas/ai/graduation_packet.schema.json without modification."
+    },
+
+    "landing_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_self_land_review_required",
+        "no_self_land_protected_branch",
+        "landed_via_review_pipeline_only",
+        "not_eligible_to_land_read_only",
+        "not_eligible_to_land_blocked",
+        "landing_disabled"
+      ],
+      "description": "Landing-posture vocabulary re-exported from schemas/ai/branch_agent_session.schema.json without modification."
+    },
+
+    "landing_constraint_class": {
+      "type": "string",
+      "enum": [
+        "no_self_land_self_merge_forbidden",
+        "no_direct_protected_branch_push",
+        "requires_human_review_acknowledgement",
+        "requires_review_pack_must_run_pass",
+        "requires_provider_required_check_pass",
+        "requires_admin_approval_ticket",
+        "requires_workspace_trust_trusted",
+        "requires_clean_review_findings",
+        "requires_no_pending_validation",
+        "requires_no_paused_checkpoint",
+        "requires_managed_remote_workspace_only",
+        "requires_published_via_review_thread"
+      ],
+      "description": "Frozen landing-constraint vocabulary. The two no-self-land / no-direct-protected-push constraints are required on every review packet regardless of landing posture (sections 4.3 and 5.2 of the contract)."
+    },
+
+    "enforcement_class": {
+      "type": "string",
+      "enum": [
+        "enforced_blocking_must_pass",
+        "enforced_blocking_admin_only_override",
+        "enforced_advisory_review_only"
+      ],
+      "description": "Frozen enforcement vocabulary. The two no-self-merge / no-direct-protected-push constraints are enforced_blocking_must_pass; an admin override admits a separate enforced_blocking_admin_only_override row that MUST cite an approval ticket."
+    },
+
+    "session_state_class": {
+      "type": "string",
+      "enum": [
+        "queued_pre_dispatch",
+        "dispatching",
+        "running",
+        "paused_for_checkpoint_review",
+        "paused_by_user",
+        "paused_by_policy",
+        "cancelled_by_user",
+        "cancelled_by_policy",
+        "cancelled_by_budget",
+        "cancelled_by_route",
+        "cancelled_by_validation_failure",
+        "session_completed_review_only",
+        "session_completed_landed_via_review",
+        "policy_blocked_pre_dispatch",
+        "disabled_no_dispatch"
+      ],
+      "description": "Session-state vocabulary re-exported from schemas/ai/branch_agent_session.schema.json without modification. landing constraints cite the session states they apply to."
+    },
+
+    "must_run_summary_class": {
+      "type": "string",
+      "enum": [
+        "must_run_all_passed",
+        "must_run_some_failed",
+        "must_run_pending",
+        "must_run_skipped_admitted",
+        "must_run_blocked_by_policy"
+      ],
+      "description": "Frozen must-run summary vocabulary."
+    },
+
+    "test_plan_summary_class": {
+      "type": "string",
+      "enum": [
+        "test_plan_full_suite_required_passed",
+        "test_plan_subset_required_passed",
+        "test_plan_subset_admitted_advisory",
+        "test_plan_skipped_admitted",
+        "test_plan_failed_blocking"
+      ],
+      "description": "Frozen test-plan summary vocabulary."
+    },
+
+    "mutation_diff_summary_class": {
+      "type": "string",
+      "enum": [
+        "no_diff_proposed",
+        "diff_proposed_no_apply",
+        "diff_applied_isolated",
+        "diff_applied_managed_remote",
+        "diff_applied_via_review_only",
+        "diff_blocked_no_apply"
+      ],
+      "description": "Frozen mutation-diff summary vocabulary."
+    },
+
+    "cost_envelope_class": {
+      "type": "string",
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_per_request_low_volume_band",
+        "metered_per_request_medium_volume_band",
+        "metered_per_request_high_volume_band",
+        "metered_per_token_low_volume_band",
+        "metered_per_token_medium_volume_band",
+        "metered_per_token_high_volume_band",
+        "flat_fee_subscription_band",
+        "enterprise_pooled_quota_band",
+        "vendor_hosted_entitlement_band",
+        "estimated_unverified_band",
+        "envelope_unknown_unverified_cost"
+      ],
+      "description": "Cost-envelope class re-exported from schemas/ai/spend_receipt.schema.json without modification. Reviewers see the bucket verbatim; raw cost amounts in any specific currency never cross this boundary."
+    },
+
+    "was_charged_to_user_class": {
+      "type": "string",
+      "enum": [
+        "not_charged_local",
+        "not_charged_bundled",
+        "charged_user_byok_metered",
+        "charged_user_byok_subscription",
+        "charged_organisation_pooled",
+        "charged_organisation_subscription",
+        "charge_unknown_unverified",
+        "not_charged_run_blocked"
+      ],
+      "description": "Charge-locus vocabulary re-exported from schemas/ai/spend_receipt.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ]
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "description": "Policy context the record was minted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Client-scope vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "request_workspace_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_workspace_id",
+        "flow_class",
+        "scope_filter_class",
+        "isolation_posture_class",
+        "privacy_export_posture_class",
+        "retention_stance_within_workspace_class",
+        "lifecycle_state_class",
+        "ref_origin_class"
+      ],
+      "properties": {
+        "request_workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "flow_class": {
+          "type": "string",
+          "enum": [
+            "explain_flow",
+            "review_flow",
+            "patch_flow",
+            "test_generation_flow",
+            "refactor_flow",
+            "inline_completion_flow",
+            "doc_generation_flow",
+            "diagnostic_triage_flow",
+            "background_branch_agent_flow",
+            "review_handoff_flow",
+            "support_replay_flow",
+            "mocked_test_flow",
+            "disabled_no_flow"
+          ]
+        },
+        "scope_filter_class": {
+          "type": "string",
+          "enum": [
+            "current_root",
+            "named_workset",
+            "sparse_slice",
+            "full_workspace",
+            "docs_pack_only",
+            "policy_limited_view",
+            "review_workspace",
+            "companion_surface",
+            "remote_workspace"
+          ]
+        },
+        "isolation_posture_class": {
+          "type": "string",
+          "enum": [
+            "isolated_per_session",
+            "isolated_per_turn",
+            "shared_across_session_turns",
+            "shared_across_branch_agent_dispatch",
+            "shared_across_review_handoff",
+            "shared_across_support_replay_only"
+          ]
+        },
+        "privacy_export_posture_class": {
+          "type": "string",
+          "enum": [
+            "included_by_default_in_support_bundle",
+            "included_metadata_only_in_support_bundle",
+            "opt_in_only_admin_export",
+            "excluded_by_default_from_support_bundle",
+            "excluded_always_support_bundle",
+            "excluded_always_claim_manifest",
+            "excluded_always_legal_hold_release",
+            "redacted_in_support_bundle_restricted"
+          ]
+        },
+        "retention_stance_within_workspace_class": {
+          "type": "string",
+          "enum": [
+            "no_retention_session_scoped",
+            "bounded_retention_session_bounded",
+            "bounded_retention_user_scoped",
+            "bounded_retention_admin_scoped",
+            "bounded_retention_legal_hold_only",
+            "retention_tied_to_assembly_lifetime",
+            "retention_tied_to_evidence_lifetime",
+            "retention_policy_blocked"
+          ]
+        },
+        "lifecycle_state_class": {
+          "type": "string",
+          "enum": [
+            "workspace_open_active",
+            "workspace_open_idle",
+            "workspace_closed_completed",
+            "workspace_closed_cancelled",
+            "workspace_closed_superseded",
+            "workspace_suspended_policy_change",
+            "workspace_quarantined_pending_review",
+            "workspace_disabled_policy_blocked"
+          ]
+        },
+        "ref_origin_class": {
+          "type": "string",
+          "enum": [
+            "minted_by_composer_session",
+            "minted_by_composer_turn_draft",
+            "minted_by_assembly",
+            "minted_by_route_receipt",
+            "minted_by_spend_receipt",
+            "minted_by_evidence_packet",
+            "minted_by_branch_agent_dispatch",
+            "minted_by_review_handoff",
+            "minted_by_replay_evidence",
+            "minted_by_support_replay",
+            "minted_by_audit_event"
+          ]
+        }
+      },
+      "description": "Inline projection of schemas/ai/request_workspace_ref.schema.json's request_workspace_ref_record fields the packet needs verbatim."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "branch_agent_review_packet_minted",
+        "branch_agent_review_packet_ready_for_review",
+        "branch_agent_review_packet_in_review",
+        "branch_agent_review_packet_acknowledged_no_land",
+        "branch_agent_review_packet_landed_via_review",
+        "branch_agent_review_packet_cancelled",
+        "branch_agent_review_packet_superseded_by_replacement",
+        "branch_agent_review_packet_denial_emitted",
+        "branch_agent_review_packet_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_branch_agent_review_packet audit stream."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "review_packet_state_class_unresolved",
+        "review_packet_required_section_missing",
+        "landing_constraint_required_for_posture_missing",
+        "landing_constraint_no_self_merge_required",
+        "landing_constraint_no_protected_push_required",
+        "lineage_ref_missing_required",
+        "originless_branch_agent_chip_forbidden_resolve_through_session",
+        "raw_path_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_credential_forbidden_on_boundary",
+        "policy_epoch_rolled_invalidations",
+        "branch_agent_review_packet_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary."
+    },
+
+    "branch_agent_landing_constraint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "branch_agent_review_packet_schema_version",
+        "landing_constraint_id",
+        "branch_agent_session_ref",
+        "landing_constraint_class",
+        "applies_to_session_state_class",
+        "enforcement_class",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_agent_landing_constraint_record" },
+        "branch_agent_review_packet_schema_version": { "$ref": "#/$defs/branch_agent_review_packet_schema_version" },
+        "landing_constraint_id": { "$ref": "#/$defs/opaque_id" },
+        "branch_agent_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "review_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the owning review packet. Empty string when the constraint is minted ahead of the packet but bound by id later."
+        },
+        "landing_constraint_class": { "$ref": "#/$defs/landing_constraint_class" },
+        "applies_to_session_state_class": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/session_state_class" },
+          "description": "Session-state values the constraint covers. Reviewers walk these to confirm the constraint applies to the session's terminal state."
+        },
+        "enforcement_class": { "$ref": "#/$defs/enforcement_class" },
+        "referenced_review_pack_check_ref": {
+          "type": "string",
+          "description": "Opaque ref to the review-pack check row. Required (non-empty) when landing_constraint_class = requires_review_pack_must_run_pass or requires_provider_required_check_pass; empty otherwise."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. Required (non-empty) when landing_constraint_class = requires_admin_approval_ticket OR enforcement_class = enforced_blocking_admin_only_override; empty otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "requires_review_pack_must_run_pass / requires_provider_required_check_pass MUST cite a non-empty referenced_review_pack_check_ref.",
+          "if": {
+            "properties": {
+              "landing_constraint_class": {
+                "enum": [
+                  "requires_review_pack_must_run_pass",
+                  "requires_provider_required_check_pass"
+                ]
+              }
+            },
+            "required": ["landing_constraint_class"]
+          },
+          "then": {
+            "properties": {
+              "referenced_review_pack_check_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["referenced_review_pack_check_ref"]
+          }
+        },
+        {
+          "description": "requires_admin_approval_ticket MUST cite a non-empty originating_approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "landing_constraint_class": { "const": "requires_admin_approval_ticket" }
+            },
+            "required": ["landing_constraint_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "enforced_blocking_admin_only_override MUST cite a non-empty originating_approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "enforcement_class": { "const": "enforced_blocking_admin_only_override" }
+            },
+            "required": ["enforcement_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        }
+      ],
+      "description": "One landing-constraint row. Reviewers read constraint rows verbatim to know what gates a session's output before it can land."
+    },
+
+    "branch_agent_review_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "branch_agent_review_packet_schema_version",
+        "review_packet_id",
+        "branch_agent_session_ref",
+        "review_packet_state_class",
+        "dispatch_origin_class",
+        "target_execution_locus_class",
+        "mutation_surface_class",
+        "secret_scope_class",
+        "agent_ceiling_class",
+        "landing_posture_class",
+        "landing_constraint_refs",
+        "cost_envelope_class",
+        "was_charged_to_user_class",
+        "must_run_summary_class",
+        "test_plan_summary_class",
+        "mutation_diff_summary_class",
+        "originating_composer_session_ref",
+        "originating_turn_draft_ref",
+        "originating_request_workspace_ref",
+        "originating_assembly_id_ref",
+        "originating_branch_agent_dispatch_ref",
+        "composer_plan_ref",
+        "policy_context",
+        "redaction_class",
+        "client_scopes",
+        "minted_at",
+        "last_updated_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_agent_review_packet_record" },
+        "branch_agent_review_packet_schema_version": { "$ref": "#/$defs/branch_agent_review_packet_schema_version" },
+        "review_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "branch_agent_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewer-visible label."
+        },
+        "review_packet_state_class": { "$ref": "#/$defs/review_packet_state_class" },
+        "dispatch_origin_class": { "$ref": "#/$defs/dispatch_origin_class" },
+        "target_execution_locus_class": { "$ref": "#/$defs/target_execution_locus_class" },
+        "mutation_surface_class": { "$ref": "#/$defs/mutation_surface_class" },
+        "secret_scope_class": { "$ref": "#/$defs/secret_scope_class" },
+        "agent_ceiling_class": { "$ref": "#/$defs/agent_ceiling_class" },
+        "landing_posture_class": { "$ref": "#/$defs/landing_posture_class" },
+        "landing_constraint_refs": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to branch_agent_landing_constraint_record rows. Every packet binds at minimum the no_self_land_self_merge_forbidden and no_direct_protected_branch_push constraints; the schema enforces minItems = 2 here, and the contract's allOf gates pair landing posture to the additional minimum constraints (sections 4.3 and 5.2)."
+        },
+        "cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "was_charged_to_user_class": { "$ref": "#/$defs/was_charged_to_user_class" },
+        "route_rollup_ref": {
+          "type": "string",
+          "description": "Opaque ref to the chain's branch_agent_route_rollup_record. Empty string only when no route receipt has been emitted yet (e.g. the packet is minted on a policy_blocked_pre_dispatch session)."
+        },
+        "spend_rollup_ref": {
+          "type": "string",
+          "description": "Opaque ref to the chain's branch_agent_spend_rollup_record. Empty string only when no spend receipt has been emitted yet."
+        },
+        "per_hop_route_receipt_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "per_hop_spend_receipt_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "validation_plan_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "must_run_summary_class": { "$ref": "#/$defs/must_run_summary_class" },
+        "test_plan_summary_class": { "$ref": "#/$defs/test_plan_summary_class" },
+        "mutation_diff_summary_class": { "$ref": "#/$defs/mutation_diff_summary_class" },
+        "change_stack_ref": {
+          "type": "string",
+          "description": "Opaque ref to the change-stack row the packet's diffs bind to. Empty string when the packet did not produce a diff."
+        },
+        "patch_stack_ref": {
+          "type": "string",
+          "description": "Opaque ref to the patch-stack row the packet's diffs bind to. Empty string when the packet did not produce a diff."
+        },
+        "review_finding_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to review_finding_record rows surfaced by the packet (re-export from schemas/ai/review_finding.schema.json). Empty array when no findings were minted."
+        },
+        "originating_composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_request_workspace_ref": { "$ref": "#/$defs/request_workspace_ref" },
+        "originating_assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "prompt_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the prompt-pack manifest the dispatching turn cited. Empty string when the workflow does not require a prompt-pack."
+        },
+        "tool_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the tool-pack manifest the dispatching turn cited. Empty string when the workflow does not require a tool-pack."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. Required (non-empty) when agent_ceiling_class = agent_invocation_unbounded_admin_only or when policy pinned a non-default dispatch locus."
+        },
+        "supersedes_review_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "notes_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewer-visible sentence summarising the packet."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "agent_invocation_unbounded_admin_only MUST cite a non-empty originating_approval_ticket_ref.",
+          "if": {
+            "properties": { "agent_ceiling_class": { "const": "agent_invocation_unbounded_admin_only" } },
+            "required": ["agent_ceiling_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        },
+        {
+          "description": "landed_via_review_pipeline_only MUST pair with mutates_through_review_pipeline_only and diff_applied_via_review_only.",
+          "if": {
+            "properties": { "landing_posture_class": { "const": "landed_via_review_pipeline_only" } },
+            "required": ["landing_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "mutation_surface_class": { "const": "mutates_through_review_pipeline_only" },
+              "mutation_diff_summary_class": { "const": "diff_applied_via_review_only" }
+            },
+            "required": ["mutation_surface_class", "mutation_diff_summary_class"]
+          }
+        },
+        {
+          "description": "not_eligible_to_land_read_only MUST pair with no_mutation_read_only and no_diff_proposed.",
+          "if": {
+            "properties": { "landing_posture_class": { "const": "not_eligible_to_land_read_only" } },
+            "required": ["landing_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "mutation_surface_class": { "const": "no_mutation_read_only" },
+              "mutation_diff_summary_class": { "const": "no_diff_proposed" }
+            },
+            "required": ["mutation_surface_class", "mutation_diff_summary_class"]
+          }
+        },
+        {
+          "description": "current_worktree_assist MUST pair with no_mutation_read_only or proposes_diff_only_no_apply.",
+          "if": {
+            "properties": { "target_execution_locus_class": { "const": "current_worktree_assist" } },
+            "required": ["target_execution_locus_class"]
+          },
+          "then": {
+            "properties": {
+              "mutation_surface_class": {
+                "enum": ["no_mutation_read_only", "proposes_diff_only_no_apply"]
+              }
+            },
+            "required": ["mutation_surface_class"]
+          }
+        }
+      ],
+      "description": "Branch-agent review packet record. One row per terminal session that produced inspectable output; reviewers read the budget / secret-scope / mutation-surface / test-plan / landing-constraint sections verbatim to decide whether to land, defer, or cancel."
+    },
+
+    "branch_agent_review_packet_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "branch_agent_review_packet_schema_version",
+        "audit_event_id",
+        "review_packet_ref",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_agent_review_packet_audit_event_record" },
+        "branch_agent_review_packet_schema_version": { "$ref": "#/$defs/branch_agent_review_packet_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "review_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "branch_agent_session_ref": {
+          "type": "string",
+          "description": "Opaque ref to the owning session. Empty string only on branch_agent_review_packet_schema_version_bumped."
+        },
+        "landing_constraint_ref": {
+          "type": "string",
+          "description": "Opaque ref to a landing-constraint row the event refers to. Empty string when not constraint-scoped."
+        },
+        "denial_reason": {
+          "type": "string",
+          "description": "Optional denial_reason string from the denial_reason enum. Empty string for non-deny events."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_review_packet_denial_emitted MUST cite a non-empty denial_reason from the denial_reason enum.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "branch_agent_review_packet_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/denial_reason" }
+            },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Observable event on the ai_branch_agent_review_packet audit stream."
+    }
+  }
+}
