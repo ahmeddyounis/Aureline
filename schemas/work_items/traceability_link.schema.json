@@ -1,0 +1,1163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/traceability_link.schema.json",
+  "title": "Aureline work-item traceability-link vocabulary",
+  "description": "Boundary schema for the traceability_link_record frozen in docs/work_items/provider_object_and_traceability_contract.md. One record family pins a typed, stable link from a work item back to one engineering artifact (branch, worktree, review workspace, review pack, review evaluation result, review anchor, change object, patch stack, validation evidence, QA run, check-run snapshot, evidence packet, incident workspace packet, security incident packet, support bundle, object-handoff packet, offline-handoff packet, provider-consequence preview, publish-later queue item, browser-handoff packet, provider-callback envelope, status-transition packet, release artifact, audit-event stream, or another work item). Every link names a closed relation_type_class, a typed authority_marker_class that says whether the link is provider-authoritative, locally authoritative, cached read-only shadow, imported-handoff evidence only, pending provider validation, pending account-mapping resolution, or revoked, a typed link_origin_class that names where the link came from, a typed link_freshness_class that survives provider outages and offline work, a typed link_lifecycle_state_class so admin-reconciliation surfaces can distinguish proposed / active / superseded / revoked / archived links, and a directionality_class. The record never carries raw provider URLs, raw branch / commit URLs, raw review / pull-request URLs, raw author identity strings, raw absolute paths, or raw notification payloads; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / authority / origin / lifecycle tokens only. Composes with (and does not replace) the work_item_detail_record schema (the source row a link binds to through source_work_item_detail_record_id_ref); the provider_object_record schema (the bound provider-object projection through linked_provider_object_record_id_ref); the provider-mode contract (provider_actor_class, redaction_class, drift_state_class, next_safe_action_class are re-exported from there); the publish-later contract (provider_object_relation_record / publish_later_queue_item_record / browser_handoff_packet_record / provider_callback_envelope_record); the review-workspace / review-pack / change-stack / patch-stack contracts; the support / incident contracts (object_handoff_packet_record / offline_handoff_packet_record / support_bundle_record_id_ref / incident_workspace_packet_record_id_ref); and the issue-routing matrix. The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, relation_type_class, authority_marker_class, link_origin_class, link_freshness_class, link_lifecycle_state_class, target_artifact_class, directionality_class, denial_reason, or audit_event_id is additive-minor and bumps traceability_link_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/traceability_link_record" },
+    { "$ref": "#/$defs/traceability_link_audit_event_record" }
+  ],
+  "$defs": {
+    "traceability_link_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the traceability-link vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "traceability_link_record",
+        "traceability_link_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw branch / commit URLs, raw review / pull-request URLs, raw author identity strings, raw absolute paths, and raw notification payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the traceability link was admitted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw payloads never cross this boundary regardless of class."
+    },
+
+    "relation_type_class": {
+      "type": "string",
+      "enum": [
+        "work_item_to_branch_or_worktree",
+        "work_item_to_review_workspace",
+        "work_item_to_review_pack_evaluation",
+        "work_item_to_review_anchor_comment",
+        "work_item_to_change_object",
+        "work_item_to_patch_stack",
+        "work_item_to_validation_evidence",
+        "work_item_to_qa_run",
+        "work_item_to_check_run_imported_snapshot",
+        "work_item_to_evidence_packet",
+        "work_item_to_incident_workspace_packet",
+        "work_item_to_security_incident_packet",
+        "work_item_to_support_bundle",
+        "work_item_to_object_handoff_packet",
+        "work_item_to_offline_handoff_packet",
+        "work_item_to_provider_consequence_preview",
+        "work_item_to_publish_later_queue_item",
+        "work_item_to_browser_handoff_packet",
+        "work_item_to_provider_callback_envelope",
+        "work_item_to_status_transition_packet",
+        "work_item_to_release_artifact",
+        "work_item_to_audit_event_stream",
+        "work_item_to_other_work_item"
+      ],
+      "description": "Frozen relation-type class. Names the typed kind of artifact the source work item is linked to. Stable across provider outages and offline work; surfaces MUST NOT invent a parallel relation-type vocabulary. work_item_to_other_work_item covers cross-tracker / blocking / dependency / parent / child relationships; the dependency direction is captured through directionality_class."
+    },
+
+    "target_artifact_class": {
+      "type": "string",
+      "enum": [
+        "branch_row",
+        "worktree_row",
+        "review_workspace_record",
+        "review_pack_record",
+        "review_evaluation_result_record",
+        "review_anchor_record",
+        "change_object_record",
+        "patch_stack_record",
+        "qa_run_record",
+        "check_run_imported_snapshot_record",
+        "evidence_packet_record",
+        "incident_workspace_packet_record",
+        "security_incident_packet_record",
+        "support_bundle_record",
+        "object_handoff_packet_record",
+        "offline_handoff_packet_record",
+        "provider_consequence_preview_record",
+        "publish_later_queue_item_record",
+        "browser_handoff_packet_record",
+        "provider_callback_envelope_record",
+        "status_transition_packet_record",
+        "release_artifact_record",
+        "audit_event_stream",
+        "work_item_detail_record",
+        "other"
+      ],
+      "description": "Frozen target-artifact class the link resolves to. Pairs with relation_type_class so a downstream surface always knows which schema to load when chasing an artifact_record_id_ref. 'other' is repair-only."
+    },
+
+    "authority_marker_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_link_validated",
+        "local_authoritative_link_no_provider_overlay",
+        "provider_overlay_with_local_overlay_synced",
+        "cached_read_only_shadow_link",
+        "imported_handoff_evidence_only_link",
+        "link_pending_provider_validation",
+        "link_pending_account_mapping_resolution",
+        "link_revoked_by_user",
+        "link_revoked_by_policy",
+        "link_provider_unreachable_local_continues"
+      ],
+      "description": "Frozen authority-marker class. provider_authoritative_link_validated means the provider validated the link (callback envelope or account-mapping binding); local_authoritative_link_no_provider_overlay means the link was authored locally and the provider has no overlay (e.g. a local-draft work item linked to a local branch); provider_overlay_with_local_overlay_synced means both sides agree on the link; cached_read_only_shadow_link means the link is read-only (e.g. behind a policy-blocked write scope); imported_handoff_evidence_only_link means the link was reconstructed from imported evidence with no live provider path; link_pending_provider_validation means the link is proposed and not yet validated by a callback envelope; link_pending_account_mapping_resolution means actor resolution is pending; the two link_revoked_* classes mark a link the user or policy revoked; link_provider_unreachable_local_continues means the provider is unreachable but the link continues to render locally with the freshness chip degraded."
+    },
+
+    "link_origin_class": {
+      "type": "string",
+      "enum": [
+        "provider_callback_envelope_minted_link",
+        "local_user_minted_link",
+        "imported_from_support_export_link",
+        "imported_from_incident_workspace_link",
+        "imported_from_object_handoff_packet_link",
+        "imported_from_offline_handoff_packet_link",
+        "derived_from_review_workspace_link",
+        "derived_from_change_stack_link",
+        "derived_from_patch_stack_link",
+        "account_mapping_binding_minted_link",
+        "policy_admin_minted_link",
+        "ai_proposed_link_pending_user_confirmation"
+      ],
+      "description": "Frozen link-origin class. Names where the link came from. provider_callback_envelope_minted_link and account_mapping_binding_minted_link are the two provider-validated lanes; local_user_minted_link is a link the user authored locally; the four imported_from_* lanes mark imported-evidence links; the three derived_from_* lanes mark links derived from a linked review workspace / change object / patch stack rather than authored directly; policy_admin_minted_link marks a link policy / admin pinned; ai_proposed_link_pending_user_confirmation marks an AI-proposed link awaiting user confirmation."
+    },
+
+    "link_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative_fresh",
+        "warm_within_grace",
+        "degraded_beyond_grace_local_continues",
+        "unverifiable_provider_unreachable",
+        "imported_snapshot_no_refresh_path",
+        "local_only_no_provider_path"
+      ],
+      "description": "Frozen link-freshness posture. Composes with the work-item detail freshness vocabulary; the link's freshness MAY be stricter than the parent detail row's (e.g. a link that resolved through a callback envelope independently of the row import). local_only_no_provider_path is admissible only on local_authoritative_link_no_provider_overlay authority."
+    },
+
+    "link_lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "active",
+        "superseded",
+        "revoked_by_user",
+        "revoked_by_policy",
+        "archived_after_close"
+      ],
+      "description": "Frozen lifecycle state for the link. proposed = not yet validated; active = validated and current; superseded = replaced by a newer traceability_link_record (cite through superseded_by_traceability_link_record_id_ref); revoked_by_user / revoked_by_policy = revoked with typed reason; archived_after_close = the source work item is closed and the link is preserved for audit only."
+    },
+
+    "directionality_class": {
+      "type": "string",
+      "enum": [
+        "outbound_from_work_item",
+        "inbound_to_work_item",
+        "bidirectional_pair"
+      ],
+      "description": "Frozen directionality class. outbound_from_work_item = the work item references the artifact; inbound_to_work_item = the artifact references the work item (e.g. a branch with the work-item id in its name); bidirectional_pair = both sides reference each other."
+    },
+
+    "blocking_relationship_class": {
+      "type": "string",
+      "enum": [
+        "no_blocking_relationship",
+        "source_blocks_target",
+        "target_blocks_source",
+        "mutual_blocking_relationship",
+        "source_depends_on_target",
+        "target_depends_on_source",
+        "source_parent_of_target",
+        "source_child_of_target",
+        "source_duplicates_target",
+        "target_duplicates_source"
+      ],
+      "description": "Frozen blocking / dependency / parent / duplicate relationship class for work_item_to_other_work_item links. no_blocking_relationship is the default for non-blocking links."
+    },
+
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "view_only",
+        "refresh_before_edit",
+        "open_in_provider_via_browser_handoff",
+        "promote_local_draft_to_queue",
+        "review_queue_item",
+        "reselect_account",
+        "escalate_for_admin_review",
+        "resolve_mapping_conflict",
+        "revoke_link",
+        "supersede_link",
+        "no_action_imported_evidence_only",
+        "no_action_archived_after_close"
+      ],
+      "description": "Next-safe-action hint re-exported (and extended) from the publish-later contract's next_safe_action_class. Surfaces MUST render this and MUST NOT invent surface-local actions outside this set."
+    },
+
+    "target_artifact_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "artifact_record_id_ref"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/target_artifact_class" },
+        "artifact_record_id_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the bound artifact record. Resolves through the schema named in artifact_class (e.g. schemas/vcs/review_workspace.schema.json for review_workspace_record)."
+        },
+        "artifact_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label for the artifact. Never the raw branch / commit URL or raw review URL; the label is the user-visible projection only."
+        },
+        "artifact_origin_schema_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream schema that owns artifact_class (e.g. schemas/vcs/review_workspace.schema.json). Empty when the artifact_class is 'other' or audit_event_stream."
+        }
+      },
+      "description": "Typed descriptor for the target artifact the link resolves to. Pairs with relation_type_class through an allOf gate so a downstream surface never has to guess which schema owns the artifact."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the traceability link was minted under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the traceability link was admitted under."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "relation_type_class_must_resolve_to_typed_class",
+        "authority_marker_class_must_resolve_to_typed_class",
+        "link_origin_class_must_resolve_to_typed_class",
+        "link_freshness_class_must_resolve_to_typed_class",
+        "link_lifecycle_state_class_must_resolve_to_typed_class",
+        "target_artifact_descriptor_must_match_relation_type_class",
+        "imported_evidence_only_link_must_carry_imported_origin_and_freshness",
+        "provider_authoritative_link_must_cite_callback_or_account_mapping_origin",
+        "provider_authoritative_link_must_carry_fresh_or_warm_freshness",
+        "superseded_link_must_cite_superseding_record",
+        "revoked_link_must_carry_revoked_lifecycle_state",
+        "pending_provider_validation_must_carry_proposed_lifecycle_state",
+        "pending_account_mapping_resolution_must_cite_account_mapping_binding",
+        "blocking_relationship_class_required_for_work_item_to_other_work_item",
+        "blocking_relationship_class_forbidden_outside_work_item_to_other_work_item",
+        "raw_provider_url_in_traceability_link_forbidden",
+        "raw_branch_or_commit_url_in_traceability_link_forbidden",
+        "raw_author_identity_string_in_traceability_link_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "silent_promotion_to_provider_authoritative_link_validated_forbidden"
+      ],
+      "description": "Closed denial-reason vocabulary. A surface that admits a link that violates one of the gates emits a traceability_link_audit_event_record citing the matching reason. Silent downgrade is forbidden."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "traceability_link_authored",
+        "traceability_link_authority_marker_changed",
+        "traceability_link_freshness_class_changed",
+        "traceability_link_lifecycle_state_changed",
+        "traceability_link_revoked_by_user",
+        "traceability_link_revoked_by_policy",
+        "traceability_link_superseded",
+        "traceability_link_archived_after_close",
+        "traceability_link_callback_envelope_observed",
+        "traceability_link_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the traceability-link surface. The provider-side handoff stream remains the ADR-0010 provider_handoff stream; this stream is the local-only traceability lifecycle stream."
+    },
+
+    "traceability_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "traceability_link_schema_version",
+        "traceability_link_id",
+        "source_work_item_detail_record_id_ref",
+        "relation_type_class",
+        "authority_marker_class",
+        "link_origin_class",
+        "link_freshness_class",
+        "link_lifecycle_state_class",
+        "directionality_class",
+        "target_artifact_descriptor",
+        "next_safe_action_class",
+        "minted_at",
+        "freshness_observed_at",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "traceability_link_record" },
+        "traceability_link_schema_version": {
+          "$ref": "#/$defs/traceability_link_schema_version"
+        },
+        "traceability_link_id": { "$ref": "#/$defs/opaque_id" },
+        "source_work_item_detail_record_id_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the bound work_item_detail_record from schemas/work_items/work_item_detail.schema.json. Required; every link MUST cite a source work item."
+        },
+        "linked_provider_object_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_object_record from schemas/work_items/provider_object.schema.json the link was minted against. Empty when the source work item has no provider-object projection (local-draft authority) or when the link was authored against the work_item_detail header directly."
+        },
+        "relation_type_class": { "$ref": "#/$defs/relation_type_class" },
+        "authority_marker_class": { "$ref": "#/$defs/authority_marker_class" },
+        "link_origin_class": { "$ref": "#/$defs/link_origin_class" },
+        "link_freshness_class": { "$ref": "#/$defs/link_freshness_class" },
+        "link_lifecycle_state_class": {
+          "$ref": "#/$defs/link_lifecycle_state_class"
+        },
+        "directionality_class": { "$ref": "#/$defs/directionality_class" },
+        "blocking_relationship_class": {
+          "$ref": "#/$defs/blocking_relationship_class",
+          "description": "Blocking / dependency / parent / duplicate relationship class. Required only when relation_type_class is work_item_to_other_work_item; forbidden otherwise."
+        },
+        "target_artifact_descriptor": {
+          "$ref": "#/$defs/target_artifact_descriptor"
+        },
+        "next_safe_action_class": {
+          "$ref": "#/$defs/next_safe_action_class"
+        },
+        "linked_provider_callback_envelope_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_callback_envelope_record that validated the link. Required for provider_authoritative_link_validated authority when link_origin_class is provider_callback_envelope_minted_link. Empty otherwise."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the account_mapping_binding_record bound to the link. Required for link_pending_account_mapping_resolution authority and for provider_authoritative_link_validated authority when link_origin_class is account_mapping_binding_minted_link."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to a browser_handoff_packet_record offering an open-in-provider escape hatch on the link. Empty when no browser handoff is offered."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record. Required when link_origin_class is imported_from_offline_handoff_packet_link."
+        },
+        "linked_object_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound object_handoff_packet_record. Required when link_origin_class is imported_from_object_handoff_packet_link."
+        },
+        "linked_support_bundle_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound support_bundle. Required when link_origin_class is imported_from_support_export_link."
+        },
+        "linked_incident_workspace_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound incident_workspace_packet. Required when link_origin_class is imported_from_incident_workspace_link."
+        },
+        "minted_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp the link was first authored / observed."
+        },
+        "freshness_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp of the most recent freshness observation against the link."
+        },
+        "revoked_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp the link was revoked. Required when link_lifecycle_state_class is revoked_by_user or revoked_by_policy."
+        },
+        "revocation_reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable summary of why the link was revoked. Required when link_lifecycle_state_class is revoked_by_user or revoked_by_policy."
+        },
+        "superseded_by_traceability_link_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the traceability_link_record that supersedes this one. Required when link_lifecycle_state_class is superseded."
+        },
+        "supersedes_traceability_link_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior traceability_link_record this one supersedes. Empty when this is a fresh link."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "work_item_to_branch_or_worktree relation MUST resolve target_artifact_class to branch_row or worktree_row.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_branch_or_worktree" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": {
+                    "enum": ["branch_row", "worktree_row"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_review_workspace relation MUST resolve target_artifact_class to review_workspace_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_review_workspace" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "review_workspace_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_review_pack_evaluation relation MUST resolve target_artifact_class to review_pack_record or review_evaluation_result_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_review_pack_evaluation" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": {
+                    "enum": ["review_pack_record", "review_evaluation_result_record"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_review_anchor_comment relation MUST resolve target_artifact_class to review_anchor_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_review_anchor_comment" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "review_anchor_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_change_object relation MUST resolve target_artifact_class to change_object_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_change_object" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "change_object_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_patch_stack relation MUST resolve target_artifact_class to patch_stack_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_patch_stack" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "patch_stack_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_validation_evidence relation MUST resolve target_artifact_class to one of the validation-evidence carriers (review_evaluation_result_record, qa_run_record, check_run_imported_snapshot_record, evidence_packet_record).",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_validation_evidence" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": {
+                    "enum": [
+                      "review_evaluation_result_record",
+                      "qa_run_record",
+                      "check_run_imported_snapshot_record",
+                      "evidence_packet_record"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_qa_run relation MUST resolve target_artifact_class to qa_run_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_qa_run" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "qa_run_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_check_run_imported_snapshot relation MUST resolve target_artifact_class to check_run_imported_snapshot_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_check_run_imported_snapshot" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "check_run_imported_snapshot_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_evidence_packet relation MUST resolve target_artifact_class to evidence_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_evidence_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "evidence_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_incident_workspace_packet relation MUST resolve target_artifact_class to incident_workspace_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_incident_workspace_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "incident_workspace_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_security_incident_packet relation MUST resolve target_artifact_class to security_incident_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_security_incident_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "security_incident_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_support_bundle relation MUST resolve target_artifact_class to support_bundle_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_support_bundle" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "support_bundle_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_object_handoff_packet relation MUST resolve target_artifact_class to object_handoff_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_object_handoff_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "object_handoff_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_offline_handoff_packet relation MUST resolve target_artifact_class to offline_handoff_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_offline_handoff_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "offline_handoff_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_provider_consequence_preview relation MUST resolve target_artifact_class to provider_consequence_preview_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_provider_consequence_preview" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "provider_consequence_preview_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_publish_later_queue_item relation MUST resolve target_artifact_class to publish_later_queue_item_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_publish_later_queue_item" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "publish_later_queue_item_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_browser_handoff_packet relation MUST resolve target_artifact_class to browser_handoff_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_browser_handoff_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "browser_handoff_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_provider_callback_envelope relation MUST resolve target_artifact_class to provider_callback_envelope_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_provider_callback_envelope" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "provider_callback_envelope_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_status_transition_packet relation MUST resolve target_artifact_class to status_transition_packet_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_status_transition_packet" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "status_transition_packet_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_release_artifact relation MUST resolve target_artifact_class to release_artifact_record.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_release_artifact" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "release_artifact_record" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_audit_event_stream relation MUST resolve target_artifact_class to audit_event_stream.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_audit_event_stream" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "audit_event_stream" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "work_item_to_other_work_item relation MUST resolve target_artifact_class to work_item_detail_record and MUST cite a blocking_relationship_class.",
+          "if": {
+            "properties": {
+              "relation_type_class": { "const": "work_item_to_other_work_item" }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "target_artifact_descriptor": {
+                "properties": {
+                  "artifact_class": { "const": "work_item_detail_record" }
+                }
+              }
+            },
+            "required": ["blocking_relationship_class"]
+          }
+        },
+        {
+          "description": "blocking_relationship_class is admissible only on work_item_to_other_work_item relation.",
+          "if": {
+            "properties": {
+              "relation_type_class": {
+                "not": { "const": "work_item_to_other_work_item" }
+              }
+            },
+            "required": ["relation_type_class"]
+          },
+          "then": {
+            "properties": {
+              "blocking_relationship_class": {
+                "enum": ["no_blocking_relationship"]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_handoff_evidence_only_link authority MUST resolve link_origin_class to one of the imported_from_* lanes and link_freshness_class to imported_snapshot_no_refresh_path.",
+          "if": {
+            "properties": {
+              "authority_marker_class": { "const": "imported_handoff_evidence_only_link" }
+            },
+            "required": ["authority_marker_class"]
+          },
+          "then": {
+            "properties": {
+              "link_origin_class": {
+                "enum": [
+                  "imported_from_support_export_link",
+                  "imported_from_incident_workspace_link",
+                  "imported_from_object_handoff_packet_link",
+                  "imported_from_offline_handoff_packet_link"
+                ]
+              },
+              "link_freshness_class": { "const": "imported_snapshot_no_refresh_path" }
+            }
+          }
+        },
+        {
+          "description": "provider_authoritative_link_validated authority MUST resolve link_origin_class to provider_callback_envelope_minted_link or account_mapping_binding_minted_link and link_freshness_class to live_authoritative_fresh or warm_within_grace.",
+          "if": {
+            "properties": {
+              "authority_marker_class": { "const": "provider_authoritative_link_validated" }
+            },
+            "required": ["authority_marker_class"]
+          },
+          "then": {
+            "properties": {
+              "link_origin_class": {
+                "enum": [
+                  "provider_callback_envelope_minted_link",
+                  "account_mapping_binding_minted_link"
+                ]
+              },
+              "link_freshness_class": {
+                "enum": ["live_authoritative_fresh", "warm_within_grace"]
+              }
+            }
+          }
+        },
+        {
+          "description": "link_pending_provider_validation authority MUST resolve link_lifecycle_state_class to proposed.",
+          "if": {
+            "properties": {
+              "authority_marker_class": { "const": "link_pending_provider_validation" }
+            },
+            "required": ["authority_marker_class"]
+          },
+          "then": {
+            "properties": {
+              "link_lifecycle_state_class": { "const": "proposed" }
+            }
+          }
+        },
+        {
+          "description": "link_pending_account_mapping_resolution authority MUST cite a non-empty linked_account_mapping_binding_record_id_ref.",
+          "if": {
+            "properties": {
+              "authority_marker_class": { "const": "link_pending_account_mapping_resolution" }
+            },
+            "required": ["authority_marker_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "link_revoked_by_user authority MUST resolve link_lifecycle_state_class to revoked_by_user and cite revoked_at and revocation_reason_summary.",
+          "if": {
+            "properties": {
+              "authority_marker_class": { "const": "link_revoked_by_user" }
+            },
+            "required": ["authority_marker_class"]
+          },
+          "then": {
+            "properties": {
+              "link_lifecycle_state_class": { "const": "revoked_by_user" }
+            },
+            "required": ["revoked_at", "revocation_reason_summary"]
+          }
+        },
+        {
+          "description": "link_revoked_by_policy authority MUST resolve link_lifecycle_state_class to revoked_by_policy and cite revoked_at and revocation_reason_summary.",
+          "if": {
+            "properties": {
+              "authority_marker_class": { "const": "link_revoked_by_policy" }
+            },
+            "required": ["authority_marker_class"]
+          },
+          "then": {
+            "properties": {
+              "link_lifecycle_state_class": { "const": "revoked_by_policy" }
+            },
+            "required": ["revoked_at", "revocation_reason_summary"]
+          }
+        },
+        {
+          "description": "superseded lifecycle MUST cite a non-empty superseded_by_traceability_link_record_id_ref.",
+          "if": {
+            "properties": {
+              "link_lifecycle_state_class": { "const": "superseded" }
+            },
+            "required": ["link_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_traceability_link_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["superseded_by_traceability_link_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_offline_handoff_packet_link origin MUST cite a non-empty linked_offline_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "link_origin_class": { "const": "imported_from_offline_handoff_packet_link" }
+            },
+            "required": ["link_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_offline_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_object_handoff_packet_link origin MUST cite a non-empty linked_object_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "link_origin_class": { "const": "imported_from_object_handoff_packet_link" }
+            },
+            "required": ["link_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_object_handoff_packet_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_object_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_support_export_link origin MUST cite a non-empty linked_support_bundle_record_id_ref.",
+          "if": {
+            "properties": {
+              "link_origin_class": { "const": "imported_from_support_export_link" }
+            },
+            "required": ["link_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_support_bundle_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_support_bundle_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_incident_workspace_link origin MUST cite a non-empty linked_incident_workspace_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "link_origin_class": { "const": "imported_from_incident_workspace_link" }
+            },
+            "required": ["link_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_incident_workspace_packet_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_incident_workspace_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "local_only_no_provider_path freshness is admissible only on local_authoritative_link_no_provider_overlay authority.",
+          "if": {
+            "properties": {
+              "link_freshness_class": { "const": "local_only_no_provider_path" }
+            },
+            "required": ["link_freshness_class"]
+          },
+          "then": {
+            "properties": {
+              "authority_marker_class": {
+                "const": "local_authoritative_link_no_provider_overlay"
+              }
+            }
+          }
+        },
+        {
+          "description": "archived_after_close lifecycle MUST resolve next_safe_action_class to no_action_archived_after_close.",
+          "if": {
+            "properties": {
+              "link_lifecycle_state_class": { "const": "archived_after_close" }
+            },
+            "required": ["link_lifecycle_state_class"]
+          },
+          "then": {
+            "properties": {
+              "next_safe_action_class": { "const": "no_action_archived_after_close" }
+            }
+          }
+        }
+      ],
+      "description": "Frozen traceability-link record. Composes with the work-item detail header through source_work_item_detail_record_id_ref; with the provider-object projection through linked_provider_object_record_id_ref; with the provider-mode contract through linked_provider_callback_envelope_record_id_ref / linked_account_mapping_binding_record_id_ref / linked_browser_handoff_packet_ref; and with the imported-evidence path through linked_offline_handoff_packet_record_id_ref / linked_object_handoff_packet_record_id_ref / linked_support_bundle_record_id_ref / linked_incident_workspace_packet_record_id_ref. The eventual work-items crate's Rust types are the source of truth; this is the cross-tool boundary."
+    },
+
+    "traceability_link_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "traceability_link_schema_version",
+        "audit_event_id",
+        "traceability_link_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "traceability_link_audit_event_record" },
+        "traceability_link_schema_version": {
+          "$ref": "#/$defs/traceability_link_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "traceability_link_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "traceability_link_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "traceability_link_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the traceability-link surface. Denial events MUST cite a typed reason from the closed denial vocabulary; lifecycle events (authored, authority marker changed, freshness changed, lifecycle state changed, revoked, superseded, archived, callback observed) carry no denial reason."
+    }
+  }
+}

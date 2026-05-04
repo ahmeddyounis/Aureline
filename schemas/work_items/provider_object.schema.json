@@ -1,0 +1,843 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/provider_object.schema.json",
+  "title": "Aureline work-item provider-object identity, authority, sync-freshness, and mapping-provenance vocabulary",
+  "description": "Boundary schema for the provider_object_record frozen in docs/work_items/provider_object_and_traceability_contract.md. One record family pins a typed projection of a single provider-side object (issue, task, story, bug, incident, change request, RFC, or other) so every Aureline surface that reads or shows the object renders a consistent provider-authority status, a consistent sync-freshness chip, a consistent mapping-provenance posture, and a per-field truth row that tells the user which fields are provider-authoritative, which are locally proposed (draft overlay pending publish), which are cached read-only shadow, which are imported-handoff snapshots, and which are mapping-conflict unresolved. The record never carries raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, or raw notification payloads; rows carry opaque ids, typed vocabulary, redaction-aware reviewable labels (<= 1024 graphemes), and freshness / authority / mapping / origin tokens only. Composes with (and does not replace) the work_item_detail_record schema (the per-row header that aggregates state, owner, freshness, write-authority, and engineering relations); the provider-mode contract (mutation_mode, surface_class, provider_actor_class, redaction_class, drift_state_class, next_safe_action_class, relation_class are re-exported from there); the publish-later contract (provider_object_relation_record, account_mapping_binding_record, provider_callback_envelope_record); the connected-provider registry (connected_provider_record_id_ref); and the offline-handoff packet (linked_offline_handoff_packet_record_id_ref for imported evidence). The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, provider_authority_status_class, sync_freshness_class, mapping_provenance_class, provider_field_class, field_origin_class, mapping_conflict_origin_class, denial_reason, or audit_event_id is additive-minor and bumps provider_object_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_object_record" },
+    { "$ref": "#/$defs/provider_object_audit_event_record" }
+  ],
+  "$defs": {
+    "provider_object_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the provider-object vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "provider_object_record",
+        "provider_object_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw notification payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the provider-object projection was admitted under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw notification payloads never cross this boundary regardless of class."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "issue_or_work_item",
+            "epic_or_initiative",
+            "user_story",
+            "task_or_subtask",
+            "bug_report",
+            "incident_report",
+            "change_request",
+            "rfc_or_proposal",
+            "other"
+          ],
+          "description": "Object class on the provider. Re-exported from schemas/work_items/work_item_detail.schema.json so the provider-object projection and the work-item header read the same vocabulary. 'other' is repair-only."
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": {
+          "type": "string",
+          "description": "Opaque provider host handle (registry row id, not raw hostname). Empty only when authority is local_shadow_draft_no_provider_object."
+        },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Opaque tenant / org scope handle. Empty only when authority is local_shadow_draft_no_provider_object."
+        },
+        "provider_canonical_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Provider-side identity of the object the projection references."
+    },
+
+    "provider_authority_status_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_synced",
+        "provider_authoritative_stale_local_continues",
+        "local_shadow_draft_no_provider_object",
+        "cached_read_only_shadow_inspect_only",
+        "imported_evidence_only_no_live_provider_path",
+        "mapping_conflict_unresolved",
+        "mapping_pending_user_resolution"
+      ],
+      "description": "Frozen authority status for the provider-object projection. provider_authoritative_synced means the local cache is in sync and the provider is the source of truth; provider_authoritative_stale_local_continues means the freshness floor has crossed and the projection is still readable but no longer fresh; local_shadow_draft_no_provider_object means the projection was authored locally and never sent; cached_read_only_shadow_inspect_only means the projection is an inspect-only shadow (e.g. policy-blocked write scope); imported_evidence_only_no_live_provider_path means the projection was reconstructed from a support export / incident bundle / offline-handoff with no live provider path; mapping_conflict_unresolved means the local and provider sides disagree on at least one field and the user has not yet resolved the conflict; mapping_pending_user_resolution means the account mapping is awaiting user / admin selection and the projection has no active provider-object overlay."
+    },
+
+    "sync_freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_authoritative_fresh",
+        "warm_within_grace",
+        "degraded_beyond_grace_local_continues",
+        "unverifiable_provider_unreachable",
+        "imported_snapshot_no_refresh_path",
+        "local_draft_never_published"
+      ],
+      "description": "Frozen sync-freshness posture re-exported from schemas/work_items/work_item_detail.schema.json. degraded_beyond_grace_local_continues, unverifiable_provider_unreachable, and imported_snapshot_no_refresh_path are repair-aware lanes that MUST NOT be relabelled as live-authoritative-fresh. local_draft_never_published is admissible only on local_shadow_draft_no_provider_object authority."
+    },
+
+    "mapping_provenance_class": {
+      "type": "string",
+      "enum": [
+        "provider_callback_envelope_validated",
+        "account_mapping_binding_resolved",
+        "account_mapping_binding_pending",
+        "user_authored_local_draft_no_provider_object",
+        "imported_from_support_export_no_live_provider_path",
+        "imported_from_incident_workspace_no_live_provider_path",
+        "imported_from_object_handoff_packet_no_live_provider_path",
+        "imported_from_offline_handoff_packet_no_live_provider_path",
+        "cached_read_only_shadow_no_refresh",
+        "mapping_conflict_unresolved_local_vs_provider"
+      ],
+      "description": "Frozen mapping-provenance class. Names where the local <-> provider mapping the projection reads against came from. provider_callback_envelope_validated and account_mapping_binding_resolved are the two provider-validated lanes; account_mapping_binding_pending is the pending-resolution lane; user_authored_local_draft_no_provider_object pins local-draft authority; the four imported_from_* lanes pin imported-evidence authority; cached_read_only_shadow_no_refresh pins cached-shadow authority; mapping_conflict_unresolved_local_vs_provider pins mapping-conflict authority."
+    },
+
+    "provider_field_class": {
+      "type": "string",
+      "enum": [
+        "title_field",
+        "body_summary_field",
+        "lifecycle_state_field",
+        "assignee_field",
+        "labels_field",
+        "milestone_or_iteration_field",
+        "priority_or_severity_field",
+        "blocking_relationship_field",
+        "linked_branch_or_worktree_field",
+        "linked_review_field",
+        "linked_change_or_patch_stack_field",
+        "linked_validation_evidence_field",
+        "publish_preview_field",
+        "linked_incident_or_support_field",
+        "watcher_or_subscriber_field",
+        "trust_or_redaction_field",
+        "freshness_field",
+        "other_provider_owned_field"
+      ],
+      "description": "Frozen provider-field class the projection's per-field row represents. Surfaces preserve the provider's exact upstream value through field_value_label rather than collapsing into a packet-local enum, but every row names exactly one of these axes so consumers can render them mechanically. 'other_provider_owned_field' is repair-only."
+    },
+
+    "field_origin_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_field",
+        "locally_proposed_overlay_pending_publish",
+        "cached_read_only_shadow_field",
+        "imported_handoff_field_no_refresh",
+        "mapping_conflict_unresolved_field",
+        "derived_from_linked_review_field",
+        "derived_from_linked_change_field"
+      ],
+      "description": "Frozen field-origin class. provider_authoritative_field is the verbatim provider-side value at last fresh import; locally_proposed_overlay_pending_publish is a value the user authored as a local draft over the provider value (or in absence of one) and that has not yet been published; cached_read_only_shadow_field is a snapshotted value the local row is forbidden to mutate; imported_handoff_field_no_refresh is a value snapshotted from an imported handoff with no refresh path; mapping_conflict_unresolved_field is a row where the provider-side value and the locally-proposed overlay disagree and the user has not yet resolved; derived_from_linked_review_field and derived_from_linked_change_field are values derived from a linked review-pack evaluation result or change-object landing state, not a direct provider import."
+    },
+
+    "provider_field_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field_class", "field_origin_class", "summary"],
+      "properties": {
+        "field_class": { "$ref": "#/$defs/provider_field_class" },
+        "field_origin_class": { "$ref": "#/$defs/field_origin_class" },
+        "field_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the active value the surface should render. For mapping_conflict_unresolved_field rows, surfaces SHOULD render both provider_authoritative_value_label and local_overlay_value_label rather than picking one as the active value."
+        },
+        "provider_authoritative_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the provider-side authoritative value. Required on mapping_conflict_unresolved_field rows. Empty otherwise."
+        },
+        "local_overlay_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the locally-proposed overlay value. Required on locally_proposed_overlay_pending_publish and mapping_conflict_unresolved_field rows. Empty otherwise."
+        },
+        "source_schema_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream schema / contract that minted the value (e.g. schemas/vcs/review_workspace.schema.json for derived_from_linked_review_field). Empty when the value has no upstream schema beyond the provider itself."
+        },
+        "source_field": {
+          "type": "string",
+          "description": "Optional opaque field name within the upstream schema."
+        },
+        "source_ref": {
+          "type": "string",
+          "description": "Opaque ref to the upstream record the value was sourced from (e.g. review_workspace_record_id_ref, change_object_record_id_ref)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "locally_proposed_overlay_pending_publish field rows MUST cite a non-empty local_overlay_value_label so the user can see the proposed value that has not yet been published.",
+          "if": {
+            "properties": {
+              "field_origin_class": { "const": "locally_proposed_overlay_pending_publish" }
+            },
+            "required": ["field_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "local_overlay_value_label": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["local_overlay_value_label"]
+          }
+        },
+        {
+          "description": "mapping_conflict_unresolved_field rows MUST cite both a provider_authoritative_value_label and a local_overlay_value_label so the user can see exactly which side disagrees with which value.",
+          "if": {
+            "properties": {
+              "field_origin_class": { "const": "mapping_conflict_unresolved_field" }
+            },
+            "required": ["field_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_authoritative_value_label": { "$ref": "#/$defs/non_empty_string" },
+              "local_overlay_value_label": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": [
+              "provider_authoritative_value_label",
+              "local_overlay_value_label"
+            ]
+          }
+        }
+      ],
+      "description": "One per-field row preserving the provider's (or local-overlay's / cached-shadow's / imported-handoff's / linked-review's) exact field vocabulary plus a typed origin and a reviewable sentence. Multiple rows are allowed; the same field_class MAY appear at most once per record."
+    },
+
+    "mapping_conflict_origin_class": {
+      "type": "string",
+      "enum": [
+        "account_remap_conflict",
+        "provider_object_split_conflict",
+        "provider_object_merge_conflict",
+        "freshness_drift_conflict_remote_changed",
+        "freshness_drift_conflict_local_overlay_changed",
+        "freshness_drift_conflict_both_changed",
+        "actor_scope_changed_conflict",
+        "policy_epoch_rolled_conflict",
+        "imported_handoff_replay_conflict"
+      ],
+      "description": "Frozen mapping-conflict origin class. Pins why the local and provider sides disagree on at least one field. account_remap_conflict means the connected-account changed between captures; provider_object_split_conflict / provider_object_merge_conflict mean the provider side restructured the object; the three freshness_drift_conflict_* lanes mean the upstream object drifted past the local snapshot (one side, the other side, or both); actor_scope_changed_conflict means the bound actor scope narrowed; policy_epoch_rolled_conflict means a policy epoch rolled between projections; imported_handoff_replay_conflict means an imported handoff replayed against a live provider object that has since changed."
+    },
+
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "view_only",
+        "refresh_before_edit",
+        "promote_local_draft_to_queue",
+        "resume_browser_handoff",
+        "review_queue_item",
+        "reselect_account",
+        "escalate_for_admin_review",
+        "resolve_mapping_conflict",
+        "open_in_provider_via_browser_handoff",
+        "save_local_draft_only_no_provider_path",
+        "no_action_imported_evidence_only"
+      ],
+      "description": "Next-safe-action hint re-exported (and extended for mapping conflicts) from the publish-later contract's next_safe_action_class. Surfaces MUST render this and MUST NOT invent surface-local actions outside this set. resolve_mapping_conflict is the only admissible next-safe-action when provider_authority_status_class is mapping_conflict_unresolved; no_action_imported_evidence_only is the only admissible next-safe-action on imported_evidence_only_no_live_provider_path authority."
+    },
+
+    "mapping_conflict_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_origin_class",
+        "conflict_field_classes",
+        "next_safe_action_class",
+        "summary"
+      ],
+      "properties": {
+        "conflict_origin_class": { "$ref": "#/$defs/mapping_conflict_origin_class" },
+        "conflict_field_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_field_class" },
+          "description": "Field classes that disagree between provider and local sides. Every entry MUST also appear as a mapping_conflict_unresolved_field row in provider_field_rows."
+        },
+        "next_safe_action_class": {
+          "$ref": "#/$defs/next_safe_action_class",
+          "description": "Next-safe-action the surface should offer. MUST be one of resolve_mapping_conflict, refresh_before_edit, escalate_for_admin_review, reselect_account, or open_in_provider_via_browser_handoff."
+        },
+        "linked_provider_callback_envelope_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_callback_envelope_record that observed the conflicting upstream value. Empty when the conflict was detected from a stale local cache rather than a live callback."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the account_mapping_binding_record bound to the conflict (e.g. for account_remap_conflict). Empty when the conflict is unrelated to account mapping."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to a browser_handoff_packet_record the user can use to view the provider-side state. Empty when no handoff is offered."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Typed conflict block surfaced when provider_authority_status_class is mapping_conflict_unresolved. Every conflicting field class MUST also appear as a mapping_conflict_unresolved_field row in provider_field_rows."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the provider-object projection was minted under. Reused identically by the work_item_detail and traceability_link schemas."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the provider-object projection was admitted under. Revalidated on every callback envelope refresh and on every mapping-conflict resolution."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "provider_authority_status_class_must_resolve_to_typed_class",
+        "sync_freshness_class_must_resolve_to_typed_class",
+        "mapping_provenance_class_must_resolve_to_typed_class",
+        "mapping_conflict_unresolved_must_cite_conflict_block",
+        "mapping_conflict_block_must_cite_conflicting_field_rows",
+        "mapping_pending_user_resolution_must_cite_account_mapping",
+        "provider_authoritative_status_must_cite_provider_object_relation",
+        "imported_evidence_only_must_cite_imported_freshness_and_provenance",
+        "local_shadow_draft_must_resolve_to_local_freshness",
+        "cached_read_only_shadow_must_forbid_local_overlay_fields",
+        "field_origin_locally_proposed_overlay_must_cite_local_overlay_value",
+        "field_origin_mapping_conflict_must_cite_both_values",
+        "field_origin_derived_from_review_or_change_must_cite_source_ref",
+        "raw_provider_url_in_provider_object_forbidden",
+        "raw_author_identity_string_in_provider_object_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "silent_promotion_to_provider_authoritative_synced_forbidden"
+      ],
+      "description": "Closed denial-reason vocabulary. A surface that admits a projection that violates one of the gates emits a provider_object_audit_event_record citing the matching reason. Silent downgrade is forbidden."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "provider_object_admitted",
+        "provider_object_authority_status_class_changed",
+        "provider_object_sync_freshness_class_changed",
+        "provider_object_field_origin_class_changed",
+        "provider_object_mapping_conflict_detected",
+        "provider_object_mapping_conflict_resolved",
+        "provider_object_callback_envelope_observed",
+        "provider_object_account_mapping_binding_changed",
+        "provider_object_superseded_by_provider_object_record",
+        "provider_object_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the provider-object projection. The provider-side handoff stream remains the ADR-0010 provider_handoff stream; this stream is the local-only provider-object lifecycle stream."
+    },
+
+    "provider_object_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_object_schema_version",
+        "provider_object_id",
+        "connected_provider_record_id_ref",
+        "target_object_identity",
+        "provider_authority_status_class",
+        "sync_freshness_class",
+        "freshness_observed_at",
+        "mapping_provenance_class",
+        "provider_field_rows",
+        "next_safe_action_class",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_object_record" },
+        "provider_object_schema_version": {
+          "$ref": "#/$defs/provider_object_schema_version"
+        },
+        "provider_object_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the connected_provider_record. Empty string only when provider_authority_status_class is local_shadow_draft_no_provider_object."
+        },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" },
+        "provider_authority_status_class": {
+          "$ref": "#/$defs/provider_authority_status_class"
+        },
+        "sync_freshness_class": { "$ref": "#/$defs/sync_freshness_class" },
+        "freshness_observed_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp of the most recent provider import / local-draft commit / imported-handoff snapshot the freshness chip resolves against."
+        },
+        "freshness_floor_ref": {
+          "type": "string",
+          "description": "Opaque ref to the freshness floor the projection resolves against. Empty when the authority is local_shadow_draft_no_provider_object."
+        },
+        "mapping_provenance_class": {
+          "$ref": "#/$defs/mapping_provenance_class"
+        },
+        "provider_field_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provider_field_row" },
+          "description": "Per-field truth rows. At minimum one row is required so the projection always discloses at least one field origin. The same field_class MAY appear at most once."
+        },
+        "next_safe_action_class": {
+          "$ref": "#/$defs/next_safe_action_class"
+        },
+        "mapping_conflict_block": {
+          "$ref": "#/$defs/mapping_conflict_block",
+          "description": "Conflict block. Required (and only admissible) when provider_authority_status_class is mapping_conflict_unresolved."
+        },
+        "linked_provider_object_relation_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_object_relation_record from schemas/providers/publish_later_record.schema.json. Required for provider-bound authority statuses (provider_authoritative_synced, provider_authoritative_stale_local_continues, cached_read_only_shadow_inspect_only) so a downstream surface always reads the relation chip mechanically."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record from schemas/providers/publish_later_record.schema.json. Required when provider_authority_status_class is mapping_pending_user_resolution. Empty when actor resolution is resolved."
+        },
+        "linked_provider_callback_envelope_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_callback_envelope_records that refreshed the projection. Empty when no provider callback has been observed."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record from schemas/work_items/offline_handoff_packet.schema.json. Required when mapping_provenance_class is imported_from_offline_handoff_packet_no_live_provider_path."
+        },
+        "linked_object_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound object_handoff_packet_record from schemas/support/object_handoff_packet.schema.json. Required when mapping_provenance_class is imported_from_object_handoff_packet_no_live_provider_path."
+        },
+        "linked_support_bundle_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound support_bundle the projection was reconstructed from. Required when mapping_provenance_class is imported_from_support_export_no_live_provider_path."
+        },
+        "linked_incident_workspace_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound incident_workspace_packet the projection was reconstructed from. Required when mapping_provenance_class is imported_from_incident_workspace_no_live_provider_path."
+        },
+        "connected_work_item_detail_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the work_item_detail_records that read this projection. A single provider_object_record MAY back multiple detail rows (e.g. across workspaces). Empty when no detail row has been admitted yet."
+        },
+        "supersedes_provider_object_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior provider_object_record this one supersedes (e.g. after an account remap or a provider-side merge). Empty when this is a fresh row."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "provider_authoritative_synced, provider_authoritative_stale_local_continues, and cached_read_only_shadow_inspect_only authority MUST cite a non-empty linked_provider_object_relation_record_id_ref so a downstream surface always reads the relation class mechanically.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "enum": [
+                  "provider_authoritative_synced",
+                  "provider_authoritative_stale_local_continues",
+                  "cached_read_only_shadow_inspect_only"
+                ]
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_object_relation_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_provider_object_relation_record_id_ref"]
+          }
+        },
+        {
+          "description": "mapping_pending_user_resolution authority MUST cite a non-empty linked_account_mapping_binding_record_id_ref so the user / admin reconciliation console can pick up the pending mapping.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "const": "mapping_pending_user_resolution"
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "mapping_conflict_unresolved authority MUST cite a non-null mapping_conflict_block.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": { "const": "mapping_conflict_unresolved" }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": { "required": ["mapping_conflict_block"] }
+        },
+        {
+          "description": "imported_evidence_only_no_live_provider_path authority MUST resolve sync_freshness_class to imported_snapshot_no_refresh_path and mapping_provenance_class to one of the imported_from_* lanes.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "const": "imported_evidence_only_no_live_provider_path"
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "sync_freshness_class": { "const": "imported_snapshot_no_refresh_path" },
+              "mapping_provenance_class": {
+                "enum": [
+                  "imported_from_support_export_no_live_provider_path",
+                  "imported_from_incident_workspace_no_live_provider_path",
+                  "imported_from_object_handoff_packet_no_live_provider_path",
+                  "imported_from_offline_handoff_packet_no_live_provider_path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "local_shadow_draft_no_provider_object authority MUST resolve sync_freshness_class to local_draft_never_published or warm_within_grace and mapping_provenance_class to user_authored_local_draft_no_provider_object.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "const": "local_shadow_draft_no_provider_object"
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "sync_freshness_class": {
+                "enum": ["local_draft_never_published", "warm_within_grace"]
+              },
+              "mapping_provenance_class": {
+                "const": "user_authored_local_draft_no_provider_object"
+              }
+            }
+          }
+        },
+        {
+          "description": "mapping_conflict_unresolved authority MUST resolve mapping_provenance_class to mapping_conflict_unresolved_local_vs_provider.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": { "const": "mapping_conflict_unresolved" }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "mapping_provenance_class": {
+                "const": "mapping_conflict_unresolved_local_vs_provider"
+              }
+            }
+          }
+        },
+        {
+          "description": "mapping_pending_user_resolution authority MUST resolve mapping_provenance_class to account_mapping_binding_pending.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": { "const": "mapping_pending_user_resolution" }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "mapping_provenance_class": {
+                "const": "account_mapping_binding_pending"
+              }
+            }
+          }
+        },
+        {
+          "description": "cached_read_only_shadow_inspect_only authority MUST forbid locally_proposed_overlay_pending_publish field rows; cached read-only shadow projections MUST NOT carry a local overlay.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "const": "cached_read_only_shadow_inspect_only"
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_field_rows": {
+                "items": {
+                  "properties": {
+                    "field_origin_class": {
+                      "not": { "const": "locally_proposed_overlay_pending_publish" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_evidence_only_no_live_provider_path authority MUST forbid locally_proposed_overlay_pending_publish field rows; imported-evidence projections MUST NOT carry a live local overlay.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "const": "imported_evidence_only_no_live_provider_path"
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_field_rows": {
+                "items": {
+                  "properties": {
+                    "field_origin_class": {
+                      "not": { "const": "locally_proposed_overlay_pending_publish" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_from_offline_handoff_packet_no_live_provider_path provenance MUST cite a non-empty linked_offline_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "mapping_provenance_class": {
+                "const": "imported_from_offline_handoff_packet_no_live_provider_path"
+              }
+            },
+            "required": ["mapping_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_offline_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_object_handoff_packet_no_live_provider_path provenance MUST cite a non-empty linked_object_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "mapping_provenance_class": {
+                "const": "imported_from_object_handoff_packet_no_live_provider_path"
+              }
+            },
+            "required": ["mapping_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_object_handoff_packet_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_object_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_support_export_no_live_provider_path provenance MUST cite a non-empty linked_support_bundle_record_id_ref.",
+          "if": {
+            "properties": {
+              "mapping_provenance_class": {
+                "const": "imported_from_support_export_no_live_provider_path"
+              }
+            },
+            "required": ["mapping_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_support_bundle_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_support_bundle_record_id_ref"]
+          }
+        },
+        {
+          "description": "imported_from_incident_workspace_no_live_provider_path provenance MUST cite a non-empty linked_incident_workspace_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "mapping_provenance_class": {
+                "const": "imported_from_incident_workspace_no_live_provider_path"
+              }
+            },
+            "required": ["mapping_provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_incident_workspace_packet_record_id_ref": {
+                "$ref": "#/$defs/non_empty_string"
+              }
+            },
+            "required": ["linked_incident_workspace_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "mapping_conflict_unresolved authority MUST resolve next_safe_action_class to resolve_mapping_conflict.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": { "const": "mapping_conflict_unresolved" }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "next_safe_action_class": { "const": "resolve_mapping_conflict" }
+            }
+          }
+        },
+        {
+          "description": "imported_evidence_only_no_live_provider_path authority MUST resolve next_safe_action_class to no_action_imported_evidence_only.",
+          "if": {
+            "properties": {
+              "provider_authority_status_class": {
+                "const": "imported_evidence_only_no_live_provider_path"
+              }
+            },
+            "required": ["provider_authority_status_class"]
+          },
+          "then": {
+            "properties": {
+              "next_safe_action_class": { "const": "no_action_imported_evidence_only" }
+            }
+          }
+        }
+      ],
+      "description": "Frozen provider-object projection record. Composes with the work-item detail header through connected_work_item_detail_record_id_refs (back-refs); with the provider-mode contract through linked_provider_object_relation_record_id_ref / linked_account_mapping_binding_record_id_ref / linked_provider_callback_envelope_record_id_refs; and with the imported-evidence path through linked_offline_handoff_packet_record_id_ref / linked_object_handoff_packet_record_id_ref / linked_support_bundle_record_id_ref / linked_incident_workspace_packet_record_id_ref. The eventual work-items crate's Rust types are the source of truth; this is the cross-tool boundary."
+    },
+
+    "provider_object_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_object_schema_version",
+        "audit_event_id",
+        "provider_object_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_object_audit_event_record" },
+        "provider_object_schema_version": {
+          "$ref": "#/$defs/provider_object_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "provider_object_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "provider_object_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "provider_object_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the provider-object projection. Denial events MUST cite a typed reason from the closed denial vocabulary; lifecycle events (admitted, authority status changed, freshness changed, field origin changed, mapping conflict detected / resolved, callback observed, account mapping changed, superseded) carry no denial reason."
+    }
+  }
+}
