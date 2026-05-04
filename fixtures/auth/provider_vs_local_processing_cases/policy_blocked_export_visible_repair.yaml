@@ -1,0 +1,162 @@
+__fixture__:
+  name: policy_blocked_export_visible_repair
+  scenario: >
+    Capture is granted under enterprise-managed processing, but
+    transcript export is blocked by policy. The mic-state pill stays
+    inspectable and the device-permission row remains granted, but
+    every transcript export resolves to export_blocked_by_policy on
+    the speech-privacy ledger and the surface fails closed visibly
+    with the policy_owner_ref quoted. Capture remains reviewable
+    while export is unavailable; "blocked" never means "unknown".
+  exercised_axes:
+    record_kinds:
+      - device_permission_row_record
+      - mic_state_record
+      - speech_capture_event_record
+      - transcript_export_record
+    processing_locus_class: enterprise_managed_service
+    permission_state_class: granted
+    mic_state_class: idle
+    audio_locality_class: sent_to_enterprise_gateway
+    transcript_locality_class: transcript_returned_from_remote_provider_local_persisted
+    consent_class: explicit_user_opt_in_remembered_per_profile
+    export_destination_class: export_blocked_by_policy_destination
+    export_redaction_class: export_blocked_by_policy
+    irreversible_share_posture_class: blocked_by_policy_no_share
+  contract_sections:
+    - "Device-permission row"
+    - "Mic-state pill"
+    - "Capture/export review"
+    - "Provider-versus-local processing disclosure"
+
+records:
+  - $schema: ../../../schemas/auth/device_permission_row.schema.json
+    record_kind: device_permission_row_record
+    device_permission_row_schema_version: 1
+    permission_row_id: "auth:device_permission:microphone:export_policy_blocked:01"
+    device_class: microphone
+    permission_state_class: granted
+    display_label: "Microphone access"
+    permission_reason_label: "Voice dictation (enterprise-managed; transcript export blocked by policy)"
+    actor:
+      actor_class: human_user
+      actor_subject_ref: "actor:user:managed:01"
+      actor_label: "You"
+      surface_ref: "surface:voice:dictation:export_policy_blocked:01"
+      initiated_by_user: true
+    processing_locus:
+      processing_locus_class: enterprise_managed_service
+      processing_locus_label: "Audio is processed by your organisation's managed service"
+    retention:
+      retention_posture_class: managed_retained_under_policy
+      retention_note: "Managed retention applies; transcript export is currently blocked by policy."
+    revoke_action:
+      action_class: revoke_permission
+      action_label: "Disable managed voice processing"
+      command_id_ref: null
+      route_ref: "route:voice:provider:disable_managed:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action:
+      action_class: open_system_browser_boundary
+      action_label: "Continue managed sign-in in system browser"
+      command_id_ref: null
+      route_ref: "handoff:voice_provider:managed_signin:system_browser:01"
+    policy_context:
+      policy_owner_ref: "policy:owner:org:transcript_export:01"
+      policy_block_note: "Your organisation has blocked transcript export for this surface; capture and review remain available."
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-30T14:00:00Z"
+
+  - $schema: ../../../schemas/auth/mic_state.schema.json
+    record_kind: mic_state_record
+    mic_state_schema_version: 1
+    mic_state_id: "auth:mic_state:export_policy_blocked:idle:01"
+    device_class: microphone
+    mic_state_class: idle
+    state_label: "Idle"
+    state_note: "Capture is available, but transcript export is currently blocked by your organisation's policy."
+    actor:
+      actor_class: human_user
+      actor_subject_ref: "actor:user:managed:01"
+      actor_label: "You"
+      surface_ref: "surface:voice:dictation:export_policy_blocked:01"
+      initiated_by_user: true
+    processing_locus:
+      processing_locus_class: enterprise_managed_service
+      processing_locus_label: "Audio is processed by your organisation's managed service"
+    retention:
+      retention_posture_class: managed_retained_under_policy
+      retention_note: "Managed retention applies; transcript export is currently blocked by policy."
+    device_permission_row_ref: "auth:device_permission:microphone:export_policy_blocked:01"
+    voice_mode_session_ref: "ux:voice:session:export_policy_blocked:01"
+    transcript_correction_path_ref: "route:voice:transcript_correction:export_policy_blocked:01"
+    stop_or_mute_action: null
+    transcript_review_action:
+      action_class: open_transcript_review
+      action_label: "Review transcript"
+      command_id_ref: null
+      route_ref: "route:voice:transcript_review:export_policy_blocked:01"
+    open_detail_action:
+      action_class: open_capture_detail
+      action_label: "Why is export blocked?"
+      command_id_ref: null
+      route_ref: "route:voice:capture_detail:export_policy_blocked:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action: null
+    policy_context:
+      policy_owner_ref: "policy:owner:org:transcript_export:01"
+      policy_block_note: "Your organisation has blocked transcript export for this surface; capture and review remain available."
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-30T14:00:02Z"
+
+  - $schema: ../../../schemas/ux/speech_privacy_ledger.schema.json
+    record_kind: speech_capture_event_record
+    speech_privacy_ledger_schema_version: 1
+    event_id: "ux:voice:capture:export_policy_blocked:01"
+    voice_mode_session_ref: "ux:voice:session:export_policy_blocked:01"
+    speech_provider_entry_ref: "ux:voice:provider:enterprise_managed_gateway:01"
+    speech_provider_handoff_disclosure_ref: "ux:voice:handoff_disclosure:enterprise_managed_gateway:01"
+    audio_locality_class: sent_to_enterprise_gateway
+    transcript_locality_class: transcript_returned_from_remote_provider_local_persisted
+    consent_class: explicit_user_opt_in_remembered_per_profile
+    deployment_profile_refs:
+      - enterprise_online
+    evidence_hooks_reserved:
+      - speech_handoff_audit
+    policy_context:
+      policy_epoch: "pe:2026-04-30:export_policy_blocked:01"
+      trust_state: trusted
+    redaction_class: metadata_safe_default
+    presentation_label: "Voice capture (enterprise-managed; export policy-blocked)"
+    denial_reason_on_deny: null
+    minted_at: "2026-04-30T14:00:03Z"
+
+  - $schema: ../../../schemas/ux/speech_privacy_ledger.schema.json
+    record_kind: transcript_export_record
+    speech_privacy_ledger_schema_version: 1
+    export_id: "ux:voice:export:export_policy_blocked:01"
+    capture_event_refs:
+      - "ux:voice:capture:export_policy_blocked:01"
+    voice_mode_session_ref: "ux:voice:session:export_policy_blocked:01"
+    export_redaction_class: export_blocked_by_policy
+    export_destination_class: export_blocked_by_policy_destination
+    consent_class: explicit_user_opt_in_remembered_per_profile
+    deployment_profile_refs:
+      - enterprise_online
+    evidence_hooks_reserved:
+      - privacy_bounded_export_artifact
+    policy_context:
+      policy_epoch: "pe:2026-04-30:export_policy_blocked:01"
+      trust_state: trusted
+    redaction_class: metadata_safe_default
+    presentation_label: "Transcript export blocked by policy (enterprise-managed)"
+    denial_reason_on_deny: null
+    minted_at: "2026-04-30T14:00:04Z"

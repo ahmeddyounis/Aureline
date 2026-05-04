@@ -1,0 +1,156 @@
+__fixture__:
+  name: provider_consent_blocked_no_silent_fallback
+  scenario: >
+    The user previously consented to a BYOK third-party voice
+    provider, but policy now blocks the provider handoff. The OS
+    microphone permission is still granted, but capture cannot
+    start: the mic-state pill resolves to policy_blocked, the
+    speech-privacy ledger records audio_blocked_by_policy with the
+    matching denial reason, and the surface MUST NOT silently fall
+    back to a local pack or to a different provider. The repair path
+    is a typed request_admin_policy_change route quoted on the
+    device-permission row.
+  exercised_axes:
+    record_kinds:
+      - device_permission_row_record
+      - mic_state_record
+      - speech_capture_event_record
+      - transcript_export_record
+    processing_locus_class: byok_remote_provider
+    permission_state_class: policy_blocked
+    mic_state_class: policy_blocked
+    audio_locality_class: audio_blocked_by_policy
+    transcript_locality_class: transcript_blocked_by_policy
+    consent_class: consent_blocked_by_policy
+    export_destination_class: export_blocked_by_policy_destination
+    export_redaction_class: export_blocked_by_policy
+    irreversible_share_posture_class: blocked_by_policy_no_share
+    denial_reason: speech_privacy_audio_left_device_without_disclosure
+  contract_sections:
+    - "Device-permission row"
+    - "Mic-state pill"
+    - "Provider-versus-local processing disclosure"
+    - "Capture/export review"
+
+records:
+  - $schema: ../../../schemas/auth/device_permission_row.schema.json
+    record_kind: device_permission_row_record
+    device_permission_row_schema_version: 1
+    permission_row_id: "auth:device_permission:microphone:provider_consent_blocked:01"
+    device_class: microphone
+    permission_state_class: policy_blocked
+    display_label: "Microphone access"
+    permission_reason_label: "Voice dictation blocked by policy: third-party provider not approved"
+    actor:
+      actor_class: human_user
+      actor_subject_ref: "actor:user:managed:01"
+      actor_label: "You"
+      surface_ref: "surface:voice:dictation:provider_consent_blocked:01"
+      initiated_by_user: true
+    processing_locus:
+      processing_locus_class: byok_remote_provider
+      processing_locus_label: "Audio would be sent to your configured third-party provider"
+    retention:
+      retention_posture_class: provider_retained_under_terms
+      retention_note: "Provider retention terms would apply, but capture is blocked by policy."
+    revoke_action:
+      action_class: revoke_permission
+      action_label: "Disable third-party voice provider"
+      command_id_ref: null
+      route_ref: "route:voice:provider:disable_byok:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action: null
+    policy_context:
+      policy_owner_ref: "policy:owner:org:approved_voice_providers:01"
+      policy_block_note: "Your organisation has not approved this third-party voice provider; request a policy change to enable it."
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-30T12:00:00Z"
+
+  - $schema: ../../../schemas/auth/mic_state.schema.json
+    record_kind: mic_state_record
+    mic_state_schema_version: 1
+    mic_state_id: "auth:mic_state:provider_consent_blocked:policy_blocked:01"
+    device_class: microphone
+    mic_state_class: policy_blocked
+    state_label: "Policy blocked"
+    state_note: "Voice capture cannot start: your organisation has not approved this third-party voice provider. Aureline does not silently fall back to a local pack or to a different provider."
+    actor:
+      actor_class: human_user
+      actor_subject_ref: "actor:user:managed:01"
+      actor_label: "You"
+      surface_ref: "surface:voice:dictation:provider_consent_blocked:01"
+      initiated_by_user: true
+    processing_locus:
+      processing_locus_class: byok_remote_provider
+      processing_locus_label: "Audio would be sent to your configured third-party provider"
+    retention:
+      retention_posture_class: provider_retained_under_terms
+      retention_note: "Provider retention terms would apply, but capture is blocked by policy."
+    device_permission_row_ref: "auth:device_permission:microphone:provider_consent_blocked:01"
+    voice_mode_session_ref: "ux:voice:session:provider_consent_blocked:01"
+    transcript_correction_path_ref: null
+    stop_or_mute_action: null
+    transcript_review_action: null
+    open_detail_action:
+      action_class: open_capture_detail
+      action_label: "Why is this blocked?"
+      command_id_ref: null
+      route_ref: "route:voice:capture_detail:provider_consent_blocked:01"
+    open_system_settings_action:
+      action_class: open_system_settings
+      action_label: "Open system settings"
+      command_id_ref: null
+      route_ref: "os_settings:privacy_microphone:app:aureline"
+    open_system_browser_action: null
+    policy_context:
+      policy_owner_ref: "policy:owner:org:approved_voice_providers:01"
+      policy_block_note: "Your organisation has not approved this third-party voice provider; request a policy change to enable it."
+    surface_redaction_class: metadata_safe_default
+    minted_at: "2026-04-30T12:00:02Z"
+
+  - $schema: ../../../schemas/ux/speech_privacy_ledger.schema.json
+    record_kind: speech_capture_event_record
+    speech_privacy_ledger_schema_version: 1
+    event_id: "ux:voice:capture:provider_consent_blocked:01"
+    voice_mode_session_ref: "ux:voice:session:provider_consent_blocked:01"
+    speech_provider_entry_ref: "ux:voice:provider:byok_remote_vendor_unapproved:01"
+    audio_locality_class: audio_blocked_by_policy
+    transcript_locality_class: transcript_blocked_by_policy
+    consent_class: consent_blocked_by_policy
+    deployment_profile_refs:
+      - enterprise_online
+    evidence_hooks_reserved:
+      - speech_handoff_audit
+    policy_context:
+      policy_epoch: "pe:2026-04-30:provider_consent_blocked:01"
+      trust_state: restricted
+    redaction_class: metadata_safe_default
+    presentation_label: "Voice capture blocked by policy"
+    denial_reason_on_deny: speech_privacy_audio_left_device_without_disclosure
+    minted_at: "2026-04-30T12:00:03Z"
+
+  - $schema: ../../../schemas/ux/speech_privacy_ledger.schema.json
+    record_kind: transcript_export_record
+    speech_privacy_ledger_schema_version: 1
+    export_id: "ux:voice:export:provider_consent_blocked:01"
+    capture_event_refs:
+      - "ux:voice:capture:provider_consent_blocked:01"
+    voice_mode_session_ref: "ux:voice:session:provider_consent_blocked:01"
+    export_redaction_class: export_blocked_by_policy
+    export_destination_class: export_blocked_by_policy_destination
+    consent_class: consent_blocked_by_policy
+    deployment_profile_refs:
+      - enterprise_online
+    evidence_hooks_reserved:
+      - privacy_bounded_export_artifact
+    policy_context:
+      policy_epoch: "pe:2026-04-30:provider_consent_blocked:01"
+      trust_state: restricted
+    redaction_class: metadata_safe_default
+    presentation_label: "Transcript export blocked by policy"
+    denial_reason_on_deny: speech_privacy_audio_left_device_without_disclosure
+    minted_at: "2026-04-30T12:00:04Z"

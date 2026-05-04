@@ -1,0 +1,1084 @@
+# Capture / export review matrix
+#
+# Companion to:
+#   - the device-permission and capture-boundary contract
+#     (docs/auth/device_permission_and_capture_boundary_contract.md)
+#   - the voice and dictation contract
+#     (docs/ux/voice_and_dictation_contract.md)
+#   - the credential-state and secret-prompt contract
+#     (docs/auth/credential_state_and_secret_prompt_contract.md)
+#   - the system-browser callback packet contract
+#     (docs/auth/system_browser_callback_packet.md)
+#   - the device-permission row schema
+#     (schemas/auth/device_permission_row.schema.json)
+#   - the mic-state schema
+#     (schemas/auth/mic_state.schema.json)
+#   - the speech-privacy ledger schema
+#     (schemas/ux/speech_privacy_ledger.schema.json)
+#   - the capture-boundary case corpus
+#     (fixtures/auth/capture_boundary_cases/)
+#   - the provider-versus-local processing case corpus
+#     (fixtures/auth/provider_vs_local_processing_cases/)
+#   - the device-permission store audit
+#     (artifacts/auth/device_permission_store_audit.md)
+#
+# Purpose:
+#   Freeze the per-surface review rules a reviewer applies when capture
+#   (microphone, camera, screen capture, system-audio loopback,
+#   accessibility input monitoring) and any downstream artifact
+#   (transcript, screenshot, screen recording, capture metadata) is
+#   produced or moved off the device. The matrix keeps three things
+#   distinguishable on every row:
+#     1. consent to capture (the device-permission row + mic-state pill),
+#     2. consent to export (transcript / screenshot / recording leaving
+#        the user-visible local boundary),
+#     3. consent to provider processing (audio, frames, transcript text,
+#        or capture metadata leaving the device for a remote provider or
+#        managed processing service).
+#   A "yes" on any one of those rows is not a "yes" on the others.
+#
+# Rules:
+#   - If this file and the device-permission and capture-boundary
+#     contract disagree, the contract wins and this file MUST update in
+#     the same change.
+#   - Every token quoted below is sourced from one of the schemas above
+#     by value. Adding a new token requires a schema bump and a parallel
+#     decision row.
+#   - The matrix is reusable in diagnostics, support exports, admin
+#     exports, release evidence, and docs/help without special-case
+#     copy. Surfaces quote labels by stable ref.
+#   - Per-task and per-milestone identifiers stay out of this file.
+
+schema_version: 1
+
+contract_ref: docs/auth/device_permission_and_capture_boundary_contract.md
+upstream_voice_contract_ref: docs/ux/voice_and_dictation_contract.md
+upstream_credential_state_contract_ref: docs/auth/credential_state_and_secret_prompt_contract.md
+upstream_callback_packet_contract_ref: docs/auth/system_browser_callback_packet.md
+device_permission_row_schema_ref: schemas/auth/device_permission_row.schema.json
+mic_state_schema_ref: schemas/auth/mic_state.schema.json
+speech_privacy_ledger_schema_ref: schemas/ux/speech_privacy_ledger.schema.json
+capture_boundary_corpus: fixtures/auth/capture_boundary_cases/
+provider_vs_local_corpus: fixtures/auth/provider_vs_local_processing_cases/
+device_permission_store_audit_ref: artifacts/auth/device_permission_store_audit.md
+
+# Reused closed vocabularies. Each axis below mirrors a frozen vocab in
+# one of the upstream schemas; new tokens require a schema bump and a
+# parallel decision row in this file.
+axes:
+  device_class:
+    source: schemas/auth/device_permission_row.schema.json#/$defs/device_class
+    values:
+      - microphone
+      - camera
+      - screen_capture
+      - system_audio_loopback
+      - accessibility_input_monitoring
+      - unknown_device_class
+
+  permission_state_class:
+    source: schemas/auth/device_permission_row.schema.json#/$defs/permission_state_class
+    values:
+      - not_requested
+      - request_in_flight
+      - granted
+      - denied
+      - restricted
+      - unavailable
+      - policy_blocked
+      - unknown_permission_state
+
+  mic_state_class:
+    source: schemas/auth/mic_state.schema.json#/$defs/mic_state_class
+    values:
+      - idle
+      - listening
+      - muted
+      - processing
+      - needs_confirmation
+      - unavailable
+      - policy_blocked
+
+  processing_locus_class:
+    source: schemas/auth/device_permission_row.schema.json#/$defs/processing_locus_class
+    values:
+      - local_device_only
+      - local_companion_or_sandbox
+      - enterprise_managed_service
+      - byok_remote_provider
+      - vendor_hosted_service
+      - unknown_requires_review
+
+  retention_posture_class:
+    source: schemas/auth/device_permission_row.schema.json#/$defs/retention_posture_class
+    values:
+      - no_retention_ephemeral
+      - local_only_persisted_user_visible
+      - managed_retained_under_policy
+      - provider_retained_under_terms
+      - unknown_requires_review
+
+  audio_locality_class:
+    source: schemas/ux/speech_privacy_ledger.schema.json#/$defs/audio_locality_class
+    values:
+      - local_machine_only_in_process
+      - local_machine_only_sandbox_process
+      - local_machine_only_companion_service
+      - sent_to_byok_remote_vendor_direct
+      - sent_to_byok_remote_self_hosted_direct
+      - sent_to_enterprise_gateway
+      - sent_to_vendor_hosted_first_party_managed
+      - audio_blocked_by_policy
+      - audio_unavailable_in_envelope
+
+  transcript_locality_class:
+    source: schemas/ux/speech_privacy_ledger.schema.json#/$defs/transcript_locality_class
+    values:
+      - transcript_local_only
+      - transcript_returned_from_remote_provider_local_persisted
+      - transcript_returned_from_remote_provider_ephemeral
+      - transcript_blocked_by_policy
+      - transcript_unavailable_in_envelope
+
+  consent_class:
+    source: schemas/ux/speech_privacy_ledger.schema.json#/$defs/consent_class
+    values:
+      - explicit_user_opt_in_each_session
+      - explicit_user_opt_in_remembered_per_profile
+      - implicit_user_initiated_push_to_talk
+      - no_consent_required_local_inert_metadata_only
+      - consent_blocked_by_policy
+      - consent_unavailable_in_envelope
+
+  export_redaction_class:
+    source: schemas/ux/speech_privacy_ledger.schema.json#/$defs/export_redaction_class
+    values:
+      - redacted_metadata_only
+      - redacted_full_transcript_blocked
+      - redacted_partial_with_disclosure
+      - exported_unredacted_with_explicit_consent
+      - export_blocked_by_policy
+      - export_unavailable_in_envelope
+
+  export_destination_class:
+    source: schemas/ux/speech_privacy_ledger.schema.json#/$defs/export_destination_class
+    values:
+      - support_bundle_metadata_safe_default
+      - portable_profile_package_redacted
+      - evidence_packet_redacted
+      - no_export_local_only
+      - export_blocked_by_policy_destination
+      - export_destination_unavailable_in_envelope
+
+  # Closed vocabulary used by this matrix to keep "consent to capture",
+  # "consent to export", and "consent to provider processing" reviewable
+  # as three independent rows. Each value is product-surface vocabulary
+  # in this artifact only; the upstream consent_class on the speech-
+  # privacy ledger remains the authority for transcript-bearing flows.
+  consent_lane_class:
+    description: >
+      Closed vocabulary for the three consent rows the matrix keeps
+      independent. Surfaces MUST resolve every capture/export action to
+      one row per lane and MUST NOT collapse them.
+    values:
+      - consent_to_capture
+      - consent_to_export
+      - consent_to_provider_processing
+
+  # Closed vocabulary for the irreversible-share warning posture an
+  # export action carries. Surfaces MUST render the matching warning
+  # before the user confirms an irreversible share; "irreversible" here
+  # means the artifact, once shared, cannot be recalled by Aureline.
+  irreversible_share_posture_class:
+    description: >
+      Closed vocabulary for irreversible-share warning posture. Used by
+      the matrix to keep "leaves the device" actions distinct from
+      "leaves the local user boundary" and from "leaves the managed
+      tenant" actions.
+    values:
+      - reversible_local_only
+      - irreversible_leaves_device_to_managed_service
+      - irreversible_leaves_device_to_third_party_provider
+      - irreversible_leaves_local_user_to_admin_or_support
+      - irreversible_third_party_share_outside_tenant
+      - blocked_by_policy_no_share
+
+  # Closed vocabulary for the delete-action class an export/capture row
+  # offers. "Delete" must never mean "unknown"; surfaces resolve to one
+  # of these classes.
+  delete_action_class:
+    description: >
+      Closed vocabulary for delete actions a capture/export row may
+      offer. Each class names exactly which copy is being removed and
+      whether other copies survive.
+    values:
+      - delete_local_only_copy
+      - delete_managed_copy_request_routed_to_admin
+      - delete_provider_copy_request_routed_to_provider
+      - delete_metadata_only_local
+      - delete_unavailable_visible_reason
+      - delete_blocked_by_policy
+
+  # Closed vocabulary for the export-availability posture a row carries.
+  export_availability_class:
+    description: >
+      Closed vocabulary for export availability. Used per row to make
+      "export is on", "export is off", "export is held by policy", and
+      "export is unavailable in this envelope" distinguishable.
+    values:
+      - export_available_user_initiated
+      - export_available_admin_initiated
+      - export_held_by_policy_visible_repair_path
+      - export_unavailable_in_envelope
+      - export_blocked_by_policy
+      - export_not_applicable_no_artifact
+
+  audit_event_class:
+    description: >
+      Reserved audit-event vocabulary for capture/export review rows.
+      Surfaces emit one of these closed values when a capture or export
+      lands or fails closed; the strings mirror the speech-privacy
+      ledger's evidence_hook_class and the device-permission row's
+      revoke/repair lanes.
+    values:
+      - capture_started
+      - capture_stopped
+      - capture_blocked_by_policy
+      - capture_blocked_by_consent
+      - export_initiated
+      - export_completed_redacted
+      - export_completed_unredacted_with_consent
+      - export_blocked_by_policy
+      - export_blocked_by_consent
+      - delete_completed_local
+      - delete_request_routed_managed
+      - delete_request_routed_provider
+      - delete_blocked_by_policy
+
+# Per-capture-surface review rows. Each row is a frozen reviewer answer
+# to the question "what does the surface have to render before this
+# capture/export action is conforming?". Reviewers grade each row
+# against the upstream contract; surfaces quote the row by stable id.
+capture_surface_review_rows:
+  - capture_surface_id: capture-surface:microphone:transcript
+    device_class: microphone
+    capture_artifact_kinds:
+      - audio_capture_window
+      - transcript_text
+      - capture_metadata_only
+    required_mic_state_classes:
+      - idle
+      - listening
+      - muted
+      - processing
+      - needs_confirmation
+      - unavailable
+      - policy_blocked
+    required_capture_disclosures:
+      - processing_locus_disclosure_pre_capture
+      - retention_disclosure_pre_capture
+      - transcript_correction_path_when_transcript_expected
+      - revoke_path_visible_during_capture
+    consent_lanes:
+      - consent_lane_class: consent_to_capture
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: actor.initiated_by_user
+        requires_explicit_user_initiation: true
+        denies_implicit_capture_on_focus: true
+      - consent_lane_class: consent_to_export
+        binds_to:
+          schema_ref: schemas/ux/speech_privacy_ledger.schema.json
+          record_kind: transcript_export_record
+        requires_explicit_user_initiation: true
+        denies_export_via_support_bundle_default: true
+      - consent_lane_class: consent_to_provider_processing
+        binds_to:
+          schema_ref: schemas/ux/speech_privacy_ledger.schema.json
+          field_path: speech_provider_handoff_disclosure_ref
+        requires_explicit_user_initiation: true
+        denies_silent_remote_fallback_when_local_pack_unavailable: true
+    note: >
+      The mic-state pill MUST never imply that capture is "always on".
+      Listening MUST NOT be shown unless the system is actually
+      capturing audio. Transcript export is a separate consent lane;
+      the mic pill is not a proxy for export consent.
+
+  - capture_surface_id: capture-surface:camera:still_or_video
+    device_class: camera
+    capture_artifact_kinds:
+      - camera_frame_burst
+      - camera_video_clip
+      - capture_metadata_only
+    required_mic_state_classes: []
+    required_capture_disclosures:
+      - processing_locus_disclosure_pre_capture
+      - retention_disclosure_pre_capture
+      - revoke_path_visible_during_capture
+    consent_lanes:
+      - consent_lane_class: consent_to_capture
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: actor.initiated_by_user
+        requires_explicit_user_initiation: true
+        denies_implicit_capture_on_focus: true
+      - consent_lane_class: consent_to_export
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: revoke_action
+        requires_explicit_user_initiation: true
+        denies_export_via_support_bundle_default: true
+      - consent_lane_class: consent_to_provider_processing
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: processing_locus.processing_locus_class
+        requires_explicit_user_initiation: true
+        denies_silent_remote_fallback_when_local_pack_unavailable: true
+    note: >
+      Camera capture surfaces are reviewed under the same row schema as
+      the microphone but do not project onto the mic-state pill. A
+      camera capture surface MUST render its own visible state surface
+      while capture is possible or active and MUST NOT reuse the mic
+      pill to imply camera state.
+
+  - capture_surface_id: capture-surface:screen_capture:framebuffer_or_recording
+    device_class: screen_capture
+    capture_artifact_kinds:
+      - screen_capture_still
+      - screen_capture_recording
+      - capture_metadata_only
+    required_mic_state_classes: []
+    required_capture_disclosures:
+      - processing_locus_disclosure_pre_capture
+      - retention_disclosure_pre_capture
+      - revoke_path_visible_during_capture
+      - irreversible_share_warning_when_destination_leaves_device
+    consent_lanes:
+      - consent_lane_class: consent_to_capture
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: actor.initiated_by_user
+        requires_explicit_user_initiation: true
+        denies_implicit_capture_on_focus: true
+      - consent_lane_class: consent_to_export
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: revoke_action
+        requires_explicit_user_initiation: true
+        denies_export_via_support_bundle_default: true
+      - consent_lane_class: consent_to_provider_processing
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: processing_locus.processing_locus_class
+        requires_explicit_user_initiation: true
+        denies_silent_remote_fallback_when_local_pack_unavailable: true
+    note: >
+      Screen capture is the highest-blast-radius capture class. The
+      irreversible-share warning lane MUST render before any screen
+      capture artifact (still, recording, or transcribed annotations)
+      crosses a leaves-device boundary, including support bundles,
+      portable profile packages, evidence packets, and provider hand-
+      offs.
+
+  - capture_surface_id: capture-surface:system_audio_loopback
+    device_class: system_audio_loopback
+    capture_artifact_kinds:
+      - audio_capture_window
+      - transcript_text
+      - capture_metadata_only
+    required_mic_state_classes:
+      - idle
+      - listening
+      - muted
+      - processing
+      - unavailable
+      - policy_blocked
+    required_capture_disclosures:
+      - processing_locus_disclosure_pre_capture
+      - retention_disclosure_pre_capture
+      - revoke_path_visible_during_capture
+      - irreversible_share_warning_when_destination_leaves_device
+    consent_lanes:
+      - consent_lane_class: consent_to_capture
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: actor.initiated_by_user
+        requires_explicit_user_initiation: true
+        denies_implicit_capture_on_focus: true
+      - consent_lane_class: consent_to_export
+        binds_to:
+          schema_ref: schemas/ux/speech_privacy_ledger.schema.json
+          record_kind: transcript_export_record
+        requires_explicit_user_initiation: true
+        denies_export_via_support_bundle_default: true
+      - consent_lane_class: consent_to_provider_processing
+        binds_to:
+          schema_ref: schemas/ux/speech_privacy_ledger.schema.json
+          field_path: speech_provider_handoff_disclosure_ref
+        requires_explicit_user_initiation: true
+        denies_silent_remote_fallback_when_local_pack_unavailable: true
+    note: >
+      System-audio loopback may pick up audio from other applications
+      whose users did not consent to Aureline capture. The consent-to-
+      capture lane MUST be explicit and MUST disclose loopback (not
+      just "microphone") on the device-permission row.
+
+  - capture_surface_id: capture-surface:accessibility_input_monitoring
+    device_class: accessibility_input_monitoring
+    capture_artifact_kinds:
+      - capture_metadata_only
+    required_mic_state_classes: []
+    required_capture_disclosures:
+      - processing_locus_disclosure_pre_capture
+      - retention_disclosure_pre_capture
+      - revoke_path_visible_during_capture
+    consent_lanes:
+      - consent_lane_class: consent_to_capture
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: actor.initiated_by_user
+        requires_explicit_user_initiation: true
+        denies_implicit_capture_on_focus: true
+      - consent_lane_class: consent_to_export
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: revoke_action
+        requires_explicit_user_initiation: true
+        denies_export_via_support_bundle_default: true
+      - consent_lane_class: consent_to_provider_processing
+        binds_to:
+          schema_ref: schemas/auth/device_permission_row.schema.json
+          field_path: processing_locus.processing_locus_class
+        requires_explicit_user_initiation: true
+        denies_silent_remote_fallback_when_local_pack_unavailable: true
+    note: >
+      Accessibility / input monitoring is metadata-only at this layer;
+      raw input bodies never cross the boundary. The consent lanes are
+      retained so a future surface that wants to widen this row must
+      open a decision row instead of inheriting consent silently.
+
+# Per-export-destination review rows. Each row pins the redaction class
+# the destination must enforce, the consent lane it requires, the
+# delete posture it carries, and the irreversible-share warning class.
+export_destination_review_rows:
+  - export_destination_id: export-destination:no_export_local_only
+    export_destination_class: no_export_local_only
+    admissible_export_redaction_classes:
+      - redacted_metadata_only
+      - redacted_full_transcript_blocked
+    required_consent_lanes:
+      - consent_to_capture
+    irreversible_share_posture_class: reversible_local_only
+    delete_action_class: delete_local_only_copy
+    export_availability_class: export_not_applicable_no_artifact
+    audit_event_classes:
+      - capture_stopped
+      - delete_completed_local
+    note: >
+      No artifact leaves the device. Delete removes the local copy and
+      the export availability lane is "not applicable". This row is the
+      conforming default for local-only dictation.
+
+  - export_destination_id: export-destination:support_bundle_metadata_safe_default
+    export_destination_class: support_bundle_metadata_safe_default
+    admissible_export_redaction_classes:
+      - redacted_metadata_only
+      - redacted_partial_with_disclosure
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+    irreversible_share_posture_class: irreversible_leaves_local_user_to_admin_or_support
+    delete_action_class: delete_local_only_copy
+    export_availability_class: export_available_user_initiated
+    audit_event_classes:
+      - export_initiated
+      - export_completed_redacted
+      - delete_completed_local
+    note: >
+      Support bundle is metadata-safe by default. Transcript bodies
+      and capture artifacts MUST NOT travel via this destination unless
+      a separate export_destination row admits them with the matching
+      redaction class.
+
+  - export_destination_id: export-destination:portable_profile_package_redacted
+    export_destination_class: portable_profile_package_redacted
+    admissible_export_redaction_classes:
+      - redacted_metadata_only
+      - redacted_partial_with_disclosure
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+    irreversible_share_posture_class: irreversible_leaves_local_user_to_admin_or_support
+    delete_action_class: delete_local_only_copy
+    export_availability_class: export_available_user_initiated
+    audit_event_classes:
+      - export_initiated
+      - export_completed_redacted
+    note: >
+      Portable profile packages carry settings and metadata. Capture
+      artifacts and transcript bodies remain redacted unless an
+      explicit consent-to-export lane plus
+      exported_unredacted_with_explicit_consent fires together.
+
+  - export_destination_id: export-destination:evidence_packet_redacted
+    export_destination_class: evidence_packet_redacted
+    admissible_export_redaction_classes:
+      - redacted_metadata_only
+      - redacted_partial_with_disclosure
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+    irreversible_share_posture_class: irreversible_leaves_local_user_to_admin_or_support
+    delete_action_class: delete_metadata_only_local
+    export_availability_class: export_available_admin_initiated
+    audit_event_classes:
+      - export_initiated
+      - export_completed_redacted
+    note: >
+      Evidence packets land on signing/release surfaces. Raw audio,
+      raw frames, raw screen captures, raw transcripts, raw secrets,
+      and raw provider payloads never travel here.
+
+  - export_destination_id: export-destination:third_party_provider_handoff
+    export_destination_class: export_blocked_by_policy_destination
+    admissible_export_redaction_classes:
+      - redacted_partial_with_disclosure
+      - exported_unredacted_with_explicit_consent
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+      - consent_to_provider_processing
+    irreversible_share_posture_class: irreversible_leaves_device_to_third_party_provider
+    delete_action_class: delete_provider_copy_request_routed_to_provider
+    export_availability_class: export_held_by_policy_visible_repair_path
+    audit_event_classes:
+      - export_initiated
+      - export_completed_unredacted_with_consent
+      - delete_request_routed_provider
+      - export_blocked_by_consent
+    note: >
+      A third-party provider handoff requires all three consent lanes
+      to be explicit. The destination class on the speech-privacy
+      ledger is export_blocked_by_policy_destination by default; an
+      enabling decision row in the deployment opens the path with the
+      matching audit-event closure and the irreversible-share warning.
+
+  - export_destination_id: export-destination:enterprise_managed_processing
+    export_destination_class: export_blocked_by_policy_destination
+    admissible_export_redaction_classes:
+      - redacted_metadata_only
+      - redacted_partial_with_disclosure
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+      - consent_to_provider_processing
+    irreversible_share_posture_class: irreversible_leaves_device_to_managed_service
+    delete_action_class: delete_managed_copy_request_routed_to_admin
+    export_availability_class: export_available_admin_initiated
+    audit_event_classes:
+      - export_initiated
+      - export_completed_redacted
+      - delete_request_routed_managed
+    note: >
+      Enterprise managed processing is the trusted-but-off-device row.
+      The matrix keeps it distinct from third-party provider handoff
+      so reviewers can tell which side of the tenant boundary the
+      capture/transcript landed on.
+
+  - export_destination_id: export-destination:export_blocked_by_policy
+    export_destination_class: export_blocked_by_policy_destination
+    admissible_export_redaction_classes:
+      - export_blocked_by_policy
+    required_consent_lanes: []
+    irreversible_share_posture_class: blocked_by_policy_no_share
+    delete_action_class: delete_blocked_by_policy
+    export_availability_class: export_blocked_by_policy
+    audit_event_classes:
+      - export_blocked_by_policy
+      - delete_blocked_by_policy
+    note: >
+      Policy-blocked rows fail closed. The surface MUST quote the
+      policy_owner_ref on the upstream device-permission row and the
+      visible repair path; "blocked" never means "unknown".
+
+# Per-redaction-state review rows. Each row pins which export
+# destinations may carry it, which consent lanes must be present, and
+# the irreversible-share warning posture the surface MUST render.
+redaction_state_review_rows:
+  - export_redaction_class: redacted_metadata_only
+    admissible_destinations:
+      - no_export_local_only
+      - support_bundle_metadata_safe_default
+      - portable_profile_package_redacted
+      - evidence_packet_redacted
+      - enterprise_managed_processing
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+    irreversible_share_posture_class: irreversible_leaves_local_user_to_admin_or_support
+    note: >
+      Metadata-only is the safe export default. Transcript bodies and
+      raw capture artifacts MUST NOT appear in this redaction class.
+
+  - export_redaction_class: redacted_full_transcript_blocked
+    admissible_destinations:
+      - no_export_local_only
+    required_consent_lanes:
+      - consent_to_capture
+    irreversible_share_posture_class: reversible_local_only
+    note: >
+      Full transcript bodies are blocked from export. Pairs with
+      no_export_local_only as the only destination class.
+
+  - export_redaction_class: redacted_partial_with_disclosure
+    admissible_destinations:
+      - support_bundle_metadata_safe_default
+      - portable_profile_package_redacted
+      - evidence_packet_redacted
+      - enterprise_managed_processing
+      - third_party_provider_handoff
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+    irreversible_share_posture_class: irreversible_leaves_local_user_to_admin_or_support
+    note: >
+      Partial redaction MUST disclose what was redacted and why.
+      Surfaces quote the redaction class plus the omitted-classes
+      label; raw transcript bodies remain excluded.
+
+  - export_redaction_class: exported_unredacted_with_explicit_consent
+    admissible_destinations:
+      - third_party_provider_handoff
+    required_consent_lanes:
+      - consent_to_capture
+      - consent_to_export
+      - consent_to_provider_processing
+    irreversible_share_posture_class: irreversible_third_party_share_outside_tenant
+    note: >
+      Unredacted export requires an explicit consent class on the
+      speech-privacy ledger (explicit_user_opt_in_each_session or
+      explicit_user_opt_in_remembered_per_profile). Implicit and
+      no-consent classes deny.
+
+  - export_redaction_class: export_blocked_by_policy
+    admissible_destinations:
+      - export_blocked_by_policy
+    required_consent_lanes: []
+    irreversible_share_posture_class: blocked_by_policy_no_share
+    note: >
+      Policy-blocked redaction state. Surface fails closed visibly.
+
+  - export_redaction_class: export_unavailable_in_envelope
+    admissible_destinations:
+      - no_export_local_only
+    required_consent_lanes:
+      - consent_to_capture
+    irreversible_share_posture_class: reversible_local_only
+    note: >
+      The envelope (for example, an air-gapped deployment) does not
+      admit any export destination. The surface MUST keep capture
+      reviewable but render export as unavailable rather than offering
+      a hidden fallback.
+
+# Irreversible-share warning rows. Each row pins the warning posture
+# the surface MUST render before the user confirms an export action,
+# which destinations carry the row, and which delete-action class is
+# admissible after the share.
+irreversible_share_warning_rows:
+  - irreversible_share_posture_class: reversible_local_only
+    surface_warning_required: false
+    must_quote_processing_locus_class: false
+    must_quote_retention_posture_class: false
+    admissible_destinations:
+      - no_export_local_only
+    admissible_delete_action_classes:
+      - delete_local_only_copy
+      - delete_metadata_only_local
+    note: >
+      Local-only rows. No cross-boundary warning is required; the user
+      can delete the local copy at will.
+
+  - irreversible_share_posture_class: irreversible_leaves_local_user_to_admin_or_support
+    surface_warning_required: true
+    must_quote_processing_locus_class: true
+    must_quote_retention_posture_class: true
+    admissible_destinations:
+      - support_bundle_metadata_safe_default
+      - portable_profile_package_redacted
+      - evidence_packet_redacted
+    admissible_delete_action_classes:
+      - delete_local_only_copy
+      - delete_metadata_only_local
+    note: >
+      The artifact leaves the local user but stays inside the local
+      machine's owner / admin / support boundary. Surface warning
+      reminds the user that local copies remain local but the bundle
+      will be readable by a recipient.
+
+  - irreversible_share_posture_class: irreversible_leaves_device_to_managed_service
+    surface_warning_required: true
+    must_quote_processing_locus_class: true
+    must_quote_retention_posture_class: true
+    admissible_destinations:
+      - enterprise_managed_processing
+    admissible_delete_action_classes:
+      - delete_managed_copy_request_routed_to_admin
+      - delete_local_only_copy
+    note: >
+      The artifact leaves the device for a managed processing service.
+      Delete requests route through the admin path; the local copy
+      remains deletable but cannot recall managed copies.
+
+  - irreversible_share_posture_class: irreversible_leaves_device_to_third_party_provider
+    surface_warning_required: true
+    must_quote_processing_locus_class: true
+    must_quote_retention_posture_class: true
+    admissible_destinations:
+      - third_party_provider_handoff
+    admissible_delete_action_classes:
+      - delete_provider_copy_request_routed_to_provider
+      - delete_local_only_copy
+    note: >
+      The artifact leaves the device for a third-party provider.
+      Delete requests route through the provider path; Aureline cannot
+      guarantee provider deletion and MUST NOT imply otherwise.
+
+  - irreversible_share_posture_class: irreversible_third_party_share_outside_tenant
+    surface_warning_required: true
+    must_quote_processing_locus_class: true
+    must_quote_retention_posture_class: true
+    admissible_destinations:
+      - third_party_provider_handoff
+    admissible_delete_action_classes:
+      - delete_provider_copy_request_routed_to_provider
+    note: >
+      Unredacted third-party share outside the managed tenant. Surface
+      MUST render the strongest warning class and require the matching
+      explicit consent on the speech-privacy ledger.
+
+  - irreversible_share_posture_class: blocked_by_policy_no_share
+    surface_warning_required: true
+    must_quote_processing_locus_class: false
+    must_quote_retention_posture_class: false
+    admissible_destinations:
+      - export_blocked_by_policy
+    admissible_delete_action_classes:
+      - delete_blocked_by_policy
+    note: >
+      Policy denies the share. Surface fails closed visibly and quotes
+      the policy_owner_ref from the upstream device-permission row.
+
+# Delete-action review rows. Each row pins which destinations admit
+# it, which delete is being performed, and which audit-event class
+# closes the trail.
+delete_action_review_rows:
+  - delete_action_class: delete_local_only_copy
+    deletes:
+      - on_device_capture_artifact
+      - on_device_transcript_text
+      - on_device_capture_metadata
+    admissible_destinations:
+      - no_export_local_only
+      - support_bundle_metadata_safe_default
+      - portable_profile_package_redacted
+      - enterprise_managed_processing
+      - third_party_provider_handoff
+    audit_event_class: delete_completed_local
+    note: >
+      Removes the local copy. Other copies that left the device
+      remain governed by their own delete row.
+
+  - delete_action_class: delete_managed_copy_request_routed_to_admin
+    deletes:
+      - managed_service_copy
+    admissible_destinations:
+      - enterprise_managed_processing
+    audit_event_class: delete_request_routed_managed
+    note: >
+      Routes a deletion request through the admin / managed processing
+      path. Surface MUST disclose that completion depends on the
+      managed service, not on Aureline.
+
+  - delete_action_class: delete_provider_copy_request_routed_to_provider
+    deletes:
+      - third_party_provider_copy
+    admissible_destinations:
+      - third_party_provider_handoff
+    audit_event_class: delete_request_routed_provider
+    note: >
+      Routes a deletion request through the provider's own delete
+      path. Aureline cannot guarantee provider compliance.
+
+  - delete_action_class: delete_metadata_only_local
+    deletes:
+      - on_device_capture_metadata
+    admissible_destinations:
+      - no_export_local_only
+      - support_bundle_metadata_safe_default
+      - portable_profile_package_redacted
+      - evidence_packet_redacted
+    audit_event_class: delete_completed_local
+    note: >
+      Removes only the metadata row, not the captured artifact. Use
+      when the artifact has already been removed by a separate delete
+      row.
+
+  - delete_action_class: delete_unavailable_visible_reason
+    deletes: []
+    admissible_destinations:
+      - no_export_local_only
+      - export_blocked_by_policy
+    audit_event_class: delete_blocked_by_policy
+    note: >
+      Delete is unavailable in this envelope (for example, a
+      tamper-evident evidence packet). Surface MUST render a visible
+      reason; "unavailable" never means "unknown".
+
+  - delete_action_class: delete_blocked_by_policy
+    deletes: []
+    admissible_destinations:
+      - export_blocked_by_policy
+    audit_event_class: delete_blocked_by_policy
+    note: >
+      Policy denies delete. Surface fails closed and quotes the
+      policy_owner_ref.
+
+# Conformance assertions. Every row that appears on a capture/export
+# review surface MUST satisfy each assertion below.
+conformance_assertions:
+  - id: three_consent_lanes_stay_distinguishable
+    rule: >
+      Every capture/export action resolves to exactly one row in each
+      of consent_to_capture, consent_to_export, and
+      consent_to_provider_processing. A "yes" on one lane is never a
+      "yes" on the others. Surfaces that collapse the lanes are
+      non-conforming.
+
+  - id: capture_state_visible_before_first_capture
+    rule: >
+      A capture-capable surface MUST render its device-permission row
+      and (where applicable) mic-state pill before the first capture
+      begins, and MUST keep them inspectable while capture is active.
+
+  - id: listening_only_when_actually_capturing
+    rule: >
+      mic_state_class = listening MUST NOT appear unless the system is
+      actually capturing audio. "Voice feature enabled" alone is not
+      sufficient; the pill MUST stay idle / unavailable until capture
+      starts.
+
+  - id: processing_locus_disclosed_pre_capture
+    rule: >
+      processing_locus_class on the device-permission row MUST be
+      disclosed before capture begins. A row that pretends "it is
+      local" while audio leaves the device fails closed.
+
+  - id: retention_posture_disclosed_pre_capture
+    rule: >
+      retention_posture_class on the device-permission row MUST be
+      disclosed before capture begins, and MUST match the
+      transcript_locality_class on any speech-privacy ledger record
+      bound to the same capture.
+
+  - id: export_is_explicit_action_not_side_effect
+    rule: >
+      Transcript bodies, capture artifacts, screenshots, and screen
+      recordings MUST NOT travel via support bundles, portable profile
+      packages, or evidence packets without an explicit consent_to_
+      export lane and a redaction class on the destination's
+      admissible list.
+
+  - id: unredacted_export_requires_explicit_consent
+    rule: >
+      export_redaction_class = exported_unredacted_with_explicit_
+      consent admits only consent_class values
+      explicit_user_opt_in_each_session or
+      explicit_user_opt_in_remembered_per_profile on the bound
+      speech-privacy ledger record. Implicit and no-consent classes
+      deny.
+
+  - id: delete_resolves_to_a_named_class
+    rule: >
+      Every "delete" action a surface offers resolves to one
+      delete_action_class. "Deleted" never means "unknown"; the
+      surface names which copy is being removed and which copies
+      survive.
+
+  - id: irreversible_share_warning_renders_when_destination_leaves_boundary
+    rule: >
+      Surfaces MUST render the irreversible-share warning when the
+      destination's irreversible_share_posture_class is one of
+      irreversible_leaves_device_to_managed_service,
+      irreversible_leaves_device_to_third_party_provider,
+      irreversible_leaves_local_user_to_admin_or_support, or
+      irreversible_third_party_share_outside_tenant.
+
+  - id: provider_processing_disclosed_before_handoff
+    rule: >
+      consent_to_provider_processing requires a
+      speech_provider_handoff_disclosure_ref on the bound
+      speech_capture_event_record (or the equivalent provider
+      disclosure for non-audio capture). A capture whose
+      audio_locality_class is any sent_to_* class without a paired
+      handoff disclosure denies.
+
+  - id: managed_versus_third_party_distinguishable_on_every_row
+    rule: >
+      processing_locus_class enterprise_managed_service and
+      byok_remote_provider / vendor_hosted_service MUST stay
+      distinguishable on every capture / export / delete row. The
+      irreversible-share warning class differs by row and surfaces
+      MUST quote the matching warning by stable id.
+
+  - id: policy_blocked_distinct_from_unavailable
+    rule: >
+      policy_blocked rows MUST quote a policy_owner_ref and a visible
+      repair path. unavailable rows MUST quote the underlying device
+      / OS reason. Surfaces never collapse the two.
+
+  - id: revoke_and_repair_first_class_on_every_row
+    rule: >
+      Every row carries a revoke_action and an open_system_settings_
+      action where applicable. "Try again" alone is not a repair
+      path; the surface MUST name the OS / system-settings route or
+      the safe alternative.
+
+  - id: support_bundle_default_is_metadata_safe
+    rule: >
+      The support-bundle export destination defaults to redaction
+      class redacted_metadata_only. Surfaces that wish to widen this
+      default for a single capture/transcript MUST require a separate
+      consent_to_export action and MUST land on
+      redacted_partial_with_disclosure or
+      exported_unredacted_with_explicit_consent.
+
+  - id: matrix_reusable_in_diagnostics_support_release_evidence
+    rule: >
+      Diagnostics, support exports, admin exports, release evidence,
+      and docs/help quote capture_surface_id, export_destination_id,
+      device_permission_row ids, mic_state_record ids, and
+      speech-privacy ledger record ids by stable opaque id. Surface-
+      local copy that disagrees with the bound labels is non-conforming.
+
+# Worked examples. Each row cites a fixture under
+# fixtures/auth/capture_boundary_cases/ or
+# fixtures/auth/provider_vs_local_processing_cases/ that the matrix
+# row resolves to. Reviewers walk one row per surface and per
+# destination while grading.
+worked_examples:
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:no_export_local_only
+    fixture: fixtures/auth/capture_boundary_cases/local_dictation_preflight.yaml
+    summary: >
+      Local dictation. Audio stays on device, no transcript export,
+      reversible-local-only posture. Default-conforming row.
+
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:enterprise_managed_processing
+    fixture: fixtures/auth/provider_vs_local_processing_cases/enterprise_managed_processing_capture.yaml
+    summary: >
+      Enterprise-managed audio handoff. processing_locus_class is
+      enterprise_managed_service; capture leaves the device but stays
+      inside the managed tenant. Three consent lanes all explicit.
+
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:third_party_provider_handoff
+    fixture: fixtures/auth/provider_vs_local_processing_cases/byok_third_party_provider_capture.yaml
+    summary: >
+      BYOK third-party provider capture. processing_locus_class is
+      byok_remote_provider; irreversible-share warning is the third-
+      party class. Unredacted export requires explicit consent.
+
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:no_export_local_only
+    fixture: fixtures/auth/provider_vs_local_processing_cases/local_only_air_gapped_capture.yaml
+    summary: >
+      Air-gapped envelope. sent_to_* audio locality is forbidden;
+      every export destination is unavailable_in_envelope. The matrix
+      row keeps capture reviewable while export remains unavailable.
+
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:third_party_provider_handoff
+    fixture: fixtures/auth/provider_vs_local_processing_cases/provider_consent_blocked_no_silent_fallback.yaml
+    summary: >
+      Provider consent missing or revoked. The matrix row shows that
+      capture denies (consent_to_provider_processing absent) and the
+      surface MUST NOT silently fall back to the local pack or to
+      another provider.
+
+  - capture_surface_id: capture-surface:screen_capture:framebuffer_or_recording
+    export_destination_id: export-destination:third_party_provider_handoff
+    fixture: fixtures/auth/provider_vs_local_processing_cases/screen_capture_third_party_share.yaml
+    summary: >
+      Screen capture sent to a third-party provider for AI assistance.
+      Irreversible-share warning is the strongest class; delete row
+      routes through the provider; consent lanes are all explicit.
+
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:support_bundle_metadata_safe_default
+    fixture: fixtures/auth/capture_boundary_cases/capture_export_review.yaml
+    summary: >
+      Transcript export review for a redacted support bundle. Three
+      consent lanes are independent; the mic-state pill is not a
+      proxy for the export consent lane.
+
+  - capture_surface_id: capture-surface:microphone:transcript
+    export_destination_id: export-destination:export_blocked_by_policy
+    fixture: fixtures/auth/provider_vs_local_processing_cases/policy_blocked_export_visible_repair.yaml
+    summary: >
+      Policy-blocked export. Surface fails closed visibly with the
+      policy_owner_ref quoted; delete is policy-blocked too. Capture
+      remains reviewable.
+
+# Acceptance gates for the matrix. A change passes when every gate
+# resolves to pass; pass_with_notes is allowed only when the reviewer
+# annotates the deviation against the closed vocabularies, never by
+# widening them.
+acceptance_gates:
+  - id: every_capture_surface_row_complete
+    rule: >
+      Every capture_surface_id in §capture_surface_review_rows names a
+      device_class, the required mic_state_class set, the required
+      capture disclosures, and the three consent lanes.
+
+  - id: every_export_destination_row_complete
+    rule: >
+      Every export_destination_id in §export_destination_review_rows
+      names admissible export_redaction_class values, the required
+      consent lanes, the irreversible_share_posture_class, the
+      delete_action_class, the export_availability_class, and the
+      audit-event closure set.
+
+  - id: every_redaction_state_row_complete
+    rule: >
+      Every export_redaction_class in §redaction_state_review_rows
+      names admissible destinations, the required consent lanes, and
+      the irreversible-share posture.
+
+  - id: every_irreversible_share_warning_row_complete
+    rule: >
+      Every irreversible_share_posture_class in
+      §irreversible_share_warning_rows names whether a surface
+      warning is required, whether processing_locus_class /
+      retention_posture_class MUST be quoted, the admissible
+      destinations, and the admissible delete_action_class set.
+
+  - id: conformance_assertions_hold
+    rule: >
+      Every conformance assertion in §conformance_assertions holds for
+      every row and every worked example.
+
+  - id: corpus_fixtures_resolve_by_ref
+    rule: >
+      Every worked example in §worked_examples resolves to one
+      fixture under fixtures/auth/capture_boundary_cases/ or
+      fixtures/auth/provider_vs_local_processing_cases/, and that
+      fixture validates as the schema kind it declares.
+
+  - id: reusable_without_special_case_copy
+    rule: >
+      Diagnostics, support exports, admin exports, release evidence,
+      and docs/help quote capture_surface_id, export_destination_id,
+      device_permission_row ids, mic_state_record ids, and
+      speech-privacy ledger record ids by stable id. Surface-local
+      copy that disagrees with the bound labels is non-conforming.

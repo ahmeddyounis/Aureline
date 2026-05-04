@@ -1,0 +1,71 @@
+schema_version: 1
+contract_ref: docs/auth/device_permission_and_capture_boundary_contract.md
+matrix_ref: artifacts/auth/capture_export_review_matrix.yaml
+audit_ref: artifacts/auth/device_permission_store_audit.md
+device_permission_row_schema_ref: schemas/auth/device_permission_row.schema.json
+mic_state_schema_ref: schemas/auth/mic_state.schema.json
+speech_privacy_ledger_schema_ref: schemas/ux/speech_privacy_ledger.schema.json
+
+rules:
+  - Each YAML fixture is a scenario manifest containing a records array.
+  - Records are export-safe: no raw audio, raw frames, raw screen captures, raw transcripts, raw URLs, raw provider tokens, or raw credential material.
+  - Capture rows whose processing_locus_class leaves the device pair with a speech_provider_handoff_disclosure_ref on the speech-privacy ledger record.
+  - Air-gapped envelopes forbid sent_to_* audio locality; capture is preserved as inspect-only and every export destination renders unavailable_in_envelope.
+  - Policy-blocked rows quote policy_owner_ref and a visible repair path; "blocked" never means "unknown".
+  - Provider consent missing or revoked denies capture; silent fallback to a local pack or to a different provider is forbidden.
+  - The processing-disclosure row is reviewed independently from consent-to-capture and consent-to-export.
+
+cases:
+  - fixture: local_only_air_gapped_capture.yaml
+    processing_locus_class: local_device_only
+    audio_locality_class: local_machine_only_in_process
+    irreversible_share_posture_class: reversible_local_only
+    covers:
+      - local_only_processing_default
+      - air_gapped_envelope_blocks_provider_handoff
+      - export_destination_unavailable_in_envelope
+
+  - fixture: enterprise_managed_processing_capture.yaml
+    processing_locus_class: enterprise_managed_service
+    audio_locality_class: sent_to_enterprise_gateway
+    irreversible_share_posture_class: irreversible_leaves_device_to_managed_service
+    covers:
+      - enterprise_managed_processing
+      - three_consent_lanes_explicit
+      - delete_request_routed_to_admin
+
+  - fixture: byok_third_party_provider_capture.yaml
+    processing_locus_class: byok_remote_provider
+    audio_locality_class: sent_to_byok_remote_vendor_direct
+    irreversible_share_posture_class: irreversible_leaves_device_to_third_party_provider
+    covers:
+      - byok_third_party_provider_processing
+      - three_consent_lanes_explicit
+      - delete_request_routed_to_provider
+
+  - fixture: provider_consent_blocked_no_silent_fallback.yaml
+    processing_locus_class: byok_remote_provider
+    audio_locality_class: audio_blocked_by_policy
+    irreversible_share_posture_class: blocked_by_policy_no_share
+    covers:
+      - provider_consent_missing_capture_denies
+      - no_silent_fallback_to_local_or_other_provider
+      - mic_state_unavailable_with_visible_reason
+
+  - fixture: screen_capture_third_party_share.yaml
+    processing_locus_class: byok_remote_provider
+    audio_locality_class: audio_unavailable_in_envelope
+    irreversible_share_posture_class: irreversible_third_party_share_outside_tenant
+    covers:
+      - screen_capture_third_party_handoff
+      - strongest_irreversible_share_warning_class
+      - explicit_consent_required_for_unredacted_share
+
+  - fixture: policy_blocked_export_visible_repair.yaml
+    processing_locus_class: enterprise_managed_service
+    audio_locality_class: sent_to_enterprise_gateway
+    irreversible_share_posture_class: blocked_by_policy_no_share
+    covers:
+      - export_blocked_by_policy_with_repair_path
+      - capture_remains_reviewable_while_export_unavailable
+      - delete_blocked_by_policy_visible_reason
