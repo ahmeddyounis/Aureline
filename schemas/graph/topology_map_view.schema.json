@@ -1,0 +1,948 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/topology_map_view.schema.json",
+  "title": "Aureline graph topology-map view, ownership card, freshness/provenance strip, and list/table alternate contract",
+  "description": "Boundary schema for the topology-map view family. Every topology surface (architecture-domain map, runtime-domain map, deployment-relation map, dependency map, ownership map, generated-artifact lineage map, provider-resource map) renders one topology_map_view_record from this contract; ownership cards render one ownership_card_record. Both records reuse graph_node_record / graph_edge_record ids verbatim (schemas/graph/workspace_graph_seed.schema.json) and reuse the provenance / confidence / anchor-drift contract (schemas/graph/provenance_stamp.schema.json, schemas/graph/confidence_rollup.schema.json) rather than minting bespoke topology-only certainty labels. Loaded scope, hidden-by-workset / hidden-by-policy / not-loaded counts, and imported-root markers are first-class so a topology can present a partial or policy-limited workset honestly instead of pretending the full workspace is loaded. Each view declares one topology_family_class so ownership, architecture-domain, runtime-domain, and deployment-relation maps stay distinguishable instead of flattening into one generic map. The presentation_mode axis covers map_canvas plus the list_alternate / table_alternate forms so the same record can drive a map view, a list view, or a table view without redefining topology identity. Raw absolute paths, raw provider URLs, raw email addresses, and raw credentials never cross this boundary; opaque ids and typed labels do. Adding a new topology_family_class, presentation_mode, legend_section_class, filter_class, ownership_card_section_class, export_format_class, or offered_action is additive-minor and bumps topology_map_view_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/topology_map_view_record" },
+    { "$ref": "#/$defs/ownership_card_record" }
+  ],
+  "$defs": {
+    "topology_map_view_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the topology-map-view vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["topology_map_view_record", "ownership_card_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque equality-comparable string."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Never carries raw source bodies or raw URLs."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 480,
+      "description": "Redaction-aware short text (≤ 480 graphemes). Surfaces render this verbatim. Never embeds raw source bodies, raw provider URLs, raw email addresses, or raw credentials."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_section": { "type": "string", "minLength": 1 },
+        "exercises": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "instance_schema_hint": { "type": "string" },
+
+    "topology_family_class": {
+      "type": "string",
+      "enum": [
+        "ownership_topology",
+        "architecture_domain_topology",
+        "runtime_domain_topology",
+        "deployment_relation_topology",
+        "dependency_topology",
+        "generated_artifact_lineage_topology",
+        "provider_resource_topology",
+        "pack_mirrors_upstream_topology",
+        "imported_root_topology",
+        "workset_scope_topology"
+      ],
+      "description": "Frozen topology-family vocabulary. Every topology view names exactly one family so ownership, architecture-domain, runtime-domain, and deployment-relation maps stay distinguishable instead of collapsing into one generic 'graph map'. ownership_topology: CODEOWNERS / team / rotation map over owned_by edges. architecture_domain_topology: package / crate / module structure over depends_on / imports_module / contains edges. runtime_domain_topology: service / runtime host / kernel map over runs_in / hosted_by edges. deployment_relation_topology: deploy target / environment / region map over deployed_to edges. dependency_topology: pure depends_on walk (lockfile / package-resolver). generated_artifact_lineage_topology: generated_from / produces_artifact / consumes_artifact lineage map. provider_resource_topology: connected-provider object map. pack_mirrors_upstream_topology: mirrored upstream pack lineage. imported_root_topology: imported-root visibility map. workset_scope_topology: scope narrowing visualization. The family is the disclosure axis a reviewer reads to know which graph relations the map is summarising; surfaces never conflate two families into one render."
+    },
+
+    "presentation_mode": {
+      "type": "string",
+      "enum": [
+        "map_canvas",
+        "node_list_alternate",
+        "node_table_alternate",
+        "edge_table_alternate",
+        "outline_tree_alternate"
+      ],
+      "description": "Frozen presentation-mode vocabulary. The same topology_map_view_record drives a map canvas, a list alternate, a table alternate, or an outline-tree alternate without redefining topology identity. node_list_alternate and node_table_alternate render the same node entries the canvas would; edge_table_alternate renders the edges; outline_tree_alternate renders the contains / depends_on hierarchy. Surfaces never invent a private list or table mode."
+    },
+
+    "loaded_scope_state": {
+      "type": "string",
+      "enum": [
+        "fully_loaded",
+        "partial_workset_loaded",
+        "sparse_slice_loaded",
+        "policy_limited_loaded",
+        "imported_root_only_loaded",
+        "warming_loaded",
+        "stale_loaded",
+        "evidence_missing_loaded"
+      ],
+      "description": "Frozen loaded-scope state vocabulary. The view never claims fully_loaded when any contributing root, workset, or policy overlay narrowed the scope. partial_workset_loaded: the active workset narrows to a subset of the workspace. sparse_slice_loaded: a sparse slice limited the loaded set. policy_limited_loaded: a policy projection hides one or more members. imported_root_only_loaded: the only loaded contributor is an imported root. warming_loaded / stale_loaded / evidence_missing_loaded: degraded readiness states the view discloses verbatim instead of pretending the full workspace is loaded."
+    },
+
+    "workset_visibility_state": {
+      "type": "string",
+      "enum": ["fully_visible", "partial_visible", "policy_hidden", "missing_in_scope"],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#workset_scope_ref.visibility. Used on per-node / per-edge entries inside the view."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#freshness. The freshness/provenance strip carries one freshness class per disclosed node entry."
+    },
+
+    "stale_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost",
+        "reindex_failed",
+        "generator_changed",
+        "provider_unreachable",
+        null
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#stale_reason. Required when freshness_class != authoritative."
+    },
+
+    "confidence_level": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#confidence_level. The view renders the rolled-up level verbatim and never silently upgrades."
+    },
+
+    "anchor_drift_state": {
+      "type": "string",
+      "enum": [
+        "anchor_present_no_drift",
+        "anchor_moved_resolves_via_alias",
+        "anchor_deleted_no_replacement",
+        "anchor_imported_unverified",
+        "anchor_generated_pending_lineage",
+        "anchor_unknown_lineage"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#source_anchor_drift_state. Surfaces render the typed drift chip instead of a generic 'not available' message."
+    },
+
+    "imported_root_status": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "imported_signed_upstream_bundle",
+        "imported_vendor_drop",
+        "imported_replay_capture",
+        "imported_migration_import",
+        "imported_docs_pack",
+        "imported_template_expansion"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#imported_root_status. Imported entries carry the chip verbatim instead of folding into a local row."
+    },
+
+    "extraction_or_inference_mode": {
+      "type": "string",
+      "enum": [
+        "observed_direct_extraction",
+        "parsed_from_structured_source",
+        "projected_from_authoritative_index",
+        "replayed_from_capture",
+        "hydrated_from_imported_bundle",
+        "derived_by_heuristic",
+        "generated_by_codegen",
+        "suggested_by_ai_inference",
+        "manually_annotated"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#extraction_or_inference_mode. The freshness/provenance strip discloses how the producer derived the value."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#workset_scope_ref.scope_class. The active scope is named once on the view header."
+    },
+
+    "node_class": {
+      "type": "string",
+      "enum": [
+        "file_node",
+        "directory_node",
+        "symbol_node",
+        "doc_node",
+        "ownership_node",
+        "topology_node",
+        "provider_resource_node",
+        "generated_artifact_node",
+        "imported_root_node",
+        "workset_scope_node",
+        "policy_view_node",
+        "missing_anchor_node"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#node_class. Node entries name the underlying node class so consumers can dispatch on it without re-deriving from the parent record."
+    },
+
+    "edge_class": {
+      "type": "string",
+      "enum": [
+        "contains",
+        "defines_symbol",
+        "references_symbol",
+        "imports_module",
+        "depends_on",
+        "owned_by",
+        "documented_by",
+        "cites",
+        "generated_from",
+        "mirrors_upstream",
+        "deployed_to",
+        "runs_in",
+        "hosted_by",
+        "produces_artifact",
+        "consumes_artifact",
+        "impacts",
+        "explains",
+        "scoped_by",
+        "aliases",
+        "missing_anchor_for"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#edge_class."
+    },
+
+    "edge_evidence_state": {
+      "type": "string",
+      "enum": [
+        "direct_evidence",
+        "imported_evidence",
+        "inferred_relation",
+        "stale_relation",
+        "missing_anchor"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#edge_evidence_state."
+    },
+
+    "topology_kind": {
+      "type": "string",
+      "enum": [
+        "package_depends_on_package",
+        "service_calls_service",
+        "build_target_produces_artifact",
+        "runtime_hosts_package",
+        "deploy_target_runs_service",
+        "provider_hosts_resource",
+        "pack_mirrors_upstream",
+        "notebook_kernel_executes_cell",
+        "preview_runtime_renders_snapshot"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#topology_edge_slot.topology_kind."
+    },
+
+    "ownership_kind": {
+      "type": "string",
+      "enum": ["person", "team", "service_account", "rotation_role"],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#node_body_ownership.ownership_kind."
+    },
+
+    "ownership_card_section_class": {
+      "type": "string",
+      "enum": [
+        "ownership_identity",
+        "freshness_provenance_strip",
+        "covered_node_summary",
+        "missing_evidence_summary",
+        "active_scope_summary",
+        "supporting_artifact_refs",
+        "offered_actions"
+      ],
+      "description": "Frozen ownership-card section vocabulary. Every ownership card lists which sections are present so a partial-evidence card can disclose which slots were unavailable instead of silently rendering blank tiles."
+    },
+
+    "legend_section_class": {
+      "type": "string",
+      "enum": [
+        "topology_family_legend",
+        "node_class_legend",
+        "edge_class_legend",
+        "edge_evidence_state_legend",
+        "freshness_legend",
+        "confidence_legend",
+        "anchor_drift_legend",
+        "imported_root_legend",
+        "policy_overlay_legend",
+        "missing_anchor_legend"
+      ],
+      "description": "Frozen legend-section vocabulary. The legend on a topology view names which honesty axes are disclosed; the surface never drops an axis silently."
+    },
+
+    "filter_class": {
+      "type": "string",
+      "enum": [
+        "topology_family_filter",
+        "node_class_filter",
+        "edge_class_filter",
+        "freshness_filter",
+        "confidence_filter",
+        "evidence_state_filter",
+        "anchor_drift_filter",
+        "imported_root_filter",
+        "policy_overlay_filter",
+        "scope_visibility_filter",
+        "ownership_filter"
+      ],
+      "description": "Frozen filter-class vocabulary. The view records which filters the user has applied so the export, review handoff, or list/table alternate render the same filtered set."
+    },
+
+    "filter_engagement": {
+      "type": "string",
+      "enum": ["disengaged", "engaged_inclusive", "engaged_exclusive"],
+      "description": "Whether the filter is currently inactive, narrowing inclusively (only matching rows visible), or narrowing exclusively (matching rows hidden). The same filter never claims both inclusive and exclusive at once."
+    },
+
+    "filter_state_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filter_class", "engagement"],
+      "properties": {
+        "filter_class": { "$ref": "#/$defs/filter_class" },
+        "engagement": { "$ref": "#/$defs/filter_engagement" },
+        "selected_values": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Optional opaque token list naming which values the filter selects. Tokens are drawn from the matching closed vocabulary (node_class, edge_class, freshness, confidence_level, etc.)."
+        },
+        "filter_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note explaining the filter the surface renders verbatim."
+        }
+      },
+      "description": "One filter-state entry. The view records the full filter set so list/table alternates and exports apply the same narrowing."
+    },
+
+    "legend_section_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["legend_section_class"],
+      "properties": {
+        "legend_section_class": { "$ref": "#/$defs/legend_section_class" },
+        "tokens_displayed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Opaque token list (node-class names, edge-class names, freshness names, etc.) the legend displays. The surface never collapses two tokens into one swatch."
+        },
+        "legend_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the legend renders verbatim."
+        }
+      }
+    },
+
+    "hidden_count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hidden_by_workset_known",
+        "hidden_by_workset_count",
+        "hidden_by_policy_known",
+        "hidden_by_policy_count",
+        "not_loaded_known",
+        "not_loaded_count",
+        "evidence_missing_known",
+        "evidence_missing_count",
+        "imported_root_known",
+        "imported_root_count"
+      ],
+      "properties": {
+        "hidden_by_workset_known": { "type": "boolean" },
+        "hidden_by_workset_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of nodes / edges excluded purely by the active workset's roots / patterns. Not collapsed into hidden_by_policy."
+        },
+        "hidden_by_policy_known": { "type": "boolean" },
+        "hidden_by_policy_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of nodes / edges hidden by a policy projection in the active scope. The exact hidden ids never project."
+        },
+        "not_loaded_known": { "type": "boolean" },
+        "not_loaded_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of nodes / edges that exist by manifest but are not yet hydrated (warming index, deferred load)."
+        },
+        "evidence_missing_known": { "type": "boolean" },
+        "evidence_missing_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of nodes / edges whose target identity is known but whose evidence (lineage, anchor, citation) cannot be reconstructed from the current graph state."
+        },
+        "imported_root_known": { "type": "boolean" },
+        "imported_root_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of disclosed entries whose imported_root_status is non-not_imported. The imported-root chip is rendered per entry; this aggregate count drives the freshness/provenance strip header."
+        }
+      },
+      "description": "Hidden / partial / imported-root accounting for the view. Counts cross the boundary; the hidden member ids themselves never do (re-export of schemas/workspace/cross_repo_result_group.schema.json#hidden_count_summary plus an imported_root_count axis)."
+    },
+
+    "freshness_provenance_strip_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_kind",
+        "subject_ref",
+        "freshness_class",
+        "stale_reason",
+        "extraction_or_inference_mode",
+        "imported_root_status",
+        "rolled_up_confidence",
+        "anchor_drift_state",
+        "provenance_stamp_ref"
+      ],
+      "properties": {
+        "subject_kind": {
+          "type": "string",
+          "enum": ["graph_node_record", "graph_edge_record", "ownership_card_record"],
+          "description": "Which graph subject this strip entry summarises. Topology views render one entry per highlighted node / edge / card."
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the node_id, edge_id, or card_id this strip entry summarises."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "extraction_or_inference_mode": { "$ref": "#/$defs/extraction_or_inference_mode" },
+        "imported_root_status": { "$ref": "#/$defs/imported_root_status" },
+        "rolled_up_confidence": { "$ref": "#/$defs/confidence_level" },
+        "confidence_rollup_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the confidence_rollup_record (schemas/graph/confidence_rollup.schema.json) that produced rolled_up_confidence. Surfaces walk this ref to render the floor_reason / conflict_state chips."
+        },
+        "anchor_drift_state": { "$ref": "#/$defs/anchor_drift_state" },
+        "anchor_drift_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to a source_anchor_drift_record (schemas/graph/provenance_stamp.schema.json) when the anchor_drift_state is not anchor_present_no_drift."
+        },
+        "provenance_stamp_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the provenance_stamp_record (schemas/graph/provenance_stamp.schema.json) the entry summarises."
+        },
+        "strip_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the strip renders verbatim."
+        }
+      },
+      "description": "One freshness/provenance strip entry. The strip rides every topology view and ownership card so the same node renders the same freshness, confidence, anchor-drift, and imported-root chips on every surface — without inventing local-only certainty labels."
+    },
+
+    "topology_node_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id_ref",
+        "node_class",
+        "visibility_state",
+        "freshness_provenance_strip"
+      ],
+      "properties": {
+        "node_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying graph_node_record.node_id. Topology views never mint a private node identifier."
+        },
+        "node_class": { "$ref": "#/$defs/node_class" },
+        "display_label": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }],
+          "description": "Redaction-aware short label rendered alongside node_id_ref. Never substituted on links or citations."
+        },
+        "visibility_state": { "$ref": "#/$defs/workset_visibility_state" },
+        "freshness_provenance_strip": { "$ref": "#/$defs/freshness_provenance_strip_entry" },
+        "policy_view_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to a policy_view_node_record when visibility_state == policy_hidden. The exact hidden node ids never project."
+        },
+        "scope_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque scope ref the node appears in. Re-exports the seed's workset_scope_ref.scope_id."
+        },
+        "node_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the surface renders verbatim alongside the node entry."
+        }
+      },
+      "description": "One node entry inside the topology view. Reuses graph_node_record identity verbatim and pairs it with the per-node visibility / freshness / provenance / confidence / anchor-drift state every alternate (map / list / table / outline) renders identically."
+    },
+
+    "topology_edge_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edge_id_ref",
+        "edge_class",
+        "from_node_id_ref",
+        "to_node_id_ref",
+        "evidence_state",
+        "freshness_provenance_strip"
+      ],
+      "properties": {
+        "edge_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying graph_edge_record.edge_id."
+        },
+        "edge_class": { "$ref": "#/$defs/edge_class" },
+        "from_node_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "to_node_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_state": { "$ref": "#/$defs/edge_evidence_state" },
+        "topology_kind": {
+          "anyOf": [{ "$ref": "#/$defs/topology_kind" }, { "type": "null" }],
+          "description": "Optional topology_kind from the seed's topology_edge_slot. Required when the edge is one of the seed's topology edges (depends_on, deployed_to, runs_in, hosted_by, produces_artifact, consumes_artifact, mirrors_upstream); null otherwise."
+        },
+        "freshness_provenance_strip": { "$ref": "#/$defs/freshness_provenance_strip_entry" },
+        "edge_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the surface renders verbatim alongside the edge entry."
+        }
+      },
+      "description": "One edge entry inside the topology view. Reuses graph_edge_record identity verbatim. Topology surfaces MUST NOT mint a parallel topology edge record."
+    },
+
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "review_pack_topology_packet",
+        "support_bundle_topology_packet",
+        "ai_evidence_topology_packet",
+        "csv_node_table",
+        "csv_edge_table",
+        "json_topology_snapshot",
+        "yaml_topology_snapshot",
+        "graphviz_dot",
+        "mermaid_flowchart"
+      ],
+      "description": "Frozen export-format vocabulary. Every export hook names exactly one format. Review-pack / support-bundle / AI-evidence packet exports preserve the full freshness/provenance strip and hidden-count summary; csv / dot / mermaid exports preserve at least the visible node and edge ids. Surfaces never claim 'the export carries the full state' if the chosen format drops imported-root chips or hidden counts."
+    },
+
+    "export_hook_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["export_format_class", "preserves_hidden_counts", "preserves_freshness_strip"],
+      "properties": {
+        "export_format_class": { "$ref": "#/$defs/export_format_class" },
+        "preserves_hidden_counts": {
+          "type": "boolean",
+          "description": "True when the export format preserves hidden_by_workset / hidden_by_policy / not_loaded / evidence_missing counts verbatim. Lossy formats (graphviz_dot, mermaid_flowchart, csv_*) MUST set this to false so the surface discloses the loss."
+        },
+        "preserves_freshness_strip": {
+          "type": "boolean",
+          "description": "True when the export carries the full freshness/provenance strip per entry. Lossy formats MUST set this to false."
+        },
+        "preserves_imported_root_chip": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the export preserves the per-entry imported_root_status chip."
+        },
+        "manifest_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque manifest ref the export will be filed under (review pack id, support bundle id, AI evidence packet id)."
+        },
+        "export_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the export hook renders verbatim. Surfaces preserve this on the export receipt."
+        }
+      }
+    },
+
+    "review_handoff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_class"],
+      "properties": {
+        "handoff_class": {
+          "type": "string",
+          "enum": [
+            "open_review_pack",
+            "open_support_bundle",
+            "open_ai_evidence_packet",
+            "request_widen_scope_with_review",
+            "request_policy_review_admin_only",
+            "open_impact_explorer",
+            "open_cited_explainer",
+            "open_navigation_deep_link",
+            "copy_topology_view_id",
+            "copy_node_id"
+          ],
+          "description": "Frozen review-handoff vocabulary. The view records which review-side handoffs are admissible so a topology surface and an impact explorer share the same handoff vocabulary instead of inventing per-surface synonyms."
+        },
+        "review_pack_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "support_bundle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "handoff_note": {
+          "$ref": "#/$defs/redaction_aware_text"
+        }
+      }
+    },
+
+    "ownership_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "topology_map_view_schema_version",
+        "card_id",
+        "ownership_node_id_ref",
+        "ownership_kind",
+        "topology_family_class",
+        "active_scope_class",
+        "active_scope_ref",
+        "loaded_scope_state",
+        "sections_present",
+        "freshness_provenance_strip",
+        "covered_node_count",
+        "missing_evidence_count",
+        "hidden_count_summary",
+        "offered_review_handoffs",
+        "offered_export_hooks",
+        "recorded_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "ownership_card_record" },
+        "topology_map_view_schema_version": { "$ref": "#/$defs/topology_map_view_schema_version" },
+        "card_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional workspace identifier."
+        },
+        "ownership_node_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the underlying graph_node_record.node_id whose node_class == ownership_node. The card never mints a private ownership identifier; it reuses the seed's ownership identity."
+        },
+        "ownership_kind": { "$ref": "#/$defs/ownership_kind" },
+        "display_label": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }],
+          "description": "Redaction-aware display label. Raw email addresses, handles, or real names never cross this boundary."
+        },
+        "codeowners_rule_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional CODEOWNERS rule ref the ownership_node was resolved through."
+        },
+        "topology_family_class": { "$ref": "#/$defs/topology_family_class" },
+        "active_scope_class": { "$ref": "#/$defs/scope_class" },
+        "active_scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the active workset / scope artifact (schemas/workspace/workset_artifact.schema.json or schemas/runtime/execution_context.schema.json scope id). The ownership card never mints a parallel scope id."
+        },
+        "loaded_scope_state": { "$ref": "#/$defs/loaded_scope_state" },
+        "sections_present": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ownership_card_section_class" },
+          "description": "Closed list of sections the card actually rendered. A partial-evidence card discloses which sections were unavailable instead of silently rendering blank tiles."
+        },
+        "freshness_provenance_strip": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/freshness_provenance_strip_entry" },
+          "description": "One or more strip entries summarising the freshness / provenance / confidence / anchor-drift state of the ownership identity itself plus the covered owned_by edges. The strip is required even on a partial-evidence card so the user sees why coverage is partial."
+        },
+        "covered_node_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of nodes the ownership_node currently covers in the active scope. Distinct from hidden_count_summary, which carries the excluded counts."
+        },
+        "covered_node_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional list of node_id refs the ownership identity covers. The card MAY truncate this list for presentation; covered_node_count is the authoritative count."
+        },
+        "missing_evidence_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of covered nodes whose ownership evidence (CODEOWNERS rule, manual annotation, owned_by edge anchor) cannot be reconstructed in the current graph state. Drives the missing_evidence_summary section."
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifact_class", "artifact_ref"],
+            "properties": {
+              "artifact_class": {
+                "type": "string",
+                "enum": [
+                  "mutation_journal_entry",
+                  "generated_artifact_lineage_record",
+                  "imported_bundle_entry",
+                  "replay_capture_entry",
+                  "codeowners_rule",
+                  "support_bundle_packet",
+                  "ai_evidence_packet",
+                  "policy_projection_record",
+                  "annotation_note",
+                  "build_toolchain_run_record",
+                  "package_resolver_lockfile_entry"
+                ]
+              },
+              "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+              "note": { "$ref": "#/$defs/redaction_aware_text" }
+            }
+          },
+          "description": "Re-export of schemas/graph/provenance_stamp.schema.json#supporting_artifact_ref. Support bundles and AI evidence packets walk this list to assemble a forensic packet."
+        },
+        "hidden_count_summary": { "$ref": "#/$defs/hidden_count_summary" },
+        "offered_review_handoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_handoff_entry" }
+        },
+        "offered_export_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_hook_entry" }
+        },
+        "card_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the card renders verbatim."
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One ownership card. The card reuses the underlying graph_node_record (ownership_node) and owned_by edges, projects a freshness/provenance strip from the same provenance / confidence / anchor-drift contract every other surface reads, and discloses partial-evidence cases through sections_present + missing_evidence_count instead of silently rendering blank tiles. A partial-evidence card sets loaded_scope_state to one of partial_workset_loaded / sparse_slice_loaded / policy_limited_loaded / imported_root_only_loaded / warming_loaded / stale_loaded / evidence_missing_loaded and discloses non-zero hidden_count_summary entries so the user can see why coverage is partial."
+    },
+
+    "topology_map_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "topology_map_view_schema_version",
+        "view_id",
+        "topology_family_class",
+        "presentation_mode",
+        "active_scope_class",
+        "active_scope_ref",
+        "loaded_scope_state",
+        "legend_sections",
+        "filter_state",
+        "node_entries",
+        "edge_entries",
+        "freshness_provenance_strip",
+        "hidden_count_summary",
+        "offered_review_handoffs",
+        "offered_export_hooks",
+        "recorded_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "topology_map_view_record" },
+        "topology_map_view_schema_version": { "$ref": "#/$defs/topology_map_view_schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional workspace identifier."
+        },
+        "workspace_graph_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the workspace_graph_record this view was derived from."
+        },
+        "topology_family_class": { "$ref": "#/$defs/topology_family_class" },
+        "presentation_mode": { "$ref": "#/$defs/presentation_mode" },
+        "active_scope_class": { "$ref": "#/$defs/scope_class" },
+        "active_scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the active workset / scope artifact. The view never mints a parallel scope id."
+        },
+        "loaded_scope_state": { "$ref": "#/$defs/loaded_scope_state" },
+        "view_title": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        },
+        "legend_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/legend_section_entry" },
+          "description": "Closed list of legend sections the view rendered. A view that disclosed an evidence-state chip on its edges MUST list edge_evidence_state_legend; a view with imported entries MUST list imported_root_legend; a view with policy-hidden members MUST list policy_overlay_legend."
+        },
+        "filter_state": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filter_state_entry" },
+          "description": "Per-view filter state. Empty array is admissible only when no filters were engaged; an empty filter_state on a partial render is non-conforming because the user cannot reproduce the narrowing."
+        },
+        "node_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topology_node_entry" },
+          "description": "Ordered visible node entries. Empty array is admissible only when loaded_scope_state names why (partial_workset_loaded, policy_limited_loaded, imported_root_only_loaded, warming_loaded, stale_loaded, evidence_missing_loaded). An empty node_entries on fully_loaded is non-conforming."
+        },
+        "edge_entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topology_edge_entry" },
+          "description": "Ordered visible edge entries. Empty array is admissible (a node-only view) only when the legend names node_class_legend without edge_class_legend."
+        },
+        "freshness_provenance_strip": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/freshness_provenance_strip_entry" },
+          "description": "One or more strip entries the surface renders alongside the canvas / list / table. The strip is required so a topology surface cannot drop the freshness / confidence / anchor-drift / imported-root chips."
+        },
+        "hidden_count_summary": { "$ref": "#/$defs/hidden_count_summary" },
+        "ownership_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional opaque refs to ownership_card_record card_ids the view links to. Topology family ownership_topology MUST list at least one ref so the card and the map share identity."
+        },
+        "impact_explorer_view_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Optional opaque refs to impact_explorer_view_record view ids (schemas/graph/impact_reason.schema.json). The two surfaces share node and edge identity through these refs."
+        },
+        "offered_review_handoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_handoff_entry" }
+        },
+        "offered_export_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_hook_entry" }
+        },
+        "view_note": {
+          "$ref": "#/$defs/redaction_aware_text"
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "loaded_scope_state == fully_loaded MUST set every hidden_count_summary count field to 0 and every count_known field to true. The view never claims completeness while disclosing hidden rows.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "fully_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": {
+                  "hidden_by_workset_known": { "const": true },
+                  "hidden_by_workset_count": { "const": 0 },
+                  "hidden_by_policy_known": { "const": true },
+                  "hidden_by_policy_count": { "const": 0 },
+                  "not_loaded_known": { "const": true },
+                  "not_loaded_count": { "const": 0 },
+                  "evidence_missing_known": { "const": true },
+                  "evidence_missing_count": { "const": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "loaded_scope_state == policy_limited_loaded MUST set hidden_by_policy_known true and policy_overlay_legend MUST appear on legend_sections.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "policy_limited_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": { "hidden_by_policy_known": { "const": true } }
+              },
+              "legend_sections": {
+                "contains": {
+                  "properties": {
+                    "legend_section_class": { "const": "policy_overlay_legend" }
+                  },
+                  "required": ["legend_section_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "loaded_scope_state == imported_root_only_loaded MUST set hidden_count_summary.imported_root_count > 0 and imported_root_legend MUST appear on legend_sections.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "imported_root_only_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": {
+                  "imported_root_known": { "const": true },
+                  "imported_root_count": { "type": "integer", "minimum": 1 }
+                }
+              },
+              "legend_sections": {
+                "contains": {
+                  "properties": {
+                    "legend_section_class": { "const": "imported_root_legend" }
+                  },
+                  "required": ["legend_section_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "topology_family_class == ownership_topology MUST list at least one ownership_card_ref so the card and the map share ownership identity.",
+          "if": {
+            "properties": { "topology_family_class": { "const": "ownership_topology" } },
+            "required": ["topology_family_class"]
+          },
+          "then": {
+            "required": ["ownership_card_refs"],
+            "properties": {
+              "ownership_card_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "description": "One topology-map view record. Reuses graph_node_record / graph_edge_record identity verbatim; reuses the provenance / confidence / anchor-drift contract for the freshness/provenance strip; discloses loaded scope, hidden counts, imported-root counts, and legend / filter state so a partial or policy-limited workset is honest. Each view names exactly one topology_family_class so ownership / architecture-domain / runtime-domain / deployment-relation / dependency / generated-artifact / provider-resource / pack-mirror / imported-root / workset-scope maps stay distinguishable instead of flattening into one generic map. The presentation_mode axis covers map_canvas plus list_alternate / table_alternate / outline_tree_alternate so the same record drives every alternate without redefining identity."
+    }
+  }
+}

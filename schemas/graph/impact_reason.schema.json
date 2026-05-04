@@ -1,0 +1,660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/impact_reason.schema.json",
+  "title": "Aureline graph impact-explorer row, view, reason class, and confidence-class contract",
+  "description": "Boundary schema for the impact-explorer row family. Every impact-explorer surface (review-pack impact panel, AI evidence-impact panel, support-bundle impact packet, public query-family impact walk, topology-map impact overlay) renders one impact_explorer_view_record from this contract; each row inside is one impact_explorer_row_record. Both records reuse graph_node_record / graph_edge_record ids verbatim (schemas/graph/workspace_graph_seed.schema.json) — every row points at one 'impacts' edge or impacted graph node — and reuse the impact_reason_slot reason_class vocabulary plus the confidence_rollup_record / floor_reason / conflict_state vocabulary (schemas/graph/confidence_rollup.schema.json) instead of inventing impact-only certainty labels. Loaded scope, hidden-by-workset / hidden-by-policy / not-loaded counts, and imported-root markers are first-class so a partial or policy-limited workset is honest. Each row carries an export_hook and review_handoff list so the impact panel can hand the row off to a review pack, support bundle, or AI evidence packet without re-deriving the row identity. Raw absolute paths, raw provider URLs, raw email addresses, and raw credentials never cross this boundary; opaque ids and typed labels do. Adding a new reason_class, confidence_class, loaded_scope_state, hidden-count axis, export_format_class, or offered_action is additive-minor and bumps impact_reason_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/impact_explorer_view_record" },
+    { "$ref": "#/$defs/impact_explorer_row_record" }
+  ],
+  "$defs": {
+    "impact_reason_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the impact-explorer row family. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["impact_explorer_view_record", "impact_explorer_row_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque equality-comparable string."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Never carries raw source bodies or raw URLs."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 480,
+      "description": "Redaction-aware short text (≤ 480 graphemes). Surfaces render this verbatim. Never embeds raw source bodies, raw provider URLs, raw email addresses, or raw credentials."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_section": { "type": "string", "minLength": 1 },
+        "exercises": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "instance_schema_hint": { "type": "string" },
+
+    "reason_class": {
+      "type": "string",
+      "enum": [
+        "direct_edit",
+        "symbol_rename",
+        "signature_change",
+        "dependency_bump",
+        "generated_artifact_regeneration",
+        "policy_change",
+        "ownership_change",
+        "provider_resource_update",
+        "imported_bundle_rollover",
+        "workset_scope_narrowed",
+        "workset_scope_widened",
+        "inferred_transitive_impact"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#impact_reason_slot.reason_class. Every impact row names exactly one reason class; impact explorers MUST NOT mint a private reason vocabulary."
+    },
+
+    "rolled_up_confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Re-export of schemas/graph/confidence_rollup.schema.json#confidence_level. The row renders the rolled-up level verbatim and never silently upgrades."
+    },
+
+    "floor_reason": {
+      "type": "string",
+      "enum": [
+        "no_floor_applied",
+        "low_contributor_pulls_to_low",
+        "unknown_contributor_pulls_to_low",
+        "inferred_relation_caps_at_medium",
+        "stale_relation_pulls_to_low",
+        "missing_anchor_pulls_to_low",
+        "imported_unverified_caps_at_medium",
+        "ai_inference_caps_at_medium",
+        "partial_visibility_caps_at_medium",
+        "policy_hidden_caps_at_medium",
+        "missing_in_scope_pulls_to_low",
+        "anchor_drift_pulls_to_low"
+      ],
+      "description": "Re-export of schemas/graph/confidence_rollup.schema.json#floor_reason. The row carries the floor_reason chip alongside rolled_up_confidence."
+    },
+
+    "conflict_state": {
+      "type": "string",
+      "enum": [
+        "no_conflict",
+        "level_split_high_and_low",
+        "level_split_with_unknown",
+        "evidence_state_split_direct_and_inferred",
+        "evidence_state_split_direct_and_stale",
+        "evidence_state_split_direct_and_missing_anchor",
+        "imported_vs_local_split",
+        "ai_vs_authoritative_split",
+        "partial_visibility_pulls_down"
+      ],
+      "description": "Re-export of schemas/graph/confidence_rollup.schema.json#conflict_state. Surfaces render the typed conflict chip alongside the rolled-up level."
+    },
+
+    "anchor_drift_state": {
+      "type": "string",
+      "enum": [
+        "anchor_present_no_drift",
+        "anchor_moved_resolves_via_alias",
+        "anchor_deleted_no_replacement",
+        "anchor_imported_unverified",
+        "anchor_generated_pending_lineage",
+        "anchor_unknown_lineage"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#source_anchor_drift_state. Surfaces render the typed drift chip instead of a generic 'not available' message."
+    },
+
+    "imported_root_status": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "imported_signed_upstream_bundle",
+        "imported_vendor_drop",
+        "imported_replay_capture",
+        "imported_migration_import",
+        "imported_docs_pack",
+        "imported_template_expansion"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#imported_root_status."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#freshness."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#workset_scope_ref.scope_class."
+    },
+
+    "loaded_scope_state": {
+      "type": "string",
+      "enum": [
+        "fully_loaded",
+        "partial_workset_loaded",
+        "sparse_slice_loaded",
+        "policy_limited_loaded",
+        "imported_root_only_loaded",
+        "warming_loaded",
+        "stale_loaded",
+        "evidence_missing_loaded"
+      ],
+      "description": "Frozen loaded-scope-state vocabulary mirroring schemas/graph/topology_map_view.schema.json#loaded_scope_state. The impact panel never claims fully_loaded when the active workset, policy projection, or imported-root contributor narrowed the result set."
+    },
+
+    "loaded_scope_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loaded_scope_state", "active_scope_class", "active_scope_ref"],
+      "properties": {
+        "loaded_scope_state": { "$ref": "#/$defs/loaded_scope_state" },
+        "active_scope_class": { "$ref": "#/$defs/scope_class" },
+        "active_scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the active workset / scope artifact. The impact row never mints a parallel scope id."
+        },
+        "scope_note": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Optional redaction-aware note the surface renders verbatim alongside the scope chip."
+        }
+      },
+      "description": "One loaded-scope note. Required on every impact row so a reviewer can see which scope the impact was computed under without re-querying the active workset."
+    },
+
+    "hidden_count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hidden_by_workset_known",
+        "hidden_by_workset_count",
+        "hidden_by_policy_known",
+        "hidden_by_policy_count",
+        "not_loaded_known",
+        "not_loaded_count",
+        "evidence_missing_known",
+        "evidence_missing_count",
+        "imported_root_known",
+        "imported_root_count",
+        "inferred_transitive_known",
+        "inferred_transitive_count"
+      ],
+      "properties": {
+        "hidden_by_workset_known": { "type": "boolean" },
+        "hidden_by_workset_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of impact targets excluded purely by the active workset's roots / patterns."
+        },
+        "hidden_by_policy_known": { "type": "boolean" },
+        "hidden_by_policy_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of impact targets hidden by a policy projection in the active scope. The exact hidden ids never project."
+        },
+        "not_loaded_known": { "type": "boolean" },
+        "not_loaded_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of impact targets that exist by manifest but are not yet hydrated."
+        },
+        "evidence_missing_known": { "type": "boolean" },
+        "evidence_missing_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of impact targets whose evidence (lineage, anchor, citation) cannot be reconstructed from the current graph state."
+        },
+        "imported_root_known": { "type": "boolean" },
+        "imported_root_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of impact rows whose imported_root_status is non-not_imported. Drives the imported-root chip on the panel header."
+        },
+        "inferred_transitive_known": { "type": "boolean" },
+        "inferred_transitive_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of impact rows whose reason_class is inferred_transitive_impact. Surfaces render the inferred-transitive chip on the panel header so the user can see which fraction of the result is heuristic."
+        }
+      },
+      "description": "Hidden / partial / imported-root / inferred-transitive accounting for the impact panel. Counts cross the boundary; the hidden member ids themselves never do."
+    },
+
+    "review_handoff_class": {
+      "type": "string",
+      "enum": [
+        "open_review_pack",
+        "open_support_bundle",
+        "open_ai_evidence_packet",
+        "request_widen_scope_with_review",
+        "request_policy_review_admin_only",
+        "open_topology_map",
+        "open_cited_explainer",
+        "open_navigation_deep_link",
+        "copy_impact_view_id",
+        "copy_impact_row_id"
+      ],
+      "description": "Frozen review-handoff vocabulary. Mirrors schemas/graph/topology_map_view.schema.json review_handoff_entry so impact panels and topology maps share one handoff vocabulary instead of inventing per-surface synonyms."
+    },
+
+    "review_handoff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_class"],
+      "properties": {
+        "handoff_class": { "$ref": "#/$defs/review_handoff_class" },
+        "review_pack_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "support_bundle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "ai_evidence_packet_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "handoff_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "review_pack_impact_packet",
+        "support_bundle_impact_packet",
+        "ai_evidence_impact_packet",
+        "csv_impact_table",
+        "json_impact_snapshot",
+        "yaml_impact_snapshot"
+      ],
+      "description": "Frozen export-format vocabulary for impact panels. Review-pack / support-bundle / AI-evidence packet exports preserve the full freshness/provenance/confidence/anchor-drift state and hidden-count summary; csv exports drop the chips and surfaces MUST disclose the loss."
+    },
+
+    "export_hook_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["export_format_class", "preserves_hidden_counts", "preserves_confidence_chip"],
+      "properties": {
+        "export_format_class": { "$ref": "#/$defs/export_format_class" },
+        "preserves_hidden_counts": {
+          "type": "boolean",
+          "description": "True when the export format preserves hidden_by_workset / hidden_by_policy / not_loaded / evidence_missing / imported_root / inferred_transitive counts verbatim. Lossy formats (csv_impact_table) MUST set this to false."
+        },
+        "preserves_confidence_chip": {
+          "type": "boolean",
+          "description": "True when the export carries rolled_up_confidence + floor_reason + conflict_state per row. csv_impact_table MAY collapse these to a single column and MUST set this false in that case."
+        },
+        "preserves_anchor_drift_chip": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the export preserves the per-row anchor_drift_state chip. Surfaces never claim an export carries the drift chip if the format does not actually project it."
+        },
+        "preserves_imported_root_chip": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the export preserves the per-row imported_root_status chip."
+        },
+        "manifest_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque manifest ref the export will be filed under (review pack id, support bundle id, AI evidence packet id)."
+        },
+        "export_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "supporting_artifact_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "artifact_ref"],
+      "properties": {
+        "artifact_class": {
+          "type": "string",
+          "enum": [
+            "mutation_journal_entry",
+            "generated_artifact_lineage_record",
+            "imported_bundle_entry",
+            "replay_capture_entry",
+            "codeowners_rule",
+            "support_bundle_packet",
+            "ai_evidence_packet",
+            "policy_projection_record",
+            "annotation_note",
+            "build_toolchain_run_record",
+            "package_resolver_lockfile_entry"
+          ]
+        },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#supporting_artifact_ref. Support bundles, review packs, and AI evidence packets walk this list to assemble a forensic packet."
+    },
+
+    "impact_explorer_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "impact_reason_schema_version",
+        "row_id",
+        "view_id_ref",
+        "impacted_node_id_ref",
+        "impacts_edge_id_ref",
+        "reason_class",
+        "rolled_up_confidence",
+        "floor_reason",
+        "conflict_state",
+        "freshness_class",
+        "imported_root_status",
+        "anchor_drift_state",
+        "loaded_scope_note",
+        "hidden_count_summary",
+        "offered_review_handoffs",
+        "offered_export_hooks",
+        "supporting_artifact_refs",
+        "recorded_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "impact_explorer_row_record" },
+        "impact_reason_schema_version": { "$ref": "#/$defs/impact_reason_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "view_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the parent impact_explorer_view_record. Required even on standalone row payloads so audit / support can reconstruct the parent panel."
+        },
+        "workspace_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "impacted_node_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the graph_node_record.node_id this row says was impacted. Impact explorers never mint a private impacted-object identifier; they reuse the seed's node identity."
+        },
+        "impacts_edge_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the graph_edge_record.edge_id of the 'impacts' edge that produced this row. Impact explorers reuse the seed's edge identity for the impacts relation rather than minting a private impact record."
+        },
+        "impact_source_node_id_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the upstream node_id whose change caused the impact (the impacts edge's from_node_id)."
+        },
+        "reason_class": { "$ref": "#/$defs/reason_class" },
+        "reason_note": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }],
+          "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#impact_reason_slot.note. Surfaces render this verbatim alongside the reason chip."
+        },
+        "rolled_up_confidence": { "$ref": "#/$defs/rolled_up_confidence" },
+        "floor_reason": { "$ref": "#/$defs/floor_reason" },
+        "conflict_state": { "$ref": "#/$defs/conflict_state" },
+        "confidence_rollup_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the confidence_rollup_record (schemas/graph/confidence_rollup.schema.json) that produced rolled_up_confidence / floor_reason / conflict_state."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "imported_root_status": { "$ref": "#/$defs/imported_root_status" },
+        "anchor_drift_state": { "$ref": "#/$defs/anchor_drift_state" },
+        "anchor_drift_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to a source_anchor_drift_record when anchor_drift_state is not anchor_present_no_drift."
+        },
+        "provenance_stamp_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the provenance_stamp_record for the impacts edge or the impacted node."
+        },
+        "mutation_journal_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional mutation_journal entry / group id that produced this impact reason. Re-export of schemas/graph/workspace_graph_seed.schema.json#impact_reason_slot.mutation_journal_ref."
+        },
+        "review_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional review-pack or approval ref attached to the impact."
+        },
+        "loaded_scope_note": { "$ref": "#/$defs/loaded_scope_note" },
+        "hidden_count_summary": { "$ref": "#/$defs/hidden_count_summary" },
+        "offered_review_handoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_handoff_entry" }
+        },
+        "offered_export_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_hook_entry" }
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supporting_artifact_ref_entry" },
+          "description": "Zero or more supporting-artifact references the row points at. Support bundles, review packs, and AI evidence packets walk this list to assemble a forensic packet."
+        },
+        "row_note": { "$ref": "#/$defs/redaction_aware_text" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "imported_root_status != not_imported MUST pair with imported_root_status_chip rendered (preserves_imported_root_chip true on at least one offered_export_hook). Imported entries cannot fold into a local row.",
+          "if": {
+            "not": {
+              "properties": { "imported_root_status": { "const": "not_imported" } },
+              "required": ["imported_root_status"]
+            }
+          },
+          "then": {
+            "properties": {
+              "offered_export_hooks": {
+                "contains": {
+                  "properties": { "preserves_imported_root_chip": { "const": true } },
+                  "required": ["preserves_imported_root_chip"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "anchor_drift_state != anchor_present_no_drift MUST set anchor_drift_record_ref to a non-null opaque ref so the drift event remains auditable.",
+          "if": {
+            "not": {
+              "properties": { "anchor_drift_state": { "const": "anchor_present_no_drift" } },
+              "required": ["anchor_drift_state"]
+            }
+          },
+          "then": {
+            "required": ["anchor_drift_record_ref"],
+            "properties": {
+              "anchor_drift_record_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "reason_class == inferred_transitive_impact MUST cap rolled_up_confidence at medium and MUST pair with floor_reason in {inferred_relation_caps_at_medium, ai_inference_caps_at_medium, low_contributor_pulls_to_low, unknown_contributor_pulls_to_low, missing_anchor_pulls_to_low, stale_relation_pulls_to_low, anchor_drift_pulls_to_low, partial_visibility_caps_at_medium, policy_hidden_caps_at_medium, missing_in_scope_pulls_to_low, imported_unverified_caps_at_medium}.",
+          "if": {
+            "properties": { "reason_class": { "const": "inferred_transitive_impact" } },
+            "required": ["reason_class"]
+          },
+          "then": {
+            "properties": {
+              "rolled_up_confidence": { "enum": ["medium", "low", "unknown"] },
+              "floor_reason": {
+                "enum": [
+                  "inferred_relation_caps_at_medium",
+                  "ai_inference_caps_at_medium",
+                  "low_contributor_pulls_to_low",
+                  "unknown_contributor_pulls_to_low",
+                  "missing_anchor_pulls_to_low",
+                  "stale_relation_pulls_to_low",
+                  "anchor_drift_pulls_to_low",
+                  "partial_visibility_caps_at_medium",
+                  "policy_hidden_caps_at_medium",
+                  "missing_in_scope_pulls_to_low",
+                  "imported_unverified_caps_at_medium"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One impact-explorer row. Reuses graph_node_record / graph_edge_record identity verbatim and reuses the impact_reason_slot reason_class plus the confidence_rollup_record floor_reason / conflict_state vocabulary instead of inventing impact-only labels. Required gates: imported entries must preserve the imported-root chip on at least one export hook; anchor drift must carry a non-null drift-record ref; inferred_transitive_impact must cap confidence at medium with a typed floor_reason."
+    },
+
+    "impact_explorer_view_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "impact_reason_schema_version",
+        "view_id",
+        "active_scope_class",
+        "active_scope_ref",
+        "loaded_scope_state",
+        "row_count_total",
+        "rows",
+        "hidden_count_summary",
+        "offered_review_handoffs",
+        "offered_export_hooks",
+        "recorded_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "impact_explorer_view_record" },
+        "impact_reason_schema_version": { "$ref": "#/$defs/impact_reason_schema_version" },
+        "view_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "workspace_graph_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the workspace_graph_record this impact view was derived from."
+        },
+        "view_title": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        },
+        "topology_view_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to a topology_map_view_record (schemas/graph/topology_map_view.schema.json). Topology and impact panels share node and edge identity through this ref."
+        },
+        "active_scope_class": { "$ref": "#/$defs/scope_class" },
+        "active_scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the active workset / scope artifact. The view never mints a parallel scope id."
+        },
+        "loaded_scope_state": { "$ref": "#/$defs/loaded_scope_state" },
+        "row_count_total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total visible rows in this panel. Distinct from hidden_count_summary, which carries the excluded counts. row_count_total MUST equal rows.length."
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/impact_explorer_row_record" },
+          "description": "Ordered visible rows. Empty array is admissible only when loaded_scope_state names why (partial_workset_loaded, policy_limited_loaded, imported_root_only_loaded, warming_loaded, stale_loaded, evidence_missing_loaded). An empty rows array under fully_loaded is non-conforming."
+        },
+        "hidden_count_summary": { "$ref": "#/$defs/hidden_count_summary" },
+        "offered_review_handoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_handoff_entry" }
+        },
+        "offered_export_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_hook_entry" }
+        },
+        "view_note": { "$ref": "#/$defs/redaction_aware_text" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "loaded_scope_state == fully_loaded MUST set every hidden_count_summary count field to 0 and every count_known field to true.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "fully_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": {
+                  "hidden_by_workset_known": { "const": true },
+                  "hidden_by_workset_count": { "const": 0 },
+                  "hidden_by_policy_known": { "const": true },
+                  "hidden_by_policy_count": { "const": 0 },
+                  "not_loaded_known": { "const": true },
+                  "not_loaded_count": { "const": 0 },
+                  "evidence_missing_known": { "const": true },
+                  "evidence_missing_count": { "const": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "loaded_scope_state == policy_limited_loaded MUST set hidden_by_policy_known true.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "policy_limited_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": { "hidden_by_policy_known": { "const": true } }
+              }
+            }
+          }
+        },
+        {
+          "description": "loaded_scope_state == imported_root_only_loaded MUST set hidden_count_summary.imported_root_count >= 1.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "imported_root_only_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": {
+                  "imported_root_known": { "const": true },
+                  "imported_root_count": { "type": "integer", "minimum": 1 }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One impact-explorer view. Aggregates impact_explorer_row_records under one panel, names the active scope and the loaded-scope state, carries the same hidden-count summary the topology view carries, and offers review-handoff and export hooks. The view never claims completeness while disclosing hidden rows."
+    }
+  }
+}
