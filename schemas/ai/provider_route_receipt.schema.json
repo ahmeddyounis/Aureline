@@ -1,0 +1,921 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/provider_route_receipt.schema.json",
+  "title": "Aureline AI provider-route receipt, model-path comparison row, branch-agent route rollup, and route-receipt audit-event vocabulary",
+  "description": "Boundary schema for the provider_route_receipt_record, model_path_comparison_row_record, branch_agent_route_rollup_record, and provider_route_receipt_audit_event_record frozen in docs/ai/spend_and_route_receipt_contract.md. Every AI invocation — preview pre-dispatch, post-run completed, post-run failed, cancelled by user, cancelled by policy, budget-blocked refusal, or route-blocked refusal — resolves to one provider_route_receipt_record so reviewers can explain which provider, model, locus, region, retention, quota family, and cost band ran the request without reading implementation code or provider logs. The model_path_comparison_row_record enumerates alternatives the route planner considered and names why a cheaper, slower, safer, or more local route was or was not selected. The branch_agent_route_rollup_record aggregates per-hop receipts under one chain id so a chained agent run reports identity and spend per hop and in aggregate. Raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw provider payloads, raw cost amounts in any specific currency, raw token counts, raw provider unit prices, raw user identifiers, and raw billing-account ids never cross this boundary; records carry opaque refs, structured fields, and coarse buckets only. The schema composes with (and does not replace) schemas/ai/provider_registry.schema.json (provider entry, execution locus, transport, retention, region, quota family, cost visibility, data-class allowlist, tainted-return posture), schemas/ai/model_registry.schema.json (model identity, capability claim, lifecycle state), schemas/ai/graduation_packet.schema.json (rollout state, route-selection reason / override-reason / exhaustion-state, cost / latency envelope, agent ceiling, fallback posture, spend-attribution dimensions), schemas/ai/context_assembly.schema.json (route-path-class, freshness-class, client-scope, redaction-class), schemas/ai/spend_receipt.schema.json (paired spend-receipt record), and schemas/integration/approval_ticket.schema.json (admitting approval ticket). The eventual provider-arbitration / metering crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new run_state_class, route_origin_class, outcome_class, disclosure_state_class, comparison_dimension_class, selected_outcome_class, token_ceiling_class, tool_call_ceiling_class, wall_time_ceiling_class, audit_event_id, or denial_reason is additive-minor and requires a provider_route_receipt_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_route_receipt_record" },
+    { "$ref": "#/$defs/model_path_comparison_row_record" },
+    { "$ref": "#/$defs/branch_agent_route_rollup_record" },
+    { "$ref": "#/$defs/provider_route_receipt_audit_event_record" }
+  ],
+  "$defs": {
+    "provider_route_receipt_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI provider-route receipt vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "provider_route_receipt_record",
+        "model_path_comparison_row_record",
+        "branch_agent_route_rollup_record",
+        "provider_route_receipt_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw URLs, raw endpoint hostnames, raw API keys, raw OAuth tokens, raw mTLS material, raw provider payloads, raw cost amounts, raw token counts, raw user identifiers, and raw billing-account ids never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in receipt readouts, support exports, admin reconciliation, and replay surfaces. Never quotes raw URLs, raw hostnames, raw provider payloads, raw cost amounts, raw token counts, raw user identifiers, or raw billing-account ids."
+    },
+
+    "run_state_class": {
+      "type": "string",
+      "enum": [
+        "preview_pre_dispatch",
+        "post_run_completed",
+        "post_run_failed",
+        "cancelled_by_user",
+        "cancelled_by_policy",
+        "budget_blocked_refusal",
+        "route_blocked_refusal"
+      ],
+      "description": "Run-state vocabulary naming where the receipt sits in the invocation lifecycle. preview_pre_dispatch = minted before bytes leave the device. post_run_completed = the run finished and bytes were returned. post_run_failed = the run dispatched but failed. cancelled_by_user = the user cancelled. cancelled_by_policy = a policy / safety check cancelled. budget_blocked_refusal = a budget cap was hit; no dispatch happened. route_blocked_refusal = no admitted route at all. A receipt MUST advance through monotonic transitions only; re-opening a terminal receipt is forbidden."
+    },
+
+    "route_origin_class": {
+      "type": "string",
+      "enum": [
+        "stayed_local",
+        "byok_user_credential",
+        "enterprise_gateway",
+        "vendor_hosted_managed",
+        "extension_provided",
+        "mocked_test",
+        "disabled_no_route"
+      ],
+      "description": "Route-origin vocabulary answering 'did the run stay local, BYOK, enterprise, or hosted'. stayed_local = inference ran on-device. byok_user_credential = user's BYOK credential to a vendor or self-hosted endpoint. enterprise_gateway = customer-operated / customer-contracted gateway. vendor_hosted_managed = first-party-managed vendor relationship. extension_provided = an extension's locus / transport. mocked_test = parity / record-replay only. disabled_no_route = no route ran. The class MUST agree with the provider entry's execution_locus_class and enterprise_gateway_broker_posture_class; disagreement denies with route_origin_disagrees_with_provider_entry."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "outcome_success",
+        "outcome_partial_with_disclosure",
+        "outcome_cancelled",
+        "outcome_provider_error",
+        "outcome_blocked_by_budget",
+        "outcome_blocked_by_route",
+        "outcome_blocked_by_policy",
+        "outcome_blocked_by_taint_posture",
+        "outcome_unknown_pre_dispatch"
+      ],
+      "description": "Outcome vocabulary naming what observable result the run produced. outcome_unknown_pre_dispatch is admitted only on preview_pre_dispatch receipts; allOf gates pair run-state to outcome on every record."
+    },
+
+    "disclosure_state_class": {
+      "type": "string",
+      "enum": [
+        "preview_disclosure_pre_dispatch",
+        "post_run_disclosure_completed",
+        "post_run_disclosure_partial",
+        "post_run_disclosure_failed",
+        "cancelled_disclosure_user",
+        "cancelled_disclosure_policy",
+        "budget_blocked_disclosure",
+        "route_blocked_disclosure"
+      ],
+      "description": "Disclosure-state vocabulary naming which UI / support / replay band the receipt occupies. Every receipt MUST carry exactly one. allOf gates pair disclosure-state to run-state mechanically; disagreement denies with disclosure_state_disagrees_with_run_state."
+    },
+
+    "execution_locus_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sandbox_process",
+        "local_companion_service",
+        "byok_remote_vendor_direct",
+        "byok_remote_self_hosted_direct",
+        "enterprise_gateway_brokered",
+        "vendor_hosted_first_party_managed",
+        "extension_provided_locus",
+        "mocked_test_locus",
+        "disabled_no_locus"
+      ],
+      "description": "Execution-locus class re-exported from schemas/ai/provider_registry.schema.json without modification."
+    },
+
+    "region_posture_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "single_region_pinned",
+        "multi_region_pinned",
+        "region_failover_bounded_set",
+        "region_unpinned_vendor_default",
+        "region_unknown_unverified",
+        "region_policy_blocked"
+      ],
+      "description": "Region-posture class re-exported from schemas/ai/provider_registry.schema.json without modification."
+    },
+
+    "retention_stance_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_local_only",
+        "no_retention_promised_body_discarded",
+        "bounded_retention_operator_access_only",
+        "bounded_retention_with_user_export",
+        "bounded_retention_with_legal_hold_only",
+        "unbounded_retention_not_used_for_training",
+        "unbounded_retention_used_for_training",
+        "retention_unknown_unverified",
+        "retention_policy_blocked"
+      ],
+      "description": "Retention-stance class re-exported from schemas/ai/provider_registry.schema.json without modification."
+    },
+
+    "quota_family_class": {
+      "type": "string",
+      "enum": [
+        "per_user_local_no_limit",
+        "per_user_local_soft_throttle",
+        "per_user_byok_vendor_quota",
+        "per_user_byok_organization_quota",
+        "enterprise_gateway_pooled_quota",
+        "vendor_hosted_entitlement_quota",
+        "free_tier_rate_limited",
+        "paid_tier_metered",
+        "policy_enforced_quota_override",
+        "quota_unknown_unverified"
+      ],
+      "description": "Quota-family class re-exported from schemas/ai/provider_registry.schema.json without modification."
+    },
+
+    "cost_visibility_class": {
+      "type": "string",
+      "enum": [
+        "metered_per_request",
+        "metered_per_token",
+        "flat_fee_subscription",
+        "bundled_no_incremental_cost",
+        "estimated_unverified",
+        "undisclosed_by_provider"
+      ],
+      "description": "Cost-visibility class re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "cost_envelope_class": {
+      "type": "string",
+      "enum": [
+        "bundled_no_incremental_cost",
+        "free_tier_rate_limited",
+        "metered_per_request_low_volume_band",
+        "metered_per_request_medium_volume_band",
+        "metered_per_request_high_volume_band",
+        "metered_per_token_low_volume_band",
+        "metered_per_token_medium_volume_band",
+        "metered_per_token_high_volume_band",
+        "flat_fee_subscription_band",
+        "enterprise_pooled_quota_band",
+        "vendor_hosted_entitlement_band",
+        "estimated_unverified_band",
+        "envelope_unknown_unverified_cost"
+      ],
+      "description": "Cost-envelope class re-exported from schemas/ai/graduation_packet.schema.json without modification. Reviewers see the bucket verbatim; the raw cost number in any specific currency never crosses this boundary."
+    },
+
+    "rollout_state_class": {
+      "type": "string",
+      "enum": [
+        "experimental",
+        "shadow",
+        "preview",
+        "stable",
+        "deprecated",
+        "disabled"
+      ],
+      "description": "Rollout-state class re-exported from schemas/ai/graduation_packet.schema.json without modification."
+    },
+
+    "route_selection_reason_class": {
+      "type": "string",
+      "enum": [
+        "cheapest_qualifying_route_admitted",
+        "no_cheaper_qualifying_route_existed",
+        "override_more_expensive_route_admitted",
+        "fallback_after_cheapest_exhausted",
+        "fallback_after_cheapest_blocked",
+        "user_chose_specific_route_explicitly",
+        "policy_pinned_specific_route",
+        "shadow_route_for_parity_only",
+        "no_route_admitted_disabled_with_typed_denial"
+      ],
+      "description": "Route-selection-reason class re-exported from schemas/ai/graduation_packet.schema.json without modification."
+    },
+
+    "route_selection_override_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_override_cheapest_was_used",
+        "cheapest_route_failed_capability_check",
+        "cheapest_route_failed_region_posture",
+        "cheapest_route_failed_retention_stance",
+        "cheapest_route_failed_data_class_allowlist",
+        "cheapest_route_failed_quota_family_check",
+        "cheapest_route_failed_offline_posture",
+        "cheapest_route_failed_determinism_posture",
+        "cheapest_route_failed_taint_posture",
+        "cheapest_route_failed_approval_posture",
+        "cheapest_route_quota_exhausted",
+        "cheapest_route_budget_exhausted",
+        "cheapest_route_circuit_open_recent_failures",
+        "cheapest_route_deprecated_or_withdrawn",
+        "cheapest_route_pack_unverified_or_quarantined",
+        "user_explicit_choice_overrides_cheapest",
+        "policy_pinned_more_expensive_route",
+        "shadow_route_paired_with_live_route"
+      ],
+      "description": "Route-selection-override-reason class re-exported from schemas/ai/graduation_packet.schema.json without modification."
+    },
+
+    "exhaustion_state_class": {
+      "type": "string",
+      "enum": [
+        "not_exhausted_route_admitted",
+        "per_request_budget_exhausted",
+        "per_session_budget_exhausted",
+        "per_agent_invocation_budget_exhausted",
+        "per_workflow_budget_exhausted",
+        "per_user_budget_exhausted",
+        "per_organisation_budget_exhausted",
+        "per_deployment_profile_budget_exhausted",
+        "quota_family_exhausted",
+        "agent_ceiling_exhausted",
+        "circuit_open_recent_failures",
+        "eligibility_revoked_policy",
+        "eligibility_revoked_workspace_trust",
+        "eligibility_revoked_pack_quarantined",
+        "eligibility_revoked_provider_disabled"
+      ],
+      "description": "Exhaustion-state class re-exported from schemas/ai/graduation_packet.schema.json without modification."
+    },
+
+    "agent_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "no_agent_invocations_admitted",
+        "single_invocation_no_recursion",
+        "bounded_recursion_depth_admitted",
+        "bounded_invocation_count_admitted",
+        "bounded_recursion_and_count_admitted",
+        "agent_invocation_unbounded_admin_only"
+      ],
+      "description": "Agent-ceiling class re-exported from schemas/ai/graduation_packet.schema.json without modification."
+    },
+
+    "token_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "tokens_under_2k",
+        "tokens_under_8k",
+        "tokens_under_32k",
+        "tokens_under_128k",
+        "tokens_over_128k",
+        "tokens_no_explicit_ceiling",
+        "tokens_unknown_unverified"
+      ],
+      "description": "Coarse token-ceiling vocabulary the run was admitted under. Reviewers see the bucket verbatim; the raw token count never crosses this boundary."
+    },
+
+    "tool_call_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "no_tool_calls_admitted",
+        "bounded_tool_calls_under_4",
+        "bounded_tool_calls_under_16",
+        "bounded_tool_calls_under_64",
+        "unbounded_tool_calls_admin_only",
+        "tool_calls_unknown_unverified"
+      ],
+      "description": "Coarse tool-call-ceiling vocabulary the run was admitted under. unbounded_tool_calls_admin_only requires a non-empty originating_approval_ticket_ref or denies through the budget contract's agent_ceiling allOf gate."
+    },
+
+    "wall_time_ceiling_class": {
+      "type": "string",
+      "enum": [
+        "wall_time_under_5s",
+        "wall_time_under_30s",
+        "wall_time_under_5m",
+        "wall_time_under_30m",
+        "wall_time_long_running_admin_only",
+        "wall_time_unknown_unverified"
+      ],
+      "description": "Coarse wall-time-ceiling vocabulary the run was admitted under. Reviewers see the bucket verbatim; the raw wall-clock duration never crosses this boundary."
+    },
+
+    "comparison_dimension_class": {
+      "type": "string",
+      "enum": [
+        "cheaper_alternative",
+        "slower_alternative",
+        "safer_alternative_more_local",
+        "safer_alternative_lower_retention",
+        "safer_alternative_pinned_region",
+        "more_capable_alternative",
+        "more_deterministic_alternative",
+        "equivalent_alternative_parity"
+      ],
+      "description": "Comparison-dimension vocabulary naming the single axis on which an alternative was evaluated. A route that beat its alternative on more than one axis emits one comparison row per axis."
+    },
+
+    "selected_outcome_class": {
+      "type": "string",
+      "enum": [
+        "selected_this_path",
+        "not_selected_failed_capability",
+        "not_selected_failed_region_posture",
+        "not_selected_failed_retention_stance",
+        "not_selected_failed_data_class_allowlist",
+        "not_selected_failed_quota_family",
+        "not_selected_failed_offline_posture",
+        "not_selected_failed_determinism_posture",
+        "not_selected_failed_taint_posture",
+        "not_selected_failed_approval_posture",
+        "not_selected_quota_exhausted",
+        "not_selected_budget_exhausted",
+        "not_selected_circuit_open",
+        "not_selected_deprecated_or_withdrawn",
+        "not_selected_pack_unverified",
+        "not_selected_user_explicit_choice",
+        "not_selected_policy_pin",
+        "not_selected_shadow_only_route"
+      ],
+      "description": "Selected-outcome vocabulary naming why a candidate was or was not picked. selected_this_path is the route the receipt records; every other value is a not_selected_* reason mechanically correlatable to the budget contract's route_selection_override_reason_class."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification. Narrower defaults (air_gapped, managed_fleet) MAY forbid a route_origin_class, an outcome_class, or a cost_envelope_class without re-minting any value."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when the record was minted outside an execution context."
+        }
+      },
+      "description": "Policy context the receipt was minted under. A policy-epoch roll between preview and post-run forces re-resolution against a current packet; a receipt re-used across an epoch roll denies with policy_epoch_rolled_invalidations."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011). Raw cost amounts in any specific currency, raw token counts, raw provider unit prices, raw user identifiers, and raw billing-account ids never cross this boundary regardless of class."
+    },
+
+    "ceiling_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "token_ceiling_class",
+        "tool_call_ceiling_class",
+        "wall_time_ceiling_class"
+      ],
+      "properties": {
+        "token_ceiling_class": { "$ref": "#/$defs/token_ceiling_class" },
+        "tool_call_ceiling_class": { "$ref": "#/$defs/tool_call_ceiling_class" },
+        "wall_time_ceiling_class": { "$ref": "#/$defs/wall_time_ceiling_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Coarse ceiling-summary record the receipt declares. The three buckets together describe the bound the run was admitted under without exposing the raw measurement."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "provider_route_receipt_minted_preview",
+        "provider_route_receipt_completed_post_run",
+        "provider_route_receipt_failed_post_run",
+        "provider_route_receipt_cancelled_by_user",
+        "provider_route_receipt_cancelled_by_policy",
+        "provider_route_receipt_budget_blocked",
+        "provider_route_receipt_route_blocked",
+        "branch_agent_route_rollup_emitted",
+        "provider_route_receipt_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the ai_route_receipt audit stream. Events MUST NOT carry raw URLs, raw provider payloads, raw cost amounts, raw token counts, raw user identifiers, raw billing-account ids, or raw credential bodies."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "route_origin_disagrees_with_provider_entry",
+        "disclosure_state_disagrees_with_run_state",
+        "outcome_disagrees_with_run_state",
+        "route_selection_override_missing_disclosure",
+        "route_receipt_missing_alternative_comparison",
+        "branch_agent_rollup_missing",
+        "agent_chain_exceeds_bounded_count",
+        "receipt_delete_for_cancel_or_block_forbidden",
+        "originless_ai_chip_forbidden_resolve_through_receipt",
+        "policy_epoch_rolled_invalidations",
+        "raw_cost_amount_forbidden_on_boundary",
+        "raw_user_identifier_forbidden_on_boundary",
+        "raw_billing_account_id_forbidden_on_boundary",
+        "provider_route_receipt_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort receipt or a generic 'AI used' chip is forbidden."
+    },
+
+    "model_path_comparison_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_route_receipt_schema_version",
+        "comparison_row_id",
+        "alternative_provider_entry_ref",
+        "alternative_model_entry_ref",
+        "alternative_execution_locus_class",
+        "alternative_region_posture_class",
+        "alternative_retention_stance_class",
+        "alternative_cost_envelope_class",
+        "comparison_dimension_class",
+        "selected_outcome_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "model_path_comparison_row_record" },
+        "provider_route_receipt_schema_version": { "$ref": "#/$defs/provider_route_receipt_schema_version" },
+        "comparison_row_id": { "$ref": "#/$defs/opaque_id" },
+        "alternative_provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "alternative_model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "alternative_execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "alternative_region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "alternative_retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "alternative_cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "alternative_quota_family_class": {
+          "type": "string",
+          "description": "Optional re-export of the candidate's quota_family_class. Empty string when the comparison does not need to disclose quota family. Reviewers see the bucket verbatim."
+        },
+        "comparison_dimension_class": { "$ref": "#/$defs/comparison_dimension_class" },
+        "selected_outcome_class": { "$ref": "#/$defs/selected_outcome_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One alternative row the route planner considered. A receipt that admitted an override emits one row whose selected_outcome_class is selected_this_path and at least one row whose selected_outcome_class is one of the not_selected_* values."
+    },
+
+    "provider_route_receipt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_route_receipt_schema_version",
+        "route_receipt_id",
+        "workflow_or_surface_id",
+        "run_state_class",
+        "disclosure_state_class",
+        "provider_entry_ref",
+        "model_entry_ref",
+        "execution_locus_class",
+        "region_posture_class",
+        "retention_stance_class",
+        "quota_family_class",
+        "cost_visibility_class",
+        "cost_envelope_class",
+        "route_origin_class",
+        "route_selection_reason_class",
+        "route_selection_override_reason_class",
+        "exhaustion_state_class",
+        "rollout_state_class",
+        "ceiling_summary",
+        "outcome_class",
+        "assembly_id_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_route_receipt_record" },
+        "provider_route_receipt_schema_version": { "$ref": "#/$defs/provider_route_receipt_schema_version" },
+        "route_receipt_id": { "$ref": "#/$defs/opaque_id" },
+        "workflow_or_surface_id": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable opaque identifier of the AI workflow or surface (re-exported from the budget contract). Surface authors mint exactly one identifier per workflow and reuse it across receipts."
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short human-readable label support / review surfaces render verbatim. Never the raw provider URL or raw model id."
+        },
+        "run_state_class": { "$ref": "#/$defs/run_state_class" },
+        "disclosure_state_class": { "$ref": "#/$defs/disclosure_state_class" },
+        "provider_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "model_entry_ref": { "$ref": "#/$defs/opaque_id" },
+        "prompt_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the prompt-pack manifest the run cited. Empty string when the workflow does not require a prompt-pack ref."
+        },
+        "tool_pack_manifest_ref": {
+          "type": "string",
+          "description": "Opaque ref to the tool-pack manifest the run cited. Empty string when the workflow does not require a tool-pack ref."
+        },
+        "execution_locus_class": { "$ref": "#/$defs/execution_locus_class" },
+        "region_posture_class": { "$ref": "#/$defs/region_posture_class" },
+        "retention_stance_class": { "$ref": "#/$defs/retention_stance_class" },
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "cost_visibility_class": { "$ref": "#/$defs/cost_visibility_class" },
+        "cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "route_origin_class": { "$ref": "#/$defs/route_origin_class" },
+        "route_selection_reason_class": { "$ref": "#/$defs/route_selection_reason_class" },
+        "route_selection_override_reason_class": { "$ref": "#/$defs/route_selection_override_reason_class" },
+        "exhaustion_state_class": { "$ref": "#/$defs/exhaustion_state_class" },
+        "rollout_state_class": { "$ref": "#/$defs/rollout_state_class" },
+        "ceiling_summary": { "$ref": "#/$defs/ceiling_summary" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "model_path_comparison_rows": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/model_path_comparison_row_record" },
+          "description": "Alternative-route rows the route planner considered. Required (minItems 2: one selected_this_path row plus one not_selected_* row) when route_selection_reason_class = override_more_expensive_route_admitted; missing the rows denies with route_receipt_missing_alternative_comparison."
+        },
+        "route_selection_disclosure_ref": {
+          "type": "string",
+          "description": "Opaque ref to the route_selection_disclosure_record (schemas/ai/graduation_packet.schema.json) admitted before invocation. Required (non-empty) when route_selection_reason_class is anything other than cheapest_qualifying_route_admitted / no_cheaper_qualifying_route_existed; empty otherwise."
+        },
+        "originating_budget_routing_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_graduation_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the graduation packet the run was admitted under. Required (non-empty) when rollout_state_class is stable, preview, or deprecated; empty for shadow / experimental / disabled."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. Required (non-empty) when route_selection_override_reason_class is policy_pinned_more_expensive_route or user_explicit_choice_overrides_cheapest and the workflow's approval posture is above allowed_without_prompt; empty otherwise."
+        },
+        "branch_agent_chain_id": {
+          "type": "string",
+          "description": "Opaque id of the branch-agent chain this receipt belongs to. Empty string when the run is not part of a chain."
+        },
+        "branch_agent_hop_index": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Zero-based hop index inside the branch-agent chain. Null when branch_agent_chain_id is empty."
+        },
+        "assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "supersedes_route_receipt_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Prior route-receipt ids this row supersedes. Retiring a receipt is not a delete; the superseded row survives so audit and replay consumers can reconstruct the run history."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewer-visible sentence summarising the receipt. Never quotes raw URLs, raw provider payloads, raw cost amounts, raw token counts, or raw user identifiers."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp the receipt was last updated. Empty string is forbidden; on the first mint last_updated_at equals minted_at."
+        }
+      },
+      "allOf": [
+        {
+          "description": "preview_pre_dispatch MUST pair with outcome_unknown_pre_dispatch and preview_disclosure_pre_dispatch.",
+          "if": {
+            "properties": { "run_state_class": { "const": "preview_pre_dispatch" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": { "const": "outcome_unknown_pre_dispatch" },
+              "disclosure_state_class": { "const": "preview_disclosure_pre_dispatch" }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "post_run_completed MUST pair with outcome_success / outcome_partial_with_disclosure and post_run_disclosure_completed / post_run_disclosure_partial.",
+          "if": {
+            "properties": { "run_state_class": { "const": "post_run_completed" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": {
+                "enum": ["outcome_success", "outcome_partial_with_disclosure"]
+              },
+              "disclosure_state_class": {
+                "enum": ["post_run_disclosure_completed", "post_run_disclosure_partial"]
+              }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "post_run_failed MUST pair with outcome_provider_error / outcome_partial_with_disclosure and post_run_disclosure_failed.",
+          "if": {
+            "properties": { "run_state_class": { "const": "post_run_failed" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": {
+                "enum": ["outcome_provider_error", "outcome_partial_with_disclosure"]
+              },
+              "disclosure_state_class": { "const": "post_run_disclosure_failed" }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "cancelled_by_user MUST pair with outcome_cancelled and cancelled_disclosure_user.",
+          "if": {
+            "properties": { "run_state_class": { "const": "cancelled_by_user" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": { "const": "outcome_cancelled" },
+              "disclosure_state_class": { "const": "cancelled_disclosure_user" }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "cancelled_by_policy MUST pair with outcome_cancelled / outcome_blocked_by_policy / outcome_blocked_by_taint_posture and cancelled_disclosure_policy.",
+          "if": {
+            "properties": { "run_state_class": { "const": "cancelled_by_policy" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "outcome_cancelled",
+                  "outcome_blocked_by_policy",
+                  "outcome_blocked_by_taint_posture"
+                ]
+              },
+              "disclosure_state_class": { "const": "cancelled_disclosure_policy" }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "budget_blocked_refusal MUST pair with outcome_blocked_by_budget and budget_blocked_disclosure.",
+          "if": {
+            "properties": { "run_state_class": { "const": "budget_blocked_refusal" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": { "const": "outcome_blocked_by_budget" },
+              "disclosure_state_class": { "const": "budget_blocked_disclosure" }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "route_blocked_refusal MUST pair with outcome_blocked_by_route / outcome_blocked_by_policy / outcome_blocked_by_taint_posture and route_blocked_disclosure.",
+          "if": {
+            "properties": { "run_state_class": { "const": "route_blocked_refusal" } },
+            "required": ["run_state_class"]
+          },
+          "then": {
+            "properties": {
+              "outcome_class": {
+                "enum": [
+                  "outcome_blocked_by_route",
+                  "outcome_blocked_by_policy",
+                  "outcome_blocked_by_taint_posture"
+                ]
+              },
+              "disclosure_state_class": { "const": "route_blocked_disclosure" }
+            },
+            "required": ["outcome_class", "disclosure_state_class"]
+          }
+        },
+        {
+          "description": "Override / fallback / explicit-choice / policy-pin / no-route reasons MUST cite a non-empty route_selection_disclosure_ref.",
+          "if": {
+            "properties": {
+              "route_selection_reason_class": {
+                "enum": [
+                  "override_more_expensive_route_admitted",
+                  "fallback_after_cheapest_exhausted",
+                  "fallback_after_cheapest_blocked",
+                  "user_chose_specific_route_explicitly",
+                  "policy_pinned_specific_route",
+                  "shadow_route_for_parity_only",
+                  "no_route_admitted_disabled_with_typed_denial"
+                ]
+              }
+            },
+            "required": ["route_selection_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "route_selection_disclosure_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["route_selection_disclosure_ref"]
+          }
+        },
+        {
+          "description": "override_more_expensive_route_admitted MUST carry at least two model-path-comparison rows (the selected route plus one not-selected alternative).",
+          "if": {
+            "properties": {
+              "route_selection_reason_class": { "const": "override_more_expensive_route_admitted" }
+            },
+            "required": ["route_selection_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "model_path_comparison_rows": { "minItems": 2 }
+            },
+            "required": ["model_path_comparison_rows"]
+          }
+        },
+        {
+          "description": "stable / preview / deprecated rollout states MUST cite a non-empty originating_graduation_packet_ref.",
+          "if": {
+            "properties": {
+              "rollout_state_class": {
+                "enum": ["stable", "preview", "deprecated"]
+              }
+            },
+            "required": ["rollout_state_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_graduation_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_graduation_packet_ref"]
+          }
+        }
+      ],
+      "description": "One governed receipt per AI invocation. Surface authors mint exactly one provider_route_receipt_record per dispatched / cancelled / blocked run; the receipt is the cross-tool boundary the rollout-review board, support export, replay harness, and AI history surfaces all read."
+    },
+
+    "branch_agent_route_rollup_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_route_receipt_schema_version",
+        "rollup_id",
+        "workflow_or_surface_id",
+        "branch_agent_chain_id",
+        "per_hop_route_receipt_refs",
+        "aggregate_run_state_class",
+        "aggregate_outcome_class",
+        "aggregate_cost_envelope_class",
+        "aggregate_token_ceiling_class",
+        "aggregate_wall_time_ceiling_class",
+        "agent_ceiling_class",
+        "originating_budget_routing_policy_ref",
+        "originating_graduation_packet_ref",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "branch_agent_route_rollup_record" },
+        "provider_route_receipt_schema_version": { "$ref": "#/$defs/provider_route_receipt_schema_version" },
+        "rollup_id": { "$ref": "#/$defs/opaque_id" },
+        "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "branch_agent_chain_id": { "$ref": "#/$defs/non_empty_string" },
+        "per_hop_route_receipt_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to every per-hop provider_route_receipt_record under this chain. Length is the chain depth; bounded ceilings cap the maximum length per the budget contract's agent_ceiling_class."
+        },
+        "aggregate_run_state_class": { "$ref": "#/$defs/run_state_class" },
+        "aggregate_outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "aggregate_cost_envelope_class": { "$ref": "#/$defs/cost_envelope_class" },
+        "aggregate_token_ceiling_class": { "$ref": "#/$defs/token_ceiling_class" },
+        "aggregate_wall_time_ceiling_class": { "$ref": "#/$defs/wall_time_ceiling_class" },
+        "agent_ceiling_class": { "$ref": "#/$defs/agent_ceiling_class" },
+        "originating_budget_routing_policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "originating_graduation_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the graduation packet the chain was admitted under. Empty for shadow / experimental chains."
+        },
+        "originating_approval_ticket_ref": {
+          "type": "string",
+          "description": "Opaque ref to the admitting approval ticket. Required (non-empty) when agent_ceiling_class = agent_invocation_unbounded_admin_only; empty otherwise."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_updated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "agent_invocation_unbounded_admin_only MUST cite a non-empty originating_approval_ticket_ref.",
+          "if": {
+            "properties": {
+              "agent_ceiling_class": { "const": "agent_invocation_unbounded_admin_only" }
+            },
+            "required": ["agent_ceiling_class"]
+          },
+          "then": {
+            "properties": {
+              "originating_approval_ticket_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["originating_approval_ticket_ref"]
+          }
+        }
+      ],
+      "description": "Cumulative-receipt rollup for branch-agent chains. The rollup aggregates per-hop receipts under one chain id so review surfaces see the agent's total identity / cost band on one row instead of N uncorrelated rows."
+    },
+
+    "provider_route_receipt_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_route_receipt_schema_version",
+        "audit_event_id",
+        "workflow_or_surface_id",
+        "policy_context",
+        "redaction_class",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_route_receipt_audit_event_record" },
+        "provider_route_receipt_schema_version": { "$ref": "#/$defs/provider_route_receipt_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "workflow_or_surface_id": { "$ref": "#/$defs/non_empty_string" },
+        "route_receipt_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_route_receipt_record the event refers to. Empty string only on branch_agent_route_rollup_emitted (where rollup_ref carries the readout) and provider_route_receipt_schema_version_bumped."
+        },
+        "rollup_ref": {
+          "type": "string",
+          "description": "Opaque ref to the branch_agent_route_rollup_record the event refers to. Empty string when the event is not rollup-scoped."
+        },
+        "denial_reason": {
+          "type": "string",
+          "description": "Optional denial_reason string from the denial_reason enum. Empty string for non-deny events."
+        },
+        "notes_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Observable event on the ai_route_receipt audit stream. Events MUST NOT carry raw URLs, raw provider payloads, raw cost amounts, raw token counts, raw user identifiers, or raw billing-account ids."
+    }
+  }
+}
