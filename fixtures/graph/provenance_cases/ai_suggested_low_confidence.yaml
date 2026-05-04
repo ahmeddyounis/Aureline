@@ -1,0 +1,102 @@
+# Multi-document YAML fixture for the AI-suggested-low-confidence provenance case.
+# Each document carries a record_kind that resolves to one of:
+#   schemas/graph/provenance_stamp.schema.json
+#   schemas/graph/confidence_rollup.schema.json
+__fixture__:
+  name: ai_suggested_low_confidence
+  scenario: >
+    An AI inference pass suggested a references_symbol edge between two
+    helpers in the editor_core crate; a non-AI heuristic
+    cross-reference walker found a corroborating import path. The
+    primary stamp records source_class ai_inference,
+    extraction_or_inference_mode suggested_by_ai_inference, freshness
+    authoritative, and an anchor with drift_state
+    anchor_present_no_drift. The rollup carries two contributors:
+    ai_inference at low (the AI scored its own suggestion as low) and
+    cross_reference_walker at medium. Two floors fire — the
+    low-contributor floor pulls to low, and the
+    ai_inference and inferred_relation caps fire at medium. The
+    most-restrictive floor wins and the rolled-up level is low under
+    floor_reason low_contributor_pulls_to_low.
+  doc_section: §5.4 AI-suggested relation with low confidence
+  exercises:
+    extraction_or_inference_mode: suggested_by_ai_inference
+    imported_root_status: not_imported
+    anchor_validity_state: anchor_present_resolves
+    source_anchor_drift_state: anchor_present_no_drift
+    rolled_up_level: low
+    floor_reason: low_contributor_pulls_to_low
+    conflict_state: no_conflict
+    ai_inference_contributor_present: true
+---
+# yaml-language-server: $schema=../../../schemas/graph/provenance_stamp.schema.json
+record_kind: provenance_stamp_record
+provenance_stamp_schema_version: 1
+stamp_id: stamp:graph.ai_suggested:edge:references:apply_edit_to_buffer_ops
+subject_kind: graph_edge_record
+subject_ref: edge:references:apply_edit_to_buffer_ops
+workspace_id: ws:aureline
+source_class: ai_inference
+provenance_class: inferred_by_heuristic
+extraction_or_inference_mode: suggested_by_ai_inference
+freshness: authoritative
+stale_reason: null
+imported_root_status: not_imported
+anchor_drift_observations:
+  - anchor_kind: symbol_definition_site
+    anchor_ref: node:file:editor_core_rs
+    anchor_validity_state: anchor_present_resolves
+    drift_state: anchor_present_no_drift
+    last_known_ref: null
+    resolved_ref: node:file:editor_core_rs
+    line_range: "44:78"
+    drift_note: Anchor resolves to the same definition site the resolver originally observed.
+supporting_artifact_refs:
+  - artifact_class: ai_evidence_packet
+    artifact_ref: ai:evidence:editor_core.apply_edit.references_buffer_ops
+    note: AI evidence packet capturing the suggestion, the prompt summary, and the corroborating cross-reference walker output.
+  - artifact_class: annotation_note
+    artifact_ref: annotation:reviewer:keep_low_until_human_review
+    note: Reviewer annotation requesting the surface keep the relation at low until a human review.
+producer_ref: ai_inference.aureline_inline
+producer_version: 0.0.0
+imported_bundle_ref: null
+replay_capture_ref: null
+support_ref: ai:evidence:editor_core.apply_edit.references_buffer_ops
+recorded_at: "mono:graph.provenance:0004:00:00:00.0001"
+stamp_note: AI suggestion; surfaces render the AI-inference chip and never silently upgrade past medium even when corroborated.
+---
+# yaml-language-server: $schema=../../../schemas/graph/confidence_rollup.schema.json
+confidence_rollup_schema_version: 1
+rollup_id: rollup:graph.ai_suggested:edge:references:apply_edit_to_buffer_ops
+surface_class: edge
+subject_ref: edge:references:apply_edit_to_buffer_ops
+workspace_id: ws:aureline
+rolled_up_level: low
+source_confidences:
+  - confidence_level: low
+    contributor_kind: ai_inference
+    contributor_ref: stamp:graph.ai_suggested:edge:references:apply_edit_to_buffer_ops
+    evidence_state: inferred_relation
+    weight_hint: supporting
+  - confidence_level: medium
+    contributor_kind: cross_reference_walker
+    contributor_ref: heuristic:cross_reference_walker.editor_core
+    evidence_state: inferred_relation
+    weight_hint: corroborating
+conflict_state: no_conflict
+floor_reason: low_contributor_pulls_to_low
+partial_visibility_interaction:
+  visibility_state: fully_visible
+  scope_ref: scope:workset:editor_core
+  hidden_member_count: null
+anchor_drift_summary:
+  anchor_drift_present: false
+  drift_state_count: 0
+  worst_drift_state: anchor_present_no_drift
+evidence_states_present:
+  - inferred_relation
+rollup_note: Low contributor pulls the rollup to low; the ai_inference and inferred_relation caps would otherwise hold at medium but the more restrictive low floor wins.
+supporting_stamp_refs:
+  - stamp:graph.ai_suggested:edge:references:apply_edit_to_buffer_ops
+recorded_at: "mono:graph.provenance:0004:00:00:00.0002"

@@ -1,0 +1,114 @@
+# Multi-document YAML fixture for the missing-anchor-degradation provenance case.
+# Each document carries a record_kind that resolves to one of:
+#   schemas/graph/provenance_stamp.schema.json   (provenance_stamp_record / source_anchor_drift_record)
+#   schemas/graph/confidence_rollup.schema.json
+__fixture__:
+  name: missing_anchor_degradation
+  scenario: >
+    A references_symbol edge points at a symbol that was deleted in a
+    recent refactor; the graph projects a missing_anchor_node so the
+    reference does not silently disappear. The stamp records freshness
+    stale, stale_reason upstream_input_stale, and one anchor with
+    anchor_validity_state anchor_unresolvable plus drift_state
+    anchor_deleted_no_replacement. The rollup carries one
+    primary_producer contributor at low; the missing-anchor evidence
+    state and the anchor-drift floor both pull to low. A separate
+    source_anchor_drift_record carries the audit_event_id
+    graph_anchor_deleted so support bundles and replay captures can
+    cite the drift event independently of the parent stamp.
+  doc_section: §5.5 Missing-anchor degradation
+  exercises:
+    extraction_or_inference_mode: observed_direct_extraction
+    imported_root_status: not_imported
+    anchor_validity_state: anchor_unresolvable
+    source_anchor_drift_state: anchor_deleted_no_replacement
+    rolled_up_level: low
+    floor_reason: missing_anchor_pulls_to_low
+    conflict_state: no_conflict
+    drift_record_audit_event_id: graph_anchor_deleted
+---
+# yaml-language-server: $schema=../../../schemas/graph/provenance_stamp.schema.json
+record_kind: provenance_stamp_record
+provenance_stamp_schema_version: 1
+stamp_id: stamp:graph.missing_anchor:edge:references:apply_edit_to_legacy_helper
+subject_kind: graph_edge_record
+subject_ref: edge:references:apply_edit_to_legacy_helper
+workspace_id: ws:aureline
+source_class: symbol_resolver
+provenance_class: authoritative_producer
+extraction_or_inference_mode: observed_direct_extraction
+freshness: stale
+stale_reason: upstream_input_stale
+imported_root_status: not_imported
+anchor_drift_observations:
+  - anchor_kind: symbol_definition_site
+    anchor_ref: symbol:editor_core::legacy_helper
+    anchor_validity_state: anchor_unresolvable
+    drift_state: anchor_deleted_no_replacement
+    last_known_ref: symbol:editor_core::legacy_helper@gen:7
+    resolved_ref: null
+    line_range: null
+    drift_note: Target symbol was removed in a recent refactor; no forwarding alias resolves and the graph projects a missing_anchor_node.
+supporting_artifact_refs:
+  - artifact_class: mutation_journal_entry
+    artifact_ref: journal:editor_core:remove_legacy_helper:2026-04-30T10:11:00Z
+    note: Mutation journal entry that removed the target symbol.
+  - artifact_class: support_bundle_packet
+    artifact_ref: support:graph.missing_anchor:editor_core.legacy_helper
+    note: Forensic packet for the missing-anchor degradation event.
+producer_ref: symbol_resolver.rust
+producer_version: 0.0.0
+imported_bundle_ref: null
+replay_capture_ref: null
+support_ref: support:graph.missing_anchor:editor_core.legacy_helper
+recorded_at: "mono:graph.provenance:0005:00:00:00.0001"
+stamp_note: References_symbol edge survives as a typed missing-anchor row instead of disappearing; downstream surfaces render the deleted-anchor chip and the missing-anchor badge.
+---
+# yaml-language-server: $schema=../../../schemas/graph/provenance_stamp.schema.json
+record_kind: source_anchor_drift_record
+provenance_stamp_schema_version: 1
+drift_record_id: drift:graph.missing_anchor:editor_core.legacy_helper:2026-04-30T10:11:30Z
+subject_kind: graph_edge_record
+subject_ref: edge:references:apply_edit_to_legacy_helper
+workspace_id: ws:aureline
+anchor_drift_observation:
+  anchor_kind: symbol_definition_site
+  anchor_ref: symbol:editor_core::legacy_helper
+  anchor_validity_state: anchor_unresolvable
+  drift_state: anchor_deleted_no_replacement
+  last_known_ref: symbol:editor_core::legacy_helper@gen:7
+  resolved_ref: null
+  line_range: null
+  drift_note: Target symbol deletion observed at the symbol resolver; the drift record makes the change auditable independent of the parent stamp.
+audit_event_id: graph_anchor_deleted
+recorded_at: "mono:graph.provenance:0005:00:00:00.0002"
+---
+# yaml-language-server: $schema=../../../schemas/graph/confidence_rollup.schema.json
+confidence_rollup_schema_version: 1
+rollup_id: rollup:graph.missing_anchor:edge:references:apply_edit_to_legacy_helper
+surface_class: edge
+subject_ref: edge:references:apply_edit_to_legacy_helper
+workspace_id: ws:aureline
+rolled_up_level: low
+source_confidences:
+  - confidence_level: low
+    contributor_kind: primary_producer
+    contributor_ref: stamp:graph.missing_anchor:edge:references:apply_edit_to_legacy_helper
+    evidence_state: missing_anchor
+    weight_hint: dominant
+conflict_state: no_conflict
+floor_reason: missing_anchor_pulls_to_low
+partial_visibility_interaction:
+  visibility_state: fully_visible
+  scope_ref: scope:workset:editor_core
+  hidden_member_count: null
+anchor_drift_summary:
+  anchor_drift_present: true
+  drift_state_count: 1
+  worst_drift_state: anchor_deleted_no_replacement
+evidence_states_present:
+  - missing_anchor
+rollup_note: Missing-anchor evidence and a deleted-anchor drift_state both pull the rollup to low; the surface renders the typed deleted-anchor chip alongside the missing-anchor badge instead of collapsing into a generic 'not available' message.
+supporting_stamp_refs:
+  - stamp:graph.missing_anchor:edge:references:apply_edit_to_legacy_helper
+recorded_at: "mono:graph.provenance:0005:00:00:00.0003"

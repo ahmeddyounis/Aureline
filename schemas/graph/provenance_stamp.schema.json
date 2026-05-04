@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/provenance_stamp.schema.json",
+  "title": "Aureline graph provenance-stamp and source-anchor-drift contract",
+  "description": "Boundary schema for the per-record provenance stamp and the typed source-anchor-drift vocabulary every graph-backed surface (graph overlay, topology map, impact explorer, cited-explainer overlay, AI context assembler, review pack, support bundle, public query-family surface) reads when it explains why an object or relation exists, how stale or inferred it is, and whether the source anchor still resolves. This schema is a strict superset of the inline provenance_stamp slot defined on schemas/graph/workspace_graph_seed.schema.json: every workspace-graph node and edge already carries a provenance_stamp from the seed; this contract adds the typed extraction_or_inference_mode, anchor_validity, source_anchor_drift_state, imported_root_status, and supporting_artifact_refs fields that downstream surfaces need to render typed certainty without inventing local-only confidence labels. Raw source bodies, raw URLs, raw provider URLs, and raw credentials never cross this boundary; every ref is an opaque id. Adding a new source class, new extraction-mode, new anchor-validity state, new drift state, new imported-root status, or new supporting-artifact class is additive-minor and bumps provenance_stamp_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provenance_stamp_record" },
+    { "$ref": "#/$defs/source_anchor_drift_record" }
+  ],
+  "$defs": {
+    "provenance_stamp_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the provenance-stamp / source-anchor-drift vocabulary. Current value is 1. Bumped on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["provenance_stamp_record", "source_anchor_drift_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "description": "Producer-local monotonic timestamp. Opaque equality-comparable string. Prototype fixtures emit 'mono:...' tokens; production readers treat the value as opaque."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Never carries raw source bodies or raw URLs."
+    },
+
+    "source_class": {
+      "type": "string",
+      "enum": [
+        "workspace_filesystem",
+        "buffer_editor",
+        "symbol_resolver",
+        "docs_pack",
+        "codeowners_resolver",
+        "build_toolchain",
+        "codegen_tool",
+        "package_resolver",
+        "notebook_kernel",
+        "preview_runtime",
+        "connected_provider",
+        "remote_agent",
+        "ai_inference",
+        "imported_bundle",
+        "replay_capture",
+        "policy_projection",
+        "manual_annotation"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#source_class. Names which producer family emitted the record. This contract does not mint new source classes."
+    },
+
+    "provenance_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_producer",
+        "projected_from_producer",
+        "imported_external",
+        "replayed_capture",
+        "inferred_by_heuristic",
+        "policy_projected",
+        "manually_annotated"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#provenance_class. Names how the current record came to carry this data."
+    },
+
+    "extraction_or_inference_mode": {
+      "type": "string",
+      "enum": [
+        "observed_direct_extraction",
+        "parsed_from_structured_source",
+        "projected_from_authoritative_index",
+        "replayed_from_capture",
+        "hydrated_from_imported_bundle",
+        "derived_by_heuristic",
+        "generated_by_codegen",
+        "suggested_by_ai_inference",
+        "manually_annotated"
+      ],
+      "description": "How this record's payload was produced. Orthogonal to source_class (which producer family) and provenance_class (how the record carries the data); extraction_or_inference_mode names the path the producer took. observed_direct_extraction: producer observed the value first-hand (parser, symbol resolver, filesystem walker, build toolchain run). parsed_from_structured_source: extracted from a structured artifact (lockfile, OpenAPI doc, manifest). projected_from_authoritative_index: read from a downstream index that re-exports an authoritative producer. replayed_from_capture: rehydrated from a deterministic replay capture. hydrated_from_imported_bundle: hydrated from a signed upstream bundle, vendor drop, or docs-pack import. derived_by_heuristic: derived by a non-AI heuristic pass (cross-reference, fuzzy match, transitive walk). generated_by_codegen: produced by a deterministic codegen tool whose lineage is available. suggested_by_ai_inference: produced by an AI inference pass and carries the lower default confidence; surfaces never silently upgrade. manually_annotated: a human added or amended this record (triage tag, override note, manual review) and the body is redaction-aware."
+    },
+
+    "freshness": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#freshness. Frames with non-authoritative freshness MUST carry a stale_reason."
+    },
+
+    "stale_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost",
+        "reindex_failed",
+        "generator_changed",
+        "provider_unreachable",
+        null
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#stale_reason. null only when freshness == authoritative."
+    },
+
+    "anchor_kind": {
+      "type": "string",
+      "enum": [
+        "filesystem_identity",
+        "symbol_definition_site",
+        "docs_pack_entry",
+        "mutation_journal_entry",
+        "generated_artifact_lineage",
+        "provider_resource_handle",
+        "imported_bundle_entry",
+        "replay_capture_entry",
+        "codeowners_rule",
+        "annotation_note"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#source_anchor.anchor_kind. Names what the anchor points at."
+    },
+
+    "anchor_validity_state": {
+      "type": "string",
+      "enum": [
+        "anchor_present_resolves",
+        "anchor_resolves_with_drift",
+        "anchor_unresolvable"
+      ],
+      "description": "Three-state validity vocabulary every consumer reads when it decides whether to render a citation row, a drift chip, or a missing-anchor badge. anchor_present_resolves: anchor still points at the same object the producer originally observed. anchor_resolves_with_drift: anchor still resolves but the underlying object has changed (move, rename via alias, regenerated artifact, imported-bundle re-pin); the drift_state names which class of drift. anchor_unresolvable: the anchor no longer resolves and the surface MUST render the missing-anchor badge with the typed drift_state instead of collapsing into a generic 'not available' message."
+    },
+
+    "source_anchor_drift_state": {
+      "type": "string",
+      "enum": [
+        "anchor_present_no_drift",
+        "anchor_moved_resolves_via_alias",
+        "anchor_deleted_no_replacement",
+        "anchor_imported_unverified",
+        "anchor_generated_pending_lineage",
+        "anchor_unknown_lineage"
+      ],
+      "description": "Frozen source-anchor drift vocabulary. Every record with a source_anchor names exactly one drift_state so topology, impact, and explainer surfaces render typed drift instead of generic 'not available' messaging. anchor_present_no_drift: pairs with anchor_validity_state == anchor_present_resolves. anchor_moved_resolves_via_alias: source moved but resolves through ADR-0006 alias_set or a forwarding rename; surfaces render a moved-anchor chip and quote the canonical_filesystem_object the resolver landed on. anchor_deleted_no_replacement: source object was deleted and no forwarding alias resolves; pairs with a missing_anchor_node and missing_reason in {deleted_filesystem_object, unresolved_symbol, provider_resource_unreachable}. anchor_imported_unverified: source_anchor lives inside an imported root and has not been re-validated against a workspace-local cross-check; pairs with provenance_class == imported_external and freshness == imported. anchor_generated_pending_lineage: source_anchor points at a generated artifact whose generated_artifact_lineage_record is missing or pending regeneration; pairs with drift_state == unknown_lineage on the lineage record. anchor_unknown_lineage: source_anchor lineage cannot be reconstructed (replay-capture missing entry, imported bundle missing entry, ai_inference without supporting evidence); surfaces render the unknown-lineage badge rather than hiding the row."
+    },
+
+    "imported_root_status": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "imported_signed_upstream_bundle",
+        "imported_vendor_drop",
+        "imported_replay_capture",
+        "imported_migration_import",
+        "imported_docs_pack",
+        "imported_template_expansion"
+      ],
+      "description": "Frozen imported-root vocabulary mirroring schemas/graph/workspace_graph_seed.schema.json#node_body_imported_root.import_kind plus a not_imported sentinel. Every provenance stamp names exactly one value so consumers can render the imported-root chip without re-deriving the import_kind from the underlying imported_root_node. Records emitted by an authoritative local producer carry not_imported."
+    },
+
+    "supporting_artifact_class": {
+      "type": "string",
+      "enum": [
+        "mutation_journal_entry",
+        "generated_artifact_lineage_record",
+        "imported_bundle_entry",
+        "replay_capture_entry",
+        "codeowners_rule",
+        "support_bundle_packet",
+        "ai_evidence_packet",
+        "policy_projection_record",
+        "annotation_note",
+        "build_toolchain_run_record",
+        "package_resolver_lockfile_entry"
+      ],
+      "description": "Vocabulary for the artifact families a provenance stamp may cite as supporting evidence. Each supporting_artifact_ref pairs an opaque ref with one class so support bundles, AI evidence packets, and review packs reuse the same vocabulary rather than minting per-surface synonyms."
+    },
+
+    "supporting_artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "artifact_ref"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/supporting_artifact_class" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware short note (≤ 240 graphemes). Surfaces render this verbatim. Never embeds raw source bodies, raw URLs, or raw credentials."
+        }
+      },
+      "description": "One supporting-artifact reference. A provenance stamp may list any number; downstream surfaces walk this list to assemble a forensic packet without re-querying upstream producers."
+    },
+
+    "anchor_drift_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_kind", "anchor_ref", "anchor_validity_state", "drift_state"],
+      "properties": {
+        "anchor_kind": { "$ref": "#/$defs/anchor_kind" },
+        "anchor_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_validity_state": { "$ref": "#/$defs/anchor_validity_state" },
+        "drift_state": { "$ref": "#/$defs/source_anchor_drift_state" },
+        "last_known_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque ref to the last-known identity of the anchor (previous canonical_filesystem_object, previous symbol qualified_path, previous provider resource_handle). Surfaces render this verbatim alongside the drift chip."
+        },
+        "resolved_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque ref the anchor resolves to under the current drift state (e.g. the alias the moved anchor lands on). Null when anchor_validity_state == anchor_unresolvable."
+        },
+        "line_range": {
+          "type": ["string", "null"],
+          "description": "Optional line-range hint ('line_start:line_end'). Raw source bytes never appear here."
+        },
+        "drift_note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware short note (≤ 240 graphemes) the surface renders verbatim alongside the drift chip."
+        }
+      },
+      "description": "One per-anchor drift observation. Every record's source_anchors list pairs each anchor with one drift observation so consumers render typed drift (moved / deleted / imported / generated / unknown) rather than collapsing into a generic 'not available' message."
+    },
+
+    "provenance_stamp_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provenance_stamp_schema_version",
+        "stamp_id",
+        "subject_kind",
+        "subject_ref",
+        "source_class",
+        "provenance_class",
+        "extraction_or_inference_mode",
+        "freshness",
+        "stale_reason",
+        "imported_root_status",
+        "anchor_drift_observations",
+        "supporting_artifact_refs",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "provenance_stamp_record" },
+        "provenance_stamp_schema_version": { "$ref": "#/$defs/provenance_stamp_schema_version" },
+        "stamp_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable provenance-stamp id. Surfaces that quote the stamp (audit packets, support bundles, AI evidence packets) reuse this id rather than re-stating the contents."
+        },
+        "subject_kind": {
+          "type": "string",
+          "enum": ["graph_node_record", "graph_edge_record", "impact_reason_slot", "explainer_citation_slot"],
+          "description": "Which surface family this stamp applies to. Every workspace-graph node and edge MUST carry exactly one stamp; impact-reason and explainer-citation slots MAY carry their own stamp when they project a different producer than the parent record."
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the subject node_id, edge_id, impact_reason_slot id, or explainer_citation_slot id."
+        },
+        "workspace_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional workspace identifier so a multi-workspace audit packet can group stamps."
+        },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "provenance_class": { "$ref": "#/$defs/provenance_class" },
+        "extraction_or_inference_mode": { "$ref": "#/$defs/extraction_or_inference_mode" },
+        "freshness": { "$ref": "#/$defs/freshness" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "imported_root_status": { "$ref": "#/$defs/imported_root_status" },
+        "anchor_drift_observations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anchor_drift_observation" },
+          "description": "One drift observation per source_anchor on the parent record. Empty only for synthetic subjects (missing_anchor_node, policy_view_node) that legitimately carry no source anchors."
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supporting_artifact_ref" },
+          "description": "Zero or more supporting-artifact references. Support bundles and AI evidence packets walk this list to assemble a forensic packet."
+        },
+        "producer_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque producer ref (crate id, tool id, provider id, ai_provider id). Support bundles cite this verbatim."
+        },
+        "producer_version": {
+          "type": ["string", "null"],
+          "description": "Optional producer version. A version change contributes to a later invalidation frame."
+        },
+        "imported_bundle_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the imported-bundle entry, when imported_root_status != not_imported."
+        },
+        "replay_capture_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque ref to the replay-capture entry, when provenance_class == replayed_capture."
+        },
+        "support_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque support-bundle anchor carrying the full forensic packet for this record."
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "stamp_note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware short note (≤ 240 graphemes) the surface renders verbatim. Never embeds raw source bodies, raw provider URLs, or raw credentials."
+        }
+      },
+      "description": "One provenance-stamp record. Every workspace-graph node, edge, impact-reason slot, and explainer-citation slot resolves to exactly one stamp record so later surfaces render 'why this is here, who said so, when, and through which extraction or inference path' from one vocabulary."
+    },
+
+    "source_anchor_drift_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provenance_stamp_schema_version",
+        "drift_record_id",
+        "subject_kind",
+        "subject_ref",
+        "anchor_drift_observation",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "source_anchor_drift_record" },
+        "provenance_stamp_schema_version": { "$ref": "#/$defs/provenance_stamp_schema_version" },
+        "drift_record_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_kind": {
+          "type": "string",
+          "enum": ["graph_node_record", "graph_edge_record", "impact_reason_slot", "explainer_citation_slot"]
+        },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "anchor_drift_observation": { "$ref": "#/$defs/anchor_drift_observation" },
+        "audit_event_id": {
+          "type": ["string", "null"],
+          "enum": [
+            "graph_anchor_drift_recorded",
+            "graph_anchor_resolved_via_alias",
+            "graph_anchor_deleted",
+            "graph_anchor_imported_unverified",
+            "graph_anchor_generated_pending_lineage",
+            "graph_anchor_unknown_lineage",
+            null
+          ],
+          "description": "Optional audit-event id support bundles, replay captures, and AI evidence packets cite verbatim."
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One stand-alone source-anchor-drift record. Used when a surface emits a drift event independent of (or in addition to) a parent provenance stamp — for example, when the anchor's drift_state changes between graph snapshots and the surface needs an auditable, replay-friendly drift event."
+    }
+  }
+}

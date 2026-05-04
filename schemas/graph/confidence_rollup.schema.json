@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/confidence_rollup.schema.json",
+  "title": "Aureline graph confidence-rollup contract",
+  "description": "Boundary schema for the deterministic confidence-rollup vocabulary every graph-backed surface (graph overlay, topology map, impact explorer, cited-explainer overlay, AI context assembler, review pack, support bundle, public query-family surface) reads when it summarises multi-source confidence into one label. This schema is a strict superset of the inline confidence_rollup slot defined on schemas/graph/workspace_graph_seed.schema.json: every workspace-graph node and edge MAY carry a confidence_rollup from the seed; this contract pins the rollup algorithm, conflict vocabulary, partial-workset visibility interaction, and per-surface rollup classes (node / edge / impact_reason / explainer_citation) so topology, impact, and explainer surfaces produce identical labels for the same inputs. Consumers MUST quote rolled_up_level verbatim and MUST NOT silently upgrade. Adding a new conflict_state, new partial_visibility_interaction, new floor_reason, or new surface_class is additive-minor and bumps confidence_rollup_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/confidence_rollup_record",
+  "$defs": {
+    "confidence_rollup_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the confidence-rollup vocabulary. Current value is 1."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "description": "Producer-local monotonic timestamp. Opaque equality-comparable string."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Never carries raw source bodies or raw URLs."
+    },
+
+    "confidence_level": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#confidence_level. Consumers render the label verbatim; surfaces MUST NOT silently upgrade a low-confidence relation."
+    },
+
+    "edge_evidence_state": {
+      "type": "string",
+      "enum": [
+        "direct_evidence",
+        "imported_evidence",
+        "inferred_relation",
+        "stale_relation",
+        "missing_anchor"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#edge_evidence_state. The rollup reads this to apply the evidence-state floor."
+    },
+
+    "workset_visibility_state": {
+      "type": "string",
+      "enum": ["fully_visible", "partial_visible", "policy_hidden", "missing_in_scope"],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#workset_scope_ref.visibility. The rollup reads this to apply the partial-visibility floor."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": ["node", "edge", "impact_reason", "explainer_citation"],
+      "description": "Which surface family this rollup serves. The same algorithm applies across all four classes; the surface_class is recorded so a downstream consumer can dispatch on it without re-deriving from the parent record."
+    },
+
+    "source_confidence_contributor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["confidence_level", "contributor_kind"],
+      "properties": {
+        "confidence_level": { "$ref": "#/$defs/confidence_level" },
+        "contributor_kind": {
+          "type": "string",
+          "enum": [
+            "primary_producer",
+            "projecting_surface",
+            "imported_bundle",
+            "replay_capture",
+            "heuristic_inference",
+            "ai_inference",
+            "manual_annotation",
+            "policy_projection",
+            "cross_reference_walker",
+            "build_toolchain",
+            "codegen_tool",
+            "package_resolver",
+            "connected_provider",
+            "remote_agent",
+            "docs_pack"
+          ],
+          "description": "Vocabulary for the producer family that contributed this confidence value. Mirrors schemas/graph/workspace_graph_seed.schema.json#source_class plus a primary_producer / projecting_surface / cross_reference_walker / heuristic_inference split so the rollup record names the contributor without re-deriving it."
+        },
+        "contributor_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque ref to the contributor's stamp_id or producer_ref. Support bundles cite this verbatim."
+        },
+        "evidence_state": {
+          "oneOf": [
+            { "$ref": "#/$defs/edge_evidence_state" },
+            { "type": "null" }
+          ],
+          "description": "Optional evidence-state observed by this contributor. Edges always carry one; node contributors typically omit."
+        },
+        "weight_hint": {
+          "type": ["string", "null"],
+          "enum": ["dominant", "supporting", "corroborating", "advisory", null],
+          "description": "Optional advisory weight hint for downstream UX. The rollup algorithm itself ignores weight_hint and applies the closed floor rules; weight_hint is renderer-only."
+        }
+      },
+      "description": "One per-contributor confidence input. Multi-source nodes and edges list one contributor per producer that asserted the relation."
+    },
+
+    "conflict_state": {
+      "type": "string",
+      "enum": [
+        "no_conflict",
+        "level_split_high_and_low",
+        "level_split_with_unknown",
+        "evidence_state_split_direct_and_inferred",
+        "evidence_state_split_direct_and_stale",
+        "evidence_state_split_direct_and_missing_anchor",
+        "imported_vs_local_split",
+        "ai_vs_authoritative_split",
+        "partial_visibility_pulls_down"
+      ],
+      "description": "Frozen conflict-state vocabulary. Names the family of disagreement the contributors expressed so consumers render a typed conflict chip rather than collapsing into a generic 'mixed' label. no_conflict: every contributor agrees within one level. level_split_high_and_low: contributors disagree by ≥ 2 levels (high + low). level_split_with_unknown: at least one contributor reported unknown. evidence_state_split_direct_and_inferred: at least one direct_evidence contributor and at least one inferred_relation contributor. evidence_state_split_direct_and_stale: direct_evidence vs stale_relation. evidence_state_split_direct_and_missing_anchor: direct_evidence vs missing_anchor. imported_vs_local_split: imported_evidence contributor and a local-authoritative contributor disagree. ai_vs_authoritative_split: ai_inference contributor and an authoritative_producer contributor disagree. partial_visibility_pulls_down: contributors agreed but the workset visibility (partial_visible / policy_hidden / missing_in_scope) pulled the rollup down."
+    },
+
+    "floor_reason": {
+      "type": "string",
+      "enum": [
+        "no_floor_applied",
+        "low_contributor_pulls_to_low",
+        "unknown_contributor_pulls_to_low",
+        "inferred_relation_caps_at_medium",
+        "stale_relation_pulls_to_low",
+        "missing_anchor_pulls_to_low",
+        "imported_unverified_caps_at_medium",
+        "ai_inference_caps_at_medium",
+        "partial_visibility_caps_at_medium",
+        "policy_hidden_caps_at_medium",
+        "missing_in_scope_pulls_to_low",
+        "anchor_drift_pulls_to_low"
+      ],
+      "description": "Frozen floor-reason vocabulary. Names which closed rule produced the rolled_up_level so a reviewer can replay the rollup deterministically. The rollup algorithm applies floors in the listed order and records the most-restrictive floor in floor_reason."
+    },
+
+    "partial_visibility_interaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility_state"],
+      "properties": {
+        "visibility_state": { "$ref": "#/$defs/workset_visibility_state" },
+        "scope_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque scope ref the visibility applies to. Re-exports schemas/runtime/execution_context.schema.json scope ids."
+        },
+        "hidden_member_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional hidden member count when visibility_state == policy_hidden. Surfaces render the count badge; the exact hidden list never projects."
+        }
+      },
+      "description": "How partial workset visibility interacted with this rollup. fully_visible has no effect. partial_visible / policy_hidden cap the rollup at medium. missing_in_scope pulls the rollup to low and pairs with a missing-anchor badge on the parent record."
+    },
+
+    "anchor_drift_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["anchor_drift_present"],
+      "properties": {
+        "anchor_drift_present": {
+          "type": "boolean",
+          "description": "True when at least one source_anchor on the parent record carries a drift_state other than anchor_present_no_drift."
+        },
+        "drift_state_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Optional count of source_anchors carrying drift. Surfaces render an aggregate drift chip when count > 0."
+        },
+        "worst_drift_state": {
+          "type": ["string", "null"],
+          "enum": [
+            "anchor_present_no_drift",
+            "anchor_moved_resolves_via_alias",
+            "anchor_deleted_no_replacement",
+            "anchor_imported_unverified",
+            "anchor_generated_pending_lineage",
+            "anchor_unknown_lineage",
+            null
+          ],
+          "description": "The worst drift_state observed across the parent record's anchors. Re-exports schemas/graph/provenance_stamp.schema.json#source_anchor_drift_state."
+        }
+      },
+      "description": "Aggregate anchor-drift summary the rollup reads when it applies the anchor_drift floor. Drift on at least one anchor pulls the rollup to low."
+    },
+
+    "confidence_rollup_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confidence_rollup_schema_version",
+        "rollup_id",
+        "surface_class",
+        "subject_ref",
+        "rolled_up_level",
+        "source_confidences",
+        "conflict_state",
+        "floor_reason",
+        "partial_visibility_interaction",
+        "anchor_drift_summary",
+        "recorded_at"
+      ],
+      "properties": {
+        "confidence_rollup_schema_version": { "$ref": "#/$defs/confidence_rollup_schema_version" },
+        "rollup_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable rollup id. Surfaces that quote the rollup (audit packets, support bundles, AI evidence packets) reuse this id rather than re-stating the contents."
+        },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the subject node_id, edge_id, impact_reason_slot id, or explainer_citation_slot id."
+        },
+        "workspace_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional workspace identifier."
+        },
+        "rolled_up_level": {
+          "$ref": "#/$defs/confidence_level",
+          "description": "The single confidence label every surface renders verbatim. Computed deterministically from source_confidences, evidence_states, partial_visibility_interaction, and anchor_drift_summary by the algorithm spelled out in /docs/graph/provenance_and_confidence_contract.md."
+        },
+        "source_confidences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_confidence_contributor" },
+          "description": "Per-contributor confidence list the rollup summarises. minItems 1: a rollup with no contributors is a contract violation; surfaces fall back to the parent record's confidence_level instead."
+        },
+        "conflict_state": { "$ref": "#/$defs/conflict_state" },
+        "floor_reason": { "$ref": "#/$defs/floor_reason" },
+        "partial_visibility_interaction": { "$ref": "#/$defs/partial_visibility_interaction" },
+        "anchor_drift_summary": { "$ref": "#/$defs/anchor_drift_summary" },
+        "evidence_states_present": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/edge_evidence_state" },
+          "description": "Distinct evidence-states observed across edge contributors. Empty for node rollups."
+        },
+        "rollup_note": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "Redaction-aware short note (≤ 240 graphemes) the surface renders verbatim alongside the rolled_up_level chip. Never embeds raw source bodies."
+        },
+        "supporting_stamp_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Zero or more provenance_stamp_record stamp_ids that contributed to this rollup. Support bundles walk this list to assemble a forensic packet."
+        },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One confidence-rollup record. Multi-source nodes, edges, impact-reason slots, and explainer-citation slots resolve to one rollup per surface so graph UX, AI explainers, topology maps, impact explorers, and support bundles agree on one confidence label rather than cherry-picking a contributor."
+    }
+  }
+}

@@ -1,0 +1,99 @@
+# Multi-document YAML fixture for the stale-build-graph-evidence provenance case.
+# Each document carries a record_kind that resolves to one of:
+#   schemas/graph/provenance_stamp.schema.json
+#   schemas/graph/confidence_rollup.schema.json
+__fixture__:
+  name: stale_build_graph_evidence
+  scenario: >
+    A depends_on edge between two crates was last refreshed by a build
+    toolchain run that is no longer authoritative; the upstream input
+    changed and the source-of-truth manifest moved through a rename
+    that resolves through ADR-0006 alias_set. Stamp records freshness
+    stale, stale_reason upstream_input_stale, and one anchor with
+    drift_state anchor_moved_resolves_via_alias. Rollup carries two
+    contributors (build_toolchain at medium, package_resolver at low),
+    edge evidence_state stale_relation pulls the rollup to low under
+    the stale-relation floor, and the conflict_state records the
+    direct/stale split.
+  doc_section: §5.3 Stale build-graph evidence
+  exercises:
+    extraction_or_inference_mode: parsed_from_structured_source
+    imported_root_status: not_imported
+    anchor_validity_state: anchor_resolves_with_drift
+    source_anchor_drift_state: anchor_moved_resolves_via_alias
+    rolled_up_level: low
+    floor_reason: stale_relation_pulls_to_low
+    conflict_state: evidence_state_split_direct_and_stale
+---
+# yaml-language-server: $schema=../../../schemas/graph/provenance_stamp.schema.json
+record_kind: provenance_stamp_record
+provenance_stamp_schema_version: 1
+stamp_id: stamp:graph.stale_build_graph:edge:depends_on:editor_core_to_text_engine
+subject_kind: graph_edge_record
+subject_ref: edge:depends_on:editor_core_to_text_engine
+workspace_id: ws:aureline
+source_class: build_toolchain
+provenance_class: authoritative_producer
+extraction_or_inference_mode: parsed_from_structured_source
+freshness: stale
+stale_reason: upstream_input_stale
+imported_root_status: not_imported
+anchor_drift_observations:
+  - anchor_kind: filesystem_identity
+    anchor_ref: fs:vol:1:file:5050:gen:4
+    anchor_validity_state: anchor_resolves_with_drift
+    drift_state: anchor_moved_resolves_via_alias
+    last_known_ref: fs:vol:1:file:5050:gen:3
+    resolved_ref: fs:vol:1:file:5051:gen:1
+    line_range: null
+    drift_note: Source manifest moved during a workspace reorganisation; the anchor still resolves through ADR-0006 alias_set onto fs:vol:1:file:5051:gen:1.
+supporting_artifact_refs:
+  - artifact_class: build_toolchain_run_record
+    artifact_ref: build:run:cargo_metadata:2026-04-22T18:11:00Z
+    note: Last successful cargo metadata run that observed the depends_on relation.
+  - artifact_class: package_resolver_lockfile_entry
+    artifact_ref: lockfile.cargo.workspace.primary/entry:editor_core->text_engine
+    note: Lockfile entry corroborating the depends_on relation but flagged as out-of-date by the package resolver.
+producer_ref: build_toolchain.cargo_metadata
+producer_version: 0.0.0
+imported_bundle_ref: null
+replay_capture_ref: null
+support_ref: null
+recorded_at: "mono:graph.provenance:0003:00:00:00.0001"
+stamp_note: depends_on edge last observed by cargo metadata; upstream manifest moved and the anchor now resolves via alias.
+---
+# yaml-language-server: $schema=../../../schemas/graph/confidence_rollup.schema.json
+confidence_rollup_schema_version: 1
+rollup_id: rollup:graph.stale_build_graph:edge:depends_on:editor_core_to_text_engine
+surface_class: edge
+subject_ref: edge:depends_on:editor_core_to_text_engine
+workspace_id: ws:aureline
+rolled_up_level: low
+source_confidences:
+  - confidence_level: medium
+    contributor_kind: build_toolchain
+    contributor_ref: stamp:graph.stale_build_graph:edge:depends_on:editor_core_to_text_engine
+    evidence_state: direct_evidence
+    weight_hint: dominant
+  - confidence_level: low
+    contributor_kind: package_resolver
+    contributor_ref: lockfile.cargo.workspace.primary/entry:editor_core->text_engine
+    evidence_state: stale_relation
+    weight_hint: corroborating
+conflict_state: evidence_state_split_direct_and_stale
+floor_reason: stale_relation_pulls_to_low
+partial_visibility_interaction:
+  visibility_state: fully_visible
+  scope_ref: scope:root:0
+  hidden_member_count: null
+anchor_drift_summary:
+  anchor_drift_present: true
+  drift_state_count: 1
+  worst_drift_state: anchor_moved_resolves_via_alias
+evidence_states_present:
+  - direct_evidence
+  - stale_relation
+rollup_note: Stale-relation evidence and a low contributor both pull the rollup to low; surfaces render the moved-anchor chip alongside the staleness chip.
+supporting_stamp_refs:
+  - stamp:graph.stale_build_graph:edge:depends_on:editor_core_to_text_engine
+recorded_at: "mono:graph.provenance:0003:00:00:00.0002"
