@@ -1,0 +1,1061 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/build/source_confidence_chain.schema.json",
+  "title": "Aureline build-support handoff packet, AI confidence callout, and source-confidence chain contract",
+  "description": "Boundary schema for three record families every build-truth surface (run / test / build / debug picker, output pane header, problems pane chip, build-graph view, AI action sheet, CI overlay, support-bundle exporter, review pack, support-handoff intake) reads when it has to answer 'how does this build summary connect back to raw evidence, who narrated it, and which support / export actions are admissible if the result is downgraded?'. Family one, build_support_handoff_packet_record, freezes the support-export packet a user opens from a build issue card so adapter confidence (schemas/build/adapter_confidence_state.schema.json#/$defs/build_adapter_confidence_state_record), raw-event inspector lineage (schemas/build/raw_event_inspector.schema.json#/$defs/raw_event_inspector_record), target identity, parser-fallback reasons, and the typed handoff action set (open_raw_event_inspector_pane / open_support_bundle_export / open_originating_run_pane / file_issue_against_workspace / escalate_to_workspace_admin_with_chain_attached / etc.) all share one packet rather than fragmenting into per-surface 'send to support' buttons that strip disclosure. Family two, source_confidence_chain_record, freezes the typed chain that links a raw event back through parsed issue, AI summary, diagnostics badge, and support-packet claim to the originating run and attempt; it pins one shared chain id, one floor_reason_class explaining why the chain ceiling is what it is, and a closed link_class vocabulary so two surfaces never invent parallel chain shapes. Family three, ai_build_confidence_callout_record, freezes the minimum AI confidence callout fields a model surface MUST emit alongside any narration of a build result so the model cannot describe a parser-fallback row in the same voice it describes a native-adapter row; the callout pins the narration_basis_class, the inherited_confidence_class capped at the underlying state's ceiling, the required disclosure text, the forbidden claim set, and a back reference to the chain record. Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw secret values, raw absolute paths, raw URLs, raw provider responses, and raw model output text MUST NOT appear in any record; records carry opaque refs, hashes, counts, class labels, and reviewable summaries only. Adding a new build_handoff_intent_class, handoff_action_class, source_chain_link_class, source_chain_subject_kind_class, narration_basis_class, floor_reason_class, or callout_redaction_class is additive-minor and bumps source_confidence_chain_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/build_support_handoff_packet_record" },
+    { "$ref": "#/$defs/source_confidence_chain_record" },
+    { "$ref": "#/$defs/ai_build_confidence_callout_record" }
+  ],
+  "$defs": {
+    "source_confidence_chain_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "build_support_handoff_packet_record",
+        "source_confidence_chain_record",
+        "ai_build_confidence_callout_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, replay, and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (run_record, attempt_record, target_descriptor, target_graph_snapshot, build_adapter_confidence_state_record, parser_fallback_reason_card_record, raw_event_inspector_record, problem_evidence_chain_record, ai_evidence_packet_record, language_diagnostic_chip_record, support_bundle_packet, support_pack_item, audit-event id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in pickers, output pane headers, problems pane chips, AI action sheets, CI overlays, support exports, support-handoff intake, and review packs. Raw command lines, raw env bodies, raw secret values, raw paths, raw URLs, and raw stack traces MUST NOT appear here."
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Re-export of schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class and schemas/build/adapter_confidence_state.schema.json#/$defs/confidence_class. The handoff packet, the chain, and the AI callout all read one vocabulary so a downgraded build result cannot become 'high confidence' inside a support handoff or AI summary."
+    },
+
+    "build_adapter_confidence_state": {
+      "type": "string",
+      "enum": [
+        "native_adapter",
+        "declared_adapter",
+        "inferred_adapter",
+        "parser_fallback",
+        "imported_result",
+        "stale_result",
+        "unavailable_result"
+      ],
+      "description": "Re-export of schemas/build/adapter_confidence_state.schema.json#/$defs/build_adapter_confidence_state. Pinned on the handoff packet and the AI callout so two surfaces cannot describe the same originating run under two different states."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_streaming",
+        "warm_cached",
+        "cold_cached",
+        "stale_pending_refresh",
+        "imported_read_only",
+        "support_bundle_replay_only",
+        "unknown_freshness"
+      ],
+      "description": "Re-export of schemas/build/adapter_confidence_state.schema.json#/$defs/freshness_class so the handoff packet renders the same freshness chip as the picker, output pane header, and problems pane."
+    },
+
+    "import_source_class": {
+      "type": "string",
+      "enum": [
+        "managed_ci_artifact",
+        "provider_api_snapshot",
+        "support_bundle",
+        "review_pack",
+        "release_packet",
+        "local_file_import",
+        "not_imported"
+      ],
+      "description": "Re-export of schemas/build/adapter_confidence_state.schema.json#/$defs/import_source_class."
+    },
+
+    "build_handoff_intent_class": {
+      "type": "string",
+      "enum": [
+        "support_handoff_to_workspace_admin",
+        "support_handoff_to_managed_provider",
+        "export_for_review_pack",
+        "export_for_release_packet",
+        "replay_for_local_diagnosis",
+        "escalate_for_policy_review",
+        "file_issue_against_workspace",
+        "file_issue_against_extension",
+        "archive_for_audit_only"
+      ],
+      "description": "Closed vocabulary for why a user is opening the handoff packet. The picker, output pane header, problems pane chip, and AI action sheet read this so the same build result can be handed to support, exported for review, or filed as an issue without minting per-surface intent strings."
+    },
+
+    "handoff_action_class": {
+      "type": "string",
+      "enum": [
+        "open_raw_event_inspector_pane",
+        "open_originating_run_pane",
+        "open_originating_attempt_pane",
+        "open_target_graph_view",
+        "open_target_descriptor_view",
+        "open_parser_fallback_reason_card",
+        "open_support_bundle_export",
+        "open_review_pack_export",
+        "open_imported_scan_record",
+        "copy_source_confidence_chain_refs_to_review_pack",
+        "copy_source_confidence_chain_refs_to_support_bundle",
+        "file_workspace_issue_with_chain_attached",
+        "escalate_to_workspace_admin_with_chain_attached",
+        "escalate_to_managed_provider_support_with_chain_attached",
+        "replay_in_doctor_with_imported_evidence",
+        "no_action_admissible_review_only"
+      ],
+      "description": "Closed vocabulary for the support / export / escalate actions admissible from the handoff packet. The packet MUST include open_raw_event_inspector_pane and open_originating_run_pane unless the active state is unavailable_result with no admitted attempt; this is the spec's 'users can move from summary to raw evidence using stable references without lossy translation' rule encoded in the schema. no_action_admissible_review_only is the legitimate single-element value for unavailable_result paths whose only honest disclosure is documenting the absence of evidence."
+    },
+
+    "source_chain_link_class": {
+      "type": "string",
+      "enum": [
+        "raw_event_link",
+        "parsed_issue_link",
+        "ai_summary_link",
+        "diagnostics_badge_link",
+        "support_packet_claim_link",
+        "evidence_origin_back_reference"
+      ],
+      "description": "Closed vocabulary for the typed steps in a source-confidence chain. The chain MUST start with a raw_event_link and MUST terminate with an evidence_origin_back_reference so a downstream consumer can always join the chain back to the originating run / attempt. parsed_issue_link, ai_summary_link, diagnostics_badge_link, and support_packet_claim_link are conditional steps depending on whether the surface produced a parsed issue, AI summary, diagnostics badge, or support-packet claim."
+    },
+
+    "source_chain_subject_kind_class": {
+      "type": "string",
+      "enum": [
+        "raw_event_inspector_record",
+        "task_event_envelope_record",
+        "problem_evidence_chain_record",
+        "diagnostic_cluster_record",
+        "language_diagnostic_chip_record",
+        "ai_evidence_packet_record",
+        "ai_build_confidence_callout_record",
+        "support_bundle_packet",
+        "support_pack_item",
+        "build_adapter_confidence_state_record",
+        "parser_fallback_reason_card_record",
+        "run_record",
+        "attempt_record"
+      ],
+      "description": "Closed vocabulary for the schema kind a chain link's subject_ref resolves under. Two surfaces MUST NOT mint subject_kind_class strings outside this set; an unrecognized kind is a contract drift, not a free-form annotation."
+    },
+
+    "evidence_basis_class": {
+      "type": "string",
+      "enum": [
+        "native_runner_streamed_events",
+        "build_server_protocol_session",
+        "bazel_build_event_protocol_stream",
+        "structured_importer_export_file",
+        "manifest_or_lockfile_observation",
+        "filename_or_directory_convention_match",
+        "regex_or_glob_pattern_match",
+        "free_form_log_line_parse",
+        "support_bundle_replay",
+        "managed_ci_artifact_import",
+        "provider_api_snapshot",
+        "review_pack_snapshot",
+        "release_packet_snapshot",
+        "user_declared_target_set",
+        "ai_proposed_pending_review",
+        "no_evidence_observed"
+      ],
+      "description": "Re-export of schemas/build/adapter_confidence_state.schema.json#/$defs/evidence_source_class. Each chain link cites the evidence basis its subject was resolved from so a parser-fallback link cannot claim native-runner streamed events as its basis when its underlying record cited free-form log line parse."
+    },
+
+    "floor_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_floor_applied",
+        "parser_fallback_caps_at_heuristic_best_effort",
+        "inferred_adapter_caps_at_heuristic_best_effort",
+        "declared_adapter_caps_at_structured_parse_match",
+        "imported_result_caps_at_structured_parse_match",
+        "stale_result_caps_at_degraded_partial",
+        "unavailable_result_caps_at_unknown",
+        "ai_inference_caps_at_heuristic_best_effort",
+        "multi_step_chain_pulls_to_lowest_link",
+        "missing_evidence_pulls_to_unknown",
+        "imported_unverified_caps_at_structured_parse_match"
+      ],
+      "description": "Closed vocabulary explaining why the chain's top_confidence_ceiling is what it is. The ceiling MUST always be the lowest ceiling among the cited link records; floor_reason_class names the link that pulled the ceiling down so a reviewer can read 'this AI summary cannot rise above heuristic_best_effort because the underlying parser_fallback link caps the chain'."
+    },
+
+    "narration_basis_class": {
+      "type": "string",
+      "enum": [
+        "narrating_native_adapter_authoritative_facts",
+        "narrating_declared_adapter_structured_facts",
+        "narrating_inferred_adapter_heuristics",
+        "narrating_parser_fallback_heuristics",
+        "narrating_imported_result_read_only_facts",
+        "narrating_stale_result_degraded_facts",
+        "narrating_unavailable_result_no_evidence"
+      ],
+      "description": "Closed vocabulary for the basis an AI confidence callout MUST disclose alongside any AI-narrated build summary. Each value is pinned to the matching build_adapter_confidence_state by the basis-to-state invariant below so an AI surface cannot narrate a parser-fallback row using the basis reserved for a native-adapter row."
+    },
+
+    "callout_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default export redaction posture for the callout / chain / handoff packet. Mirrors schemas/build/adapter_confidence_state.schema.json#/$defs/redaction_class. broadened_capture requires an approval-ticket ref carried by the surrounding support export."
+    },
+
+    "target_identity_authority_class": {
+      "type": "string",
+      "enum": [
+        "publishing_graph_attached",
+        "user_declared_target_set",
+        "inferred_from_manifest_or_lockfile",
+        "inferred_from_filename_or_directory_convention",
+        "imported_from_managed_ci_artifact",
+        "imported_from_provider_api_snapshot",
+        "imported_from_support_bundle",
+        "no_target_identity_admitted"
+      ],
+      "description": "Re-export of schemas/build/raw_event_inspector.schema.json#/$defs/target_identity_authority_class so the handoff packet renders the same target identity authority as the inspector pane."
+    },
+
+    "target_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_identity_authority_class",
+        "target_id_ref",
+        "publishing_graph_id_ref",
+        "target_descriptor_ref",
+        "summary"
+      ],
+      "properties": {
+        "target_identity_authority_class": { "$ref": "#/$defs/target_identity_authority_class" },
+        "target_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the target_descriptor_record target_id (schemas/tooling/target_descriptor.schema.json) the packet applies to. MUST be null only when target_identity_authority_class is no_target_identity_admitted."
+        },
+        "publishing_graph_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the target_graph_snapshot_record graph_id (schemas/tooling/target_graph_snapshot.schema.json) the target_id was minted under."
+        },
+        "target_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the full target_descriptor_record (schemas/tooling/target_descriptor.schema.json) for hover-only context."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "lineage_ref_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "originating_run_ref",
+        "originating_attempt_ref",
+        "build_adapter_confidence_state_record_ref",
+        "raw_event_inspector_record_ref",
+        "parser_fallback_reason_card_record_ref",
+        "support_bundle_ref",
+        "summary"
+      ],
+      "properties": {
+        "originating_run_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the run_record (schemas/execution/run.schema.json) this packet / chain / callout resolves under. The handoff packet, the source-confidence chain, the AI callout, the matching build_adapter_confidence_state_record, and the matching raw_event_inspector_record MUST cite the same originating_run_ref so two surfaces never join two different chains for the same run."
+        },
+        "originating_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the attempt_record (schemas/execution/attempt.schema.json) the packet was opened over. MUST be null only when the linked build_adapter_confidence_state is unavailable_result and no attempt was admitted."
+        },
+        "build_adapter_confidence_state_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the build_adapter_confidence_state_record this packet / chain / callout cites. The packet, the chain, and the callout MUST cite the same record so the displayed confidence chip cannot drift across surfaces."
+        },
+        "raw_event_inspector_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the raw_event_inspector_record this packet / chain / callout cites. The handoff packet's open_raw_event_inspector_pane action resolves through this ref."
+        },
+        "parser_fallback_reason_card_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the parser_fallback_reason_card_record when the linked build_adapter_confidence_state is parser_fallback or stale_result. MUST be null otherwise."
+        },
+        "support_bundle_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the support_bundle_packet that retains the chain's evidence groups, when the packet has been exported through a support bundle."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Lineage block shared by the packet, the chain, and the callout so all three records resolve through the same originating run, attempt, confidence state, and inspector."
+    },
+
+    "handoff_action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_action_class",
+        "subject_ref",
+        "summary"
+      ],
+      "properties": {
+        "handoff_action_class": { "$ref": "#/$defs/handoff_action_class" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the record the action opens (the raw_event_inspector_record, the support_bundle_packet, the originating run_record, etc.). MAY be null only when handoff_action_class is no_action_admissible_review_only."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "build_support_handoff_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "source_confidence_chain_schema_version",
+        "build_support_handoff_packet_record_id",
+        "captured_at",
+        "workspace_id",
+        "build_handoff_intent_class",
+        "build_adapter_confidence_state",
+        "confidence_ceiling",
+        "freshness_class",
+        "import_source_class",
+        "target_identity",
+        "lineage_refs",
+        "handoff_actions",
+        "source_confidence_chain_record_id_ref",
+        "ai_build_confidence_callout_record_id_ref",
+        "disclosure_copy",
+        "callout_redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "build_support_handoff_packet_record" },
+        "source_confidence_chain_schema_version": { "$ref": "#/$defs/source_confidence_chain_schema_version" },
+        "build_support_handoff_packet_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "build_handoff_intent_class": { "$ref": "#/$defs/build_handoff_intent_class" },
+        "build_adapter_confidence_state": { "$ref": "#/$defs/build_adapter_confidence_state" },
+        "confidence_ceiling": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence ceiling re-exported from the linked build_adapter_confidence_state_record. The packet MUST NOT raise a state's confidence above its pinned ceiling; this is the spec's 'a downgraded or imported build result remains visibly downgraded in handoff packets' rule encoded in the schema."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "import_source_class": { "$ref": "#/$defs/import_source_class" },
+        "target_identity": { "$ref": "#/$defs/target_identity_block" },
+        "lineage_refs": { "$ref": "#/$defs/lineage_ref_block" },
+        "handoff_actions": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/handoff_action_entry" },
+          "description": "Set of admissible handoff actions. MUST be non-empty: a handoff packet without typed next steps is not a packet. Per allOf below, packets for non-unavailable states MUST include at least one open_raw_event_inspector_pane and one open_originating_run_pane action so a user can always move from summary to raw evidence; packets for unavailable_result paths MAY collapse to a single no_action_admissible_review_only entry."
+        },
+        "source_confidence_chain_record_id_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the source_confidence_chain_record this packet attaches. The packet, the chain, and (when present) the AI callout share one source_confidence_chain_record_id."
+        },
+        "ai_build_confidence_callout_record_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the ai_build_confidence_callout_record when an AI surface narrated the build result. MUST be non-null when the packet was opened from an AI-narrated summary so the callout's narration_basis_class travels with the packet."
+        },
+        "disclosure_copy": {
+          "$ref": "#/$defs/short_sentence",
+          "description": "Required reviewer-facing sentence disclosing the confidence ceiling, the freshness class, and (when applicable) the import source. The sentence MUST stay visible across the picker, output pane header, problems pane chip, AI action sheet, CI overlay, support-bundle export, and review pack."
+        },
+        "callout_redaction_class": { "$ref": "#/$defs/callout_redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One support-handoff packet for a build issue. Pickers, output pane headers, problems pane chips, AI action sheets, CI overlays, support-bundle exporters, and review packs read this record so 'send this to support' / 'export for review' / 'file an issue' / 'escalate to admin' all share one packet shape and one disclosure rather than fragmenting into per-surface buttons that strip the confidence ladder, the reason card, or the chain."
+    },
+
+    "source_chain_link_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_chain_link_class",
+        "subject_kind_class",
+        "subject_ref",
+        "evidence_basis_class",
+        "declared_confidence_class",
+        "summary"
+      ],
+      "properties": {
+        "source_chain_link_class": { "$ref": "#/$defs/source_chain_link_class" },
+        "subject_kind_class": { "$ref": "#/$defs/source_chain_subject_kind_class" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the record this chain link points to. The kind of record is named by subject_kind_class so a consumer can resolve the ref through the matching schema's registry without guessing."
+        },
+        "evidence_basis_class": { "$ref": "#/$defs/evidence_basis_class" },
+        "declared_confidence_class": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence the underlying record declared for this link. The chain's top_confidence_ceiling MUST be the lowest declared_confidence_class across all links so a downstream surface cannot read a higher ceiling than the lowest link admits."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "source_confidence_chain_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "source_confidence_chain_schema_version",
+        "source_confidence_chain_record_id",
+        "captured_at",
+        "workspace_id",
+        "chain_links",
+        "top_confidence_ceiling",
+        "floor_reason_class",
+        "lineage_refs",
+        "callout_redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "source_confidence_chain_record" },
+        "source_confidence_chain_schema_version": { "$ref": "#/$defs/source_confidence_chain_schema_version" },
+        "source_confidence_chain_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "chain_links": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/source_chain_link_entry" },
+          "description": "Ordered set of typed chain links. MUST contain at least two links: a raw_event_link and an evidence_origin_back_reference. Surfaces that produce parsed issues, AI summaries, diagnostics badges, or support-packet claims MUST add the matching link so the chain is never silently truncated. Per allOf below, the chain MUST contain exactly one raw_event_link and exactly one evidence_origin_back_reference."
+        },
+        "top_confidence_ceiling": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "The chain's top confidence ceiling. MUST equal the lowest declared_confidence_class among the cited links. Any consumer reading this chain MUST cap its own rendered confidence at this value."
+        },
+        "floor_reason_class": {
+          "$ref": "#/$defs/floor_reason_class",
+          "description": "Closed reason class explaining why top_confidence_ceiling is what it is. Surfaces render this so a reviewer can read 'AI summary capped at heuristic_best_effort because the chain links a parser_fallback raw event' rather than a generic 'low confidence'."
+        },
+        "lineage_refs": { "$ref": "#/$defs/lineage_ref_block" },
+        "callout_redaction_class": { "$ref": "#/$defs/callout_redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One source-confidence chain record. Pickers, output pane headers, problems pane chips, AI action sheets, CI overlays, support-bundle exporters, support-handoff intake, and review packs read this record so a build summary, an AI explanation, a diagnostics badge, and a support-packet claim all cite one chain id and one floor_reason_class instead of inventing parallel confidence languages."
+    },
+
+    "ai_build_confidence_callout_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "source_confidence_chain_schema_version",
+        "ai_build_confidence_callout_record_id",
+        "captured_at",
+        "workspace_id",
+        "ai_evidence_packet_ref",
+        "build_adapter_confidence_state",
+        "narration_basis_class",
+        "inherited_confidence_class",
+        "inherited_confidence_ceiling_class",
+        "required_disclosure_text",
+        "forbidden_claim_set",
+        "preserves_callout_in_export",
+        "source_confidence_chain_record_id_ref",
+        "lineage_refs",
+        "callout_redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "ai_build_confidence_callout_record" },
+        "source_confidence_chain_schema_version": { "$ref": "#/$defs/source_confidence_chain_schema_version" },
+        "ai_build_confidence_callout_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "ai_evidence_packet_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the ai_evidence_packet_record (schemas/ai/evidence_packet.schema.json) covering the AI turn that emitted this build narration. The callout cannot be emitted without an evidence packet so AI build narrations cannot escape the assembly / route / spend audit trail."
+        },
+        "build_adapter_confidence_state": { "$ref": "#/$defs/build_adapter_confidence_state" },
+        "narration_basis_class": { "$ref": "#/$defs/narration_basis_class" },
+        "inherited_confidence_class": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "The confidence class the AI surface displayed alongside its narration. MUST equal inherited_confidence_ceiling_class; the callout cannot raise inherited confidence above the underlying state's ceiling."
+        },
+        "inherited_confidence_ceiling_class": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "The confidence ceiling pinned by the underlying build_adapter_confidence_state. Pinned by the basis-to-state-and-ceiling invariant in allOf below."
+        },
+        "required_disclosure_text": {
+          "$ref": "#/$defs/short_sentence",
+          "description": "Required reviewer-facing sentence disclosing the narration basis. MUST be present in every AI surface that renders the narration (action sheet, output pane header, problems pane hover, review pack, CLI JSON), not only in the packet."
+        },
+        "forbidden_claim_set": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/short_sentence" },
+          "description": "Closed set of reviewer-facing claims the AI surface MUST NOT make under this narration basis. The list is non-empty: even native_adapter narrations forbid claims about evidence the underlying record did not capture (e.g., AI MUST NOT claim a runtime-role attribution the record did not admit)."
+        },
+        "preserves_callout_in_export": {
+          "type": "boolean",
+          "description": "Whether the callout MUST stay visible in support-bundle exports, review packs, release packets, CLI JSON, and AI evidence packets. MUST be true; this flag is required so a downstream export that strips the callout is detectable as schema drift rather than a UI choice."
+        },
+        "source_confidence_chain_record_id_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the source_confidence_chain_record the callout cites. The callout, the chain, and the handoff packet share one chain id."
+        },
+        "lineage_refs": { "$ref": "#/$defs/lineage_ref_block" },
+        "callout_redaction_class": { "$ref": "#/$defs/callout_redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One AI build-confidence callout. AI action sheets, output pane AI hovers, problems pane AI summaries, review packs, and CLI JSON read this record so AI assistance MUST disclose whether it is narrating native facts or parser / imported / stale / heuristic best-effort facts. A callout cannot be emitted without an evidence packet, cannot raise its confidence above the underlying state's ceiling, and cannot drop the required disclosure text or the forbidden claim set on export."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "Handoff packets MUST mirror confidence_ceiling, freshness_class, and import_source_class to the underlying build_adapter_confidence_state. Pinned: native_adapter caps at authoritative_from_source.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "native_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "authoritative_from_source" },
+          "import_source_class": { "const": "not_imported" }
+        },
+        "required": ["confidence_ceiling", "import_source_class"]
+      }
+    },
+    {
+      "description": "declared_adapter caps the handoff packet at structured_parse_match.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "declared_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "structured_parse_match" },
+          "import_source_class": { "const": "not_imported" }
+        },
+        "required": ["confidence_ceiling", "import_source_class"]
+      }
+    },
+    {
+      "description": "inferred_adapter caps the handoff packet at heuristic_best_effort.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "inferred_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "heuristic_best_effort" },
+          "import_source_class": { "const": "not_imported" }
+        },
+        "required": ["confidence_ceiling", "import_source_class"]
+      }
+    },
+    {
+      "description": "parser_fallback caps the handoff packet at heuristic_best_effort and MUST link the parser-fallback reason card so the packet preserves the recognized / guessed / missing axes.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "parser_fallback" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "heuristic_best_effort" },
+          "import_source_class": { "const": "not_imported" },
+          "lineage_refs": {
+            "type": "object",
+            "properties": {
+              "parser_fallback_reason_card_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            },
+            "required": ["parser_fallback_reason_card_record_ref"]
+          },
+          "handoff_actions": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "handoff_action_class": { "const": "open_parser_fallback_reason_card" }
+              },
+              "required": ["handoff_action_class"]
+            }
+          }
+        },
+        "required": ["confidence_ceiling", "import_source_class", "lineage_refs", "handoff_actions"]
+      }
+    },
+    {
+      "description": "imported_result caps the handoff packet at structured_parse_match (or lower), pins freshness to imported_read_only / support_bundle_replay_only, and forbids the not_imported import-source class so a managed-CI imported build is never misrepresented as a local build.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "imported_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": {
+            "enum": ["structured_parse_match", "heuristic_best_effort", "degraded_partial", "unknown"]
+          },
+          "freshness_class": {
+            "enum": ["imported_read_only", "support_bundle_replay_only"]
+          },
+          "import_source_class": {
+            "enum": [
+              "managed_ci_artifact",
+              "provider_api_snapshot",
+              "support_bundle",
+              "review_pack",
+              "release_packet",
+              "local_file_import"
+            ]
+          }
+        },
+        "required": ["confidence_ceiling", "freshness_class", "import_source_class"]
+      }
+    },
+    {
+      "description": "stale_result caps the handoff packet at degraded_partial, forces freshness to stale_pending_refresh, and MUST link the parser-fallback reason card so the prior-trusted row remains identifiable.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "stale_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": {
+            "enum": ["degraded_partial", "unknown"]
+          },
+          "freshness_class": { "const": "stale_pending_refresh" },
+          "import_source_class": { "const": "not_imported" },
+          "lineage_refs": {
+            "type": "object",
+            "properties": {
+              "parser_fallback_reason_card_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            },
+            "required": ["parser_fallback_reason_card_record_ref"]
+          },
+          "handoff_actions": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "handoff_action_class": { "const": "open_parser_fallback_reason_card" }
+              },
+              "required": ["handoff_action_class"]
+            }
+          }
+        },
+        "required": ["confidence_ceiling", "freshness_class", "import_source_class", "lineage_refs", "handoff_actions"]
+      }
+    },
+    {
+      "description": "unavailable_result caps the handoff packet at unknown, forces freshness to unknown_freshness, and MAY collapse handoff_actions to a single no_action_admissible_review_only entry.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": { "const": "unavailable_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "unknown" },
+          "freshness_class": { "const": "unknown_freshness" },
+          "import_source_class": { "const": "not_imported" }
+        },
+        "required": ["confidence_ceiling", "freshness_class", "import_source_class"]
+      }
+    },
+    {
+      "description": "Non-unavailable handoff packets MUST cite at least one open_raw_event_inspector_pane action and one open_originating_run_pane action so the user can always move from summary to raw evidence using stable refs.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_support_handoff_packet_record" },
+          "build_adapter_confidence_state": {
+            "enum": [
+              "native_adapter",
+              "declared_adapter",
+              "inferred_adapter",
+              "parser_fallback",
+              "imported_result",
+              "stale_result"
+            ]
+          }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "handoff_actions": {
+            "type": "array",
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "handoff_action_class": { "const": "open_raw_event_inspector_pane" }
+                  },
+                  "required": ["handoff_action_class"]
+                }
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "handoff_action_class": { "const": "open_originating_run_pane" }
+                  },
+                  "required": ["handoff_action_class"]
+                }
+              }
+            ]
+          }
+        },
+        "required": ["handoff_actions"]
+      }
+    },
+    {
+      "description": "AI callouts narrating native facts MUST set narration_basis_class to narrating_native_adapter_authoritative_facts and inherited_confidence_class / ceiling to authoritative_from_source.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "native_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_native_adapter_authoritative_facts" },
+          "inherited_confidence_class": { "const": "authoritative_from_source" },
+          "inherited_confidence_ceiling_class": { "const": "authoritative_from_source" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "AI callouts narrating declared-adapter facts MUST set narration_basis_class accordingly and cap inherited confidence at structured_parse_match.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "declared_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_declared_adapter_structured_facts" },
+          "inherited_confidence_class": { "const": "structured_parse_match" },
+          "inherited_confidence_ceiling_class": { "const": "structured_parse_match" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "AI callouts narrating inferred-adapter heuristics MUST cap inherited confidence at heuristic_best_effort.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "inferred_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_inferred_adapter_heuristics" },
+          "inherited_confidence_class": { "const": "heuristic_best_effort" },
+          "inherited_confidence_ceiling_class": { "const": "heuristic_best_effort" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "AI callouts narrating parser-fallback heuristics MUST cap inherited confidence at heuristic_best_effort.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "parser_fallback" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_parser_fallback_heuristics" },
+          "inherited_confidence_class": { "const": "heuristic_best_effort" },
+          "inherited_confidence_ceiling_class": { "const": "heuristic_best_effort" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "AI callouts narrating imported results MUST cap inherited confidence at structured_parse_match.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "imported_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_imported_result_read_only_facts" },
+          "inherited_confidence_class": { "const": "structured_parse_match" },
+          "inherited_confidence_ceiling_class": { "const": "structured_parse_match" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "AI callouts narrating stale results MUST cap inherited confidence at degraded_partial.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "stale_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_stale_result_degraded_facts" },
+          "inherited_confidence_class": { "const": "degraded_partial" },
+          "inherited_confidence_ceiling_class": { "const": "degraded_partial" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "AI callouts narrating unavailable results MUST cap inherited confidence at unknown and disclose that no evidence was observed.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "ai_build_confidence_callout_record" },
+          "build_adapter_confidence_state": { "const": "unavailable_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "narration_basis_class": { "const": "narrating_unavailable_result_no_evidence" },
+          "inherited_confidence_class": { "const": "unknown" },
+          "inherited_confidence_ceiling_class": { "const": "unknown" }
+        },
+        "required": ["narration_basis_class", "inherited_confidence_class", "inherited_confidence_ceiling_class"]
+      }
+    },
+    {
+      "description": "Source-confidence chains MUST contain exactly one raw_event_link so the chain always starts at a typed raw event.",
+      "if": {
+        "properties": { "record_kind": { "const": "source_confidence_chain_record" } },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "chain_links": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "source_chain_link_class": { "const": "raw_event_link" }
+              },
+              "required": ["source_chain_link_class"]
+            },
+            "minContains": 1,
+            "maxContains": 1
+          }
+        },
+        "required": ["chain_links"]
+      }
+    },
+    {
+      "description": "Source-confidence chains MUST contain exactly one evidence_origin_back_reference link so the chain always terminates at the originating run / attempt.",
+      "if": {
+        "properties": { "record_kind": { "const": "source_confidence_chain_record" } },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "chain_links": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "source_chain_link_class": { "const": "evidence_origin_back_reference" }
+              },
+              "required": ["source_chain_link_class"]
+            },
+            "minContains": 1,
+            "maxContains": 1
+          }
+        },
+        "required": ["chain_links"]
+      }
+    },
+    {
+      "description": "When the chain top_confidence_ceiling is authoritative_from_source, floor_reason_class MUST be no_floor_applied.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "source_confidence_chain_record" },
+          "top_confidence_ceiling": { "const": "authoritative_from_source" }
+        },
+        "required": ["record_kind", "top_confidence_ceiling"]
+      },
+      "then": {
+        "properties": {
+          "floor_reason_class": { "const": "no_floor_applied" }
+        },
+        "required": ["floor_reason_class"]
+      }
+    },
+    {
+      "description": "When the chain top_confidence_ceiling is unknown, floor_reason_class MUST be one of unavailable_result_caps_at_unknown / missing_evidence_pulls_to_unknown / multi_step_chain_pulls_to_lowest_link.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "source_confidence_chain_record" },
+          "top_confidence_ceiling": { "const": "unknown" }
+        },
+        "required": ["record_kind", "top_confidence_ceiling"]
+      },
+      "then": {
+        "properties": {
+          "floor_reason_class": {
+            "enum": [
+              "unavailable_result_caps_at_unknown",
+              "missing_evidence_pulls_to_unknown",
+              "multi_step_chain_pulls_to_lowest_link"
+            ]
+          }
+        },
+        "required": ["floor_reason_class"]
+      }
+    },
+    {
+      "description": "AI callouts MUST set preserves_callout_in_export to true so a downstream export that strips the callout is detectable as schema drift.",
+      "if": {
+        "properties": { "record_kind": { "const": "ai_build_confidence_callout_record" } },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "preserves_callout_in_export": { "const": true }
+        },
+        "required": ["preserves_callout_in_export"]
+      }
+    },
+    {
+      "description": "When the lineage block carries a parser_fallback_reason_card_record_ref the underlying state MUST be parser_fallback or stale_result, mirroring the M00-553 contract.",
+      "if": {
+        "properties": {
+          "build_adapter_confidence_state": {
+            "enum": ["parser_fallback", "stale_result"]
+          }
+        },
+        "required": ["build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "lineage_refs": {
+            "type": "object",
+            "properties": {
+              "parser_fallback_reason_card_record_ref": { "$ref": "#/$defs/opaque_ref" }
+            },
+            "required": ["parser_fallback_reason_card_record_ref"]
+          }
+        },
+        "required": ["lineage_refs"]
+      }
+    },
+    {
+      "description": "When the underlying state is native_adapter / declared_adapter / inferred_adapter / imported_result / unavailable_result, the lineage block's parser_fallback_reason_card_record_ref MUST be null so a non-fallback row never carries a fallback reason card by accident.",
+      "if": {
+        "properties": {
+          "build_adapter_confidence_state": {
+            "enum": ["native_adapter", "declared_adapter", "inferred_adapter", "imported_result", "unavailable_result"]
+          }
+        },
+        "required": ["build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "lineage_refs": {
+            "type": "object",
+            "properties": {
+              "parser_fallback_reason_card_record_ref": { "type": "null" }
+            },
+            "required": ["parser_fallback_reason_card_record_ref"]
+          }
+        },
+        "required": ["lineage_refs"]
+      }
+    }
+  ]
+}
