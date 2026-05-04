@@ -1,0 +1,1172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/transition_review.schema.json",
+  "title": "Aureline work-item status-transition review packet vocabulary",
+  "description": "Boundary schema for the transition_review_record frozen in docs/work_items/status_transition_review_contract.md. One record family pins the typed review packet a user (or AI assistant pending user confirmation) confirms against before committing a risky work-item transition. The packet pulls together the typed transition trigger (status change, assignee change, provider comment, reopen / close, automation / notification fanout, linked review or change-object update, validation-evidence attach / detach, subscriber change, blocking-relationship change, rename / metadata change, release publish, multi-kind batch), the ordered side-effect fanout rows over the closed five-kind set (provider mutation, local metadata change, linked review update, notification emission, queued follow-on automation), the typed consequence fields per row (target account, authority source, publish mode, undo / rollback posture, offline / deferred handling), the typed automation-followon disclosures, and the typed transition_review_disposition_class so risky transitions cannot silently fan out into provider, notification, or automation side effects under generic 'success' messaging. The packet never claims the provider has accepted the transition; it is the structured what-will-happen review the user confirms against, and the apply path is recorded through the bound status_transition_packet_record (and on apply through the publish-later contract / browser-handoff / offline-handoff lanes). Composes with (and does not replace) the status_transition_packet_record schema (binds back through linked_status_transition_packet_record_id_ref); the change_intent_record schema (binds back through linked_change_intent_record_id_ref) so the rationale / target scope / linked review / approvals stay visible across the review; the external_publish_preview_record schema (binds back through linked_external_publish_preview_record_id_ref) so the previewed before / after labels stay visible; the work_item_detail_record schema (binds back through work_item_detail_record_id_ref); the provider-mode contract (re-exports mutation_mode, irreversibility_class, predicted_side_effect_class); the publish-later contract (cites publish_later_queue_item_record, provider_consequence_preview_record, account_mapping_binding_record on apply); the browser-handoff packet (cites browser_handoff_packet_record on open_in_provider routes); the offline-handoff packet (cites offline_handoff_packet_record on captured-offline routes); the review-workspace / review-pack / change-stack contracts (cites review_workspace_record, review_pack_record, review_evaluation_result_record, change_object_record, patch_stack_record on linked-review-update fanout rows); and the traceability_link_record (cites traceability_link_record on cross-object review rows). Raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw notification message bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, raw stdout / stderr, and raw automation payloads never cross this boundary regardless of redaction class. The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, transition_trigger_class, side_effect_fanout_kind_class, authority_source_class, publish_mode_class, undo_rollback_posture_class, offline_deferred_handling_class, automation_kind_class, automation_admissibility_class, transition_review_authorization_class, transition_review_disposition_class, denial_reason, or audit_event_id is additive-minor and bumps transition_review_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/transition_review_record" },
+    { "$ref": "#/$defs/transition_review_audit_event_record" }
+  ],
+  "$defs": {
+    "transition_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the transition-review vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "transition_review_record",
+        "transition_review_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, raw notification payloads, and raw automation payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in review, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the review packet was authored under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw payloads never cross this boundary regardless of class."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class re-exported verbatim from schemas/work_items/status_transition_packet.schema.json. 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "irreversibility_class": {
+      "type": "string",
+      "enum": [
+        "reversible",
+        "soft_reversible",
+        "irreversible",
+        "irreversible_release_class"
+      ],
+      "description": "Irreversibility class re-exported verbatim from schemas/providers/publish_later_record.schema.json."
+    },
+
+    "notification_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_notification_locally_only",
+        "notify_assignees_on_provider_publish",
+        "notify_subscribers_on_provider_publish",
+        "notify_linked_review_authors_on_provider_publish",
+        "mention_explicit_actor_on_provider_publish",
+        "notify_managed_admin_on_provider_publish",
+        "notification_blocked_pending_workspace_trust",
+        "notification_unknown_until_publish_admitted_pending_review",
+        "notification_suppressed_by_user_choice_explicit_opt_out"
+      ],
+      "description": "Notification-side-effect class re-exported verbatim from schemas/work_items/status_transition_packet.schema.json."
+    },
+
+    "target_account_class": {
+      "type": "string",
+      "enum": [
+        "connected_provider_account_resolved",
+        "connected_provider_install_or_app_grant",
+        "connected_provider_delegated_user_token",
+        "connected_provider_project_scoped_grant",
+        "connected_provider_policy_injected_service_identity",
+        "account_mapping_binding_pending_user_resolution",
+        "browser_handoff_account_session_only",
+        "managed_admin_only_account",
+        "local_only_no_provider_account"
+      ],
+      "description": "Target-account class re-exported verbatim from schemas/work_items/external_publish_preview.schema.json. Names which connected-provider account / install grant / delegated token / browser-handoff session / managed-admin lane will receive the mutation, or pins local_only_no_provider_account when the row reflects a local-only edit and no provider call will fire."
+    },
+
+    "publish_mode_class": {
+      "type": "string",
+      "enum": [
+        "local_draft",
+        "publish_now",
+        "open_in_provider",
+        "deferred_publish",
+        "inspect_only"
+      ],
+      "description": "Publish-mode class re-exported verbatim from schemas/providers/publish_later_record.schema.json (mutation_mode). The review packet pre-resolves the publish mode per side-effect row so the reviewer sees mutate-vs-draft truth mechanically."
+    },
+
+    "transition_trigger_class": {
+      "type": "string",
+      "enum": [
+        "status_change_trigger",
+        "assignee_change_trigger",
+        "provider_comment_trigger",
+        "reopen_close_trigger",
+        "automation_or_notification_fanout_trigger",
+        "linked_review_or_change_object_trigger",
+        "validation_evidence_attach_or_detach_trigger",
+        "subscriber_or_watcher_change_trigger",
+        "blocking_relationship_change_trigger",
+        "rename_or_metadata_change_trigger",
+        "release_publish_trigger",
+        "multi_kind_batch_trigger"
+      ],
+      "description": "Frozen transition-trigger class. Names what the user is about to do at the level the review packet is rendered against. Composes with the underlying status_transition_packet_record's transition_kind_class set; the trigger class is the user-facing review-time grouping (a single transition_review_record MAY carry one packet that aggregates several transition entries). 'multi_kind_batch_trigger' is admissible only when the bound status-transition packet carries entries spanning two or more kind classes."
+    },
+
+    "side_effect_fanout_kind_class": {
+      "type": "string",
+      "enum": [
+        "provider_mutation_fanout",
+        "local_metadata_change_fanout",
+        "linked_review_update_fanout",
+        "notification_emission_fanout",
+        "queued_followon_automation_fanout"
+      ],
+      "description": "Frozen side-effect fanout kind class. Names what the row discloses: provider_mutation_fanout (a typed provider-side mutation will fire on apply); local_metadata_change_fanout (a local-only metadata change will be persisted with no provider call); linked_review_update_fanout (a bound review workspace / review pack / change object / patch stack / branch / worktree row will be updated on apply); notification_emission_fanout (a typed notification will be emitted on apply, or the emission lane is 'unknown until drain'); queued_followon_automation_fanout (a follow-on automation - check run, release workflow, policy evaluation, scheduled task, incident workspace open, notification digest compile, managed-admin review routine - will be queued or fired)."
+    },
+
+    "authority_source_class": {
+      "type": "string",
+      "enum": [
+        "provider_authoritative_source",
+        "local_authoritative_source_no_provider_overlay",
+        "provider_overlay_with_local_overlay_synced",
+        "cached_read_only_shadow_source",
+        "imported_evidence_only_source",
+        "managed_admin_authority_source",
+        "policy_admin_authority_source",
+        "pending_account_mapping_authority_source",
+        "local_only_no_provider_authority"
+      ],
+      "description": "Frozen authority-source class for one side-effect fanout row. Names the truth-source the apply path resolves the row against. provider_authoritative_source is the live provider object; cached_read_only_shadow_source is a read-only cached projection (no provider mutation admissible); imported_evidence_only_source is a snapshot from an offline / object / support / incident handoff (no live provider path); managed_admin_authority_source / policy_admin_authority_source are admin-minted overlays; pending_account_mapping_authority_source is admissible only when the bound account_mapping_binding_record is in pending resolution; local_only_no_provider_authority pins a local-only row with no provider truth."
+    },
+
+    "undo_rollback_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_undo_required_local_only",
+        "undo_admissible_within_window",
+        "rollback_admissible_via_compensating_action",
+        "rollback_admissible_via_revert_state_token",
+        "rollback_admissible_via_revoke_before_drain",
+        "rollback_blocked_irreversible",
+        "rollback_blocked_release_class",
+        "rollback_unknown_pending_provider_callback",
+        "rollback_blocked_imported_evidence_only_no_provider_path"
+      ],
+      "description": "Frozen undo / rollback posture class for one side-effect fanout row. Names the rollback truth the user sees at review time. no_undo_required_local_only is the safe class for local_metadata_change_fanout rows; undo_admissible_within_window pins a soft-reversible window the user can revert within; rollback_admissible_via_compensating_action pins a row that requires firing the inverse provider action (e.g. re-open after close, re-assign after unassign); rollback_admissible_via_revert_state_token pins a row where a typed previous_state_value can be re-applied; rollback_admissible_via_revoke_before_drain pins a deferred / queued / browser-handoff / captured-offline row the user can revoke before drain; rollback_blocked_irreversible / rollback_blocked_release_class pin irreversible side effects (release publish, comment delete, label removal that triggers downstream automation) the user cannot undo locally; rollback_unknown_pending_provider_callback pins a row whose rollback admissibility cannot be predicted before the provider observes the apply; rollback_blocked_imported_evidence_only_no_provider_path pins an imported-evidence-only row with no live provider path to undo against."
+    },
+
+    "offline_deferred_handling_class": {
+      "type": "string",
+      "enum": [
+        "not_offline_not_deferred",
+        "deferred_publish_admitted_to_queue",
+        "deferred_publish_captured_offline_pending_drain",
+        "deferred_publish_routed_through_browser_handoff",
+        "deferred_publish_blocked_pending_prerequisites",
+        "deferred_publish_inspect_only_what_if"
+      ],
+      "description": "Frozen offline / deferred handling class for one side-effect fanout row. Pre-resolves the row's deferred-publish lane independently of the packet-level disposition so multi-row reviews can disclose mixed lanes (e.g. local rows resolve not_offline_not_deferred while the provider mutation row resolves deferred_publish_admitted_to_queue). The five typed deferred lanes mirror schemas/work_items/external_publish_preview.schema.json#deferred_publish_class; not_offline_not_deferred is the safe class for publish_now rows."
+    },
+
+    "automation_kind_class": {
+      "type": "string",
+      "enum": [
+        "code_review_request",
+        "build_or_check_run",
+        "release_workflow_run",
+        "policy_evaluation_run",
+        "scheduled_task_or_cron",
+        "incident_workspace_open",
+        "notification_digest_compile",
+        "managed_admin_review_routine",
+        "validation_evidence_capture_routine",
+        "no_followon_automation"
+      ],
+      "description": "Frozen automation-kind class for a queued_followon_automation_fanout row OR for an automation_followon_disclosure entry. no_followon_automation is the safe class for transitions that fire no follow-on automation; the other nine values pre-resolve the typed follow-on the apply path will queue or fire so the reviewer can see automation truth instead of generic 'success' messaging."
+    },
+
+    "automation_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "admissible_within_workspace_trust",
+        "admissible_via_queue_for_publish_later",
+        "admissible_via_browser_handoff_only",
+        "blocked_pending_workspace_trust",
+        "blocked_pending_admin_review",
+        "blocked_pending_provider_callback_observation",
+        "blocked_unknown_pending_observation",
+        "no_followon_automation_in_scope"
+      ],
+      "description": "Frozen automation-admissibility class for an automation_followon_disclosure entry or queued_followon_automation_fanout row. Pre-resolves whether the follow-on automation will fire admissibly inside Aureline's workspace-trust envelope, will be admitted to the publish-later queue, will route through a browser-handoff packet, or is blocked / unknown. no_followon_automation_in_scope is the safe class for entries that pin no follow-on automation."
+    },
+
+    "transition_review_authorization_class": {
+      "type": "string",
+      "enum": [
+        "human_actor_self_authored_admissible",
+        "human_actor_with_review_link_admissible",
+        "human_actor_pending_required_approvals",
+        "ai_proposed_pending_user_confirmation",
+        "managed_admin_authored_admissible",
+        "policy_admin_authored_admissible",
+        "imported_evidence_only_not_authoring"
+      ],
+      "description": "Frozen transition-review authorization class. Pins which actor authored the review packet and under what authorization lane. ai_proposed_pending_user_confirmation forbids admissible_now_publish_now / admissible_via_queue_for_publish_later / admissible_via_browser_handoff_only dispositions until a human actor confirms; imported_evidence_only_not_authoring is admissible only when every side-effect fanout row pins authority_source_class = imported_evidence_only_source and the disposition is admissible_inspect_only_what_if."
+    },
+
+    "transition_review_disposition_class": {
+      "type": "string",
+      "enum": [
+        "admissible_now_publish_now",
+        "admissible_via_queue_for_publish_later",
+        "admissible_via_browser_handoff_only",
+        "admissible_local_draft_only",
+        "admissible_inspect_only_what_if",
+        "blocked_pending_prerequisites",
+        "blocked_provider_read_only_scope",
+        "blocked_actor_class_forbidden",
+        "blocked_workspace_trust_unset_or_restricted",
+        "blocked_freshness_floor_unsatisfied",
+        "blocked_account_mapping_pending",
+        "blocked_imported_evidence_only_no_provider_path",
+        "blocked_policy_admin_suppressed",
+        "withdrawn_before_apply",
+        "superseded_by_transition_review_record"
+      ],
+      "description": "Frozen transition-review disposition class. The packet-level disposition the apply control reads mechanically. The five admissible_* lanes pin the typed apply path; the eight blocked_* lanes pin the typed denial path; withdrawn_before_apply / superseded_by_transition_review_record are terminal lifecycle lanes."
+    },
+
+    "side_effect_fanout_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "side_effect_fanout_row_id",
+        "side_effect_fanout_kind_class",
+        "target_account_class",
+        "authority_source_class",
+        "publish_mode_class",
+        "undo_rollback_posture_class",
+        "offline_deferred_handling_class",
+        "irreversibility_class",
+        "notification_side_effect_class",
+        "summary"
+      ],
+      "properties": {
+        "side_effect_fanout_row_id": { "$ref": "#/$defs/opaque_id" },
+        "side_effect_fanout_kind_class": { "$ref": "#/$defs/side_effect_fanout_kind_class" },
+        "target_account_class": { "$ref": "#/$defs/target_account_class" },
+        "authority_source_class": { "$ref": "#/$defs/authority_source_class" },
+        "publish_mode_class": { "$ref": "#/$defs/publish_mode_class" },
+        "undo_rollback_posture_class": { "$ref": "#/$defs/undo_rollback_posture_class" },
+        "offline_deferred_handling_class": { "$ref": "#/$defs/offline_deferred_handling_class" },
+        "irreversibility_class": { "$ref": "#/$defs/irreversibility_class" },
+        "notification_side_effect_class": { "$ref": "#/$defs/notification_side_effect_class" },
+        "automation_kind_class": {
+          "$ref": "#/$defs/automation_kind_class",
+          "description": "Required (and outside no_followon_automation) for queued_followon_automation_fanout rows; admissible only as no_followon_automation for non-automation rows."
+        },
+        "automation_admissibility_class": {
+          "$ref": "#/$defs/automation_admissibility_class",
+          "description": "Required (and outside no_followon_automation_in_scope) for queued_followon_automation_fanout rows; admissible only as no_followon_automation_in_scope for non-automation rows."
+        },
+        "linked_artifact_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound upstream artifact (review_workspace_record / review_pack_record / review_evaluation_result_record / change_object_record / patch_stack_record / branch_row / worktree_row / validation evidence record / browser_handoff_packet_record / publish_later_queue_item_record / release_artifact_record / queued automation packet). Required non-empty for linked_review_update_fanout and queued_followon_automation_fanout rows."
+        },
+        "linked_traceability_link_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound traceability_link_record (cross-object review). Required non-empty when the linked_review_update_fanout row carries a relation to another work item / review pack / change object / validation evidence row that crosses the work-item boundary."
+        },
+        "previous_state_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the prior state (lifecycle / priority / milestone / label / assignee subject ref, etc.). Empty when the row's kind has no prior-state slot."
+        },
+        "next_state_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the next state. Empty when the row's kind has no next-state slot."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "linked_review_update_fanout rows MUST cite a non-empty linked_artifact_record_id_ref so the bound review workspace / change object / patch stack / branch / worktree / validation evidence is chasable.",
+          "if": {
+            "properties": {
+              "side_effect_fanout_kind_class": { "const": "linked_review_update_fanout" }
+            },
+            "required": ["side_effect_fanout_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_artifact_record_id_ref"]
+          }
+        },
+        {
+          "description": "queued_followon_automation_fanout rows MUST cite a non-empty linked_artifact_record_id_ref AND resolve automation_kind_class outside no_followon_automation AND resolve automation_admissibility_class outside no_followon_automation_in_scope.",
+          "if": {
+            "properties": {
+              "side_effect_fanout_kind_class": { "const": "queued_followon_automation_fanout" }
+            },
+            "required": ["side_effect_fanout_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "automation_kind_class": {
+                "not": { "const": "no_followon_automation" }
+              },
+              "automation_admissibility_class": {
+                "not": { "const": "no_followon_automation_in_scope" }
+              }
+            },
+            "required": [
+              "linked_artifact_record_id_ref",
+              "automation_kind_class",
+              "automation_admissibility_class"
+            ]
+          }
+        },
+        {
+          "description": "notification_emission_fanout rows MUST resolve notification_side_effect_class outside no_notification_locally_only.",
+          "if": {
+            "properties": {
+              "side_effect_fanout_kind_class": { "const": "notification_emission_fanout" }
+            },
+            "required": ["side_effect_fanout_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "notification_side_effect_class": {
+                "not": { "const": "no_notification_locally_only" }
+              }
+            }
+          }
+        },
+        {
+          "description": "local_metadata_change_fanout rows MUST resolve publish_mode_class to local_draft AND target_account_class to local_only_no_provider_account AND authority_source_class to local_authoritative_source_no_provider_overlay or local_only_no_provider_authority AND notification_side_effect_class to no_notification_locally_only.",
+          "if": {
+            "properties": {
+              "side_effect_fanout_kind_class": { "const": "local_metadata_change_fanout" }
+            },
+            "required": ["side_effect_fanout_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "publish_mode_class": { "const": "local_draft" },
+              "target_account_class": { "const": "local_only_no_provider_account" },
+              "authority_source_class": {
+                "enum": [
+                  "local_authoritative_source_no_provider_overlay",
+                  "local_only_no_provider_authority"
+                ]
+              },
+              "notification_side_effect_class": { "const": "no_notification_locally_only" }
+            }
+          }
+        },
+        {
+          "description": "provider_mutation_fanout rows MUST resolve target_account_class outside local_only_no_provider_account AND publish_mode_class outside local_draft AND inspect_only.",
+          "if": {
+            "properties": {
+              "side_effect_fanout_kind_class": { "const": "provider_mutation_fanout" }
+            },
+            "required": ["side_effect_fanout_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "target_account_class": {
+                "not": { "const": "local_only_no_provider_account" }
+              },
+              "publish_mode_class": {
+                "not": { "enum": ["local_draft", "inspect_only"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "irreversibility_class irreversible_release_class rows MUST resolve undo_rollback_posture_class to rollback_blocked_release_class.",
+          "if": {
+            "properties": {
+              "irreversibility_class": { "const": "irreversible_release_class" }
+            },
+            "required": ["irreversibility_class"]
+          },
+          "then": {
+            "properties": {
+              "undo_rollback_posture_class": { "const": "rollback_blocked_release_class" }
+            }
+          }
+        },
+        {
+          "description": "irreversibility_class irreversible (non-release) rows MUST resolve undo_rollback_posture_class to rollback_blocked_irreversible.",
+          "if": {
+            "properties": {
+              "irreversibility_class": { "const": "irreversible" }
+            },
+            "required": ["irreversibility_class"]
+          },
+          "then": {
+            "properties": {
+              "undo_rollback_posture_class": { "const": "rollback_blocked_irreversible" }
+            }
+          }
+        },
+        {
+          "description": "publish_mode_class deferred_publish rows MUST resolve offline_deferred_handling_class outside not_offline_not_deferred AND outside deferred_publish_inspect_only_what_if.",
+          "if": {
+            "properties": {
+              "publish_mode_class": { "const": "deferred_publish" }
+            },
+            "required": ["publish_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_deferred_handling_class": {
+                "not": {
+                  "enum": [
+                    "not_offline_not_deferred",
+                    "deferred_publish_inspect_only_what_if"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_mode_class publish_now rows MUST resolve offline_deferred_handling_class to not_offline_not_deferred.",
+          "if": {
+            "properties": {
+              "publish_mode_class": { "const": "publish_now" }
+            },
+            "required": ["publish_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_deferred_handling_class": { "const": "not_offline_not_deferred" }
+            }
+          }
+        },
+        {
+          "description": "publish_mode_class inspect_only rows MUST resolve offline_deferred_handling_class to deferred_publish_inspect_only_what_if AND notification_side_effect_class to no_notification_locally_only.",
+          "if": {
+            "properties": {
+              "publish_mode_class": { "const": "inspect_only" }
+            },
+            "required": ["publish_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_deferred_handling_class": { "const": "deferred_publish_inspect_only_what_if" },
+              "notification_side_effect_class": { "const": "no_notification_locally_only" }
+            }
+          }
+        },
+        {
+          "description": "publish_mode_class open_in_provider rows MUST resolve offline_deferred_handling_class to deferred_publish_routed_through_browser_handoff.",
+          "if": {
+            "properties": {
+              "publish_mode_class": { "const": "open_in_provider" }
+            },
+            "required": ["publish_mode_class"]
+          },
+          "then": {
+            "properties": {
+              "offline_deferred_handling_class": { "const": "deferred_publish_routed_through_browser_handoff" }
+            }
+          }
+        },
+        {
+          "description": "imported_evidence_only_source authority MUST resolve undo_rollback_posture_class to rollback_blocked_imported_evidence_only_no_provider_path AND publish_mode_class to inspect_only.",
+          "if": {
+            "properties": {
+              "authority_source_class": { "const": "imported_evidence_only_source" }
+            },
+            "required": ["authority_source_class"]
+          },
+          "then": {
+            "properties": {
+              "undo_rollback_posture_class": { "const": "rollback_blocked_imported_evidence_only_no_provider_path" },
+              "publish_mode_class": { "const": "inspect_only" }
+            }
+          }
+        },
+        {
+          "description": "pending_account_mapping_authority_source MUST resolve target_account_class to account_mapping_binding_pending_user_resolution.",
+          "if": {
+            "properties": {
+              "authority_source_class": { "const": "pending_account_mapping_authority_source" }
+            },
+            "required": ["authority_source_class"]
+          },
+          "then": {
+            "properties": {
+              "target_account_class": { "const": "account_mapping_binding_pending_user_resolution" }
+            }
+          }
+        }
+      ],
+      "description": "One side-effect fanout row. The packet carries an ordered list of rows so the reviewer sees per-fanout truth (provider mutation row + local metadata row + linked review update row + notification emission row + queued follow-on automation row) instead of a single 'this will publish' summary."
+    },
+
+    "automation_followon_disclosure_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automation_followon_disclosure_id",
+        "automation_kind_class",
+        "automation_admissibility_class",
+        "summary"
+      ],
+      "properties": {
+        "automation_followon_disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "automation_kind_class": { "$ref": "#/$defs/automation_kind_class" },
+        "automation_admissibility_class": { "$ref": "#/$defs/automation_admissibility_class" },
+        "linked_followon_automation_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound queued automation record (publish-later queue item, browser-handoff packet for an automation route, scheduled-task seed, incident workspace packet, etc.). Required non-empty for any automation_kind_class outside no_followon_automation."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Any automation_kind_class outside no_followon_automation MUST cite a non-empty linked_followon_automation_record_id_ref AND resolve automation_admissibility_class outside no_followon_automation_in_scope.",
+          "if": {
+            "properties": {
+              "automation_kind_class": {
+                "not": { "const": "no_followon_automation" }
+              }
+            },
+            "required": ["automation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_followon_automation_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "automation_admissibility_class": {
+                "not": { "const": "no_followon_automation_in_scope" }
+              }
+            },
+            "required": ["linked_followon_automation_record_id_ref"]
+          }
+        },
+        {
+          "description": "no_followon_automation kind MUST resolve automation_admissibility_class to no_followon_automation_in_scope AND forbid a linked_followon_automation_record_id_ref.",
+          "if": {
+            "properties": {
+              "automation_kind_class": { "const": "no_followon_automation" }
+            },
+            "required": ["automation_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "automation_admissibility_class": { "const": "no_followon_automation_in_scope" },
+              "linked_followon_automation_record_id_ref": { "const": "" }
+            }
+          }
+        }
+      ],
+      "description": "One automation-followon disclosure entry. Surfaces the typed follow-on automation the apply path will queue or fire so the reviewer can never confirm against a generic 'success' label when an automation will fire downstream. The packet carries an ordered list; an empty list is forbidden (a no_followon_automation entry MUST be present when no follow-on fires, so reviewers see the typed 'no automation' truth instead of an empty surface)."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the review packet was authored under. Reused identically by the work_item_detail / status_transition_packet / change_intent / external_publish_preview schemas."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the review packet was authored under. Revalidated at apply; a policy-epoch roll between author and apply re-evaluates the packet."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "transition_trigger_class_must_resolve_to_typed_class",
+        "side_effect_fanout_kind_class_must_resolve_to_typed_class",
+        "transition_review_disposition_class_must_resolve_to_typed_class",
+        "transition_review_authorization_class_must_resolve_to_typed_class",
+        "target_account_class_must_resolve_to_typed_class",
+        "authority_source_class_must_resolve_to_typed_class",
+        "publish_mode_class_must_resolve_to_typed_class",
+        "undo_rollback_posture_class_must_resolve_to_typed_class",
+        "offline_deferred_handling_class_must_resolve_to_typed_class",
+        "automation_kind_class_must_resolve_to_typed_class",
+        "automation_admissibility_class_must_resolve_to_typed_class",
+        "transition_review_must_bind_status_transition_packet_record_id_ref",
+        "transition_review_must_bind_work_item_detail_record_id_ref",
+        "side_effect_fanout_rows_required_for_provider_bound_review",
+        "linked_review_update_row_required_for_linked_review_or_change_object_trigger",
+        "queued_followon_automation_row_required_for_automation_or_notification_fanout_trigger",
+        "notification_emission_row_required_when_packet_emits_notifications",
+        "release_publish_trigger_must_pair_with_irreversible_release_class_row",
+        "ai_proposed_review_must_be_confirmed_before_apply",
+        "imported_evidence_only_authoring_must_resolve_to_inspect_only_disposition",
+        "silent_provider_mutation_under_local_only_review_disposition_forbidden",
+        "silent_followon_automation_under_inspect_only_disposition_forbidden",
+        "generic_success_messaging_under_silent_fanout_forbidden",
+        "deferred_disposition_must_pair_with_typed_offline_deferred_handling_row",
+        "browser_handoff_disposition_must_cite_browser_handoff_packet_ref",
+        "queue_for_publish_later_disposition_must_cite_publish_later_queue_item_record_id_ref",
+        "captured_offline_disposition_must_cite_offline_handoff_packet_record_id_ref",
+        "account_mapping_pending_disposition_must_cite_account_mapping_binding_record_id_ref",
+        "blocked_workspace_trust_unset_or_restricted_blocks_browser_handoff_disposition",
+        "raw_provider_url_in_transition_review_forbidden",
+        "raw_notification_payload_in_transition_review_forbidden",
+        "raw_author_identity_string_in_transition_review_forbidden",
+        "raw_automation_payload_in_transition_review_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "supersedes_transition_review_record_id_ref_required_for_superseded_lifecycle"
+      ],
+      "description": "Closed denial-reason vocabulary. silent_provider_mutation_under_local_only_review_disposition_forbidden gates a packet from claiming admissible_local_draft_only / admissible_inspect_only_what_if while citing any provider_mutation_fanout row; generic_success_messaging_under_silent_fanout_forbidden is the safety gate that forbids surfaces from rendering an undifferentiated 'success' label when the review packet pins typed fanout rows that the surface MUST disclose."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "transition_review_authored",
+        "transition_review_pinned_to_status_transition_packet",
+        "transition_review_admissibility_re_evaluated",
+        "transition_review_required_approval_added",
+        "transition_review_required_approval_granted",
+        "transition_review_required_approval_denied",
+        "transition_review_required_approval_revoked",
+        "transition_review_committed_publish_now",
+        "transition_review_committed_local_draft_only",
+        "transition_review_admitted_to_publish_later_queue",
+        "transition_review_routed_to_browser_handoff",
+        "transition_review_captured_offline_pending_drain",
+        "transition_review_blocked_pending_prerequisites",
+        "transition_review_withdrawn_before_apply",
+        "transition_review_superseded",
+        "transition_review_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the transition-review packet lifecycle."
+    },
+
+    "transition_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "transition_review_schema_version",
+        "transition_review_id",
+        "work_item_detail_record_id_ref",
+        "transition_trigger_class",
+        "transition_review_authorization_class",
+        "transition_review_disposition_class",
+        "side_effect_fanout_rows",
+        "automation_followon_disclosures",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "authored_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "transition_review_record" },
+        "transition_review_schema_version": {
+          "$ref": "#/$defs/transition_review_schema_version"
+        },
+        "transition_review_id": { "$ref": "#/$defs/opaque_id" },
+        "work_item_detail_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound work_item_detail_record the review packet is rendered against."
+        },
+        "linked_status_transition_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound status_transition_packet_record (the previewed mutation the apply path commits). Required non-empty for every disposition outside admissible_inspect_only_what_if and the blocked_* / withdrawn / superseded lanes; an inspect-only review packet MAY exist without a transition packet."
+        },
+        "linked_change_intent_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound change_intent_record so the rationale, target scope, linked review, approvals, and validation evidence stay visible across the review. Empty only when the review packet is rendered for a transient transition that has no authored intent (e.g. a managed-admin-minted reopen)."
+        },
+        "linked_external_publish_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound external_publish_preview_record so the projected before / after labels stay visible. Empty for admissible_local_draft_only and admissible_inspect_only_what_if dispositions that have no provider preview."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound publish_later_queue_item_record. Required when transition_review_disposition_class is admissible_via_queue_for_publish_later OR any side_effect_fanout_row resolves offline_deferred_handling_class to deferred_publish_admitted_to_queue / deferred_publish_captured_offline_pending_drain."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound browser_handoff_packet_record. Required when transition_review_disposition_class is admissible_via_browser_handoff_only OR any side_effect_fanout_row resolves publish_mode_class to open_in_provider."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record. Required when any side_effect_fanout_row resolves offline_deferred_handling_class to deferred_publish_captured_offline_pending_drain."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record. Required when transition_review_disposition_class is blocked_account_mapping_pending OR any side_effect_fanout_row resolves authority_source_class to pending_account_mapping_authority_source."
+        },
+        "transition_trigger_class": { "$ref": "#/$defs/transition_trigger_class" },
+        "transition_review_authorization_class": { "$ref": "#/$defs/transition_review_authorization_class" },
+        "transition_review_disposition_class": { "$ref": "#/$defs/transition_review_disposition_class" },
+        "side_effect_fanout_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/side_effect_fanout_row" },
+          "description": "Ordered side-effect fanout rows. Empty array is admissible only for admissible_inspect_only_what_if dispositions that pin no fanout (a pure metadata what-if review)."
+        },
+        "automation_followon_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/automation_followon_disclosure_entry" },
+          "description": "Ordered automation-followon disclosures. MUST carry at least one entry; if no follow-on automation fires, the row pins automation_kind_class = no_followon_automation explicitly so reviewers see typed truth instead of an empty surface."
+        },
+        "rationale_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Optional reviewable rationale summary forwarded from the bound change_intent_record so consumers that read the review packet alone (queue-review, support-export) can surface the rationale without re-fetching the change intent."
+        },
+        "block_reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Optional reviewable summary of the blocking reason. Required when transition_review_disposition_class is one of the blocked_* lanes; empty otherwise."
+        },
+        "supersedes_transition_review_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior transition_review_record this one supersedes (e.g. after the user re-confirmed under a fresh consequence preview). Empty when this is a fresh review."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp after which the review must not be applied without re-confirmation. The apply path denies an expired review with policy_epoch_expired_re_evaluation_required."
+        },
+        "withdrawn_at": {
+          "type": "string",
+          "description": "Required non-empty ISO 8601 timestamp when transition_review_disposition_class is withdrawn_before_apply; empty otherwise."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Every disposition outside admissible_inspect_only_what_if and the blocked_* / withdrawn / superseded lanes MUST cite a non-empty linked_status_transition_packet_record_id_ref so the review packet never floats free of a previewed mutation.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": {
+                "enum": [
+                  "admissible_now_publish_now",
+                  "admissible_via_queue_for_publish_later",
+                  "admissible_via_browser_handoff_only",
+                  "admissible_local_draft_only"
+                ]
+              }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_status_transition_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_status_transition_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "admissible_via_queue_for_publish_later disposition MUST cite a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "admissible_via_queue_for_publish_later" }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "admissible_via_browser_handoff_only disposition MUST cite a non-empty linked_browser_handoff_packet_ref.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "admissible_via_browser_handoff_only" }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "blocked_account_mapping_pending disposition MUST cite a non-empty linked_account_mapping_binding_record_id_ref.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "blocked_account_mapping_pending" }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "admissible_local_draft_only and admissible_inspect_only_what_if dispositions MUST forbid any provider_mutation_fanout row so a local-only / inspect-only review can never silently fan out into provider state.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": {
+                "enum": [
+                  "admissible_local_draft_only",
+                  "admissible_inspect_only_what_if"
+                ]
+              }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "side_effect_fanout_rows": {
+                "items": {
+                  "properties": {
+                    "side_effect_fanout_kind_class": {
+                      "not": { "const": "provider_mutation_fanout" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "admissible_inspect_only_what_if disposition MUST forbid any queued_followon_automation_fanout row whose automation_admissibility_class resolves outside no_followon_automation_in_scope so an inspect-only review can never silently queue follow-on automation.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "admissible_inspect_only_what_if" }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "side_effect_fanout_rows": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "side_effect_fanout_kind_class": { "const": "queued_followon_automation_fanout" }
+                    },
+                    "required": ["side_effect_fanout_kind_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "automation_admissibility_class": { "const": "no_followon_automation_in_scope" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked_review_or_change_object_trigger MUST cite at least one side_effect_fanout_row with kind linked_review_update_fanout.",
+          "if": {
+            "properties": {
+              "transition_trigger_class": { "const": "linked_review_or_change_object_trigger" }
+            },
+            "required": ["transition_trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "side_effect_fanout_rows": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "side_effect_fanout_kind_class": { "const": "linked_review_update_fanout" }
+                  },
+                  "required": ["side_effect_fanout_kind_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "automation_or_notification_fanout_trigger MUST cite at least one side_effect_fanout_row with kind queued_followon_automation_fanout OR notification_emission_fanout.",
+          "if": {
+            "properties": {
+              "transition_trigger_class": { "const": "automation_or_notification_fanout_trigger" }
+            },
+            "required": ["transition_trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "side_effect_fanout_rows": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "side_effect_fanout_kind_class": {
+                      "enum": [
+                        "queued_followon_automation_fanout",
+                        "notification_emission_fanout"
+                      ]
+                    }
+                  },
+                  "required": ["side_effect_fanout_kind_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "release_publish_trigger MUST cite at least one side_effect_fanout_row with irreversibility_class irreversible_release_class.",
+          "if": {
+            "properties": {
+              "transition_trigger_class": { "const": "release_publish_trigger" }
+            },
+            "required": ["transition_trigger_class"]
+          },
+          "then": {
+            "properties": {
+              "side_effect_fanout_rows": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "irreversibility_class": { "const": "irreversible_release_class" }
+                  },
+                  "required": ["irreversibility_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "ai_proposed_pending_user_confirmation authorization MUST resolve transition_review_disposition_class to admissible_inspect_only_what_if or admissible_local_draft_only until a human actor confirms.",
+          "if": {
+            "properties": {
+              "transition_review_authorization_class": { "const": "ai_proposed_pending_user_confirmation" }
+            },
+            "required": ["transition_review_authorization_class"]
+          },
+          "then": {
+            "properties": {
+              "transition_review_disposition_class": {
+                "enum": [
+                  "admissible_inspect_only_what_if",
+                  "admissible_local_draft_only"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_evidence_only_not_authoring MUST resolve transition_review_disposition_class to admissible_inspect_only_what_if and forbid any provider_mutation_fanout row.",
+          "if": {
+            "properties": {
+              "transition_review_authorization_class": { "const": "imported_evidence_only_not_authoring" }
+            },
+            "required": ["transition_review_authorization_class"]
+          },
+          "then": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "admissible_inspect_only_what_if" },
+              "side_effect_fanout_rows": {
+                "items": {
+                  "properties": {
+                    "side_effect_fanout_kind_class": {
+                      "not": { "const": "provider_mutation_fanout" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "blocked_workspace_trust_unset_or_restricted disposition MUST forbid admissible_via_browser_handoff_only routing on the same packet (a restricted-trust workspace cannot launch a browser-handoff packet).",
+          "if": {
+            "properties": {
+              "policy_context": {
+                "properties": {
+                  "trust_state": { "const": "restricted" }
+                },
+                "required": ["trust_state"]
+              }
+            },
+            "required": ["policy_context"]
+          },
+          "then": {
+            "properties": {
+              "transition_review_disposition_class": {
+                "not": { "const": "admissible_via_browser_handoff_only" }
+              }
+            }
+          }
+        },
+        {
+          "description": "withdrawn_before_apply lifecycle MUST cite a non-empty withdrawn_at.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "withdrawn_before_apply" }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "withdrawn_at": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["withdrawn_at"]
+          }
+        },
+        {
+          "description": "superseded_by_transition_review_record lifecycle MUST cite a non-empty supersedes_transition_review_record_id_ref.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": { "const": "superseded_by_transition_review_record" }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "supersedes_transition_review_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["supersedes_transition_review_record_id_ref"]
+          }
+        },
+        {
+          "description": "blocked_* dispositions MUST cite a non-empty block_reason_summary so a downstream surface can render typed denial copy instead of generic 'something failed' text.",
+          "if": {
+            "properties": {
+              "transition_review_disposition_class": {
+                "enum": [
+                  "blocked_pending_prerequisites",
+                  "blocked_provider_read_only_scope",
+                  "blocked_actor_class_forbidden",
+                  "blocked_workspace_trust_unset_or_restricted",
+                  "blocked_freshness_floor_unsatisfied",
+                  "blocked_account_mapping_pending",
+                  "blocked_imported_evidence_only_no_provider_path",
+                  "blocked_policy_admin_suppressed"
+                ]
+              }
+            },
+            "required": ["transition_review_disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "block_reason_summary": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["block_reason_summary"]
+          }
+        }
+      ],
+      "description": "Frozen transition-review record. The packet is the structured what-will-happen review the user, queue-review, and support-export consumers read against; the apply path is recorded through the bound status_transition_packet_record (and on apply through the publish-later contract / browser-handoff / offline-handoff lanes). The packet never claims the provider has accepted the transition."
+    },
+
+    "transition_review_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "transition_review_schema_version",
+        "audit_event_id",
+        "transition_review_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "transition_review_audit_event_record" },
+        "transition_review_schema_version": {
+          "$ref": "#/$defs/transition_review_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "transition_review_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "transition_review_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "transition_review_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the transition-review packet lifecycle. Denial events MUST cite a typed reason from the closed denial vocabulary; lifecycle events (authored, pinned, re-evaluated, approval added / granted / denied / revoked, committed / admitted / routed / captured / blocked / withdrawn / superseded) carry no denial reason."
+    }
+  }
+}
