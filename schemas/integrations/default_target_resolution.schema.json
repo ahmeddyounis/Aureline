@@ -1,0 +1,555 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integrations/default_target_resolution.schema.json",
+  "title": "Aureline default-target resolution vocabulary for repo, project, board, environment, and workspace contexts",
+  "description": "Boundary schema for the default_target_resolution_record frozen in docs/integrations/provider_account_settings_contract.md. The record is the per-(connected_provider, surface, target_context) row every desktop, CLI, AI, work-item, publish, browser-handoff, support-export, queue-review, and admin-reconciliation surface reads to explain WHICH default target a provider-linked action will use and WHY that selection won. Default targets MUST be resolved from a closed provenance vocabulary and MUST be explainable rather than inferred from whichever provider callback arrived most recently. The schema composes with and does NOT replace schemas/integrations/provider_mapping_state.schema.json and schemas/integrations/provider_account_state.schema.json; it freezes the per-context resolution row those schemas reference. Raw URLs, raw OAuth tokens, raw delegated tokens, raw cookies, raw provider-private profile bodies, raw billing payloads, raw seat plans, and raw provider account profile bodies never cross this boundary. Adding a new target_context_class, target_provenance_source_class, selection_outcome_class, or unresolved_reason_class is additive-minor and requires a default_target_resolution_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "$ref": "#/$defs/default_target_resolution_record",
+  "$defs": {
+    "default_target_resolution_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this default-target resolution vocabulary. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, export, cite from support packets, queue-review rows, admin-reconciliation rollups, and AI evidence packets. Raw URLs, raw OAuth tokens, raw delegated tokens, raw cookies, raw provider-private profile bodies, and raw billing payloads never appear here."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for desktop, CLI, support-export, queue-review, admin-reconciliation, and AI evidence output."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "code_host",
+        "issue_or_planning",
+        "ci_or_checks",
+        "docs_or_portal",
+        "artifact_registry",
+        "release_publisher",
+        "identity_provider",
+        "ai_provider",
+        "managed_admin",
+        "mirror_adapter",
+        "other"
+      ],
+      "description": "Provider class re-exported from schemas/integrations/provider_event.schema.json."
+    },
+
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "public_saas",
+        "self_hosted",
+        "sovereign_hosted",
+        "customer_mirror",
+        "offline_bundle",
+        "local_test_harness"
+      ],
+      "description": "Provider deployment environment re-exported from schemas/integrations/provider_event.schema.json."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "code_host_surface",
+        "issue_or_planning_surface",
+        "ci_or_checks_surface",
+        "docs_or_portal_surface",
+        "artifact_registry_surface",
+        "release_publisher_surface",
+        "identity_provider_surface",
+        "ai_provider_surface",
+        "managed_admin_surface"
+      ],
+      "description": "Provider-linked surface class re-exported from schemas/providers/publish_later_record.schema.json and schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "default_target_resolution_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_choice",
+        "repo_metadata_inherited",
+        "user_default_inherited",
+        "workspace_setting_inherited",
+        "admin_forced",
+        "no_default_local_only_fallback"
+      ],
+      "description": "Default-target resolution class re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "target_context_class": {
+      "type": "string",
+      "enum": [
+        "repo_context",
+        "project_context",
+        "board_context",
+        "environment_context",
+        "workspace_context"
+      ],
+      "description": "Frozen per-context axis the default-target resolution applies to. repo_context: a code-host repository or fork. project_context: a code-host project, organization-level project, or planning project. board_context: an issue or planning board. environment_context: a deploy or runtime environment (e.g., release publisher, CI, environment-scoped artifact registry). workspace_context: an Aureline workspace or its bound managed workspace. Surfaces MUST disclose this verbatim rather than collapsing all default-target rows into one Connected badge."
+    },
+
+    "target_provenance_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_choice_source",
+        "repo_metadata_source",
+        "user_default_source",
+        "workspace_setting_source",
+        "admin_policy_source",
+        "inherited_org_mapping_source",
+        "last_used_by_actor_source",
+        "imported_evidence_only_source",
+        "no_source_local_only_fallback"
+      ],
+      "description": "Frozen vocabulary for candidate sources of a default target. explicit_user_choice_source: the user explicitly picked the target on this surface. repo_metadata_source: a checked-in or repo-discoverable mapping (for example, .aureline/provider-link.toml). user_default_source: the user's local default for this provider class. workspace_setting_source: the Aureline workspace's setting. admin_policy_source: an organization or workspace admin policy. inherited_org_mapping_source: an org-level mapping inherited at the workspace level. last_used_by_actor_source: the actor's most recently used target for this surface. imported_evidence_only_source: imported snapshot only; no live binding. no_source_local_only_fallback: no source resolved; the surface falls back to local-only with no provider target. Surfaces MUST list every candidate source they considered, with a selection_outcome_class on each, instead of inferring the winning target from a single provider callback."
+    },
+
+    "selection_outcome_class": {
+      "type": "string",
+      "enum": [
+        "selected_default_target",
+        "narrowed_by_admin_policy",
+        "overridden_by_higher_provenance",
+        "suppressed_by_policy_block",
+        "dropped_due_to_broken_target",
+        "dropped_due_to_account_unresolved",
+        "dropped_due_to_seat_or_plan_state",
+        "candidate_only_not_selected",
+        "fallback_used_no_higher_provenance"
+      ],
+      "description": "Frozen per-candidate outcome explaining why a candidate source did or did not win. Exactly one provenance_chain entry MUST carry selected_default_target unless the resolution class is no_default_local_only_fallback (in which case every candidate carries a non-selected outcome and the record MUST cite an unresolved_reason_class)."
+    },
+
+    "unresolved_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_unresolved_resolution_succeeded",
+        "no_account_bound_local_only",
+        "no_candidate_source_available",
+        "all_candidate_sources_blocked_by_policy",
+        "all_candidate_sources_unresolved_pending_account",
+        "all_candidate_sources_unresolved_pending_seat_repair",
+        "all_candidate_sources_unresolved_pending_session_repair",
+        "imported_evidence_only_no_live_resolution"
+      ],
+      "description": "Frozen reason vocabulary explaining why no candidate source produced a default target. no_unresolved_resolution_succeeded is the only legal value when default_target_resolution_class is anything other than no_default_local_only_fallback (i.e., a target was selected)."
+    },
+
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "canonical_host",
+        "tenant_or_org_scope",
+        "provider_instance_ref",
+        "environment_class"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "$ref": "#/$defs/non_empty_string" },
+        "provider_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_class": { "$ref": "#/$defs/environment_class" }
+      }
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "provenance_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_provenance_source_class",
+        "selection_outcome_class",
+        "outcome_summary"
+      ],
+      "properties": {
+        "target_provenance_source_class": {
+          "$ref": "#/$defs/target_provenance_source_class"
+        },
+        "selection_outcome_class": {
+          "$ref": "#/$defs/selection_outcome_class"
+        },
+        "outcome_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining the outcome verbatim (for example, Selected because admin policy forces this target; user cannot widen)."
+        },
+        "linked_source_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the source record (repo metadata file, user-default record, workspace setting record, admin policy record, org mapping record, last-used-by-actor record, imported snapshot). Empty when target_provenance_source_class is no_source_local_only_fallback."
+        },
+        "candidate_target_ref": {
+          "type": "string",
+          "description": "Opaque ref to the candidate provider-side target this source proposed. Empty when the candidate could not be resolved (for example, dropped_due_to_broken_target or dropped_due_to_account_unresolved)."
+        }
+      },
+      "description": "One candidate provenance source considered while resolving the default target. Surfaces MUST cite every candidate source they considered, with a selection_outcome_class on each, so the resolution is reviewable rather than inferred."
+    },
+
+    "default_target_resolution_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "default_target_resolution_schema_version",
+        "resolution_record_id",
+        "connected_provider_record_id",
+        "provider_identity",
+        "surface_class",
+        "target_context_class",
+        "default_target_resolution_class",
+        "default_target_explanation",
+        "provenance_chain",
+        "unresolved_reason_class",
+        "metadata_safe_export_only",
+        "origin_disclosure",
+        "policy_context",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "default_target_resolution_record" },
+        "default_target_resolution_schema_version": {
+          "$ref": "#/$defs/default_target_resolution_schema_version"
+        },
+        "resolution_record_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_identity": { "$ref": "#/$defs/provider_identity" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "linked_provider_account_settings_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_account_settings_record from schemas/integrations/provider_account_state.schema.json this resolution belongs to. Empty only when no settings record exists yet (for example, an admin-reconciliation rollup over imported evidence)."
+        },
+        "target_context_class": { "$ref": "#/$defs/target_context_class" },
+        "context_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the context the default target applies to (for example, Default repo for code-host actions in this workspace)."
+        },
+        "local_scope_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque ref to the local Aureline scope (workspace, repo, project, board, or environment) the resolution is bound to."
+        },
+        "default_target_resolution_class": {
+          "$ref": "#/$defs/default_target_resolution_class"
+        },
+        "default_target_explanation": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining how the winning default target was resolved. Required so provenance is auditable rather than inferred from the most recent provider callback."
+        },
+        "selected_target_ref": {
+          "type": "string",
+          "description": "Opaque ref to the resolved provider-side target (repo, project, board, environment, or workspace). Empty when default_target_resolution_class is no_default_local_only_fallback."
+        },
+        "provenance_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provenance_chain_entry" },
+          "description": "Ordered list of every candidate provenance source considered, with the selection_outcome_class for each. Exactly one entry MUST carry selected_default_target unless default_target_resolution_class is no_default_local_only_fallback."
+        },
+        "unresolved_reason_class": {
+          "$ref": "#/$defs/unresolved_reason_class"
+        },
+        "narrowed_by_admin_policy": {
+          "type": "boolean",
+          "description": "True when admin policy narrowed or forced the resolution below what user-default or repo-metadata mappings otherwise permit."
+        },
+        "metadata_safe_export_only": {
+          "type": "boolean",
+          "description": "When true, this resolution may only be exported with metadata-safe defaults regardless of any wider redaction class. cached-shadow account states, policy_blocked, expired_seat continuity, and offline_with_cached_read_state MUST raise this to true."
+        },
+        "linked_default_target_resolution_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to a previous default_target_resolution_record this record supersedes. Empty when no prior resolution existed."
+        },
+        "linked_account_switch_audit_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the account_switch_audit_record that minted or transitioned this resolution. Empty when no audit event was responsible (for example, the first resolution captured for a new surface)."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "default_target_resolution_class no_default_local_only_fallback MUST set unresolved_reason_class outside no_unresolved_resolution_succeeded, leave selected_target_ref empty, and forbid any selected_default_target outcome in the provenance chain.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": {
+                "const": "no_default_local_only_fallback"
+              }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "unresolved_reason_class": {
+                "enum": [
+                  "no_account_bound_local_only",
+                  "no_candidate_source_available",
+                  "all_candidate_sources_blocked_by_policy",
+                  "all_candidate_sources_unresolved_pending_account",
+                  "all_candidate_sources_unresolved_pending_seat_repair",
+                  "all_candidate_sources_unresolved_pending_session_repair",
+                  "imported_evidence_only_no_live_resolution"
+                ]
+              },
+              "selected_target_ref": { "const": "" },
+              "provenance_chain": {
+                "items": {
+                  "properties": {
+                    "selection_outcome_class": {
+                      "not": { "const": "selected_default_target" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "default_target_resolution_class outside no_default_local_only_fallback MUST set unresolved_reason_class to no_unresolved_resolution_succeeded and provide a non-empty selected_target_ref.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": {
+                "enum": [
+                  "explicit_user_choice",
+                  "repo_metadata_inherited",
+                  "user_default_inherited",
+                  "workspace_setting_inherited",
+                  "admin_forced"
+                ]
+              }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "unresolved_reason_class": {
+                "const": "no_unresolved_resolution_succeeded"
+              },
+              "selected_target_ref": { "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "default_target_resolution_class admin_forced MUST set narrowed_by_admin_policy true and have a provenance_chain entry whose target_provenance_source_class is admin_policy_source and selection_outcome_class is selected_default_target.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": { "const": "admin_forced" }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "narrowed_by_admin_policy": { "const": true },
+              "provenance_chain": {
+                "contains": {
+                  "properties": {
+                    "target_provenance_source_class": {
+                      "const": "admin_policy_source"
+                    },
+                    "selection_outcome_class": {
+                      "const": "selected_default_target"
+                    }
+                  },
+                  "required": [
+                    "target_provenance_source_class",
+                    "selection_outcome_class"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "default_target_resolution_class repo_metadata_inherited MUST have a provenance_chain entry whose target_provenance_source_class is repo_metadata_source and selection_outcome_class is selected_default_target.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": {
+                "const": "repo_metadata_inherited"
+              }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "provenance_chain": {
+                "contains": {
+                  "properties": {
+                    "target_provenance_source_class": {
+                      "const": "repo_metadata_source"
+                    },
+                    "selection_outcome_class": {
+                      "const": "selected_default_target"
+                    }
+                  },
+                  "required": [
+                    "target_provenance_source_class",
+                    "selection_outcome_class"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "default_target_resolution_class user_default_inherited MUST have a provenance_chain entry whose target_provenance_source_class is user_default_source and selection_outcome_class is selected_default_target.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": {
+                "const": "user_default_inherited"
+              }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "provenance_chain": {
+                "contains": {
+                  "properties": {
+                    "target_provenance_source_class": {
+                      "const": "user_default_source"
+                    },
+                    "selection_outcome_class": {
+                      "const": "selected_default_target"
+                    }
+                  },
+                  "required": [
+                    "target_provenance_source_class",
+                    "selection_outcome_class"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "default_target_resolution_class workspace_setting_inherited MUST have a provenance_chain entry whose target_provenance_source_class is workspace_setting_source and selection_outcome_class is selected_default_target.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": {
+                "const": "workspace_setting_inherited"
+              }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "provenance_chain": {
+                "contains": {
+                  "properties": {
+                    "target_provenance_source_class": {
+                      "const": "workspace_setting_source"
+                    },
+                    "selection_outcome_class": {
+                      "const": "selected_default_target"
+                    }
+                  },
+                  "required": [
+                    "target_provenance_source_class",
+                    "selection_outcome_class"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "default_target_resolution_class explicit_user_choice MUST have a provenance_chain entry whose target_provenance_source_class is explicit_user_choice_source and selection_outcome_class is selected_default_target.",
+          "if": {
+            "properties": {
+              "default_target_resolution_class": {
+                "const": "explicit_user_choice"
+              }
+            },
+            "required": ["default_target_resolution_class"]
+          },
+          "then": {
+            "properties": {
+              "provenance_chain": {
+                "contains": {
+                  "properties": {
+                    "target_provenance_source_class": {
+                      "const": "explicit_user_choice_source"
+                    },
+                    "selection_outcome_class": {
+                      "const": "selected_default_target"
+                    }
+                  },
+                  "required": [
+                    "target_provenance_source_class",
+                    "selection_outcome_class"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Per-(connected_provider, surface, target_context) row explaining which default target a provider-linked action will use and why. The provenance_chain MUST list every candidate source considered with a typed selection_outcome_class so reviewers can audit the decision. Default-target resolution stays consistent across AI, work-item, publish, and browser-handoff surfaces by reading this record rather than inferring the winning target from individual provider callbacks."
+    }
+  }
+}

@@ -1,0 +1,1039 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/integrations/provider_account_state.schema.json",
+  "title": "Aureline provider-account settings, seat and plan posture, cached/offline shadow disclosure, and account-switch audit vocabulary",
+  "description": "Boundary schema for the provider_account_settings_record and account_switch_audit_record frozen in docs/integrations/provider_account_settings_contract.md. The settings record is the per-(connected_provider, surface) disclosure surfaces read before claiming which account, target, seat, plan, or cached-shadow posture is in effect; the audit record is the reviewable artifact that explains every account switch, default-target move, seat transition, session invalidation, or admin-policy retarget with explicit scope-change, affected-workflow, queued-draft, and provider-authority consequence disclosures. The schema composes with and does NOT replace the provider_account_state_record / project_or_board_mapping_record / offline_capture_control_record / account_switch_audit_hook_record vocabulary frozen in schemas/integrations/provider_mapping_state.schema.json; the existing vocabulary remains the source of truth for account_state_class, account_kind_class, seat_or_plan_state_class, session_freshness_class, scope_provenance_class, sync_mode_class, mapping_state_class, default_target_resolution_class, audit_hook_event_class, diagnostics_link_class, and surface_class. Raw URLs, raw OAuth tokens, raw delegated tokens, raw cookies, raw provider-private profile bodies, raw seat plans, raw billing payloads, and raw provider account profile bodies never cross this boundary. Adding a new account_binding_class, cached_offline_shadow_class, scope_change_class, affected_workflow_class, queued_draft_disclosure_class, or provider_authority_consequence_class value is additive-minor and requires a provider_account_settings_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/provider_account_settings_record" },
+    { "$ref": "#/$defs/account_switch_audit_record" }
+  ],
+  "$defs": {
+    "provider_account_settings_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this provider-account-settings vocabulary. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, export, cite from support packets, queue-review rows, admin-reconciliation rollups, and AI evidence packets. Raw URLs, raw OAuth tokens, raw delegated tokens, raw cookies, raw provider-private profile bodies, and raw billing payloads never appear here."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewable sentence safe for desktop, CLI, support-export, queue-review, admin-reconciliation, and AI evidence output."
+    },
+
+    "provider_class": {
+      "type": "string",
+      "enum": [
+        "code_host",
+        "issue_or_planning",
+        "ci_or_checks",
+        "docs_or_portal",
+        "artifact_registry",
+        "release_publisher",
+        "identity_provider",
+        "ai_provider",
+        "managed_admin",
+        "mirror_adapter",
+        "other"
+      ],
+      "description": "Provider class re-exported verbatim from schemas/integrations/provider_event.schema.json and schemas/integrations/provider_mapping_state.schema.json so settings rows project onto the same axis as ingested events and mapping records."
+    },
+
+    "environment_class": {
+      "type": "string",
+      "enum": [
+        "public_saas",
+        "self_hosted",
+        "sovereign_hosted",
+        "customer_mirror",
+        "offline_bundle",
+        "local_test_harness"
+      ],
+      "description": "Provider deployment environment re-exported verbatim from the provider-event and provider-mapping schemas."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "code_host_surface",
+        "issue_or_planning_surface",
+        "ci_or_checks_surface",
+        "docs_or_portal_surface",
+        "artifact_registry_surface",
+        "release_publisher_surface",
+        "identity_provider_surface",
+        "ai_provider_surface",
+        "managed_admin_surface"
+      ],
+      "description": "Provider-linked surface class re-exported from schemas/providers/publish_later_record.schema.json and the provider-mapping schema."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "mirror_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class re-exported from the connected-provider ADR vocabulary. A generic Connected state is forbidden; unknown_actor_class is repair-only."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "Workspace trust state the settings or audit record was captured under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from the connected-provider ADR. Raw URLs, raw OAuth tokens, raw delegated tokens, raw cookies, raw provider-private profile bodies, raw billing or seat payloads, and raw export bodies never cross this boundary regardless of class."
+    },
+
+    "account_state_class": {
+      "type": "string",
+      "enum": [
+        "not_configured",
+        "signed_in",
+        "limited_scope",
+        "stale_session",
+        "offline_with_cached_read_state",
+        "policy_blocked"
+      ],
+      "description": "Connected-provider account state re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "account_kind_class": {
+      "type": "string",
+      "enum": [
+        "active_account",
+        "inherited_account",
+        "admin_forced_target",
+        "expired_seat",
+        "grace_mode",
+        "local_only_fallback"
+      ],
+      "description": "Typed mapping kind re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "seat_or_plan_state_class": {
+      "type": "string",
+      "enum": [
+        "seat_active",
+        "seat_grace",
+        "seat_expired",
+        "seat_revoked",
+        "plan_limited",
+        "plan_unknown",
+        "no_seat_required"
+      ],
+      "description": "Seat or plan posture re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "session_freshness_class": {
+      "type": "string",
+      "enum": ["fresh", "bounded_stale", "unbounded_stale", "no_session"],
+      "description": "Session freshness re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "default_target_resolution_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_choice",
+        "repo_metadata_inherited",
+        "user_default_inherited",
+        "workspace_setting_inherited",
+        "admin_forced",
+        "no_default_local_only_fallback"
+      ],
+      "description": "Default-target resolution class re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "audit_hook_event_class": {
+      "type": "string",
+      "enum": [
+        "account_switched",
+        "default_target_changed",
+        "admin_policy_changed_target",
+        "seat_state_changed",
+        "session_invalidated",
+        "mapping_inheritance_changed",
+        "offline_capture_admitted",
+        "offline_capture_drained",
+        "offline_capture_dropped"
+      ],
+      "description": "Audit-hook event class re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json. The richer account_switch_audit_record reuses this discriminator and adds explicit scope-change, affected-workflow, queued-draft, and provider-authority consequence fields on top."
+    },
+
+    "diagnostics_link_class": {
+      "type": "string",
+      "enum": [
+        "open_account_settings",
+        "open_default_target_settings",
+        "open_seat_or_plan_status",
+        "open_admin_policy_explanation",
+        "open_offline_capture_inbox",
+        "open_account_switch_audit",
+        "open_publish_later_queue_review",
+        "open_connectivity_status"
+      ],
+      "description": "Diagnostics navigation class re-exported verbatim from schemas/integrations/provider_mapping_state.schema.json."
+    },
+
+    "diagnostics_link_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostics_link_class", "link_summary"],
+      "properties": {
+        "diagnostics_link_class": { "$ref": "#/$defs/diagnostics_link_class" },
+        "link_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "settings_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the settings record the link resolves to. Empty when no concrete settings record exists yet."
+        }
+      }
+    },
+
+    "provider_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_class",
+        "canonical_host",
+        "tenant_or_org_scope",
+        "provider_instance_ref",
+        "environment_class"
+      ],
+      "properties": {
+        "provider_class": { "$ref": "#/$defs/provider_class" },
+        "canonical_host": { "$ref": "#/$defs/non_empty_string" },
+        "tenant_or_org_scope": { "$ref": "#/$defs/non_empty_string" },
+        "provider_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "environment_class": { "$ref": "#/$defs/environment_class" }
+      },
+      "description": "Provider identity used for host, tenant, and mirror/self-host disambiguation. Re-uses the shape from schemas/integrations/provider_event.schema.json."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin a settings or audit record was captured under."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the record was captured under. A policy-epoch roll between capture and use re-evaluates the record; silent reuse under a drifted epoch is forbidden."
+    },
+
+    "account_binding_class": {
+      "type": "string",
+      "enum": [
+        "user_selected_active_account",
+        "inherited_user_default_account",
+        "inherited_workspace_setting_account",
+        "inherited_repo_metadata_account",
+        "inherited_org_mapping_account",
+        "admin_forced_account",
+        "expired_seat_local_only_continuity",
+        "grace_mode_read_only_continuity",
+        "local_only_no_account_bound",
+        "cached_offline_shadow_only_no_live_account"
+      ],
+      "description": "Frozen settings-disclosure class for how the active provider account was bound. user_selected_active_account: a user explicitly chose this account for the surface. inherited_user_default_account: bound via the user's local default for this provider class. inherited_workspace_setting_account: bound via the Aureline workspace setting. inherited_repo_metadata_account: bound via repo-attached metadata (e.g., a tracked .aureline/provider-link.toml). inherited_org_mapping_account: bound via an inherited org mapping. admin_forced_account: org or workspace admin policy forces this account; the user cannot widen. expired_seat_local_only_continuity: provider seat expired or revoked; local-only continuity remains. grace_mode_read_only_continuity: provider returned a bounded grace window; read-only or limited-scope use only. local_only_no_account_bound: no account is bound; only metadata-safe local capture is admitted. cached_offline_shadow_only_no_live_account: provider unreachable; cached read-only shadow remains visible under metadata-safe defaults only. Surfaces MUST disclose this verbatim instead of collapsing to a generic Connected badge."
+    },
+
+    "cached_offline_shadow_class": {
+      "type": "string",
+      "enum": [
+        "not_in_cached_shadow",
+        "cached_read_only_within_grace_window",
+        "cached_read_only_after_seat_expiry",
+        "cached_read_only_after_session_invalid",
+        "cached_read_only_under_policy_block",
+        "cached_read_only_after_connectivity_loss",
+        "cached_read_only_after_admin_account_remap"
+      ],
+      "description": "Frozen vocabulary describing why the surface is rendering against cached read-only shadow rather than a live provider account. cached_read_only_within_grace_window: provider returned a bounded grace window (seat or plan). cached_read_only_after_seat_expiry: seat expired or revoked. cached_read_only_after_session_invalid: session invalidated; no cached mutation admitted. cached_read_only_under_policy_block: admin policy denies the live action; cached read state remains visible. cached_read_only_after_connectivity_loss: provider unreachable; no live calls. cached_read_only_after_admin_account_remap: admin policy retargeted the account; the previously-bound account's cached state is held until the user reselects. not_in_cached_shadow: surface is rendering against a live, fresh account. Cached-shadow states MUST pin metadata_safe_export_only true so cached state never silently widens export, telemetry, or AI-evidence scope."
+    },
+
+    "scope_change_class": {
+      "type": "string",
+      "enum": [
+        "no_scope_change",
+        "scope_narrowed_by_admin_policy",
+        "scope_widened_after_repair",
+        "scope_invalidated_by_account_switch",
+        "scope_target_remapped_by_admin_policy",
+        "scope_blocked_by_admin_policy",
+        "scope_held_pending_account_resolution",
+        "scope_held_pending_user_confirmation",
+        "scope_target_broken_target_missing",
+        "scope_held_pending_seat_repair"
+      ],
+      "description": "Frozen disclosure of how the active scope changed across an account-switch audit event. Surfaces MUST cite this verbatim instead of inferring from whichever provider callback arrived most recently."
+    },
+
+    "affected_workflow_class": {
+      "type": "string",
+      "enum": [
+        "ai_workflow_provider_target",
+        "work_item_workflow_target",
+        "publish_now_workflow_target",
+        "deferred_publish_workflow_target",
+        "browser_handoff_workflow_target",
+        "notebook_workflow_target",
+        "support_export_workflow_target",
+        "queue_review_workflow_target",
+        "audit_review_workflow_target",
+        "review_workflow_target",
+        "release_publish_workflow_target",
+        "no_workflows_affected"
+      ],
+      "description": "Frozen vocabulary for which Aureline workflows the audited event impacts. The audit record MUST list every workflow class that loses or gains a target so reviewers can audit the blast radius without re-deriving it from individual surfaces."
+    },
+
+    "queued_draft_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_queued_drafts",
+        "queued_drafts_preserved_under_new_account",
+        "queued_drafts_preserved_under_same_account",
+        "queued_drafts_paused_pending_account_resolution",
+        "queued_drafts_paused_pending_admin_policy_review",
+        "queued_drafts_paused_pending_seat_repair",
+        "queued_drafts_held_local_only_until_user_decides",
+        "queued_drafts_dropped_after_review",
+        "queued_drafts_invalidated_by_account_switch",
+        "queued_drafts_invalidated_by_target_remap"
+      ],
+      "description": "Frozen disclosure of what happened to publish-later queue items, browser-handoff packets, and offline-capture controls bound to the previous account or target. Loss of provider connectivity, seat expiry, account switch, or policy change MUST NOT erase prepared handoff state; this class is the audit anchor."
+    },
+
+    "provider_authority_consequence_class": {
+      "type": "string",
+      "enum": [
+        "no_authority_change",
+        "authority_continues_under_new_actor",
+        "authority_paused_until_session_repaired",
+        "authority_revoked_by_admin_policy",
+        "authority_narrowed_by_admin_policy",
+        "authority_lost_with_seat_expiry",
+        "authority_lost_with_seat_revoked",
+        "authority_held_pending_account_resolution",
+        "authority_local_only_no_provider_authority",
+        "authority_held_in_cached_read_only_shadow"
+      ],
+      "description": "Frozen disclosure of how provider authority changed across the audited event. authority_continues_under_new_actor: the new account's actor class still admits the prior sync modes. authority_paused_until_session_repaired: session invalidation pauses mutation. authority_revoked_by_admin_policy: admin policy denies further mutation outright. authority_narrowed_by_admin_policy: some sync modes remain admissible; others were dropped. authority_lost_with_seat_expiry: mutation denied; cached read state may remain. authority_held_pending_account_resolution: parked behind a publish-later account_mapping_binding_record. authority_local_only_no_provider_authority: surface continues local-only. authority_held_in_cached_read_only_shadow: cached read shadow only, no mutation admitted."
+    },
+
+    "account_binding_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "account_binding_class",
+        "binding_summary"
+      ],
+      "properties": {
+        "account_binding_class": { "$ref": "#/$defs/account_binding_class" },
+        "binding_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining how the account was bound (for example, Bound via repo-attached .aureline/provider-link.toml; admin policy did not narrow this account)."
+        },
+        "linked_account_mapping_binding_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish-later account_mapping_binding_record currently in effect. Empty when account_binding_class is local_only_no_account_bound or cached_offline_shadow_only_no_live_account."
+        },
+        "linked_inherited_source_ref": {
+          "type": "string",
+          "description": "Opaque ref to the inheritance source (repo metadata file, user-default record, workspace setting record, org mapping record, admin policy record). Required for every inherited_* and admin_forced_account class; empty otherwise."
+        }
+      },
+      "description": "Reviewable settings-level disclosure of how the active provider account was bound for one (connected_provider, surface) pair. Surfaces MUST render this verbatim instead of collapsing to a generic Connected badge."
+    },
+
+    "cached_offline_shadow_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cached_offline_shadow_class",
+        "shadow_summary"
+      ],
+      "properties": {
+        "cached_offline_shadow_class": {
+          "$ref": "#/$defs/cached_offline_shadow_class"
+        },
+        "shadow_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining why the surface is rendering against cached read-only shadow rather than a live account (for example, Provider unreachable since 2026-04-29T09:55:00Z; cached read state shown under metadata-safe defaults)."
+        },
+        "shadow_window_closes_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Optional reviewable timestamp at which a bounded grace window or cached-shadow window closes. Null when the window is not bounded by an external clock."
+        }
+      },
+      "description": "Reviewable disclosure of cached read-only shadow posture. cached_offline_shadow_class outside not_in_cached_shadow MUST pin metadata_safe_export_only true on the parent settings record."
+    },
+
+    "provider_account_settings_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_account_settings_schema_version",
+        "settings_record_id",
+        "connected_provider_record_id",
+        "provider_identity",
+        "surface_class",
+        "account_state_class",
+        "account_kind_class",
+        "account_binding_disclosure",
+        "seat_or_plan_state_class",
+        "seat_or_plan_summary",
+        "session_freshness_class",
+        "cached_offline_shadow_disclosure",
+        "default_target_resolution_class",
+        "default_target_explanation",
+        "metadata_safe_export_only",
+        "diagnostics_links",
+        "origin_disclosure",
+        "policy_context",
+        "captured_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "provider_account_settings_record" },
+        "provider_account_settings_schema_version": {
+          "$ref": "#/$defs/provider_account_settings_schema_version"
+        },
+        "settings_record_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_identity": { "$ref": "#/$defs/provider_identity" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "linked_provider_account_state_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the provider_account_state_record from schemas/integrations/provider_mapping_state.schema.json this settings record summarizes. Empty only when no surface-level account-state record has been minted yet (for example, account_kind_class local_only_fallback before any provider has been consulted)."
+        },
+        "account_state_class": { "$ref": "#/$defs/account_state_class" },
+        "account_kind_class": { "$ref": "#/$defs/account_kind_class" },
+        "account_binding_disclosure": {
+          "$ref": "#/$defs/account_binding_disclosure"
+        },
+        "actor_class_in_effect": {
+          "$ref": "#/$defs/provider_actor_class",
+          "description": "Provider-actor class currently bound to this settings record. unknown_actor_class is repair-only."
+        },
+        "actor_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the resolved actor subject. Empty when no subject has been confirmed."
+        },
+        "seat_or_plan_state_class": {
+          "$ref": "#/$defs/seat_or_plan_state_class"
+        },
+        "seat_or_plan_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the seat or plan posture (for example, Plan does not include status-transition sync). Never a raw billing payload."
+        },
+        "session_freshness_class": {
+          "$ref": "#/$defs/session_freshness_class"
+        },
+        "cached_offline_shadow_disclosure": {
+          "$ref": "#/$defs/cached_offline_shadow_disclosure"
+        },
+        "default_target_resolution_class": {
+          "$ref": "#/$defs/default_target_resolution_class"
+        },
+        "default_target_explanation": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining how the active default target was resolved (for example, Inherited from repository metadata)."
+        },
+        "linked_default_target_resolution_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to default_target_resolution_records (one per target_context_class) that explain the per-context default target chosen under this settings record. Empty when account_kind_class is local_only_fallback or cached_offline_shadow_only_no_live_account is in effect."
+        },
+        "preserved_handoff_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to publish-later queue items, browser-handoff packets, offline-capture controls, or imported snapshots preserved by this settings record across connectivity loss, account switch, seat expiry, or policy change. Loss of provider connectivity MUST NOT erase prepared handoff state."
+        },
+        "metadata_safe_export_only": {
+          "type": "boolean",
+          "description": "When true, provider-derived rows under this settings record may only be exported with metadata-safe defaults regardless of any wider redaction class. Cached-shadow state, policy_blocked state, expired_seat continuity, and offline_with_cached_read_state MUST raise this to true rather than silently widening export, telemetry, or AI-evidence scope."
+        },
+        "diagnostics_links": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diagnostics_link_record" },
+          "description": "Diagnostics navigation the surface MAY render so the user can repair, reauth, switch account, review admin policy, or open the offline-capture inbox."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "settings_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "account_kind_class admin_forced_target MUST disclose admin_forced_account binding and resolve default_target_resolution_class to admin_forced.",
+          "if": {
+            "properties": {
+              "account_kind_class": { "const": "admin_forced_target" }
+            },
+            "required": ["account_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "account_binding_disclosure": {
+                "properties": {
+                  "account_binding_class": { "const": "admin_forced_account" }
+                },
+                "required": ["account_binding_class"]
+              },
+              "default_target_resolution_class": { "const": "admin_forced" }
+            }
+          }
+        },
+        {
+          "description": "account_kind_class inherited_account MUST disclose one of the inherited_* binding classes.",
+          "if": {
+            "properties": {
+              "account_kind_class": { "const": "inherited_account" }
+            },
+            "required": ["account_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "account_binding_disclosure": {
+                "properties": {
+                  "account_binding_class": {
+                    "enum": [
+                      "inherited_user_default_account",
+                      "inherited_workspace_setting_account",
+                      "inherited_repo_metadata_account",
+                      "inherited_org_mapping_account"
+                    ]
+                  }
+                },
+                "required": ["account_binding_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "account_kind_class active_account MUST disclose user_selected_active_account binding.",
+          "if": {
+            "properties": {
+              "account_kind_class": { "const": "active_account" }
+            },
+            "required": ["account_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "account_binding_disclosure": {
+                "properties": {
+                  "account_binding_class": {
+                    "const": "user_selected_active_account"
+                  }
+                },
+                "required": ["account_binding_class"]
+              }
+            }
+          }
+        },
+        {
+          "description": "account_kind_class expired_seat MUST disclose expired_seat_local_only_continuity binding and pair with seat_or_plan_state_class seat_expired or seat_revoked.",
+          "if": {
+            "properties": {
+              "account_kind_class": { "const": "expired_seat" }
+            },
+            "required": ["account_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "account_binding_disclosure": {
+                "properties": {
+                  "account_binding_class": {
+                    "const": "expired_seat_local_only_continuity"
+                  }
+                },
+                "required": ["account_binding_class"]
+              },
+              "seat_or_plan_state_class": {
+                "enum": ["seat_expired", "seat_revoked"]
+              }
+            }
+          }
+        },
+        {
+          "description": "account_kind_class grace_mode MUST disclose grace_mode_read_only_continuity binding and pair with seat_or_plan_state_class seat_grace.",
+          "if": {
+            "properties": {
+              "account_kind_class": { "const": "grace_mode" }
+            },
+            "required": ["account_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "account_binding_disclosure": {
+                "properties": {
+                  "account_binding_class": {
+                    "const": "grace_mode_read_only_continuity"
+                  }
+                },
+                "required": ["account_binding_class"]
+              },
+              "seat_or_plan_state_class": { "const": "seat_grace" }
+            }
+          }
+        },
+        {
+          "description": "account_kind_class local_only_fallback MUST disclose local_only_no_account_bound binding and resolve default_target_resolution_class to no_default_local_only_fallback.",
+          "if": {
+            "properties": {
+              "account_kind_class": { "const": "local_only_fallback" }
+            },
+            "required": ["account_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "account_binding_disclosure": {
+                "properties": {
+                  "account_binding_class": {
+                    "const": "local_only_no_account_bound"
+                  }
+                },
+                "required": ["account_binding_class"]
+              },
+              "default_target_resolution_class": {
+                "const": "no_default_local_only_fallback"
+              }
+            }
+          }
+        },
+        {
+          "description": "account_state_class offline_with_cached_read_state MUST disclose a cached_offline_shadow_class outside not_in_cached_shadow and pin metadata_safe_export_only true.",
+          "if": {
+            "properties": {
+              "account_state_class": {
+                "const": "offline_with_cached_read_state"
+              }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "cached_offline_shadow_disclosure": {
+                "properties": {
+                  "cached_offline_shadow_class": {
+                    "enum": [
+                      "cached_read_only_within_grace_window",
+                      "cached_read_only_after_seat_expiry",
+                      "cached_read_only_after_session_invalid",
+                      "cached_read_only_under_policy_block",
+                      "cached_read_only_after_connectivity_loss",
+                      "cached_read_only_after_admin_account_remap"
+                    ]
+                  }
+                },
+                "required": ["cached_offline_shadow_class"]
+              },
+              "metadata_safe_export_only": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "account_state_class policy_blocked MUST pin metadata_safe_export_only true.",
+          "if": {
+            "properties": {
+              "account_state_class": { "const": "policy_blocked" }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "metadata_safe_export_only": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "cached_offline_shadow_class not_in_cached_shadow MUST pair with account_state_class signed_in or limited_scope.",
+          "if": {
+            "properties": {
+              "cached_offline_shadow_disclosure": {
+                "properties": {
+                  "cached_offline_shadow_class": {
+                    "const": "not_in_cached_shadow"
+                  }
+                },
+                "required": ["cached_offline_shadow_class"]
+              }
+            },
+            "required": ["cached_offline_shadow_disclosure"]
+          },
+          "then": {
+            "properties": {
+              "account_state_class": {
+                "enum": ["signed_in", "limited_scope", "not_configured"]
+              }
+            }
+          }
+        },
+        {
+          "description": "cached_offline_shadow_class outside not_in_cached_shadow MUST pin metadata_safe_export_only true.",
+          "if": {
+            "properties": {
+              "cached_offline_shadow_disclosure": {
+                "properties": {
+                  "cached_offline_shadow_class": {
+                    "enum": [
+                      "cached_read_only_within_grace_window",
+                      "cached_read_only_after_seat_expiry",
+                      "cached_read_only_after_session_invalid",
+                      "cached_read_only_under_policy_block",
+                      "cached_read_only_after_connectivity_loss",
+                      "cached_read_only_after_admin_account_remap"
+                    ]
+                  }
+                },
+                "required": ["cached_offline_shadow_class"]
+              }
+            },
+            "required": ["cached_offline_shadow_disclosure"]
+          },
+          "then": {
+            "properties": {
+              "metadata_safe_export_only": { "const": true }
+            }
+          }
+        }
+      ],
+      "description": "Settings-level disclosure of one connected-provider account binding for one provider-backed surface. The record is the per-(connected_provider, surface) row a settings reader, support export, queue review, AI-evidence packet, or admin reconciliation surface reads to explain which account is in effect, why, under which seat/plan posture, with which cached/offline shadow disclosure, and against which default-target resolution. Surfaces MUST NOT collapse this record into a generic Connected badge or invent per-surface 'auto-detected account' copy."
+    },
+
+    "account_switch_audit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "provider_account_settings_schema_version",
+        "audit_record_id",
+        "connected_provider_record_id",
+        "provider_identity",
+        "surface_class",
+        "audit_hook_event_class",
+        "from_actor_class",
+        "to_actor_class",
+        "from_account_state_class",
+        "to_account_state_class",
+        "scope_change_class",
+        "scope_change_summary",
+        "affected_workflow_classes",
+        "queued_draft_disclosure_class",
+        "queued_draft_summary",
+        "provider_authority_consequence_class",
+        "provider_authority_summary",
+        "preserved_handoff_state_refs",
+        "rationale_summary",
+        "origin_disclosure",
+        "policy_context",
+        "occurred_at",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "account_switch_audit_record" },
+        "provider_account_settings_schema_version": {
+          "$ref": "#/$defs/provider_account_settings_schema_version"
+        },
+        "audit_record_id": { "$ref": "#/$defs/opaque_id" },
+        "connected_provider_record_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_identity": { "$ref": "#/$defs/provider_identity" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "linked_audit_hook_record_ref": {
+          "type": "string",
+          "description": "Opaque ref to the lighter account_switch_audit_hook_record from schemas/integrations/provider_mapping_state.schema.json this richer audit record extends. Empty only when no hook record was minted (for example, when the audit was reconstructed from imported evidence)."
+        },
+        "audit_hook_event_class": {
+          "$ref": "#/$defs/audit_hook_event_class"
+        },
+        "from_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "to_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "from_account_state_class": {
+          "$ref": "#/$defs/account_state_class"
+        },
+        "to_account_state_class": {
+          "$ref": "#/$defs/account_state_class"
+        },
+        "from_account_binding_class": {
+          "$ref": "#/$defs/account_binding_class",
+          "description": "Account-binding class in effect before the event. Empty only when no prior binding existed; a previous local_only_no_account_bound binding MUST be cited verbatim."
+        },
+        "to_account_binding_class": {
+          "$ref": "#/$defs/account_binding_class",
+          "description": "Account-binding class in effect after the event."
+        },
+        "from_default_target_resolution_class": {
+          "$ref": "#/$defs/default_target_resolution_class"
+        },
+        "to_default_target_resolution_class": {
+          "$ref": "#/$defs/default_target_resolution_class"
+        },
+        "from_actor_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the actor subject in effect before the event. Empty when from_actor_class is unknown_actor_class or no prior subject was ever bound."
+        },
+        "to_actor_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the actor subject in effect after the event. Empty when to_actor_class is unknown_actor_class (for example, fall back to local_only_fallback)."
+        },
+        "scope_change_class": { "$ref": "#/$defs/scope_change_class" },
+        "scope_change_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining the scope change verbatim. Required so reviewers can audit the user-visible delta without re-deriving it from individual mappings."
+        },
+        "affected_workflow_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/affected_workflow_class" },
+          "description": "Workflow classes the audited event impacts. The list MUST include no_workflows_affected when nothing was impacted; otherwise it MUST list every typed workflow class so reviewers can audit blast radius."
+        },
+        "queued_draft_disclosure_class": {
+          "$ref": "#/$defs/queued_draft_disclosure_class"
+        },
+        "queued_draft_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining what happened to publish-later queue items, browser-handoff packets, offline-capture controls, and other prepared drafts at the moment of the audited event."
+        },
+        "provider_authority_consequence_class": {
+          "$ref": "#/$defs/provider_authority_consequence_class"
+        },
+        "provider_authority_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining how provider authority changed (for example, Mutation paused until session is repaired; cached read state remains)."
+        },
+        "affected_mapping_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to project_or_board_mapping_records this audit record may have invalidated, narrowed, or parked."
+        },
+        "preserved_handoff_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to publish-later queue items, browser-handoff packets, offline-capture controls, or imported snapshots preserved across this event. Empty list permitted only when queued_draft_disclosure_class is no_queued_drafts."
+        },
+        "linked_account_mapping_binding_ref": {
+          "type": "string",
+          "description": "Opaque ref to the publish-later account_mapping_binding_record this event minted or transitioned."
+        },
+        "linked_default_target_resolution_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to default_target_resolution_records that were re-resolved as a consequence of this event."
+        },
+        "rationale_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence explaining why the event happened (for example, Admin policy narrowed default target to the triage board; previous user-default mapping is held)."
+        },
+        "diagnostics_links": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/diagnostics_link_record" }
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "account_switched MUST cite a non-empty to_account_binding_class and a non-empty queued_draft_disclosure_class.",
+          "if": {
+            "properties": {
+              "audit_hook_event_class": { "const": "account_switched" }
+            },
+            "required": ["audit_hook_event_class"]
+          },
+          "then": {
+            "required": [
+              "to_account_binding_class",
+              "queued_draft_disclosure_class"
+            ]
+          }
+        },
+        {
+          "description": "admin_policy_changed_target MUST cite at least one affected_mapping_ref and resolve to_default_target_resolution_class to admin_forced.",
+          "if": {
+            "properties": {
+              "audit_hook_event_class": {
+                "const": "admin_policy_changed_target"
+              }
+            },
+            "required": ["audit_hook_event_class"]
+          },
+          "then": {
+            "required": ["affected_mapping_refs"],
+            "properties": {
+              "affected_mapping_refs": { "minItems": 1 },
+              "to_default_target_resolution_class": {
+                "const": "admin_forced"
+              },
+              "scope_change_class": {
+                "enum": [
+                  "scope_narrowed_by_admin_policy",
+                  "scope_target_remapped_by_admin_policy",
+                  "scope_blocked_by_admin_policy"
+                ]
+              },
+              "provider_authority_consequence_class": {
+                "enum": [
+                  "authority_revoked_by_admin_policy",
+                  "authority_narrowed_by_admin_policy"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "seat_state_changed MUST disclose either authority_lost_with_seat_expiry, authority_lost_with_seat_revoked, authority_continues_under_new_actor, or authority_held_in_cached_read_only_shadow.",
+          "if": {
+            "properties": {
+              "audit_hook_event_class": { "const": "seat_state_changed" }
+            },
+            "required": ["audit_hook_event_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_authority_consequence_class": {
+                "enum": [
+                  "authority_lost_with_seat_expiry",
+                  "authority_lost_with_seat_revoked",
+                  "authority_continues_under_new_actor",
+                  "authority_held_in_cached_read_only_shadow",
+                  "authority_narrowed_by_admin_policy",
+                  "no_authority_change"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "session_invalidated MUST disclose authority_paused_until_session_repaired or authority_held_in_cached_read_only_shadow.",
+          "if": {
+            "properties": {
+              "audit_hook_event_class": { "const": "session_invalidated" }
+            },
+            "required": ["audit_hook_event_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_authority_consequence_class": {
+                "enum": [
+                  "authority_paused_until_session_repaired",
+                  "authority_held_in_cached_read_only_shadow"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "queued_draft_disclosure_class no_queued_drafts MUST pair with an empty preserved_handoff_state_refs list.",
+          "if": {
+            "properties": {
+              "queued_draft_disclosure_class": {
+                "const": "no_queued_drafts"
+              }
+            },
+            "required": ["queued_draft_disclosure_class"]
+          },
+          "then": {
+            "properties": {
+              "preserved_handoff_state_refs": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "queued_draft_disclosure_class outside no_queued_drafts MUST cite at least one preserved_handoff_state_ref.",
+          "if": {
+            "properties": {
+              "queued_draft_disclosure_class": {
+                "enum": [
+                  "queued_drafts_preserved_under_new_account",
+                  "queued_drafts_preserved_under_same_account",
+                  "queued_drafts_paused_pending_account_resolution",
+                  "queued_drafts_paused_pending_admin_policy_review",
+                  "queued_drafts_paused_pending_seat_repair",
+                  "queued_drafts_held_local_only_until_user_decides",
+                  "queued_drafts_dropped_after_review",
+                  "queued_drafts_invalidated_by_account_switch",
+                  "queued_drafts_invalidated_by_target_remap"
+                ]
+              }
+            },
+            "required": ["queued_draft_disclosure_class"]
+          },
+          "then": {
+            "properties": {
+              "preserved_handoff_state_refs": { "minItems": 1 }
+            }
+          }
+        }
+      ],
+      "description": "Reviewable account-switch audit record extending account_switch_audit_hook_record with explicit scope-change, affected-workflow, queued-draft, and provider-authority consequence disclosures so reviewers can audit the blast radius of an account or default-target change without re-deriving it from individual surfaces. Default targets and account switches MUST be explainable from this record rather than inferred from whichever provider callback arrived most recently."
+    }
+  }
+}
