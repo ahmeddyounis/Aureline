@@ -1,0 +1,740 @@
+# Retained-vs-ephemeral matrix.
+#
+# Machine-readable companion to
+# /artifacts/governance/records_chronology_delete_packet.md. Every row
+# narrows one of the five collaboration / support / imported record kinds
+# (presence_or_temporary_control_grant_row, comment_or_review_thread_row,
+# recording_or_transcript_or_replay_artifact_row,
+# deletion_event_or_audit_row, imported_or_support_evidence_packet_row)
+# into one default retained-vs-ephemeral posture and one admissible-set
+# of chronology / timezone / location / hold-note / exported-local-copy
+# / stable-delete-state / partial-blocker / remaining-location values.
+#
+# This matrix mints no vocabulary. Every closed-enum value below is
+# re-exported verbatim from the upstream contract / schema cited on
+# the row's `inherits_from` block. If this matrix and an upstream
+# schema disagree, the upstream schema wins and this matrix and the
+# packet plus the fixtures update in the same change.
+#
+# Conformance:
+#   - Every row MUST resolve `record_kind` through the closed
+#     collaboration `artifact_row_kind` enum at
+#     schemas/collaboration/recorded_artifact_row.schema.json.
+#   - Every row MUST resolve `default_retention_posture_class` through
+#     the closed six-class vocabulary in §2 of
+#     artifacts/governance/records_chronology_delete_packet.md.
+#   - Every row MUST cite at least one upstream contract and one
+#     upstream schema on `inherits_from[]` per axis.
+#   - Every row's `admissible_*` arrays MUST be non-empty unless the
+#     row's `default_retention_posture_class` is
+#     `ephemeral_default_no_capture` (in which case the
+#     `admissible_partial_blocker_class` and
+#     `admissible_remaining_location_class` arrays MAY be empty
+#     because no delete request is admitted on a live-only row).
+#   - Adding a vocabulary value (record_kind,
+#     default_retention_posture_class, evidence_source_class,
+#     current_state_class, timezone_basis_class, location_class,
+#     legal_hold_note_class, exported_local_copy_disclosure_class,
+#     stable_delete_state, partial_blocker_class,
+#     remaining_location_class) is additive-minor only when the
+#     upstream schema or contract advances first; this matrix MUST
+#     follow the upstream change in the same commit. Repurposing or
+#     removing a value is breaking and requires a new decision row in
+#     artifacts/governance/decision_register.yaml.
+#
+# Out of scope:
+#   - Retention enforcement, deletion backends, legal-hold tooling,
+#     collaboration transport, recording / transcription / replay,
+#     or compliance automation.
+#   - Legal-system integration. "legal_hold" here is the visible-row
+#     posture, not the back-office workflow.
+
+schema_version: 1
+catalog_id: aureline.retained_vs_ephemeral_matrix
+status: seeded
+
+contract_doc_ref: artifacts/governance/records_chronology_delete_packet.md
+fixtures_dir: fixtures/governance/record_delete_cases/
+
+upstream_sources:
+  retention_deletion_matrix:
+    contract_doc_ref: docs/governance/retention_deletion_matrix_contract.md
+    schemas:
+      - schemas/governance/retention_matrix_row.schema.json
+      - schemas/governance/delete_request_state.schema.json
+  collaboration_recorded_artifact_row:
+    contract_doc_ref: docs/collaboration/recording_retention_delete_contract.md
+    schemas:
+      - schemas/collaboration/recorded_artifact_row.schema.json
+      - schemas/collaboration/delete_path_status.schema.json
+  chronology_context:
+    contract_doc_ref: docs/governance/chronology_context_contract.md
+    schemas:
+      - schemas/governance/chronology_context.schema.json
+    register_ref: artifacts/governance/evidence_source_classes.yaml
+  records_governance_packet:
+    contract_doc_ref: docs/governance/records_governance_packet_contract.md
+    schemas:
+      - schemas/governance/records_governance_packet.schema.json
+  privacy_history_and_lifecycle:
+    contract_doc_ref: docs/governance/privacy_history_and_lifecycle_contract.md
+    schemas:
+      - schemas/governance/privacy_history_event.schema.json
+      - schemas/governance/export_delete_request_summary.schema.json
+  record_class_registry:
+    artifact_ref: artifacts/governance/record_class_registry.yaml
+    schemas:
+      - schemas/governance/record_class.schema.json
+  storage_and_retention_vocabulary:
+    contract_doc_ref: docs/governance/storage_and_retention_vocabulary.md
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per record kind in scope. Adding a record kind requires
+# the upstream collaboration `artifact_row_kind` enum to advance first.
+# -----------------------------------------------------------------------------
+rows:
+  - row_id: presence_or_temporary_control_grant_row
+    record_kind: presence_or_temporary_control_grant_row
+    record_class_refs:
+      - workspace_session_handle
+      - workspace_collaboration_grant
+    summary: >
+      Session-presence rows and the typed temporary control grants
+      for terminal / debugger / runbook lanes. The grant itself, not
+      the lane payload. Default-ephemeral; nothing is retained
+      unless the granted lane's retention row explicitly admits
+      capture.
+    default_retention_posture_class: ephemeral_default_no_capture
+    admissible_chronology_evidence_source_class:
+      - live_system_truth
+      - live_with_bounded_skew
+    admissible_current_state_class:
+      - live_current_system_state
+    admissible_consumer_row_kind:
+      - enterprise_session_row
+      - capture_event_row
+    admissible_timezone_basis_class:
+      - device_local_iana
+      - deployment_pinned_iana
+    admissible_relative_time_basis_class:
+      - since_now_live
+      - since_now_with_skew_label
+      - since_session_end
+    admissible_location_class:
+      - no_location_live_only
+      - local_workspace_only
+    admissible_recording_state_class:
+      - default_ephemeral_no_capture
+      - never_admitted_at_this_mode
+      - capturing_now
+    admissible_legal_hold_note_class:
+      - no_hold
+    admissible_exported_local_copy_disclosure_class:
+      - no_local_copy_exported
+    admissible_stable_delete_state: []
+    admissible_partial_blocker_class: []
+    admissible_remaining_location_class:
+      - no_remaining_location
+    admissible_delete_path_status_class:
+      - deletion_not_applicable_live_only_row
+    admissible_follow_up_wording_class:
+      - no_follow_up_needed
+    delete_request_state_required: false
+    delete_request_state_omitted_reason_when_required: no_request_admissible_live_only_row
+    inherits_from:
+      - axis: record_kind
+        source: collaboration_recorded_artifact_row
+      - axis: recording_state_class
+        source: collaboration_recorded_artifact_row
+      - axis: location_class
+        source: collaboration_recorded_artifact_row
+      - axis: legal_hold_note_class
+        source: collaboration_recorded_artifact_row
+      - axis: chronology_evidence_source_class
+        source: chronology_context
+      - axis: current_state_class
+        source: chronology_context
+      - axis: timezone_basis_class
+        source: chronology_context
+      - axis: relative_time_basis_class
+        source: chronology_context
+      - axis: delete_path_status_class
+        source: collaboration_recorded_artifact_row
+      - axis: follow_up_wording_class
+        source: collaboration_recorded_artifact_row
+    honesty_invariants:
+      held_or_retained_not_reported_destroyed: true
+      raw_payloads_not_embedded: true
+      live_only_row_must_resolve_to_no_retention_owner_and_no_location: true
+    notes:
+      - Live-only rows MUST resolve recorded-artifact `retention_owner_class` to `no_retention_owner_live_only` and `location_class` to `no_location_live_only` per the upstream collaboration contract.
+      - A presence row that admits a temporary control grant inherits the granted lane's retention posture for the duration of the grant; the row itself remains ephemeral.
+
+  - row_id: comment_or_review_thread_row
+    record_kind: comment_or_review_thread_row
+    record_class_refs:
+      - collaboration_evidence_packet
+    summary: >
+      Anchored comments and review threads. Local cache is
+      regenerable while the managed archive is authoritative; local
+      and managed deletes are distinct actions. Retained by default
+      under workspace-owned retention.
+    default_retention_posture_class: retained_hybrid_local_and_managed
+    admissible_chronology_evidence_source_class:
+      - live_with_bounded_skew
+      - mirrored_managed_surface
+    admissible_current_state_class:
+      - retained_artifact_managed_authoritative
+      - live_current_system_state
+    admissible_consumer_row_kind:
+      - comment_or_review_thread_row
+    admissible_timezone_basis_class:
+      - device_local_iana
+      - deployment_pinned_iana
+      - canonical_utc
+    admissible_relative_time_basis_class:
+      - since_now_with_skew_label
+      - since_now_live
+    admissible_location_class:
+      - local_workspace_only
+      - hosted_managed_surface_only
+      - hosted_managed_surface_plus_local_workspace
+      - hosted_managed_surface_plus_local_export_copy
+    admissible_recording_state_class:
+      - captured_no_export
+      - captured_export_available
+    admissible_legal_hold_note_class:
+      - no_hold
+      - hold_active_user_delete_blocked
+      - hold_active_user_delete_recorded_not_completed
+      - hold_recently_cleared
+    admissible_exported_local_copy_disclosure_class:
+      - no_local_copy_exported
+      - local_copy_exported_and_disclosed
+      - local_copy_exported_disclosure_pending_consent_acknowledgement
+    admissible_stable_delete_state:
+      - delete_requested
+      - policy_retention
+      - legal_hold
+      - delete_completed
+      - exported_copy_remains_local
+    admissible_partial_blocker_class:
+      - sync_backlog
+      - provider_backlog
+      - export_pending_hold
+      - policy_retention_floor
+      - legal_hold
+      - support_investigation
+      - managed_service_unavailable
+    admissible_remaining_location_class:
+      - local_device_only
+      - local_export_copy
+      - managed_archive_held
+      - managed_archive_policy_retained
+      - managed_archive_replicated_pending_purge
+      - destruction_receipt_only
+      - no_remaining_location
+    admissible_delete_path_status_class:
+      - deletion_not_yet_requested_inspectable_only
+      - deletion_requested_not_yet_completed
+      - deletion_blocked_policy_retained
+      - deletion_blocked_legal_hold
+      - deletion_completed_receipt_logged
+      - deletion_completed_but_exported_local_copy_surviving
+    admissible_follow_up_wording_class:
+      - no_follow_up_needed
+      - follow_up_user_can_request_delete
+      - follow_up_admin_action_required
+      - follow_up_legal_hold_review_required
+      - follow_up_user_must_delete_local_copy_separately
+    delete_request_state_required: true
+    delete_request_state_omitted_reason_when_required: not_applicable
+    inherits_from:
+      - axis: record_kind
+        source: collaboration_recorded_artifact_row
+      - axis: recording_state_class
+        source: collaboration_recorded_artifact_row
+      - axis: location_class
+        source: collaboration_recorded_artifact_row
+      - axis: legal_hold_note_class
+        source: collaboration_recorded_artifact_row
+      - axis: exported_local_copy_disclosure_class
+        source: collaboration_recorded_artifact_row
+      - axis: chronology_evidence_source_class
+        source: chronology_context
+      - axis: current_state_class
+        source: chronology_context
+      - axis: timezone_basis_class
+        source: chronology_context
+      - axis: relative_time_basis_class
+        source: chronology_context
+      - axis: stable_delete_state
+        source: retention_deletion_matrix
+      - axis: partial_blocker_class
+        source: retention_deletion_matrix
+      - axis: remaining_location_class
+        source: retention_deletion_matrix
+      - axis: delete_path_status_class
+        source: collaboration_recorded_artifact_row
+      - axis: follow_up_wording_class
+        source: collaboration_recorded_artifact_row
+    honesty_invariants:
+      held_or_retained_not_reported_destroyed: true
+      raw_payloads_not_embedded: true
+      local_export_copy_disclosed_when_required: true
+      policy_owner_named: true
+      handoff_does_not_widen_scope: true
+    notes:
+      - Local removal of a comment is immediate; managed delete propagates through the workspace sync queue and emits a destruction receipt on completion.
+      - A row whose managed mirror is mid-sync MUST stay in `delete_requested` with `change_class = after_sync_backlog_clears` until the queue clears; flipping to `delete_completed` before the destruction receipt arrives is non-conforming.
+
+  - row_id: recording_or_transcript_or_replay_artifact_row
+    record_kind: recording_or_transcript_or_replay_artifact_row
+    record_class_refs:
+      - collaboration_evidence_packet
+    summary: >
+      Full-session recording, text-only transcript,
+      structured-captions transcript, and replay-artifact metadata
+      sealed at archive seal. Default-ephemeral; admitted only
+      under explicit-enable (user-required) or admin-signed
+      policy-forced posture.
+    default_retention_posture_class: ephemeral_default_no_capture
+    explicit_enable_admits_retention_posture_class:
+      - retained_managed_authoritative
+      - retained_hybrid_local_and_managed
+    admissible_chronology_evidence_source_class:
+      - live_system_truth
+      - live_with_bounded_skew
+      - mirrored_managed_surface
+      - support_bundle_replay
+      - recovery_snapshot_replay
+    admissible_current_state_class:
+      - live_current_system_state
+      - retained_artifact_managed_authoritative
+      - retained_artifact_support_replay
+      - retained_artifact_recovery_replay
+    admissible_consumer_row_kind:
+      - enterprise_session_row
+      - capture_event_row
+    admissible_timezone_basis_class:
+      - device_local_iana
+      - deployment_pinned_iana
+      - canonical_utc
+    admissible_relative_time_basis_class:
+      - since_now_live
+      - since_now_with_skew_label
+      - since_session_end
+      - since_replay_window_end
+    admissible_location_class:
+      - hosted_managed_surface_only
+      - hosted_managed_surface_plus_local_workspace
+      - hosted_managed_surface_plus_local_export_copy
+      - sealed_session_archive_only
+    admissible_recording_state_class:
+      - default_ephemeral_no_capture
+      - explicit_enable_pending_capture
+      - capturing_now
+      - captured_no_export
+      - captured_export_available
+      - paused_temporary
+      - stopped_finalized
+      - never_admitted_at_this_mode
+    admissible_default_ephemeral_versus_explicit_enable_class:
+      - default_ephemeral_not_admitted
+      - default_ephemeral_admitted_metadata_only
+      - explicit_enable_user_required
+      - explicit_enable_policy_forced_admin_signed
+    admissible_legal_hold_note_class:
+      - no_hold
+      - hold_active_user_delete_blocked
+      - hold_active_user_delete_recorded_not_completed
+      - hold_recently_cleared
+    admissible_exported_local_copy_disclosure_class:
+      - no_local_copy_exported
+      - local_copy_exported_and_disclosed
+      - local_copy_exported_disclosure_pending_consent_acknowledgement
+    admissible_stable_delete_state:
+      - delete_requested
+      - policy_retention
+      - legal_hold
+      - delete_completed
+      - exported_copy_remains_local
+    admissible_partial_blocker_class:
+      - policy_retention_floor
+      - legal_hold
+      - support_investigation
+      - export_pending_hold
+      - sync_backlog
+      - provider_backlog
+      - managed_service_unavailable
+    admissible_remaining_location_class:
+      - local_export_copy
+      - managed_archive_held
+      - managed_archive_policy_retained
+      - managed_archive_replicated_pending_purge
+      - destruction_receipt_only
+      - no_remaining_location
+    admissible_delete_path_status_class:
+      - deletion_not_yet_requested_inspectable_only
+      - deletion_requested_not_yet_completed
+      - deletion_blocked_policy_retained
+      - deletion_blocked_legal_hold
+      - deletion_completed_receipt_logged
+      - deletion_completed_but_exported_local_copy_surviving
+    admissible_follow_up_wording_class:
+      - no_follow_up_needed
+      - follow_up_user_can_request_delete
+      - follow_up_admin_action_required
+      - follow_up_legal_hold_review_required
+      - follow_up_user_must_delete_local_copy_separately
+    delete_request_state_required: true
+    delete_request_state_omitted_reason_when_required: not_applicable
+    inherits_from:
+      - axis: record_kind
+        source: collaboration_recorded_artifact_row
+      - axis: recording_state_class
+        source: collaboration_recorded_artifact_row
+      - axis: default_ephemeral_versus_explicit_enable_class
+        source: collaboration_recorded_artifact_row
+      - axis: location_class
+        source: collaboration_recorded_artifact_row
+      - axis: legal_hold_note_class
+        source: collaboration_recorded_artifact_row
+      - axis: exported_local_copy_disclosure_class
+        source: collaboration_recorded_artifact_row
+      - axis: chronology_evidence_source_class
+        source: chronology_context
+      - axis: current_state_class
+        source: chronology_context
+      - axis: timezone_basis_class
+        source: chronology_context
+      - axis: relative_time_basis_class
+        source: chronology_context
+      - axis: stable_delete_state
+        source: retention_deletion_matrix
+      - axis: partial_blocker_class
+        source: retention_deletion_matrix
+      - axis: remaining_location_class
+        source: retention_deletion_matrix
+      - axis: delete_path_status_class
+        source: collaboration_recorded_artifact_row
+      - axis: follow_up_wording_class
+        source: collaboration_recorded_artifact_row
+    honesty_invariants:
+      held_or_retained_not_reported_destroyed: true
+      raw_payloads_not_embedded: true
+      local_export_copy_disclosed_when_required: true
+      recording_must_be_explicit_enable_or_policy_forced: true
+      raw_code_capture_not_admitted_without_policy_ref: true
+    notes:
+      - A row whose `recording_state_class` rises above `default_ephemeral_no_capture` MUST resolve `default_ephemeral_versus_explicit_enable_class` to `explicit_enable_user_required` or `explicit_enable_policy_forced_admin_signed`.
+      - When a managed delete completes but a downloaded export survives the row resolves to `stable_delete_state = exported_copy_remains_local`, `delete_path_status_class = deletion_completed_but_exported_local_copy_surviving`, `exported_local_copy_disclosure_class = local_copy_exported_and_disclosed`, and the remaining-location list MUST include `local_export_copy`.
+
+  - row_id: deletion_event_or_audit_row
+    record_kind: deletion_event_or_audit_row
+    record_class_refs:
+      - support_bundle_archive
+      - collaboration_evidence_packet
+    summary: >
+      The deletion-event audit row itself plus collaboration audit
+      events admitted as visible rows. Metadata-only; never collapses
+      to "delete completed" while the bound delete-request is held
+      or partially blocked.
+    default_retention_posture_class: retained_managed_authoritative
+    admissible_chronology_evidence_source_class:
+      - live_with_bounded_skew
+      - mirrored_managed_surface
+      - support_bundle_replay
+      - recovery_snapshot_replay
+    admissible_current_state_class:
+      - retained_artifact_managed_authoritative
+      - retained_artifact_support_replay
+      - retained_artifact_recovery_replay
+    admissible_consumer_row_kind:
+      - deletion_event_row
+      - audit_event_row
+    admissible_timezone_basis_class:
+      - canonical_utc
+      - device_local_iana
+      - deployment_pinned_iana
+    admissible_relative_time_basis_class:
+      - since_now_with_skew_label
+      - since_replay_window_end
+    admissible_location_class:
+      - hosted_managed_surface_only
+      - sealed_session_archive_only
+    admissible_recording_state_class:
+      - captured_no_export
+      - captured_export_available
+    admissible_legal_hold_note_class:
+      - no_hold
+      - hold_active_user_delete_blocked
+      - hold_active_user_delete_recorded_not_completed
+      - hold_recently_cleared
+    admissible_exported_local_copy_disclosure_class:
+      - no_local_copy_exported
+    admissible_stable_delete_state:
+      - delete_requested
+      - policy_retention
+      - legal_hold
+      - delete_completed
+    admissible_deletion_event_state_class:
+      - delete_requested
+      - policy_retention
+      - legal_hold
+      - delete_completed
+      - exported_copy_remains_local
+    admissible_partial_blocker_class:
+      - policy_retention_floor
+      - legal_hold
+      - support_investigation
+      - sync_backlog
+      - provider_backlog
+      - managed_service_unavailable
+    admissible_remaining_location_class:
+      - managed_archive_held
+      - managed_archive_policy_retained
+      - destruction_receipt_only
+      - no_remaining_location
+    admissible_delete_path_status_class:
+      - deletion_requested_not_yet_completed
+      - deletion_blocked_policy_retained
+      - deletion_blocked_legal_hold
+      - deletion_completed_receipt_logged
+    admissible_follow_up_wording_class:
+      - no_follow_up_needed
+      - follow_up_admin_action_required
+      - follow_up_legal_hold_review_required
+    delete_request_state_required: true
+    delete_request_state_omitted_reason_when_required: not_applicable
+    inherits_from:
+      - axis: record_kind
+        source: collaboration_recorded_artifact_row
+      - axis: deletion_event_state_class
+        source: chronology_context
+      - axis: chronology_evidence_source_class
+        source: chronology_context
+      - axis: current_state_class
+        source: chronology_context
+      - axis: timezone_basis_class
+        source: chronology_context
+      - axis: relative_time_basis_class
+        source: chronology_context
+      - axis: stable_delete_state
+        source: retention_deletion_matrix
+      - axis: partial_blocker_class
+        source: retention_deletion_matrix
+      - axis: remaining_location_class
+        source: retention_deletion_matrix
+      - axis: delete_path_status_class
+        source: collaboration_recorded_artifact_row
+      - axis: follow_up_wording_class
+        source: collaboration_recorded_artifact_row
+    honesty_invariants:
+      held_or_retained_not_reported_destroyed: true
+      raw_payloads_not_embedded: true
+      deletion_event_held_row_never_renders_as_completed: true
+      policy_owner_named: true
+    notes:
+      - A deletion-event row whose `deletion_event_state_class` is `policy_retention` or `legal_hold` MUST NOT render with the `delete_completed` chip; the row remains visible and named through the bound `delete_request_state_record`.
+      - Every deletion-event chronology row cites `delete_request_state_ref` through `chronology_context.deletion_event_extras.delete_request_state_ref`.
+
+  - row_id: imported_or_support_evidence_packet_row
+    record_kind: imported_or_support_evidence_packet_row
+    record_class_refs:
+      - support_bundle_archive
+    summary: >
+      Imported support evidence packets and externally-sourced
+      compliance imports the session admits as visible rows but
+      does not itself originate. Authoritative copy lives at the
+      import origin and is outside Aureline's delete path.
+    default_retention_posture_class: retained_at_import_origin_outside_aureline
+    admissible_chronology_evidence_source_class:
+      - imported_remote_agent
+      - imported_extension
+      - imported_external_audit_trail
+      - support_bundle_replay
+      - recovery_snapshot_replay
+      - offline_local_evidence_packet
+    admissible_current_state_class:
+      - retained_artifact_imported_origin
+      - retained_artifact_support_replay
+      - retained_artifact_recovery_replay
+      - retained_artifact_offline_local
+    admissible_consumer_row_kind:
+      - support_bundle_row
+      - audit_event_row
+      - incident_timeline_row
+    admissible_timezone_basis_class:
+      - imported_origin_zone_labeled
+      - canonical_utc
+      - deployment_pinned_iana
+    admissible_relative_time_basis_class:
+      - since_import_window_end
+      - since_replay_window_end
+      - since_offline_window_end
+    admissible_imported_artifact_disclosure_class:
+      - imported_window_disclosed
+      - imported_window_disclosed_with_skew_label
+      - replay_window_disclosed
+      - offline_window_disclosed
+    admissible_location_class:
+      - third_party_import_origin
+    admissible_recording_state_class:
+      - captured_no_export
+      - captured_export_available
+    admissible_legal_hold_note_class:
+      - no_hold
+      - hold_active_user_delete_blocked
+      - hold_active_user_delete_recorded_not_completed
+    admissible_exported_local_copy_disclosure_class:
+      - no_local_copy_exported
+      - local_copy_exported_and_disclosed
+    admissible_default_ephemeral_versus_explicit_enable_class:
+      - imported_origin_not_subject_to_default
+    admissible_export_availability_class:
+      - no_export_available
+      - third_party_re_export_outside_aureline_scope
+    admissible_irreversible_share_warning_class:
+      - third_party_export_irreversible
+    admissible_stable_delete_state:
+      - delete_requested
+      - legal_hold
+    admissible_partial_blocker_class:
+      - import_source_unreachable
+      - outside_platform_scope
+      - legal_hold
+      - support_investigation
+    admissible_remaining_location_class:
+      - import_source_origin
+      - local_export_copy
+    admissible_delete_path_status_class:
+      - deletion_not_yet_requested_inspectable_only
+      - deletion_blocked_legal_hold
+    admissible_follow_up_wording_class:
+      - follow_up_third_party_origin_outside_aureline_scope
+      - follow_up_legal_hold_review_required
+    delete_request_state_required: false
+    delete_request_state_omitted_reason_when_required: imported_origin_outside_aureline_delete_path
+    inherits_from:
+      - axis: record_kind
+        source: collaboration_recorded_artifact_row
+      - axis: recording_state_class
+        source: collaboration_recorded_artifact_row
+      - axis: default_ephemeral_versus_explicit_enable_class
+        source: collaboration_recorded_artifact_row
+      - axis: location_class
+        source: collaboration_recorded_artifact_row
+      - axis: export_availability_class
+        source: collaboration_recorded_artifact_row
+      - axis: irreversible_share_warning_class
+        source: collaboration_recorded_artifact_row
+      - axis: legal_hold_note_class
+        source: collaboration_recorded_artifact_row
+      - axis: chronology_evidence_source_class
+        source: chronology_context
+      - axis: current_state_class
+        source: chronology_context
+      - axis: timezone_basis_class
+        source: chronology_context
+      - axis: relative_time_basis_class
+        source: chronology_context
+      - axis: imported_artifact_disclosure_class
+        source: chronology_context
+      - axis: stable_delete_state
+        source: retention_deletion_matrix
+      - axis: partial_blocker_class
+        source: retention_deletion_matrix
+      - axis: remaining_location_class
+        source: retention_deletion_matrix
+      - axis: delete_path_status_class
+        source: collaboration_recorded_artifact_row
+      - axis: follow_up_wording_class
+        source: collaboration_recorded_artifact_row
+    honesty_invariants:
+      held_or_retained_not_reported_destroyed: true
+      raw_payloads_not_embedded: true
+      imported_origin_not_silently_re_owned: true
+      live_state_not_claimed_on_imported_row: true
+      live_state_not_claimed_on_replay_row: true
+      live_state_not_claimed_on_offline_row: true
+    notes:
+      - An imported row MUST cite the import-origin manifest through `chronology_context.evidence_source_ref` and MUST carry a non-null `import_declared` block when the source class is in the imported family.
+      - An Aureline-internal delete request against an imported packet cannot affect the import-origin copy; the user MUST be sent back to the import origin and the row resolves to `follow_up_third_party_origin_outside_aureline_scope`.
+      - A row that resolves `evidence_source_class` to `offline_local_evidence_packet` carries a non-null `chronology_context.offline_window` block and resolves the relative-time basis to `since_offline_window_end`.
+
+# -----------------------------------------------------------------------------
+# Cross-row alignment table.
+# Names how each axis flows from the upstream contract through this matrix
+# without renaming. A surface that mints "shared session retention",
+# "support archive hold", or "imported evidence delete" wording instead
+# of resolving through the table below is non-conforming.
+# -----------------------------------------------------------------------------
+alignment_table:
+  - axis: retained_vs_ephemeral_default
+    collaboration_vocabulary: recording_state_class
+    governance_vocabulary: retention_matrix_row.default_retention.trigger_class_and_duration_class
+    support_vocabulary: records_governance_packet.record_class_registry_diff
+  - axis: local_vs_hosted
+    collaboration_vocabulary: location_class
+    governance_vocabulary: retention_matrix_row.location_class
+    support_vocabulary: records_governance_packet.export_delete_contract_status
+  - axis: stable_delete_state
+    collaboration_vocabulary: delete_path_status_class
+    governance_vocabulary: delete_request_state.stable_delete_state
+    support_vocabulary: records_governance_packet.export_delete_contract_status.delete_request_state_status_class
+  - axis: partial_blocker
+    collaboration_vocabulary: hold_kind_class
+    governance_vocabulary: delete_request_state.partial_blockers.blocker_class
+    support_vocabulary: records_governance_packet.open_held_data_caveats.caveat_class
+  - axis: remaining_location
+    collaboration_vocabulary: exported_local_copy_disclosure_class
+    governance_vocabulary: delete_request_state.remaining_location_disclosure.locations.location_class
+    support_vocabulary: records_governance_packet.open_held_data_caveats.affected_matrix_row_refs
+  - axis: imported_vs_live_distinction
+    collaboration_vocabulary: default_ephemeral_versus_explicit_enable_class.imported_origin_not_subject_to_default
+    governance_vocabulary: chronology_context.evidence_source_class_and_current_state_class
+    support_vocabulary: records_governance_packet.linked_artifact_families.collaboration_evidence_refs_and_support_export_packet_refs
+
+# -----------------------------------------------------------------------------
+# Cross-cutting honesty invariants.
+# Every row in this matrix MUST honor these invariants in addition to the
+# row-level invariants listed in the `honesty_invariants` block above.
+# -----------------------------------------------------------------------------
+cross_cutting_invariants:
+  - invariant_id: held_or_retained_not_reported_destroyed
+    description: A row with a retention floor or hold eligibility MUST surface `Policy retention` or `Legal hold` rather than reporting `Delete completed`.
+    inherits_from:
+      - retention_deletion_matrix
+      - records_governance_packet
+  - invariant_id: raw_payloads_not_embedded
+    description: Rows carry typed ids and reviewable sentences only. Raw payload bodies, raw credentials, raw policy bundle bytes, raw prompts, and raw hold justifications never appear.
+    inherits_from:
+      - retention_deletion_matrix
+      - collaboration_recorded_artifact_row
+      - chronology_context
+      - records_governance_packet
+  - invariant_id: live_state_not_claimed_on_imported_offline_or_replayed_row
+    description: A row whose `evidence_source_class` is in the imported / offline / replay families MUST NOT resolve `current_state_class` to `live_current_system_state`.
+    inherits_from:
+      - chronology_context
+  - invariant_id: imported_origin_not_silently_re_owned
+    description: Imported rows preserve their `import_declared` block and never resolve `retention_owner_class` to anything other than `third_party_imported_origin`.
+    inherits_from:
+      - collaboration_recorded_artifact_row
+      - chronology_context
+  - invariant_id: local_export_copy_disclosed_when_required
+    description: When a managed delete completes but a downloaded export survives, the row resolves to `exported_copy_remains_local` and lists `local_export_copy` on the remaining-location disclosure.
+    inherits_from:
+      - retention_deletion_matrix
+      - collaboration_recorded_artifact_row
+  - invariant_id: expected_next_state_change_disclosed
+    description: Every delete request cites a typed `change_class`; "should be quick" / "still working on it" substitutes are non-conforming.
+    inherits_from:
+      - retention_deletion_matrix
+  - invariant_id: handoff_does_not_widen_scope
+    description: Typed support / admin / compliance handoff packets never include payloads outside the matrix rows in scope.
+    inherits_from:
+      - retention_deletion_matrix
+      - records_governance_packet

@@ -1,0 +1,238 @@
+__fixture__:
+  name: comment_thread_sync_delayed_delete
+  scenario: >
+    A workspace member deletes a thread of review comments. The local
+    copy is removed immediately, but the managed mirror is mid-sync;
+    the request stays in Delete requested while a sync_backlog
+    blocker gates the next state change. The chronology row is
+    rendered from the mirrored managed surface (with a
+    since_now_with_skew_label basis), and the remaining-location
+    disclosure names the managed mirror that is propagating the
+    delete to replicas. Held-vs-completed honesty: the row never
+    flips to Delete completed before the destruction receipt
+    arrives.
+  matrix_row_ref: comment_or_review_thread_row
+  contract_sections:
+    - "1. Record kinds in scope"
+    - "3. Chronology layer"
+    - "4. Delete-request progression rows"
+    - "5. Remaining-location disclosure rows"
+    - "6. Local-vs-hosted distinction"
+    - "8. Legal-hold honesty"
+    - "10. Vocabulary alignment"
+    - "11. Honesty invariants"
+  honesty_invariants_asserted:
+    - held_or_retained_not_reported_destroyed
+    - raw_payloads_not_embedded
+    - live_state_not_claimed_on_imported_offline_or_replayed_row
+    - expected_next_state_change_disclosed
+    - policy_owner_named
+    - handoff_does_not_widen_scope
+
+record_delete_case:
+  record_delete_case_schema_version: 1
+  record_kind_label: record_delete_case_record
+  case_id: record_delete_case:comment_thread.sync_delayed.thread_42
+  matrix_row_ref: comment_or_review_thread_row
+  record_kind: comment_or_review_thread_row
+  default_retention_posture_class: retained_hybrid_local_and_managed
+  case_summary: >
+    Workspace review comment thread delete; local removed, managed
+    mirror mid-sync, sync_backlog gates the next state change.
+
+chronology_context:
+  chronology_context_schema_version: 1
+  record_kind: chronology_context_record
+  chronology_context_id: chrono:ctx:comment:thread:42:sync_delayed:01
+  consumer_row_kind: comment_or_review_thread_row
+  evidence_source_class: mirrored_managed_surface
+  current_state_class: retained_artifact_managed_authoritative
+  evidence_source_ref: manifest:managed:workspace-comments:design-review
+  timestamp_envelope_ref: ts:env:mirror:workspace-comments:thread-42:01
+  timestamp_envelope_record_kind: timestamp_envelope_record
+  timezone_basis:
+    timezone_basis_class: device_local_iana
+    display_time_zone_iana: America/Los_Angeles
+    timezone_basis_label: Times shown in your device's time zone (America/Los_Angeles); managed origin renders in UTC on export.
+  relative_time_presentation:
+    relative_time_basis_class: since_now_with_skew_label
+    absolute_time_basis_class: local_date_time_short
+    both_forms_coexist_on_row: true
+    relative_time_label: Comment thread delete requested about a minute ago; managed mirror is mid-sync.
+  imported_artifact_disclosure:
+    imported_artifact_disclosure_class: not_imported_live_or_local
+    disclosure_label: Mirrored from managed workspace surface; authoritative copy lives on the managed surface.
+  import_declared: null
+  offline_window: null
+  mirror_lag_state_class: mirror_lag_within_tolerance
+  deletion_event_extras: null
+  enterprise_session_extras: null
+  linked_evidence:
+    linked_history_row_id_ref: null
+    linked_run_id_ref: null
+    linked_trace_span_id_ref: null
+    linked_task_event_id_ref: null
+    linked_record_state_id_ref: state:record:review-comments:thread-42
+    linked_support_bundle_id_ref: null
+    linked_recovery_manifest_id_ref: null
+    linked_chronology_export_preview_id_ref: null
+  row_summary_label: Workspace comment thread row; managed mirror mid-sync.
+  minted_at: "2026-04-29T16:00:30Z"
+
+delete_request_state:
+  delete_request_state_schema_version: 1
+  record_kind: delete_request_state_record
+  request_id: delete-request:review-comments:thread-42
+  requester:
+    actor_class: user
+    actor_ref: actor:user:opaque-member
+    display_role: Workspace member
+  source_flow: collaboration_session
+  source_ref: review-thread:thread-42
+  scope:
+    scope_class: workspace
+    scope_refs:
+      - workspace:opaque-design-review
+    matrix_row_refs:
+      - workspace_review_comments_thread
+    scope_note: Scope covers a single review-comment thread within the design-review workspace.
+  stable_delete_state: delete_requested
+  stable_state_label: Delete requested
+  completion_claim: delete_requested_not_complete
+  requested_at:
+    utc_instant: "2026-04-29T16:00:00Z"
+    local_iso_with_offset: "2026-04-29T09:00:00-07:00"
+    timezone_id: America/Los_Angeles
+    source_clock_class: local_wall_clock_synchronized
+  updated_at:
+    utc_instant: "2026-04-29T16:00:30Z"
+    local_iso_with_offset: "2026-04-29T09:00:30-07:00"
+    timezone_id: America/Los_Angeles
+    source_clock_class: local_wall_clock_synchronized
+  expected_next_state_change:
+    change_class: after_sync_backlog_clears
+    gate_ref: workspace-sync-queue:design-review:opaque
+    summary: The next state change occurs once the workspace sync queue propagates the delete to managed replicas.
+  remaining_location_disclosure:
+    locations:
+      - location_class: managed_archive_replicated_pending_purge
+        matrix_row_ref: workspace_review_comments_thread
+        artifact_refs:
+          - managed-archive:design-review:thread-42
+        summary: The managed archive copy is propagating delete to replicas and is awaiting purge confirmation.
+    honesty_note: A managed copy of the thread still exists and is mid-purge; this request is not yet Delete completed.
+  partial_blockers:
+    - blocker_id: blocker:sync-backlog:design-review:opaque
+      blocker_class: sync_backlog
+      service_surface_ref: workspace-sync-queue:design-review:opaque
+      expected_clear_at:
+        utc_instant: "2026-04-29T17:00:00Z"
+        local_iso_with_offset: "2026-04-29T10:00:00-07:00"
+        timezone_id: America/Los_Angeles
+        source_clock_class: local_wall_clock_synchronized
+      affected_matrix_row_refs:
+        - workspace_review_comments_thread
+      note: Sync queue propagates workspace-comment deletes to managed replicas within the documented backlog window.
+  handoff_packets: []
+  audit_linkage:
+    privacy_history_event_refs: []
+    governed_record_refs:
+      - governed-record:review-comments:thread-42
+    deletion_job_refs:
+      - deletion-job:review-comments:thread-42
+    destruction_receipt_refs: []
+    support_bundle_refs: []
+    export_manifest_refs: []
+    policy_refs:
+      - policy:workspace-retention:design-review
+  honesty_assertions:
+    held_or_retained_not_reported_destroyed: true
+    raw_payloads_not_embedded: true
+    remaining_location_disclosed_when_required: true
+    expected_next_state_change_disclosed: true
+    handoff_does_not_widen_scope: true
+  notes: >
+    Renderers MUST hold Delete requested until the sync queue gate
+    clears; flipping to Delete completed before the destruction
+    receipt arrives is non-conforming.
+
+collaboration_recorded_artifact_row:
+  record_kind: collaboration_recorded_artifact_row_record
+  recorded_artifact_row_schema_version: 1
+  recorded_artifact_row_id: collab:recorded-artifact-row:comment:thread-42:01
+  policy_manifest_ref: collab:policy-manifest:workspace-design-review
+  retention_row_ref: collab:retention-row:workspace-design-review:thread-42
+  delete_path_status_ref: collab:delete-path-status:comment:thread-42:01
+  session_ref: collab:session:design-review:01
+  imported_evidence_packet_ref: null
+  artifact_row_kind: comment_or_review_thread_row
+  recording_state_class: captured_export_available
+  retention_owner_class: host_org
+  location_class: hosted_managed_surface_plus_local_workspace
+  export_availability_class: user_self_service_export
+  default_ephemeral_versus_explicit_enable_class: explicit_enable_user_required
+  legal_hold_note_class: no_hold
+  irreversible_share_warning_class: no_irreversible_share
+  policy_context:
+    policy_bundle_ref: policy:bundle:workspace-design-review
+    policy_epoch_ref: policy:epoch:workspace-design-review
+    deployment_profile_class: enterprise_online
+    workspace_trust_state_class: trusted
+  summary_label: Workspace review comment thread; managed archive authoritative, local cache regenerable.
+  freshness_class: mirrored_with_bounded_skew
+  client_scopes: [collaboration_session_inspector, support_handoff_packet_preview]
+
+collaboration_delete_path_status:
+  record_kind: collaboration_delete_path_status_record
+  delete_path_status_schema_version: 1
+  delete_path_status_id: collab:delete-path-status:comment:thread-42:01
+  recorded_artifact_row_ref: collab:recorded-artifact-row:comment:thread-42:01
+  delete_path_status_class: deletion_requested_not_yet_completed
+  delete_path_status_label: "Delete requested, not yet completed"
+  follow_up_wording_class: no_follow_up_needed
+  hold_kind_class: null
+  legal_hold_note_class: no_hold
+  inspection_window_class: inspectable_before_and_after_session_end
+  before_session_end_inspectable: true
+  after_session_end_inspectable: true
+  exported_local_copy_disclosure_class: no_local_copy_exported
+  delete_request_state_ref: delete-request:review-comments:thread-42
+  summary_label: Managed delete propagating; sync backlog gates completion.
+
+remaining_location_disclosure_review_row:
+  bound_stable_delete_state: delete_requested
+  remaining_location_classes:
+    - managed_archive_replicated_pending_purge
+  remaining_location_summary: >
+    The managed archive replica is mid-purge; one managed location
+    remains under propagation and there is no destruction receipt
+    yet.
+
+delete_request_progression_review_row:
+  bound_stable_delete_state: delete_requested
+  expected_next_state_change_class: after_sync_backlog_clears
+  partial_blocker_classes:
+    - sync_backlog
+  progression_summary: >
+    Stays in Delete requested until the workspace sync queue clears
+    the backlog; "should be quick" / "still working on it" are
+    non-conforming substitutes.
+
+honesty_assertions:
+  held_or_retained_not_reported_destroyed: true
+  raw_payloads_not_embedded: true
+  live_state_not_claimed_on_imported_offline_or_replayed_row: true
+  imported_origin_not_silently_re_owned: true
+  local_export_copy_disclosed_when_required: true
+  expected_next_state_change_disclosed: true
+  handoff_does_not_widen_scope: true
+  policy_owner_named: true
+
+notes: >
+  Demonstrates the alignment table from the packet: collaboration's
+  delete_path_status_class = deletion_requested_not_yet_completed,
+  the retention-matrix delete_request_state.stable_delete_state =
+  delete_requested, the chronology row's mirrored_managed_surface
+  source class with since_now_with_skew_label basis, and the
+  records-governance packet's open caveat would resolve to
+  sync_backlog if the case were elevated to a weekly review.
