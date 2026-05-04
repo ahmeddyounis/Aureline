@@ -1,0 +1,1062 @@
+# Packet-class and artifact-class registry seed.
+#
+# Machine-readable registry backing
+# docs/governance/artifact_hierarchy_and_packet_classes.md. Each row freezes
+# one canonical artifact class — requirement register and alias crosswalk,
+# ADR/RFC, design packet, contract/schema/interface packet, verification
+# corpus and benchmark plan, compatibility or certified-archetype report,
+# claim manifest and docs/migration pack, runbook/support/shiproom packet,
+# and public-proof publication bundle — so reviewers can tell which packets,
+# reports, and registries are authoritative, how they link to one another,
+# and when each class is release-bearing.
+#
+# Conformance: every row conforms to
+#   schemas/governance/artifact_class_row.schema.json
+# as an `artifact_class_row`.
+#
+# Rules:
+#   - Every row names exactly one owner_lane drawn from the ownership matrix
+#     scorecard_lane_index.
+#   - Every row carries a canonical_id_namespace, a source_of_truth canonical
+#     location, a visibility class, a freshness class, a minimum-backlink
+#     contract, an explicit release-use list, and a per-milestone release-use
+#     matrix entry for every governed milestone slug.
+#   - Every row resolves back to one row in
+#     artifacts/governance/control_artifact_index.yaml and to one
+#     artifact_classes[].class_id in
+#     artifacts/governance/source_anchor_map.yaml so the artifact graph and
+#     the source-anchor linter stay aligned.
+#   - When a launch-bearing surface needs new evidence, instances of the
+#     classes named below extend the canonical homes; surfaces MUST NOT
+#     mint a parallel identifier system to join the artifact graph.
+
+schema_version: 1
+schema_ref: schemas/governance/artifact_class_row.schema.json
+overview_page: docs/governance/artifact_hierarchy_and_packet_classes.md
+paired_control_artifact_index_ref: artifacts/governance/control_artifact_index.yaml
+paired_source_anchor_map_ref: artifacts/governance/source_anchor_map.yaml
+paired_mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+paired_evidence_freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+
+# -----------------------------------------------------------------------------
+# Governed milestone slugs.
+#
+# Mirrors schemas/governance/requirement_register.schema.json. The
+# release-use matrix in every row below MUST carry an entry for every slug
+# in this list so missing-or-stale outcomes stay explicit at every governed
+# milestone instead of being inferred from the requirement register.
+# -----------------------------------------------------------------------------
+governed_milestone_slugs:
+  - foundations
+  - prototype
+  - alpha
+  - first_beta
+  - stable_v1
+
+rows:
+  # ---------------------------------------------------------------------------
+  # Requirement register and alias crosswalk.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: requirement_register_and_alias_crosswalk
+    title: Canonical requirement register and alias crosswalk
+    description: >
+      The canonical requirement register and the alias crosswalk that
+      resolves legacy or spec-local labels back to canonical requirement
+      ids. Every shipped obligation, waiver, scorecard call, fitness row,
+      and release packet cites a row here rather than minting a new id.
+    owner_lane: governance_packets
+    canonical_id_namespace:
+      id_grammar: >
+        Canonical requirement ids use the PRD's <CLASS>-<DOMAIN>-<NNN>
+        pattern, where <CLASS> is one of FR/LANG/PERF/REL/SEC/A11Y/ECOS/AI/
+        OPS/GOV/ARCH/TOOL/CERT/ENT/REPO/COMP and <NNN> is a zero-padded
+        three-digit ordinal.
+      examples:
+        - ARCH-PACK-901
+        - PERF-SHELL-001
+        - PERF-EDITOR-002
+      mint_rule: >
+        New ids are minted in
+        artifacts/governance/requirement_register_seed.yaml only.
+        Aliases land in the crosswalk and never become a second source of
+        truth for the same obligation.
+      registry_ref: artifacts/governance/requirement_register_seed.yaml
+    source_of_truth:
+      canonical_locations:
+        - artifacts/governance/requirement_register_seed.yaml
+        - docs/governance/requirement_alias_crosswalk.md
+      overview_doc_ref: docs/governance/requirement_alias_crosswalk.md
+      schema_refs:
+        - schemas/governance/requirement_register.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_change
+      freshness_summary: >
+        Re-consulted on every pull request that introduces, retires,
+        renames, or rebaselines a requirement id; the alias crosswalk
+        updates in the same change.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+    minimum_backlinks:
+      required_backlink_classes:
+        - architecture_decision_record
+      backlink_rule: >
+        Every requirement row that claims approved or stronger status MUST
+        cite at least one ADR or RFC that authorizes the obligation.
+        Aliases never satisfy this rule; only canonical row ids do.
+      optional_backlink_classes:
+        - request_for_comments
+        - verification_corpus_and_benchmark_plan
+        - design_packet
+    release_uses:
+      - milestone_promotion
+      - release_promotion
+      - audit_or_governance
+      - claim_publication
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: blocks_milestone_close
+        presence_note: Foundations close depends on the seeded register.
+      - milestone_slug: prototype
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: blocks_milestone_close
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: canonical_requirement_register
+      source_anchor_map_class_ref: requirement_row
+      ownership_matrix_lane_ref: governance_packets
+      related_class_ids:
+        - architecture_decision_record
+        - claim_manifest_and_docs_migration_pack
+        - verification_corpus_and_benchmark_plan
+      related_packet_template_refs:
+        - docs/governance/normative_requirement_policy.md
+    notes: >
+      Source-of-truth for canonical ids. The companion record-class
+      registry, mandatory review artifacts catalog, and waiver register
+      all cite ids minted here.
+
+  # ---------------------------------------------------------------------------
+  # Architecture decision record (ADR).
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: architecture_decision_record
+    title: Architecture decision record (ADR)
+    description: >
+      Durable architecture decisions that authorize protected-lane
+      contracts, runtime boundaries, storage or schema shape, trust-model
+      changes, or process placement. ADRs live under docs/adr/ and cite
+      requirement ids rather than restating spec prose.
+    owner_lane: governance_packets
+    canonical_id_namespace:
+      id_grammar: >
+        Four-digit zero-padded ordinal followed by a kebab-case slug under
+        docs/adr/ — for example 0017-release-posture-artifact-families-and-
+        promotion-gates.md. Tooling treats the leading number as the
+        canonical id.
+      examples:
+        - "0002-renderer-text-stack-and-shaping-fallback"
+        - "0007-secret-broker-credential-handle-trust-store-redaction"
+        - "0017-release-posture-artifact-families-and-promotion-gates"
+      mint_rule: >
+        New ADR ids are minted by appending the next ordinal under
+        docs/adr/. Retired ADRs keep their id and carry a status note;
+        ordinals are never reused.
+      registry_ref: artifacts/governance/decision_index.yaml
+    source_of_truth:
+      canonical_locations:
+        - docs/adr/
+        - artifacts/governance/decision_register.yaml
+      overview_doc_ref: docs/governance/decision_register.md
+      schema_refs:
+        - schemas/governance/decision_register.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_change
+      freshness_summary: >
+        ADRs are accepted, superseded, or deprecated through
+        docs/governance/decision_workflow.md; status changes land in the
+        same review.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+    minimum_backlinks:
+      required_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+      backlink_rule: >
+        Every ADR cites at least one canonical requirement id from the
+        register. Free-text spec quotes do not satisfy this rule.
+      optional_backlink_classes:
+        - request_for_comments
+        - design_packet
+        - contract_or_schema_or_interface_packet
+    release_uses:
+      - milestone_promotion
+      - audit_or_governance
+      - claim_publication
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required
+        missing_effect: blocks_protected_path_widening
+        stale_effect: blocks_protected_path_widening
+        presence_note: Architecture pack and decision register form the foundations proof packet.
+      - milestone_slug: prototype
+        presence: required
+        missing_effect: blocks_protected_path_widening
+        stale_effect: forces_waiver_packet
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: blocks_protected_path_widening
+        stale_effect: forces_waiver_packet
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: forces_waiver_packet
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: forces_waiver_packet
+    governance_links:
+      control_artifact_index_row_ref: launch_decision_register
+      source_anchor_map_class_ref: control_artifact
+      ownership_matrix_lane_ref: governance_packets
+      related_class_ids:
+        - request_for_comments
+        - contract_or_schema_or_interface_packet
+        - verification_corpus_and_benchmark_plan
+      related_packet_template_refs:
+        - docs/governance/deviation_adr_template.md
+
+  # ---------------------------------------------------------------------------
+  # Request for comments (RFC).
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: request_for_comments
+    title: Request for comments (RFC)
+    description: >
+      Broad subsystem proposals, public interface families, long-lived
+      migration plans, and architecture explorations that need open
+      review before an ADR is durable enough to land. Closes into one or
+      more ADRs or an explicit rejection.
+    owner_lane: governance_packets
+    canonical_id_namespace:
+      id_grammar: >
+        Four-digit zero-padded ordinal followed by a kebab-case slug under
+        docs/rfc/. Tooling treats the leading number as the canonical id.
+      examples:
+        - "0001-renderer-spike-direction"
+        - "0002-extension-host-isolation"
+      mint_rule: >
+        RFC ids are minted under docs/rfc/. A closed RFC keeps its id and
+        names the ADR or rejection that supersedes it.
+      registry_ref: docs/governance/decision_backlog.md
+    source_of_truth:
+      canonical_locations:
+        - docs/rfc/
+      overview_doc_ref: docs/governance/decision_workflow.md
+      schema_refs: []
+    visibility_class: public
+    freshness:
+      freshness_class: each_change
+      freshness_summary: >
+        RFCs progress through draft, open, accepted, deferred, or
+        rejected status. Status updates land in the same review as the
+        next material change.
+    minimum_backlinks:
+      required_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+      backlink_rule: >
+        Every RFC cites the canonical requirement ids it would advance,
+        narrow, or retire so reviewers can trace impact rather than
+        reading prose.
+      optional_backlink_classes:
+        - architecture_decision_record
+        - design_packet
+        - contract_or_schema_or_interface_packet
+    release_uses:
+      - milestone_promotion
+      - audit_or_governance
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required_if_class_used
+        missing_effect: blocks_milestone_close
+        stale_effect: forces_waiver_packet
+        presence_note: Required when broad changes need open review before an ADR can land.
+      - milestone_slug: prototype
+        presence: required_if_class_used
+        missing_effect: blocks_milestone_close
+        stale_effect: forces_waiver_packet
+      - milestone_slug: alpha
+        presence: required_if_class_used
+        missing_effect: blocks_milestone_close
+        stale_effect: forces_waiver_packet
+      - milestone_slug: first_beta
+        presence: required_if_class_used
+        missing_effect: blocks_release_promotion
+        stale_effect: forces_waiver_packet
+      - milestone_slug: stable_v1
+        presence: required_if_class_used
+        missing_effect: blocks_release_promotion
+        stale_effect: forces_waiver_packet
+    governance_links:
+      control_artifact_index_row_ref: launch_decision_register
+      source_anchor_map_class_ref: control_artifact
+      ownership_matrix_lane_ref: governance_packets
+      related_class_ids:
+        - architecture_decision_record
+        - design_packet
+
+  # ---------------------------------------------------------------------------
+  # Design packet.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: design_packet
+    title: Design packet
+    description: >
+      Launch-critical UX, accessibility, design-token, and interaction
+      packets that carry flows, states, degraded paths, keyboard and
+      screen-reader notes, and design evidence refs for one bounded
+      surface change.
+    owner_lane: design_system_seeds
+    canonical_id_namespace:
+      id_grammar: >
+        Lower_snake packet id under docs/ux/ or artifacts/ux/, optionally
+        prefixed with the surface slug. Accessibility-focused packets use
+        docs/accessibility/ and artifacts/accessibility/.
+      examples:
+        - "shell_command_palette_design_packet"
+        - "review_workspace_focus_return_packet"
+        - "range_selection_at_cases"
+      mint_rule: >
+        New design packets land under the canonical UX or accessibility
+        directory and cite the requirement ids they advance or refresh.
+      registry_ref: artifacts/governance/control_artifact_index.yaml
+    source_of_truth:
+      canonical_locations:
+        - docs/ux/
+        - artifacts/ux/
+        - docs/accessibility/
+        - artifacts/accessibility/
+      overview_doc_ref: docs/governance/contract_packet_template.md
+      schema_refs:
+        - schemas/governance/evidence_packet_header.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_change
+      freshness_summary: >
+        Design packets refresh on every UX change to the covered surface
+        and on every rerun of accessibility evidence the packet cites.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+      rerun_trigger_refs:
+        - artifacts/governance/evidence_rerun_triggers.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+        - verification_corpus_and_benchmark_plan
+      backlink_rule: >
+        Every design packet cites the requirement ids it advances and the
+        verification corpus or accessibility evidence rows that prove the
+        flows it freezes.
+      optional_backlink_classes:
+        - architecture_decision_record
+        - contract_or_schema_or_interface_packet
+        - claim_manifest_and_docs_migration_pack
+    release_uses:
+      - milestone_promotion
+      - release_promotion
+      - claim_publication
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: recommended
+        missing_effect: narrows_claim_to_implemented_or_seed_only
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: prototype
+        presence: required_if_class_used
+        missing_effect: narrows_claim_to_implemented_or_seed_only
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: accessibility_review_packets
+      source_anchor_map_class_ref: packet_family
+      ownership_matrix_lane_ref: design_system_seeds
+      related_class_ids:
+        - contract_or_schema_or_interface_packet
+        - verification_corpus_and_benchmark_plan
+        - claim_manifest_and_docs_migration_pack
+
+  # ---------------------------------------------------------------------------
+  # Contract / schema / interface packet.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: contract_or_schema_or_interface_packet
+    title: Contract, schema, or interface packet
+    description: >
+      Surface-contract packets covering JSON schema exports, WIT worlds,
+      OpenAPI families, field registries, event envelopes, and mixed-
+      version envelopes. One packet per stable-facing or future stable-
+      facing surface so compatibility, docs, migration, deprecation,
+      release, and support cite one surface id.
+    owner_lane: governance_packets
+    canonical_id_namespace:
+      id_grammar: >
+        Lower_snake surface id matching
+        ^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*$ in
+        schemas/governance/contract_packet.schema.json. The surface id is
+        quoted verbatim by compatibility, docs, migration, deprecation,
+        and release work.
+      examples:
+        - "settings.profile_envelope"
+        - "wit.aureline_host_world"
+        - "telemetry.task_event_envelope"
+      mint_rule: >
+        Future stable surfaces register a row in
+        artifacts/governance/stable_surface_inventory.yaml and a packet
+        instance under the canonical schemas/ or wit/ tree before they
+        may claim stability.
+      registry_ref: artifacts/governance/stable_surface_inventory.yaml
+    source_of_truth:
+      canonical_locations:
+        - artifacts/governance/stable_surface_inventory.yaml
+        - artifacts/governance/compatibility_surfaces.yaml
+        - schemas/
+        - wit/
+        - openapi/
+      overview_doc_ref: docs/governance/contract_packet_template.md
+      schema_refs:
+        - schemas/governance/contract_packet.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_change
+      freshness_summary: >
+        Surface contract packets refresh on every additive or breaking
+        change to the schema, world, OpenAPI family, or event envelope
+        they govern.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+      rerun_trigger_refs:
+        - artifacts/governance/evidence_rerun_triggers.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+        - architecture_decision_record
+      backlink_rule: >
+        Every contract packet cites the canonical requirement ids that
+        govern the surface and at least one ADR (or RFC closing into an
+        ADR) that authorizes its shape.
+      optional_backlink_classes:
+        - design_packet
+        - verification_corpus_and_benchmark_plan
+        - compatibility_or_certified_archetype_report
+        - claim_manifest_and_docs_migration_pack
+    release_uses:
+      - milestone_promotion
+      - release_promotion
+      - migration_or_compatibility
+      - audit_or_governance
+      - claim_publication
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required
+        missing_effect: blocks_protected_path_widening
+        stale_effect: blocks_protected_path_widening
+      - milestone_slug: prototype
+        presence: required
+        missing_effect: blocks_protected_path_widening
+        stale_effect: blocks_protected_path_widening
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: narrows_compatibility_window
+        stale_effect: narrows_compatibility_window
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: narrows_compatibility_window
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: surface_contract_packet_template
+      source_anchor_map_class_ref: packet_family
+      ownership_matrix_lane_ref: governance_packets
+      related_class_ids:
+        - compatibility_or_certified_archetype_report
+        - verification_corpus_and_benchmark_plan
+        - claim_manifest_and_docs_migration_pack
+
+  # ---------------------------------------------------------------------------
+  # Verification corpus and benchmark plan.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: verification_corpus_and_benchmark_plan
+    title: Verification corpus and benchmark plan
+    description: >
+      Verification packets, benchmark publication packs, fixture corpora,
+      reference hardware and lab-image manifests, protected-metrics file,
+      fitness-function catalog, and protected-path evidence that prove
+      requirement ids and protected fitness gates.
+    owner_lane: benchmark_lab
+    canonical_id_namespace:
+      id_grammar: >
+        Stable evidence_id grammar from
+        artifacts/governance/evidence_id_conventions.md plus the shared
+        packet header fields in
+        schemas/governance/evidence_packet_header.schema.json. Benchmark
+        runs reuse the same evidence_id when they appear in design,
+        verification, or release packets.
+      examples:
+        - "verification_packet:foundations_architecture_pack.v1"
+        - "benchmark_publication:shell_startup.cold_open.v3"
+        - "corpus_manifest:io.source_fidelity.v2"
+      mint_rule: >
+        Concrete packets land under artifacts/release/, artifacts/bench/,
+        artifacts/perf/, artifacts/qa/, or artifacts/milestones/ once a
+        real candidate is assembled. The canonical evidence id MUST be
+        reused across the upstream design packet, downstream claim row,
+        and release-evidence pack.
+      registry_ref: artifacts/governance/evidence_id_conventions.md
+    source_of_truth:
+      canonical_locations:
+        - artifacts/release/
+        - artifacts/bench/
+        - artifacts/perf/
+        - artifacts/qa/
+        - artifacts/milestones/
+        - docs/benchmarks/
+        - docs/perf/
+        - docs/qa/
+      overview_doc_ref: docs/governance/verification_packet_template.md
+      schema_refs:
+        - schemas/governance/evidence_packet_header.schema.json
+        - schemas/governance/milestone_scorecard.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_release
+      freshness_summary: >
+        Verification corpora and benchmark packets refresh on each
+        release-evidence assembly, on rerun-trigger fires, and on any
+        change to corpus, hardware, lab image, protected-metrics, or
+        cited fitness-function rows.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+      rerun_trigger_refs:
+        - artifacts/governance/evidence_rerun_triggers.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+        - contract_or_schema_or_interface_packet
+      backlink_rule: >
+        Every verification packet cites the requirement ids it covers
+        and the surface contract packets whose claims it proves. Free-
+        text "this proves the renderer" prose does not satisfy the rule.
+      optional_backlink_classes:
+        - architecture_decision_record
+        - design_packet
+        - compatibility_or_certified_archetype_report
+        - claim_manifest_and_docs_migration_pack
+        - runbook_support_or_shiproom_packet
+    release_uses:
+      - milestone_promotion
+      - release_promotion
+      - claim_publication
+      - audit_or_governance
+      - public_proof
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: prototype
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: verification_packet_template
+      source_anchor_map_class_ref: packet_family
+      ownership_matrix_lane_ref: benchmark_lab
+      related_class_ids:
+        - compatibility_or_certified_archetype_report
+        - claim_manifest_and_docs_migration_pack
+        - public_proof_publication_bundle
+      related_packet_template_refs:
+        - docs/governance/verification_packet_template.md
+        - docs/benchmarks/benchmark_publication_pack_template.md
+
+  # ---------------------------------------------------------------------------
+  # Compatibility or certified-archetype report.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: compatibility_or_certified_archetype_report
+    title: Compatibility or certified-archetype report
+    description: >
+      Reports that bind public interface diffs, SDK/CLI/schema changes,
+      retained support windows, deprecation posture, and certified
+      reference workspaces or archetypes to the surface contract packets
+      and verification corpora that prove them.
+    owner_lane: compatibility_ecosystem_review
+    canonical_id_namespace:
+      id_grammar: >
+        Lower_snake report id under artifacts/compat/ or
+        docs/state/, optionally prefixed with the surface family. The
+        report id reuses the surface id from the upstream contract
+        packet rather than minting a parallel slug.
+      examples:
+        - "settings.profile_envelope.compat_report"
+        - "wit.aureline_host_world.compat_report"
+        - "certified_archetype:rust_workspace.v1"
+      mint_rule: >
+        New compatibility reports land under artifacts/compat/ or
+        docs/state/ and cite the surface id, requirement ids, and
+        verification packet ids they prove.
+      registry_ref: artifacts/governance/compatibility_surfaces.yaml
+    source_of_truth:
+      canonical_locations:
+        - artifacts/compat/
+        - docs/state/
+        - docs/release/
+      overview_doc_ref: docs/governance/compatibility_surface_inventory.md
+      schema_refs:
+        - schemas/governance/contract_packet.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_release
+      freshness_summary: >
+        Compatibility reports refresh on every public interface change,
+        every retained support-window decision, and every certified-
+        archetype rerun.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - contract_or_schema_or_interface_packet
+        - verification_corpus_and_benchmark_plan
+      backlink_rule: >
+        Every compatibility or certified-archetype report cites the
+        surface contract packet it diffs and the verification corpus
+        whose evidence covers the matrix or archetype rows.
+      optional_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+        - architecture_decision_record
+        - claim_manifest_and_docs_migration_pack
+    release_uses:
+      - migration_or_compatibility
+      - release_promotion
+      - claim_publication
+      - support_handoff
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: not_required
+        missing_effect: no_effect
+        stale_effect: no_effect
+        presence_note: Foundations does not yet publish stable surfaces.
+      - milestone_slug: prototype
+        presence: required_if_class_used
+        missing_effect: narrows_compatibility_window
+        stale_effect: narrows_compatibility_window
+      - milestone_slug: alpha
+        presence: required_if_class_used
+        missing_effect: narrows_compatibility_window
+        stale_effect: narrows_compatibility_window
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: narrows_compatibility_window
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: compatibility_surface_inventory
+      source_anchor_map_class_ref: packet_family
+      ownership_matrix_lane_ref: compatibility_ecosystem_review
+      related_class_ids:
+        - contract_or_schema_or_interface_packet
+        - claim_manifest_and_docs_migration_pack
+        - public_proof_publication_bundle
+
+  # ---------------------------------------------------------------------------
+  # Claim manifest and docs/migration pack.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: claim_manifest_and_docs_migration_pack
+    title: Claim manifest and docs/migration pack
+    description: >
+      The public-truth claim manifest and its companion docs, help,
+      migration, known-limit, and release-note packets. Claim rows bind
+      one canonical statement to requirement ids, evidence packets,
+      lifecycle and support-window state, and docs destinations so docs,
+      release packets, support exports, CLI/help, evaluation artifacts,
+      and public-proof packets do not invent contradictory copy.
+    owner_lane: docs_public_truth
+    canonical_id_namespace:
+      id_grammar: >
+        Claim row ids match ^claim_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$ as
+        defined in schemas/governance/claim_manifest.schema.json. Docs
+        and migration packs reuse the same claim_row id rather than
+        inventing per-channel slugs.
+      examples:
+        - "claim_row:boundary_truth.local_only_core"
+        - "claim_row:exact_build_identity.desktop.macos.universal"
+        - "claim_row:benchmark_publication.shell_startup.cold_open"
+      mint_rule: >
+        New claim rows land in
+        artifacts/governance/claim_manifest_seed.yaml and cite the
+        requirement ids, contract packet ids, and evidence ids whose
+        proof they project. Migration and docs packs cite the claim row
+        id, never a parallel id.
+      registry_ref: artifacts/governance/claim_manifest_seed.yaml
+    source_of_truth:
+      canonical_locations:
+        - artifacts/governance/claim_manifest_seed.yaml
+        - artifacts/governance/public_truth_parity_matrix.yaml
+        - docs/migration/
+        - docs/release/
+      overview_doc_ref: docs/governance/claim_manifest_contract.md
+      schema_refs:
+        - schemas/governance/claim_manifest.schema.json
+        - schemas/governance/claim_publication_binding.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: each_release
+      freshness_summary: >
+        Claim manifest, parity matrix, docs, help, migration, and
+        release-note packets refresh on every claim-bearing change and
+        on every rerun of the upstream evidence packets they cite.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+      rerun_trigger_refs:
+        - artifacts/governance/evidence_rerun_triggers.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+        - verification_corpus_and_benchmark_plan
+      backlink_rule: >
+        Every claim row cites at least one canonical requirement id and
+        at least one verification packet, benchmark publication pack,
+        compatibility report, or certified-archetype report ref. Missing
+        or stale evidence forces a downgraded effective posture rather
+        than silent optimism.
+      optional_backlink_classes:
+        - contract_or_schema_or_interface_packet
+        - compatibility_or_certified_archetype_report
+        - architecture_decision_record
+        - public_proof_publication_bundle
+        - runbook_support_or_shiproom_packet
+    release_uses:
+      - claim_publication
+      - release_promotion
+      - migration_or_compatibility
+      - support_handoff
+      - public_proof
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+        presence_note: Foundations seeds the manifest and parity matrix; downstream channels project from it.
+      - milestone_slug: prototype
+        presence: required
+        missing_effect: blocks_claim_publication
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: blocks_claim_publication
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: docs_public_truth
+      source_anchor_map_class_ref: packet_family
+      ownership_matrix_lane_ref: docs_public_truth
+      related_class_ids:
+        - public_proof_publication_bundle
+        - compatibility_or_certified_archetype_report
+        - runbook_support_or_shiproom_packet
+
+  # ---------------------------------------------------------------------------
+  # Runbook / support / shiproom packet.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: runbook_support_or_shiproom_packet
+    title: Runbook, support, or shiproom packet
+    description: >
+      Operational packets that carry shiproom go/no-go review, release
+      readiness, support-export and crash-diagnostics handoff, field
+      runbooks, deployment drill catalog, and incident or emergency
+      response. Operates between scorecard, claim manifest, and release
+      evidence.
+    owner_lane: support_export
+    canonical_id_namespace:
+      id_grammar: >
+        Lower_snake packet id under artifacts/support/, artifacts/release/,
+        docs/support/, docs/release/, docs/deployment/, or
+        docs/security/, optionally prefixed with the family slug
+        (shiproom_, runbook_, drill_, advisory_).
+      examples:
+        - "shiproom_packet:first_beta_rc1"
+        - "runbook:support_export.crash_diagnostics"
+        - "drill:control_plane_outage.v1"
+      mint_rule: >
+        New runbook, support, or shiproom packets land under the
+        canonical support, release, deployment, or security tree and
+        cite the upstream verification, claim, and compatibility
+        packets they consume.
+      registry_ref: artifacts/governance/control_artifact_index.yaml
+    source_of_truth:
+      canonical_locations:
+        - artifacts/support/
+        - artifacts/release/
+        - docs/support/
+        - docs/release/
+        - docs/deployment/
+        - docs/security/
+      overview_doc_ref: docs/governance/forum_packet_templates.md
+      schema_refs:
+        - schemas/support/support_packet_index.schema.json
+        - schemas/security/emergency_action_record.schema.json
+    visibility_class: internal
+    freshness:
+      freshness_class: each_release
+      freshness_summary: >
+        Shiproom, support-export, runbook, deployment-drill, and
+        emergency-response packets refresh on every release candidate
+        and on every fired rerun trigger, advisory, or incident review.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - verification_corpus_and_benchmark_plan
+        - claim_manifest_and_docs_migration_pack
+      backlink_rule: >
+        Every runbook, support, or shiproom packet cites the upstream
+        verification packet ids and claim row ids whose state it acts
+        on, instead of restating their evidence inline.
+      optional_backlink_classes:
+        - requirement_register_and_alias_crosswalk
+        - contract_or_schema_or_interface_packet
+        - compatibility_or_certified_archetype_report
+        - public_proof_publication_bundle
+    release_uses:
+      - release_promotion
+      - support_handoff
+      - audit_or_governance
+      - incident_or_emergency_response
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: required_if_class_used
+        missing_effect: blocks_milestone_close
+        stale_effect: forces_waiver_packet
+      - milestone_slug: prototype
+        presence: required_if_class_used
+        missing_effect: blocks_milestone_close
+        stale_effect: forces_waiver_packet
+      - milestone_slug: alpha
+        presence: required
+        missing_effect: blocks_milestone_close
+        stale_effect: forces_waiver_packet
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: downgrades_support_window
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: downgrades_support_window
+    governance_links:
+      control_artifact_index_row_ref: shiproom_runbook
+      source_anchor_map_class_ref: shiproom_artifact
+      ownership_matrix_lane_ref: support_export
+      related_class_ids:
+        - claim_manifest_and_docs_migration_pack
+        - verification_corpus_and_benchmark_plan
+        - compatibility_or_certified_archetype_report
+
+  # ---------------------------------------------------------------------------
+  # Public-proof publication bundle.
+  # ---------------------------------------------------------------------------
+  - record_kind: artifact_class_row
+    artifact_class_schema_version: 1
+    artifact_class_id: public_proof_publication_bundle
+    title: Public-proof publication bundle
+    description: >
+      Reviewer-facing bundles that publish reproducibility inputs for
+      benchmark, compatibility, migration, accessibility, security, and
+      claim-bearing surfaces. Includes design-partner-derived public-
+      proof packets, fixture privacy-clearance refs, and exact-build
+      linkage for every public claim.
+    owner_lane: docs_public_truth
+    canonical_id_namespace:
+      id_grammar: >
+        Lower_snake bundle id under docs/program/, docs/benchmarks/, or
+        artifacts/release/public_proof/, optionally prefixed with the
+        publication family slug. The bundle id reuses the upstream
+        claim_row id and benchmark publication pack id rather than
+        minting a parallel id.
+      examples:
+        - "public_proof:shell_startup.cold_open.v3"
+        - "public_proof:exit_packet.workspace.v1"
+        - "public_proof:certified_archetype.rust_workspace.v1"
+      mint_rule: >
+        Public-proof bundles assemble at release-candidate time and cite
+        the verification packet, benchmark publication pack,
+        compatibility report, claim row, exact-build identity, and
+        fixture privacy-clearance refs they project.
+      registry_ref: artifacts/governance/public_proof_coverage_report.md
+    source_of_truth:
+      canonical_locations:
+        - docs/program/
+        - docs/benchmarks/
+        - artifacts/release/
+      overview_doc_ref: docs/program/design_partner_and_public_proof_packet.md
+      schema_refs:
+        - schemas/governance/claim_publication_binding.schema.json
+    visibility_class: public
+    freshness:
+      freshness_class: on_promotion
+      freshness_summary: >
+        Public-proof bundles refresh on every release-candidate
+        promotion and on every rerun of the verification, benchmark,
+        compatibility, or claim row evidence they project.
+      freshness_policy_refs:
+        - docs/governance/evidence_freshness_policy.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+      rerun_trigger_refs:
+        - artifacts/governance/evidence_rerun_triggers.yaml
+    minimum_backlinks:
+      required_backlink_classes:
+        - claim_manifest_and_docs_migration_pack
+        - verification_corpus_and_benchmark_plan
+      backlink_rule: >
+        Every public-proof bundle cites the claim row ids it
+        publishes and the verification packet, benchmark publication
+        pack, or compatibility report ids whose proof it projects. The
+        bundle MUST NOT introduce a fresh evidence id that does not
+        also live upstream.
+      optional_backlink_classes:
+        - contract_or_schema_or_interface_packet
+        - compatibility_or_certified_archetype_report
+        - runbook_support_or_shiproom_packet
+        - architecture_decision_record
+    release_uses:
+      - public_proof
+      - claim_publication
+      - release_promotion
+      - migration_or_compatibility
+    release_use_matrix:
+      - milestone_slug: foundations
+        presence: not_required
+        missing_effect: no_effect
+        stale_effect: no_effect
+        presence_note: Foundations does not yet publish reproducibility bundles.
+      - milestone_slug: prototype
+        presence: recommended
+        missing_effect: narrows_claim_to_implemented_or_seed_only
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: alpha
+        presence: required_if_class_used
+        missing_effect: blocks_claim_publication
+        stale_effect: narrows_claim_to_implemented_or_seed_only
+      - milestone_slug: first_beta
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+      - milestone_slug: stable_v1
+        presence: required
+        missing_effect: blocks_release_promotion
+        stale_effect: blocks_claim_publication
+    governance_links:
+      control_artifact_index_row_ref: external_proof_program_packet
+      source_anchor_map_class_ref: packet_family
+      ownership_matrix_lane_ref: docs_public_truth
+      related_class_ids:
+        - claim_manifest_and_docs_migration_pack
+        - verification_corpus_and_benchmark_plan
+        - compatibility_or_certified_archetype_report
+        - runbook_support_or_shiproom_packet
+
+# -----------------------------------------------------------------------------
+# Worked cross-class example registry.
+#
+# These rows demonstrate how one launch-bearing surface links across the
+# requirement, ADR, contract packet, verification corpus, claim manifest,
+# and shiproom packet classes without inventing parallel identities. The
+# fixtures live under fixtures/governance/artifact_class_examples/ and the
+# narrative companion lives in
+# docs/governance/artifact_hierarchy_and_packet_classes.md.
+# -----------------------------------------------------------------------------
+worked_cross_class_examples:
+  - example_id: shell_startup_latency_release_chain
+    summary: >
+      Shell-startup latency bar links from PERF-SHELL-001 through the
+      renderer ADR and surface contract packet, into the benchmark
+      publication pack, then into the claim manifest row, the shiproom
+      release-candidate packet, and the public-proof bundle.
+    fixture_refs:
+      - fixtures/governance/artifact_class_examples/shell_startup_latency_release_chain.yaml
+  - example_id: stable_settings_envelope_release_chain
+    summary: >
+      Stable settings envelope links from FR-SETTINGS-110 through the
+      settings ADR, surface contract packet, compatibility report,
+      verification corpus, claim manifest row, migration pack, and
+      shiproom release-candidate packet.
+    fixture_refs:
+      - fixtures/governance/artifact_class_examples/stable_settings_envelope_release_chain.yaml

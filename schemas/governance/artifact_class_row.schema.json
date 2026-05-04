@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/artifact_class_row.schema.json",
+  "title": "Aureline artifact-class and packet-class registry row",
+  "description": "Boundary schema for the artifact-class rows seeded in artifacts/governance/packet_class_registry.yaml and explained in docs/governance/artifact_hierarchy_and_packet_classes.md. An artifact_class_row freezes one of the canonical control-artifact families (requirement register and alias crosswalk, ADR/RFC, design packet, contract/schema/interface packet, verification corpus and benchmark plan, compatibility or certified-archetype report, claim manifest and docs/migration pack, runbook/support/shiproom packet, public-proof publication bundle) so reviewers can tell which packets, reports, and registries are authoritative, how they link to one another, and when each class is release-bearing. The class row carries owner lane, canonical id namespace, source-of-truth location, visibility class, freshness class, minimum backlinks across the artifact graph, release uses, and a release-use matrix that names presence and missing-or-stale effect at each governed milestone. Adding a release-use value, presence value, freshness value, or backlink-class value is additive-minor and bumps artifact_class_schema_version; repurposing an existing value is breaking and opens a decision row.",
+  "$ref": "#/$defs/artifact_class_row",
+  "$defs": {
+    "artifact_class_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this artifact-class vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+
+    "posture_note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, reviewable sentence that clarifies a class-level posture."
+    },
+
+    "artifact_class_id_value": {
+      "type": "string",
+      "enum": [
+        "requirement_register_and_alias_crosswalk",
+        "architecture_decision_record",
+        "request_for_comments",
+        "design_packet",
+        "contract_or_schema_or_interface_packet",
+        "verification_corpus_and_benchmark_plan",
+        "compatibility_or_certified_archetype_report",
+        "claim_manifest_and_docs_migration_pack",
+        "runbook_support_or_shiproom_packet",
+        "public_proof_publication_bundle"
+      ],
+      "description": "Closed vocabulary of canonical artifact classes covered by the registry. Adding a class is additive-minor and bumps artifact_class_schema_version."
+    },
+
+    "owner_lane_value": {
+      "type": "string",
+      "enum": [
+        "governance_packets",
+        "benchmark_lab",
+        "release_evidence",
+        "compatibility_ecosystem_review",
+        "docs_public_truth",
+        "support_export",
+        "design_system_seeds",
+        "accessibility_input_review",
+        "shell_command_system"
+      ],
+      "description": "Owner lane drawn from artifacts/governance/ownership_matrix.yaml scorecard_lane_index. Values outside this list MUST first land a new row in the ownership matrix."
+    },
+
+    "visibility_class": {
+      "type": "string",
+      "enum": ["internal", "public"],
+      "description": "Whether the artifact class is a repository-internal control record (internal) or part of the project's public truth (public)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "each_change",
+        "per_milestone",
+        "each_release",
+        "on_promotion",
+        "per_event"
+      ],
+      "description": "How often instances of the class are re-consulted. each_change is the strictest cadence; per_event covers incident, advisory, or partner-handoff packets that fire on a real-world trigger rather than a calendar."
+    },
+
+    "release_use_value": {
+      "type": "string",
+      "enum": [
+        "milestone_promotion",
+        "release_promotion",
+        "migration_or_compatibility",
+        "support_handoff",
+        "audit_or_governance",
+        "claim_publication",
+        "public_proof",
+        "incident_or_emergency_response"
+      ],
+      "description": "Closed set of release uses an artifact class participates in. milestone_promotion gates milestone-close decisions; release_promotion gates release readiness; migration_or_compatibility carries cross-version skew or import/export truth; support_handoff carries field-runbook or escalation truth; audit_or_governance carries decision-rights or waiver-coverage truth; claim_publication binds public statements to evidence; public_proof carries reviewer-facing reproducibility packets; incident_or_emergency_response carries advisories, freezes, kill switches, or revocations."
+    },
+
+    "presence_class": {
+      "type": "string",
+      "enum": [
+        "required",
+        "required_if_class_used",
+        "recommended",
+        "not_required",
+        "retired"
+      ],
+      "description": "Whether instances of the class MUST exist at the named milestone. required_if_class_used is reserved for classes whose existence is conditional on a feature actually shipping (for example, a compatibility report when no public surface change lands). retired is reserved for milestones at which the class has been deprecated in favor of another class row."
+    },
+
+    "milestone_slug": {
+      "type": "string",
+      "enum": [
+        "foundations",
+        "prototype",
+        "alpha",
+        "first_beta",
+        "stable_v1",
+        "feature_train_v1",
+        "major_v2"
+      ],
+      "description": "Canonical milestone slug. Values mirror schemas/governance/requirement_register.schema.json and MUST NOT be replaced with planning shorthand."
+    },
+
+    "missing_or_stale_outcome": {
+      "type": "string",
+      "enum": [
+        "blocks_milestone_close",
+        "blocks_release_promotion",
+        "blocks_claim_publication",
+        "narrows_claim_to_implemented_or_seed_only",
+        "downgrades_support_window",
+        "narrows_compatibility_window",
+        "blocks_protected_path_widening",
+        "forces_waiver_packet",
+        "no_effect"
+      ],
+      "description": "What happens when a required artifact class is missing or its instance is stale. no_effect is reserved for milestones at which the class is not_required or retired."
+    },
+
+    "canonical_id_namespace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id_grammar", "examples", "mint_rule"],
+      "properties": {
+        "id_grammar": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Plain-language description of the id grammar, including character set, separator, and any required prefix."
+        },
+        "examples": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Two or three reviewer-facing examples drawn from existing seeded rows."
+        },
+        "mint_rule": { "$ref": "#/$defs/posture_note" },
+        "registry_ref": { "$ref": "#/$defs/path_ref" }
+      }
+    },
+
+    "source_of_truth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_locations", "overview_doc_ref"],
+      "properties": {
+        "canonical_locations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Repo-relative directories or files where instances live. Multiple entries are allowed when one class is intentionally split across docs/, artifacts/, and fixtures/ trees."
+        },
+        "overview_doc_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Single human-readable narrative or contract document for the class."
+        },
+        "schema_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional boundary schemas that constrain instances of the class."
+        }
+      }
+    },
+
+    "freshness_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["freshness_class", "freshness_summary"],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_summary": { "$ref": "#/$defs/posture_note" },
+        "freshness_policy_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional refs into the evidence freshness policy or SLO matrix that govern stale-after windows for the class."
+        },
+        "rerun_trigger_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional refs into the evidence rerun-trigger catalog rows that invalidate instances before the nominal stale-after window expires."
+        }
+      }
+    },
+
+    "minimum_backlinks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required_backlink_classes", "backlink_rule"],
+      "properties": {
+        "required_backlink_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/artifact_class_id_value" },
+          "description": "Other artifact classes that an instance MUST cite by canonical id before it is reviewable. Forms the directed back-edge graph that prevents parallel identities."
+        },
+        "backlink_rule": { "$ref": "#/$defs/posture_note" },
+        "optional_backlink_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/artifact_class_id_value" },
+          "description": "Classes that an instance MAY cite when the linked surface exists. Optional links never substitute for required backlinks."
+        }
+      }
+    },
+
+    "release_use_matrix_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["milestone_slug", "presence", "missing_effect", "stale_effect"],
+      "properties": {
+        "milestone_slug": { "$ref": "#/$defs/milestone_slug" },
+        "presence": { "$ref": "#/$defs/presence_class" },
+        "missing_effect": { "$ref": "#/$defs/missing_or_stale_outcome" },
+        "stale_effect": { "$ref": "#/$defs/missing_or_stale_outcome" },
+        "presence_note": { "$ref": "#/$defs/posture_note" }
+      }
+    },
+
+    "release_use_matrix": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/release_use_matrix_entry" },
+      "description": "One entry per governed milestone slug. The same milestone_slug MUST NOT appear twice in one row."
+    },
+
+    "governance_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control_artifact_index_row_ref", "source_anchor_map_class_ref"],
+      "properties": {
+        "control_artifact_index_row_ref": {
+          "$ref": "#/$defs/lower_snake_id",
+          "description": "id of the row in artifacts/governance/control_artifact_index.yaml that names the canonical home for the class. Every artifact-class row MUST resolve to exactly one control-artifact-index row."
+        },
+        "source_anchor_map_class_ref": {
+          "$ref": "#/$defs/lower_snake_id",
+          "description": "artifact_classes[].class_id from artifacts/governance/source_anchor_map.yaml that the class is grouped under for the source-anchor linter."
+        },
+        "ownership_matrix_lane_ref": {
+          "$ref": "#/$defs/lower_snake_id",
+          "description": "scorecard_lane_index entry that owns the class. Mirrors owner_lane and exists so source_anchor_map / ownership_matrix consumers can join without re-reading the row body."
+        },
+        "related_class_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/artifact_class_id_value" },
+          "description": "Other classes whose instances commonly compose with this class but are not strictly required as backlinks."
+        },
+        "related_packet_template_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "description": "Optional packet-template documents that consumers reuse when authoring instances of the class."
+        }
+      }
+    },
+
+    "artifact_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "artifact_class_schema_version",
+        "artifact_class_id",
+        "title",
+        "description",
+        "owner_lane",
+        "canonical_id_namespace",
+        "source_of_truth",
+        "visibility_class",
+        "freshness",
+        "minimum_backlinks",
+        "release_uses",
+        "release_use_matrix",
+        "governance_links"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "artifact_class_row",
+          "description": "Discriminator for this payload shape."
+        },
+        "artifact_class_schema_version": { "$ref": "#/$defs/artifact_class_schema_version" },
+        "artifact_class_id": { "$ref": "#/$defs/artifact_class_id_value" },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short human-readable title for the class."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One-paragraph statement of what the class governs and what it does not."
+        },
+        "owner_lane": { "$ref": "#/$defs/owner_lane_value" },
+        "canonical_id_namespace": { "$ref": "#/$defs/canonical_id_namespace" },
+        "source_of_truth": { "$ref": "#/$defs/source_of_truth" },
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+        "freshness": { "$ref": "#/$defs/freshness_posture" },
+        "minimum_backlinks": { "$ref": "#/$defs/minimum_backlinks" },
+        "release_uses": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/release_use_value" },
+          "description": "Closed list of release uses the class participates in."
+        },
+        "release_use_matrix": { "$ref": "#/$defs/release_use_matrix" },
+        "governance_links": { "$ref": "#/$defs/governance_links" },
+        "notes": {
+          "type": "string",
+          "description": "Optional additional note for future consumers."
+        }
+      }
+    }
+  }
+}

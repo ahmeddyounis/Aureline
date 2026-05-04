@@ -159,6 +159,20 @@ Companion artifacts:
 - [`/docs/ci/control_artifact_validation.md`](../ci/control_artifact_validation.md)
   — local and CI invocation guide for the shared contract-artifact
   validation lane.
+- [`./artifact_hierarchy_and_packet_classes.md`](./artifact_hierarchy_and_packet_classes.md)
+  and
+  [`/artifacts/governance/packet_class_registry.yaml`](../../artifacts/governance/packet_class_registry.yaml)
+  — narrative overview and machine-readable registry that freeze the
+  canonical control-artifact stack (requirement register and alias
+  crosswalk, ADR/RFC, design packet, contract/schema/interface packet,
+  verification corpus and benchmark plan, compatibility or certified-
+  archetype report, claim manifest and docs/migration pack,
+  runbook/support/shiproom packet, public-proof publication bundle)
+  with owner lane, canonical id namespace, source-of-truth location,
+  visibility class, freshness class, minimum backlinks, release uses,
+  and a per-milestone release-use matrix. Worked cross-class fixtures
+  live under
+  [`/fixtures/governance/artifact_class_examples/`](../../fixtures/governance/artifact_class_examples/).
 
 **One home, one owner, one review path.** Every control asset — the
 control-artifact graph, the interface inventory, the
