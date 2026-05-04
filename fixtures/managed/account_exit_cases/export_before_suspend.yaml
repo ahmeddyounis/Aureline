@@ -1,0 +1,151 @@
+# yaml-language-server: $schema=../../../schemas/managed/account_exit_packet.schema.json
+__fixture__:
+  name: export_before_suspend
+  scenario: >
+    A managed-cloud account is in the final-warning grace window
+    before a scheduled suspension. Some artifacts have already been
+    exported (workspace files, monthly usage export, support
+    bundle); other artifacts are still flagged exportable during the
+    access-end window. The packet keeps already-exported artifacts
+    distinct from still-exportable artifacts so the user can see
+    what work is preserved versus what still needs action.
+  exercised_contract_sections:
+    - grace_state_class
+    - exit_intent
+    - artifact_dispositions
+    - exported_before_close_disposition
+    - read_only_consequences
+    - required_disclosures
+
+schema_version: 1
+record_kind: account_exit_packet_record
+account_exit_packet_id: aep:export_before_suspend:0001
+account_ref: account:delta:0007
+org_ref: org:delta:0001
+seat_ref: seat:delta:0007
+account_state_class: grace
+org_state_class: active
+seat_state_class: active
+plan_state_class: scheduled_downgrade_pending
+grace:
+  grace_state_class: grace_final_warning
+  grace_window_opens_at: "2026-04-04T00:00:00Z"
+  grace_window_closes_at: "2026-05-07T00:00:00Z"
+  grace_summary: Grace window closes in under 72 hours; explicit acknowledgement required before any new long-running managed action.
+posture_origin_class: plan
+managed_provider_state_class: provider_active
+exit_intent:
+  exit_reason_class: plan_downgrade_committed
+  initiator_class: admin_action
+  scheduled_close_at: "2026-05-07T00:00:00Z"
+  completed_close_at: null
+  exit_summary: Plan downgrade committed; suspension takes effect at grace close in under 72 hours.
+artifact_dispositions:
+  - artifact_class: workspace_files
+    disposition_class: exported_before_close
+    export_ref: export_packet:workspace_files:delta:0007:0001
+    disposition_note: Workspace-files export bundle generated and saved to the local host.
+  - artifact_class: usage_and_billing_exports
+    disposition_class: exported_before_close
+    export_ref: export_packet:usage_export:delta:0007:0001
+    portability_row_ref: portability_row:usage_and_billing_exports:v1
+    disposition_note: Final monthly usage export generated and saved to the local host.
+  - artifact_class: support_bundles
+    disposition_class: exported_before_close
+    export_ref: export_packet:support_bundle:delta:0007:0001
+    disposition_note: Support bundle exported in advance of suspension; remains user-owned on the local host.
+  - artifact_class: evidence_artifacts
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-05-07T00:00:00Z"
+    disposition_note: Mutation-journal entries that have not yet been exported remain available until grace closes.
+  - artifact_class: settings_keybindings_profiles_snippets
+    disposition_class: preserved_locally_after_close
+    disposition_note: Local settings, keybindings, and snippets are user-owned and unaffected by suspension.
+  - artifact_class: credentials_and_tokens
+    disposition_class: discarded_at_close
+    credential_redaction_class: never_persisted_security_boundary
+    credential_token_ref: token:managed_session:delta:0007
+    disposition_note: Managed-session ticket is discarded at suspension by design.
+  - artifact_class: collaboration_comments_and_audit
+    disposition_class: becomes_read_only_during_suspension
+    deadline_at: "2026-05-07T00:00:00Z"
+    disposition_note: Managed comments become read-only at suspension; local comment cache remains editable.
+required_disclosures:
+  - disclosure_class: grace_window_closing
+    audience_class: user
+    action_required: true
+    deadline_at: "2026-05-07T00:00:00Z"
+    disclosure_summary: Grace window closes in under 72 hours; complete remaining exports before then.
+  - disclosure_class: plan_downgrade
+    audience_class: user_and_admin
+    action_required: true
+    deadline_at: "2026-05-07T00:00:00Z"
+    disclosure_summary: Plan downgrade committed; managed actions narrow to plan floor at grace close.
+self_hosted_alternatives:
+  - alternative_class: account_free_local_deployment
+    available_locally: true
+    applicability_summary: After grace close, the user may continue locally without the managed plan.
+  - alternative_class: byok_local_ai_route
+    available_locally: true
+    applicability_summary: BYOK local AI routes remain admissible during and after the suspension.
+  - alternative_class: self_hosted_org_deployment
+    available_locally: false
+    redirect_ref: docs:deployment:self_hosted_org
+    applicability_summary: Org may move to a self-hosted deployment to retain managed-style administration.
+provider_linked_workflow_consequences:
+  - workflow_class: managed_workspace_attach
+    consequence_class: paused_pending_admin_action
+    consequence_summary: Managed-workspace attach pauses at suspension; local edit continues on the local host.
+  - workflow_class: managed_ai_route
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: byok_local_ai_route
+    consequence_summary: Managed AI routes are paused at suspension; BYOK local AI remains admissible.
+  - workflow_class: managed_settings_and_keybindings_sync
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: account_free_local_deployment
+    consequence_summary: Managed sync pauses at suspension; local settings remain editable on the local host.
+  - workflow_class: real_time_collab
+    consequence_class: paused_pending_admin_action
+    consequence_summary: Real-time collaboration pauses at suspension; comments become read-only.
+  - workflow_class: marketplace_install
+    consequence_class: narrowed_to_plan_floor
+    consequence_summary: Marketplace install narrows to plan-floor entitlements after grace close.
+read_only_consequences:
+  - artifact_class: collaboration_comments_and_audit
+    reason_class: grace_window_close_imminent
+    becomes_read_only_at: "2026-05-07T00:00:00Z"
+    cure_summary: Resume comment editing once the suspension lifts.
+    consequence_summary: Managed comments become read-only at suspension; local comments stay editable.
+  - artifact_class: managed_review_and_approvals
+    reason_class: grace_window_close_imminent
+    becomes_read_only_at: "2026-05-07T00:00:00Z"
+    cure_summary: Resume review actions once the suspension lifts.
+    consequence_summary: Managed review and approvals become read-only at suspension.
+workspace_lifecycle_record_refs:
+  - wlr:managed:ready_under_grace:delta:0001
+seat_lifecycle_row_refs:
+  - seat_lifecycle_row:delta:0007:active
+metering_quota_state_refs:
+  - quota-state:managed_workspace:hours:authoritative:delta:0001
+caveats:
+  - Already-exported artifacts are distinguished from still-exportable artifacts so the user can audit pending exports.
+  - Local-core surfaces remain available throughout grace and across the upcoming suspension.
+policy_context:
+  policy_epoch: policy-epoch:org_admin:delta:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T08:00:00Z"
+expires_at: "2026-05-04T08:30:00Z"
+links:
+  contract_ref: docs/managed/account_seat_plan_and_exit_contract.md
+  schema_ref: schemas/managed/account_exit_packet.schema.json
+  seat_lifecycle_contract_ref: docs/admin/org_admin_seat_and_fleet_contract.md
+  workspace_lifecycle_contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  metering_contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_seed_ref: docs/service/managed_service_seed.md
+  portability_matrix_ref: docs/governance/data_portability_and_exit_matrix.md
+  audit_event_refs:
+    - audit_event:plan_downgrade_committed:delta:0001
+  policy_decision_history_row_refs:
+    - policy_decision_history_row:plan_downgrade_committed:delta:0001

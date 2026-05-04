@@ -1,0 +1,138 @@
+# yaml-language-server: $schema=../../../schemas/managed/account_exit_packet.schema.json
+__fixture__:
+  name: org_suspension
+  scenario: >
+    A managed-cloud org has been suspended by the managed provider
+    because the org-level billing path is locked. Per-seat managed
+    actions are paused but per-user local-core surfaces remain
+    available. The packet pins posture_origin_class to org so a
+    member-seat surface does not blame the user's seat or plan, and
+    keeps managed_provider_state_class = provider_billing_locked so
+    the disclosure reads as a provider-level lock rather than an
+    "access revoked" message.
+  exercised_contract_sections:
+    - account_state_model
+    - org_state_class
+    - posture_origin_class
+    - managed_provider_state_class
+    - required_disclosures
+    - provider_linked_workflow_consequences
+    - self_hosted_alternatives
+
+schema_version: 1
+record_kind: account_exit_packet_record
+account_exit_packet_id: aep:org_suspension:0001
+account_ref: account:user:beta_member:0007
+org_ref: org:beta:0001
+seat_ref: seat:beta:0007
+account_state_class: suspended
+org_state_class: suspended
+seat_state_class: suspended
+plan_state_class: active_within_plan
+grace:
+  grace_state_class: not_in_grace
+  grace_window_opens_at: null
+  grace_window_closes_at: null
+  grace_summary: No grace window applies; suspension is provider-driven and immediate.
+posture_origin_class: org
+managed_provider_state_class: provider_billing_locked
+exit_intent:
+  exit_reason_class: managed_provider_billing_locked
+  initiator_class: managed_provider_action
+  scheduled_close_at: null
+  completed_close_at: null
+  exit_summary: Managed provider locked the org for billing; managed actions paused, local-core remains usable.
+artifact_dispositions:
+  - artifact_class: workspace_files
+    disposition_class: becomes_read_only_during_suspension
+    disposition_note: Managed-workspace files are read-only during the suspension; local edits remain on the local host.
+  - artifact_class: settings_keybindings_profiles_snippets
+    disposition_class: preserved_locally_after_close
+    disposition_note: User-scope settings remain editable on the local host throughout the suspension.
+  - artifact_class: collaboration_comments_and_audit
+    disposition_class: becomes_read_only_during_suspension
+    disposition_note: Managed collaboration comments are read-only while the org is suspended.
+  - artifact_class: usage_and_billing_exports
+    disposition_class: exportable_during_access_end_window
+    disposition_note: Usage exports remain available to admins during the suspension via the offboarding-export pathway.
+  - artifact_class: credentials_and_tokens
+    disposition_class: redacted_by_policy
+    credential_redaction_class: policy_redacted
+    credential_token_ref: token:managed_session:beta:0007
+    disposition_note: Session-ticket presence is disclosed; content is redacted while the org is locked.
+required_disclosures:
+  - disclosure_class: managed_provider_degraded
+    audience_class: user_and_admin
+    action_required: false
+    disclosure_summary: Managed provider has locked the org for billing; admin must resolve the billing path before managed actions resume.
+  - disclosure_class: org_dissolution
+    audience_class: admin
+    action_required: true
+    disclosure_summary: If the billing lock is not resolved, the org may be dissolved; admins should review their offboarding export pathway now.
+self_hosted_alternatives:
+  - alternative_class: account_free_local_deployment
+    available_locally: true
+    applicability_summary: Members may continue editing locally without managed-account features for the duration of the suspension.
+  - alternative_class: byok_local_ai_route
+    available_locally: true
+    applicability_summary: BYOK local AI routes remain admissible while managed AI is paused.
+  - alternative_class: self_hosted_org_deployment
+    available_locally: false
+    redirect_ref: docs:deployment:self_hosted_org
+    applicability_summary: The org may move to a self-hosted deployment if the suspension is not resolved.
+provider_linked_workflow_consequences:
+  - workflow_class: managed_workspace_attach
+    consequence_class: paused_pending_admin_action
+    consequence_summary: Managed-workspace attach paused until the org billing lock clears.
+  - workflow_class: managed_ai_route
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: byok_local_ai_route
+    consequence_summary: Managed AI is paused; BYOK local AI remains admissible.
+  - workflow_class: real_time_collab
+    consequence_class: paused_pending_admin_action
+    consequence_summary: Real-time collaboration is paused; existing comments are read-only.
+  - workflow_class: marketplace_publishing
+    consequence_class: blocked_policy_suppressed
+    consequence_summary: Marketplace publishing is blocked while the org is suspended.
+  - workflow_class: managed_review_and_approvals
+    consequence_class: revoked_with_retained_legal_or_audit_read
+    consequence_summary: Managed review and approvals are paused; legal and audit reads remain available to authorized roles.
+read_only_consequences:
+  - artifact_class: workspace_files
+    reason_class: suspension_active
+    becomes_read_only_at: "2026-05-04T15:00:00Z"
+    cure_summary: Managed-workspace edit resumes once the org billing lock is resolved.
+    consequence_summary: Managed-workspace files became read-only at suspension; local edits remain available.
+  - artifact_class: collaboration_comments_and_audit
+    reason_class: suspension_active
+    becomes_read_only_at: "2026-05-04T15:00:00Z"
+    cure_summary: Comment editing resumes once the suspension lifts.
+    consequence_summary: Managed comments became read-only at suspension; local comments remain editable.
+workspace_lifecycle_record_refs:
+  - wlr:managed:degraded_during_org_suspension:0001
+seat_lifecycle_row_refs:
+  - seat_lifecycle_row:beta:0007:suspended
+metering_quota_state_refs:
+  - quota-state:managed_ai:gateway:beta:cached_within_floor:0001
+caveats:
+  - Local-core surfaces remain unaffected by the org-level suspension.
+  - Managed actions are paused with a typed reason rather than collapsed into "access revoked".
+policy_context:
+  policy_epoch: policy-epoch:org_admin:beta:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: operator_only_restricted
+minted_at: "2026-05-04T15:00:30Z"
+expires_at: "2026-05-04T15:30:00Z"
+links:
+  contract_ref: docs/managed/account_seat_plan_and_exit_contract.md
+  schema_ref: schemas/managed/account_exit_packet.schema.json
+  seat_lifecycle_contract_ref: docs/admin/org_admin_seat_and_fleet_contract.md
+  workspace_lifecycle_contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  metering_contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_seed_ref: docs/service/managed_service_seed.md
+  portability_matrix_ref: docs/governance/data_portability_and_exit_matrix.md
+  audit_event_refs:
+    - audit_event:org_suspension:beta:0001
+  policy_decision_history_row_refs:
+    - policy_decision_history_row:org_suspension:beta:0001

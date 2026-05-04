@@ -1,0 +1,1151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/managed/account_exit_packet.schema.json",
+  "title": "Aureline managed account-exit packet record",
+  "description": "Boundary schema for one account_exit_packet_record frozen in docs/managed/account_seat_plan_and_exit_contract.md. The record is the product-wide explainability object every surface that quotes managed-account posture, seat exhaustion, plan downgrade, grace window, policy suspension, account transfer or leave, account expiry, or account offboarding reads before claiming what survives, what becomes read-only, what must be exported first, and which self-hosted or local alternatives remain admissible. It freezes the account / org / seat / plan / grace state model, the closed posture-origin vocabulary, the typed exit-reason vocabulary, the per-artifact disposition vocabulary, the required-disclosure vocabulary, the self-hosted-alternative vocabulary, and the provider-linked-workflow consequence vocabulary. Raw user emails, raw tenant names, raw provider account identifiers, raw billing ids, raw invoice ids, raw URLs, raw display names, raw policy bundle bytes, raw policy rule bodies, raw seat directory payloads, and raw provider tokens never cross this boundary. Adding enum values is additive-minor and requires a schema_version bump plus a fixture; repurposing an existing value is breaking.",
+  "$ref": "#/$defs/account_exit_packet_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, exports, support packets, and offboarding packets. Raw customer, billing, provider, URL, prompt, code, and seat directory identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from an authoritative or monotonic timestamp source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-safe sentence. Must not contain raw prompts, raw code, raw emails, raw tenant names, raw billing ids, raw invoice ids, raw URLs, raw provider account identifiers, raw policy bundle bytes, or raw display names."
+    },
+    "account_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "grace",
+        "suspended",
+        "locked_for_review",
+        "expired",
+        "offboarding_in_progress",
+        "offboarded",
+        "transferred",
+        "local_only_no_managed_account"
+      ]
+    },
+    "org_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "suspended_pending_reauth",
+        "downgraded",
+        "transferred",
+        "dissolved",
+        "locked_for_review",
+        "not_applicable_individual_account"
+      ]
+    },
+    "seat_state_class": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending",
+        "suspended",
+        "reclaimed",
+        "transferred",
+        "downgraded",
+        "deprovisioned",
+        "restored_from_offline"
+      ]
+    },
+    "plan_state_class": {
+      "type": "string",
+      "enum": [
+        "active_within_plan",
+        "soft_downgraded_to_plan_floor",
+        "scheduled_downgrade_pending",
+        "seat_exhausted_overflow",
+        "expired",
+        "transferred_to_new_plan",
+        "not_applicable_individual_account"
+      ]
+    },
+    "grace_state_class": {
+      "type": "string",
+      "enum": [
+        "not_in_grace",
+        "grace_active",
+        "grace_warning",
+        "grace_final_warning",
+        "grace_expired"
+      ]
+    },
+    "posture_origin_class": {
+      "type": "string",
+      "enum": [
+        "seat",
+        "plan",
+        "policy",
+        "org",
+        "account",
+        "managed_provider",
+        "workspace_lifecycle",
+        "metering_quota",
+        "local_only_no_managed_account"
+      ]
+    },
+    "managed_provider_state_class": {
+      "type": "string",
+      "enum": [
+        "provider_active",
+        "provider_degraded",
+        "provider_unreachable",
+        "provider_terminated_account",
+        "provider_billing_locked",
+        "provider_kill_switch_quarantine",
+        "not_applicable_self_hosted",
+        "not_applicable_individual_local"
+      ]
+    },
+    "exit_reason_class": {
+      "type": "string",
+      "enum": [
+        "user_initiated_account_leave",
+        "admin_initiated_account_transfer",
+        "admin_initiated_seat_reclaim",
+        "admin_initiated_seat_deprovisioning",
+        "plan_term_ended",
+        "plan_downgrade_committed",
+        "plan_seat_exhaustion_overflow",
+        "policy_suspended_managed_action",
+        "policy_locked_for_review",
+        "org_dissolved",
+        "org_transferred",
+        "managed_provider_terminated_account",
+        "managed_provider_billing_locked",
+        "managed_provider_kill_switch_quarantine",
+        "contract_term_ended",
+        "no_exit_in_progress"
+      ]
+    },
+    "initiator_class": {
+      "type": "string",
+      "enum": [
+        "self_service_user_action",
+        "admin_action",
+        "delegated_admin_action",
+        "signed_lifecycle_update",
+        "scheduled_task",
+        "emergency_policy",
+        "system_resolver",
+        "support_operator",
+        "managed_provider_action",
+        "no_initiator_no_exit"
+      ]
+    },
+    "exit_artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_files",
+        "evidence_artifacts",
+        "settings_keybindings_profiles_snippets",
+        "usage_and_billing_exports",
+        "support_bundles",
+        "credentials_and_tokens",
+        "audit_and_decision_history",
+        "policy_bundles_and_entitlement_snapshots",
+        "collaboration_comments_and_audit",
+        "managed_templates_and_prebuilds",
+        "extension_inventory_and_registry_policy",
+        "local_history_and_ai_evidence"
+      ]
+    },
+    "exit_artifact_disposition_class": {
+      "type": "string",
+      "enum": [
+        "exported_before_close",
+        "exportable_during_access_end_window",
+        "exportable_post_close_via_legal_hold",
+        "becomes_read_only_during_grace",
+        "becomes_read_only_during_suspension",
+        "discarded_at_close",
+        "policy_held_post_close",
+        "redacted_by_policy",
+        "preserved_locally_after_close",
+        "not_applicable"
+      ]
+    },
+    "credential_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "never_persisted_security_boundary",
+        "policy_redacted",
+        "not_applicable"
+      ]
+    },
+    "disclosure_required_class": {
+      "type": "string",
+      "enum": [
+        "seat_exhaustion",
+        "plan_downgrade",
+        "plan_expiry",
+        "grace_window_open",
+        "grace_window_closing",
+        "policy_suspension",
+        "account_transfer",
+        "account_leave",
+        "org_dissolution",
+        "provider_account_terminated",
+        "managed_provider_degraded",
+        "no_disclosure_required"
+      ]
+    },
+    "disclosure_audience_class": {
+      "type": "string",
+      "enum": [
+        "user",
+        "admin",
+        "delegated_admin",
+        "support_operator",
+        "auditor",
+        "user_and_admin"
+      ]
+    },
+    "self_hosted_alternative_class": {
+      "type": "string",
+      "enum": [
+        "self_hosted_org_deployment",
+        "account_free_local_deployment",
+        "air_gapped_deployment",
+        "mirrored_bundle_deployment",
+        "byok_local_ai_route",
+        "local_only_collaboration",
+        "signed_file_based_policy",
+        "local_search_and_edit_only",
+        "offline_capture_continuation"
+      ]
+    },
+    "provider_linked_workflow_class": {
+      "type": "string",
+      "enum": [
+        "managed_workspace_attach",
+        "managed_ai_route",
+        "real_time_collab",
+        "managed_settings_and_keybindings_sync",
+        "marketplace_install",
+        "marketplace_publishing",
+        "managed_review_and_approvals",
+        "managed_observability",
+        "audit_event_explorer",
+        "managed_templates_and_prebuilds",
+        "provider_offline_capture"
+      ]
+    },
+    "provider_linked_workflow_consequence_class": {
+      "type": "string",
+      "enum": [
+        "admissible",
+        "narrowed_to_plan_floor",
+        "paused_pending_reauth",
+        "paused_pending_admin_action",
+        "blocked_policy_suppressed",
+        "revoked",
+        "revoked_with_retained_legal_or_audit_read",
+        "deferred_to_self_hosted_alternative",
+        "deferred_to_local_alternative",
+        "not_applicable"
+      ]
+    },
+    "read_only_artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_files",
+        "settings_keybindings_profiles_snippets",
+        "collaboration_comments_and_audit",
+        "marketplace_publishing",
+        "managed_templates_and_prebuilds",
+        "extension_inventory_and_registry_policy",
+        "audit_and_decision_history",
+        "policy_bundles_and_entitlement_snapshots",
+        "managed_review_and_approvals"
+      ]
+    },
+    "read_only_reason_class": {
+      "type": "string",
+      "enum": [
+        "grace_window_close_imminent",
+        "grace_window_closed",
+        "suspension_active",
+        "offboarding_in_progress",
+        "policy_locked_for_review",
+        "managed_provider_billing_locked",
+        "managed_provider_kill_switch_quarantine",
+        "plan_downgrade_committed",
+        "no_read_only_consequence"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "deployment_profile_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "grace_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grace_state_class",
+        "grace_window_opens_at",
+        "grace_window_closes_at",
+        "grace_summary"
+      ],
+      "properties": {
+        "grace_state_class": { "$ref": "#/$defs/grace_state_class" },
+        "grace_window_opens_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "grace_window_closes_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "grace_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Any grace state other than not_in_grace MUST carry a non-null close timestamp.",
+          "if": {
+            "properties": {
+              "grace_state_class": {
+                "enum": [
+                  "grace_active",
+                  "grace_warning",
+                  "grace_final_warning",
+                  "grace_expired"
+                ]
+              }
+            },
+            "required": ["grace_state_class"]
+          },
+          "then": {
+            "properties": {
+              "grace_window_closes_at": {
+                "not": { "type": "null" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "exit_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exit_reason_class",
+        "initiator_class",
+        "exit_summary"
+      ],
+      "properties": {
+        "exit_reason_class": { "$ref": "#/$defs/exit_reason_class" },
+        "initiator_class": { "$ref": "#/$defs/initiator_class" },
+        "scheduled_close_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "completed_close_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "exit_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "no_exit_in_progress MUST be paired with no_initiator_no_exit; any real exit reason MUST NOT use no_initiator_no_exit.",
+          "if": {
+            "properties": {
+              "exit_reason_class": { "const": "no_exit_in_progress" }
+            },
+            "required": ["exit_reason_class"]
+          },
+          "then": {
+            "properties": {
+              "initiator_class": { "const": "no_initiator_no_exit" }
+            }
+          },
+          "else": {
+            "properties": {
+              "initiator_class": {
+                "not": { "const": "no_initiator_no_exit" }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "artifact_disposition_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_class",
+        "disposition_class",
+        "disposition_note"
+      ],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/exit_artifact_class" },
+        "disposition_class": { "$ref": "#/$defs/exit_artifact_disposition_class" },
+        "deadline_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "credential_redaction_class": { "$ref": "#/$defs/credential_redaction_class" },
+        "credential_token_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "portability_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "retention_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disposition_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "exported_before_close MUST cite an export ref so consumers can find the artifact.",
+          "if": {
+            "properties": {
+              "disposition_class": { "const": "exported_before_close" }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "export_ref": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["export_ref"]
+          }
+        },
+        {
+          "description": "credentials_and_tokens entries MUST disclose redaction posture.",
+          "if": {
+            "properties": {
+              "artifact_class": { "const": "credentials_and_tokens" }
+            },
+            "required": ["artifact_class"]
+          },
+          "then": {
+            "required": ["credential_redaction_class"]
+          }
+        }
+      ]
+    },
+    "disclosure_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disclosure_class",
+        "audience_class",
+        "action_required",
+        "disclosure_summary"
+      ],
+      "properties": {
+        "disclosure_class": { "$ref": "#/$defs/disclosure_required_class" },
+        "audience_class": { "$ref": "#/$defs/disclosure_audience_class" },
+        "action_required": { "type": "boolean" },
+        "deadline_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "audit_event_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_decision_history_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disclosure_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "self_hosted_alternative_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alternative_class",
+        "available_locally",
+        "applicability_summary"
+      ],
+      "properties": {
+        "alternative_class": { "$ref": "#/$defs/self_hosted_alternative_class" },
+        "available_locally": { "type": "boolean" },
+        "redirect_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "applicability_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "provider_linked_workflow_consequence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workflow_class",
+        "consequence_class",
+        "consequence_summary"
+      ],
+      "properties": {
+        "workflow_class": { "$ref": "#/$defs/provider_linked_workflow_class" },
+        "consequence_class": { "$ref": "#/$defs/provider_linked_workflow_consequence_class" },
+        "self_hosted_alternative_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/self_hosted_alternative_class" }
+          ]
+        },
+        "consequence_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "deferred_to_self_hosted_alternative and deferred_to_local_alternative MUST cite a self_hosted_alternative_class.",
+          "if": {
+            "properties": {
+              "consequence_class": {
+                "enum": [
+                  "deferred_to_self_hosted_alternative",
+                  "deferred_to_local_alternative"
+                ]
+              }
+            },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "self_hosted_alternative_class": {
+                "not": { "type": "null" }
+              }
+            },
+            "required": ["self_hosted_alternative_class"]
+          }
+        }
+      ]
+    },
+    "read_only_consequence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_class",
+        "reason_class",
+        "becomes_read_only_at",
+        "consequence_summary"
+      ],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/read_only_artifact_class" },
+        "reason_class": { "$ref": "#/$defs/read_only_reason_class" },
+        "becomes_read_only_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "cure_summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "consequence_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_ref",
+        "schema_ref",
+        "seat_lifecycle_contract_ref",
+        "workspace_lifecycle_contract_ref",
+        "metering_contract_ref"
+      ],
+      "properties": {
+        "contract_ref": {
+          "type": "string",
+          "const": "docs/managed/account_seat_plan_and_exit_contract.md"
+        },
+        "schema_ref": {
+          "type": "string",
+          "const": "schemas/managed/account_exit_packet.schema.json"
+        },
+        "seat_lifecycle_contract_ref": {
+          "type": "string",
+          "const": "docs/admin/org_admin_seat_and_fleet_contract.md"
+        },
+        "workspace_lifecycle_contract_ref": {
+          "type": "string",
+          "const": "docs/managed/managed_workspace_lifecycle_contract.md"
+        },
+        "metering_contract_ref": {
+          "type": "string",
+          "const": "docs/managed/metering_and_usage_export_contract.md"
+        },
+        "service_seed_ref": {
+          "type": "string",
+          "const": "docs/service/managed_service_seed.md"
+        },
+        "portability_matrix_ref": {
+          "type": "string",
+          "const": "docs/governance/data_portability_and_exit_matrix.md"
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "policy_decision_history_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "account_exit_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "account_exit_packet_id",
+        "account_ref",
+        "org_ref",
+        "seat_ref",
+        "account_state_class",
+        "org_state_class",
+        "seat_state_class",
+        "plan_state_class",
+        "grace",
+        "posture_origin_class",
+        "managed_provider_state_class",
+        "exit_intent",
+        "artifact_dispositions",
+        "required_disclosures",
+        "self_hosted_alternatives",
+        "provider_linked_workflow_consequences",
+        "read_only_consequences",
+        "workspace_lifecycle_record_refs",
+        "seat_lifecycle_row_refs",
+        "metering_quota_state_refs",
+        "policy_context",
+        "minted_at",
+        "links"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "account_exit_packet_record"
+        },
+        "account_exit_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "account_ref": { "$ref": "#/$defs/opaque_id" },
+        "org_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "seat_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "account_state_class": { "$ref": "#/$defs/account_state_class" },
+        "org_state_class": { "$ref": "#/$defs/org_state_class" },
+        "seat_state_class": { "$ref": "#/$defs/seat_state_class" },
+        "plan_state_class": { "$ref": "#/$defs/plan_state_class" },
+        "grace": { "$ref": "#/$defs/grace_block" },
+        "posture_origin_class": { "$ref": "#/$defs/posture_origin_class" },
+        "managed_provider_state_class": { "$ref": "#/$defs/managed_provider_state_class" },
+        "exit_intent": { "$ref": "#/$defs/exit_intent" },
+        "artifact_dispositions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/artifact_disposition_entry" }
+        },
+        "required_disclosures": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/disclosure_entry" }
+        },
+        "self_hosted_alternatives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/self_hosted_alternative_entry" }
+        },
+        "provider_linked_workflow_consequences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/provider_linked_workflow_consequence_entry" }
+        },
+        "read_only_consequences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/read_only_consequence_entry" }
+        },
+        "workspace_lifecycle_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "seat_lifecycle_row_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "metering_quota_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "caveats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "links": { "$ref": "#/$defs/links" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture-only annotation block; never emitted by runtime producers."
+        }
+      },
+      "allOf": [
+        {
+          "description": "active account state forbids exit reasons that close or transfer the account; the exit intent must be no_exit_in_progress.",
+          "if": {
+            "properties": {
+              "account_state_class": { "const": "active" }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "exit_intent": {
+                "properties": {
+                  "exit_reason_class": { "const": "no_exit_in_progress" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Any non-active, non-grace, non-local-only account state requires a real exit_reason_class.",
+          "if": {
+            "properties": {
+              "account_state_class": {
+                "enum": [
+                  "suspended",
+                  "locked_for_review",
+                  "expired",
+                  "offboarding_in_progress",
+                  "offboarded",
+                  "transferred"
+                ]
+              }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "exit_intent": {
+                "properties": {
+                  "exit_reason_class": {
+                    "not": { "const": "no_exit_in_progress" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "offboarded MUST set provider workflow consequences to revoked / revoked_with_retained_legal_or_audit_read / not_applicable / deferred and MUST NOT claim becomes_read_only_during_grace or becomes_read_only_during_suspension on any artifact (the close has happened).",
+          "if": {
+            "properties": {
+              "account_state_class": { "const": "offboarded" }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "artifact_dispositions": {
+                "type": "array",
+                "items": {
+                  "properties": {
+                    "disposition_class": {
+                      "not": {
+                        "enum": [
+                          "becomes_read_only_during_grace",
+                          "becomes_read_only_during_suspension"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "exit_intent": {
+                "properties": {
+                  "completed_close_at": {
+                    "not": { "type": "null" }
+                  }
+                },
+                "required": ["completed_close_at"]
+              }
+            }
+          }
+        },
+        {
+          "description": "offboarding_in_progress and offboarded require dispositions for the core five artifact classes plus at least one self-hosted or local alternative.",
+          "if": {
+            "properties": {
+              "account_state_class": {
+                "enum": ["offboarding_in_progress", "offboarded"]
+              }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "artifact_dispositions": {
+                "type": "array",
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "artifact_class": { "const": "workspace_files" }
+                      },
+                      "required": ["artifact_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "artifact_class": { "const": "evidence_artifacts" }
+                      },
+                      "required": ["artifact_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "artifact_class": { "const": "settings_keybindings_profiles_snippets" }
+                      },
+                      "required": ["artifact_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "artifact_class": { "const": "usage_and_billing_exports" }
+                      },
+                      "required": ["artifact_class"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "artifact_class": { "const": "credentials_and_tokens" }
+                      },
+                      "required": ["artifact_class"]
+                    }
+                  }
+                ]
+              },
+              "self_hosted_alternatives": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "suspended or expired account state requires at least one self-hosted or local alternative.",
+          "if": {
+            "properties": {
+              "account_state_class": {
+                "enum": ["suspended", "expired"]
+              }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "self_hosted_alternatives": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "local_only_no_managed_account: posture_origin_class MUST match, the org / seat refs MUST be null, the org / plan / managed-provider states MUST be the not_applicable variants, and the alternatives list MUST include account_free_local_deployment or local_search_and_edit_only.",
+          "if": {
+            "properties": {
+              "account_state_class": { "const": "local_only_no_managed_account" }
+            },
+            "required": ["account_state_class"]
+          },
+          "then": {
+            "properties": {
+              "posture_origin_class": { "const": "local_only_no_managed_account" },
+              "org_ref": { "type": "null" },
+              "seat_ref": { "type": "null" },
+              "org_state_class": { "const": "not_applicable_individual_account" },
+              "plan_state_class": { "const": "not_applicable_individual_account" },
+              "managed_provider_state_class": {
+                "enum": [
+                  "not_applicable_self_hosted",
+                  "not_applicable_individual_local"
+                ]
+              },
+              "self_hosted_alternatives": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "alternative_class": {
+                      "enum": [
+                        "account_free_local_deployment",
+                        "local_search_and_edit_only"
+                      ]
+                    }
+                  },
+                  "required": ["alternative_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "grace_active / grace_warning / grace_final_warning / grace_expired account postures require a grace_window or grace_window_closing disclosure.",
+          "if": {
+            "properties": {
+              "grace": {
+                "properties": {
+                  "grace_state_class": {
+                    "enum": [
+                      "grace_active",
+                      "grace_warning",
+                      "grace_final_warning",
+                      "grace_expired"
+                    ]
+                  }
+                },
+                "required": ["grace_state_class"]
+              }
+            },
+            "required": ["grace"]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "contains": {
+                  "properties": {
+                    "disclosure_class": {
+                      "enum": ["grace_window_open", "grace_window_closing"]
+                    }
+                  },
+                  "required": ["disclosure_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "seat_exhausted_overflow plan state requires a seat_exhaustion disclosure.",
+          "if": {
+            "properties": {
+              "plan_state_class": { "const": "seat_exhausted_overflow" }
+            },
+            "required": ["plan_state_class"]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "contains": {
+                  "properties": {
+                    "disclosure_class": { "const": "seat_exhaustion" }
+                  },
+                  "required": ["disclosure_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "soft_downgraded_to_plan_floor / scheduled_downgrade_pending / expired plan states require a plan_downgrade or plan_expiry disclosure.",
+          "if": {
+            "properties": {
+              "plan_state_class": {
+                "enum": [
+                  "soft_downgraded_to_plan_floor",
+                  "scheduled_downgrade_pending",
+                  "expired"
+                ]
+              }
+            },
+            "required": ["plan_state_class"]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "contains": {
+                  "properties": {
+                    "disclosure_class": {
+                      "enum": ["plan_downgrade", "plan_expiry"]
+                    }
+                  },
+                  "required": ["disclosure_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "policy posture origin or locked_for_review account state requires a policy_suspension disclosure.",
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "posture_origin_class": { "const": "policy" }
+                },
+                "required": ["posture_origin_class"]
+              },
+              {
+                "properties": {
+                  "account_state_class": { "const": "locked_for_review" }
+                },
+                "required": ["account_state_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "contains": {
+                  "properties": {
+                    "disclosure_class": { "const": "policy_suspension" }
+                  },
+                  "required": ["disclosure_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "account transfer or leave exit reasons require the matching disclosure.",
+          "if": {
+            "properties": {
+              "exit_intent": {
+                "properties": {
+                  "exit_reason_class": {
+                    "enum": [
+                      "user_initiated_account_leave",
+                      "admin_initiated_account_transfer"
+                    ]
+                  }
+                },
+                "required": ["exit_reason_class"]
+              }
+            },
+            "required": ["exit_intent"]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "contains": {
+                  "properties": {
+                    "disclosure_class": {
+                      "enum": ["account_leave", "account_transfer"]
+                    }
+                  },
+                  "required": ["disclosure_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "managed_provider_terminated_account requires a provider_account_terminated disclosure.",
+          "if": {
+            "properties": {
+              "managed_provider_state_class": { "const": "provider_terminated_account" }
+            },
+            "required": ["managed_provider_state_class"]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "contains": {
+                  "properties": {
+                    "disclosure_class": { "const": "provider_account_terminated" }
+                  },
+                  "required": ["disclosure_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "active account, no exit, not_in_grace MUST mark the only required disclosure entry as no_disclosure_required.",
+          "if": {
+            "allOf": [
+              {
+                "properties": {
+                  "account_state_class": { "const": "active" }
+                },
+                "required": ["account_state_class"]
+              },
+              {
+                "properties": {
+                  "grace": {
+                    "properties": {
+                      "grace_state_class": { "const": "not_in_grace" }
+                    },
+                    "required": ["grace_state_class"]
+                  }
+                },
+                "required": ["grace"]
+              },
+              {
+                "properties": {
+                  "plan_state_class": {
+                    "enum": [
+                      "active_within_plan",
+                      "not_applicable_individual_account"
+                    ]
+                  }
+                },
+                "required": ["plan_state_class"]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "required_disclosures": {
+                "items": {
+                  "properties": {
+                    "disclosure_class": { "const": "no_disclosure_required" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

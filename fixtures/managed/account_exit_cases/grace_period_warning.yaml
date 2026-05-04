@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=../../../schemas/managed/account_exit_packet.schema.json
+__fixture__:
+  name: grace_period_warning
+  scenario: >
+    A managed-org account is in a grace warning window because the
+    plan is scheduled to downgrade in 14 days. The account is still
+    active in grace, the seat is still active, and managed actions
+    remain admissible — but the packet renders the close timestamp,
+    names the upcoming plan downgrade, and offers export-before-
+    suspend pathways for artifacts that will narrow under the
+    plan-floor.
+  exercised_contract_sections:
+    - grace_state_class
+    - required_disclosures
+    - artifact_dispositions
+    - provider_linked_workflow_consequences
+    - read_only_consequences
+
+schema_version: 1
+record_kind: account_exit_packet_record
+account_exit_packet_id: aep:grace_period_warning:0001
+account_ref: account:gamma:0042
+org_ref: org:gamma:0001
+seat_ref: seat:gamma:0042
+account_state_class: grace
+org_state_class: active
+seat_state_class: active
+plan_state_class: scheduled_downgrade_pending
+grace:
+  grace_state_class: grace_warning
+  grace_window_opens_at: "2026-04-20T00:00:00Z"
+  grace_window_closes_at: "2026-05-18T00:00:00Z"
+  grace_summary: Grace window is more than half elapsed; plan downgrade scheduled in 14 days.
+posture_origin_class: plan
+managed_provider_state_class: provider_active
+exit_intent:
+  exit_reason_class: no_exit_in_progress
+  initiator_class: no_initiator_no_exit
+  scheduled_close_at: null
+  completed_close_at: null
+  exit_summary: No exit is in progress; account remains active in grace warning.
+artifact_dispositions:
+  - artifact_class: workspace_files
+    disposition_class: becomes_read_only_during_grace
+    deadline_at: "2026-05-18T00:00:00Z"
+    disposition_note: Managed-workspace edits remain admissible until the grace window closes; export before then to retain edit on the post-grace plan floor.
+  - artifact_class: usage_and_billing_exports
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-05-18T00:00:00Z"
+    portability_row_ref: portability_row:usage_and_billing_exports:v1
+    disposition_note: Final pre-downgrade usage export is generated on demand without a support ticket.
+  - artifact_class: managed_templates_and_prebuilds
+    disposition_class: becomes_read_only_during_grace
+    deadline_at: "2026-05-18T00:00:00Z"
+    disposition_note: Managed templates become read-only at grace close; export before then to retain author rights.
+  - artifact_class: settings_keybindings_profiles_snippets
+    disposition_class: preserved_locally_after_close
+    disposition_note: Local settings and keybindings remain editable across the downgrade.
+  - artifact_class: credentials_and_tokens
+    disposition_class: not_applicable
+    credential_redaction_class: not_applicable
+    disposition_note: Credentials are unaffected by the scheduled plan downgrade.
+required_disclosures:
+  - disclosure_class: grace_window_closing
+    audience_class: user_and_admin
+    action_required: true
+    deadline_at: "2026-05-18T00:00:00Z"
+    disclosure_summary: Plan downgrade scheduled at grace close; export pre-downgrade artifacts before the window closes.
+  - disclosure_class: plan_downgrade
+    audience_class: user_and_admin
+    action_required: true
+    deadline_at: "2026-05-18T00:00:00Z"
+    disclosure_summary: Plan will narrow to plan floor at grace close; managed templates and managed-workspace edit narrow.
+self_hosted_alternatives:
+  - alternative_class: byok_local_ai_route
+    available_locally: true
+    applicability_summary: BYOK local AI remains admissible after the downgrade for routes whose plan-floor budget excludes managed AI.
+  - alternative_class: signed_file_based_policy
+    available_locally: true
+    applicability_summary: Org may move to a signed file-based policy distribution path to retain admin governance under the plan floor.
+provider_linked_workflow_consequences:
+  - workflow_class: managed_workspace_attach
+    consequence_class: admissible
+    consequence_summary: Managed-workspace attach remains admissible through grace close.
+  - workflow_class: managed_ai_route
+    consequence_class: narrowed_to_plan_floor
+    consequence_summary: Managed AI routes narrow at grace close; BYOK local routes remain admissible.
+  - workflow_class: managed_templates_and_prebuilds
+    consequence_class: narrowed_to_plan_floor
+    consequence_summary: Managed templates narrow to plan floor at grace close.
+  - workflow_class: marketplace_publishing
+    consequence_class: narrowed_to_plan_floor
+    consequence_summary: Marketplace publishing narrows to plan floor at grace close.
+  - workflow_class: real_time_collab
+    consequence_class: admissible
+    consequence_summary: Real-time collaboration remains admissible under the plan floor.
+read_only_consequences:
+  - artifact_class: workspace_files
+    reason_class: grace_window_close_imminent
+    becomes_read_only_at: "2026-05-18T00:00:00Z"
+    cure_summary: Renew or upgrade the plan before grace close to retain edit access on the post-grace floor.
+    consequence_summary: Managed-workspace files become read-only at grace close; local edits stay editable.
+  - artifact_class: managed_templates_and_prebuilds
+    reason_class: grace_window_close_imminent
+    becomes_read_only_at: "2026-05-18T00:00:00Z"
+    cure_summary: Export managed templates before grace close to retain author rights under the new plan.
+    consequence_summary: Managed templates flip to read-only at grace close; exports preserve template content.
+workspace_lifecycle_record_refs:
+  - wlr:managed:ready_under_grace:0001
+seat_lifecycle_row_refs:
+  - seat_lifecycle_row:gamma:0042:active
+metering_quota_state_refs:
+  - quota-state:managed_ai:gateway:gamma:authoritative:0001
+caveats:
+  - Grace warning is a typed posture, not a generic "trial expiring" string.
+  - Local-core surfaces remain unaffected by the upcoming downgrade.
+policy_context:
+  policy_epoch: policy-epoch:org_admin:gamma:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T12:00:00Z"
+expires_at: "2026-05-04T13:00:00Z"
+links:
+  contract_ref: docs/managed/account_seat_plan_and_exit_contract.md
+  schema_ref: schemas/managed/account_exit_packet.schema.json
+  seat_lifecycle_contract_ref: docs/admin/org_admin_seat_and_fleet_contract.md
+  workspace_lifecycle_contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  metering_contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_seed_ref: docs/service/managed_service_seed.md
+  portability_matrix_ref: docs/governance/data_portability_and_exit_matrix.md
+  audit_event_refs:
+    - audit_event:plan_downgrade_scheduled:gamma:0001
+  policy_decision_history_row_refs:
+    - policy_decision_history_row:plan_downgrade_scheduled:gamma:0001

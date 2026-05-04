@@ -1,0 +1,149 @@
+# yaml-language-server: $schema=../../../schemas/managed/account_exit_packet.schema.json
+__fixture__:
+  name: individual_seat_expiry
+  scenario: >
+    An individual user on a managed plan reached the end of the
+    contract term. The grace window already closed; the seat is
+    deprovisioned and the plan is expired. The account-exit packet
+    distinguishes the seat-level deprovisioning from the plan-level
+    expiry, names the typed grace_expired window, and offers
+    self-hosted and BYOK-local alternatives so the user can keep
+    working locally instead of seeing a generic "access revoked"
+    chip.
+  exercised_contract_sections:
+    - account_state_model
+    - grace_state_class
+    - exit_intent
+    - artifact_dispositions
+    - required_disclosures
+    - self_hosted_alternatives
+    - provider_linked_workflow_consequences
+    - read_only_consequences
+
+schema_version: 1
+record_kind: account_exit_packet_record
+account_exit_packet_id: aep:individual_seat_expiry:0001
+account_ref: account:individual:alpha:0001
+org_ref: null
+seat_ref: seat:individual:alpha:0001
+account_state_class: expired
+org_state_class: not_applicable_individual_account
+seat_state_class: deprovisioned
+plan_state_class: expired
+grace:
+  grace_state_class: grace_expired
+  grace_window_opens_at: "2026-04-04T00:00:00Z"
+  grace_window_closes_at: "2026-05-04T00:00:00Z"
+  grace_summary: Grace window closed on the contract anniversary; offboarding posture engaged.
+posture_origin_class: account
+managed_provider_state_class: provider_active
+exit_intent:
+  exit_reason_class: plan_term_ended
+  initiator_class: scheduled_task
+  scheduled_close_at: "2026-05-04T00:00:00Z"
+  completed_close_at: null
+  exit_summary: Plan term ended past grace; managed actions blocked, offboarding export remains admissible.
+artifact_dispositions:
+  - artifact_class: workspace_files
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    disposition_note: Workspace files remain exportable without a support ticket while the access-end window is open.
+  - artifact_class: evidence_artifacts
+    disposition_class: preserved_locally_after_close
+    disposition_note: Mutation-journal entries and exported evidence already on the local host survive the close.
+  - artifact_class: settings_keybindings_profiles_snippets
+    disposition_class: preserved_locally_after_close
+    disposition_note: Local settings, keybindings, and snippets remain user-owned and unaffected by managed-plan expiry.
+  - artifact_class: usage_and_billing_exports
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    portability_row_ref: portability_row:usage_and_billing_exports:v1
+    disposition_note: Final monthly usage export is generated on demand without a support ticket.
+  - artifact_class: credentials_and_tokens
+    disposition_class: discarded_at_close
+    credential_redaction_class: never_persisted_security_boundary
+    credential_token_ref: token:managed_session:individual:0001
+    disposition_note: Managed-session ticket is discarded at access-end-window close by design.
+  - artifact_class: support_bundles
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    disposition_note: Support bundles remain exportable until the access-end window closes.
+required_disclosures:
+  - disclosure_class: plan_expiry
+    audience_class: user
+    action_required: true
+    deadline_at: "2026-06-03T00:00:00Z"
+    disclosure_summary: Plan term ended; export remaining managed artifacts before the access-end window closes.
+  - disclosure_class: grace_window_closing
+    audience_class: user
+    action_required: false
+    deadline_at: "2026-06-03T00:00:00Z"
+    disclosure_summary: Grace window already closed; access-end window is the remaining export path.
+self_hosted_alternatives:
+  - alternative_class: account_free_local_deployment
+    available_locally: true
+    applicability_summary: Continue using Aureline locally without a managed account; local-core surfaces remain unaffected.
+  - alternative_class: byok_local_ai_route
+    available_locally: true
+    applicability_summary: AI routes remain admissible via BYOK local inference under the user's budget policy.
+  - alternative_class: self_hosted_org_deployment
+    available_locally: false
+    redirect_ref: docs:deployment:self_hosted_org
+    applicability_summary: An admin may deploy the self-hosted org profile to retain managed-style administration without a managed plan.
+provider_linked_workflow_consequences:
+  - workflow_class: managed_workspace_attach
+    consequence_class: revoked
+    consequence_summary: Managed-workspace attach revoked; workspace lifecycle moves to closed via access-end window.
+  - workflow_class: managed_ai_route
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: byok_local_ai_route
+    consequence_summary: Managed AI routes are revoked; BYOK local AI remains admissible.
+  - workflow_class: real_time_collab
+    consequence_class: revoked
+    consequence_summary: Real-time collaboration is revoked; local comments remain user-owned.
+  - workflow_class: managed_settings_and_keybindings_sync
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: account_free_local_deployment
+    consequence_summary: Managed sync is revoked; local settings remain editable on the local host.
+  - workflow_class: marketplace_install
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: account_free_local_deployment
+    consequence_summary: Managed marketplace install is revoked; locally cached extensions remain installable.
+read_only_consequences:
+  - artifact_class: managed_review_and_approvals
+    reason_class: offboarding_in_progress
+    becomes_read_only_at: "2026-05-04T00:00:00Z"
+    cure_summary: null
+    consequence_summary: Managed review and approvals became read-only when the access-end window opened.
+  - artifact_class: collaboration_comments_and_audit
+    reason_class: offboarding_in_progress
+    becomes_read_only_at: "2026-05-04T00:00:00Z"
+    cure_summary: null
+    consequence_summary: Managed collaboration comments are read-only; local comments remain editable.
+workspace_lifecycle_record_refs:
+  - wlr:managed:closed_after_expiry:0001
+seat_lifecycle_row_refs:
+  - seat_lifecycle_row:individual:alpha:0001:deprovisioned
+metering_quota_state_refs:
+  - quota-state:managed_workspace:hours:final_window:0001
+caveats:
+  - Local-core surfaces remain non-blocking; only managed actions narrow.
+policy_context:
+  policy_epoch: policy-epoch:account_exit:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T00:05:00Z"
+expires_at: "2026-05-04T01:05:00Z"
+links:
+  contract_ref: docs/managed/account_seat_plan_and_exit_contract.md
+  schema_ref: schemas/managed/account_exit_packet.schema.json
+  seat_lifecycle_contract_ref: docs/admin/org_admin_seat_and_fleet_contract.md
+  workspace_lifecycle_contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  metering_contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_seed_ref: docs/service/managed_service_seed.md
+  portability_matrix_ref: docs/governance/data_portability_and_exit_matrix.md
+  audit_event_refs:
+    - audit_event:account_expiry:0001
+  policy_decision_history_row_refs:
+    - policy_decision_history_row:account_expiry:0001

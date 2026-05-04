@@ -1,0 +1,167 @@
+# yaml-language-server: $schema=../../../schemas/managed/account_exit_packet.schema.json
+__fixture__:
+  name: self_hosted_alternative_recommendation
+  scenario: >
+    A managed-cloud user has initiated account leave. Offboarding is
+    in progress and the access-end window is open. The packet
+    explicitly recommends a self-hosted org deployment, BYOK local
+    AI, and signed file-based policy as continuation paths so the
+    user does not see a dead-end "access revoked" message but a
+    typed set of admissible alternatives that survive the close.
+  exercised_contract_sections:
+    - account_state_model
+    - exit_intent
+    - account_leave_disclosure
+    - artifact_dispositions_offboarding_required
+    - self_hosted_alternatives
+    - provider_linked_workflow_consequences
+
+schema_version: 1
+record_kind: account_exit_packet_record
+account_exit_packet_id: aep:self_hosted_alternative_recommendation:0001
+account_ref: account:epsilon:0099
+org_ref: org:epsilon:0001
+seat_ref: seat:epsilon:0099
+account_state_class: offboarding_in_progress
+org_state_class: active
+seat_state_class: deprovisioned
+plan_state_class: transferred_to_new_plan
+grace:
+  grace_state_class: not_in_grace
+  grace_window_opens_at: null
+  grace_window_closes_at: null
+  grace_summary: No grace window applies; user-initiated leave goes directly to offboarding.
+posture_origin_class: account
+managed_provider_state_class: provider_active
+exit_intent:
+  exit_reason_class: user_initiated_account_leave
+  initiator_class: self_service_user_action
+  scheduled_close_at: "2026-06-03T00:00:00Z"
+  completed_close_at: null
+  exit_summary: User-initiated account leave; offboarding export remains open until access-end window closes.
+artifact_dispositions:
+  - artifact_class: workspace_files
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    portability_row_ref: portability_row:workspaces_tasks_launch_policy_files:v1
+    disposition_note: Workspace files remain exportable without a support ticket while the access-end window is open.
+  - artifact_class: evidence_artifacts
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    disposition_note: Mutation-journal entries and evidence artifacts remain exportable during the access-end window.
+  - artifact_class: settings_keybindings_profiles_snippets
+    disposition_class: preserved_locally_after_close
+    portability_row_ref: portability_row:settings_keybindings_profiles_snippets:v1
+    disposition_note: Local settings, keybindings, and snippets remain user-owned and unaffected by account leave.
+  - artifact_class: usage_and_billing_exports
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    portability_row_ref: portability_row:usage_and_billing_exports:v1
+    disposition_note: Final monthly usage export is generated on demand without a support ticket.
+  - artifact_class: credentials_and_tokens
+    disposition_class: discarded_at_close
+    credential_redaction_class: never_persisted_security_boundary
+    credential_token_ref: token:managed_session:epsilon:0099
+    disposition_note: Managed-session ticket is discarded at offboarding close by design.
+  - artifact_class: support_bundles
+    disposition_class: exportable_during_access_end_window
+    deadline_at: "2026-06-03T00:00:00Z"
+    disposition_note: Support bundles remain exportable during the access-end window.
+  - artifact_class: audit_and_decision_history
+    disposition_class: policy_held_post_close
+    retention_row_ref: retention_row:admin_audit_packet:v1
+    disposition_note: Audit and decision-history rows are retained post-close per the audit retention row.
+required_disclosures:
+  - disclosure_class: account_leave
+    audience_class: user
+    action_required: true
+    deadline_at: "2026-06-03T00:00:00Z"
+    disclosure_summary: Account-leave initiated; offboarding export remains open until the access-end window closes.
+  - disclosure_class: plan_downgrade
+    audience_class: user
+    action_required: false
+    disclosure_summary: Managed plan transferred away from this seat; managed actions revoked.
+self_hosted_alternatives:
+  - alternative_class: self_hosted_org_deployment
+    available_locally: false
+    redirect_ref: docs:deployment:self_hosted_org
+    applicability_summary: Recommended path for users who want to keep managed-style administration without the managed plan.
+  - alternative_class: account_free_local_deployment
+    available_locally: true
+    applicability_summary: Continue using Aureline locally with no managed account; local-core surfaces are unaffected.
+  - alternative_class: byok_local_ai_route
+    available_locally: true
+    applicability_summary: BYOK local AI routes remain admissible after the close.
+  - alternative_class: signed_file_based_policy
+    available_locally: true
+    applicability_summary: Org may distribute policy via a signed file or bundle path to retain admin governance after the leave.
+  - alternative_class: offline_capture_continuation
+    available_locally: true
+    applicability_summary: Offline-capture surfaces remain available per the provider-account-mapping contract.
+provider_linked_workflow_consequences:
+  - workflow_class: managed_workspace_attach
+    consequence_class: deferred_to_self_hosted_alternative
+    self_hosted_alternative_class: self_hosted_org_deployment
+    consequence_summary: Managed-workspace attach revoked; self-hosted org deployment provides an equivalent surface.
+  - workflow_class: managed_ai_route
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: byok_local_ai_route
+    consequence_summary: Managed AI revoked; BYOK local AI remains admissible.
+  - workflow_class: managed_settings_and_keybindings_sync
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: account_free_local_deployment
+    consequence_summary: Managed sync revoked; local settings remain editable on the local host.
+  - workflow_class: real_time_collab
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: local_only_collaboration
+    consequence_summary: Real-time collaboration revoked; local-only review remains admissible.
+  - workflow_class: managed_review_and_approvals
+    consequence_class: revoked_with_retained_legal_or_audit_read
+    consequence_summary: Managed review and approvals revoked; legal and audit reads retained per retention rules.
+  - workflow_class: marketplace_install
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: account_free_local_deployment
+    consequence_summary: Managed marketplace install revoked; locally cached extensions remain installable.
+  - workflow_class: provider_offline_capture
+    consequence_class: deferred_to_local_alternative
+    self_hosted_alternative_class: offline_capture_continuation
+    consequence_summary: Provider offline-capture revoked at offboarding; local offline-capture surfaces remain admissible.
+read_only_consequences:
+  - artifact_class: managed_review_and_approvals
+    reason_class: offboarding_in_progress
+    becomes_read_only_at: "2026-05-04T15:00:00Z"
+    cure_summary: null
+    consequence_summary: Managed review and approvals became read-only at offboarding start.
+  - artifact_class: collaboration_comments_and_audit
+    reason_class: offboarding_in_progress
+    becomes_read_only_at: "2026-05-04T15:00:00Z"
+    cure_summary: null
+    consequence_summary: Managed comments became read-only at offboarding start; local comments remain editable.
+workspace_lifecycle_record_refs:
+  - wlr:managed:offboarding_open:epsilon:0099
+seat_lifecycle_row_refs:
+  - seat_lifecycle_row:epsilon:0099:deprovisioned
+metering_quota_state_refs:
+  - quota-state:managed_ai:gateway:epsilon:offboarding:0001
+caveats:
+  - Self-hosted and local alternatives are typed and admissible; the offboarding flow is not a dead-end.
+  - Local-core surfaces remain available throughout offboarding.
+policy_context:
+  policy_epoch: policy-epoch:account_exit:epsilon:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T15:01:00Z"
+expires_at: "2026-05-04T15:31:00Z"
+links:
+  contract_ref: docs/managed/account_seat_plan_and_exit_contract.md
+  schema_ref: schemas/managed/account_exit_packet.schema.json
+  seat_lifecycle_contract_ref: docs/admin/org_admin_seat_and_fleet_contract.md
+  workspace_lifecycle_contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  metering_contract_ref: docs/managed/metering_and_usage_export_contract.md
+  service_seed_ref: docs/service/managed_service_seed.md
+  portability_matrix_ref: docs/governance/data_portability_and_exit_matrix.md
+  audit_event_refs:
+    - audit_event:account_leave_initiated:epsilon:0099
+  policy_decision_history_row_refs:
+    - policy_decision_history_row:account_leave_initiated:epsilon:0099
