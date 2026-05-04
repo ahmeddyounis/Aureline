@@ -1,0 +1,1171 @@
+# Cross-functional milestone-deliverable ledger.
+#
+# Machine-readable companion to
+# docs/governance/cross_functional_deliverable_ledger.md. This ledger
+# answers a question that scorecard rows alone do not: which artifacts
+# does each function owe the next milestone for that milestone to be
+# real, supportable, and externally explainable?
+#
+# A scorecard row tells reviewers whether a lane is green for the
+# current milestone. A ledger row tells reviewers what that lane MUST
+# hand forward — design evidence ids, benchmark corpora, support packs,
+# docs truth, release packets, public-proof bundles — before the next
+# milestone may be marked green. Hand-forward rules in this file make
+# it mechanical to refuse milestone close when one function shipped
+# code while another deferred the artifact that makes the work
+# supportable, explainable, or publishable.
+#
+# Companion artifacts:
+#   - docs/governance/cross_functional_deliverable_ledger.md
+#   - artifacts/governance/externalization_overlay.yaml
+#   - fixtures/governance/hand_forward_examples/
+#   - artifacts/governance/milestone_scorecard_template.yaml
+#   - artifacts/governance/control_artifact_index.yaml
+#   - artifacts/governance/ownership_matrix.yaml
+#   - artifacts/governance/packet_class_registry.yaml
+#   - artifacts/governance/evidence_freshness_slos.yaml
+#   - artifacts/governance/evidence_rerun_triggers.yaml
+#   - docs/governance/evidence_freshness_policy.md
+#   - docs/governance/dri_map.md
+#
+# Rules:
+#   - Every ledger row MUST name `producing_milestone`, `owner_lane`,
+#     `consumer_milestone`, `deliverable_name`, `evidence_owner`, and
+#     `freshness_or_maintenance_rule`.
+#   - `owner_lane` MUST resolve to one of the canonical lane categories
+#     in `lane_categories` below; the per-row `lane_id` MUST resolve to
+#     `ownership_matrix.scorecard_lane_index`.
+#   - `producing_milestone` and `consumer_milestone` MUST be drawn from
+#     `governed_milestone_slugs`. The ledger does not mint a parallel
+#     milestone vocabulary; if a deliverable carries forward to multiple
+#     consumers, list every consumer slug.
+#   - `deliverable_class_ref` MUST resolve to one of the canonical
+#     packet classes in `artifacts/governance/packet_class_registry.yaml`
+#     when the deliverable is an instance of one of the closed classes.
+#   - `linked_artifact_refs` SHOULD cite the canonical home (yaml, md,
+#     schema, fixture). Ledger rows do not restate the artifact's
+#     contents.
+#   - `freshness_or_maintenance_rule` MUST point at one of the
+#     freshness-class names used in `evidence_freshness_slos.yaml`
+#     (e.g. each_change, weekly, per_milestone) or describe the
+#     rerun trigger from `evidence_rerun_triggers.yaml`. Vague phrases
+#     like "kept fresh" are not acceptable.
+#   - `hand_forward_status` records the row's posture toward the next
+#     milestone's hand-forward gate. Closed vocabulary in
+#     `hand_forward_status_classes` below.
+#   - Rows MUST NOT surface internal milestone IDs (M0, M00, M00-XX,
+#     WP-XX) in any user-facing string. Milestone slugs are the only
+#     governance identifier.
+#   - The ledger is consumed verbatim by milestone scorecards and
+#     handoff packets. Tooling joins on `lane_id` plus
+#     `producing_milestone`. Adding fields here is additive-minor and
+#     bumps `schema_version`. Repurposing a field is breaking and opens
+#     a decision row in `decision_index.yaml`.
+
+schema_version: 1
+artifact_id: aureline.milestone_deliverable_ledger
+artifact_revision: 1
+status: seeded
+
+overview_document: docs/governance/cross_functional_deliverable_ledger.md
+externalization_overlay_ref: artifacts/governance/externalization_overlay.yaml
+fixture_home: fixtures/governance/hand_forward_examples/
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+packet_class_registry_ref: artifacts/governance/packet_class_registry.yaml
+control_artifact_index_ref: artifacts/governance/control_artifact_index.yaml
+scorecard_template_ref: artifacts/governance/milestone_scorecard_template.yaml
+
+source_specs:
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_PRD.md
+  - docs/governance/dri_map.md
+  - docs/governance/control_artifact_index.md
+  - docs/governance/artifact_hierarchy_and_packet_classes.md
+
+# -----------------------------------------------------------------------------
+# Governed milestone slugs.
+#
+# Mirrors artifacts/governance/packet_class_registry.yaml. Every ledger
+# row's producing_milestone and consumer_milestone slugs MUST come from
+# this list. The ledger does not invent its own milestone vocabulary.
+# -----------------------------------------------------------------------------
+governed_milestone_slugs:
+  - foundations
+  - prototype
+  - alpha
+  - first_beta
+  - stable_v1
+
+# -----------------------------------------------------------------------------
+# Owner-lane categories.
+#
+# The five canonical categories in the spec for cross-functional
+# deliverables. Every row resolves to exactly one category. The
+# `scorecard_lanes` field on each category lists which scorecard lane
+# ids (from ownership_matrix.scorecard_lane_index) feed into that
+# category for the purposes of milestone-close review.
+# -----------------------------------------------------------------------------
+lane_categories:
+  - id: program_product
+    label: Program / product
+    description: >
+      Milestone scope, cutline discipline, claim posture, change budget,
+      decision routing, and program-level evidence (scorecards, decision
+      index, requirement register, claim manifest, governance packets).
+    scorecard_lanes:
+      - governance_packets
+  - id: ux_design
+    label: UX / design
+    description: >
+      UX research, design-system seeds, interaction packets, design
+      tokens, accessibility-input review evidence, and design-evidence
+      indices that downstream milestones cite by id.
+    scorecard_lanes:
+      - design_system_seeds
+      - accessibility_input_review
+  - id: engineering_architecture
+    label: Engineering / architecture
+    description: >
+      Protected-path code, ADR set, surface contracts, schema/wire
+      shapes, package topology, runtime/transport, language and editor
+      cores, scheduler/worker contracts, and architecture-pack content.
+    scorecard_lanes:
+      - aureline-render
+      - aureline-buffer
+      - aureline-vfs
+      - aureline-text
+      - aureline-rpc
+      - aureline-telemetry
+      - shell_command_system
+      - aureline-shell-spike
+      - aureline-bench
+  - id: quality_security_accessibility_release
+    label: Quality / security / accessibility / release
+    description: >
+      Verification corpora, benchmark plans and publication packs,
+      compatibility/certified-archetype reports, security review and
+      threat-model packets, accessibility verification, fitness
+      functions, release-evidence, and shiproom packets.
+    scorecard_lanes:
+      - benchmark_lab
+      - release_evidence
+      - accessibility_input_review
+  - id: docs_devrel_support
+    label: Docs / DevRel / support
+    description: >
+      Public-truth docs, help / About surfaces, migration packs, support
+      packets, runbook content, claim publication targets, public-proof
+      bundles, and DevRel-facing publication artifacts.
+    scorecard_lanes:
+      - docs_public_truth
+      - support_export
+
+# -----------------------------------------------------------------------------
+# Hand-forward status vocabulary.
+#
+# Closed vocabulary used by tooling to compute "is this milestone
+# eligible to close green?". A scorecard row in green status whose
+# corresponding ledger rows are not in `delivered_to_consumer` or
+# `intentionally_deferred_with_packet` MUST NOT carry the milestone
+# green; the milestone is yellow or red until the ledger catches up.
+# -----------------------------------------------------------------------------
+hand_forward_status_classes:
+  - id: not_yet_started
+    description: >
+      Producing milestone has not begun work on this deliverable.
+      Acceptable only when the producing milestone is itself not the
+      current open milestone.
+    blocks_milestone_close: false
+  - id: in_progress
+    description: >
+      Work has started; deliverable is not yet handed forward in a
+      shape the consumer milestone can cite.
+    blocks_milestone_close: true
+  - id: drafted_pending_review
+    description: >
+      A draft of the artifact exists at its canonical home and is in
+      review. Consumers MUST cite it under provisional posture; review
+      MUST close before the producing milestone closes green.
+    blocks_milestone_close: true
+  - id: delivered_to_consumer
+    description: >
+      Artifact lives at its canonical home, is reviewed and accepted,
+      carries an evidence id consumers cite verbatim, and meets the
+      named freshness or maintenance rule.
+    blocks_milestone_close: false
+  - id: intentionally_deferred_with_packet
+    description: >
+      Deliverable is explicitly deferred to a later milestone with a
+      named exception or descoping packet, an updated cutline row, and
+      a recorded compensating-evidence plan. Acceptable when the
+      packet is on file; not acceptable as a silent slip.
+    blocks_milestone_close: false
+  - id: missing_blocks_close
+    description: >
+      Deliverable is required for the consumer milestone, not handed
+      forward, and not covered by a deferral packet. Producing
+      milestone cannot close green; consumer milestone cannot start
+      claim-bearing work that depends on this row.
+    blocks_milestone_close: true
+
+# -----------------------------------------------------------------------------
+# Hand-forward rules.
+#
+# These are the gates the ledger enforces. Tooling should refuse to
+# close a milestone green when any one of these rules is violated.
+# Rules are written so reviewers can run them as a checklist against
+# the rows below.
+# -----------------------------------------------------------------------------
+hand_forward_rules:
+  - id: no_silent_function_skip
+    statement: >
+      A milestone may not be marked green when one function shipped
+      code but another deferred the artifact that makes the work
+      supportable, explainable, or publishable. Every owner-lane
+      category MUST resolve every ledger row whose producing_milestone
+      equals the milestone under review to a `delivered_to_consumer`
+      or `intentionally_deferred_with_packet` posture.
+    enforcement_pointer: >
+      Milestone scorecard tooling joins this ledger on
+      (producing_milestone, lane_id) and refuses a green call when any
+      row carries `in_progress`, `drafted_pending_review`, or
+      `missing_blocks_close`.
+  - id: deferral_requires_packet
+    statement: >
+      `intentionally_deferred_with_packet` is only valid when the row
+      cites a `deferral_packet_ref` resolving to a descoping or
+      narrowing packet under `artifacts/governance/` plus an updated
+      cutline entry. A row may not transition from `in_progress` or
+      `missing_blocks_close` to `intentionally_deferred_with_packet`
+      without that packet.
+    enforcement_pointer: >
+      Decision-index tooling rejects a status flip on this row when
+      `deferral_packet_ref` is empty or the cited packet is not
+      accepted.
+  - id: consumer_blocks_on_missing_evidence
+    statement: >
+      A consumer milestone may not begin claim-bearing work on a row
+      whose hand_forward_status is `missing_blocks_close` or
+      `not_yet_started`. The consumer's claim manifest, public-proof
+      bundle, or release packet MUST cite the producing-milestone
+      evidence id by reference.
+    enforcement_pointer: >
+      Claim-publication coverage tooling refuses to publish a row that
+      cites an evidence id whose source ledger row is not in
+      `delivered_to_consumer`.
+  - id: freshness_floor_carries_forward
+    statement: >
+      A handed-forward artifact MUST stay within the freshness ceiling
+      named on its row through the lifetime of every consumer
+      milestone that cites it. A ledger row whose evidence has gone
+      stale silently downgrades every consumer claim to
+      `evidence_stale` until the rerun lands.
+    enforcement_pointer: >
+      Evidence-freshness tooling refuses to keep the row in
+      `delivered_to_consumer` past the freshness ceiling without an
+      explicit refresh entry.
+  - id: public_proof_overlay_is_first_class
+    statement: >
+      Externalization-overlay rows (boundary manifest, help/About
+      truth prototype, migration parity scoreboard, benchmark
+      publication, compatibility publication, support-window
+      statements) are first-class deliverables. A milestone may not
+      close green when its overlay rows are missing, even when every
+      internal ledger row is delivered.
+    enforcement_pointer: >
+      `artifacts/governance/externalization_overlay.yaml` is consumed
+      alongside this ledger; missing overlay rows fail the same
+      milestone-close gate as missing ledger rows.
+  - id: scorecard_and_handoff_consume_verbatim
+    statement: >
+      Ledger rows are consumed verbatim by milestone scorecards and
+      handoff packets without reformatting. Scorecard tooling MUST
+      cite `ledger_row_id`; handoff packets MUST cite the same
+      `ledger_row_id` in their `linked_ledger_rows` field. Restating
+      ledger content in scorecard or handoff prose is forbidden.
+    enforcement_pointer: >
+      Scorecard linter rejects scorecard rows that paraphrase ledger
+      copy instead of citing `ledger_row_id`.
+
+# -----------------------------------------------------------------------------
+# Ledger rows.
+#
+# Each row is keyed by `ledger_row_id`. Rows are grouped first by
+# producing_milestone (foundations -> prototype -> alpha -> first_beta
+# -> stable_v1), then by owner_lane category. Every row carries the
+# minimum fields named in the rules above.
+# -----------------------------------------------------------------------------
+
+rows:
+  # ===========================================================================
+  # foundations  (M0 — architecture freeze and benchmark harness)
+  # ===========================================================================
+
+  # ---- program / product ----------------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.program_product.architecture_pack
+    producing_milestone: foundations
+    owner_lane:
+      category: program_product
+      lane_id: governance_packets
+    deliverable_name: Foundations architecture pack and milestone scorecard
+    deliverable_class_ref: claim_manifest_and_docs_migration_pack
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Single milestone-close packet that assembles the approved ADR
+      set, package topology, ownership map, freeze calendar, scorecard,
+      risk register, and design-evidence index for the foundations
+      milestone. Every later milestone cites this pack by id.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - artifacts/governance/milestone_scorecard_template.yaml
+      - artifacts/governance/decision_index.yaml
+      - artifacts/governance/ownership_matrix.yaml
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - new_adr_landed
+      - protected_lane_owner_change
+      - cutline_re_baseline
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Required for every later milestone; the consumer milestones
+      cannot publish claim manifests without citing the pack's
+      requirement-register slice and decision-index slice.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.program_product.requirement_register_seed
+    producing_milestone: foundations
+    owner_lane:
+      category: program_product
+      lane_id: governance_packets
+    deliverable_name: Canonical requirement register and alias crosswalk
+    deliverable_class_ref: requirement_register_and_alias_crosswalk
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Canonical requirement IDs and alias crosswalk seeded for every
+      protected lane and public-proof surface. Every shipped obligation,
+      waiver, scorecard row, fitness row, and release packet cites a
+      row here rather than minting a new id.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/requirement_register_seed.yaml
+      - docs/governance/requirement_alias_crosswalk.md
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - new_protected_lane_added
+      - new_stable_surface_added
+      - claim_widening_request
+    hand_forward_status: drafted_pending_review
+    deferral_packet_ref: null
+    notes: >
+      Foundations ships the seed; later milestones extend rather than
+      restate. Missing rows block milestone close from foundations
+      onward.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.program_product.phase_change_budget
+    producing_milestone: foundations
+    owner_lane:
+      category: program_product
+      lane_id: governance_packets
+    deliverable_name: Phase-level change-budget table and forum routing matrix
+    deliverable_class_ref: claim_manifest_and_docs_migration_pack
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Phase rows, classification fields, burden-of-proof rubric, and
+      forum routing rules for every governed phase. Reviewers answer
+      "is this in budget" and "what forum approves it" by table lookup
+      against this artifact at every later milestone.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/phase_change_budget.yaml
+      - artifacts/governance/decision_forum_matrix.yaml
+      - docs/governance/phase_change_budget_and_forums.md
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - phase_transition
+      - new_forum_chartered
+      - exception_class_added
+    hand_forward_status: delivered_to_consumer
+    deferral_packet_ref: null
+    notes: >
+      Already seeded for the foundations milestone; later milestones
+      append phase rows and rebaseline rather than re-seeding.
+
+  # ---- UX / design ----------------------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.ux_design.design_evidence_index
+    producing_milestone: foundations
+    owner_lane:
+      category: ux_design
+      lane_id: design_system_seeds
+    deliverable_name: Foundations design-evidence index and design-token seed
+    deliverable_class_ref: design_packet
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Index linking screenshots, state diagrams, packet examples,
+      design-token seeds, and interaction prototypes for AI / provider
+      governance, collaboration, review/change-stack, package /
+      data / API surfaces, scaffolding, incident workflow, and
+      companion surfaces to stable evidence ids and owning tasks.
+      Every downstream design packet cites these ids verbatim.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - .t2/docs/Aureline_UI_UX_Spec_Document.md
+      - .t2/docs/Aureline_UX_Design_System_Style_Guide.md
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - new_protected_surface_added
+      - design_token_change
+      - accessibility_finding_landed
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Foundations seeds the index and the token list; downstream
+      milestones extend with launch-class design packets that reuse the
+      ids.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.ux_design.accessibility_input_baseline
+    producing_milestone: foundations
+    owner_lane:
+      category: ux_design
+      lane_id: accessibility_input_review
+    deliverable_name: Accessibility and input-review baseline packet
+    deliverable_class_ref: design_packet
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Baseline packet covering keyboard, screen-reader, focus, and
+      input-method coverage at foundations scope. Names which surfaces
+      are accessibility-bearing, which are in scope for foundations,
+      and which inherit obligation at the next milestone.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - new_accessibility_bearing_surface
+      - input_method_class_added
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Required to scope accessibility evidence at prototype and later;
+      missing baseline silently widens accessibility risk forward.
+
+  # ---- engineering / architecture -------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.engineering_architecture.adr_set
+    producing_milestone: foundations
+    owner_lane:
+      category: engineering_architecture
+      lane_id: aureline-render
+    deliverable_name: Foundations ADR set (renderer, runtime, schema, trust model)
+    deliverable_class_ref: architecture_decision_record
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Canonical ADRs for the renderer text stack, RPC transport,
+      scheduler/worker contract, schema/storage shape, trust model, and
+      protected-path posture. Every later contract packet cites these
+      ADRs by ordinal id.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - docs/adr/
+      - artifacts/governance/decision_index.yaml
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - protected_path_change
+      - storage_or_schema_shape_change
+      - trust_boundary_change
+    hand_forward_status: drafted_pending_review
+    deferral_packet_ref: null
+    notes: >
+      ADRs without canonical homes block prototype claim-bearing work.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.engineering_architecture.surface_contracts
+    producing_milestone: foundations
+    owner_lane:
+      category: engineering_architecture
+      lane_id: aureline-rpc
+    deliverable_name: Stable-surface inventory and surface contract packets
+    deliverable_class_ref: contract_or_schema_or_interface_packet
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Surface-contract packets covering JSON schema exports, WIT
+      worlds, OpenAPI families, field registries, event envelopes, and
+      mixed-version envelopes. Listed in the stable-surface inventory
+      at foundations scope.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/stable_surface_inventory.yaml
+      - artifacts/governance/compatibility_surfaces.yaml
+      - schemas/
+      - openapi/
+      - wit/
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - schema_change
+      - new_stable_surface_added
+      - compatibility_surface_widening
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Surfaces that do not have contract packets at foundations cannot
+      claim stability at any later milestone.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.engineering_architecture.package_topology
+    producing_milestone: foundations
+    owner_lane:
+      category: engineering_architecture
+      lane_id: aureline-render
+    deliverable_name: Workspace package inventory and protected-path posture
+    deliverable_class_ref: contract_or_schema_or_interface_packet
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Crate topology, protected-path flags, allowed internal dependency
+      edges, and off-cone posture for every workspace member.
+      Engineering, release, and ownership all consume this row.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/package_inventory.yaml
+      - docs/repo/dependency_rules.md
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - new_crate_added
+      - protected_path_flag_change
+    hand_forward_status: delivered_to_consumer
+    deferral_packet_ref: null
+    notes: >
+      Already seeded; missing rows mean unknown ownership, which the
+      ownership matrix rejects.
+
+  # ---- quality / security / accessibility / release ------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.qsar.benchmark_lab_seed
+    producing_milestone: foundations
+    owner_lane:
+      category: quality_security_accessibility_release
+      lane_id: benchmark_lab
+    deliverable_name: Benchmark-lab status, hardware row, and protected-metrics seed
+    deliverable_class_ref: verification_corpus_and_benchmark_plan
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Canonical benchmark hardware row, lab-image revision, and
+      protected-metric seed that downstream benchmark publication
+      packs cite verbatim. Names comparability disclosure rules so
+      additive corpus rows at later milestones do not invalidate
+      foundations evidence.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - docs/governance/benchmark_council_charter.md
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - hardware_row_change
+      - protected_metric_change
+      - lab_image_revision
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Without this row, no later milestone can publish a benchmark
+      claim that cites a comparable hardware baseline.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.qsar.fitness_function_seed
+    producing_milestone: foundations
+    owner_lane:
+      category: quality_security_accessibility_release
+      lane_id: benchmark_lab
+    deliverable_name: Protected fitness functions and conformance-gate seed
+    deliverable_class_ref: verification_corpus_and_benchmark_plan
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Fitness functions for protected paths (renderer, buffer, RPC,
+      scheduler, telemetry) seeded as red/yellow/green at foundations
+      scope. Later milestones widen but do not re-seed; thresholds are
+      protected.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/fitness_state_rows.yaml
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - protected_metric_change
+      - threshold_change
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Threshold easing is freeze-crossing at every later phase.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.qsar.security_baseline
+    producing_milestone: foundations
+    owner_lane:
+      category: quality_security_accessibility_release
+      lane_id: governance_packets
+    deliverable_name: Security review and trust-boundary baseline
+    deliverable_class_ref: design_packet
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Threat model, trust-boundary inventory, and security-review
+      baseline that later milestones extend rather than restate.
+      Names which surfaces are trust-bearing and which inherit
+      obligation at the next milestone.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - SECURITY.md
+      - artifacts/governance/control_artifact_index.yaml
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - trust_boundary_change
+      - new_external_dependency
+      - new_credential_handle_class
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Required for prototype claim-bearing work that touches trust
+      boundaries.
+
+  # ---- docs / DevRel / support ---------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.docs_devrel_support.public_truth_seed
+    producing_milestone: foundations
+    owner_lane:
+      category: docs_devrel_support
+      lane_id: docs_public_truth
+    deliverable_name: Public-truth docs seed and claim-publication targets
+    deliverable_class_ref: claim_manifest_and_docs_migration_pack
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Canonical public-truth docs locations (docs/state, docs/release,
+      docs/help/about), the claim-publication target list, and the
+      docs-version mapping for foundations claims. Every claim manifest
+      row resolves to a target listed here.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - docs/governance/public_surface_truth_map.md
+      - artifacts/governance/public_truth_parity_matrix.yaml
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - public_claim_added
+      - docs_target_added
+      - claim_narrowing
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      A claim row that does not resolve to a docs target listed here
+      blocks public-proof coverage.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: foundations.docs_devrel_support.support_packet_index
+    producing_milestone: foundations
+    owner_lane:
+      category: docs_devrel_support
+      lane_id: support_export
+    deliverable_name: Support-packet index and shiproom dashboard seed
+    deliverable_class_ref: runbook_support_or_shiproom_packet
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Canonical support-packet families (exact-build support,
+      route/origin reconstruction, known-limit correlation, security
+      triage, rollback review) plus the shiproom dashboard seed that
+      surfaces scorecard state, open waivers, stale evidence, active
+      assumptions, and public-proof coverage results in one place.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - schemas/support/
+      - artifacts/release/
+      - docs/release/shiproom_runbook.md
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - new_support_packet_family
+      - dashboard_panel_change
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    notes: >
+      Without a support-packet index, prototype dogfood incidents
+      cannot be triaged against canonical families.
+
+  # ===========================================================================
+  # prototype  (M1 — core editor prototype, dogfood-ready)
+  # ===========================================================================
+
+  # ---- program / product ----------------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: prototype.program_product.cutline_and_scorecard
+    producing_milestone: prototype
+    owner_lane:
+      category: program_product
+      lane_id: governance_packets
+    deliverable_name: Prototype cutline and milestone scorecard
+    deliverable_class_ref: claim_manifest_and_docs_migration_pack
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Prototype scorecard with explicit red/yellow/green calls,
+      requirement-register slice, claim-manifest slice, decision-index
+      slice, and dogfood-issue taxonomy slice. Names which protected
+      lanes carry forward at full velocity to alpha.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - artifacts/governance/milestone_scorecard_template.yaml
+      - artifacts/governance/dogfood_issue_taxonomy.md
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - cutline_re_baseline
+      - protected_lane_status_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Required input to alpha planning; missing scorecard means alpha
+      cannot open under a defensible cutline.
+
+  # ---- UX / design ----------------------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: prototype.ux_design.dogfood_design_packets
+    producing_milestone: prototype
+    owner_lane:
+      category: ux_design
+      lane_id: design_system_seeds
+    deliverable_name: Dogfood-class design packets and interaction prototypes
+    deliverable_class_ref: design_packet
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Launch-critical UX, accessibility, design-token, and interaction
+      packets for protected dogfood surfaces (editor, shell, search,
+      command palette, project doctor). Reuses foundations evidence
+      ids; introduces ids only for surfaces foundations did not seed.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - .t2/docs/Aureline_UI_UX_Spec_Document.md
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - dogfood_finding_landed
+      - design_token_change
+      - accessibility_finding_landed
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Alpha cannot widen dogfood surfaces without these packets in
+      place.
+
+  # ---- engineering / architecture -------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: prototype.engineering_architecture.editor_dogfood_truth
+    producing_milestone: prototype
+    owner_lane:
+      category: engineering_architecture
+      lane_id: aureline-buffer
+    deliverable_name: Editor-prototype dogfood truth packet
+    deliverable_class_ref: contract_or_schema_or_interface_packet
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Canonical truth packet for edit, save, recover, search, and
+      terminal flows on the dogfood scope. Cites the foundations
+      ADR set, surface contracts, and stable-surface inventory rows
+      verbatim.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/stable_surface_inventory.yaml
+      - schemas/
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - dogfood_regression_landed
+      - protected_path_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Foundation for alpha launch-wedge; dogfood scope cannot widen at
+      alpha without it.
+
+  # ---- quality / security / accessibility / release ------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: prototype.qsar.dogfood_corpus
+    producing_milestone: prototype
+    owner_lane:
+      category: quality_security_accessibility_release
+      lane_id: benchmark_lab
+    deliverable_name: Dogfood verification corpus and prototype benchmark run
+    deliverable_class_ref: verification_corpus_and_benchmark_plan
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Verification corpus exercising the dogfood scope on the
+      foundations hardware row, the prototype benchmark run on
+      protected metrics (shell startup, edit latency, search query
+      latency, recovery completeness), and a comparability disclosure
+      relative to the foundations baseline.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+    freshness_or_maintenance_rule: weekly
+    rerun_triggers:
+      - protected_metric_change
+      - corpus_extension
+      - hardware_row_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Prototype claim manifest cannot publish performance posture
+      without this corpus row.
+
+  # ---- docs / DevRel / support ---------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: prototype.docs_devrel_support.dogfood_runbook
+    producing_milestone: prototype
+    owner_lane:
+      category: docs_devrel_support
+      lane_id: support_export
+    deliverable_name: Dogfood runbook and support-packet bundle
+    deliverable_class_ref: runbook_support_or_shiproom_packet
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Runbook covering known-limit correlation, exact-build support,
+      and rollback review for the prototype scope. Bundles the dogfood
+      issue-taxonomy entries and the support-packet families into a
+      single handoff packet for alpha.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - docs/release/shiproom_runbook.md
+      - schemas/support/
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - new_known_limit
+      - support_class_widening
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Alpha external testers consume this runbook.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: prototype.docs_devrel_support.help_about_truth_prototype
+    producing_milestone: prototype
+    owner_lane:
+      category: docs_devrel_support
+      lane_id: docs_public_truth
+    deliverable_name: Help / About truth prototype
+    deliverable_class_ref: public_proof_publication_bundle
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    description: >
+      Help / About surfaces wired to the canonical claim manifest,
+      build identity, and known-limit notice so the public-truth story
+      is not paraphrased in product copy. Prototype scope reflects
+      dogfood truth; alpha extends to launch-wedge truth.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - docs/governance/public_surface_truth_map.md
+      - artifacts/governance/claim_manifest_seed.yaml
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - claim_added
+      - claim_narrowing
+      - build_identity_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Externalization-overlay row; missing wiring at prototype lets
+      alpha ship help copy that does not match the manifest.
+
+  # ===========================================================================
+  # alpha  (M2 — external power-user tasks on launch wedges)
+  # ===========================================================================
+
+  # ---- program / product ----------------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.program_product.launch_wedge_claim_manifest
+    producing_milestone: alpha
+    owner_lane:
+      category: program_product
+      lane_id: governance_packets
+    deliverable_name: Alpha claim manifest and launch-wedge cutline
+    deliverable_class_ref: claim_manifest_and_docs_migration_pack
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Alpha claim manifest restricted to launch-wedge surfaces with
+      every row citing a verification-corpus id, a docs-target id, a
+      known-limit note id, and an evidence-freshness ceiling. Names
+      which rows carry forward to first_beta as claim-bearing and which
+      narrow.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - claim_added
+      - claim_narrowing
+      - evidence_stale
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      First_beta cannot widen the public claim surface without
+      starting from this manifest verbatim.
+
+  # ---- UX / design ----------------------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.ux_design.launch_wedge_design_evidence
+    producing_milestone: alpha
+    owner_lane:
+      category: ux_design
+      lane_id: design_system_seeds
+    deliverable_name: Launch-wedge design-evidence pack and trust-labeling kit
+    deliverable_class_ref: design_packet
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Design packets for launch-wedge surfaces (editor wedge, shell
+      wedge, search/index wedge, project doctor wedge, AI provider
+      arbitration surface) plus the trust-labeling kit covering
+      origin badges, claim chips, and known-limit affordances. Reuses
+      foundations and prototype evidence ids verbatim.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - artifacts/ux/
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - launch_wedge_surface_added
+      - trust_label_change
+      - accessibility_finding_landed
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      First_beta hardening cannot land without launch-wedge design
+      evidence; widening into new wedges is exception-required.
+
+  # ---- engineering / architecture -------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.engineering_architecture.launch_wedge_contracts
+    producing_milestone: alpha
+    owner_lane:
+      category: engineering_architecture
+      lane_id: aureline-rpc
+    deliverable_name: Launch-wedge surface contracts and method-manifest growth
+    deliverable_class_ref: contract_or_schema_or_interface_packet
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Surface contracts for the launch wedges with additive
+      method-manifest growth that stays minor-version safe. Cites
+      foundations ADRs, prototype editor-truth packet, and stable-
+      surface inventory rows by id. Names every wedge-bearing surface
+      that becomes stable-bearing at first_beta.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/stable_surface_inventory.yaml
+      - artifacts/governance/compatibility_surfaces.yaml
+      - schemas/
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - schema_change
+      - method_manifest_growth
+      - mixed_version_envelope_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      First_beta freeze treats these contracts as the stable-line
+      candidates.
+
+  # ---- quality / security / accessibility / release ------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.qsar.launch_wedge_benchmark_publication
+    producing_milestone: alpha
+    owner_lane:
+      category: quality_security_accessibility_release
+      lane_id: benchmark_lab
+    deliverable_name: Launch-wedge benchmark publication pack and corpus
+    deliverable_class_ref: verification_corpus_and_benchmark_plan
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Benchmark publication pack covering shell startup, edit latency,
+      search query latency, project doctor latency, and AI-provider
+      arbitration latency on the foundations hardware row plus an
+      additive alpha hardware row with comparability disclosure.
+      Externalization-overlay row.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/milestones/
+      - docs/governance/benchmark_council_charter.md
+    freshness_or_maintenance_rule: weekly
+    rerun_triggers:
+      - protected_metric_change
+      - hardware_row_change
+      - launch_wedge_surface_added
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      First_beta hardening cannot publish stable performance claims
+      without this pack.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.qsar.compatibility_archetype_alpha
+    producing_milestone: alpha
+    owner_lane:
+      category: quality_security_accessibility_release
+      lane_id: release_evidence
+    deliverable_name: Compatibility / certified-archetype alpha report
+    deliverable_class_ref: compatibility_or_certified_archetype_report
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Certified-archetype report for the launch-wedge personas
+      covering deployment profile, language pack, framework matrix,
+      and compatibility surface posture at alpha scope. Externalization-
+      overlay row.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/governance/compatibility_surfaces.yaml
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - archetype_persona_added
+      - language_pack_change
+      - deployment_profile_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      First_beta freeze treats these archetypes as the stable-bearing
+      surface set.
+
+  # ---- docs / DevRel / support ---------------------------------------------
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.docs_devrel_support.alpha_release_packet
+    producing_milestone: alpha
+    owner_lane:
+      category: docs_devrel_support
+      lane_id: docs_public_truth
+    deliverable_name: Alpha release packet, release notes, and known-limit notice
+    deliverable_class_ref: claim_manifest_and_docs_migration_pack
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Release packet bundling the claim manifest, docs/state and
+      docs/release entries, known-limit notice, support-packet
+      bindings, and exact-build identity for the alpha external
+      power-user release. Cites benchmark publication pack, archetype
+      report, and design-evidence pack by id.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - artifacts/release/
+      - docs/release/
+      - artifacts/governance/release_notice_seed.yaml
+    freshness_or_maintenance_rule: each_change
+    rerun_triggers:
+      - claim_change
+      - build_identity_change
+      - new_known_limit
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      First_beta release builds on this packet; missing rows mean
+      first_beta starts the release packet from scratch.
+
+  - record_kind: deliverable_ledger_row
+    ledger_row_id: alpha.docs_devrel_support.support_window_statement_alpha
+    producing_milestone: alpha
+    owner_lane:
+      category: docs_devrel_support
+      lane_id: support_export
+    deliverable_name: Alpha support-window and externalization statement
+    deliverable_class_ref: public_proof_publication_bundle
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    description: >
+      Public statement of the alpha support window, expected coverage,
+      escalation path, exact-build identity, rollback contract, and
+      known-limit notice surfacing in product. Externalization-overlay
+      row.
+    evidence_owner: "@ahmeddyounis"
+    linked_artifact_refs:
+      - docs/governance/public_surface_truth_map.md
+    freshness_or_maintenance_rule: per_milestone
+    rerun_triggers:
+      - support_class_change
+      - known_limit_added
+      - rollback_contract_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    notes: >
+      Alpha cannot ship to external testers without the support-window
+      statement; first_beta extends rather than restates.

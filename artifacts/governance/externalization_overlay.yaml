@@ -1,0 +1,473 @@
+# Externalization overlay.
+#
+# Companion overlay to artifacts/governance/milestone_deliverable_ledger.yaml.
+# This file names the must-exist public or control artifacts at every
+# governed milestone — the artifacts that make the work externally
+# supportable, explainable, and publishable. Without these rows,
+# milestone close cannot be honest: a function may have shipped code,
+# but the public-truth, control-plane, or operator-facing artifact that
+# downstream consumers depend on does not exist.
+#
+# The overlay treats public-proof assets as first-class deliverables
+# rather than side notes. Tooling consumes this file alongside the
+# milestone deliverable ledger; missing overlay rows fail the same
+# milestone-close gate as missing ledger rows.
+#
+# Companion artifacts:
+#   - docs/governance/cross_functional_deliverable_ledger.md
+#   - artifacts/governance/milestone_deliverable_ledger.yaml
+#   - artifacts/governance/public_truth_parity_matrix.yaml
+#   - artifacts/governance/public_proof_coverage_report.md
+#   - docs/governance/public_surface_truth_map.md
+#   - artifacts/governance/claim_manifest_seed.yaml
+#   - artifacts/governance/release_notice_seed.yaml
+#   - artifacts/governance/compatibility_surfaces.yaml
+#   - schemas/support/
+#
+# Rules:
+#   - Every overlay row MUST name an `overlay_class`, a
+#     `producing_milestone`, an `evidence_owner`, a `visibility_class`,
+#     a `hand_forward_status`, and a `freshness_or_maintenance_rule`.
+#   - `overlay_class` values are closed (see `overlay_class_vocabulary`
+#     below). Adding a class is additive-minor and bumps schema_version;
+#     repurposing a class is breaking and opens a decision row.
+#   - Every overlay row resolves back to one ledger row in
+#     `milestone_deliverable_ledger.yaml` via `linked_ledger_row_id`.
+#     The overlay does not duplicate ledger content; it tags ledger rows
+#     as externalization-bearing.
+#   - `visibility_class` MUST be `public` for a row to live in this
+#     overlay. Internal-only artifacts belong in the ledger but not
+#     here.
+#   - `must_exist_at_milestone_close` is true by default. A row may set
+#     it to false only when paired with an explicit deferral packet.
+#   - Adding an overlay class or row does not retroactively widen
+#     foundations or earlier closed milestones; rows whose
+#     `producing_milestone` is already closed are recorded but do not
+#     re-open the milestone.
+
+schema_version: 1
+artifact_id: aureline.externalization_overlay
+artifact_revision: 1
+status: seeded
+
+overview_document: docs/governance/cross_functional_deliverable_ledger.md
+ledger_ref: artifacts/governance/milestone_deliverable_ledger.yaml
+public_truth_parity_matrix_ref: artifacts/governance/public_truth_parity_matrix.yaml
+public_surface_truth_map_ref: docs/governance/public_surface_truth_map.md
+
+source_specs:
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_PRD.md
+  - docs/governance/public_surface_truth_map.md
+  - docs/governance/control_artifact_index.md
+
+# -----------------------------------------------------------------------------
+# Governed milestone slugs.
+#
+# Mirrors artifacts/governance/milestone_deliverable_ledger.yaml. The
+# overlay does not invent its own milestone vocabulary.
+# -----------------------------------------------------------------------------
+governed_milestone_slugs:
+  - foundations
+  - prototype
+  - alpha
+  - first_beta
+  - stable_v1
+
+# -----------------------------------------------------------------------------
+# Overlay class vocabulary.
+#
+# Closed list of public or control artifact families that the overlay
+# tracks as first-class. Every row resolves to exactly one class.
+# -----------------------------------------------------------------------------
+overlay_class_vocabulary:
+  - id: boundary_manifest
+    label: Boundary manifest
+    description: >
+      Public manifest naming every trust boundary, deployment profile,
+      managed-vs-local dependency, and external-effect surface that the
+      product asserts at the milestone. Lets downstream auditors,
+      integrators, and operators see what is in scope without reading
+      source.
+    typical_homes:
+      - docs/governance/control_artifact_index.md
+      - artifacts/governance/control_artifact_index.yaml
+      - artifacts/governance/deployment_profiles.yaml
+  - id: help_about_truth_prototype
+    label: Help / About truth surface
+    description: >
+      Help and About surfaces wired to the canonical claim manifest,
+      build identity, and known-limit notice. Replaces paraphrased
+      product copy with citations to the manifest so the public-truth
+      story is consistent across docs, product, and release notes.
+    typical_homes:
+      - docs/help/
+      - docs/state/
+      - artifacts/governance/claim_manifest_seed.yaml
+  - id: migration_parity_scoreboard
+    label: Migration parity scoreboard
+    description: >
+      Public scoreboard naming which migration paths (project import,
+      settings import, language-pack import, extension import) carry
+      what parity guarantee, plus the test corpus and known-limit
+      notice they cite. First-class at first_beta and stable_v1.
+    typical_homes:
+      - docs/release/
+      - artifacts/release/
+  - id: benchmark_publication
+    label: Benchmark publication artifact
+    description: >
+      Published benchmark pack — hardware row, lab-image revision,
+      protected-metric set, comparability disclosure, and reproduction
+      bundle — that downstream reviewers can run. Cited verbatim by
+      help/About, release notes, and claim manifest rows.
+    typical_homes:
+      - docs/benchmarks/
+      - artifacts/release/
+  - id: compatibility_publication
+    label: Compatibility / certified-archetype publication
+    description: >
+      Public certified-archetype report for launch personas, deployment
+      profiles, language packs, and framework matrices. Cites the
+      compatibility surface inventory and the qualification matrix.
+    typical_homes:
+      - artifacts/governance/compatibility_surfaces.yaml
+      - docs/governance/compatibility_surface_inventory.md
+  - id: support_window_statement
+    label: Support-window and supportability statement
+    description: >
+      Public statement of the support window, expected coverage,
+      escalation path, exact-build identity, rollback contract, and
+      known-limit notice surfaced in product. Externalization-bearing
+      from prototype onward.
+    typical_homes:
+      - docs/governance/public_surface_truth_map.md
+      - docs/release/shiproom_runbook.md
+      - schemas/support/
+  - id: public_proof_bundle
+    label: Public-proof publication bundle
+    description: >
+      Reproducibility bundle published with claim, benchmark, or
+      compatibility releases: provenance attestation, exact-build
+      identity, dependency manifest, and rerun harness. Required for
+      every public claim that a downstream reviewer is expected to
+      reproduce.
+    typical_homes:
+      - artifacts/release/
+      - artifacts/governance/public_proof_coverage_report.md
+  - id: release_notice_pack
+    label: Release notice and notice-pack
+    description: >
+      Public release notice naming version identity, claim diff,
+      narrowing diff, known-limit diff, support-window posture, and
+      rollback contract. Cited by the help/About row and the support-
+      window row.
+    typical_homes:
+      - artifacts/release/
+      - artifacts/governance/release_notice_seed.yaml
+
+# -----------------------------------------------------------------------------
+# Overlay rows.
+#
+# One row per overlay-bearing deliverable per milestone. Rows are
+# grouped by producing_milestone. Each row points back at one ledger
+# row id rather than restating the ledger row's freshness, owner, or
+# linked artifacts.
+# -----------------------------------------------------------------------------
+
+rows:
+  # ===========================================================================
+  # foundations
+  # ===========================================================================
+  - record_kind: externalization_overlay_row
+    overlay_row_id: foundations.boundary_manifest
+    overlay_class: boundary_manifest
+    producing_milestone: foundations
+    linked_ledger_row_id: foundations.program_product.architecture_pack
+    public_artifact_summary: >
+      Foundations boundary manifest: protected paths, managed-vs-local
+      posture, deployment-profile seed, and trust-boundary inventory.
+      Links to the ADR set and the package inventory.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: per_milestone
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    notes: >
+      Without a published boundary manifest, downstream auditors and
+      integrators cannot tell what foundations actually asserts.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: foundations.benchmark_publication_seed
+    overlay_class: benchmark_publication
+    producing_milestone: foundations
+    linked_ledger_row_id: foundations.qsar.benchmark_lab_seed
+    public_artifact_summary: >
+      Foundations benchmark publication seed: canonical hardware row,
+      lab-image revision, protected-metric set, and comparability
+      disclosure rules. No published bar yet; the seed exists so later
+      milestones can publish bars that cite this baseline.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: per_milestone
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    notes: >
+      Foundations does not publish performance numbers. The seed is
+      still externalization-bearing: it is what later publications
+      cite.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: foundations.compatibility_seed
+    overlay_class: compatibility_publication
+    producing_milestone: foundations
+    linked_ledger_row_id: foundations.engineering_architecture.surface_contracts
+    public_artifact_summary: >
+      Foundations compatibility seed: compatibility-surface inventory,
+      stable-surface inventory, and the deprecation-metadata schema
+      seeded for every public surface. No certified archetype yet.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: each_change
+    hand_forward_status: in_progress
+    deferral_packet_ref: null
+    consumer_milestones:
+      - prototype
+      - alpha
+      - first_beta
+      - stable_v1
+    notes: >
+      Without the surface inventories, no later milestone can claim
+      compatibility on a surface that was not declared at foundations.
+
+  # ===========================================================================
+  # prototype
+  # ===========================================================================
+  - record_kind: externalization_overlay_row
+    overlay_row_id: prototype.help_about_truth
+    overlay_class: help_about_truth_prototype
+    producing_milestone: prototype
+    linked_ledger_row_id: prototype.docs_devrel_support.help_about_truth_prototype
+    public_artifact_summary: >
+      Help / About wired to the canonical claim manifest, exact-build
+      identity, dependency manifest, and known-limit notice. Reflects
+      dogfood-scope truth at prototype; alpha extends to launch-wedge
+      truth.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: each_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    notes: >
+      Externalization-bearing because the product's own help surface
+      is the most user-visible public-truth artifact.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: prototype.support_window_dogfood
+    overlay_class: support_window_statement
+    producing_milestone: prototype
+    linked_ledger_row_id: prototype.docs_devrel_support.dogfood_runbook
+    public_artifact_summary: >
+      Dogfood-scope support-window statement: who is supported, what
+      coverage, escalation path, exact-build identity, and rollback
+      contract. Names dogfood-only posture explicitly so external
+      readers do not misread the prototype as alpha.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: per_milestone
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    notes: >
+      Without an explicit dogfood-only support-window statement,
+      external observers can mistake prototype evidence for an alpha
+      promise.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: prototype.boundary_manifest_dogfood
+    overlay_class: boundary_manifest
+    producing_milestone: prototype
+    linked_ledger_row_id: prototype.engineering_architecture.editor_dogfood_truth
+    public_artifact_summary: >
+      Dogfood-scope boundary manifest: which protected paths are
+      dogfood-active, which are reserved, which workspaces and
+      deployment profiles are in scope, and which managed-service
+      surfaces are intentionally out of scope.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: per_milestone
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - alpha
+      - first_beta
+      - stable_v1
+    notes: >
+      Extension of the foundations boundary manifest narrowed to the
+      dogfood scope; alpha widens this rather than redrawing it.
+
+  # ===========================================================================
+  # alpha
+  # ===========================================================================
+  - record_kind: externalization_overlay_row
+    overlay_row_id: alpha.help_about_launch_wedge
+    overlay_class: help_about_truth_prototype
+    producing_milestone: alpha
+    linked_ledger_row_id: alpha.docs_devrel_support.alpha_release_packet
+    public_artifact_summary: >
+      Help / About surface extended to launch-wedge truth: claim
+      manifest rows for every wedge surface, exact-build identity,
+      benchmark publication citations, archetype citations, and the
+      known-limit notice for surfaces that did not make the wedge.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: each_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    notes: >
+      Alpha public copy MUST cite the manifest verbatim; first_beta
+      hardening requires this row to already be in place.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: alpha.benchmark_publication_launch_wedge
+    overlay_class: benchmark_publication
+    producing_milestone: alpha
+    linked_ledger_row_id: alpha.qsar.launch_wedge_benchmark_publication
+    public_artifact_summary: >
+      Launch-wedge benchmark publication pack: hardware row,
+      protected-metric bars (shell startup, edit latency, search query
+      latency, project doctor, AI-provider arbitration), comparability
+      disclosure, and reproduction bundle. Cited by the alpha release
+      packet and the help/About row.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: weekly
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    notes: >
+      First public performance bars; missing publication is a
+      milestone-close blocker.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: alpha.compatibility_publication_launch_wedge
+    overlay_class: compatibility_publication
+    producing_milestone: alpha
+    linked_ledger_row_id: alpha.qsar.compatibility_archetype_alpha
+    public_artifact_summary: >
+      Certified-archetype publication for launch-wedge personas,
+      languages, frameworks, and deployment profiles. Cites the
+      compatibility surface inventory and the qualification matrix.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: per_milestone
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    notes: >
+      Stable-bearing surfaces inherit from this publication; first_beta
+      MUST not invent a parallel archetype.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: alpha.support_window_statement_alpha
+    overlay_class: support_window_statement
+    producing_milestone: alpha
+    linked_ledger_row_id: alpha.docs_devrel_support.support_window_statement_alpha
+    public_artifact_summary: >
+      Alpha support-window and supportability statement: who is
+      supported, on what surfaces, on what builds, with what rollback
+      contract, and with what known-limit notice surfacing in product.
+      Names alpha-class posture explicitly so external readers do not
+      misread alpha as beta.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: per_milestone
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    notes: >
+      Externalization-bearing; alpha cannot ship to external testers
+      without it.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: alpha.release_notice_alpha
+    overlay_class: release_notice_pack
+    producing_milestone: alpha
+    linked_ledger_row_id: alpha.docs_devrel_support.alpha_release_packet
+    public_artifact_summary: >
+      Alpha release notice pack: version identity, claim diff against
+      prototype, narrowing diff, known-limit diff, support-window
+      posture, and rollback contract. Cites the help/About row and
+      the support-window row by id.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: each_change
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    notes: >
+      First public release notice on a non-dogfood scope; later notices
+      extend rather than re-seed.
+
+  - record_kind: externalization_overlay_row
+    overlay_row_id: alpha.public_proof_bundle_alpha
+    overlay_class: public_proof_bundle
+    producing_milestone: alpha
+    linked_ledger_row_id: alpha.qsar.launch_wedge_benchmark_publication
+    public_artifact_summary: >
+      Public-proof bundle accompanying the alpha benchmark publication
+      and certified-archetype report: provenance attestation, exact-
+      build identity, dependency manifest, rerun harness, and
+      reproducibility instructions.
+    visibility_class: public
+    evidence_owner: "@ahmeddyounis"
+    must_exist_at_milestone_close: true
+    freshness_or_maintenance_rule: weekly
+    hand_forward_status: not_yet_started
+    deferral_packet_ref: null
+    consumer_milestones:
+      - first_beta
+      - stable_v1
+    notes: >
+      Without the bundle, downstream reviewers cannot reproduce alpha
+      claims; first_beta hardening cannot inherit alpha bars without
+      it.
