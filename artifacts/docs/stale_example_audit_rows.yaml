@@ -1,0 +1,439 @@
+# Stale-example audit rows.
+#
+# Worked seed of open and closed audit rows for stale examples
+# detected by the rubric in artifacts/docs/stale_example_rules.yaml
+# and projected by the parity packet in
+# artifacts/docs/embedded_docs_help_parity_packet.md.
+#
+# Each row binds a single stale-example incident to:
+#   - the artifact_kind and detector_id from the rubric,
+#   - the affected surfaces (pane, About, onboarding, support
+#     export) so the parity audit can confirm every consuming
+#     surface narrowed to the same disclosure,
+#   - the action_class the rubric declared (one of
+#     label_stale_with_reason, label_needs_review,
+#     quarantine_example, suppress_from_surface,
+#     block_pack_publishable, require_late_proof_exception_packet),
+#   - the remediation owner role and the release impact class so
+#     reviewers can route the row to the right release-readiness
+#     lane.
+#
+# Rules:
+#   - Every row MUST cite exactly one detector_id from
+#     artifacts/docs/stale_example_rules.yaml#detectors.
+#   - Every row MUST resolve to one action_class re-exported from
+#     artifacts/docs/stale_example_rules.yaml#action_classes; tooling
+#     reads this list and MUST NOT emit an action outside it.
+#   - Adding a row, remediation_owner_role, release_impact_class, or
+#     row_state is additive-minor and bumps schema_version.
+#     Repurposing an existing value is breaking and requires a new
+#     decision row.
+#   - Planning identifiers (milestone names, task IDs) MUST NOT
+#     appear in user-facing strings produced from this artifact.
+#   - Closed rows retain their closure_audit_event_ref so reviewers
+#     can replay the closure decision; deleting a closed row is
+#     forbidden.
+
+schema_version: 1
+artifact_id: aureline.docs.stale_example_audit_rows
+status: seeded
+
+contract_doc: docs/docs/docs_help_pane_contract.md
+parity_packet: artifacts/docs/embedded_docs_help_parity_packet.md
+detector_rubric: artifacts/docs/stale_example_rules.yaml
+docs_pack_manifest_contract: docs/docs/docs_pack_manifest_contract.md
+docs_pack_manifest_schema: schemas/docs/docs_pack_manifest.schema.json
+help_pane_state_schema: schemas/docs/help_pane_state.schema.json
+public_drift_item_schema: schemas/public_truth/public_drift_item.schema.json
+late_proof_exception_schema: schemas/docs/late_proof_exception_packet.schema.json
+
+# ---------------------------------------------------------------------------
+# Closed remediation-owner-role vocabulary.
+#
+# Every row MUST declare exactly one remediation_owner_role. Roles are
+# re-exported from the public-truth audit ownership taxonomy so the
+# parity audit and the release shiproom dashboard read one vocabulary.
+# ---------------------------------------------------------------------------
+remediation_owner_roles:
+  - id: docs_public_truth_owner
+    description: >
+      Owner of the docs / help / About / service-health public-truth
+      lane. Closes pane / About / support-export wording rows.
+  - id: docs_pack_publisher
+    description: >
+      Owner of the docs-pack manifest the example lives in. Closes
+      docs-pack-scoped rows (project_docs, generated_reference,
+      mirrored_official_docs, curated_knowledge_pack, support_runbook).
+  - id: domain_owner
+    description: >
+      Named domain owner (commands, settings, providers, runtime).
+      Closes detector rows whose remediation requires a behavior or
+      route change in the owned domain.
+  - id: release_owner
+    description: >
+      Owner of the release train. Closes rows whose remediation rides
+      a same-change-set fix or a late-proof exception packet.
+  - id: compatibility_owner
+    description: >
+      Owner of compatibility / support-window rows. Closes rows whose
+      remediation narrows or widens compatibility language.
+  - id: support_owner
+    description: >
+      Owner of the support runbook / support-export / support-summary
+      lane. Closes rows that affect support-export preview wording.
+  - id: i18n_owner
+    description: >
+      Owner of locale coverage and locale-pack publishing. Closes rows
+      whose remediation is an updated locale pack.
+  - id: provider_owner
+    description: >
+      Owner of a vendor-provider integration. Closes vendor_provider_docs
+      rows whose remediation requires a provider-side change.
+
+# ---------------------------------------------------------------------------
+# Closed release-impact-class vocabulary.
+#
+# Every row MUST declare exactly one release_impact_class. The class
+# tells the shiproom dashboard whether the row blocks the train,
+# requires a late-proof exception, requires reviewer narrowing only,
+# or is informational.
+# ---------------------------------------------------------------------------
+release_impact_classes:
+  - id: blocks_release
+    description: >
+      Row gates the next release train; the pack moves to the
+      docs_pack_manifest_record publishable_state = blocked posture
+      with stale_examples_exceed_threshold or the more specific
+      blocking reason the detector declared.
+  - id: requires_late_proof_exception
+    description: >
+      Row may ride the train only under an approved
+      late_proof_exception_packet that names the detector, the
+      impacted claim row, the degraded wording, and the expiry.
+  - id: review_narrows_only
+    description: >
+      Row does not block the train but reviewer narrowing is required
+      before the next pack publish. The pane / About / onboarding /
+      support-export surfaces MUST render the typed disclosure on the
+      primary surface in the meantime.
+  - id: in_release_repair
+    description: >
+      Same-change-set fix is staged and rides the same train; the
+      row remains open until the fix lands and the detector clears.
+  - id: informational_drift
+    description: >
+      Row reflects a known drift that does not narrow user-visible
+      truth (for example a screenshot of a moved chip whose
+      replacement chip already renders). Surfaces still carry the
+      disclosure but the row does not gate a release.
+
+# ---------------------------------------------------------------------------
+# Closed row-state vocabulary.
+#
+# Tooling reads row_state to decide whether the row is open, paired
+# with a fix, paired with a late-proof exception, or closed.
+# ---------------------------------------------------------------------------
+row_states:
+  - id: open_unassigned
+    description: >
+      Row was filed and has not yet been routed to a remediation
+      owner.
+  - id: open_assigned
+    description: >
+      Row is routed to a remediation owner; remediation has not
+      landed yet.
+  - id: open_paired_with_fix
+    description: >
+      Same-change-set fix is staged and travels with the row.
+  - id: open_paired_with_late_proof_exception
+    description: >
+      Late-proof exception packet is approved and references the row.
+  - id: closed_resolved
+    description: >
+      Detector cleared after remediation landed.
+  - id: closed_superseded
+    description: >
+      Row was superseded by a newer row covering the same incident.
+  - id: closed_invalid
+    description: >
+      Row was filed in error; closure_audit_event_ref captures the
+      reviewer decision and the rationale.
+
+# ---------------------------------------------------------------------------
+# Closed audited-surface vocabulary.
+#
+# Every row MUST list at least one affected surface. Surfaces are
+# re-exported from the parity packet's lane vocabulary.
+# ---------------------------------------------------------------------------
+audited_surfaces:
+  - id: embedded_docs_help
+    description: In-product docs pane, embedded docs-browser body, AI-explanation pane, release-notice pane.
+  - id: help_about
+    description: Help / About pane and the About card it projects.
+  - id: onboarding_guided
+    description: Onboarding help overlay, first-run tour, guided-step inline help.
+  - id: exported_support_help
+    description: Support summary, support export packet, exported help shortcut catalog.
+  - id: docs_pack_manifest
+    description: Docs-pack manifest example_summary entry that pinned the example.
+  - id: shiproom_dashboard
+    description: Release shiproom dashboard projection of the row.
+
+# ---------------------------------------------------------------------------
+# Worked rows.
+#
+# Each row binds a stale-example incident to the detector that
+# fired, the action the rubric declared, the surfaces it touches,
+# the remediation owner, the release impact, and the row state.
+# Audit-event refs and drift-item refs are opaque ids only; raw
+# example bodies, raw runbook bodies, raw URLs, raw symbol
+# definitions, and raw issue-template bodies do not appear here.
+# ---------------------------------------------------------------------------
+rows:
+
+  - row_id: stale_example_audit_row.docs_pack.rename_walkthrough.rename_step.2026q2
+    detector_id: docs_pack_example_target_symbol_moved
+    artifact_kind: docs_pack_example
+    action_class: label_stale_with_reason
+    stale_reason_class: renamed_target_symbol
+    docs_pack_manifest_ref: pack-rev:curated:partially-stale:2026.04.18
+    example_ref: example:rename-refactor-walkthrough:rename-step
+    affected_surfaces:
+      - embedded_docs_help
+      - help_about
+      - onboarding_guided
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.stale_example_disclosed_inline
+    detected_at: "2026-04-22T14:10:00Z"
+    last_observed_at: "2026-04-29T16:00:00Z"
+    audit_event_id: audit_event:stale_example.docs_pack.rename_walkthrough.rename_step.2026-04-22
+    drift_item_ref: null
+    paired_change_set_ref: change_set:docs_pack.curated.rename_refactor.2026q2
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: docs_pack_publisher
+    backup_owner_role: docs_public_truth_owner
+    release_impact_class: review_narrows_only
+    row_state: open_paired_with_fix
+    notes: >
+      Curated knowledge pack rename-refactor walkthrough's first
+      step still cites the prior symbol name. Pack remains
+      publishable below the stale-example threshold; the typed
+      disclosure renders inline on the docs pane and onboarding
+      overlay until the same-change-set rename lands.
+    closure_audit_event_ref: null
+    closed_at: null
+
+  - row_id: stale_example_audit_row.docs_pack.format_on_save.setting_default.2026q2
+    detector_id: docs_pack_example_behavior_changed
+    artifact_kind: docs_pack_example
+    action_class: label_stale_with_reason
+    stale_reason_class: setting_default_changed
+    docs_pack_manifest_ref: pack-rev:curated:partially-stale:2026.04.18
+    example_ref: example:setting-default-changed:format-on-save
+    affected_surfaces:
+      - embedded_docs_help
+      - help_about
+      - onboarding_guided
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.stale_example_disclosed_inline
+    detected_at: "2026-04-22T14:10:00Z"
+    last_observed_at: "2026-04-29T16:00:00Z"
+    audit_event_id: audit_event:stale_example.docs_pack.format_on_save.setting_default.2026-04-22
+    drift_item_ref: null
+    paired_change_set_ref: change_set:docs_pack.curated.format_on_save.2026q2
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: domain_owner
+    backup_owner_role: docs_public_truth_owner
+    release_impact_class: review_narrows_only
+    row_state: open_paired_with_fix
+    notes: >
+      Curated knowledge pack still describes the prior format-on-save
+      default. Same-change-set rewrite is staged; the inline
+      disclosure renders on every consuming surface until it lands.
+    closure_audit_event_ref: null
+    closed_at: null
+
+  - row_id: stale_example_audit_row.guided_step.workspace_trust_tour.target_moved.2026q2
+    detector_id: guided_step_target_missing
+    artifact_kind: guided_step
+    action_class: suppress_from_surface
+    stale_reason_class: guided_step_target_moved
+    docs_pack_manifest_ref: pack-rev:project:aureline:2026.04.19-01
+    example_ref: guided_step:workspace-trust-tour:open-trust-pane
+    affected_surfaces:
+      - onboarding_guided
+      - embedded_docs_help
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.policy_limited_pane_suppressed
+    detected_at: "2026-04-25T09:30:00Z"
+    last_observed_at: "2026-04-29T16:00:00Z"
+    audit_event_id: audit_event:stale_example.guided_step.workspace_trust_tour.2026-04-25
+    drift_item_ref: null
+    paired_change_set_ref: change_set:onboarding.workspace_trust_tour.route_update.2026q2
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: domain_owner
+    backup_owner_role: docs_public_truth_owner
+    release_impact_class: in_release_repair
+    row_state: open_paired_with_fix
+    notes: >
+      Guided step instructed the user to open the workspace-trust
+      pane via the prior command id. The command moved; onboarding
+      suppresses the step with the typed skipped disclosure until
+      the route update lands in the same change set.
+    closure_audit_event_ref: null
+    closed_at: null
+
+  - row_id: stale_example_audit_row.screenshot.help_about_chip_moved.2026q2
+    detector_id: screenshot_surface_anchor_moved
+    artifact_kind: screenshot
+    action_class: suppress_from_surface
+    stale_reason_class: screenshot_chrome_moved
+    docs_pack_manifest_ref: pack-rev:project:aureline:2026.04.19-01
+    example_ref: screenshot:help-about-pane:freshness-chip
+    affected_surfaces:
+      - help_about
+      - embedded_docs_help
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.external_open_allowed_optional_same_object
+    detected_at: "2026-04-26T11:00:00Z"
+    last_observed_at: "2026-04-29T16:00:00Z"
+    audit_event_id: audit_event:stale_example.screenshot.help_about_chip_moved.2026-04-26
+    drift_item_ref: null
+    paired_change_set_ref: change_set:docs_pack.project.help_about_freshness_chip_screenshot.2026q2
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: docs_public_truth_owner
+    backup_owner_role: docs_pack_publisher
+    release_impact_class: review_narrows_only
+    row_state: open_paired_with_fix
+    notes: >
+      Screenshot of the freshness chip on the Help / About pane was
+      authored against the prior chip layout. Surfaces suppress the
+      screenshot with the typed disclosure until the rerendered
+      capture lands in the same change set.
+    closure_audit_event_ref: null
+    closed_at: null
+
+  - row_id: stale_example_audit_row.recipe.air_gapped_import.recipe_step_target.2026q2
+    detector_id: recipe_step_target_moved
+    artifact_kind: recipe
+    action_class: label_stale_with_reason
+    stale_reason_class: recipe_step_target_moved
+    docs_pack_manifest_ref: pack-rev:mirrored-official:reference:enterprise-2026Q2
+    example_ref: recipe:air-gapped-import:install-locale-pack
+    affected_surfaces:
+      - embedded_docs_help
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.mirror_only_offline
+    detected_at: "2026-04-19T10:30:00Z"
+    last_observed_at: "2026-04-29T16:00:00Z"
+    audit_event_id: audit_event:stale_example.recipe.air_gapped_import.2026-04-19
+    drift_item_ref: null
+    paired_change_set_ref: null
+    paired_late_proof_exception_ref: late_proof_exception:air_gapped_recipe.install_locale_pack.2026q2
+    remediation_owner_role: support_owner
+    backup_owner_role: docs_public_truth_owner
+    release_impact_class: requires_late_proof_exception
+    row_state: open_paired_with_late_proof_exception
+    notes: >
+      Air-gapped import recipe references the prior install-locale-pack
+      command id; the train cannot carry a same-change-set fix because
+      the air-gapped mirror lifecycle is out of train scope. Late-proof
+      exception names the impacted claim row and degraded wording.
+    closure_audit_event_ref: null
+    closed_at: null
+
+  - row_id: stale_example_audit_row.docs_pack.threshold_exceeded.community_pack.2026q2
+    detector_id: docs_pack_stale_threshold_exceeded
+    artifact_kind: docs_pack_example
+    action_class: block_pack_publishable
+    stale_reason_class: version_mismatch
+    docs_pack_manifest_ref: pack-rev:community:assist-recipes:2026.04.10
+    example_ref: docs_pack:community:assist-recipes
+    affected_surfaces:
+      - embedded_docs_help
+      - help_about
+      - exported_support_help
+      - docs_pack_manifest
+      - shiproom_dashboard
+    parity_case_ref: docs.embedded_help.parity.not_installed_pack
+    detected_at: "2026-04-12T13:00:00Z"
+    last_observed_at: "2026-04-29T16:00:00Z"
+    audit_event_id: audit_event:stale_example.docs_pack.community_assist_recipes.threshold.2026-04-12
+    drift_item_ref: public_drift_item:docs_pack.community_assist_recipes.publishable_blocked.2026q2
+    paired_change_set_ref: null
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: docs_pack_publisher
+    backup_owner_role: docs_public_truth_owner
+    release_impact_class: blocks_release
+    row_state: open_assigned
+    notes: >
+      Community assist-recipes pack crossed the publisher's
+      stale-example threshold. Pack moves to publishable_state =
+      blocked with stale_examples_exceed_threshold; consuming
+      surfaces suppress with the typed denial reason until the
+      pack republishes.
+    closure_audit_event_ref: null
+    closed_at: null
+
+  - row_id: stale_example_audit_row.generated_example.openapi_corpus.contract_mismatch.2026q1
+    detector_id: generated_example_contract_mismatch
+    artifact_kind: generated_example
+    action_class: label_stale_with_reason
+    stale_reason_class: generator_contract_mismatch
+    docs_pack_manifest_ref: pack-rev:generated-reference:openapi-corpus:2026.01.15
+    example_ref: generated_example:openapi-corpus:list-workspaces
+    affected_surfaces:
+      - embedded_docs_help
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.cached_only_owner_unreachable
+    detected_at: "2026-02-09T08:30:00Z"
+    last_observed_at: "2026-03-01T17:00:00Z"
+    audit_event_id: audit_event:stale_example.generated_example.openapi_corpus.2026-02-09
+    drift_item_ref: null
+    paired_change_set_ref: change_set:generated-reference.openapi-corpus.regenerate.2026q1
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: docs_pack_publisher
+    backup_owner_role: domain_owner
+    release_impact_class: review_narrows_only
+    row_state: closed_resolved
+    notes: >
+      OpenAPI corpus regeneration landed; the typed disclosure
+      cleared on the next pack republish. Closed-resolved retained
+      so the parity audit can replay the closure decision.
+    closure_audit_event_ref: audit_event:stale_example.generated_example.openapi_corpus.closed.2026-03-01
+    closed_at: "2026-03-01T17:00:00Z"
+
+  - row_id: stale_example_audit_row.migration_guide.compat_widening.superseded.2026q1
+    detector_id: migration_guide_step_superseded
+    artifact_kind: migration_guide
+    action_class: label_stale_with_reason
+    stale_reason_class: migration_step_superseded
+    docs_pack_manifest_ref: pack-rev:migration-notice:compat-window-update:2026.01.20
+    example_ref: migration_guide:compat-window-update:step-3
+    affected_surfaces:
+      - embedded_docs_help
+      - exported_support_help
+      - docs_pack_manifest
+    parity_case_ref: docs.embedded_help.parity.external_open_allowed_optional_same_object
+    detected_at: "2026-02-15T12:00:00Z"
+    last_observed_at: "2026-03-15T17:00:00Z"
+    audit_event_id: audit_event:stale_example.migration_guide.compat_window_update.2026-02-15
+    drift_item_ref: null
+    paired_change_set_ref: change_set:migration-notice.compat-window-update.republish.2026q1
+    paired_late_proof_exception_ref: null
+    remediation_owner_role: compatibility_owner
+    backup_owner_role: docs_public_truth_owner
+    release_impact_class: review_narrows_only
+    row_state: closed_resolved
+    notes: >
+      Migration guide's compat-window step was superseded by the
+      newer migration-notice pack. The typed disclosure cleared on
+      republish; row closed-resolved with the closure event retained.
+    closure_audit_event_ref: audit_event:stale_example.migration_guide.compat_window_update.closed.2026-03-15
+    closed_at: "2026-03-15T17:00:00Z"
