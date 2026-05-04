@@ -1,0 +1,437 @@
+# Imported-root drift audit
+#
+# This artifact is the canonical cross-surface label table for every
+# imported-root condition the workspace-graph seed and the
+# provenance / confidence / source-anchor-drift contract recognise.
+#
+# Every row pins:
+#   - the imported_root_condition (closed vocabulary),
+#   - the topology-map view labels every topology surface MUST emit,
+#   - the impact-explorer row labels every impact surface MUST emit,
+#   - the cited-explainer labels every explainer surface MUST emit,
+#   - the cross-repo result-group / search labels every search
+#     surface MUST emit,
+#   - the scope-banner labels every banner-hosting surface MUST emit
+#     when this condition is present in the active scope,
+#   - the closed list of failure signatures the audit catches,
+#   - the proof-case refs that exercise this condition.
+#
+# Tooling that compares topology / impact / explainer / search labels
+# for the same imported-root condition reads this artifact verbatim.
+# Surfaces that emit a non-conforming label fail the audit; the
+# proof-case fixtures under
+# /fixtures/graph/topology_explainer_cases/ exercise the row set.
+
+schema_version: 1
+audit_id: aureline.graph.imported_root_drift_audit
+contract_doc_refs:
+  - docs/graph/provenance_and_confidence_contract.md
+  - docs/graph/topology_and_impact_contract.md
+  - docs/graph/codebase_explainer_contract.md
+  - docs/workspace/workset_scope_and_cross_repo_contract.md
+  - docs/verification/graph_topology_explainer_packet.md
+upstream_schema_refs:
+  - schemas/graph/provenance_stamp.schema.json
+  - schemas/graph/confidence_rollup.schema.json
+  - schemas/graph/topology_map_view.schema.json
+  - schemas/graph/impact_reason.schema.json
+  - schemas/graph/codebase_explainer_packet.schema.json
+  - schemas/workspace/workset_switcher.schema.json
+  - schemas/workspace/cross_repo_result_group.schema.json
+
+audit_rows:
+  - audit_row_id: imported_signed_upstream_bundle_anchor_resolves
+    imported_root_condition: imported_signed_upstream_bundle_anchor_resolves
+    description: >
+      An imported signed upstream bundle whose source anchor still
+      resolves cleanly inside the bundle. Confidence caps at medium
+      because the upstream root has not been cross-validated against
+      a workspace-local producer; anchor drift is not in play.
+    expected_topology_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: imported_root_unverified
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_visible_with_caveat
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported-root-only loaded; counts visible, upstream root not cross-validated.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - imported_signed_upstream_bundle_renders_as_local_on_topology
+      - imported_root_count_diverges_between_topology_and_explainer
+      - explainer_promotes_partial_imported_to_direct_evidence
+      - cross_repo_result_group_uses_outside_current_scope_label_for_imported_root
+    proof_case_refs:
+      - graph.topology_explainer_proof.imported_root_cited_explainer
+
+  - audit_row_id: imported_signed_upstream_bundle_anchor_unverified
+    imported_root_condition: imported_signed_upstream_bundle_anchor_unverified
+    description: >
+      An imported signed upstream bundle whose anchor is hydrated but
+      has not been verified against the upstream source. The drift
+      state is anchor_imported_unverified; confidence still caps at
+      medium under imported_unverified_caps_at_medium and a non-null
+      anchor_drift_record_ref carries the unverified event.
+    expected_topology_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_imported_unverified
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_imported_unverified
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: imported_root_unverified
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_imported_unverified
+      rolled_up_confidence: medium
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_visible_with_caveat
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported-root-only loaded; upstream anchor unverified pending cross-validation.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - imported_signed_upstream_bundle_renders_as_local_on_topology
+      - anchor_drift_record_ref_missing_under_imported_unverified
+      - imported_root_count_diverges_between_topology_and_explainer
+      - explainer_promotes_partial_imported_to_direct_evidence
+      - lossy_export_drops_imported_root_chip_silently
+    proof_case_refs:
+      - graph.topology_explainer_proof.imported_root_cited_explainer
+
+  - audit_row_id: imported_unsigned_bundle_anchor_unverified
+    imported_root_condition: imported_unsigned_bundle_anchor_unverified
+    description: >
+      An imported bundle without an upstream signature. The drift
+      state remains anchor_imported_unverified, but the explainer
+      MUST carry an additional omission of class
+      imported_root_unsigned because the upstream signature is the
+      missing axis, not just cross-validation. Confidence caps at
+      low under imported_unsigned_pulls_to_low.
+    expected_topology_label:
+      imported_root_status: imported_unsigned_bundle
+      anchor_drift_state: anchor_imported_unverified
+      rolled_up_confidence: low
+      floor_reason: imported_unsigned_pulls_to_low
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_unsigned_bundle
+      anchor_drift_state: anchor_imported_unverified
+      rolled_up_confidence: low
+      floor_reason: imported_unsigned_pulls_to_low
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: imported_root_unsigned
+      imported_root_status: imported_unsigned_bundle
+      anchor_drift_state: anchor_imported_unverified
+      rolled_up_confidence: low
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_visible_with_caveat
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported-root-only loaded; upstream bundle is unsigned and unverified.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - imported_unsigned_bundle_renders_as_signed_on_topology
+      - confidence_promotes_above_low_under_unsigned_floor
+      - explainer_omits_imported_root_unsigned_axis
+    proof_case_refs: []
+
+  - audit_row_id: imported_anchor_moved_with_match
+    imported_root_condition: imported_anchor_moved_with_match
+    description: >
+      An imported anchor moved within the upstream bundle and the
+      mover heuristic matched it to a new location with high
+      confidence. The drift state is anchor_moved_with_match and
+      the confidence floor stays at the imported floor; the
+      explainer carries an omission_class anchor_moved_with_match
+      so the move is reviewable.
+    expected_topology_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_moved_with_match
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_moved_with_match
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: anchor_moved_with_match
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_moved_with_match
+      rolled_up_confidence: medium
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_anchor_moved
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported anchor moved within upstream bundle; matched to a new location.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - anchor_moved_with_match_collapses_into_anchor_present_no_drift
+      - search_renders_anchor_moved_as_generic_no_results
+      - explainer_omits_anchor_moved_axis
+    proof_case_refs: []
+
+  - audit_row_id: imported_anchor_moved_with_partial_match
+    imported_root_condition: imported_anchor_moved_with_partial_match
+    description: >
+      An imported anchor moved and the mover heuristic produced a
+      partial match (e.g. range overlap below threshold). The drift
+      state is anchor_moved_with_partial_match; confidence floors at
+      low under partial_match_pulls_to_low; the explainer carries an
+      omission_class anchor_moved_with_partial_match.
+    expected_topology_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_moved_with_partial_match
+      rolled_up_confidence: low
+      floor_reason: partial_match_pulls_to_low
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_moved_with_partial_match
+      rolled_up_confidence: low
+      floor_reason: partial_match_pulls_to_low
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: anchor_moved_with_partial_match
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_moved_with_partial_match
+      rolled_up_confidence: low
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_anchor_moved_partial
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported anchor moved with partial match only; review pending.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - partial_match_renders_as_full_match
+      - confidence_promotes_above_low_under_partial_match_floor
+      - search_renders_partial_match_as_generic_no_results
+    proof_case_refs: []
+
+  - audit_row_id: imported_anchor_deleted_no_replacement
+    imported_root_condition: imported_anchor_deleted_no_replacement
+    description: >
+      An imported anchor was deleted upstream with no replacement
+      identified. The drift state is anchor_deleted_no_replacement;
+      the explainer MUST refuse the strong claim under
+      downgraded_refusal_insufficient_evidence with a non-empty
+      omission ledger; the search surface MUST render an
+      evidence_missing row state rather than a generic "no
+      results" message.
+    expected_topology_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_deleted_no_replacement
+      rolled_up_confidence: low
+      floor_reason: missing_anchor_pulls_to_low
+      loaded_scope_state: evidence_missing_loaded
+    expected_impact_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_deleted_no_replacement
+      rolled_up_confidence: low
+      floor_reason: missing_anchor_pulls_to_low
+      loaded_scope_state: evidence_missing_loaded
+    expected_explainer_label:
+      claim_disposition: downgraded_refusal_insufficient_evidence
+      omission_class: evidence_missing_anchor_deleted
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_deleted_no_replacement
+      rolled_up_confidence: low
+    expected_search_label:
+      cross_repo_result_group_row_class: evidence_missing
+      in_scope_marker: outside_current_scope
+      result_state_class: evidence_missing_anchor_deleted
+    expected_scope_banner_label:
+      banner_state: active_evidence_missing
+      partial_index_note: Imported anchor deleted upstream with no replacement; widen scope or wait for refresh.
+      hidden_result_summary_count_class: evidence_missing
+    failure_signatures:
+      - imported_anchor_deleted_collapses_into_generic_no_results
+      - explainer_renders_deleted_anchor_as_authoritative_prose
+      - refusal_carries_non_zero_citations
+      - confidence_promotes_above_low_under_missing_anchor_floor
+      - omission_ledger_compressed_to_partial_results_phrase
+    proof_case_refs:
+      - graph.topology_explainer_proof.insufficient_evidence_downgrade
+
+  - audit_row_id: imported_root_partially_loaded_pending_workset_widen
+    imported_root_condition: imported_root_partially_loaded_pending_workset_widen
+    description: >
+      An imported root that is recognised but only partially loaded
+      because the active workset narrows it. The drift state is
+      anchor_present_no_drift on the loaded slice; the
+      hidden_count_summary carries imported_root_count >= 1 plus a
+      non-zero hidden_by_workset_count for the unloaded slice; the
+      scope banner offers a widen_with_review action.
+    expected_topology_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: policy_limited_loaded
+    expected_impact_label:
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+      floor_reason: imported_unverified_caps_at_medium
+      loaded_scope_state: policy_limited_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: imported_root_partially_loaded
+      imported_root_status: imported_signed_upstream_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+    expected_search_label:
+      cross_repo_result_group_row_class: partially_loaded
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_partially_loaded
+    expected_scope_banner_label:
+      banner_state: active_partially_loaded
+      partial_index_note: Imported root partially loaded under the active workset; widen with review to load the full root.
+      hidden_result_summary_count_class: partially_loaded
+    failure_signatures:
+      - imported_root_partially_loaded_collapses_into_fully_loaded
+      - hidden_by_workset_count_zero_under_partially_loaded
+      - explainer_omits_imported_root_partially_loaded_axis
+      - scope_banner_omits_widen_with_review_action
+    proof_case_refs: []
+
+  - audit_row_id: imported_root_unknown_lineage
+    imported_root_condition: imported_root_unknown_lineage
+    description: >
+      An imported root whose upstream lineage cannot be resolved.
+      The drift state is anchor_unknown_lineage; confidence floors
+      at low under unknown_lineage_pulls_to_low; the explainer MUST
+      carry omission_class imported_root_unknown_lineage; the
+      search surface MUST emit imported_root_unknown_lineage as
+      the row state.
+    expected_topology_label:
+      imported_root_status: imported_unknown_lineage
+      anchor_drift_state: anchor_unknown_lineage
+      rolled_up_confidence: low
+      floor_reason: unknown_lineage_pulls_to_low
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_unknown_lineage
+      anchor_drift_state: anchor_unknown_lineage
+      rolled_up_confidence: low
+      floor_reason: unknown_lineage_pulls_to_low
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: imported_root_unknown_lineage
+      imported_root_status: imported_unknown_lineage
+      anchor_drift_state: anchor_unknown_lineage
+      rolled_up_confidence: low
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_unknown_lineage
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported root has unknown upstream lineage.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - imported_root_unknown_lineage_collapses_into_imported_signed_upstream_bundle
+      - confidence_promotes_above_low_under_unknown_lineage_floor
+      - explainer_omits_imported_root_unknown_lineage_axis
+    proof_case_refs: []
+
+  - audit_row_id: imported_root_generated_artifact
+    imported_root_condition: imported_root_generated_artifact
+    description: >
+      An imported root that is a generated artifact (codegen output,
+      schema-derived bundle). The drift state is
+      anchor_present_no_drift on the generated slice; confidence
+      caps at medium under generated_artifact_caps_at_medium; the
+      explainer MUST carry omission_class imported_generated_artifact
+      so the generation provenance is reviewable.
+    expected_topology_label:
+      imported_root_status: imported_local_only_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+      floor_reason: generated_artifact_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_impact_label:
+      imported_root_status: imported_local_only_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+      floor_reason: generated_artifact_caps_at_medium
+      loaded_scope_state: imported_root_only_loaded
+    expected_explainer_label:
+      claim_disposition: cited_partial_imported
+      omission_class: imported_generated_artifact
+      imported_root_status: imported_local_only_bundle
+      anchor_drift_state: anchor_present_no_drift
+      rolled_up_confidence: medium
+    expected_search_label:
+      cross_repo_result_group_row_class: imported_root
+      in_scope_marker: outside_current_scope
+      result_state_class: imported_root_generated_artifact
+    expected_scope_banner_label:
+      banner_state: active_imported_root_only
+      partial_index_note: Imported root is a generated artifact; provenance pinned to the generator.
+      hidden_result_summary_count_class: imported_root
+    failure_signatures:
+      - generated_artifact_renders_as_handwritten_local
+      - explainer_omits_imported_generated_artifact_axis
+      - confidence_promotes_above_medium_under_generated_artifact_floor
+
+cross_audit_invariants:
+  - invariant_id: imported_root_count_matches_across_topology_impact_and_explainer
+    invariant_text: For any single workspace_graph snapshot, hidden_count_summary.imported_root_count MUST be identical across topology, impact, ownership card, explainer, and cross-repo result group.
+  - invariant_id: anchor_drift_record_ref_required_when_drift_state_outside_no_drift
+    invariant_text: Every freshness_provenance_strip whose anchor_drift_state is not anchor_present_no_drift MUST carry a non-null anchor_drift_record_ref.
+  - invariant_id: lossless_export_preserves_imported_root_chip
+    invariant_text: Every lossless review-pack and support-bundle export MUST declare preserves_imported_root_chip true; lossy exports MUST disclose the dropped chip on the export receipt.
+  - invariant_id: search_surface_never_collapses_imported_root_drift_into_generic_no_results
+    invariant_text: Cross-repo result group MUST emit a typed row_class (imported_root, partially_loaded, evidence_missing) for every imported-root drift condition; surfaces MUST NOT emit a generic no-results row instead.
+  - invariant_id: refusal_under_imported_anchor_deleted_carries_typed_omission_ledger
+    invariant_text: Any explainer whose claim disposition is downgraded_refusal_insufficient_evidence under an imported_anchor_deleted_no_replacement condition MUST carry at least one omission ledger entry of class evidence_missing_anchor_deleted with export_preservation_required true.
+
+audit_note: >
+  This audit is the canonical cross-surface label table for imported-
+  root conditions. Adding rows for additional imported-root
+  conditions is welcome; removing or relabelling a row this audit
+  already covers is a breaking change. Failure signatures are the
+  closed list QE / public-proof lanes verify against; the proof-case
+  fixtures under fixtures/graph/topology_explainer_cases/ exercise
+  the rows.
+recorded_at: "mono:graph.imported_root_drift_audit:0001:00:00:00.0001"
