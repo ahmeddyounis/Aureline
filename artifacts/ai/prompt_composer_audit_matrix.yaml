@@ -1,0 +1,505 @@
+# Prompt-composer conformance audit matrix.
+#
+# Machine-readable companion to docs/verification/prompt_composer_packet.md.
+# Reviewers, the edge-case fixture corpus under
+# fixtures/ai/prompt_composer_edge_cases/, and later QE / public-proof
+# tooling read this file so prompt-composer edge cases (oversized
+# attachments, blocked scope, stale graph refs, imported-root
+# references, tainted logs, work-item / provider links with missing
+# authority) are audited against one shared vocabulary instead of
+# inventing per-surface composer-test language.
+#
+# This file does not redefine the prompt-composer contract; it
+# projects the contract frozen in
+# docs/ai/prompt_composer_contract.md and the schemas at
+# schemas/ai/prompt_composer_session.schema.json,
+# schemas/ai/request_workspace_ref.schema.json,
+# schemas/ai/context_assembly.schema.json, and
+# schemas/ai/tainted_input_source.schema.json onto a row-shaped
+# audit corpus.
+
+schema_version: 1
+registry_id: ai.verification.prompt_composer_audit_matrix.v1
+packet_ref: docs/verification/prompt_composer_packet.md
+contract_doc: docs/ai/prompt_composer_contract.md
+session_schema_ref: schemas/ai/prompt_composer_session.schema.json
+request_workspace_ref_schema_ref: schemas/ai/request_workspace_ref.schema.json
+assembly_schema_ref: schemas/ai/context_assembly.schema.json
+tainted_input_schema_ref: schemas/ai/tainted_input_source.schema.json
+edge_corpus_ref: fixtures/ai/prompt_composer_edge_cases/
+worked_examples_ref: fixtures/ai/prompt_composer_cases/
+
+governance:
+  owner_roles:
+    - AI platform owner
+    - Composer surface owner
+    - Supportability owner
+    - QE / verification owner
+  change_rules:
+    - Adding a row, axis, or surface is additive when it narrows an existing typed posture and ships with a fixture that schema-validates and renders the omission explainer verbatim.
+    - Removing or weakening a row is breaking and requires composer-surface, AI platform, and supportability review.
+    - Repurposing a row id is breaking; mint a new row id and keep the old row in a deprecated lane.
+    - Every edge-row MUST cite at least one fixture under fixtures/ai/prompt_composer_edge_cases/ that schema-validates against schemas/ai/prompt_composer_session.schema.json.
+
+# ---------------------------------------------------------------------------
+# Conformance axes
+#
+# The composer's pre-dispatch surface answers seven questions for every
+# turn. The conformance matrix audits each axis with at least one edge
+# row so a future composer surface, CLI / headless, or export / support
+# row that drifts from the contract is caught before integration.
+# ---------------------------------------------------------------------------
+conformance_axes:
+  - axis_id: attachments_axis
+    summary: >-
+      Every attachment carries one typed attachment_kind, one
+      trust_posture, and one disposition_class. Tainted attachments
+      MUST also carry tainted_fence_strategy and a non-empty
+      tainted_usage_constraints set.
+    required_record_kinds:
+      - prompt_composer_attachment_descriptor
+    required_count_field_disclosures:
+      - tainted_attachment_count_disclosed
+      - omitted_attachment_count_disclosed
+      - policy_blocked_attachment_count_disclosed
+      - redacted_attachment_count_disclosed
+
+  - axis_id: mentions_axis
+    summary: >-
+      Every mention names one typed mention_kind, one trust_posture,
+      and one disposition_class. Mentions whose target authority does
+      not resolve MUST NOT silently flatten to a generic free-text
+      reference.
+    required_record_kinds:
+      - prompt_composer_mention_descriptor
+
+  - axis_id: omitted_context_axis
+    summary: >-
+      Every omitted attachment / mention carries a typed
+      omitted_* disposition_class. A typed omission explainer (what
+      was excluded, why, whether it is reversible, and what safe
+      next action remains) MUST render on the pre-dispatch
+      disclosure card before the user acknowledges dispatch.
+    required_disposition_classes:
+      - omitted_under_budget
+      - omitted_outside_scope
+      - omitted_freshness_floor_unmet
+      - omitted_dedup_against_pinned
+      - omitted_user_deselected
+      - omitted_policy_narrows_scope
+
+  - axis_id: tainted_pasted_content_axis
+    summary: >-
+      User-pasted text and other untrusted attachments are fenced
+      under one of the fenced_tainted_* dispositions with a
+      tainted_fence_strategy and a non-empty
+      tainted_usage_constraints set. A tainted attachment MAY NOT
+      gain instruction authority, citation authority, tool-call
+      authority, branch-agent dispatch authority, or higher-cost
+      route authority.
+    required_disposition_classes:
+      - fenced_tainted_default
+      - fenced_tainted_user_pasted
+      - fenced_tainted_tool_return
+      - fenced_tainted_remote_collaborator
+      - fenced_tainted_connected_provider
+      - fenced_tainted_extension_proposed
+
+  - axis_id: route_spend_preview_axis
+    summary: >-
+      Every dispatched draft cites route_plan_placeholder_ref,
+      spend_plan_placeholder_ref, route_receipt_placeholder_ref,
+      and spend_receipt_placeholder_ref on its pre-dispatch
+      disclosure record. estimated_spend and spend_ceiling render
+      verbatim when cost visibility is not undisclosed_by_provider
+      / bundled_no_incremental_cost.
+    required_disclosure_fields:
+      - route_path_disclosed
+      - cost_visibility_disclosed
+      - estimated_spend_disclosed
+      - spend_ceiling_disclosed
+
+  - axis_id: branch_agent_dispatch_preview_axis
+    summary: >-
+      A draft whose dispatch_target_class = background_branch_agent
+      MUST cite branch_agent_dispatch_placeholder_ref on the
+      disclosure record and MUST disclose
+      branch_agent_dispatch_intent_disclosed verbatim. A draft whose
+      dispatch_target_class = review_handoff carries the same
+      discipline against review_handoff_placeholder_ref /
+      review_handoff_intent_disclosed.
+    required_disclosure_fields:
+      - branch_agent_dispatch_intent_disclosed
+      - review_handoff_intent_disclosed
+
+  - axis_id: required_disclosure_axis
+    summary: >-
+      The pre-dispatch disclosure card MUST list scope, target
+      context, active account, active provider, active model,
+      route path, cost visibility, approval posture, and the
+      typed request_workspace_ref. A missing required field denies
+      with required_disclosure_field_missing.
+    required_disclosure_fields:
+      - scope_filter_disclosed
+      - target_context_disclosed
+      - active_account_disclosed
+      - active_provider_disclosed
+      - active_model_disclosed
+      - route_path_disclosed
+      - cost_visibility_disclosed
+      - approval_posture_disclosed
+      - request_workspace_ref_disclosed
+
+# ---------------------------------------------------------------------------
+# Omission explainer contract
+#
+# Every edge-row whose disposition is one of omitted_* /
+# policy_blocked_* / redacted_under_broker_pass / fenced_tainted_*
+# MUST render an omission explainer that names four typed answers.
+# Reviewers walk this list to confirm each composer surface (desktop,
+# CLI / headless, export / support) renders the same answers verbatim.
+# ---------------------------------------------------------------------------
+omission_explainer_required_answers:
+  - answer_class: what_was_excluded
+    summary: >-
+      Names the typed mention_kind / attachment_kind / source_ref the
+      composer dropped, fenced, redacted, or denied. MAY NOT degrade
+      to "context unavailable" / "search returned nothing" copy.
+  - answer_class: why_excluded
+    summary: >-
+      Names the typed disposition_class (omitted_outside_scope,
+      omitted_under_budget, omitted_freshness_floor_unmet,
+      omitted_policy_narrows_scope, fenced_tainted_*,
+      policy_blocked_*, redacted_under_broker_pass,
+      denied_data_class_denied_always) verbatim.
+  - answer_class: reversible_class
+    summary: >-
+      Whether the omission can be reversed by user / admin / policy
+      action. Resolves to one of reversible_by_user_action,
+      reversible_by_admin_policy_change,
+      reversible_by_freshness_refresh,
+      reversible_by_workspace_trust_grant,
+      reversible_by_approval_request,
+      reversible_by_higher_trust_context_sharing,
+      irreversible_denied_always.
+    reversibility_class_vocabulary:
+      - reversible_by_user_action
+      - reversible_by_admin_policy_change
+      - reversible_by_freshness_refresh
+      - reversible_by_workspace_trust_grant
+      - reversible_by_approval_request
+      - reversible_by_higher_trust_context_sharing
+      - irreversible_denied_always
+  - answer_class: safe_next_action_class
+    summary: >-
+      Names the next safe action a user MAY take in lieu of the
+      excluded context. MAY NOT collapse to a generic error
+      ("retry") nor a silent fall-through that drops the row.
+    safe_next_action_class_vocabulary:
+      - widen_scope_filter
+      - request_admin_policy_change
+      - refresh_freshness_index
+      - grant_workspace_trust
+      - request_approval_ticket
+      - request_higher_trust_context_sharing
+      - select_alternative_target
+      - dispatch_without_excluded_context
+      - cancel_turn_draft
+      - contact_support
+      - no_safe_next_action_denied_always
+
+# ---------------------------------------------------------------------------
+# Edge case roster
+#
+# Each row binds one fixture to one or more axes, one disposition,
+# and the four typed answers the omission explainer MUST render. The
+# fixture MUST schema-validate against
+# schemas/ai/prompt_composer_session.schema.json.
+# ---------------------------------------------------------------------------
+edge_case_rows:
+  - row_id: prompt_composer.edge.oversized_attachment.budget_omit
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/oversized_attachment_budget_omit.yaml
+    axes:
+      - attachments_axis
+      - omitted_context_axis
+      - required_disclosure_axis
+    triggering_disposition: omitted_under_budget
+    what_was_excluded: file_slice_excerpt_attachment
+    why_excluded: omitted_under_budget
+    reversibility_class: reversible_by_user_action
+    safe_next_action_class: dispatch_without_excluded_context
+    omission_explainer_summary: >-
+      An oversized file_slice_excerpt was dropped under composer
+      budget pressure. User MAY narrow the file_slice mention,
+      pin a smaller slice, or dispatch without the excluded
+      context. Disclosure renders omitted_attachment_count = 1
+      verbatim.
+
+  - row_id: prompt_composer.edge.blocked_scope.outside_named_workset
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/blocked_scope_outside_named_workset.yaml
+    axes:
+      - mentions_axis
+      - omitted_context_axis
+      - required_disclosure_axis
+    triggering_disposition: omitted_outside_scope
+    what_was_excluded: file_mention_outside_named_workset
+    why_excluded: omitted_outside_scope
+    reversibility_class: reversible_by_user_action
+    safe_next_action_class: widen_scope_filter
+    omission_explainer_summary: >-
+      A file_mention pointed at a path outside the active named
+      workset. User MAY widen the scope filter to current_root,
+      switch worksets, or dispatch without the excluded mention.
+      Disclosure renders omitted_attachment_count = 1 verbatim.
+
+  - row_id: prompt_composer.edge.stale_graph_ref.freshness_floor_unmet
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/stale_graph_ref_freshness_floor_unmet.yaml
+    axes:
+      - mentions_axis
+      - omitted_context_axis
+      - required_disclosure_axis
+    triggering_disposition: omitted_freshness_floor_unmet
+    what_was_excluded: graph_summary_mention
+    why_excluded: omitted_freshness_floor_unmet
+    reversibility_class: reversible_by_freshness_refresh
+    safe_next_action_class: refresh_freshness_index
+    omission_explainer_summary: >-
+      A graph_summary_mention's source pack was past the freshness
+      floor; the composer omitted the mention rather than render
+      stale graph context. User MAY refresh the graph index and
+      retry, or dispatch without the stale graph summary.
+
+  - row_id: prompt_composer.edge.imported_root_reference.untrusted_work_item
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/imported_root_reference_untrusted_work_item.yaml
+    axes:
+      - mentions_axis
+      - tainted_pasted_content_axis
+      - required_disclosure_axis
+    triggering_disposition: fenced_tainted_remote_collaborator
+    what_was_excluded: imported_work_item_mention_authority_unverifiable
+    why_excluded: fenced_tainted_remote_collaborator
+    reversibility_class: reversible_by_higher_trust_context_sharing
+    safe_next_action_class: request_higher_trust_context_sharing
+    omission_explainer_summary: >-
+      A work_item_mention came from an imported-root collection
+      whose authority chain does not resolve under the workspace's
+      trust posture. The composer fences the mention as
+      fenced_tainted_remote_collaborator (instruction-stripped).
+      User MAY request the higher-trust context-sharing approval,
+      attach an alternative locally-authored target, or dispatch
+      without the untrusted work item.
+
+  - row_id: prompt_composer.edge.tainted_log.broker_redacted_credential
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/tainted_log_broker_redacted_credential.yaml
+    axes:
+      - attachments_axis
+      - tainted_pasted_content_axis
+      - required_disclosure_axis
+    triggering_disposition: redacted_under_broker_pass
+    what_was_excluded: log_span_capture_with_credential_handle
+    why_excluded: redacted_under_broker_pass
+    reversibility_class: irreversible_denied_always
+    safe_next_action_class: select_alternative_target
+    omission_explainer_summary: >-
+      A log_span_capture body matched the broker-owned credential-
+      handle redaction pass. The composer admits the attachment
+      with credential bytes redacted; the credential body itself
+      is denied_always and cannot be reversed by user or admin
+      action. User MAY pick an alternative log span, or dispatch
+      with the redacted capture.
+
+  - row_id: prompt_composer.edge.work_item_link_missing_authority
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/work_item_link_missing_authority.yaml
+    axes:
+      - mentions_axis
+      - omitted_context_axis
+      - required_disclosure_axis
+    triggering_disposition: policy_blocked_admin_policy
+    what_was_excluded: work_item_relation_mention_authority_missing
+    why_excluded: policy_blocked_admin_policy
+    reversibility_class: reversible_by_admin_policy_change
+    safe_next_action_class: request_admin_policy_change
+    omission_explainer_summary: >-
+      A work_item_relation_mention's owning project authority is
+      not on the admin allow-list for this workspace. The composer
+      blocks the mention with policy_blocked_admin_policy. User
+      MAY request an admin policy change, or dispatch without the
+      blocked relation.
+
+  - row_id: prompt_composer.edge.provider_link_missing_authority
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/provider_link_missing_authority.yaml
+    axes:
+      - attachments_axis
+      - tainted_pasted_content_axis
+      - required_disclosure_axis
+    triggering_disposition: policy_blocked_connected_provider_policy
+    what_was_excluded: connected_provider_resource_bundle_authority_missing
+    why_excluded: policy_blocked_connected_provider_policy
+    reversibility_class: reversible_by_approval_request
+    safe_next_action_class: request_approval_ticket
+    omission_explainer_summary: >-
+      A connected_provider_resource_bundle attachment came from
+      a provider whose browser-handoff approval ticket has
+      lapsed. The composer blocks the attachment with
+      policy_blocked_connected_provider_policy. User MAY request
+      a fresh approval ticket, or dispatch without the blocked
+      bundle.
+
+  - row_id: prompt_composer.edge.branch_agent_dispatch_preview_with_omits
+    fixture_ref: fixtures/ai/prompt_composer_edge_cases/branch_agent_dispatch_preview_with_omits.yaml
+    axes:
+      - branch_agent_dispatch_preview_axis
+      - route_spend_preview_axis
+      - tainted_pasted_content_axis
+      - omitted_context_axis
+      - required_disclosure_axis
+    triggering_disposition: fenced_tainted_user_pasted
+    what_was_excluded: user_supplied_text_paste_with_dispatch_intent
+    why_excluded: fenced_tainted_user_pasted
+    reversibility_class: irreversible_denied_always
+    safe_next_action_class: dispatch_without_excluded_context
+    omission_explainer_summary: >-
+      A pasted instruction string asked the composer to dispatch
+      a background branch-agent run with widened tool authority.
+      The paste is fenced as fenced_tainted_user_pasted with
+      must_not_dispatch_branch_agent /
+      must_not_route_to_higher_cost_tier on the typed
+      tainted_usage_constraints set; the composer's branch-agent
+      dispatch preview MAY proceed only against the user-typed
+      mentions and attachments, not the paste body. The paste's
+      instruction authority is irreversibly denied.
+
+# ---------------------------------------------------------------------------
+# Surface parity rules
+#
+# The composer packet truth MUST render identically across desktop
+# product, CLI / headless, and export / support surfaces. Each
+# surface answers the same six questions; chip collapsing in the UI
+# is a freedom but record-level field addressability is mandatory.
+# ---------------------------------------------------------------------------
+surface_parity_rules:
+  surfaces:
+    - surface_id: desktop_composer_pane
+      may_mint_records: true
+      may_collapse_chips: true
+      MUST_project:
+        - tainted_attachment_count_disclosed
+        - omitted_attachment_count_disclosed
+        - policy_blocked_attachment_count_disclosed
+        - redacted_attachment_count_disclosed
+        - omission_explainer_what_was_excluded
+        - omission_explainer_why_excluded
+        - omission_explainer_reversible_class
+        - omission_explainer_safe_next_action_class
+    - surface_id: cli_or_headless_composer
+      may_mint_records: true
+      may_collapse_chips: false
+      MUST_project:
+        - tainted_attachment_count_disclosed
+        - omitted_attachment_count_disclosed
+        - policy_blocked_attachment_count_disclosed
+        - redacted_attachment_count_disclosed
+        - omission_explainer_what_was_excluded
+        - omission_explainer_why_excluded
+        - omission_explainer_reversible_class
+        - omission_explainer_safe_next_action_class
+    - surface_id: export_or_support_bundle
+      may_mint_records: false
+      may_collapse_chips: false
+      MUST_project:
+        - tainted_attachment_count_disclosed
+        - omitted_attachment_count_disclosed
+        - policy_blocked_attachment_count_disclosed
+        - redacted_attachment_count_disclosed
+        - omission_explainer_what_was_excluded
+        - omission_explainer_why_excluded
+        - omission_explainer_reversible_class
+        - omission_explainer_safe_next_action_class
+  parity_rule_summary: >-
+    Across the three surfaces, the four typed count fields and the
+    four typed omission-explainer answers MUST render verbatim from
+    the same prompt_composer_predispatch_disclosure_record. A
+    surface that drops one of the eight fields is non-conforming
+    even when its UI chip collapses.
+
+# ---------------------------------------------------------------------------
+# Failure conditions
+#
+# A composer proof run MUST fail when any of these conditions are
+# observed across the edge fixture corpus or across the three
+# parity surfaces.
+# ---------------------------------------------------------------------------
+failure_conditions:
+  - failure_id: tainted_context_disappeared_silently
+    summary: >-
+      A turn-draft descriptor lists a fenced_tainted_* attachment
+      or mention but the resulting pre-dispatch disclosure record's
+      tainted_attachment_count is zero, OR the disclosure_fields
+      list omits tainted_attachment_count_disclosed.
+  - failure_id: omitted_context_disappeared_silently
+    summary: >-
+      A turn-draft descriptor lists an omitted_* / policy_blocked_*
+      / redacted_* mention or attachment but the resulting
+      disclosure record reports zero on the matching count field
+      OR omits the matching disclosure_field_class.
+  - failure_id: omission_explainer_required_answer_missing
+    summary: >-
+      An edge row whose disposition is one of the omitted_* /
+      policy_blocked_* / fenced_tainted_* / redacted_under_broker_pass
+      values renders without one of the four typed answers
+      (what_was_excluded, why_excluded, reversible_class,
+      safe_next_action_class).
+  - failure_id: generic_error_replaced_typed_disposition
+    summary: >-
+      An edge row whose contract disposition is typed
+      (omitted_*, policy_blocked_*, fenced_tainted_*,
+      redacted_under_broker_pass, denied_data_class_denied_always)
+      collapses to a generic "context unavailable" or "search
+      returned nothing" string on any surface.
+  - failure_id: required_disclosure_field_missing
+    summary: >-
+      A pre-dispatch disclosure record lacks one of the
+      contract-required disclosure_field_class entries (scope,
+      target, account, provider, model, route, cost visibility,
+      approval posture, request_workspace_ref).
+  - failure_id: parity_drift_between_surfaces
+    summary: >-
+      The desktop, CLI / headless, and export / support surfaces
+      do not project the same four count fields and four typed
+      omission-explainer answers from the same disclosure record.
+  - failure_id: branch_agent_dispatch_intent_undisclosed
+    summary: >-
+      A turn-draft descriptor whose dispatch_target_class is
+      background_branch_agent dispatches without
+      branch_agent_dispatch_intent_disclosed on the disclosure
+      OR without a non-null branch_agent_dispatch_placeholder_ref.
+  - failure_id: tainted_paste_promoted_to_instruction_authority
+    summary: >-
+      A turn-draft descriptor admits an attachment with
+      trust_posture in the untrusted_* set but the descriptor's
+      tainted_usage_constraints does not include
+      must_not_override_instruction_bundle, OR a downstream
+      slash-command invocation cites the tainted attachment as
+      an instruction_bundle_ref.
+
+# ---------------------------------------------------------------------------
+# Citation / re-use lanes
+#
+# Future QE / public-proof work cites this matrix by (registry_id,
+# row_id) instead of redefining its own composer-test vocabulary.
+# ---------------------------------------------------------------------------
+citation_lanes:
+  - citation_lane_id: qe_release_blocking_lane
+    summary: >-
+      QE release-blocking checks cite this matrix by registry_id
+      to fail builds when any failure_condition above is observed.
+  - citation_lane_id: public_proof_packet_lane
+    summary: >-
+      Public-proof / claim-publication packets cite the row_ids
+      above to anchor the composer-truth claim without re-minting
+      the four typed disclosure-count fields.
+  - citation_lane_id: support_export_replay_lane
+    summary: >-
+      Support / replay packets cite the surface_parity_rules to
+      prove the export bundle preserved every count and explainer
+      from the original desktop pre-dispatch disclosure.
