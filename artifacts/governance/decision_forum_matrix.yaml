@@ -1,0 +1,444 @@
+# Decision-forum routing matrix for phase-level change-budget review.
+#
+# Phase-and-classification-driven routing table that pairs every phase
+# row in artifacts/governance/phase_change_budget.yaml with the named
+# decision forums in artifacts/governance/forum_matrix.yaml. The
+# forum charters (chair, cadence, packet profile, quorum rule) live in
+# forum_matrix.yaml; this file does not duplicate them.
+#
+# Reviewers MUST be able to answer two questions from this file alone,
+# without reconstructing the milestone calendar:
+#
+#   1. Given the current phase and the four classification answers,
+#      which forum has decision authority?
+#   2. Given the same phase, which forums must co-sign or be escalated
+#      to before the packet may close?
+#
+# Forum ids reuse forum_matrix.yaml exactly. Phase ids reuse
+# phase_change_budget.yaml exactly. No parallel naming system is minted
+# here.
+#
+# Companion artifacts:
+#   - artifacts/governance/phase_change_budget.yaml
+#   - artifacts/governance/forum_matrix.yaml
+#   - artifacts/governance/protected_change_budget.yaml
+#   - artifacts/governance/ownership_matrix.yaml
+#   - schemas/governance/exception_packet.schema.json
+#   - docs/governance/phase_change_budget_and_forums.md
+#   - docs/governance/forum_charters.md
+#   - docs/governance/commitment_and_rebaseline_policy.md
+
+schema_version: 1
+artifact_id: aureline.decision_forum_matrix
+artifact_revision: 1
+status: seeded
+
+overview_document: docs/governance/phase_change_budget_and_forums.md
+phase_change_budget_ref: artifacts/governance/phase_change_budget.yaml
+forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+protected_path_budget_ref: artifacts/governance/protected_change_budget.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+exception_packet_schema_ref: schemas/governance/exception_packet.schema.json
+
+source_specs:
+  - .plans/M00-78.md
+  - .plans/M00-91.md
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_PRD.md
+  - docs/governance/commitment_and_rebaseline_policy.md
+  - docs/governance/change_budget_workflow.md
+  - artifacts/governance/forum_matrix.yaml
+
+# Forum altitude.
+#
+# Forums are ordered by escalation altitude. Routing rules use this
+# ordering to pick the lowest-altitude forum that satisfies the change
+# class for the current phase.
+forum_altitude_order:
+  - architecture_council
+  - product_scope_review
+  - release_council
+  - shiproom_executive_scope_review
+
+# Per-phase routing rows.
+#
+# Each row binds:
+#   - phase_id_ref into phase_change_budget.yaml
+#   - default_decision_forum_ref (the lowest-altitude forum that may
+#     approve a phase-default exception by itself)
+#   - co_sign_forum_refs (forums whose recorded outcome must accompany
+#     the default forum's decision before the packet may close)
+#   - escalation_forum_refs (forums the packet routes to when the
+#     classification flags push out of the default forum's authority)
+#   - phase_default_outcome_bias (verbatim from phase_change_budget.yaml)
+#   - phase_review_threshold_ref (verbatim from phase_change_budget.yaml)
+phase_forum_routing:
+  - phase_id_ref: m0_m1_truth_establishment
+    phase_label: M0-M1 truth-establishment
+    default_decision_forum_ref: architecture_council
+    default_decision_forum_label: architecture council
+    co_sign_forum_refs: []
+    escalation_forum_refs:
+      - product_scope_review
+      - release_council
+    phase_default_outcome_bias: protect_frozen_direction_without_widening_claims
+    phase_review_threshold_ref: rubric_m0_m1
+    notes: >
+      M0-M1 establishes the freeze. Architecture council owns first-hit
+      decisions on protected paths; widening of public claims escalates
+      to product_scope_review, and release-bearing crossings escalate
+      to release_council.
+
+  - phase_id_ref: m2_alpha_wedge
+    phase_label: M2 alpha wedge
+    default_decision_forum_ref: product_scope_review
+    default_decision_forum_label: milestone scope review
+    co_sign_forum_refs:
+      - architecture_council
+    escalation_forum_refs:
+      - release_council
+    phase_default_outcome_bias: finish_alpha_wedge_without_expanding_persona_or_platform_scope
+    phase_review_threshold_ref: rubric_m2
+    notes: >
+      Alpha-wedge changes route to milestone scope review by default.
+      Architecture council co-signs whenever the change touches a
+      stable-bearing interface or a frozen contract; release council
+      catches release-bearing widening.
+
+  - phase_id_ref: m3_beta_hardening
+    phase_label: M3 beta hardening
+    default_decision_forum_ref: release_council
+    default_decision_forum_label: release council
+    co_sign_forum_refs:
+      - architecture_council
+    escalation_forum_refs:
+      - shiproom_executive_scope_review
+    phase_default_outcome_bias: harden_existing_claims_without_widening_stable_surface_area
+    phase_review_threshold_ref: rubric_m3
+    notes: >
+      Beta hardening freezes the public-claim surface. Release council
+      owns first-hit decisions; architecture council co-signs any
+      stable-bearing interface change; shiproom catches widening that
+      cannot be hardened in place.
+
+  - phase_id_ref: m4_rc_stable
+    phase_label: M4 RC/stable
+    default_decision_forum_ref: shiproom_executive_scope_review
+    default_decision_forum_label: shiproom
+    co_sign_forum_refs:
+      - release_council
+      - architecture_council
+    escalation_forum_refs: []
+    phase_default_outcome_bias: default_deny_except_for_blockers_narrowing_or_truth_corrections
+    phase_review_threshold_ref: rubric_m4
+    notes: >
+      RC and stable land at shiproom. Release council pre-flights the
+      release-readiness packet; architecture council co-signs any
+      stable-bearing contract movement. Default posture is hold or
+      narrow.
+
+# Classification-keyed routing rules.
+#
+# These are the same rules carried in phase_change_budget.yaml's
+# forum_routing_rules, expressed here as a forum-first routing table
+# so reviewers can scan in either direction. The first matching rule
+# wins. Rules are written in order of increasing forum altitude so the
+# most defensive change gets the lightest forum.
+classification_routing_rules:
+  - rule_id: in_budget_no_packet_required
+    when:
+      reduces_risk: any
+      widens_scope: false
+      changes_public_claim: false
+      alters_stable_bearing_interface: false
+    forum_action: no_packet_required
+    forum_ref: null
+    note: >
+      Use the phase row's default_allowed_changes list to confirm fit;
+      record in the normal commit and scorecard surfaces.
+
+  - rule_id: risk_reducing_change_phase_default_forum
+    when:
+      reduces_risk: true
+      widens_scope: false
+      changes_public_claim: false
+      alters_stable_bearing_interface: false
+    forum_action: phase_default_forum_with_minimum_evidence
+    forum_ref_source: phase_forum_routing[phase_id].default_decision_forum_ref
+    note: >
+      Risk-reducing in-budget changes still record a packet so the
+      audit row exists; minimum evidence is the phase rubric floor.
+
+  - rule_id: scope_or_claim_widening_in_alpha_or_earlier
+    when:
+      widens_scope: true
+      changes_public_claim: any
+      alters_stable_bearing_interface: any
+      phase_id_in:
+        - m0_m1_truth_establishment
+        - m2_alpha_wedge
+    forum_action: phase_default_forum_with_full_burden_of_proof
+    forum_ref_source: phase_forum_routing[phase_id].default_decision_forum_ref
+    note: >
+      Scope-widening before beta routes to the architecture council in
+      M0-M1 or to milestone scope review in M2 with the full rubric.
+
+  - rule_id: scope_or_claim_widening_in_beta
+    when:
+      widens_scope: true
+      changes_public_claim: any
+      alters_stable_bearing_interface: any
+      phase_id_in:
+        - m3_beta_hardening
+    forum_action: release_council_with_full_burden_of_proof
+    forum_ref: release_council
+    note: >
+      During beta, widening of any kind escalates to release council
+      regardless of the phase default forum.
+
+  - rule_id: any_change_at_rc_or_stable
+    when:
+      reduces_risk: any
+      widens_scope: any
+      changes_public_claim: any
+      alters_stable_bearing_interface: any
+      phase_id_in:
+        - m4_rc_stable
+    forum_action: shiproom_with_full_burden_of_proof
+    forum_ref: shiproom_executive_scope_review
+    note: >
+      RC and stable default to shiproom; risk-reducing blocker fixes
+      may pre-flight at release council but the shiproom row is still
+      required.
+
+  - rule_id: stable_interface_alteration_anywhere
+    when:
+      alters_stable_bearing_interface: true
+      reduces_risk: any
+      widens_scope: any
+      changes_public_claim: any
+      phase_id_in:
+        - m2_alpha_wedge
+        - m3_beta_hardening
+        - m4_rc_stable
+    forum_action: architecture_council_co_sign_required
+    forum_ref: architecture_council
+    note: >
+      Any change that alters a stable-bearing interface in M2 or later
+      requires architecture council co-sign on top of the phase default
+      forum to keep contract custody intact.
+
+# Forum-first decision-rights index.
+#
+# For each forum, this index lists the change classes the forum owns
+# by default in each phase. Use it when reading the matrix forum-first
+# rather than phase-first.
+forum_decision_rights_index:
+  - forum_id_ref: architecture_council
+    forum_label: Architecture council
+    owns_in_phases:
+      - phase_id_ref: m0_m1_truth_establishment
+        owned_change_classes:
+          - schema_or_contract_shape_change
+          - topology_or_ownership_change
+          - threshold_easing_or_budget_relief
+          - subsystem_broadening
+          - hardware_or_corpus_recalibration
+          - public_claim_or_support_widening
+        notes: First-hit forum for protected-path freezes.
+      - phase_id_ref: m2_alpha_wedge
+        owned_change_classes:
+          - schema_or_contract_shape_change
+          - topology_or_ownership_change
+        notes: Co-sign required when alpha touches frozen contracts or canonical homes.
+      - phase_id_ref: m3_beta_hardening
+        owned_change_classes:
+          - schema_or_contract_shape_change
+          - topology_or_ownership_change
+        notes: Co-sign required when beta touches stable-bearing surfaces.
+      - phase_id_ref: m4_rc_stable
+        owned_change_classes:
+          - schema_or_contract_shape_change
+          - topology_or_ownership_change
+        notes: Co-sign-only at RC and stable; shiproom owns the close.
+
+  - forum_id_ref: product_scope_review
+    forum_label: Milestone scope review
+    owns_in_phases:
+      - phase_id_ref: m0_m1_truth_establishment
+        owned_change_classes:
+          - public_claim_or_support_widening
+        notes: Escalation forum when M0-M1 widens public-claim surface.
+      - phase_id_ref: m2_alpha_wedge
+        owned_change_classes:
+          - schema_or_contract_shape_change
+          - subsystem_broadening
+          - threshold_easing_or_budget_relief
+          - public_claim_or_support_widening
+          - hardware_or_corpus_recalibration
+        notes: Default forum for alpha-wedge change-budget exceptions.
+      - phase_id_ref: m3_beta_hardening
+        owned_change_classes: []
+        notes: Beta routes through release council; product_scope_review may co-attend.
+      - phase_id_ref: m4_rc_stable
+        owned_change_classes: []
+        notes: Not a default decision forum at RC or stable.
+
+  - forum_id_ref: release_council
+    forum_label: Release council
+    owns_in_phases:
+      - phase_id_ref: m0_m1_truth_establishment
+        owned_change_classes: []
+        notes: Escalation forum only; release packets do not exist yet.
+      - phase_id_ref: m2_alpha_wedge
+        owned_change_classes: []
+        notes: Escalation forum when alpha widening reaches release-bearing scope.
+      - phase_id_ref: m3_beta_hardening
+        owned_change_classes:
+          - schema_or_contract_shape_change
+          - hardware_or_corpus_recalibration
+          - threshold_easing_or_budget_relief
+          - subsystem_broadening
+          - public_claim_or_support_widening
+          - topology_or_ownership_change
+        notes: Default forum for beta-hardening change-budget exceptions.
+      - phase_id_ref: m4_rc_stable
+        owned_change_classes:
+          - within_contract_narrowing
+          - instrumentation_or_evidence_refresh
+        notes: Pre-flight forum at RC; shiproom owns the close.
+
+  - forum_id_ref: shiproom_executive_scope_review
+    forum_label: Release shiproom
+    owns_in_phases:
+      - phase_id_ref: m0_m1_truth_establishment
+        owned_change_classes: []
+        notes: Not used in M0-M1.
+      - phase_id_ref: m2_alpha_wedge
+        owned_change_classes: []
+        notes: Not used in alpha by default.
+      - phase_id_ref: m3_beta_hardening
+        owned_change_classes: []
+        notes: Escalation forum from release council during beta.
+      - phase_id_ref: m4_rc_stable
+        owned_change_classes:
+          - within_contract_narrowing
+          - instrumentation_or_evidence_refresh
+          - schema_or_contract_shape_change
+          - hardware_or_corpus_recalibration
+          - topology_or_ownership_change
+          - threshold_easing_or_budget_relief
+          - subsystem_broadening
+          - public_claim_or_support_widening
+        notes: Default forum for every RC and stable exception.
+
+# Co-sign and escalation rules expressed declaratively.
+#
+# These rules are the mechanical companion to the phase-routing table:
+# every condition resolves to a closed set of forum ids, never to free
+# text.
+co_sign_rules:
+  - rule_id: stable_bearing_interface_requires_architecture_council_co_sign
+    triggered_when:
+      alters_stable_bearing_interface: true
+      phase_id_in:
+        - m2_alpha_wedge
+        - m3_beta_hardening
+        - m4_rc_stable
+    co_sign_forum_refs:
+      - architecture_council
+    rationale: >
+      Contract custody for wire fields, hook ids, persisted fields, CLI
+      flags, SDK types, and other stable-bearing surfaces stays with
+      architecture council across phases.
+
+  - rule_id: release_bearing_widening_requires_release_council_co_sign
+    triggered_when:
+      widens_scope: true
+      changes_public_claim: true
+      phase_id_in:
+        - m2_alpha_wedge
+        - m3_beta_hardening
+    co_sign_forum_refs:
+      - release_council
+    rationale: >
+      Public-claim widening with scope growth is a release-bearing
+      decision in alpha and beta and may not close on the phase
+      default forum alone.
+
+  - rule_id: rc_or_stable_close_requires_release_council_co_sign
+    triggered_when:
+      phase_id_in:
+        - m4_rc_stable
+    co_sign_forum_refs:
+      - release_council
+    rationale: >
+      Shiproom owns the close at RC and stable, but the release
+      readiness packet must carry a release-council pre-flight outcome.
+
+escalation_rules:
+  - rule_id: m0_m1_widening_escalates_to_product_scope_review
+    triggered_when:
+      phase_id_ref: m0_m1_truth_establishment
+      widens_scope: true
+    escalation_forum_refs:
+      - product_scope_review
+      - release_council
+    rationale: >
+      M0-M1 widening of personas, surfaces, deployments, or
+      stable-bearing capabilities exits architecture-council authority.
+
+  - rule_id: m2_widening_escalates_to_release_council
+    triggered_when:
+      phase_id_ref: m2_alpha_wedge
+      widens_scope: true
+      changes_public_claim: true
+    escalation_forum_refs:
+      - release_council
+    rationale: >
+      Alpha-wedge widening that changes a public claim is release-
+      bearing; milestone scope review may not close it alone.
+
+  - rule_id: m3_widening_escalates_to_shiproom
+    triggered_when:
+      phase_id_ref: m3_beta_hardening
+      widens_scope: true
+    escalation_forum_refs:
+      - shiproom_executive_scope_review
+    rationale: >
+      Stable-surface widening during beta is a shiproom-class change.
+
+# Worked-example index.
+#
+# Each entry references the same fixture set as
+# phase_change_budget.yaml so reviewers can read the routing
+# decision and the rubric outcome from one place.
+worked_example_index:
+  - example_id: alpha_wedge_within_budget_accepted
+    fixture_ref: fixtures/governance/change_budget_examples/accepted_alpha_wedge_within_budget.yaml
+    phase_id_ref: m2_alpha_wedge
+    decided_by_forum_ref: product_scope_review
+    co_sign_forum_refs: []
+    outcome: accepted
+  - example_id: late_schema_churn_at_rc_rejected
+    fixture_ref: fixtures/governance/change_budget_examples/rejected_late_schema_churn_at_rc.yaml
+    phase_id_ref: m4_rc_stable
+    decided_by_forum_ref: shiproom_executive_scope_review
+    co_sign_forum_refs:
+      - release_council
+      - architecture_council
+    outcome: rejected
+  - example_id: support_class_widening_at_beta_narrowed
+    fixture_ref: fixtures/governance/change_budget_examples/claim_narrowing_support_class_widening_at_beta.yaml
+    phase_id_ref: m3_beta_hardening
+    decided_by_forum_ref: release_council
+    co_sign_forum_refs:
+      - architecture_council
+    outcome: claim_narrowing
+  - example_id: new_deployment_promise_at_alpha_escalated
+    fixture_ref: fixtures/governance/change_budget_examples/escalated_new_deployment_promise_at_alpha.yaml
+    phase_id_ref: m2_alpha_wedge
+    decided_by_forum_ref: product_scope_review
+    co_sign_forum_refs:
+      - release_council
+    outcome: escalated_then_rebaselined

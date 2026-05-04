@@ -1,0 +1,121 @@
+__fixture__:
+  name: rejected_late_schema_churn_at_rc
+  scenario: >
+    During the M4 RC/stable phase, an integrator requests renaming a
+    wire field on the frozen subscription envelope so their generated
+    SDK reads more naturally. The change alters a stable-bearing
+    interface, has no user-visible trust failure to fix, and would
+    invalidate downstream packets and re-pin every consumer. Shiproom
+    rejects with the default deny posture and the packet is recorded
+    as rejected.
+  contract_sections:
+    - phase_change_budget.phase_rows[m4_rc_stable]
+    - phase_change_budget.burden_of_proof_rubric[rubric_m4]
+    - phase_change_budget.forum_routing_rules[any_change_at_rc_or_stable]
+    - phase_change_budget.forum_routing_rules[stable_interface_alteration_anywhere]
+    - decision_forum_matrix.phase_forum_routing[m4_rc_stable]
+  pairs_with:
+    - fixtures/governance/change_budget_examples/claim_narrowing_support_class_widening_at_beta.yaml
+
+record_kind: change_budget_example
+schema_version: 1
+
+fixture_id: rejected_late_schema_churn_at_rc
+phase_id_ref: m4_rc_stable
+phase_label: M4 RC/stable
+example_summary: >
+  Late wire-schema field rename on the frozen subscription envelope
+  for an integrator's SDK ergonomics request. Default deny under the
+  RC and stable rubric.
+
+representative_change:
+  title: Rename a wire field on the frozen subscription envelope
+  protected_budget_ref: artifacts/governance/protected_change_budget.yaml#protected_paths.ipc_event_model
+  exception_class_ref: schema_or_contract_shape_change
+  protected_path_keys:
+    - ipc_event_model
+  affected_lane_refs:
+    - shell_command_system
+    - support_export
+    - benchmark_lab
+
+change_classification:
+  reduces_risk: false
+  widens_scope: false
+  changes_public_claim: true
+  alters_stable_bearing_interface: true
+  classification_rationale: >
+    The proposed rename moves a wire field on the subscription
+    envelope. Every downstream consumer would have to re-pin and
+    regenerate their packets, which is the textbook definition of a
+    stable-bearing interface alteration. The rename also restates a
+    public schema claim that already shipped in the integrator
+    documentation. No user-visible trust failure motivates the change
+    — the request is ergonomic only.
+
+forum_routing:
+  matched_rule_id: any_change_at_rc_or_stable
+  also_matched_rule_ids:
+    - stable_interface_alteration_anywhere
+  decided_by_forum_ref: shiproom_executive_scope_review
+  decided_by_forum_label: shiproom
+  co_sign_forum_refs:
+    - release_council
+    - architecture_council
+  escalation_forum_refs: []
+  routing_rationale: >
+    M4 routes every change to shiproom by default; the stable-bearing
+    interface flag adds a mandatory architecture council co-sign; the
+    release readiness packet must carry a release council pre-flight
+    outcome.
+
+burden_of_proof:
+  rubric_id_ref: rubric_m4
+  minimum_evidence_provided:
+    - integrator request thread cited as the only motivating evidence
+    - no reproduction of a user-visible trust failure available
+    - no exact-build release-evidence refresh attached
+  rollback_or_narrowing_provided:
+    - one-click rollback would require re-issuing every downstream packet; not rehearsed
+    - claim narrowing not applicable; the change widens the public schema rather than narrowing it
+  docs_and_support_impact:
+    - integrator notice would have to ship in the same train; not drafted
+    - claim manifest entry for the renamed field would have to land in the same change; not drafted
+  owner_commitment:
+    - primary, backup, and evidence owner named for the IPC subsystem
+    - shiproom roster signoff not obtained because the packet was rejected before close
+    - commitment class would have required re-baseline if accepted
+
+outcome:
+  outcome_class: rejected
+  outcome_bias_applied: default_deny_except_for_blockers_narrowing_or_truth_corrections
+  decision_summary: >
+    Shiproom rejects under the default-deny posture. The change is
+    not a blocker, does not narrow a claim, and does not correct a
+    documented truth gap. Architecture council co-sign confirms that
+    contract custody on the subscription envelope does not move at RC.
+    Release council pre-flight notes that the integrator request can
+    be deferred to the next major train.
+  recorded_packet_kind: exception_packet
+  recorded_packet_action: rejected
+  budget_debt_snapshot_delta:
+    budget_burn_count: 0
+    repeated_subsystem_exception_count: 0
+    oldest_open_exception_age_days: 0
+    claim_narrowing_triggered: false
+    rebaseline_triggered: false
+    explicit_correction_work_triggered: false
+
+consistency_rule_checks:
+  - rule_ref: rule:rc_or_stable_change_routes_to_shiproom
+    outcome: satisfied
+    evidence: Shiproom is the deciding forum.
+  - rule_ref: rule:stable_bearing_interface_alteration_requires_architecture_council_co_sign
+    outcome: satisfied
+    evidence: Architecture council co-sign recorded with the rejection.
+  - rule_ref: rule:default_deny_unless_change_prevents_user_visible_trust_failure
+    outcome: satisfied
+    evidence: reduces_risk is false; default deny applied.
+  - rule_ref: rule:no_late_widening_without_release_council_pre_flight
+    outcome: satisfied
+    evidence: Release council pre-flight outcome recorded as defer.

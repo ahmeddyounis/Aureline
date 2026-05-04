@@ -1,0 +1,562 @@
+# Phase-level change-budget table.
+#
+# Phase-first companion to artifacts/governance/protected_change_budget.yaml.
+# The protected-path artifact answers "for this protected path, what may
+# move?". This artifact answers the orthogonal questions reviewers actually
+# ask first:
+#
+#   1. Is this change in budget for the current phase by default?
+#   2. If not, what forum must approve it, and what is the burden of proof?
+#
+# Reviewers MUST be able to answer both without reconstructing the
+# milestone calendar. The phase ids and forum ids reused below match
+# artifacts/governance/protected_change_budget.yaml and
+# artifacts/governance/forum_matrix.yaml exactly; this file does not mint
+# a parallel naming system.
+#
+# Companion artifacts:
+#   - docs/governance/phase_change_budget_and_forums.md
+#   - artifacts/governance/decision_forum_matrix.yaml
+#   - artifacts/governance/protected_change_budget.yaml
+#   - artifacts/governance/forum_matrix.yaml
+#   - artifacts/governance/commitment_classes.yaml
+#   - schemas/governance/exception_packet.schema.json
+#   - docs/governance/commitment_and_rebaseline_policy.md
+
+schema_version: 1
+artifact_id: aureline.phase_change_budget
+artifact_revision: 1
+status: seeded
+
+overview_document: docs/governance/phase_change_budget_and_forums.md
+forum_matrix_ref: artifacts/governance/decision_forum_matrix.yaml
+protected_path_budget_ref: artifacts/governance/protected_change_budget.yaml
+exception_packet_schema_ref: schemas/governance/exception_packet.schema.json
+
+source_specs:
+  - .plans/M00-78.md
+  - .plans/M00-91.md
+  - .t2/docs/Aureline_Milestones_Document.md
+  - .t2/docs/Aureline_PRD.md
+  - docs/governance/commitment_and_rebaseline_policy.md
+  - docs/governance/change_budget_workflow.md
+  - artifacts/governance/protected_change_budget.yaml
+
+# Mechanical change-classification fields.
+#
+# These four boolean answers are what an exception packet must carry so
+# review stays mechanical rather than rhetorical. The forum router and
+# the burden-of-proof rubric both key off the same answers.
+#
+# A change is "in budget" by default only when:
+#   reduces_risk: true OR (widens_scope = false AND
+#                          changes_public_claim = false AND
+#                          alters_stable_bearing_interface = false)
+# Anything else requires an exception packet at the forum named in
+# decision_forum_matrix.yaml for the current phase and answer set.
+change_classification_fields:
+  - field_id: reduces_risk
+    type: boolean
+    description: >
+      Whether the change reduces a user-visible trust failure mode (data
+      loss, unsafe state, regression in a published claim, accessibility
+      regression, or release-blocking gap). Risk-reducing changes get the
+      lightest forum and lowest evidence bar even late in the calendar.
+    answers_review_question: >
+      "Is this a defensive change that prevents a user-visible failure
+      we already know about?"
+  - field_id: widens_scope
+    type: boolean
+    description: >
+      Whether the change adds a new persona, surface, deployment profile,
+      protected path, language, framework, or stable-bearing capability
+      beyond the current cutline. Scope widening costs forum altitude in
+      every phase and is default-deny at M3 and M4.
+    answers_review_question: >
+      "Does this make the product promise larger than it was before this
+      change?"
+  - field_id: changes_public_claim
+    type: boolean
+    description: >
+      Whether the change adds, broadens, or restates a public claim
+      (release notes, README, docs/state, support matrix, certified
+      archetype, benchmark publication, marketing surface). Public-claim
+      changes always require the named claim owner and current evidence,
+      and after M2 require explicit forum approval.
+    answers_review_question: >
+      "Does this change what we say to users, integrators, or the public?"
+  - field_id: alters_stable_bearing_interface
+    type: boolean
+    description: >
+      Whether the change adds, removes, renames, or repurposes a wire
+      field, hook id, schema field, persisted field, plugin contract,
+      CLI flag, SDK type, or other stable-bearing surface. Interface
+      alteration is treated as freeze-crossing in M3 and M4 and costs
+      a release_council or shiproom approval.
+    answers_review_question: >
+      "Would a downstream consumer have to recompile, re-pin, or
+      regenerate a packet to keep working?"
+
+# Phase rows.
+#
+# Each row binds:
+#   - phase_id, phase_label
+#   - default_allowed_changes (no exception packet required)
+#   - exception_required_changes (mapped to exception_class ids)
+#   - no_go_changes (default deny; only the named forum can override)
+#   - default_decision_forum_ref (re-uses forum_matrix.yaml ids)
+#   - escalation_forum_refs (where the packet goes when out of budget)
+#   - burden_of_proof_ref (which rubric row applies in this phase)
+#   - default_outcome_bias when an exception is filed in this phase
+phase_rows:
+  - phase_id: m0_m1_truth_establishment
+    phase_label: M0-M1 truth-establishment
+    intent_summary: >
+      Establish frozen architecture, contracts, evidence, and ownership
+      before any persona, surface, or deployment claim widens. Most
+      shaping work is in budget; widening of public claims or
+      stable-bearing interfaces is not.
+    default_allowed_changes:
+      - architecture shaping inside already-frozen decisions
+      - benchmark-harness, proof-lane, and corpus refinement
+      - shell, editor, and contract closure inside frozen scope
+      - prototype-only experiments that do not widen public claims
+      - ownership and routing tightening on protected paths
+      - documentation and topology clarification under existing canonical homes
+    exception_required_changes:
+      - exception_class_ref: schema_or_contract_shape_change
+        why_now: contract shape is what M0-M1 is establishing
+      - exception_class_ref: hardware_or_corpus_recalibration
+        why_now: protected metrics depend on a stable comparability story
+      - exception_class_ref: topology_or_ownership_change
+        why_now: canonical homes and DRI coverage are part of the freeze
+      - exception_class_ref: threshold_easing_or_budget_relief
+        why_now: thresholds anchor the establishment story
+      - exception_class_ref: subsystem_broadening
+        why_now: a second steady-state path is not being established yet
+      - exception_class_ref: public_claim_or_support_widening
+        why_now: no public claim has graduated past prototype-only
+    no_go_changes:
+      - widening a public claim beyond prototype-only without an ADR
+      - introducing a second steady-state architecture for any frozen path
+      - leaving a protected path ownerless or without backup waiver
+    default_decision_forum_ref: architecture_council
+    default_decision_forum_label: architecture council
+    escalation_forum_refs:
+      - product_scope_review
+      - release_council
+    burden_of_proof_ref: rubric_m0_m1
+    default_outcome_bias: protect_frozen_direction_without_widening_claims
+
+  - phase_id: m2_alpha_wedge
+    phase_label: M2 alpha wedge
+    intent_summary: >
+      Finish the launch wedge on already-owned protected paths. New
+      personas, late framework or deployment additions, and cross-
+      cutting schema churn are explicit exceptions, not in-budget work.
+    default_allowed_changes:
+      - launch-wedge completion on already-owned protected paths
+      - trust labeling, route-truth, and search/index usefulness work
+      - supportability alpha and narrow archetype proof
+      - additive method-manifest or subscription-family growth that stays minor-version safe
+      - additive corpus or hardware rows with comparability disclosure
+    exception_required_changes:
+      - exception_class_ref: schema_or_contract_shape_change
+        why_now: alpha packets and adapters depend on a stable envelope
+      - exception_class_ref: hardware_or_corpus_recalibration
+        why_now: alpha claims must not silently outrun their evidence
+      - exception_class_ref: topology_or_ownership_change
+        why_now: alpha must not re-open canonical-home assumptions
+      - exception_class_ref: threshold_easing_or_budget_relief
+        why_now: alpha thresholds protect the launch wedge story
+      - exception_class_ref: subsystem_broadening
+        why_now: alpha is not the place to widen the wedge
+      - exception_class_ref: public_claim_or_support_widening
+        why_now: alpha public copy must match the wedge, not aspiration
+    no_go_changes:
+      - new P0 personas, languages, frameworks, or deployment profiles in alpha
+      - cross-cutting schema churn that would invalidate alpha packets
+      - hidden expansion of large-file, support, or accessibility capability
+    default_decision_forum_ref: product_scope_review
+    default_decision_forum_label: milestone scope review
+    escalation_forum_refs:
+      - architecture_council
+      - release_council
+    burden_of_proof_ref: rubric_m2
+    default_outcome_bias: finish_alpha_wedge_without_expanding_persona_or_platform_scope
+
+  - phase_id: m3_beta_hardening
+    phase_label: M3 beta hardening
+    intent_summary: >
+      Harden already-published claims; do not widen the stable surface.
+      New stable-class surfaces, late workflow families, and major
+      public-interface additions are default-deny.
+    default_allowed_changes:
+      - packaging, migration, and SDK or CLI stabilization inside frozen contracts
+      - policy, transport, support-export, and compatibility publication work
+      - additive beta-safe metadata that preserves backward replay and traceability
+      - release-evidence refresh on already-published claims
+    exception_required_changes:
+      - exception_class_ref: schema_or_contract_shape_change
+        why_now: schema churn during beta breaks adapters and integrators
+      - exception_class_ref: hardware_or_corpus_recalibration
+        why_now: beta-to-stable comparability would be invalidated
+      - exception_class_ref: topology_or_ownership_change
+        why_now: beta docs, release packets, and support routing cannot move quietly
+      - exception_class_ref: threshold_easing_or_budget_relief
+        why_now: easing thresholds to rescue a beta is hidden product policy
+      - exception_class_ref: subsystem_broadening
+        why_now: a second steady-state path during beta is a stability claim
+      - exception_class_ref: public_claim_or_support_widening
+        why_now: beta is the moment the public-claim surface freezes
+    no_go_changes:
+      - new stable-class surfaces, plugin contracts, or deployment profiles
+      - late workflow families on protected paths
+      - support-class widening for large-file, accessibility, or recovery behaviour
+    default_decision_forum_ref: release_council
+    default_decision_forum_label: release council
+    escalation_forum_refs:
+      - architecture_council
+      - shiproom_executive_scope_review
+    burden_of_proof_ref: rubric_m3
+    default_outcome_bias: harden_existing_claims_without_widening_stable_surface_area
+
+  - phase_id: m4_rc_stable
+    phase_label: M4 RC/stable
+    intent_summary: >
+      Default answer is no. The only in-budget changes are blocker
+      fixes, claim narrowing, docs and compatibility corrections,
+      release-evidence refresh, and rollback or runbook hardening.
+    default_allowed_changes:
+      - blocker fixes that prevent a user-visible trust failure
+      - claim narrowing on a public claim, support row, or stable surface
+      - docs, compatibility, and migration corrections
+      - release-evidence refresh on already-published claims
+      - rollback and runbook hardening
+    exception_required_changes:
+      - exception_class_ref: within_contract_narrowing
+        why_now: even narrowing must record a packet so claim history is intact
+      - exception_class_ref: instrumentation_or_evidence_refresh
+        why_now: refreshes that preserve contract shape still need an audit row
+      - exception_class_ref: schema_or_contract_shape_change
+        why_now: any shape change at RC or stable is freeze-crossing
+      - exception_class_ref: hardware_or_corpus_recalibration
+        why_now: late recalibration breaks stable comparability
+      - exception_class_ref: topology_or_ownership_change
+        why_now: protected homes do not move during RC or stable
+      - exception_class_ref: threshold_easing_or_budget_relief
+        why_now: easing a stable threshold rewrites a public claim
+      - exception_class_ref: subsystem_broadening
+        why_now: a second steady-state path is a new stable promise
+      - exception_class_ref: public_claim_or_support_widening
+        why_now: stable widening must go through shiproom by default
+    no_go_changes:
+      - feature additions of any kind on the stable line
+      - support-class, deployment-profile, or persona widening
+      - late schema, SDK, or wire-format additions
+      - threshold easing without a signed shiproom exception
+    default_decision_forum_ref: shiproom_executive_scope_review
+    default_decision_forum_label: shiproom
+    escalation_forum_refs:
+      - release_council
+      - architecture_council
+    burden_of_proof_ref: rubric_m4
+    default_outcome_bias: default_deny_except_for_blockers_narrowing_or_truth_corrections
+
+# Burden-of-proof rubric.
+#
+# The rubric gets stricter by phase. Every row names the minimum
+# evidence, rollback or narrowing path, docs and support impact, and
+# owner commitment a packet must carry before the named forum may
+# approve. The rubric biases late phases toward "no", "rollback", or
+# "narrower language" unless the change prevents a user-visible trust
+# failure (i.e. unless reduces_risk = true).
+burden_of_proof_rubric:
+  - id: rubric_m0_m1
+    phase_id_ref: m0_m1_truth_establishment
+    minimum_evidence:
+      - prototype, spike, or fixture run that exercises the proposed shape
+      - linked decision_index row OR an ADR/RFC draft naming the new posture
+      - compensating-evidence record naming the evidence owner
+    rollback_or_narrowing_path:
+      - revert decision_index row to the prior posture
+      - drop the change to a parked or hook-only commitment class
+      - narrow the change to fit the current frozen scope
+    docs_and_support_impact:
+      - update docs/governance/decision_workflow.md or affected ADR if the freeze posture changes
+      - no public claim copy is permitted to widen as a side effect
+      - support and runbook surfaces remain unchanged unless explicitly listed
+    owner_commitment:
+      - named primary owner with active backup or cited backup_waiver
+      - named evidence owner with refresh cadence
+      - commitment_class set to Committed or Target with target milestone
+    bias_when_reduces_risk_false: >
+      Default is "narrow the change to fit the current freeze." Widening
+      the public claim or stable interface is not a M0-M1 in-budget move.
+    bias_when_reduces_risk_true: >
+      Architecture council may approve the smallest change that closes
+      the trust gap; the packet still records a rollback path.
+
+  - id: rubric_m2
+    phase_id_ref: m2_alpha_wedge
+    minimum_evidence:
+      - alpha-corpus or wedge-fixture run exercising the proposed change
+      - linked scorecard lane row in artifacts/milestones/ with current state
+      - compensating-evidence record plus blast_radius covering claim surfaces
+    rollback_or_narrowing_path:
+      - revert to the alpha-wedge baseline within one cadence window
+      - narrow the change to a single persona, surface, or deployment row already in scope
+      - downgrade widened rows from Committed to Target or Stretch
+    docs_and_support_impact:
+      - alpha public copy and known-narrowing notice updated in the same change set
+      - support routing and issue_routing.yaml entries refreshed when surfaces change
+      - release-notes draft entry recorded for any user-visible behaviour change
+    owner_commitment:
+      - named primary and backup owner; backup_waiver only with active reason
+      - evidence owner with named cadence inside the alpha window
+      - commitment_class movement reflected in artifacts/governance/commitment_classes.yaml
+    bias_when_reduces_risk_false: >
+      Default is "narrow the wedge or defer." Persona, framework, and
+      deployment additions are not in alpha budget.
+    bias_when_reduces_risk_true: >
+      Milestone scope review may approve the narrowest fix that closes
+      the trust gap inside the wedge; broader hardening is deferred.
+
+  - id: rubric_m3
+    phase_id_ref: m3_beta_hardening
+    minimum_evidence:
+      - beta-corpus run plus a compatibility report row
+      - release-evidence refresh under artifacts/release/ with current build
+      - migration or rollback rehearsal note when persisted shape is touched
+    rollback_or_narrowing_path:
+      - documented rollback to the prior beta build, including data and policy
+      - claim_narrowing recorded in the same packet when scope cannot shrink
+      - explicit deferral to the next train when the change cannot land safely
+    docs_and_support_impact:
+      - docs/state/, docs/release/, and docs/governance/ updated in the same change
+      - support-export and compatibility surfaces refreshed
+      - any public-claim widening must update the claim manifest in the same train
+    owner_commitment:
+      - named primary owner plus backup with active coverage
+      - evidence owner committed to refresh on every RC build
+      - commitment_class set to Committed or explicit re-baseline recorded
+    bias_when_reduces_risk_false: >
+      Default is "no, harden inside the existing claim instead." Stable
+      surface area does not grow during beta.
+    bias_when_reduces_risk_true: >
+      Release council may approve the smallest change that closes the
+      trust gap and that has rollback and docs updates landing together.
+
+  - id: rubric_m4
+    phase_id_ref: m4_rc_stable
+    minimum_evidence:
+      - reproduction of the user-visible trust failure or named blocker id
+      - exact-build release-evidence refresh under artifacts/release/
+      - compatibility, migration, or rollback rehearsal log for the RC build
+      - signed shiproom packet with current scorecard and waiver state
+    rollback_or_narrowing_path:
+      - one-click rollback rehearsed and documented
+      - claim_narrowing or support-row narrowing recorded in the same packet
+      - explicit hold on the release window when rollback or narrowing is unsafe
+    docs_and_support_impact:
+      - release notes, docs, support routing, and known-narrowing notice updated together
+      - public claim manifest updated in the same change for any narrowing
+      - downstream integrator notice when stable interfaces shift in any way
+    owner_commitment:
+      - named primary, backup, and evidence owner with on-call coverage
+      - shiproom-roster signoff recorded in the packet decision block
+      - commitment_class remains Committed or the row is rebaselined
+    bias_when_reduces_risk_false: >
+      Default is no. Late additions are out of budget and the packet
+      should choose narrower language or deferral over a stable carve-out.
+    bias_when_reduces_risk_true: >
+      Shiproom may approve the smallest change that prevents a
+      user-visible trust failure, with rollback rehearsed and docs
+      narrowing landing together.
+
+# Mechanical routing rules.
+#
+# Forum routing keys off the four classification fields. The first
+# matching rule wins; rules are written in order of increasing forum
+# altitude so the most defensive change gets the lightest forum.
+#
+# Reviewers should answer the four classification questions, find the
+# first rule that matches, and read the named forum and packet fields
+# straight off it; no calendar reconstruction required.
+forum_routing_rules:
+  - rule_id: in_budget_no_packet_required
+    when:
+      reduces_risk: any
+      widens_scope: false
+      changes_public_claim: false
+      alters_stable_bearing_interface: false
+    forum_action: no_packet_required
+    forum_ref: null
+    note: >
+      Use the phase row's default_allowed_changes list to confirm fit;
+      record in the normal commit and scorecard surfaces.
+
+  - rule_id: risk_reducing_change_phase_default_forum
+    when:
+      reduces_risk: true
+      widens_scope: false
+      changes_public_claim: false
+      alters_stable_bearing_interface: false
+    forum_action: phase_default_forum_with_minimum_evidence
+    forum_ref_source: phase_rows[phase_id].default_decision_forum_ref
+    note: >
+      Risk-reducing in-budget change still records a packet so the
+      audit row exists; minimum evidence is the phase rubric floor.
+
+  - rule_id: scope_or_claim_widening_in_alpha_or_earlier
+    when:
+      widens_scope: true
+      changes_public_claim: any
+      alters_stable_bearing_interface: any
+      phase_id_in:
+        - m0_m1_truth_establishment
+        - m2_alpha_wedge
+    forum_action: phase_default_forum_with_full_burden_of_proof
+    forum_ref_source: phase_rows[phase_id].default_decision_forum_ref
+    note: >
+      Scope-widening before beta routes to the architecture council in
+      M0-M1 or to milestone scope review in M2 with the full rubric.
+
+  - rule_id: scope_or_claim_widening_in_beta
+    when:
+      widens_scope: true
+      changes_public_claim: any
+      alters_stable_bearing_interface: any
+      phase_id_in:
+        - m3_beta_hardening
+    forum_action: release_council_with_full_burden_of_proof
+    forum_ref: release_council
+    note: >
+      During beta, widening of any kind escalates to release council
+      regardless of the phase default forum.
+
+  - rule_id: any_change_at_rc_or_stable
+    when:
+      reduces_risk: any
+      widens_scope: any
+      changes_public_claim: any
+      alters_stable_bearing_interface: any
+      phase_id_in:
+        - m4_rc_stable
+    forum_action: shiproom_with_full_burden_of_proof
+    forum_ref: shiproom_executive_scope_review
+    note: >
+      RC and stable default to shiproom; risk-reducing blocker fixes
+      may pre-flight at release council but the shiproom row is still
+      required.
+
+  - rule_id: stable_interface_alteration_anywhere
+    when:
+      alters_stable_bearing_interface: true
+      reduces_risk: any
+      widens_scope: any
+      changes_public_claim: any
+      phase_id_in:
+        - m2_alpha_wedge
+        - m3_beta_hardening
+        - m4_rc_stable
+    forum_action: architecture_council_co_sign_required
+    forum_ref: architecture_council
+    note: >
+      Any change that alters a stable-bearing interface in M2 or later
+      requires architecture council co-sign on top of the phase default
+      forum to keep contract custody intact.
+
+# Default exception-packet field set per phase.
+#
+# These are the schemas/governance/exception_packet.schema.json fields
+# that MUST be populated for the named phase regardless of which
+# protected path the change touches. Phase rows and protected-path rows
+# can both point at the same fields; reviewers do not need to chase
+# both artifacts to know what a packet must carry.
+required_packet_fields_by_phase:
+  - phase_id_ref: m0_m1_truth_establishment
+    required_fields:
+      - protected_budget_ref
+      - exception_class
+      - review_threshold_ref
+      - phase_budget_assessment
+      - compensating_evidence
+      - budget_debt_snapshot
+      - rollback_plan
+      - expiry
+      - escalation_path
+      - repeat_exception_handling
+  - phase_id_ref: m2_alpha_wedge
+    required_fields:
+      - protected_budget_ref
+      - exception_class
+      - review_threshold_ref
+      - phase_budget_assessment
+      - compensating_evidence
+      - budget_debt_snapshot
+      - rollback_plan
+      - expiry
+      - escalation_path
+      - repeat_exception_handling
+      - blast_radius
+  - phase_id_ref: m3_beta_hardening
+    required_fields:
+      - protected_budget_ref
+      - exception_class
+      - review_threshold_ref
+      - phase_budget_assessment
+      - compensating_evidence
+      - budget_debt_snapshot
+      - rollback_plan
+      - expiry
+      - escalation_path
+      - repeat_exception_handling
+      - blast_radius
+      - linked_artifacts.scorecard_refs
+      - linked_artifacts.evidence_refs
+  - phase_id_ref: m4_rc_stable
+    required_fields:
+      - protected_budget_ref
+      - exception_class
+      - review_threshold_ref
+      - phase_budget_assessment
+      - compensating_evidence
+      - budget_debt_snapshot
+      - rollback_plan
+      - expiry
+      - escalation_path
+      - repeat_exception_handling
+      - blast_radius
+      - linked_artifacts.scorecard_refs
+      - linked_artifacts.evidence_refs
+      - linked_artifacts.affected_decision_ids
+      - decision
+
+# Worked-example index.
+#
+# Each entry points at one fixture under fixtures/governance/
+# change_budget_examples/ that exercises the phase row, the four
+# classification fields, the forum routing rule, and the burden-of-
+# proof rubric end to end.
+worked_example_index:
+  - example_id: alpha_wedge_within_budget_accepted
+    fixture_ref: fixtures/governance/change_budget_examples/accepted_alpha_wedge_within_budget.yaml
+    phase_id_ref: m2_alpha_wedge
+    representative_change: launch-wedge supportability hardening on owned protected path
+    outcome: accepted
+  - example_id: late_schema_churn_at_rc_rejected
+    fixture_ref: fixtures/governance/change_budget_examples/rejected_late_schema_churn_at_rc.yaml
+    phase_id_ref: m4_rc_stable
+    representative_change: late wire-schema field rename for an integrator request
+    outcome: rejected
+  - example_id: support_class_widening_at_beta_narrowed
+    fixture_ref: fixtures/governance/change_budget_examples/claim_narrowing_support_class_widening_at_beta.yaml
+    phase_id_ref: m3_beta_hardening
+    representative_change: large-file mode support-class widening for a partner ask
+    outcome: claim_narrowing
+  - example_id: new_deployment_promise_at_alpha_escalated
+    fixture_ref: fixtures/governance/change_budget_examples/escalated_new_deployment_promise_at_alpha.yaml
+    phase_id_ref: m2_alpha_wedge
+    representative_change: new managed-cloud deployment promise during alpha
+    outcome: escalated_then_rebaselined
