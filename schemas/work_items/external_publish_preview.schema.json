@@ -1,0 +1,953 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/external_publish_preview.schema.json",
+  "title": "Aureline work-item external-publish preview vocabulary",
+  "description": "Boundary schema for the external_publish_preview_record frozen in docs/work_items/change_intent_and_publish_preview_contract.md. One record family pins a structured preview of what would happen if a change-intent is published to its provider target: which provider fields will change (with before / after labels), which provider actions will fire (with notification side effects and irreversibility class), which artifacts remain local (no provider call), which connected account / install / app grant / browser-handoff session / managed-admin lane will receive the mutation, and what happens if the publish is deferred (queued, captured offline, routed through a browser handoff, or blocked pending prerequisites). Every preview discloses target_account_class, projected provider field changes, projected provider action changes, the deferred-publish consequences block, and the typed publish_timing_class so the user, queue-review, and support-export consumers can never confuse 'will publish now' with 'will queue' with 'will route through the browser' with 'will capture offline' with 'will only edit local state'. Composes with (and does not replace) the change_intent_record schema (binds back through change_intent_record_id_ref); the work_item_detail_record schema (binds back through work_item_detail_record_id_ref); the provider-mode contract (cites provider_consequence_preview_record, publish_later_queue_item_record, account_mapping_binding_record, browser_handoff_packet_record on apply); the offline-handoff packet (cites offline_handoff_packet_record when the preview was captured under unavailability); the status-transition packet (cites status_transition_packet_record on the previewed mutation that commits this preview). Raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw notification message bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw stdout / stderr never cross this boundary regardless of redaction class. The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, target_account_class, publish_timing_class, projected_change_kind_class, provider_action_class, local_artifact_class, deferred_publish_class, notification_truth_class, freshness_invalidation_class, denial_reason, or audit_event_id is additive-minor and bumps external_publish_preview_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/external_publish_preview_record" },
+    { "$ref": "#/$defs/external_publish_preview_audit_event_record" }
+  ],
+  "$defs": {
+    "external_publish_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the external-publish preview vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "external_publish_preview_record",
+        "external_publish_preview_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw notification payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the preview was authored under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw payloads never cross this boundary regardless of class."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Provider-actor class re-exported verbatim from schemas/work_items/status_transition_packet.schema.json. 'unknown_actor_class' is repair-only and MUST NOT be collapsed with any other class."
+    },
+
+    "irreversibility_class": {
+      "type": "string",
+      "enum": [
+        "reversible",
+        "soft_reversible",
+        "irreversible",
+        "irreversible_release_class"
+      ],
+      "description": "Irreversibility class re-exported verbatim from schemas/providers/publish_later_record.schema.json."
+    },
+
+    "notification_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_notification_locally_only",
+        "notify_assignees_on_provider_publish",
+        "notify_subscribers_on_provider_publish",
+        "notify_linked_review_authors_on_provider_publish",
+        "mention_explicit_actor_on_provider_publish",
+        "notify_managed_admin_on_provider_publish",
+        "notification_blocked_pending_workspace_trust",
+        "notification_unknown_until_publish_admitted_pending_review",
+        "notification_suppressed_by_user_choice_explicit_opt_out"
+      ],
+      "description": "Notification-side-effect class re-exported verbatim from schemas/work_items/status_transition_packet.schema.json."
+    },
+
+    "provider_field_class": {
+      "type": "string",
+      "enum": [
+        "title_field",
+        "body_summary_field",
+        "lifecycle_state_field",
+        "assignee_field",
+        "labels_field",
+        "milestone_or_iteration_field",
+        "priority_or_severity_field",
+        "blocking_relationship_field",
+        "linked_branch_or_worktree_field",
+        "linked_review_field",
+        "linked_change_or_patch_stack_field",
+        "linked_validation_evidence_field",
+        "publish_preview_field",
+        "linked_incident_or_support_field",
+        "watcher_or_subscriber_field",
+        "trust_or_redaction_field",
+        "freshness_field",
+        "other_provider_owned_field"
+      ],
+      "description": "Provider-field class re-exported verbatim from schemas/work_items/provider_object.schema.json."
+    },
+
+    "object_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_class", "provider_side_id"],
+      "properties": {
+        "object_class": {
+          "type": "string",
+          "enum": [
+            "issue_or_work_item",
+            "epic_or_initiative",
+            "user_story",
+            "task_or_subtask",
+            "bug_report",
+            "incident_report",
+            "change_request",
+            "rfc_or_proposal",
+            "other"
+          ],
+          "description": "Object class on the provider. Re-exported from schemas/work_items/provider_object.schema.json. 'other' is repair-only."
+        },
+        "provider_side_id": { "$ref": "#/$defs/non_empty_string" },
+        "provider_host": {
+          "type": "string",
+          "description": "Opaque provider host handle (registry row id, not raw hostname). Empty only when target_account_class is local_only_no_provider_account."
+        },
+        "tenant_or_org_scope": {
+          "type": "string",
+          "description": "Opaque tenant / org scope handle. Empty only when target_account_class is local_only_no_provider_account."
+        },
+        "provider_canonical_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "description": "Provider-side identity of the object the preview projects against."
+    },
+
+    "target_account_class": {
+      "type": "string",
+      "enum": [
+        "connected_provider_account_resolved",
+        "connected_provider_install_or_app_grant",
+        "connected_provider_delegated_user_token",
+        "connected_provider_project_scoped_grant",
+        "connected_provider_policy_injected_service_identity",
+        "account_mapping_binding_pending_user_resolution",
+        "browser_handoff_account_session_only",
+        "managed_admin_only_account",
+        "local_only_no_provider_account"
+      ],
+      "description": "Frozen target-account class. Names which connected-provider account / install grant / delegated token / browser-handoff session / managed-admin lane will receive the mutation, or pins local_only_no_provider_account when the preview reflects a local-only edit and no provider call will fire."
+    },
+
+    "publish_timing_class": {
+      "type": "string",
+      "enum": [
+        "publish_immediate_publish_now",
+        "publish_queued_for_publish_later_deferred",
+        "publish_routed_through_browser_handoff_open_in_provider",
+        "publish_captured_offline_pending_drain",
+        "publish_inspect_only_what_if",
+        "publish_blocked_pending_prerequisites"
+      ],
+      "description": "Frozen publish-timing class. Pre-resolves whether the action will fire immediately on apply, be admitted into the publish-later queue, route through the system browser, be captured offline pending drain, stay an inspect-only what-if, or be blocked pending prerequisites. Surfaces MUST disclose the timing class on the preview header (control label, surface header, notification line, export row) and MUST NOT collapse it onto an undifferentiated 'Publish' button."
+    },
+
+    "projected_change_kind_class": {
+      "type": "string",
+      "enum": [
+        "field_value_overwrite",
+        "field_value_append",
+        "field_value_redact",
+        "field_value_unset",
+        "field_value_unchanged_local_only",
+        "field_value_pending_resolution"
+      ],
+      "description": "Frozen projected-change kind class for a single provider-field row. field_value_unchanged_local_only is admissible only when local_overlay_value_label is non-empty AND the row's affected_provider_field_class is being preserved as a local overlay rather than published; field_value_pending_resolution is admissible only when target_account_class is account_mapping_binding_pending_user_resolution OR a publish_timing_class is publish_blocked_pending_prerequisites."
+    },
+
+    "projected_provider_field_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projected_provider_field_change_id",
+        "provider_field_class",
+        "projected_change_kind_class",
+        "irreversibility_class",
+        "summary"
+      ],
+      "properties": {
+        "projected_provider_field_change_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_field_class": { "$ref": "#/$defs/provider_field_class" },
+        "projected_change_kind_class": { "$ref": "#/$defs/projected_change_kind_class" },
+        "irreversibility_class": { "$ref": "#/$defs/irreversibility_class" },
+        "provider_authoritative_value_label_before": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the provider-side value at preview capture time (the 'before' state). Empty for field_value_unset or field_value_pending_resolution rows where there is no prior provider value."
+        },
+        "provider_authoritative_value_label_after": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the provider-side value the apply path would publish (the 'after' state). Required non-empty for field_value_overwrite / field_value_append rows; empty for field_value_unset / field_value_unchanged_local_only / field_value_pending_resolution / field_value_redact rows."
+        },
+        "local_overlay_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the locally-proposed overlay value the user authored against this field. Required non-empty for field_value_overwrite / field_value_append / field_value_unchanged_local_only rows; empty for field_value_unset / field_value_redact / field_value_pending_resolution rows."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "field_value_overwrite and field_value_append rows MUST cite a non-empty provider_authoritative_value_label_after AND a non-empty local_overlay_value_label.",
+          "if": {
+            "properties": {
+              "projected_change_kind_class": {
+                "enum": ["field_value_overwrite", "field_value_append"]
+              }
+            },
+            "required": ["projected_change_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_authoritative_value_label_after": { "$ref": "#/$defs/non_empty_string" },
+              "local_overlay_value_label": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": [
+              "provider_authoritative_value_label_after",
+              "local_overlay_value_label"
+            ]
+          }
+        },
+        {
+          "description": "field_value_unchanged_local_only rows MUST cite a non-empty local_overlay_value_label AND an empty provider_authoritative_value_label_after so the user can see the local edit that will NOT be published.",
+          "if": {
+            "properties": {
+              "projected_change_kind_class": { "const": "field_value_unchanged_local_only" }
+            },
+            "required": ["projected_change_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "local_overlay_value_label": { "$ref": "#/$defs/non_empty_string" },
+              "provider_authoritative_value_label_after": { "const": "" }
+            },
+            "required": ["local_overlay_value_label"]
+          }
+        }
+      ],
+      "description": "One projected provider-field change entry. Surfaces render before / after labels side by side; field_value_unchanged_local_only rows preserve a local overlay that will NOT be published so the user can see what stays local."
+    },
+
+    "provider_action_class": {
+      "type": "string",
+      "enum": [
+        "add_or_update_comment",
+        "delete_comment",
+        "assign_or_unassign_owner",
+        "change_lifecycle_state",
+        "change_priority_or_severity",
+        "change_milestone_or_iteration",
+        "add_or_remove_label",
+        "link_branch_or_worktree",
+        "unlink_branch_or_worktree",
+        "link_review_or_change_object",
+        "unlink_review_or_change_object",
+        "attach_validation_evidence",
+        "detach_validation_evidence",
+        "add_or_remove_subscriber",
+        "mark_blocking_relationship",
+        "rename_title",
+        "merge_or_close_with_resolution",
+        "release_artifact_publish",
+        "other_provider_action"
+      ],
+      "description": "Frozen provider-action class for a single projected action entry. Mirrors the transition_kind_class axis on schemas/work_items/status_transition_packet.schema.json (with release_artifact_publish added for release-class previews). 'other_provider_action' is repair-only."
+    },
+
+    "projected_provider_action_change_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projected_provider_action_change_id",
+        "provider_action_class",
+        "irreversibility_class",
+        "notification_side_effect_class",
+        "summary"
+      ],
+      "properties": {
+        "projected_provider_action_change_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_action_class": { "$ref": "#/$defs/provider_action_class" },
+        "irreversibility_class": { "$ref": "#/$defs/irreversibility_class" },
+        "notification_side_effect_class": { "$ref": "#/$defs/notification_side_effect_class" },
+        "linked_artifact_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound upstream artifact (review_workspace_record / review_pack_record / change_object_record / patch_stack_record / branch_row / worktree_row / validation evidence record / browser_handoff_packet_record / publish_later_queue_item_record / release_artifact_record). Required non-empty for link_branch_or_worktree, link_review_or_change_object, attach_validation_evidence, release_artifact_publish; empty for purely state-only actions (assign, change_lifecycle_state, add_or_remove_label, etc.)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One projected provider-action change entry. The action class names what the apply path will fire on the provider; the irreversibility and notification classes pre-resolve the consequence so the user can confirm against typed truth."
+    },
+
+    "local_artifact_class": {
+      "type": "string",
+      "enum": [
+        "local_draft_overlay_field",
+        "local_branch_or_worktree_state",
+        "local_review_workspace_state",
+        "local_change_object_state",
+        "local_patch_stack_state",
+        "local_validation_evidence_only",
+        "local_audit_journal_event",
+        "local_assistant_evidence_capture",
+        "local_settings_or_keybindings_change",
+        "local_only_comment_or_note"
+      ],
+      "description": "Frozen local-artifact class for the local_only_artifacts list. Names what stays local (no provider call) on apply. local_assistant_evidence_capture is the row that pins an AI-evidence packet that is preserved locally without being shared with the provider."
+    },
+
+    "local_only_artifact_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_only_artifact_id",
+        "local_artifact_class",
+        "summary"
+      ],
+      "properties": {
+        "local_only_artifact_id": { "$ref": "#/$defs/opaque_id" },
+        "local_artifact_class": { "$ref": "#/$defs/local_artifact_class" },
+        "linked_local_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local record this row pins (e.g. a local change_object_record draft, a local review_workspace_record draft, a local validation evidence record). Empty when the row pins state without a discrete record (e.g. an in-flight settings draft)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One local-only artifact entry. The preview surfaces this list so the user can see what the apply path will preserve locally without publishing."
+    },
+
+    "deferred_publish_class": {
+      "type": "string",
+      "enum": [
+        "not_deferred_publish_immediate",
+        "deferred_publish_admitted_to_queue",
+        "deferred_publish_captured_offline_pending_drain",
+        "deferred_publish_routed_through_browser_handoff",
+        "deferred_publish_blocked_pending_prerequisites",
+        "deferred_publish_inspect_only_what_if"
+      ],
+      "description": "Frozen deferred-publish class. Pre-resolves what happens if publish is not immediate; the typed value pairs with publish_timing_class so a downstream surface always knows whether the apply path will queue, capture offline, route through a browser handoff, stay inspect-only, or be blocked pending prerequisites."
+    },
+
+    "notification_truth_class": {
+      "type": "string",
+      "enum": [
+        "no_notification_locally_only",
+        "notify_immediately_on_publish",
+        "notify_on_drain_per_projected_actions",
+        "notification_unknown_until_drain",
+        "notification_blocked_pending_workspace_trust",
+        "notification_suppressed_by_user_choice_explicit_opt_out"
+      ],
+      "description": "Frozen notification-truth class for the deferred-publish consequences block. notification_unknown_until_drain is the safe default for queue / browser-handoff routes when the apply-time fan-out cannot be predicted before drain; notify_immediately_on_publish is admissible only when publish_timing_class is publish_immediate_publish_now."
+    },
+
+    "freshness_invalidation_class": {
+      "type": "string",
+      "enum": [
+        "preview_remains_valid_within_freshness_floor",
+        "preview_invalidated_on_freshness_drift",
+        "preview_invalidated_on_account_remap",
+        "preview_invalidated_on_policy_epoch_roll",
+        "preview_invalidated_on_provider_object_split_or_merge",
+        "preview_invalidated_on_workspace_trust_downgrade",
+        "preview_invalidated_on_callback_envelope_observed",
+        "preview_invalidation_unknown_pending_observation"
+      ],
+      "description": "Frozen freshness-invalidation class. Pre-resolves the conditions under which the preview is invalidated and MUST be re-confirmed before the deferred apply path commits."
+    },
+
+    "deferred_publish_consequences_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deferred_publish_class",
+        "notification_truth_class",
+        "freshness_invalidation_class",
+        "revoke_before_drain_admissible",
+        "summary"
+      ],
+      "properties": {
+        "deferred_publish_class": { "$ref": "#/$defs/deferred_publish_class" },
+        "notification_truth_class": { "$ref": "#/$defs/notification_truth_class" },
+        "freshness_invalidation_class": { "$ref": "#/$defs/freshness_invalidation_class" },
+        "revoke_before_drain_admissible": {
+          "type": "boolean",
+          "description": "Whether the user can revoke the deferred publish before drain. False on publish_immediate_publish_now (no deferred window) and on publish_routed_through_browser_handoff_open_in_provider once the browser-handoff packet has been launched and the provider has accepted (the handoff is owned by the provider after launch); true on queue / captured-offline lanes that have not yet drained."
+        },
+        "deferred_publish_window_closes_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp the deferred-publish window expires at. Empty when the deferred-publish lane has no fixed expiry (e.g. an indefinite captured-offline packet)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Typed deferred-publish consequences block. Surfaces the deferred-publish class, the notification truth class, the freshness invalidation class, the revoke-before-drain admissibility, and the optional deferred-publish window closes-at timestamp so a user, queue-review, and support-export consumer always knows what happens if the publish is deferred."
+    },
+
+    "object_target_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_account_class", "target_object_identity"],
+      "properties": {
+        "target_account_class": { "$ref": "#/$defs/target_account_class" },
+        "target_account_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the actor subject the apply path will resolve under. Required non-empty when target_account_class is connected_provider_account_resolved, connected_provider_install_or_app_grant, connected_provider_delegated_user_token, connected_provider_project_scoped_grant, connected_provider_policy_injected_service_identity, browser_handoff_account_session_only, or managed_admin_only_account; empty when target_account_class is account_mapping_binding_pending_user_resolution or local_only_no_provider_account."
+        },
+        "target_actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "connected_provider_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the connected_provider_record the preview resolves against. Empty only when target_account_class is local_only_no_provider_account."
+        },
+        "target_object_identity": { "$ref": "#/$defs/object_identity" }
+      },
+      "allOf": [
+        {
+          "description": "Resolved-account, install-grant, delegated-token, project-scoped-grant, policy-injected-service-identity, browser-handoff-session, and managed-admin target accounts MUST cite a non-empty target_account_subject_ref AND a non-empty connected_provider_record_id_ref so the user, queue-review, and support-export consumers can always chase the resolved actor.",
+          "if": {
+            "properties": {
+              "target_account_class": {
+                "enum": [
+                  "connected_provider_account_resolved",
+                  "connected_provider_install_or_app_grant",
+                  "connected_provider_delegated_user_token",
+                  "connected_provider_project_scoped_grant",
+                  "connected_provider_policy_injected_service_identity",
+                  "browser_handoff_account_session_only",
+                  "managed_admin_only_account"
+                ]
+              }
+            },
+            "required": ["target_account_class"]
+          },
+          "then": {
+            "properties": {
+              "target_account_subject_ref": { "$ref": "#/$defs/non_empty_string" },
+              "connected_provider_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["target_account_subject_ref", "connected_provider_record_id_ref"]
+          }
+        },
+        {
+          "description": "local_only_no_provider_account MUST forbid a connected_provider_record_id_ref AND a target_account_subject_ref so silent provider mutation under a local-only label is impossible.",
+          "if": {
+            "properties": {
+              "target_account_class": { "const": "local_only_no_provider_account" }
+            },
+            "required": ["target_account_class"]
+          },
+          "then": {
+            "properties": {
+              "target_account_subject_ref": { "const": "" },
+              "connected_provider_record_id_ref": { "const": "" }
+            }
+          }
+        }
+      ],
+      "description": "Typed object-target block. Pins which connected-provider account / install grant / delegated token / browser-handoff session / managed-admin lane / pending-mapping / local-only target the preview projects against."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the preview was authored under. Reused identically by the change_intent / status_transition_packet / work_item_detail schemas."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the preview was authored under. Revalidated on every pin and on every drain."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "publish_timing_class_must_resolve_to_typed_class",
+        "target_account_class_must_resolve_to_typed_class",
+        "projected_change_kind_class_must_resolve_to_typed_class",
+        "provider_action_class_must_resolve_to_typed_class",
+        "irreversibility_class_must_resolve_to_typed_class",
+        "notification_side_effect_class_must_resolve_to_typed_class",
+        "notification_truth_class_must_resolve_to_typed_class",
+        "freshness_invalidation_class_must_resolve_to_typed_class",
+        "deferred_publish_class_must_resolve_to_typed_class",
+        "publish_now_must_cite_provider_consequence_preview_record",
+        "publish_queued_must_cite_publish_later_queue_item_record",
+        "publish_routed_through_browser_handoff_must_cite_browser_handoff_packet_record",
+        "publish_captured_offline_must_cite_offline_handoff_packet_record",
+        "account_mapping_pending_must_cite_account_mapping_binding_record",
+        "release_artifact_publish_must_cite_release_artifact_record",
+        "local_only_target_must_forbid_provider_field_or_action_changes",
+        "before_after_labels_required_for_field_value_overwrite_or_append",
+        "local_overlay_label_required_for_field_value_unchanged_local_only",
+        "raw_provider_url_in_external_publish_preview_forbidden",
+        "raw_notification_payload_in_external_publish_preview_forbidden",
+        "raw_author_identity_string_in_external_publish_preview_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "external_publish_preview_must_bind_change_intent_record_id_ref",
+        "external_publish_preview_must_bind_work_item_detail_record_id_ref",
+        "silent_publish_under_local_only_account_forbidden",
+        "deferred_publish_routed_through_browser_handoff_must_pair_with_browser_handoff_class",
+        "deferred_publish_captured_offline_must_pair_with_captured_offline_class",
+        "deferred_publish_admitted_to_queue_must_pair_with_queue_class",
+        "publish_now_must_pair_with_not_deferred_class",
+        "release_artifact_publish_must_resolve_irreversibility_to_release_class"
+      ],
+      "description": "Closed denial-reason vocabulary. silent_publish_under_local_only_account_forbidden gates a preview from claiming local_only_no_provider_account while citing any projected provider field or action change; release_artifact_publish_must_resolve_irreversibility_to_release_class gates a release-class preview from understating its irreversibility."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "external_publish_preview_authored",
+        "external_publish_preview_pinned_to_change_intent",
+        "external_publish_preview_invalidated_freshness_drift",
+        "external_publish_preview_invalidated_account_remap",
+        "external_publish_preview_invalidated_policy_epoch_roll",
+        "external_publish_preview_invalidated_provider_object_split_or_merge",
+        "external_publish_preview_invalidated_workspace_trust_downgrade",
+        "external_publish_preview_revoked_before_drain",
+        "external_publish_preview_applied_publish_now",
+        "external_publish_preview_admitted_to_publish_later_queue",
+        "external_publish_preview_routed_to_browser_handoff",
+        "external_publish_preview_captured_offline_pending_drain",
+        "external_publish_preview_superseded",
+        "external_publish_preview_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the external-publish preview lifecycle."
+    },
+
+    "external_publish_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_publish_preview_schema_version",
+        "external_publish_preview_id",
+        "change_intent_record_id_ref",
+        "work_item_detail_record_id_ref",
+        "object_target_block",
+        "publish_timing_class",
+        "projected_provider_field_changes",
+        "projected_provider_action_changes",
+        "local_only_artifacts",
+        "deferred_publish_consequences",
+        "preview_hash",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_publish_preview_record" },
+        "external_publish_preview_schema_version": {
+          "$ref": "#/$defs/external_publish_preview_schema_version"
+        },
+        "external_publish_preview_id": { "$ref": "#/$defs/opaque_id" },
+        "change_intent_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound change_intent_record this preview projects. Required so the preview never floats free of an authored intent."
+        },
+        "work_item_detail_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound work_item_detail_record. Required so a downstream surface can chase the work-item header without re-fetching."
+        },
+        "object_target_block": { "$ref": "#/$defs/object_target_block" },
+        "publish_timing_class": { "$ref": "#/$defs/publish_timing_class" },
+        "projected_provider_field_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projected_provider_field_change_entry" },
+          "description": "Projected provider-field changes. Empty array is admissible only when target_account_class is local_only_no_provider_account or publish_timing_class is publish_inspect_only_what_if AND the projected_provider_action_changes array is also empty."
+        },
+        "projected_provider_action_changes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/projected_provider_action_change_entry" },
+          "description": "Projected provider-action changes. Empty array is admissible only when target_account_class is local_only_no_provider_account or publish_timing_class is publish_inspect_only_what_if AND the projected_provider_field_changes array is also empty."
+        },
+        "local_only_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/local_only_artifact_entry" },
+          "description": "Local-only artifact entries. Surfaces this list so the user can see what the apply path will preserve locally without publishing. Empty array is admissible (a publish-now preview that publishes everything carries no local-only entries)."
+        },
+        "deferred_publish_consequences": {
+          "$ref": "#/$defs/deferred_publish_consequences_block"
+        },
+        "linked_provider_consequence_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_consequence_preview_record (the underlying provider-mode preview). Required when publish_timing_class is publish_immediate_publish_now or publish_queued_for_publish_later_deferred."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound publish_later_queue_item_record. Required when publish_timing_class is publish_queued_for_publish_later_deferred or publish_captured_offline_pending_drain."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound browser_handoff_packet_record. Required when publish_timing_class is publish_routed_through_browser_handoff_open_in_provider."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record. Required when publish_timing_class is publish_captured_offline_pending_drain."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record. Required when target_account_class is account_mapping_binding_pending_user_resolution."
+        },
+        "linked_status_transition_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound status_transition_packet_record (the previewed mutation that commits the preview). Empty until a transition packet is authored against this preview."
+        },
+        "linked_release_artifact_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound release_artifact_record. Required when any projected_provider_action_changes entry's provider_action_class is release_artifact_publish."
+        },
+        "linked_provider_callback_envelope_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_callback_envelope_records that observed the preview's apply path. Empty when no callback has been observed."
+        },
+        "supersedes_external_publish_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior external_publish_preview_record this one supersedes (e.g. after the user re-confirmed under a fresh provider_consequence_preview). Empty when this is a fresh preview."
+        },
+        "preview_hash": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Content hash over the structured fields so tampering between preview and apply is detectable. Never a hash of a raw provider body."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp after which the preview must not be applied without re-confirmation. The apply path denies an expired preview with policy_epoch_expired_re_evaluation_required."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "publish_immediate_publish_now MUST cite a non-empty linked_provider_consequence_preview_record_id_ref AND pair with deferred_publish_class = not_deferred_publish_immediate.",
+          "if": {
+            "properties": {
+              "publish_timing_class": { "const": "publish_immediate_publish_now" }
+            },
+            "required": ["publish_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_consequence_preview_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "deferred_publish_consequences": {
+                "properties": {
+                  "deferred_publish_class": { "const": "not_deferred_publish_immediate" }
+                }
+              }
+            },
+            "required": ["linked_provider_consequence_preview_record_id_ref"]
+          }
+        },
+        {
+          "description": "publish_queued_for_publish_later_deferred MUST cite a non-empty linked_publish_later_queue_item_record_id_ref AND pair with deferred_publish_class = deferred_publish_admitted_to_queue.",
+          "if": {
+            "properties": {
+              "publish_timing_class": { "const": "publish_queued_for_publish_later_deferred" }
+            },
+            "required": ["publish_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "deferred_publish_consequences": {
+                "properties": {
+                  "deferred_publish_class": { "const": "deferred_publish_admitted_to_queue" }
+                }
+              }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "publish_routed_through_browser_handoff_open_in_provider MUST cite a non-empty linked_browser_handoff_packet_ref AND pair with deferred_publish_class = deferred_publish_routed_through_browser_handoff.",
+          "if": {
+            "properties": {
+              "publish_timing_class": { "const": "publish_routed_through_browser_handoff_open_in_provider" }
+            },
+            "required": ["publish_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" },
+              "deferred_publish_consequences": {
+                "properties": {
+                  "deferred_publish_class": { "const": "deferred_publish_routed_through_browser_handoff" }
+                }
+              }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "publish_captured_offline_pending_drain MUST cite a non-empty linked_offline_handoff_packet_record_id_ref AND a non-empty linked_publish_later_queue_item_record_id_ref AND pair with deferred_publish_class = deferred_publish_captured_offline_pending_drain.",
+          "if": {
+            "properties": {
+              "publish_timing_class": { "const": "publish_captured_offline_pending_drain" }
+            },
+            "required": ["publish_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "deferred_publish_consequences": {
+                "properties": {
+                  "deferred_publish_class": { "const": "deferred_publish_captured_offline_pending_drain" }
+                }
+              }
+            },
+            "required": [
+              "linked_offline_handoff_packet_record_id_ref",
+              "linked_publish_later_queue_item_record_id_ref"
+            ]
+          }
+        },
+        {
+          "description": "publish_blocked_pending_prerequisites MUST pair with deferred_publish_class = deferred_publish_blocked_pending_prerequisites.",
+          "if": {
+            "properties": {
+              "publish_timing_class": { "const": "publish_blocked_pending_prerequisites" }
+            },
+            "required": ["publish_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "deferred_publish_consequences": {
+                "properties": {
+                  "deferred_publish_class": { "const": "deferred_publish_blocked_pending_prerequisites" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "publish_inspect_only_what_if MUST pair with deferred_publish_class = deferred_publish_inspect_only_what_if AND notification_truth_class = no_notification_locally_only.",
+          "if": {
+            "properties": {
+              "publish_timing_class": { "const": "publish_inspect_only_what_if" }
+            },
+            "required": ["publish_timing_class"]
+          },
+          "then": {
+            "properties": {
+              "deferred_publish_consequences": {
+                "properties": {
+                  "deferred_publish_class": { "const": "deferred_publish_inspect_only_what_if" },
+                  "notification_truth_class": { "const": "no_notification_locally_only" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "account_mapping_binding_pending_user_resolution target_account MUST cite a non-empty linked_account_mapping_binding_record_id_ref.",
+          "if": {
+            "properties": {
+              "object_target_block": {
+                "properties": {
+                  "target_account_class": { "const": "account_mapping_binding_pending_user_resolution" }
+                },
+                "required": ["target_account_class"]
+              }
+            },
+            "required": ["object_target_block"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "local_only_no_provider_account target MUST forbid every projected provider field or action change so silent provider mutation under a local-only label is impossible.",
+          "if": {
+            "properties": {
+              "object_target_block": {
+                "properties": {
+                  "target_account_class": { "const": "local_only_no_provider_account" }
+                },
+                "required": ["target_account_class"]
+              }
+            },
+            "required": ["object_target_block"]
+          },
+          "then": {
+            "properties": {
+              "projected_provider_field_changes": { "maxItems": 0 },
+              "projected_provider_action_changes": { "maxItems": 0 },
+              "publish_timing_class": {
+                "enum": [
+                  "publish_inspect_only_what_if",
+                  "publish_blocked_pending_prerequisites"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Any projected_provider_action_changes entry whose provider_action_class is release_artifact_publish MUST cite a non-empty linked_release_artifact_record_id_ref AND resolve the entry's irreversibility_class to irreversible_release_class.",
+          "if": {
+            "properties": {
+              "projected_provider_action_changes": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "provider_action_class": { "const": "release_artifact_publish" }
+                  },
+                  "required": ["provider_action_class"]
+                }
+              }
+            },
+            "required": ["projected_provider_action_changes"]
+          },
+          "then": {
+            "properties": {
+              "linked_release_artifact_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "projected_provider_action_changes": {
+                "items": {
+                  "if": {
+                    "properties": {
+                      "provider_action_class": { "const": "release_artifact_publish" }
+                    },
+                    "required": ["provider_action_class"]
+                  },
+                  "then": {
+                    "properties": {
+                      "irreversibility_class": { "const": "irreversible_release_class" }
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["linked_release_artifact_record_id_ref"]
+          }
+        }
+      ],
+      "description": "Frozen external-publish preview record. The preview is the structured projection the user, queue-review, and support-export consumers read against; the apply path commits the preview through a status_transition_packet_record (and on apply through the publish-later contract's publish_later_queue_item_record / provider_consequence_preview_record / browser_handoff_packet_record / account_mapping_binding_record / provider_callback_envelope_record). The preview never claims the provider has accepted the publish; it is the structured what-will-happen record."
+    },
+
+    "external_publish_preview_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "external_publish_preview_schema_version",
+        "audit_event_id",
+        "external_publish_preview_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "external_publish_preview_audit_event_record" },
+        "external_publish_preview_schema_version": {
+          "$ref": "#/$defs/external_publish_preview_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "external_publish_preview_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "external_publish_preview_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "external_publish_preview_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the external-publish preview lifecycle. Denial events MUST cite a typed reason from the closed denial vocabulary; lifecycle events (authored, pinned, invalidated, revoked, applied / admitted / routed / captured, superseded) carry no denial reason."
+    }
+  }
+}

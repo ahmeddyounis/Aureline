@@ -1,0 +1,1003 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/change_intent.schema.json",
+  "title": "Aureline work-item change-intent metadata vocabulary",
+  "description": "Boundary schema for the change_intent_record frozen in docs/work_items/change_intent_and_publish_preview_contract.md. One record family pins the rationale, target scope, linked-review relation, expected side effects, required approvals, and validation-evidence references for a single change a user (or AI assistant pending user confirmation) intends to make against a provider-owned (or local-only) work item, so that the intent remains visible across local draft, review, and publish steps rather than disappearing after the user first authored the change. The change-intent record carries the *why* and *what* of the change as opaque, typed structured fields; the *how* and *when* of the publish path is carried by the bound external_publish_preview_record (this directory's other schema) and the upstream status_transition_packet_record / publish_later_queue_item_record / browser_handoff_packet_record / offline_handoff_packet_record. Composes with (and does not replace) the work_item_detail_record schema (binds back through work_item_detail_record_id_ref); the provider-mode contract (re-exports predicted_side_effect_class, irreversibility_class, mutation_mode); the publish-later contract (cites publish_later_queue_item_record, provider_consequence_preview_record, account_mapping_binding_record, provider_callback_envelope_record on apply); the review-workspace / review-pack / change-stack contracts (cites review_workspace_record, review_pack_record, review_evaluation_result_record, change_object_record, patch_stack_record, branch_row, worktree_row); the browser-handoff packet (cites browser_handoff_packet_record on open_in_provider routes); the offline-handoff packet (cites offline_handoff_packet_record when the intent was captured under unavailability); and the status-transition packet (cites status_transition_packet_record on the previewed mutation that commits this intent). Raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw notification message bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw stdout / stderr never cross this boundary regardless of redaction class. The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, change_intent_lifecycle_class, intent_origin_class, target_scope_class, linked_review_relation_class, expected_side_effect_kind_class, approval_role_class, approval_state_class, validation_evidence_reference_class, denial_reason, or audit_event_id is additive-minor and bumps change_intent_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/change_intent_record" },
+    { "$ref": "#/$defs/change_intent_audit_event_record" }
+  ],
+  "$defs": {
+    "change_intent_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the change-intent vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "change_intent_record",
+        "change_intent_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, and raw notification payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the change intent was authored under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw payloads never cross this boundary regardless of class."
+    },
+
+    "predicted_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "local_reversible_edit",
+        "local_destructive_edit",
+        "credential_handle_projection",
+        "privileged_inspection_attach",
+        "external_reversible_comment",
+        "external_irreversible_publish",
+        "policy_or_trust_mutation",
+        "capability_widening",
+        "automation_admission_only"
+      ],
+      "description": "Predicted side-effect class re-exported verbatim from schemas/providers/publish_later_record.schema.json so change-intent records and queue items project onto the same axis."
+    },
+
+    "irreversibility_class": {
+      "type": "string",
+      "enum": [
+        "reversible",
+        "soft_reversible",
+        "irreversible",
+        "irreversible_release_class"
+      ],
+      "description": "Irreversibility class re-exported verbatim from schemas/providers/publish_later_record.schema.json. irreversible and irreversible_release_class side effects on a change intent MUST resolve to a pinned external_publish_preview_record before the intent's lifecycle reaches pinned_to_publish_preview / applied_publish_now / admitted_publish_later_queue / routed_browser_handoff."
+    },
+
+    "notification_side_effect_class": {
+      "type": "string",
+      "enum": [
+        "no_notification_locally_only",
+        "notify_assignees_on_provider_publish",
+        "notify_subscribers_on_provider_publish",
+        "notify_linked_review_authors_on_provider_publish",
+        "mention_explicit_actor_on_provider_publish",
+        "notify_managed_admin_on_provider_publish",
+        "notification_blocked_pending_workspace_trust",
+        "notification_unknown_until_publish_admitted_pending_review",
+        "notification_suppressed_by_user_choice_explicit_opt_out"
+      ],
+      "description": "Notification-side-effect class re-exported verbatim from schemas/work_items/status_transition_packet.schema.json. notification_unknown_until_publish_admitted_pending_review is the safe default when the publish path will route through a queue or browser handoff and the actual notification fan-out cannot be predicted before drain."
+    },
+
+    "provider_field_class": {
+      "type": "string",
+      "enum": [
+        "title_field",
+        "body_summary_field",
+        "lifecycle_state_field",
+        "assignee_field",
+        "labels_field",
+        "milestone_or_iteration_field",
+        "priority_or_severity_field",
+        "blocking_relationship_field",
+        "linked_branch_or_worktree_field",
+        "linked_review_field",
+        "linked_change_or_patch_stack_field",
+        "linked_validation_evidence_field",
+        "publish_preview_field",
+        "linked_incident_or_support_field",
+        "watcher_or_subscriber_field",
+        "trust_or_redaction_field",
+        "freshness_field",
+        "other_provider_owned_field"
+      ],
+      "description": "Provider-field class re-exported verbatim from schemas/work_items/provider_object.schema.json. Names which provider-owned fields the intent expects to mutate. 'other_provider_owned_field' is repair-only."
+    },
+
+    "validation_evidence_class": {
+      "type": "string",
+      "enum": [
+        "no_validation_evidence_attached",
+        "linked_review_evaluation_result",
+        "linked_qa_run_record",
+        "linked_check_run_imported_snapshot",
+        "linked_evidence_packet",
+        "linked_support_bundle",
+        "linked_incident_workspace_packet",
+        "imported_handoff_evidence_only_no_refresh_path"
+      ],
+      "description": "Validation-evidence class re-exported verbatim from schemas/work_items/work_item_detail.schema.json so a change-intent reuses one vocabulary for its evidence references."
+    },
+
+    "change_intent_lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "local_only_draft_intent",
+        "proposed_pending_review",
+        "under_review_with_review_link",
+        "awaiting_publish_preview",
+        "pinned_to_publish_preview",
+        "applied_publish_now",
+        "admitted_publish_later_queue",
+        "routed_browser_handoff",
+        "captured_offline_pending_drain",
+        "withdrawn_by_user",
+        "superseded_by_change_intent_record",
+        "archived_after_close"
+      ],
+      "description": "Frozen lifecycle class for the change-intent record. local_only_draft_intent is a freshly authored intent with no review / publish path attached; proposed_pending_review means the intent was published for review but no review link is bound yet; under_review_with_review_link means a typed linked_review_relation is attached; awaiting_publish_preview means the user has accepted the intent for publish but no preview is pinned yet; pinned_to_publish_preview means a typed external_publish_preview_record is bound; applied_publish_now / admitted_publish_later_queue / routed_browser_handoff / captured_offline_pending_drain mirror the four mutation_mode lanes of the bound status-transition packet; withdrawn_by_user, superseded_by_change_intent_record, and archived_after_close are terminal lifecycle states. The lifecycle is monotonic forward through proposed → under_review → awaiting_publish_preview → pinned_to_publish_preview → applied_publish_now / admitted_publish_later_queue / routed_browser_handoff / captured_offline_pending_drain; the record never silently disappears after creation."
+    },
+
+    "intent_origin_class": {
+      "type": "string",
+      "enum": [
+        "human_authored_local_draft",
+        "ai_proposed_pending_user_confirmation",
+        "imported_from_change_object",
+        "imported_from_review_pack",
+        "imported_from_offline_handoff",
+        "imported_from_support_bundle",
+        "policy_admin_minted"
+      ],
+      "description": "Frozen intent-origin class. ai_proposed_pending_user_confirmation pins an AI-proposed intent that MUST be confirmed by a human before any apply path is admissible; the four imported_from_* lanes pin intents reconstructed from upstream artifacts; policy_admin_minted pins admin-injected intents (e.g. policy-driven reassignment)."
+    },
+
+    "target_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_only_no_provider_target",
+        "provider_object_field_mutation",
+        "provider_object_lifecycle_transition",
+        "provider_object_relation_change",
+        "provider_object_comment_or_subscriber_change",
+        "provider_object_validation_evidence_attach",
+        "release_artifact_publish",
+        "repository_branch_or_worktree_change",
+        "cross_object_blocking_relationship_change",
+        "multi_object_batch_intent"
+      ],
+      "description": "Frozen target-scope class. local_workspace_only_no_provider_target pins an intent that will never call the provider (e.g. local-draft title rename); the seven provider-target classes pin intents that will mutate provider state through one of the four mutation modes; cross_object_blocking_relationship_change covers blocking / depends-on / parent-of / duplicates relations across two work items; multi_object_batch_intent covers a single intent that fans out across multiple work items."
+    },
+
+    "linked_review_relation_class": {
+      "type": "string",
+      "enum": [
+        "no_linked_review",
+        "linked_review_workspace_local_truth_only",
+        "linked_review_workspace_with_provider_overlay",
+        "linked_review_pack_evaluation",
+        "linked_browser_handoff_review_token_only",
+        "linked_imported_review_bundle_snapshot",
+        "linked_review_pending_resolution"
+      ],
+      "description": "Frozen linked-review relation class. Re-uses the linked_review_class vocabulary from schemas/work_items/work_item_detail.schema.json so a change-intent's review relation is the same axis the work-item header reads; the relation survives export / support packets without being downgraded to a free-text note."
+    },
+
+    "expected_side_effect_kind_class": {
+      "type": "string",
+      "enum": [
+        "field_value_change",
+        "lifecycle_state_change",
+        "comment_or_subscriber_change",
+        "label_or_milestone_change",
+        "linked_artifact_bind_or_unbind",
+        "blocking_relationship_change",
+        "validation_evidence_attach_or_detach",
+        "release_publish",
+        "repository_branch_or_worktree_change",
+        "policy_or_trust_change",
+        "other_provider_action"
+      ],
+      "description": "Frozen expected-side-effect kind class. Names the *kind* of side effect the intent expects; the predicted_side_effect_class names the *axis* (inspect_only / local_reversible / external_irreversible_publish / etc.); together they pre-resolve what the user is committing to."
+    },
+
+    "expected_side_effect_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected_side_effect_id",
+        "expected_side_effect_kind_class",
+        "predicted_side_effect_class",
+        "irreversibility_class",
+        "notification_side_effect_class",
+        "summary"
+      ],
+      "properties": {
+        "expected_side_effect_id": { "$ref": "#/$defs/opaque_id" },
+        "expected_side_effect_kind_class": { "$ref": "#/$defs/expected_side_effect_kind_class" },
+        "predicted_side_effect_class": { "$ref": "#/$defs/predicted_side_effect_class" },
+        "irreversibility_class": { "$ref": "#/$defs/irreversibility_class" },
+        "notification_side_effect_class": { "$ref": "#/$defs/notification_side_effect_class" },
+        "affected_provider_field_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/provider_field_class" },
+          "description": "Provider-field classes this side effect is expected to touch. Empty when the side effect does not directly mutate a provider-owned field (e.g. a local-only edit, a comment add, a release publish)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One expected side effect of the change intent. The intent carries an ordered list; the apply path's status_transition_packet_record MUST resolve a transition_entry per side effect or else the intent's lifecycle MUST NOT advance past pinned_to_publish_preview."
+    },
+
+    "approval_role_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required_local_only",
+        "assignee_self_apply_admissible",
+        "peer_reviewer",
+        "code_owner",
+        "release_manager",
+        "security_review",
+        "compliance_review",
+        "managed_admin",
+        "policy_admin"
+      ],
+      "description": "Frozen approval-role class. no_approval_required_local_only is admissible only on local_workspace_only_no_provider_target target_scope; release_manager is required on release_artifact_publish; security_review and compliance_review are required when policy narrows the target."
+    },
+
+    "approval_state_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending",
+        "granted",
+        "denied",
+        "granted_then_revoked"
+      ],
+      "description": "Frozen approval-state class. Surfaces MUST render granted_then_revoked distinct from denied so users see the reason a previously-admissible intent is now blocked."
+    },
+
+    "required_approval_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_approval_id",
+        "approval_role_class",
+        "approval_state_class",
+        "summary"
+      ],
+      "properties": {
+        "required_approval_id": { "$ref": "#/$defs/opaque_id" },
+        "approval_role_class": { "$ref": "#/$defs/approval_role_class" },
+        "approval_state_class": { "$ref": "#/$defs/approval_state_class" },
+        "approval_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the actor subject expected to approve. Empty when the role is satisfied at the role level rather than by a named actor (e.g. any code_owner on the linked branch)."
+        },
+        "approval_granted_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp the approval was granted at. Empty when approval_state_class is not_required, pending, or denied."
+        },
+        "approval_revoked_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp the approval was revoked at. Required when approval_state_class is granted_then_revoked; empty otherwise."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "granted_then_revoked approvals MUST cite an approval_revoked_at timestamp so the user can see when and (via summary) why the approval was revoked.",
+          "if": {
+            "properties": {
+              "approval_state_class": { "const": "granted_then_revoked" }
+            },
+            "required": ["approval_state_class"]
+          },
+          "then": {
+            "properties": {
+              "approval_revoked_at": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["approval_revoked_at"]
+          }
+        }
+      ],
+      "description": "One required-approval entry. The intent carries an ordered list; the lifecycle MUST NOT reach applied_publish_now / admitted_publish_later_queue / routed_browser_handoff while any required entry is pending or denied or granted_then_revoked."
+    },
+
+    "validation_evidence_reference_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validation_evidence_reference_id",
+        "validation_evidence_class",
+        "summary"
+      ],
+      "properties": {
+        "validation_evidence_reference_id": { "$ref": "#/$defs/opaque_id" },
+        "validation_evidence_class": { "$ref": "#/$defs/validation_evidence_class" },
+        "linked_validation_evidence_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound validation-evidence record (review_evaluation_result_record / qa_run_record / check_run_imported_snapshot_record / evidence_packet_record / support_bundle_record / incident_workspace_packet_record). Required non-empty when validation_evidence_class is one of the linked_* values; empty when no_validation_evidence_attached or imported_handoff_evidence_only_no_refresh_path."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "linked_* validation_evidence_class values MUST cite a non-empty linked_validation_evidence_record_id_ref so a downstream surface can chase the upstream record without guessing.",
+          "if": {
+            "properties": {
+              "validation_evidence_class": {
+                "enum": [
+                  "linked_review_evaluation_result",
+                  "linked_qa_run_record",
+                  "linked_check_run_imported_snapshot",
+                  "linked_evidence_packet",
+                  "linked_support_bundle",
+                  "linked_incident_workspace_packet"
+                ]
+              }
+            },
+            "required": ["validation_evidence_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_validation_evidence_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_validation_evidence_record_id_ref"]
+          }
+        }
+      ],
+      "description": "One validation-evidence reference. The intent carries an ordered list; entries MAY be added, detached, or replaced through the audit stream (change_intent_validation_evidence_attached / change_intent_validation_evidence_detached) without losing the intent's lifecycle position."
+    },
+
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "view_only",
+        "refresh_before_edit",
+        "promote_local_draft_to_proposed",
+        "attach_linked_review",
+        "request_publish_preview",
+        "pin_publish_preview",
+        "submit_publish_now",
+        "submit_deferred_publish",
+        "open_in_provider_via_browser_handoff",
+        "save_local_draft_only_no_provider_path",
+        "withdraw_intent",
+        "resolve_required_approvals",
+        "no_action_archived_after_close"
+      ],
+      "description": "Next-safe-action hint surfaces render. MUST resolve to one entry per record; the lifecycle gates which actions are admissible (e.g. pin_publish_preview is admissible only on awaiting_publish_preview lifecycle, no_action_archived_after_close on archived_after_close)."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the change intent was authored under. Reused identically by the work_item_detail / status_transition_packet / external_publish_preview schemas."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the change intent was authored under. Revalidated on every lifecycle advance and on every external_publish_preview pin."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "change_intent_lifecycle_class_must_resolve_to_typed_class",
+        "intent_origin_class_must_resolve_to_typed_class",
+        "target_scope_class_must_resolve_to_typed_class",
+        "linked_review_relation_class_must_resolve_to_typed_class",
+        "expected_side_effect_kind_class_must_resolve_to_typed_class",
+        "approval_role_class_must_resolve_to_typed_class",
+        "approval_state_class_must_resolve_to_typed_class",
+        "validation_evidence_class_must_resolve_to_typed_class",
+        "ai_proposed_intent_must_be_confirmed_before_apply",
+        "pinned_to_publish_preview_must_cite_external_publish_preview_record",
+        "applied_publish_now_must_cite_status_transition_packet_record",
+        "admitted_publish_later_queue_must_cite_publish_later_queue_item_record",
+        "routed_browser_handoff_must_cite_browser_handoff_packet_record",
+        "captured_offline_pending_drain_must_cite_offline_handoff_packet_record",
+        "under_review_must_cite_linked_review_relation_outside_no_linked_review",
+        "linked_review_workspace_must_cite_review_workspace_record_id_ref",
+        "linked_review_pack_evaluation_must_cite_review_pack_or_evaluation_result_record_id_ref",
+        "release_artifact_publish_must_cite_release_manager_approval",
+        "irreversible_or_release_class_side_effect_must_cite_external_publish_preview",
+        "local_only_target_scope_must_forbid_provider_bound_apply_refs",
+        "superseded_by_change_intent_must_cite_superseded_by_record_id_ref",
+        "archived_after_close_must_resolve_to_no_action_archived_after_close",
+        "raw_provider_url_in_change_intent_forbidden",
+        "raw_author_identity_string_in_change_intent_forbidden",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "change_intent_must_bind_work_item_detail_record_id_ref",
+        "silent_publish_under_local_only_target_scope_forbidden",
+        "change_intent_must_not_disappear_after_creation"
+      ],
+      "description": "Closed denial-reason vocabulary. silent_publish_under_local_only_target_scope_forbidden gates a record from claiming local_workspace_only_no_provider_target while citing any provider-bound apply ref; change_intent_must_not_disappear_after_creation gates a surface from dropping an authored intent without an explicit withdrawn_by_user / superseded_by_change_intent_record / archived_after_close lifecycle transition."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "change_intent_authored",
+        "change_intent_proposed_pending_review",
+        "change_intent_review_link_attached",
+        "change_intent_review_link_detached",
+        "change_intent_validation_evidence_attached",
+        "change_intent_validation_evidence_detached",
+        "change_intent_required_approval_added",
+        "change_intent_required_approval_granted",
+        "change_intent_required_approval_denied",
+        "change_intent_required_approval_revoked",
+        "change_intent_awaiting_publish_preview",
+        "change_intent_pinned_to_publish_preview",
+        "change_intent_applied_publish_now",
+        "change_intent_admitted_to_publish_later_queue",
+        "change_intent_routed_to_browser_handoff",
+        "change_intent_captured_offline_pending_drain",
+        "change_intent_withdrawn_by_user",
+        "change_intent_superseded",
+        "change_intent_archived_after_close",
+        "change_intent_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the change-intent lifecycle. Provider-side events stay on the ADR-0010 provider_handoff stream; this stream is the local-only change-intent lifecycle stream."
+    },
+
+    "change_intent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "change_intent_schema_version",
+        "change_intent_id",
+        "work_item_detail_record_id_ref",
+        "change_intent_lifecycle_class",
+        "intent_origin_class",
+        "target_scope_class",
+        "rationale_summary",
+        "linked_review_relation_class",
+        "expected_side_effects",
+        "required_approvals",
+        "validation_evidence_references",
+        "next_safe_action_class",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "authored_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "change_intent_record" },
+        "change_intent_schema_version": {
+          "$ref": "#/$defs/change_intent_schema_version"
+        },
+        "change_intent_id": { "$ref": "#/$defs/opaque_id" },
+        "work_item_detail_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound work_item_detail_record the intent applies to. Required so the intent never floats free of a work-item row."
+        },
+        "change_intent_lifecycle_class": { "$ref": "#/$defs/change_intent_lifecycle_class" },
+        "intent_origin_class": { "$ref": "#/$defs/intent_origin_class" },
+        "target_scope_class": { "$ref": "#/$defs/target_scope_class" },
+        "rationale_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable rationale: why the user (or AI assistant pending user confirmation, or admin policy) wants this change. Required on every intent so the intent surface MUST NOT collapse the rationale into a generic 'Edit' button label."
+        },
+        "linked_review_relation_class": { "$ref": "#/$defs/linked_review_relation_class" },
+        "linked_review_workspace_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_workspace_record. Required when linked_review_relation_class is linked_review_workspace_local_truth_only or linked_review_workspace_with_provider_overlay."
+        },
+        "linked_review_pack_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_pack_record. Required (or paired with linked_review_evaluation_result_record_id_ref) when linked_review_relation_class is linked_review_pack_evaluation."
+        },
+        "linked_review_evaluation_result_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound review_evaluation_result_record. Required (or paired with linked_review_pack_record_id_ref) when linked_review_relation_class is linked_review_pack_evaluation."
+        },
+        "linked_review_anchor_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to bound review_anchor_records when reviewer comments anchor back to the change intent."
+        },
+        "linked_browser_handoff_review_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to a bound browser_handoff_packet_record when the linked review is reachable only through the system browser. Required when linked_review_relation_class is linked_browser_handoff_review_token_only."
+        },
+        "linked_change_object_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound change_object_record (change-stack contract). Empty when no change object is bound."
+        },
+        "linked_patch_stack_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound patch_stack_record (change-stack contract). Empty when no patch stack is bound."
+        },
+        "linked_branch_local_locator_ref": {
+          "type": "string",
+          "description": "Opaque ref to the local branch / worktree source-locator row. Empty when the intent does not bind a local branch."
+        },
+        "expected_side_effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/expected_side_effect_entry" },
+          "description": "Ordered list of expected side effects. At minimum one entry is required so the intent always discloses at least one expected side effect rather than presenting a generic 'will change something' label."
+        },
+        "required_approvals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/required_approval_entry" },
+          "description": "Required approvals. Empty array is admissible only when target_scope_class is local_workspace_only_no_provider_target; otherwise at least one entry is required."
+        },
+        "validation_evidence_references": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validation_evidence_reference_entry" },
+          "description": "Validation-evidence references. Empty array is admissible (an early-stage local-draft intent may not yet have evidence attached) but the lifecycle MUST NOT reach pinned_to_publish_preview without at least one entry when target_scope_class is release_artifact_publish."
+        },
+        "linked_external_publish_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound external_publish_preview_record. Required when change_intent_lifecycle_class is pinned_to_publish_preview, applied_publish_now, admitted_publish_later_queue, routed_browser_handoff, or captured_offline_pending_drain."
+        },
+        "linked_status_transition_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound status_transition_packet_record (the previewed mutation that commits the intent). Required when change_intent_lifecycle_class is applied_publish_now, admitted_publish_later_queue, routed_browser_handoff, or captured_offline_pending_drain."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound publish_later_queue_item_record. Required when change_intent_lifecycle_class is admitted_publish_later_queue or captured_offline_pending_drain."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound browser_handoff_packet_record. Required when change_intent_lifecycle_class is routed_browser_handoff."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record. Required when change_intent_lifecycle_class is captured_offline_pending_drain."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record when the intent's apply path resolves under a pending or recently-resolved account mapping. Empty when no mapping is bound."
+        },
+        "linked_provider_callback_envelope_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_callback_envelope_records that observed the intent's apply path. Empty when no callback has been observed (e.g. local-only / awaiting-preview / withdrawn)."
+        },
+        "supersedes_change_intent_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior change_intent_record this one supersedes (e.g. after the user re-authored the intent under a fresh review link). Empty when this is a fresh intent."
+        },
+        "superseded_by_change_intent_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a successor change_intent_record. Required when change_intent_lifecycle_class is superseded_by_change_intent_record."
+        },
+        "next_safe_action_class": { "$ref": "#/$defs/next_safe_action_class" },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "withdrawn_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp the intent was withdrawn at. Required when change_intent_lifecycle_class is withdrawn_by_user; empty otherwise."
+        },
+        "archived_at": {
+          "type": "string",
+          "description": "Optional ISO 8601 timestamp the intent was archived at. Required when change_intent_lifecycle_class is archived_after_close; empty otherwise."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "pinned_to_publish_preview / applied_publish_now / admitted_publish_later_queue / routed_browser_handoff / captured_offline_pending_drain MUST cite a non-empty linked_external_publish_preview_record_id_ref so the user, queue-review, and support-export consumers can always chase the preview the intent committed to.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": {
+                "enum": [
+                  "pinned_to_publish_preview",
+                  "applied_publish_now",
+                  "admitted_publish_later_queue",
+                  "routed_browser_handoff",
+                  "captured_offline_pending_drain"
+                ]
+              }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_external_publish_preview_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_external_publish_preview_record_id_ref"]
+          }
+        },
+        {
+          "description": "applied_publish_now / admitted_publish_later_queue / routed_browser_handoff / captured_offline_pending_drain MUST cite a non-empty linked_status_transition_packet_record_id_ref so the previewed mutation that commits the intent is always reachable.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": {
+                "enum": [
+                  "applied_publish_now",
+                  "admitted_publish_later_queue",
+                  "routed_browser_handoff",
+                  "captured_offline_pending_drain"
+                ]
+              }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_status_transition_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_status_transition_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "admitted_publish_later_queue MUST cite a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "admitted_publish_later_queue" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "routed_browser_handoff MUST cite a non-empty linked_browser_handoff_packet_ref.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "routed_browser_handoff" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "captured_offline_pending_drain MUST cite a non-empty linked_offline_handoff_packet_record_id_ref AND a non-empty linked_publish_later_queue_item_record_id_ref so the captured intent has both the offline carrier and the queue item the drain path will reopen.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "captured_offline_pending_drain" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": [
+              "linked_offline_handoff_packet_record_id_ref",
+              "linked_publish_later_queue_item_record_id_ref"
+            ]
+          }
+        },
+        {
+          "description": "under_review_with_review_link MUST cite a linked_review_relation_class outside no_linked_review so the review relation is always typed (never a free-text note).",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "under_review_with_review_link" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_review_relation_class": {
+                "not": { "const": "no_linked_review" }
+              }
+            }
+          }
+        },
+        {
+          "description": "linked_review_workspace_local_truth_only and linked_review_workspace_with_provider_overlay MUST cite a non-empty linked_review_workspace_record_id_ref.",
+          "if": {
+            "properties": {
+              "linked_review_relation_class": {
+                "enum": [
+                  "linked_review_workspace_local_truth_only",
+                  "linked_review_workspace_with_provider_overlay"
+                ]
+              }
+            },
+            "required": ["linked_review_relation_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_review_workspace_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_review_workspace_record_id_ref"]
+          }
+        },
+        {
+          "description": "linked_review_pack_evaluation MUST cite a non-empty linked_review_pack_record_id_ref OR a non-empty linked_review_evaluation_result_record_id_ref.",
+          "if": {
+            "properties": {
+              "linked_review_relation_class": { "const": "linked_review_pack_evaluation" }
+            },
+            "required": ["linked_review_relation_class"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "linked_review_pack_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_review_pack_record_id_ref"]
+              },
+              {
+                "properties": {
+                  "linked_review_evaluation_result_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+                },
+                "required": ["linked_review_evaluation_result_record_id_ref"]
+              }
+            ]
+          }
+        },
+        {
+          "description": "linked_browser_handoff_review_token_only MUST cite a non-empty linked_browser_handoff_review_packet_ref.",
+          "if": {
+            "properties": {
+              "linked_review_relation_class": { "const": "linked_browser_handoff_review_token_only" }
+            },
+            "required": ["linked_review_relation_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_review_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_review_packet_ref"]
+          }
+        },
+        {
+          "description": "local_workspace_only_no_provider_target target_scope MUST forbid provider-bound apply refs (external publish preview, publish-later queue item, browser-handoff packet, offline-handoff packet) so silent provider mutation under a local-only label is impossible.",
+          "if": {
+            "properties": {
+              "target_scope_class": { "const": "local_workspace_only_no_provider_target" }
+            },
+            "required": ["target_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_external_publish_preview_record_id_ref": { "const": "" },
+              "linked_publish_later_queue_item_record_id_ref": { "const": "" },
+              "linked_browser_handoff_packet_ref": { "const": "" },
+              "linked_offline_handoff_packet_record_id_ref": { "const": "" }
+            }
+          }
+        },
+        {
+          "description": "superseded_by_change_intent_record lifecycle MUST cite a non-empty superseded_by_change_intent_record_id_ref so the audit trail preserves the supersession chain.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "superseded_by_change_intent_record" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_change_intent_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["superseded_by_change_intent_record_id_ref"]
+          }
+        },
+        {
+          "description": "withdrawn_by_user lifecycle MUST cite a non-empty withdrawn_at timestamp.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "withdrawn_by_user" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "withdrawn_at": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["withdrawn_at"]
+          }
+        },
+        {
+          "description": "archived_after_close lifecycle MUST cite a non-empty archived_at timestamp AND resolve next_safe_action_class to no_action_archived_after_close.",
+          "if": {
+            "properties": {
+              "change_intent_lifecycle_class": { "const": "archived_after_close" }
+            },
+            "required": ["change_intent_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "archived_at": { "$ref": "#/$defs/non_empty_string" },
+              "next_safe_action_class": { "const": "no_action_archived_after_close" }
+            },
+            "required": ["archived_at"]
+          }
+        },
+        {
+          "description": "release_artifact_publish target_scope MUST cite at least one required_approval entry whose approval_role_class is release_manager.",
+          "if": {
+            "properties": {
+              "target_scope_class": { "const": "release_artifact_publish" }
+            },
+            "required": ["target_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "required_approvals": {
+                "type": "array",
+                "minItems": 1,
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "approval_role_class": { "const": "release_manager" }
+                  },
+                  "required": ["approval_role_class"]
+                }
+              }
+            },
+            "required": ["required_approvals"]
+          }
+        },
+        {
+          "description": "Any expected_side_effect entry whose irreversibility_class is irreversible or irreversible_release_class MUST cite a non-empty linked_external_publish_preview_record_id_ref so the user can never commit an irreversible side effect without a pinned preview.",
+          "if": {
+            "properties": {
+              "expected_side_effects": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "irreversibility_class": {
+                      "enum": ["irreversible", "irreversible_release_class"]
+                    }
+                  },
+                  "required": ["irreversibility_class"]
+                }
+              }
+            },
+            "required": ["expected_side_effects"]
+          },
+          "then": {
+            "properties": {
+              "linked_external_publish_preview_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_external_publish_preview_record_id_ref"]
+          }
+        },
+        {
+          "description": "Any provider-bound target_scope (everything except local_workspace_only_no_provider_target) MUST cite at least one required_approval entry; no_approval_required_local_only is admissible only on local_workspace_only_no_provider_target.",
+          "if": {
+            "properties": {
+              "target_scope_class": {
+                "not": { "const": "local_workspace_only_no_provider_target" }
+              }
+            },
+            "required": ["target_scope_class"]
+          },
+          "then": {
+            "properties": {
+              "required_approvals": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "properties": {
+                    "approval_role_class": {
+                      "not": { "const": "no_approval_required_local_only" }
+                    }
+                  }
+                }
+              }
+            },
+            "required": ["required_approvals"]
+          }
+        }
+      ],
+      "description": "Frozen change-intent record. The record carries the *why* and *what* of the intended change as opaque, typed structured fields and survives across local draft, review, and publish steps; the *how* and *when* of the publish path lives on the bound external_publish_preview_record and the upstream status_transition_packet / publish_later_queue_item / browser_handoff_packet / offline_handoff_packet records cited by reference."
+    },
+
+    "change_intent_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "change_intent_schema_version",
+        "audit_event_id",
+        "change_intent_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "change_intent_audit_event_record" },
+        "change_intent_schema_version": {
+          "$ref": "#/$defs/change_intent_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "change_intent_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "change_intent_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "change_intent_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the change-intent lifecycle. Denial events MUST cite a typed reason from the closed denial vocabulary; lifecycle events (authored, proposed, review-link attached / detached, validation-evidence attached / detached, approval added / granted / denied / revoked, awaiting / pinned to publish preview, applied / admitted / routed / captured, withdrawn / superseded / archived) carry no denial reason."
+    }
+  }
+}
