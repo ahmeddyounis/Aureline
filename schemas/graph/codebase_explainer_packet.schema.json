@@ -1,0 +1,1488 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/graph/codebase_explainer_packet.schema.json",
+  "title": "Aureline cited codebase explainer packet, claim row, citation, omission ledger, and open-evidence action contract",
+  "description": "Boundary schema for the cited codebase explainer family. Every codebase-explainer surface (review-pack explainer overlay, AI evidence-explainer panel, support-bundle explainer packet, public query-family explainer, navigation-deep-link explainer, IDE inline-explainer overlay) renders one codebase_explainer_packet_record from this contract; each claim inside is one claim_row_record, each citation is one citation_ref_entry, and each disclosed gap is one omission_ledger_entry. Every claim is either backed by one or more citations that reuse the workspace_graph_seed identity layer (graph_node_record.node_id, graph_edge_record.edge_id, explainer_citation_slot.citation_ref) verbatim or is explicitly typed as omitted / downgraded / AI-assisted in the claim_disposition vocabulary, so unsupported claims cannot appear as authoritative prose. The omission ledger is first-class and carries typed omission_class entries (outside_active_workset, hidden_by_policy_projection, imported_root_unverified, evidence_missing_anchor_deleted, downgraded_refusal_insufficient_evidence, ai_inference_segment_excluded, ...) so a partial result is honest about what it left out instead of compressing into generic 'partial results' wording. Every export hook declares preserves_omission_ledger, preserves_citation_anchors, preserves_confidence_chip, preserves_imported_root_chip, preserves_anchor_drift_chip, and preserves_ai_inference_segment_chip explicitly so review-pack / support-bundle / AI-evidence packet exports cannot quietly compress the ledger or strip the typed chips. Open-evidence actions reuse stable graph and source-anchor ids (open_source_at_anchor, open_docs_at_citation, inspect_graph_relation, export_explainer_packet, flag_missing_evidence) instead of launching ambiguous searches; raw absolute paths, raw provider URLs, raw email addresses, and raw credentials never cross this boundary. Adding a new claim_class, claim_disposition, omission_class, offered_action_class, export_format_class, citation_subject_kind, or hidden-count axis is additive-minor and bumps codebase_explainer_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/codebase_explainer_packet_record",
+  "$defs": {
+    "codebase_explainer_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the codebase-explainer packet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque equality-comparable string."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles. Never carries raw source bodies or raw URLs."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1200,
+      "description": "Redaction-aware short text (≤ 1200 graphemes). Surfaces render this verbatim. Never embeds raw source bodies, raw provider URLs, raw email addresses, or raw credentials. Larger budget than the topology / impact strip note budget so a short cited-explainer claim sentence fits."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_section": { "type": "string", "minLength": 1 },
+        "exercises": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "instance_schema_hint": { "type": "string" },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "warming",
+        "cached",
+        "stale",
+        "replayed",
+        "imported"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#freshness. The freshness/provenance strip and per-citation entries carry one freshness class each."
+    },
+
+    "stale_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        "producer_restart",
+        "authority_epoch_rolled",
+        "policy_epoch_changed",
+        "watcher_dropped",
+        "queue_saturation",
+        "upstream_input_stale",
+        "explicit_refresh_requested",
+        "cache_served",
+        "replayed_from_bundle",
+        "imported_from_external",
+        "scope_removed",
+        "causality_lost",
+        "reindex_failed",
+        "generator_changed",
+        "provider_unreachable",
+        null
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#stale_reason. Required when freshness_class != authoritative."
+    },
+
+    "extraction_or_inference_mode": {
+      "type": "string",
+      "enum": [
+        "observed_direct_extraction",
+        "parsed_from_structured_source",
+        "projected_from_authoritative_index",
+        "replayed_from_capture",
+        "hydrated_from_imported_bundle",
+        "derived_by_heuristic",
+        "generated_by_codegen",
+        "suggested_by_ai_inference",
+        "manually_annotated"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#extraction_or_inference_mode. Surfaces never silently upgrade an ai_inference-derived row."
+    },
+
+    "rolled_up_confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "unknown"],
+      "description": "Re-export of schemas/graph/confidence_rollup.schema.json#confidence_level. Claims and citations render the rolled-up level verbatim."
+    },
+
+    "floor_reason": {
+      "type": "string",
+      "enum": [
+        "no_floor_applied",
+        "low_contributor_pulls_to_low",
+        "unknown_contributor_pulls_to_low",
+        "inferred_relation_caps_at_medium",
+        "stale_relation_pulls_to_low",
+        "missing_anchor_pulls_to_low",
+        "imported_unverified_caps_at_medium",
+        "ai_inference_caps_at_medium",
+        "partial_visibility_caps_at_medium",
+        "policy_hidden_caps_at_medium",
+        "missing_in_scope_pulls_to_low",
+        "anchor_drift_pulls_to_low"
+      ],
+      "description": "Re-export of schemas/graph/confidence_rollup.schema.json#floor_reason. Each claim renders the typed floor reason alongside rolled_up_confidence so a reviewer can trace why the level landed there."
+    },
+
+    "conflict_state": {
+      "type": "string",
+      "enum": [
+        "no_conflict",
+        "level_split_high_and_low",
+        "level_split_with_unknown",
+        "evidence_state_split_direct_and_inferred",
+        "evidence_state_split_direct_and_stale",
+        "evidence_state_split_direct_and_missing_anchor",
+        "imported_vs_local_split",
+        "ai_vs_authoritative_split",
+        "partial_visibility_pulls_down"
+      ],
+      "description": "Re-export of schemas/graph/confidence_rollup.schema.json#conflict_state."
+    },
+
+    "anchor_drift_state": {
+      "type": "string",
+      "enum": [
+        "anchor_present_no_drift",
+        "anchor_moved_resolves_via_alias",
+        "anchor_deleted_no_replacement",
+        "anchor_imported_unverified",
+        "anchor_generated_pending_lineage",
+        "anchor_unknown_lineage"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#source_anchor_drift_state."
+    },
+
+    "imported_root_status": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "imported_signed_upstream_bundle",
+        "imported_vendor_drop",
+        "imported_replay_capture",
+        "imported_migration_import",
+        "imported_docs_pack",
+        "imported_template_expansion"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#imported_root_status. Imported citations carry the chip verbatim instead of folding into a local row."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#workset_scope_ref.scope_class. The active scope is named once on the packet header."
+    },
+
+    "loaded_scope_state": {
+      "type": "string",
+      "enum": [
+        "fully_loaded",
+        "partial_workset_loaded",
+        "sparse_slice_loaded",
+        "policy_limited_loaded",
+        "imported_root_only_loaded",
+        "warming_loaded",
+        "stale_loaded",
+        "evidence_missing_loaded"
+      ],
+      "description": "Re-export of schemas/graph/topology_map_view.schema.json#loaded_scope_state. The packet never claims fully_loaded when the active workset, the policy projection, an imported-only contributor, or a missing-evidence condition narrowed the result set."
+    },
+
+    "explained_subject_kind": {
+      "type": "string",
+      "enum": [
+        "graph_node_record",
+        "graph_edge_record",
+        "graph_query",
+        "topology_map_view_record",
+        "impact_explorer_view_record",
+        "ownership_card_record"
+      ],
+      "description": "What the explainer packet is about. The packet reuses the seed's identity layer for the subject; an explainer over a query reuses the query-family id."
+    },
+
+    "explained_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_ref"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/explained_subject_kind" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the subject id. Reuses graph_node_record.node_id, graph_edge_record.edge_id, query-family id, topology view id, impact view id, or ownership card id verbatim. The packet never mints a private subject id."
+        },
+        "subject_label": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }],
+          "description": "Optional redaction-aware label rendered alongside subject_ref. Never substituted on links or citations."
+        }
+      },
+      "description": "What the packet explains. Reuses the upstream identity layer rather than minting a private subject id."
+    },
+
+    "claim_class": {
+      "type": "string",
+      "enum": [
+        "describes_subject",
+        "describes_relation",
+        "describes_lineage",
+        "describes_ownership",
+        "describes_impact",
+        "describes_imported_root",
+        "describes_anchor_drift",
+        "describes_missing_evidence",
+        "describes_workset_scope",
+        "describes_runtime_role",
+        "describes_dependency",
+        "describes_generated_artifact",
+        "describes_policy_projection",
+        "describes_ai_inference_segment",
+        "describes_refusal"
+      ],
+      "description": "Frozen claim-class vocabulary. Each claim row names exactly one class so reviewers can dispatch on it without parsing prose. describes_subject: a property of the subject node / edge / query (kind, name, location). describes_relation: a typed graph relation (depends_on, owned_by, references_symbol, etc.). describes_lineage: a generated-artifact lineage relation. describes_ownership: a CODEOWNERS / team / rotation assignment. describes_impact: an impacts edge or impact-explorer row contribution. describes_imported_root: an imported-root membership or imported-bundle attribution. describes_anchor_drift: a typed source-anchor drift event. describes_missing_evidence: a missing-anchor / missing-lineage / dropped-citation case. describes_workset_scope: how the active workset / scope narrowed the answer. describes_runtime_role: a runtime / deployment / hosting role. describes_dependency: a depends_on relation drawn from a lockfile or package resolver. describes_generated_artifact: a build / codegen output. describes_policy_projection: a policy-limited view's effect. describes_ai_inference_segment: an explicitly AI-assisted narrative segment. describes_refusal: an explicit refusal to assert a claim because evidence is insufficient."
+    },
+
+    "claim_disposition": {
+      "type": "string",
+      "enum": [
+        "cited_direct_evidence",
+        "cited_partial_imported",
+        "cited_partial_inferred",
+        "cited_with_anchor_drift",
+        "cited_outside_active_workset",
+        "narrative_ai_assisted",
+        "downgraded_refusal_insufficient_evidence",
+        "downgraded_refusal_policy_blocked",
+        "downgraded_refusal_evidence_missing",
+        "omitted_outside_workset",
+        "omitted_policy_hidden",
+        "omitted_evidence_missing",
+        "omitted_imported_unverified",
+        "omitted_ai_inference_segment_redacted"
+      ],
+      "description": "Frozen claim-disposition vocabulary. Every claim row carries exactly one disposition so a reviewer can tell at a glance whether the claim is authoritatively cited, imported-only, inferred, AI-assisted narrative, a typed downgrade / refusal, or an omission carried for completeness. cited_direct_evidence: claim is backed by ≥ 1 direct citations from local-authoritative producers. cited_partial_imported: at least one citation is imported (imported_root_status != not_imported); confidence caps at medium. cited_partial_inferred: at least one citation is from heuristic / inferred relation; confidence caps at medium. cited_with_anchor_drift: at least one citation has anchor_drift_state != anchor_present_no_drift; the drift chip rides the row. cited_outside_active_workset: claim is cited but the citation lies outside the active workset / scope; the packet discloses the scope narrowing on the row. narrative_ai_assisted: an AI-inference pass produced narrative prose; the row caps at medium and renders the AI-inference chip; the row MUST list the supporting ai_evidence_packet ref. downgraded_refusal_insufficient_evidence: the producer refused to assert a strong claim because citations are insufficient; the row carries no authoritative claim text and the omission ledger names why. downgraded_refusal_policy_blocked / downgraded_refusal_evidence_missing: typed refusal variants. omitted_*: the claim was not asserted at all; the row is a placeholder so the omission ledger and the export packet do not lose track of the gap."
+    },
+
+    "citation_subject_kind": {
+      "type": "string",
+      "enum": [
+        "graph_node_record",
+        "graph_edge_record",
+        "explainer_citation_slot",
+        "source_anchor_slot",
+        "supporting_artifact_ref",
+        "topology_map_view_record",
+        "impact_explorer_row_record",
+        "ownership_card_record"
+      ],
+      "description": "What the citation points at. The packet reuses the seed's identity layer; a citation never mints a private pointer."
+    },
+
+    "citation_class": {
+      "type": "string",
+      "enum": [
+        "symbol_definition",
+        "file_range",
+        "doc_entry",
+        "generated_artifact_lineage",
+        "codeowners_rule",
+        "topology_edge",
+        "provider_resource",
+        "mutation_journal_entry",
+        "imported_bundle_entry",
+        "replay_capture_entry"
+      ],
+      "description": "Re-export of schemas/graph/workspace_graph_seed.schema.json#explainer_citation_slot.citation_class. Cited evidence reuses this vocabulary verbatim instead of inventing explainer-only citation labels."
+    },
+
+    "citation_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "citation_id",
+        "citation_class",
+        "subject_kind",
+        "citation_ref",
+        "freshness_class",
+        "imported_root_status",
+        "anchor_drift_state",
+        "rolled_up_confidence",
+        "provenance_stamp_ref"
+      ],
+      "properties": {
+        "citation_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable per-packet citation id. Open-evidence actions resolve back to this id so a reviewer can deep-link without re-deriving identity."
+        },
+        "citation_class": { "$ref": "#/$defs/citation_class" },
+        "subject_kind": { "$ref": "#/$defs/citation_subject_kind" },
+        "citation_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the citation's underlying record (node_id, edge_id, explainer_citation_slot citation_ref, source_anchor opaque id, supporting_artifact_ref id, or upstream view id). Reused verbatim from the seed; never minted privately."
+        },
+        "node_id_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional graph_node_record.node_id the citation lives on. Open-evidence actions resolve through this id."
+        },
+        "edge_id_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional graph_edge_record.edge_id the citation lives on."
+        },
+        "source_anchor_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the source_anchor_slot the citation points at. Reuses schemas/graph/workspace_graph_seed.schema.json#source_anchor_slot identity verbatim. open_source_at_anchor resolves through this ref instead of launching an ambiguous search."
+        },
+        "line_range": {
+          "type": ["string", "null"],
+          "description": "Optional line-range hint ('line_start:line_end') drawn from the source_anchor_slot. Raw source bytes never appear here."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "extraction_or_inference_mode": { "$ref": "#/$defs/extraction_or_inference_mode" },
+        "imported_root_status": { "$ref": "#/$defs/imported_root_status" },
+        "anchor_drift_state": { "$ref": "#/$defs/anchor_drift_state" },
+        "anchor_drift_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to a source_anchor_drift_record (schemas/graph/provenance_stamp.schema.json) when anchor_drift_state != anchor_present_no_drift."
+        },
+        "rolled_up_confidence": { "$ref": "#/$defs/rolled_up_confidence" },
+        "confidence_rollup_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to the confidence_rollup_record (schemas/graph/confidence_rollup.schema.json) that produced rolled_up_confidence for this citation."
+        },
+        "provenance_stamp_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Required ref to the provenance_stamp_record (schemas/graph/provenance_stamp.schema.json) the citation resolves to. The same stamp every other surface walks; explainers never invent their own stamp."
+        },
+        "citation_note": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }],
+          "description": "Optional redaction-aware note rendered alongside the citation. Raw source bodies, raw URLs, raw provider URLs never cross."
+        }
+      },
+      "allOf": [
+        {
+          "description": "anchor_drift_state != anchor_present_no_drift MUST set anchor_drift_record_ref to a non-null opaque ref so the drift event remains auditable.",
+          "if": {
+            "not": {
+              "properties": { "anchor_drift_state": { "const": "anchor_present_no_drift" } },
+              "required": ["anchor_drift_state"]
+            }
+          },
+          "then": {
+            "required": ["anchor_drift_record_ref"],
+            "properties": {
+              "anchor_drift_record_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "freshness_class != authoritative MUST carry a typed stale_reason.",
+          "if": {
+            "not": {
+              "properties": { "freshness_class": { "const": "authoritative" } },
+              "required": ["freshness_class"]
+            }
+          },
+          "then": {
+            "required": ["stale_reason"],
+            "properties": {
+              "stale_reason": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ],
+      "description": "One citation entry inside a claim row. Reuses the seed's explainer_citation_slot, source_anchor_slot, and graph node / edge identity verbatim and pairs it with the provenance / confidence / anchor-drift / imported-root chips every other graph-backed surface renders. open_source_at_anchor and open_docs_at_citation resolve through this entry so the action is never an ambiguous search."
+    },
+
+    "claim_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "claim_class",
+        "claim_disposition",
+        "claim_text",
+        "rolled_up_confidence",
+        "floor_reason",
+        "conflict_state",
+        "citation_refs",
+        "ai_inference_segment",
+        "supporting_artifact_refs"
+      ],
+      "properties": {
+        "claim_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable per-packet claim id. Open-evidence actions, copy-id actions, and review handoffs resolve through this id."
+        },
+        "claim_class": { "$ref": "#/$defs/claim_class" },
+        "claim_disposition": { "$ref": "#/$defs/claim_disposition" },
+        "claim_text": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-aware claim sentence the surface renders verbatim. Surfaces never replace this with a generic 'partial results' phrase. For downgraded_refusal_* and omitted_* dispositions the text MUST name the refusal / omission instead of asserting the underlying claim."
+        },
+        "cited_node_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of graph_node_record.node_id refs the claim covers. Reused verbatim from the seed."
+        },
+        "cited_edge_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of graph_edge_record.edge_id refs the claim covers. Reused verbatim from the seed."
+        },
+        "rolled_up_confidence": { "$ref": "#/$defs/rolled_up_confidence" },
+        "floor_reason": { "$ref": "#/$defs/floor_reason" },
+        "conflict_state": { "$ref": "#/$defs/conflict_state" },
+        "confidence_rollup_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to a confidence_rollup_record (surface_class explainer_citation) covering the per-claim rollup."
+        },
+        "citation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/citation_ref_entry" },
+          "description": "Citation entries backing the claim. Cited dispositions MUST carry minItems 1; downgraded_refusal_* and omitted_* dispositions MAY carry an empty array (the omission ledger names why)."
+        },
+        "ai_inference_segment": {
+          "type": "boolean",
+          "description": "True when the claim text was produced or amended by an AI inference pass. narrative_ai_assisted MUST set this true; cited_* dispositions MUST set this false. Surfaces render the typed AI-inference chip instead of folding the segment into authoritative prose."
+        },
+        "ai_evidence_packet_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Required non-null when ai_inference_segment is true; the ref points at the upstream ai_evidence_packet so a reviewer can replay the assistance segment."
+        },
+        "omission_ledger_entry_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Required non-null when claim_disposition is one of downgraded_refusal_* or omitted_*; points at the omission_ledger_entry that records the reason. The ledger never disappears for a downgraded or omitted row."
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supporting_artifact_ref_entry" },
+          "description": "Zero or more supporting-artifact references the claim relies on. Support bundles, review packs, and AI evidence packets walk this list."
+        },
+        "claim_note": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "description": "cited_* dispositions MUST carry at least one citation_ref. Downgraded refusal and omitted dispositions MAY carry zero citations (the ledger names why).",
+          "if": {
+            "properties": {
+              "claim_disposition": {
+                "enum": [
+                  "cited_direct_evidence",
+                  "cited_partial_imported",
+                  "cited_partial_inferred",
+                  "cited_with_anchor_drift",
+                  "cited_outside_active_workset"
+                ]
+              }
+            },
+            "required": ["claim_disposition"]
+          },
+          "then": {
+            "properties": {
+              "citation_refs": { "type": "array", "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "cited_partial_imported MUST list at least one citation whose imported_root_status != not_imported.",
+          "if": {
+            "properties": { "claim_disposition": { "const": "cited_partial_imported" } },
+            "required": ["claim_disposition"]
+          },
+          "then": {
+            "properties": {
+              "citation_refs": {
+                "contains": {
+                  "not": {
+                    "properties": { "imported_root_status": { "const": "not_imported" } },
+                    "required": ["imported_root_status"]
+                  }
+                }
+              },
+              "rolled_up_confidence": { "enum": ["medium", "low", "unknown"] }
+            }
+          }
+        },
+        {
+          "description": "cited_with_anchor_drift MUST list at least one citation whose anchor_drift_state != anchor_present_no_drift.",
+          "if": {
+            "properties": { "claim_disposition": { "const": "cited_with_anchor_drift" } },
+            "required": ["claim_disposition"]
+          },
+          "then": {
+            "properties": {
+              "citation_refs": {
+                "contains": {
+                  "not": {
+                    "properties": { "anchor_drift_state": { "const": "anchor_present_no_drift" } },
+                    "required": ["anchor_drift_state"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "narrative_ai_assisted MUST set ai_inference_segment true and MUST carry a non-null ai_evidence_packet_ref. Confidence caps at medium under ai_inference_caps_at_medium.",
+          "if": {
+            "properties": { "claim_disposition": { "const": "narrative_ai_assisted" } },
+            "required": ["claim_disposition"]
+          },
+          "then": {
+            "required": ["ai_evidence_packet_ref"],
+            "properties": {
+              "ai_inference_segment": { "const": true },
+              "ai_evidence_packet_ref": { "type": "string", "minLength": 1 },
+              "rolled_up_confidence": { "enum": ["medium", "low", "unknown"] }
+            }
+          }
+        },
+        {
+          "description": "ai_inference_segment true MUST set narrative_ai_assisted disposition (or omitted_ai_inference_segment_redacted) and MUST carry a non-null ai_evidence_packet_ref so the AI-inference chip resolves to the upstream packet instead of disappearing.",
+          "if": {
+            "properties": { "ai_inference_segment": { "const": true } },
+            "required": ["ai_inference_segment"]
+          },
+          "then": {
+            "required": ["ai_evidence_packet_ref"],
+            "properties": {
+              "ai_evidence_packet_ref": { "type": "string", "minLength": 1 },
+              "claim_disposition": {
+                "enum": [
+                  "narrative_ai_assisted",
+                  "omitted_ai_inference_segment_redacted"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "cited_* dispositions MUST set ai_inference_segment false; cited evidence is not narrative AI prose.",
+          "if": {
+            "properties": {
+              "claim_disposition": {
+                "enum": [
+                  "cited_direct_evidence",
+                  "cited_partial_imported",
+                  "cited_partial_inferred",
+                  "cited_with_anchor_drift",
+                  "cited_outside_active_workset"
+                ]
+              }
+            },
+            "required": ["claim_disposition"]
+          },
+          "then": {
+            "properties": {
+              "ai_inference_segment": { "const": false }
+            }
+          }
+        },
+        {
+          "description": "downgraded_refusal_* and omitted_* dispositions MUST cap confidence at medium and carry a non-null omission_ledger_entry_ref so the gap is reviewable.",
+          "if": {
+            "properties": {
+              "claim_disposition": {
+                "enum": [
+                  "downgraded_refusal_insufficient_evidence",
+                  "downgraded_refusal_policy_blocked",
+                  "downgraded_refusal_evidence_missing",
+                  "omitted_outside_workset",
+                  "omitted_policy_hidden",
+                  "omitted_evidence_missing",
+                  "omitted_imported_unverified",
+                  "omitted_ai_inference_segment_redacted"
+                ]
+              }
+            },
+            "required": ["claim_disposition"]
+          },
+          "then": {
+            "required": ["omission_ledger_entry_ref"],
+            "properties": {
+              "omission_ledger_entry_ref": { "type": "string", "minLength": 1 },
+              "rolled_up_confidence": { "enum": ["medium", "low", "unknown"] }
+            }
+          }
+        }
+      ],
+      "description": "One claim row. Every claim is either cited (one or more citation_refs whose ids reuse the seed's identity layer verbatim) or explicitly typed as downgraded / omitted / AI-assisted in claim_disposition; unsupported claims cannot appear as authoritative prose because the cited_* dispositions are gated on minItems-1 citation_refs and the downgraded / omitted dispositions are gated on a non-null omission_ledger_entry_ref."
+    },
+
+    "omission_class": {
+      "type": "string",
+      "enum": [
+        "outside_active_workset",
+        "outside_active_scope",
+        "hidden_by_policy_projection",
+        "imported_root_unverified",
+        "imported_root_not_loaded",
+        "evidence_missing_anchor_deleted",
+        "evidence_missing_anchor_drift",
+        "evidence_missing_lineage_pending",
+        "evidence_missing_replay_capture",
+        "downgraded_refusal_insufficient_evidence",
+        "downgraded_refusal_policy_blocked",
+        "downgraded_refusal_evidence_missing",
+        "ai_inference_segment_excluded",
+        "ai_inference_segment_redacted",
+        "generated_artifact_lineage_unknown",
+        "dependency_resolution_unknown",
+        "claim_blocked_redaction",
+        "workset_scope_narrowed_excluded",
+        "warming_index_pending",
+        "stale_producer_skipped"
+      ],
+      "description": "Frozen omission-class vocabulary. Every omission ledger entry names exactly one class so a partial result is honest about what it left out instead of compressing into generic 'partial results' wording. The vocabulary covers the spec's required disclosures: imported roots that were not cross-validated, outside-workset facts, unavailable edges (deleted / drifted / pending lineage), and AI-assisted segments that were excluded or redacted."
+    },
+
+    "omission_ledger_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "omission_id",
+        "omission_class",
+        "omission_text",
+        "subject_count_known",
+        "subject_count",
+        "supporting_artifact_refs",
+        "export_preservation_required"
+      ],
+      "properties": {
+        "omission_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable per-packet omission id. claim_row_record.omission_ledger_entry_ref points at this id; flag_missing_evidence and copy_omission_id actions resolve through it."
+        },
+        "omission_class": { "$ref": "#/$defs/omission_class" },
+        "omission_text": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-aware sentence the surface renders verbatim. Surfaces MUST NOT compress this into a generic 'partial results' phrase; the omission_class names which axis was lost and the text names the specifics."
+        },
+        "referenced_node_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of node_id refs the omission applies to. The exact list MAY be empty when the count is known but the ids are policy-hidden; subject_count carries the authoritative number."
+        },
+        "referenced_edge_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional list of edge_id refs the omission applies to."
+        },
+        "subject_count_known": {
+          "type": "boolean",
+          "description": "True when the omission's authoritative subject count is known. False when the producer cannot enumerate (warming index, missing lineage)."
+        },
+        "subject_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Number of subjects this omission covers when subject_count_known is true. Null otherwise."
+        },
+        "imported_root_status": {
+          "anyOf": [{ "$ref": "#/$defs/imported_root_status" }, { "type": "null" }],
+          "description": "Optional imported_root_status when the omission is an imported-root case (imported_root_unverified, imported_root_not_loaded). Reused verbatim from the seed."
+        },
+        "anchor_drift_state": {
+          "anyOf": [{ "$ref": "#/$defs/anchor_drift_state" }, { "type": "null" }],
+          "description": "Optional anchor_drift_state when the omission is an evidence_missing_* case driven by anchor drift."
+        },
+        "anchor_drift_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to a source_anchor_drift_record when anchor_drift_state is set and not anchor_present_no_drift."
+        },
+        "policy_view_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to a policy_view_node when the omission is hidden_by_policy_projection. The hidden subject ids never project; the policy view ref does."
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supporting_artifact_ref_entry" },
+          "description": "Zero or more supporting-artifact refs that explain why the omission applies. Support bundles and review packs walk this list."
+        },
+        "export_preservation_required": {
+          "type": "boolean",
+          "description": "True when this omission MUST be carried verbatim through review-pack / support-bundle / AI-evidence packet exports. The packet's offered_export_hooks MUST set preserves_omission_ledger true on at least one entry; the ledger is never compressed into a generic 'partial results' phrase on export."
+        },
+        "omission_note": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "description": "subject_count_known true MUST carry a non-null integer count; subject_count_known false MUST carry null.",
+          "if": {
+            "properties": { "subject_count_known": { "const": true } },
+            "required": ["subject_count_known"]
+          },
+          "then": {
+            "properties": {
+              "subject_count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        {
+          "description": "anchor_drift_state non-null and non-anchor_present_no_drift MUST carry a non-null anchor_drift_record_ref.",
+          "if": {
+            "allOf": [
+              { "required": ["anchor_drift_state"] },
+              {
+                "properties": {
+                  "anchor_drift_state": {
+                    "type": "string",
+                    "not": { "const": "anchor_present_no_drift" }
+                  }
+                }
+              }
+            ]
+          },
+          "then": {
+            "required": ["anchor_drift_record_ref"],
+            "properties": {
+              "anchor_drift_record_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "hidden_by_policy_projection MUST carry a non-null policy_view_ref so the policy-side review handoff resolves through one ref.",
+          "if": {
+            "properties": { "omission_class": { "const": "hidden_by_policy_projection" } },
+            "required": ["omission_class"]
+          },
+          "then": {
+            "required": ["policy_view_ref"],
+            "properties": {
+              "policy_view_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "description": "ai_inference_segment_excluded and ai_inference_segment_redacted MUST set export_preservation_required true so the AI-assisted gap survives review-pack / support-bundle export.",
+          "if": {
+            "properties": {
+              "omission_class": {
+                "enum": [
+                  "ai_inference_segment_excluded",
+                  "ai_inference_segment_redacted"
+                ]
+              }
+            },
+            "required": ["omission_class"]
+          },
+          "then": {
+            "properties": {
+              "export_preservation_required": { "const": true }
+            }
+          }
+        },
+        {
+          "description": "downgraded_refusal_* omissions MUST set export_preservation_required true so the refusal survives review-pack / support-bundle export.",
+          "if": {
+            "properties": {
+              "omission_class": {
+                "enum": [
+                  "downgraded_refusal_insufficient_evidence",
+                  "downgraded_refusal_policy_blocked",
+                  "downgraded_refusal_evidence_missing"
+                ]
+              }
+            },
+            "required": ["omission_class"]
+          },
+          "then": {
+            "properties": {
+              "export_preservation_required": { "const": true }
+            }
+          }
+        }
+      ],
+      "description": "One omission ledger entry. The ledger is the spec's required disclosure that imported roots, outside-workset facts, unavailable edges, and AI-assisted excluded segments do not silently disappear; the omission_class is closed and the export hooks carry the ledger verbatim through review-pack / support-bundle / AI-evidence packet exports."
+    },
+
+    "supporting_artifact_class": {
+      "type": "string",
+      "enum": [
+        "mutation_journal_entry",
+        "generated_artifact_lineage_record",
+        "imported_bundle_entry",
+        "replay_capture_entry",
+        "codeowners_rule",
+        "support_bundle_packet",
+        "ai_evidence_packet",
+        "policy_projection_record",
+        "annotation_note",
+        "build_toolchain_run_record",
+        "package_resolver_lockfile_entry"
+      ],
+      "description": "Re-export of schemas/graph/provenance_stamp.schema.json#supporting_artifact_class."
+    },
+
+    "supporting_artifact_ref_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "artifact_ref"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/supporting_artifact_class" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "freshness_provenance_strip_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject_kind",
+        "subject_ref",
+        "freshness_class",
+        "stale_reason",
+        "extraction_or_inference_mode",
+        "imported_root_status",
+        "rolled_up_confidence",
+        "anchor_drift_state",
+        "provenance_stamp_ref"
+      ],
+      "properties": {
+        "subject_kind": {
+          "type": "string",
+          "enum": [
+            "graph_node_record",
+            "graph_edge_record",
+            "codebase_explainer_packet_record",
+            "claim_row_record",
+            "omission_ledger_entry"
+          ]
+        },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "stale_reason": { "$ref": "#/$defs/stale_reason" },
+        "extraction_or_inference_mode": { "$ref": "#/$defs/extraction_or_inference_mode" },
+        "imported_root_status": { "$ref": "#/$defs/imported_root_status" },
+        "rolled_up_confidence": { "$ref": "#/$defs/rolled_up_confidence" },
+        "confidence_rollup_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "anchor_drift_state": { "$ref": "#/$defs/anchor_drift_state" },
+        "anchor_drift_record_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "provenance_stamp_ref": { "$ref": "#/$defs/opaque_id" },
+        "strip_note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Mirrors schemas/graph/topology_map_view.schema.json#freshness_provenance_strip_entry; the explainer packet renders the same chip set every other graph-backed surface renders so an explainer cannot drop the freshness / confidence / anchor-drift / imported-root chips."
+    },
+
+    "hidden_count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hidden_by_workset_known",
+        "hidden_by_workset_count",
+        "hidden_by_policy_known",
+        "hidden_by_policy_count",
+        "not_loaded_known",
+        "not_loaded_count",
+        "evidence_missing_known",
+        "evidence_missing_count",
+        "imported_root_known",
+        "imported_root_count",
+        "omission_known",
+        "omission_count",
+        "ai_inference_segment_known",
+        "ai_inference_segment_count",
+        "downgraded_refusal_known",
+        "downgraded_refusal_count"
+      ],
+      "properties": {
+        "hidden_by_workset_known": { "type": "boolean" },
+        "hidden_by_workset_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "hidden_by_policy_known": { "type": "boolean" },
+        "hidden_by_policy_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "not_loaded_known": { "type": "boolean" },
+        "not_loaded_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "evidence_missing_known": { "type": "boolean" },
+        "evidence_missing_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "imported_root_known": { "type": "boolean" },
+        "imported_root_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "omission_known": {
+          "type": "boolean",
+          "description": "True when the omission ledger is enumerated. False when the producer cannot enumerate (warming index, policy projection)."
+        },
+        "omission_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Total count of omission_ledger_entry rows. Drives the panel header so 'N omitted axes disclosed' is rendered verbatim."
+        },
+        "ai_inference_segment_known": { "type": "boolean" },
+        "ai_inference_segment_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of claim rows whose ai_inference_segment is true."
+        },
+        "downgraded_refusal_known": { "type": "boolean" },
+        "downgraded_refusal_count": {
+          "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }],
+          "description": "Count of claim rows whose claim_disposition is one of downgraded_refusal_*."
+        }
+      },
+      "description": "Hidden / partial / imported-root / omission / AI-inference / refusal accounting for the explainer packet. Counts cross the boundary; the hidden subject ids themselves never do (mirrors schemas/graph/topology_map_view.schema.json#hidden_count_summary plus the explainer-only omission, AI-inference, and downgraded-refusal axes)."
+    },
+
+    "offered_action_class": {
+      "type": "string",
+      "enum": [
+        "open_source_at_anchor",
+        "open_docs_at_citation",
+        "inspect_graph_relation",
+        "inspect_topology_view",
+        "inspect_impact_view",
+        "inspect_ownership_card",
+        "inspect_provenance_stamp",
+        "inspect_confidence_rollup",
+        "inspect_anchor_drift_record",
+        "export_explainer_packet",
+        "flag_missing_evidence",
+        "request_widen_scope_with_review",
+        "request_policy_review_admin_only",
+        "open_review_pack",
+        "open_support_bundle",
+        "open_ai_evidence_packet",
+        "copy_packet_id",
+        "copy_claim_id",
+        "copy_citation_id",
+        "copy_omission_id",
+        "copy_node_id",
+        "copy_edge_id"
+      ],
+      "description": "Frozen open-evidence action vocabulary. Every action resolves through the stable ids defined in this schema (packet_id, claim_id, citation_id, omission_id) or through the seed's node_id / edge_id / source_anchor / provenance_stamp / confidence_rollup / anchor_drift / topology view / impact view / ownership card identity, never through an ambiguous string search. The minimum set required by the spec is open_source_at_anchor, open_docs_at_citation, inspect_graph_relation, export_explainer_packet, and flag_missing_evidence; surfaces MAY offer the full set."
+    },
+
+    "offered_action_target_kind": {
+      "type": "string",
+      "enum": [
+        "codebase_explainer_packet_record",
+        "claim_row_record",
+        "citation_ref_entry",
+        "omission_ledger_entry",
+        "graph_node_record",
+        "graph_edge_record",
+        "source_anchor_slot",
+        "provenance_stamp_record",
+        "confidence_rollup_record",
+        "source_anchor_drift_record",
+        "topology_map_view_record",
+        "impact_explorer_view_record",
+        "ownership_card_record",
+        "policy_view_node",
+        "supporting_artifact_ref"
+      ],
+      "description": "What kind of subject the action resolves against. The action_target_ref reuses the matching schema's id family verbatim."
+    },
+
+    "offered_action_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "action_target_kind"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/offered_action_class" },
+        "action_target_kind": { "$ref": "#/$defs/offered_action_target_kind" },
+        "action_target_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the action target. open_source_at_anchor resolves through a source_anchor_slot ref; inspect_graph_relation resolves through an edge_id; inspect_topology_view resolves through a topology_map_view_record view_id; etc."
+        },
+        "review_pack_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "support_bundle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "ai_evidence_packet_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "action_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "review_pack_explainer_packet",
+        "support_bundle_explainer_packet",
+        "ai_evidence_explainer_packet",
+        "json_explainer_snapshot",
+        "yaml_explainer_snapshot",
+        "markdown_explainer_brief",
+        "csv_claim_table"
+      ],
+      "description": "Frozen export-format vocabulary for explainer packets. review-pack / support-bundle / AI-evidence / json / yaml exports preserve the omission ledger, the citation anchors, the confidence chip, the imported-root chip, the anchor-drift chip, and the AI-inference chip. markdown_explainer_brief and csv_claim_table are lossy and MUST disclose the loss verbatim on the export receipt."
+    },
+
+    "export_hook_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_format_class",
+        "preserves_omission_ledger",
+        "preserves_citation_anchors",
+        "preserves_confidence_chip",
+        "preserves_imported_root_chip",
+        "preserves_anchor_drift_chip",
+        "preserves_ai_inference_segment_chip"
+      ],
+      "properties": {
+        "export_format_class": { "$ref": "#/$defs/export_format_class" },
+        "preserves_omission_ledger": {
+          "type": "boolean",
+          "description": "True when the export carries every omission_ledger_entry verbatim (omission_class, omission_text, subject_count, supporting_artifact_refs). Lossy formats MUST set this false; the surface MUST disclose the loss on the export receipt."
+        },
+        "preserves_citation_anchors": {
+          "type": "boolean",
+          "description": "True when the export preserves citation_ref / source_anchor_ref / line_range so open_source_at_anchor and open_docs_at_citation still resolve from the export."
+        },
+        "preserves_confidence_chip": {
+          "type": "boolean",
+          "description": "True when the export carries rolled_up_confidence + floor_reason + conflict_state per claim and per citation."
+        },
+        "preserves_imported_root_chip": {
+          "type": "boolean",
+          "description": "True when the export preserves the per-citation imported_root_status chip."
+        },
+        "preserves_anchor_drift_chip": {
+          "type": "boolean",
+          "description": "True when the export preserves the per-citation anchor_drift_state chip."
+        },
+        "preserves_ai_inference_segment_chip": {
+          "type": "boolean",
+          "description": "True when the export preserves the per-claim ai_inference_segment chip plus the ai_evidence_packet_ref. Surfaces never claim an export carries the chip if the format does not actually project it."
+        },
+        "manifest_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque manifest ref the export will be filed under (review pack id, support bundle id, AI evidence packet id)."
+        },
+        "export_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "review_handoff_class": {
+      "type": "string",
+      "enum": [
+        "open_review_pack",
+        "open_support_bundle",
+        "open_ai_evidence_packet",
+        "open_topology_map",
+        "open_impact_explorer",
+        "open_ownership_card",
+        "request_widen_scope_with_review",
+        "request_policy_review_admin_only",
+        "copy_packet_id",
+        "copy_claim_id",
+        "copy_citation_id",
+        "copy_omission_id"
+      ],
+      "description": "Frozen review-handoff vocabulary. Mirrors schemas/graph/topology_map_view.schema.json and schemas/graph/impact_reason.schema.json so explainer, topology, and impact surfaces share one handoff vocabulary instead of inventing per-surface synonyms."
+    },
+
+    "review_handoff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_class"],
+      "properties": {
+        "handoff_class": { "$ref": "#/$defs/review_handoff_class" },
+        "review_pack_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "support_bundle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "ai_evidence_packet_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "handoff_note": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "codebase_explainer_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "codebase_explainer_packet_schema_version",
+        "packet_id",
+        "explained_subject",
+        "active_scope_class",
+        "active_scope_ref",
+        "loaded_scope_state",
+        "freshness_provenance_strip",
+        "claim_rows",
+        "omission_ledger",
+        "hidden_count_summary",
+        "offered_actions",
+        "offered_review_handoffs",
+        "offered_export_hooks",
+        "supporting_artifact_refs",
+        "recorded_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "type": "string", "const": "codebase_explainer_packet_record" },
+        "codebase_explainer_packet_schema_version": {
+          "$ref": "#/$defs/codebase_explainer_packet_schema_version"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable packet id. Open-evidence actions, copy_packet_id, and review handoffs resolve through this id."
+        },
+        "workspace_id": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+        },
+        "workspace_graph_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to the workspace_graph_record this packet was derived from."
+        },
+        "explained_subject": { "$ref": "#/$defs/explained_subject" },
+        "topology_view_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to a topology_map_view_record. inspect_topology_view resolves through this ref."
+        },
+        "impact_view_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to an impact_explorer_view_record. inspect_impact_view resolves through this ref."
+        },
+        "ownership_card_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional opaque ref to an ownership_card_record. inspect_ownership_card resolves through this ref."
+        },
+        "active_scope_class": { "$ref": "#/$defs/scope_class" },
+        "active_scope_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the active workset / scope artifact. The packet never mints a parallel scope id."
+        },
+        "loaded_scope_state": { "$ref": "#/$defs/loaded_scope_state" },
+        "packet_title": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        },
+        "summary_text": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }],
+          "description": "Optional redaction-aware top-level summary. The summary MUST NOT introduce claims that are not also asserted (or omitted) on claim_rows; the row layer is the authoritative claim layer."
+        },
+        "freshness_provenance_strip": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/freshness_provenance_strip_entry" },
+          "description": "One or more strip entries the packet renders. The strip is required so an explainer surface cannot drop the freshness / confidence / anchor-drift / imported-root chips that every other graph-backed surface carries."
+        },
+        "claim_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/claim_row_record" },
+          "description": "One or more claim rows. Every claim is either cited (citation_refs minItems 1) or explicitly typed as downgraded / omitted / AI-assisted via claim_disposition; unsupported claims cannot appear as authoritative prose."
+        },
+        "omission_ledger": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omission_ledger_entry" },
+          "description": "Zero or more omission ledger entries. Empty array is admissible only when loaded_scope_state == fully_loaded and no claim row carries a downgraded_refusal_* / omitted_* / narrative_ai_assisted disposition; the schema's allOf rules enforce the invariants."
+        },
+        "hidden_count_summary": { "$ref": "#/$defs/hidden_count_summary" },
+        "offered_actions": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/offered_action_entry" },
+          "description": "Offered open-evidence actions. Every packet offers at least the spec's minimum set: open_source_at_anchor, open_docs_at_citation, inspect_graph_relation, export_explainer_packet, flag_missing_evidence. Surfaces MAY offer the full vocabulary."
+        },
+        "offered_review_handoffs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/review_handoff_entry" }
+        },
+        "offered_export_hooks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_hook_entry" }
+        },
+        "supporting_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supporting_artifact_ref_entry" },
+          "description": "Packet-level supporting artifact refs. Walked by review packs, support bundles, and AI evidence packets."
+        },
+        "packet_note": { "$ref": "#/$defs/redaction_aware_text" },
+        "recorded_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "loaded_scope_state == fully_loaded MUST set every hidden_count_summary count field to 0 and every count_known field to true. The packet never claims completeness while disclosing hidden rows.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "fully_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": {
+                  "hidden_by_workset_known": { "const": true },
+                  "hidden_by_workset_count": { "const": 0 },
+                  "hidden_by_policy_known": { "const": true },
+                  "hidden_by_policy_count": { "const": 0 },
+                  "not_loaded_known": { "const": true },
+                  "not_loaded_count": { "const": 0 },
+                  "evidence_missing_known": { "const": true },
+                  "evidence_missing_count": { "const": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "loaded_scope_state == imported_root_only_loaded MUST set hidden_count_summary.imported_root_count >= 1.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "imported_root_only_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": {
+                  "imported_root_known": { "const": true },
+                  "imported_root_count": { "type": "integer", "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "loaded_scope_state == policy_limited_loaded MUST set hidden_by_policy_known true.",
+          "if": {
+            "properties": { "loaded_scope_state": { "const": "policy_limited_loaded" } },
+            "required": ["loaded_scope_state"]
+          },
+          "then": {
+            "properties": {
+              "hidden_count_summary": {
+                "properties": { "hidden_by_policy_known": { "const": true } }
+              }
+            }
+          }
+        },
+        {
+          "description": "Every packet's offered_actions MUST contain the spec's minimum action set: open_source_at_anchor, open_docs_at_citation, inspect_graph_relation, export_explainer_packet, flag_missing_evidence.",
+          "allOf": [
+            {
+              "properties": {
+                "offered_actions": {
+                  "contains": {
+                    "properties": { "action_class": { "const": "open_source_at_anchor" } },
+                    "required": ["action_class"]
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "offered_actions": {
+                  "contains": {
+                    "properties": { "action_class": { "const": "open_docs_at_citation" } },
+                    "required": ["action_class"]
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "offered_actions": {
+                  "contains": {
+                    "properties": { "action_class": { "const": "inspect_graph_relation" } },
+                    "required": ["action_class"]
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "offered_actions": {
+                  "contains": {
+                    "properties": { "action_class": { "const": "export_explainer_packet" } },
+                    "required": ["action_class"]
+                  }
+                }
+              }
+            },
+            {
+              "properties": {
+                "offered_actions": {
+                  "contains": {
+                    "properties": { "action_class": { "const": "flag_missing_evidence" } },
+                    "required": ["action_class"]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "description": "Whenever any claim row carries a downgraded_refusal_* or omitted_* disposition, the omission_ledger MUST be non-empty and at least one offered_export_hook MUST set preserves_omission_ledger true so the ledger survives export.",
+          "if": {
+            "properties": {
+              "claim_rows": {
+                "contains": {
+                  "properties": {
+                    "claim_disposition": {
+                      "enum": [
+                        "downgraded_refusal_insufficient_evidence",
+                        "downgraded_refusal_policy_blocked",
+                        "downgraded_refusal_evidence_missing",
+                        "omitted_outside_workset",
+                        "omitted_policy_hidden",
+                        "omitted_evidence_missing",
+                        "omitted_imported_unverified",
+                        "omitted_ai_inference_segment_redacted"
+                      ]
+                    }
+                  },
+                  "required": ["claim_disposition"]
+                }
+              }
+            },
+            "required": ["claim_rows"]
+          },
+          "then": {
+            "properties": {
+              "omission_ledger": { "type": "array", "minItems": 1 },
+              "offered_export_hooks": {
+                "contains": {
+                  "properties": { "preserves_omission_ledger": { "const": true } },
+                  "required": ["preserves_omission_ledger"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Whenever any claim row's ai_inference_segment is true, at least one offered_export_hook MUST set preserves_ai_inference_segment_chip true so the AI-inference chip survives export.",
+          "if": {
+            "properties": {
+              "claim_rows": {
+                "contains": {
+                  "properties": { "ai_inference_segment": { "const": true } },
+                  "required": ["ai_inference_segment"]
+                }
+              }
+            },
+            "required": ["claim_rows"]
+          },
+          "then": {
+            "properties": {
+              "offered_export_hooks": {
+                "contains": {
+                  "properties": { "preserves_ai_inference_segment_chip": { "const": true } },
+                  "required": ["preserves_ai_inference_segment_chip"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Whenever any claim row carries cited_partial_imported or any citation has imported_root_status != not_imported, at least one offered_export_hook MUST set preserves_imported_root_chip true.",
+          "if": {
+            "properties": {
+              "claim_rows": {
+                "contains": {
+                  "anyOf": [
+                    {
+                      "properties": { "claim_disposition": { "const": "cited_partial_imported" } },
+                      "required": ["claim_disposition"]
+                    },
+                    {
+                      "properties": {
+                        "citation_refs": {
+                          "contains": {
+                            "not": {
+                              "properties": { "imported_root_status": { "const": "not_imported" } },
+                              "required": ["imported_root_status"]
+                            }
+                          }
+                        }
+                      },
+                      "required": ["citation_refs"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["claim_rows"]
+          },
+          "then": {
+            "properties": {
+              "offered_export_hooks": {
+                "contains": {
+                  "properties": { "preserves_imported_root_chip": { "const": true } },
+                  "required": ["preserves_imported_root_chip"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Whenever any claim row carries cited_with_anchor_drift or any citation has anchor_drift_state != anchor_present_no_drift, at least one offered_export_hook MUST set preserves_anchor_drift_chip true.",
+          "if": {
+            "properties": {
+              "claim_rows": {
+                "contains": {
+                  "anyOf": [
+                    {
+                      "properties": { "claim_disposition": { "const": "cited_with_anchor_drift" } },
+                      "required": ["claim_disposition"]
+                    },
+                    {
+                      "properties": {
+                        "citation_refs": {
+                          "contains": {
+                            "not": {
+                              "properties": { "anchor_drift_state": { "const": "anchor_present_no_drift" } },
+                              "required": ["anchor_drift_state"]
+                            }
+                          }
+                        }
+                      },
+                      "required": ["citation_refs"]
+                    }
+                  ]
+                }
+              }
+            },
+            "required": ["claim_rows"]
+          },
+          "then": {
+            "properties": {
+              "offered_export_hooks": {
+                "contains": {
+                  "properties": { "preserves_anchor_drift_chip": { "const": true } },
+                  "required": ["preserves_anchor_drift_chip"]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One cited codebase explainer packet. Every claim is either cited (citation_refs minItems 1, citation ids reuse the seed's identity layer verbatim) or explicitly typed as downgraded_refusal_* / omitted_* / narrative_ai_assisted with a non-null omission_ledger_entry_ref so unsupported claims cannot appear as authoritative prose. The omission_ledger is first-class and carries typed omission_class entries (outside_active_workset, imported_root_unverified, evidence_missing_anchor_deleted, downgraded_refusal_insufficient_evidence, ai_inference_segment_excluded, ...) so a partial result is honest about what it left out instead of compressing into generic 'partial results' wording. Open-evidence actions resolve through stable graph and source-anchor ids; offered_actions carries at least the spec's minimum set. Export hooks declare preserves_omission_ledger / preserves_citation_anchors / preserves_confidence_chip / preserves_imported_root_chip / preserves_anchor_drift_chip / preserves_ai_inference_segment_chip explicitly; review-pack / support-bundle / AI-evidence packet exports preserve the ledger and the typed chips."
+    }
+  }
+}
