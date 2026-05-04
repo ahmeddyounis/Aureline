@@ -1,0 +1,392 @@
+# yaml-language-server: $schema=../../../schemas/ai/prompt_composer_session.schema.json
+__fixture__:
+  name: background_branch_agent_dispatch
+  scenario: >
+    A user opens a composer session against a named workset that
+    matches a feature branch's diff scope, attaches a diagnostic
+    bundle and a workspace_slice_bundle scoped to the diff, and
+    runs the /background-branch-agent slash command to launch a
+    long-running background branch-agent dispatch. The composer
+    requires a connected-provider browser-handoff approval ticket
+    (the dispatch will use a connected-provider self-hosted
+    account for the long-running runtime). The pre-dispatch
+    disclosure surfaces every required field plus
+    branch_agent_dispatch_intent_disclosed and the
+    branch_agent_dispatch_placeholder_ref. The user reads and
+    acknowledges the disclosure, then dispatches; the turn draft
+    transitions to dispatched_branch_agent and binds the
+    branch_agent_dispatch_ref. Demonstrates a request that
+    launches a background branch-agent flow and the typed
+    branch-agent-dispatch placeholder discipline.
+  exercised_contract_sections:
+    - prompt_composer_session_descriptor
+    - prompt_composer_turn_draft_descriptor
+    - prompt_composer_attachment_descriptor
+    - prompt_composer_slash_command_invocation_record
+    - prompt_composer_predispatch_disclosure_record
+    - branch_agent_dispatch_intent
+    - browser_handoff_approval_ticket
+    - typed_request_workspace_ref
+  exercised_classes:
+    record_kinds:
+      - prompt_composer_session_descriptor
+      - prompt_composer_turn_draft_descriptor
+      - prompt_composer_attachment_descriptor
+      - prompt_composer_slash_command_invocation_record
+      - prompt_composer_predispatch_disclosure_record
+      - prompt_composer_session_audit_event_record
+    attachment_kinds:
+      - diagnostic_bundle
+      - workspace_slice_bundle
+    attachment_disposition_classes:
+      - attached_default
+      - pinned_by_user
+    slash_command_classes:
+      - background_branch_agent_slash_command
+    slash_command_invocation_states:
+      - invocation_dispatched
+    flow_classes: [background_branch_agent_flow]
+    scope_filter_classes: [named_workset]
+    isolation_posture_classes: [shared_across_branch_agent_dispatch]
+    privacy_export_posture_classes: [opt_in_only_admin_export]
+    retention_stance_within_workspace_classes: [bounded_retention_admin_scoped]
+    lifecycle_state_classes: [workspace_open_active]
+    account_provider_path_classes: [connected_provider_self_hosted_account]
+    approval_posture_classes: [approval_required_browser_handoff_ticket]
+    predispatch_disclosure_state_classes: [disclosure_dispatch_authorised]
+    turn_draft_states: [dispatched_branch_agent]
+    dispatch_target_classes: [background_branch_agent]
+    audit_event_ids:
+      - composer_turn_draft_predispatch_disclosure_minted
+      - composer_turn_draft_predispatch_disclosure_acknowledged
+      - composer_turn_draft_dispatched_branch_agent
+
+---
+
+# Composer session: opened against a named workset; default account is the user's preferred connected-provider self-hosted account.
+record_kind: prompt_composer_session_descriptor
+prompt_composer_session_schema_version: 1
+composer_session_id: ai:composer-session:branch-agent:01
+display_label: Composer session (background branch-agent)
+composer_plan_ref: ai:composer-plan:branch-agent-default
+request_workspace_ref:
+  record_kind: request_workspace_ref_record
+  request_workspace_ref_schema_version: 1
+  request_workspace_id: ai:request-workspace:branch-agent:01
+  flow_class: background_branch_agent_flow
+  scope_filter_class: named_workset
+  isolation_posture_class: shared_across_branch_agent_dispatch
+  privacy_export_posture_class: opt_in_only_admin_export
+  retention_stance_within_workspace_class: bounded_retention_admin_scoped
+  lifecycle_state_class: workspace_open_active
+  ref_origin_class: minted_by_composer_session
+  composer_session_ref: ai:composer-session:branch-agent:01
+  composer_turn_draft_ref: null
+  assembly_id_ref: null
+  branch_agent_dispatch_ref: null
+  review_handoff_ref: null
+  evidence_packet_ref: null
+  policy_context:
+    policy_epoch: "pe:2026-05-04:01"
+    trust_state: trusted
+    deployment_profile_class: managed_cloud
+    execution_context_id: "exec:branch-agent:01"
+  minted_at: "2026-05-04T12:00:00Z"
+default_account_provider_path_class: connected_provider_self_hosted_account
+default_account_identity_ref: ai:account-identity:connected-provider:self-hosted:01
+default_provider_identity_ref: ai:provider-identity:connected-provider:self-hosted:01
+default_model_identity_ref: ai:model-identity:branch-agent-large@v9
+default_approval_posture_class: approval_required_browser_handoff_ticket
+active_turn_draft_refs:
+  - ai:turn-draft:branch-agent:01
+client_scopes: [desktop_product]
+redaction_class: operator_only_restricted
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+opened_at: "2026-05-04T12:00:00Z"
+closed_at: null
+
+---
+
+# Attachment 1: diagnostic_bundle (trusted first-party). Pinned by the user.
+record_kind: prompt_composer_attachment_descriptor
+prompt_composer_session_schema_version: 1
+attachment_id: ai:attach:branch-agent:diagnostic-bundle:01
+composer_session_ref: ai:composer-session:branch-agent:01
+turn_draft_ref: ai:turn-draft:branch-agent:01
+attachment_kind: diagnostic_bundle
+source_ref: ai:diagnostic-bundle:feature-branch-failures:01
+trust_posture: trusted_first_party
+disposition_class: pinned_by_user
+data_classes:
+  - workspace_diagnostic_allowed
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+origin_mention_ref: null
+origin_slash_command_invocation_ref: null
+freshness_class: authoritative_live
+redaction_class: operator_only_restricted
+attachment_summary: Diagnostic bundle for the feature branch failures, pinned by the user.
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+minted_at: "2026-05-04T12:00:05Z"
+
+---
+
+# Attachment 2: workspace_slice_bundle scoped to the feature branch diff.
+record_kind: prompt_composer_attachment_descriptor
+prompt_composer_session_schema_version: 1
+attachment_id: ai:attach:branch-agent:diff-slice:01
+composer_session_ref: ai:composer-session:branch-agent:01
+turn_draft_ref: ai:turn-draft:branch-agent:01
+attachment_kind: workspace_slice_bundle
+source_ref: ai:workspace-slice-bundle:feature-branch-diff:01
+trust_posture: trusted_first_party
+disposition_class: attached_default
+data_classes:
+  - workspace_code_slice_allowed
+tainted_fence_strategy: null
+tainted_usage_constraints: []
+citation_anchor_refs: []
+origin_mention_ref: null
+origin_slash_command_invocation_ref: ai:slash-command:branch-agent:dispatch:01
+freshness_class: authoritative_live
+redaction_class: operator_only_restricted
+attachment_summary: Workspace slice bundle for the feature branch diff.
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+minted_at: "2026-05-04T12:00:06Z"
+
+---
+
+# Slash command: /background-branch-agent.
+record_kind: prompt_composer_slash_command_invocation_record
+prompt_composer_session_schema_version: 1
+slash_command_invocation_id: ai:slash-command:branch-agent:dispatch:01
+composer_session_ref: ai:composer-session:branch-agent:01
+turn_draft_ref: ai:turn-draft:branch-agent:01
+slash_command_class: background_branch_agent_slash_command
+slash_command_identity_ref: ai:slash-command-identity:first-party:background-branch-agent
+canonical_command_id_ref: ai:canonical-command:ai.background_branch_agent.dispatch
+invocation_state: invocation_dispatched
+argument_refs:
+  - ai:attach:branch-agent:diagnostic-bundle:01
+  - ai:attach:branch-agent:diff-slice:01
+produced_mention_refs: []
+produced_attachment_refs:
+  - ai:attach:branch-agent:diff-slice:01
+predispatch_disclosure_ref: ai:disclosure:branch-agent:01
+denial_reason: null
+invocation_summary: /background-branch-agent dispatched after browser-handoff approval.
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+minted_at: "2026-05-04T12:00:04Z"
+completed_at: null
+
+---
+
+# Pre-dispatch disclosure: discloses branch_agent_dispatch_intent and the browser-handoff ticket.
+record_kind: prompt_composer_predispatch_disclosure_record
+prompt_composer_session_schema_version: 1
+predispatch_disclosure_id: ai:disclosure:branch-agent:01
+composer_session_ref: ai:composer-session:branch-agent:01
+turn_draft_ref: ai:turn-draft:branch-agent:01
+request_workspace_ref:
+  record_kind: request_workspace_ref_record
+  request_workspace_ref_schema_version: 1
+  request_workspace_id: ai:request-workspace:branch-agent:01
+  flow_class: background_branch_agent_flow
+  scope_filter_class: named_workset
+  isolation_posture_class: shared_across_branch_agent_dispatch
+  privacy_export_posture_class: opt_in_only_admin_export
+  retention_stance_within_workspace_class: bounded_retention_admin_scoped
+  lifecycle_state_class: workspace_open_active
+  ref_origin_class: minted_by_composer_turn_draft
+  composer_session_ref: ai:composer-session:branch-agent:01
+  composer_turn_draft_ref: ai:turn-draft:branch-agent:01
+  assembly_id_ref: null
+  branch_agent_dispatch_ref: null
+  review_handoff_ref: null
+  evidence_packet_ref: null
+  policy_context:
+    policy_epoch: "pe:2026-05-04:01"
+    trust_state: trusted
+    deployment_profile_class: managed_cloud
+    execution_context_id: "exec:branch-agent:01"
+  minted_at: "2026-05-04T12:00:10Z"
+disclosure_state: disclosure_dispatch_authorised
+account_provider_path_class: connected_provider_self_hosted_account
+account_identity_ref: ai:account-identity:connected-provider:self-hosted:01
+provider_identity_ref: ai:provider-identity:connected-provider:self-hosted:01
+model_identity_ref: ai:model-identity:branch-agent-large@v9
+approval_posture_class: approval_required_browser_handoff_ticket
+approval_ticket_ref: ai:approval-ticket:branch-agent:browser-handoff:01
+route_plan_placeholder_ref: ai:route-plan:branch-agent:01
+spend_plan_placeholder_ref: ai:spend-plan:branch-agent:01
+route_receipt_placeholder_ref: null
+spend_receipt_placeholder_ref: null
+branch_agent_dispatch_placeholder_ref: ai:branch-agent-dispatch:branch-agent:01
+review_handoff_placeholder_ref: null
+estimated_spend:
+  unit_label: usd
+  amount: "1.250"
+spend_ceiling:
+  unit_label: usd
+  amount: "5.000"
+tainted_attachment_count: 0
+omitted_attachment_count: 0
+policy_blocked_attachment_count: 0
+redacted_attachment_count: 0
+disclosure_fields:
+  - disclosure_field_class: scope_filter_disclosed
+    disclosure_summary: 'Scope: named workset (feature branch diff).'
+    supporting_ref: ai:request-workspace:branch-agent:01
+  - disclosure_field_class: target_context_disclosed
+    disclosure_summary: 'Target: feature branch diagnostics + diff slice. Pinned by user.'
+    supporting_ref: ai:attach:branch-agent:diagnostic-bundle:01
+  - disclosure_field_class: active_account_disclosed
+    disclosure_summary: 'Active account: connected-provider self-hosted (your account).'
+    supporting_ref: ai:account-identity:connected-provider:self-hosted:01
+  - disclosure_field_class: active_provider_disclosed
+    disclosure_summary: 'Active provider: connected-provider self-hosted runtime.'
+    supporting_ref: ai:provider-identity:connected-provider:self-hosted:01
+  - disclosure_field_class: active_model_disclosed
+    disclosure_summary: 'Active model: branch-agent-large v9.'
+    supporting_ref: ai:model-identity:branch-agent-large@v9
+  - disclosure_field_class: route_path_disclosed
+    disclosure_summary: 'Route: self-hosted via broker (long-running dispatch).'
+    supporting_ref: ai:route-plan:branch-agent:01
+  - disclosure_field_class: cost_visibility_disclosed
+    disclosure_summary: Metered per token; estimated USD 1.250; ceiling USD 5.000.
+    supporting_ref: ai:spend-plan:branch-agent:01
+  - disclosure_field_class: approval_posture_disclosed
+    disclosure_summary: Approval required (browser handoff ticket); ticket already obtained.
+    supporting_ref: ai:approval-ticket:branch-agent:browser-handoff:01
+  - disclosure_field_class: branch_agent_dispatch_intent_disclosed
+    disclosure_summary: This will launch a background branch-agent dispatch.
+    supporting_ref: ai:branch-agent-dispatch:branch-agent:01
+  - disclosure_field_class: request_workspace_ref_disclosed
+    disclosure_summary: Request workspace; background_branch_agent_flow, named_workset, shared_across_branch_agent_dispatch.
+    supporting_ref: ai:request-workspace:branch-agent:01
+  - disclosure_field_class: tainted_attachment_count_disclosed
+    disclosure_summary: 'Tainted attachment count: 0.'
+    supporting_ref: null
+  - disclosure_field_class: omitted_attachment_count_disclosed
+    disclosure_summary: 'Omitted attachment count: 0.'
+    supporting_ref: null
+  - disclosure_field_class: policy_blocked_attachment_count_disclosed
+    disclosure_summary: 'Policy-blocked attachment count: 0.'
+    supporting_ref: null
+  - disclosure_field_class: redacted_attachment_count_disclosed
+    disclosure_summary: 'Redacted attachment count: 0.'
+    supporting_ref: null
+  - disclosure_field_class: redaction_class_disclosed
+    disclosure_summary: 'Redaction class: operator_only_restricted.'
+    supporting_ref: null
+denial_reason: null
+disclosure_summary: Pre-dispatch disclosure for /background-branch-agent — long-running dispatch under approval ticket.
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+minted_at: "2026-05-04T12:00:10Z"
+acknowledged_at: "2026-05-04T12:00:18Z"
+dispatched_at: "2026-05-04T12:00:20Z"
+
+---
+
+# Turn draft: dispatched to background branch-agent.
+record_kind: prompt_composer_turn_draft_descriptor
+prompt_composer_session_schema_version: 1
+turn_draft_id: ai:turn-draft:branch-agent:01
+composer_session_ref: ai:composer-session:branch-agent:01
+composer_plan_ref: ai:composer-plan:branch-agent-default
+request_workspace_ref:
+  record_kind: request_workspace_ref_record
+  request_workspace_ref_schema_version: 1
+  request_workspace_id: ai:request-workspace:branch-agent:01
+  flow_class: background_branch_agent_flow
+  scope_filter_class: named_workset
+  isolation_posture_class: shared_across_branch_agent_dispatch
+  privacy_export_posture_class: opt_in_only_admin_export
+  retention_stance_within_workspace_class: bounded_retention_admin_scoped
+  lifecycle_state_class: workspace_open_active
+  ref_origin_class: minted_by_composer_turn_draft
+  composer_session_ref: ai:composer-session:branch-agent:01
+  composer_turn_draft_ref: ai:turn-draft:branch-agent:01
+  assembly_id_ref: ai:assembly:branch-agent:01
+  branch_agent_dispatch_ref: ai:branch-agent-dispatch:branch-agent:01
+  review_handoff_ref: null
+  evidence_packet_ref: null
+  policy_context:
+    policy_epoch: "pe:2026-05-04:01"
+    trust_state: trusted
+    deployment_profile_class: managed_cloud
+    execution_context_id: "exec:branch-agent:01"
+  minted_at: "2026-05-04T12:00:01Z"
+draft_state: dispatched_branch_agent
+mention_descriptor_refs: []
+attachment_descriptor_refs:
+  - ai:attach:branch-agent:diagnostic-bundle:01
+  - ai:attach:branch-agent:diff-slice:01
+slash_command_invocation_refs:
+  - ai:slash-command:branch-agent:dispatch:01
+instruction_bundle_refs:
+  - ai:instruction-bundle:repo-agents
+  - ai:instruction-bundle:repo-test-plan
+check_bundle_refs:
+  - ai:check-bundle:repo-test-suite
+  - ai:check-bundle:repo-lint-suite
+dispatch_target_class: background_branch_agent
+predispatch_disclosure_ref: ai:disclosure:branch-agent:01
+route_plan_ref: ai:route-plan:branch-agent:01
+spend_plan_ref: ai:spend-plan:branch-agent:01
+route_receipt_ref: null
+spend_receipt_ref: null
+branch_agent_dispatch_ref: ai:branch-agent-dispatch:branch-agent:01
+review_handoff_ref: null
+supersedes_turn_draft_ref: null
+draft_summary: /background-branch-agent dispatched; long-running flow.
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+minted_at: "2026-05-04T12:00:01Z"
+dispatched_at: "2026-05-04T12:00:20Z"
+
+---
+
+# Audit event: dispatched to background branch-agent.
+record_kind: prompt_composer_session_audit_event_record
+prompt_composer_session_schema_version: 1
+audit_event_id: composer_turn_draft_dispatched_branch_agent
+audit_event_seq: 9
+composer_session_ref: ai:composer-session:branch-agent:01
+turn_draft_ref: ai:turn-draft:branch-agent:01
+mention_ref: null
+attachment_ref: null
+slash_command_invocation_ref: ai:slash-command:branch-agent:dispatch:01
+predispatch_disclosure_ref: ai:disclosure:branch-agent:01
+denial_reason: null
+event_summary: Background branch-agent dispatch fired after disclosure was acknowledged.
+policy_context:
+  policy_epoch: "pe:2026-05-04:01"
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  execution_context_id: "exec:branch-agent:01"
+minted_at: "2026-05-04T12:00:20Z"

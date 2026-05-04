@@ -31,12 +31,44 @@ The companion artifacts are:
   — boundary schema for the `prompt_pack_manifest_record`,
   `tool_pack_manifest_record`, and
   `prompt_tool_pack_manifest_audit_event_record` shapes.
+- [`/schemas/ai/prompt_composer_session.schema.json`](../../schemas/ai/prompt_composer_session.schema.json)
+  — boundary schema for the user-facing composer-session side:
+  `prompt_composer_session_descriptor`,
+  `prompt_composer_turn_draft_descriptor`,
+  `prompt_composer_mention_descriptor`,
+  `prompt_composer_attachment_descriptor`,
+  `prompt_composer_slash_command_invocation_record`,
+  `prompt_composer_predispatch_disclosure_record`, and
+  `prompt_composer_session_audit_event_record`. The descriptor
+  records share their id namespaces with the lighter
+  `prompt_composer_session_record` /
+  `prompt_composer_turn_draft_record` /
+  `prompt_composer_mention_record` /
+  `prompt_composer_attachment_record` carried on
+  `schemas/ai/context_assembly.schema.json`; the descriptors are
+  the schema-of-record for the composer-UI side and the
+  context-assembly versions remain the assembly-side projection.
+- [`/schemas/ai/request_workspace_ref.schema.json`](../../schemas/ai/request_workspace_ref.schema.json)
+  — boundary schema for the typed cross-schema
+  `request_workspace_ref_record` reference. Every surface that
+  needs to point at a request workspace from outside its owning
+  schema (the composer-session contract, the context-assembly
+  contract, evidence packets, route / spend receipts,
+  branch-agent dispatch packets, review-handoff packets, replay
+  evidence) emits one of these typed references rather than an
+  unscoped `opaque_id`.
 - [`/fixtures/ai/prompt_plans/`](../../fixtures/ai/prompt_plans/)
   — worked-example corpus covering an inline-completion plan, an
   explain-flow plan, a patch-flow plan, a review-handoff plan, a
   background branch-agent plan, matching request workspaces, and
   one prompt-pack plus one tool-pack manifest each in production
   and one in canary rollout.
+- [`/fixtures/ai/prompt_composer_cases/`](../../fixtures/ai/prompt_composer_cases/)
+  — worked-example corpus for the composer session / turn-draft /
+  mention / attachment / slash-command / pre-dispatch disclosure
+  side, covering an empty draft, a single-file ask, a cross-repo
+  ask with omitted context, a tainted-pasted-content ask, and a
+  draft that launches a background branch-agent flow.
 
 This contract **composes with and does not replace** vocabularies
 already frozen in:
@@ -650,7 +682,478 @@ and bumps the corresponding per-schema
 breaking and requires a new decision row plus a major schema
 version bump.
 
-## 11. Out of scope at this revision
+## 11. The composer-session side: descriptors and the typed `request_workspace_ref`
+
+Sections 1–10 freeze the **plan / workspace / pack** backbone that
+governs an AI turn. Sections 11–16 freeze the **composer-session
+side** — the user-facing surface where the user opens a draft,
+mentions a symbol or a file, attaches a diagnostic bundle, runs a
+slash command, reads the pre-dispatch disclosure, and sends the
+turn. The composer-session contract sits *above* the plan /
+workspace / pack layer: every composer session cites exactly one
+plan and exactly one request workspace, every turn draft cites the
+same, and every pre-dispatch disclosure renders verbatim the
+required disclosure fields the user must read before the turn
+leaves the composer.
+
+### 11.1 Why a separate descriptor schema
+
+The assembly contract
+([`schemas/ai/context_assembly.schema.json`](../../schemas/ai/context_assembly.schema.json))
+already reserves typed `prompt_composer_session_record`,
+`prompt_composer_turn_draft_record`,
+`prompt_composer_mention_record`, and
+`prompt_composer_attachment_record` slots so later AI UX work
+cannot smuggle scope or trust decisions into ad-hoc payloads.
+Those records remain — they are the **assembly-side projection**
+the assembly schema reads. The composer-session contract adds the
+**descriptor** records on
+[`schemas/ai/prompt_composer_session.schema.json`](../../schemas/ai/prompt_composer_session.schema.json)
+that share the same `composer_session_id`, `turn_draft_id`,
+`mention_id`, and `attachment_id` namespaces but carry the richer
+shape the composer surface needs:
+
+- explicit `disposition_class` per mention / attachment (attached,
+  pinned, omitted, fenced, policy-blocked, redacted, denied);
+- explicit `data_classes` per mention / attachment;
+- explicit `tainted_fence_strategy` and `tainted_usage_constraints`
+  on every fenced attachment;
+- the typed `prompt_composer_slash_command_invocation_record`;
+- the typed `prompt_composer_predispatch_disclosure_record`;
+- the default `account_provider_path_class`, default account /
+  provider / model identity refs, and default
+  `approval_posture_class` on the session.
+
+A descriptor record is the schema-of-record for the composer-UI
+side; a corresponding context-assembly record is the assembly-side
+projection. Both validate independently and share the same id;
+neither widens what the other admits.
+
+### 11.2 The typed `request_workspace_ref`
+
+The previous revision used an unscoped `opaque_id` for the
+`request_workspace_ref` field on the assembly. The composer-session
+contract upgrades that to the typed
+`request_workspace_ref_record` on
+[`schemas/ai/request_workspace_ref.schema.json`](../../schemas/ai/request_workspace_ref.schema.json).
+Every composer session, every turn-draft descriptor, and every
+pre-dispatch disclosure record carries one of these typed
+references rather than an unscoped id. Every evidence packet,
+route receipt, spend receipt, branch-agent dispatch packet,
+review-handoff packet, and replay-evidence record SHOULD do the
+same.
+
+The typed reference echoes the owning workspace's
+`flow_class`, `scope_filter_class`, `isolation_posture_class`,
+`privacy_export_posture_class`,
+`retention_stance_within_workspace_class`, and
+`lifecycle_state_class` so a reviewer answers "which flow, which
+scope, which export posture, which lifecycle state" without
+resolving the owning record. The reference is a snapshot at mint
+time; downstream reads MUST re-resolve the owning record on
+[`schemas/ai/request_workspace.schema.json`](../../schemas/ai/request_workspace.schema.json)
+before dispatch and MUST deny on drift (`flow_class_drift_detected`,
+`scope_filter_class_drift_detected`,
+`isolation_posture_drift_detected`,
+`privacy_export_posture_drift_detected`,
+`retention_stance_drift_detected`, or
+`lifecycle_state_drift_detected`) rather than silently picking one
+side.
+
+The reference also carries one `ref_origin_class` naming the
+surface that minted it
+(`minted_by_composer_session`,
+`minted_by_composer_turn_draft`, `minted_by_assembly`,
+`minted_by_route_receipt`, `minted_by_spend_receipt`,
+`minted_by_evidence_packet`, `minted_by_branch_agent_dispatch`,
+`minted_by_review_handoff`, `minted_by_replay_evidence`,
+`minted_by_support_replay`, `minted_by_audit_event`) plus the
+matching surface-specific ref (composer session ref, composer
+turn-draft ref, assembly id ref, branch-agent dispatch ref,
+review-handoff ref, evidence packet ref) so a reviewer can diff
+which surfaces observed which lifecycle / posture for the same
+underlying workspace.
+
+## 12. Mentions and attachments: typed kinds and dispositions
+
+### 12.1 The mention vocabulary
+
+Every typed reference the user places in a composer turn draft is
+a `prompt_composer_mention_descriptor` carrying exactly one
+`mention_kind`. The vocabulary covers:
+
+- workspace code:
+  `symbol_mention`, `file_mention`, `file_slice_mention`,
+  `buffer_slice_mention`, `editor_selection_mention`,
+  `workset_mention`, `execution_context_mention`;
+- search and graph:
+  `search_result_mention`, `graph_node_mention`,
+  `graph_edge_mention`, `graph_summary_mention`;
+- docs and runbooks:
+  `docs_anchor_mention`, `citation_anchor_mention`,
+  `runbook_step_mention`;
+- diagnostics and runtime:
+  `diagnostic_mention`, `diagnostic_set_mention`,
+  `terminal_transcript_mention`, `log_span_mention`,
+  `request_response_mention`, `generated_artifact_mention`;
+- notebooks:
+  `notebook_cell_mention`, `notebook_output_mention`;
+- collaboration and review:
+  `review_thread_mention`, `branch_agent_dispatch_mention`,
+  `connected_provider_resource_mention`,
+  `collaboration_participant_mention`,
+  `extension_resource_mention`;
+- work tracking:
+  `work_item_mention`, `work_item_relation_mention`.
+
+A surface that resolves a free-text string into a path or URL
+without minting a typed mention is non-conforming. Raw paths, raw
+URLs, and raw symbol bodies never appear on the wire — every
+mention carries a typed `target_ref` and (when admitted) typed
+`data_classes` only.
+
+### 12.2 The attachment vocabulary
+
+Every typed attachment in a composer turn draft is a
+`prompt_composer_attachment_descriptor` carrying exactly one
+`attachment_kind`. The vocabulary covers:
+
+- documents and references:
+  `retrieved_document`, `docs_pack_excerpt_attachment`,
+  `citation_anchor_bundle`;
+- workspace excerpts:
+  `editor_selection_excerpt`, `buffer_slice_excerpt`,
+  `file_slice_excerpt`, `graph_summary_excerpt`,
+  `workspace_slice_bundle`;
+- diagnostics and runtime captures:
+  `diagnostic_bundle`, `terminal_log_capture`, `log_span_capture`,
+  `request_response_payload`, `generated_artifact_excerpt`;
+- notebooks:
+  `notebook_cell_excerpt`, `notebook_output_excerpt`;
+- user-supplied content:
+  `user_supplied_text`, `user_supplied_file`;
+- collaboration / external:
+  `branch_agent_evidence_bundle`, `review_thread_bundle`,
+  `work_item_summary_bundle`,
+  `connected_provider_resource_bundle`,
+  `extension_resource_bundle`.
+
+Attachments that name `retrieved_document`,
+`docs_pack_excerpt_attachment`, or `citation_anchor_bundle` MUST
+list at least one `citation_anchor_ref`; reviewers walk those
+anchors to confirm the authority claim. Other attachment kinds MAY
+omit `citation_anchor_refs` when the attachment is not authority-
+backed (e.g. a user-supplied paste).
+
+### 12.3 Dispositions: attached, omitted, pinned, fenced, blocked, redacted, denied
+
+Every mention and every attachment carries exactly one
+`disposition_class` from
+`schemas/ai/prompt_composer_session.schema.json`:
+
+- `attached_default` — admitted with no extra posture;
+- `pinned_by_user` / `pinned_by_composer_plan` — survives budget
+  pressure;
+- `omitted_under_budget`, `omitted_outside_scope`,
+  `omitted_freshness_floor_unmet`,
+  `omitted_dedup_against_pinned`, `omitted_user_deselected`,
+  `omitted_policy_narrows_scope` — typed omission reasons that
+  ride the assembly's `omit_reason` vocabulary so a reviewer can
+  cross-walk composer-side omits to assembly-side omits;
+- `fenced_tainted_default`, `fenced_tainted_user_pasted`,
+  `fenced_tainted_tool_return`,
+  `fenced_tainted_remote_collaborator`,
+  `fenced_tainted_connected_provider`,
+  `fenced_tainted_extension_proposed` — fenced under the tainted-
+  content fence; the descriptor MUST also name a
+  `tainted_fence_strategy` and a non-empty
+  `tainted_usage_constraints` set re-exported from the
+  context-assembly contract verbatim;
+- `policy_blocked_workspace_trust`,
+  `policy_blocked_admin_policy`,
+  `policy_blocked_extension_permission`,
+  `policy_blocked_connected_provider_policy`,
+  `policy_blocked_secret_projection` — blocked by typed policy;
+- `redacted_under_broker_pass` — admitted with the broker-owned
+  redaction pass (ADR-0007) applied;
+- `denied_data_class_denied_always` — the canonical disposition
+  for a mention / attachment that resolved to
+  `credential_handle_denied_always` or
+  `secret_projection_denied_always`; the composer denies rather
+  than silently dropping.
+
+A mention or attachment whose `disposition_class` is unresolved
+denies with `attachment_disposition_unresolved`. A `fenced_tainted_*`
+disposition without a fence strategy denies with
+`tainted_attachment_missing_fence_strategy`. A `policy_blocked_*`
+disposition without a typed block reason on the resulting assembly
+segment denies with `attachment_disposition_requires_block_reason`.
+
+### 12.4 Editor selections, graph references, docs snippets, diagnostics, work items, notebook cells, terminal/log excerpts
+
+The contract pins exactly which mention / attachment kinds the
+composer uses to carry each source class. The surface MUST emit
+the typed mention or attachment; minting an `opaque_id` reference
+without one of the typed kinds denies with
+`mention_kind_unresolved` or `attachment_kind_unresolved`.
+
+| Source                         | Typed mention kind                               | Typed attachment kind                           | Default disposition | Notes                                                                 |
+|--------------------------------|--------------------------------------------------|-------------------------------------------------|---------------------|-----------------------------------------------------------------------|
+| Editor selection               | `editor_selection_mention`                       | `editor_selection_excerpt`                      | `attached_default`  | Trusted first-party. Carries `workspace_code_slice_allowed`.          |
+| File reference                 | `file_mention` / `file_slice_mention`            | `file_slice_excerpt`                            | `attached_default`  | Trusted first-party. Buffer-side reads use `buffer_slice_*`.          |
+| Graph reference                | `graph_node_mention` / `graph_edge_mention` / `graph_summary_mention` | `graph_summary_excerpt`        | `attached_default`  | Trusted first-party. Carries `workspace_graph_summary_allowed`.       |
+| Docs snippet                   | `docs_anchor_mention` / `citation_anchor_mention` / `runbook_step_mention` | `docs_pack_excerpt_attachment` / `citation_anchor_bundle` | `attached_default` | Trusted authority. MUST carry `citation_anchor_refs`.                 |
+| Diagnostic                     | `diagnostic_mention` / `diagnostic_set_mention`  | `diagnostic_bundle`                             | `attached_default`  | Trusted first-party. Carries `workspace_diagnostic_allowed`.          |
+| Work-item link                 | `work_item_mention` / `work_item_relation_mention` | `work_item_summary_bundle`                    | `attached_default`  | Trusted first-party when authored locally; untrusted when imported.   |
+| Notebook cell                  | `notebook_cell_mention` / `notebook_output_mention` | `notebook_cell_excerpt` / `notebook_output_excerpt` | `attached_default` | Cell inputs are trusted; outputs of executed cells follow the same posture as `generated_artifact_excerpt` (untrusted unless reviewed). |
+| Terminal / log excerpt         | `terminal_transcript_mention` / `log_span_mention` | `terminal_log_capture` / `log_span_capture`   | `fenced_tainted_default` | Untrusted log capture by default; downstream usage constraints include `must_not_gain_tool_permission` and `must_preserve_fence_in_downstream_packet`. |
+| Pasted external content        | `extension_resource_mention` / `connected_provider_resource_mention` (rare) | `user_supplied_text` / `user_supplied_file` | `fenced_tainted_user_pasted` | Untrusted user-supplied. Composer plan applies fence strategy `instruction_stripped` or `quoted_as_data_only`. |
+
+The above is a default; admins / repo-defined instruction bundles
+MAY narrow further (e.g. omit notebook outputs entirely under
+`policy_limited_view`) but MAY NOT widen.
+
+## 13. Slash commands
+
+Every slash command the user runs in the composer is a typed
+`prompt_composer_slash_command_invocation_record` carrying:
+
+- one `slash_command_class` from a closed vocabulary
+  (`explain_slash_command`, `review_slash_command`,
+  `patch_slash_command`, `test_generation_slash_command`,
+  `refactor_slash_command`, `doc_generation_slash_command`,
+  `diagnostic_triage_slash_command`,
+  `background_branch_agent_slash_command`,
+  `review_handoff_slash_command`, `search_slash_command`,
+  `navigate_slash_command`, `attach_slash_command`,
+  `pin_slash_command`, `unpin_slash_command`,
+  `omit_slash_command`, `scope_change_slash_command`,
+  `model_change_slash_command`, `provider_change_slash_command`,
+  `approval_request_slash_command`,
+  `approval_revoke_slash_command`,
+  `support_replay_slash_command`,
+  `extension_provided_slash_command`,
+  `user_authored_macro_slash_command`,
+  `disabled_no_slash_command`);
+- one `slash_command_identity_ref` (opaque id of the concrete
+  slash-command identity);
+- an optional `canonical_command_id_ref` so the slash command
+  surfaces the same governance row as the palette / menu / CLI
+  surfaces under M00-374's invocation-result-and-parity contract;
+- a typed `argument_refs` array of opaque argument ids — raw
+  argument strings never appear;
+- typed `produced_mention_refs` and `produced_attachment_refs`
+  arrays so a reviewer can answer "which mentions and attachments
+  did this slash command produce";
+- one `invocation_state` from the closed vocabulary
+  (`invocation_open`, `invocation_argument_validation_pending`,
+  `invocation_disclosure_pending`,
+  `invocation_approval_pending`, `invocation_dispatched`,
+  `invocation_completed_success`,
+  `invocation_completed_partial`, `invocation_failed`,
+  `invocation_cancelled`, `invocation_superseded`,
+  `invocation_denied_by_policy`);
+- a non-null `denial_reason` whenever
+  `invocation_state = invocation_denied_by_policy`.
+
+Slash commands authored by extensions
+(`extension_provided_slash_command`) ride the extension manifest
+permission surface (ADR-0012); slash commands authored by users
+as macros (`user_authored_macro_slash_command`) ride the macro-
+authoring controls. Both kinds may only narrow what the
+first-party command vocabulary admits — they may not widen.
+
+## 14. The pre-dispatch disclosure card
+
+Every turn draft that is not in `draft` state MUST cite a
+`prompt_composer_predispatch_disclosure_record`. The disclosure
+record is the typed pre-dispatch card the composer renders
+verbatim before a turn leaves the composer; the user reads it,
+acknowledges it, and only then does the dispatch fire.
+
+### 14.1 Required disclosure fields
+
+The disclosure's `disclosure_fields` array MUST contain at least
+the following typed fields (every fixture and every conformant
+implementation enforces this):
+
+- `scope_filter_disclosed` — names the request workspace's
+  `scope_filter_class`;
+- `target_context_disclosed` — names the typed mentions /
+  attachments / pins that establish the target context;
+- `active_account_disclosed` — names the active account identity
+  ref (or the `no_account_local_only` lane);
+- `active_provider_disclosed` — names the active provider identity
+  ref (or the `disabled_no_provider` lane);
+- `active_model_disclosed` — names the active model identity ref;
+- `route_path_disclosed` — names the route path class on the
+  attached `route_plan_placeholder_ref`;
+- `cost_visibility_disclosed` — names the cost visibility class
+  on the attached `route_plan_placeholder_ref` /
+  `spend_plan_placeholder_ref`;
+- `approval_posture_disclosed` — names the
+  `approval_posture_class` and (when relevant) the approval
+  ticket ref;
+- `request_workspace_ref_disclosed` — discloses the typed
+  `request_workspace_ref_record` (echoing flow / scope / posture
+  / lifecycle).
+
+A disclosure that lacks any required field denies with
+`required_disclosure_field_missing`.
+
+### 14.2 Optional disclosure fields
+
+The disclosure MAY also include:
+
+- `branch_agent_dispatch_intent_disclosed` (required when the
+  draft's `dispatch_target_class = background_branch_agent`);
+- `review_handoff_intent_disclosed` (required when the draft's
+  `dispatch_target_class = review_handoff`);
+- `freshness_class_disclosed`;
+- `redaction_class_disclosed`;
+- `instruction_bundle_refs_disclosed`,
+  `check_bundle_refs_disclosed`;
+- `tool_allowlist_disclosed`,
+  `data_class_allowlist_disclosed`;
+- `policy_epoch_disclosed`,
+  `deployment_profile_disclosed`,
+  `workspace_trust_state_disclosed`;
+- `tainted_attachment_count_disclosed`,
+  `omitted_attachment_count_disclosed`,
+  `policy_blocked_attachment_count_disclosed`,
+  `redacted_attachment_count_disclosed`.
+
+The four count fields are always disclosed even when the count is
+zero — this lets the audit stream prove a turn was minted with the
+disclosure rendered, not that the user "happened not to see" the
+count.
+
+### 14.3 Route / spend receipt placeholders
+
+The disclosure record carries placeholder opaque refs for the
+`ai_route_plan_record`, `ai_spend_plan_record`,
+`ai_route_receipt_record`, `ai_spend_receipt_record`,
+`ai_branch_agent_dispatch_record`, and review-handoff packet that
+will be minted at dispatch:
+
+- `route_plan_placeholder_ref`,
+  `spend_plan_placeholder_ref` — set on
+  `disclosure_state = disclosure_ready` and onward;
+- `route_receipt_placeholder_ref`,
+  `spend_receipt_placeholder_ref` — null pre-dispatch; populated
+  when the disclosure is reused as the audit record for the
+  dispatch;
+- `branch_agent_dispatch_placeholder_ref` — required (non-null)
+  when `branch_agent_dispatch_intent_disclosed` is in
+  `disclosure_fields`;
+- `review_handoff_placeholder_ref` — required (non-null) when
+  `review_handoff_intent_disclosed` is in `disclosure_fields`.
+
+The placeholders mean the composer never has to invent ad-hoc glue
+fields for "this draft will turn into route receipt X" once the
+dispatch happens — the same record carries the ids.
+
+### 14.4 Disclosure state lifecycle
+
+Disclosures move through the closed lifecycle
+`disclosure_drafting` → `disclosure_ready` →
+`disclosure_revealed_to_user` → `disclosure_user_acknowledged` →
+(optionally) `disclosure_dispatch_locked_pending_approval` →
+`disclosure_dispatch_authorised`. `disclosure_cancelled`,
+`disclosure_denied_by_policy`, and `disclosure_superseded` are the
+suspension / terminal states; a disclosure in
+`disclosure_denied_by_policy` MUST carry a non-null
+`denial_reason`.
+
+## 15. Composer-side reviewer reconstruction
+
+A reviewer who opens a composer-side audit packet MUST be able to
+answer — without reading the final model response or the raw user
+prompt text — the following questions purely from descriptor
+records on `schemas/ai/prompt_composer_session.schema.json`:
+
+1. *Which composer session was open?* From the
+   `prompt_composer_session_descriptor`'s `composer_session_id`,
+   `composer_plan_ref`, and `request_workspace_ref` (the typed
+   record).
+2. *Which turn drafts were minted?* From
+   `active_turn_draft_refs` and the per-draft
+   `prompt_composer_turn_draft_descriptor` records.
+3. *Which mentions and attachments rode each draft, and with
+   which disposition?* From `mention_descriptor_refs` and
+   `attachment_descriptor_refs` plus each descriptor's
+   `disposition_class`, `data_classes`, `tainted_fence_strategy`,
+   `tainted_usage_constraints`, and (for attachments)
+   `citation_anchor_refs` / `freshness_class`.
+4. *Which slash commands fired?* From
+   `slash_command_invocation_refs` plus each invocation's
+   `slash_command_class`, `argument_refs`,
+   `produced_mention_refs`, `produced_attachment_refs`, and
+   `invocation_state`.
+5. *Which pre-dispatch disclosure was rendered, and was it
+   acknowledged?* From `predispatch_disclosure_ref` plus the
+   disclosure's `disclosure_state`,
+   `account_provider_path_class`, account / provider / model
+   identity refs, `approval_posture_class`, and the typed
+   `disclosure_fields` array.
+6. *Which receipts / dispatches were minted post-dispatch?* From
+   the draft's `route_receipt_ref`, `spend_receipt_ref`,
+   `branch_agent_dispatch_ref`, and `review_handoff_ref` (and
+   the disclosure's matching placeholder refs).
+
+If any step fails to resolve, the audit packet denies with the
+matching typed reason from
+`schemas/ai/prompt_composer_session.schema.json`'s `denial_reason`
+vocabulary. There is no "best-effort" composer-side reconstruction
+path.
+
+## 16. Composer-side narrowing discipline
+
+The composer-side surface adds two more rungs to the narrowing
+discipline of section 6:
+
+- A **composer session** MAY narrow further still (for example, a
+  session opened with `default_account_provider_path_class =
+  no_account_local_only` refusing to accept any
+  `connected_provider_payload_allowed` data class on a mention or
+  attachment) but MAY NOT widen past the request workspace's
+  admitted sets.
+- A **turn-draft descriptor** MAY narrow per-draft (for example,
+  a `patch_flow` draft refusing to admit
+  `extension_proposed_context_allowed` for one specific draft)
+  but MAY NOT widen past the session's admitted sets.
+
+Any attempt to widen at the composer-session or turn-draft level
+denies with `mention_data_class_denied_always_violation`,
+`attachment_data_class_denied_always_violation`, or
+`required_disclosure_field_missing` (as appropriate). A
+`request_workspace_ref` whose echoed flow / scope / posture /
+lifecycle disagrees with the owning workspace at resolution time
+denies with the matching `*_drift_detected` reason on
+`schemas/ai/request_workspace_ref.schema.json`.
+
+## 17. Additive-minor change discipline (composer-session)
+
+Adding a new `mention_kind`, `attachment_kind`,
+`slash_command_class`, `slash_command_invocation_state`,
+`attachment_disposition_class`, `disclosure_field_class`,
+`approval_posture_class`, `account_provider_path_class`,
+`predispatch_disclosure_state_class`, `turn_draft_state`,
+`dispatch_target_class`, `audit_event_id`, or `denial_reason`
+value on `schemas/ai/prompt_composer_session.schema.json` is
+**additive-minor** and bumps the
+`prompt_composer_session_schema_version` const. Adding a new
+`flow_class`, `scope_filter_class`, `isolation_posture_class`,
+`privacy_export_posture_class`,
+`retention_stance_within_workspace_class`,
+`lifecycle_state_class`, `ref_origin_class`, `audit_event_id`, or
+`denial_reason` value on
+`schemas/ai/request_workspace_ref.schema.json` is **additive-minor**
+and bumps the `request_workspace_ref_schema_version` const.
+Repurposing an existing value on either schema is breaking and
+requires a new decision row plus a major schema version bump.
+
+## 18. Out of scope at this revision
 
 Explicitly out of scope:
 
@@ -663,6 +1166,11 @@ Explicitly out of scope:
   binding schemas for any specific flow.
 - Fixing a concrete provider / model pairing for any specific
   plan.
+- Implementing the live composer surface, the slash-command
+  parser, the pre-dispatch disclosure renderer, or working
+  inference execution.
+- Provider-specific message rendering or final composer UI
+  chrome.
 
 The contract freezes the shape those implementations will read
 and write; the implementations themselves land in later

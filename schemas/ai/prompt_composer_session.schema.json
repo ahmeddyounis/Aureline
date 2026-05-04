@@ -1,0 +1,1492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/prompt_composer_session.schema.json",
+  "title": "Aureline AI prompt-composer session, turn-draft, mention, attachment, slash-command, and pre-dispatch disclosure contract",
+  "description": "Boundary schema for the prompt_composer_session_descriptor, the prompt_composer_turn_draft_descriptor, the prompt_composer_mention_descriptor, the prompt_composer_attachment_descriptor, the prompt_composer_slash_command_invocation_record, the prompt_composer_predispatch_disclosure_record, and the prompt_composer_session_audit_event_record frozen in docs/ai/prompt_composer_contract.md. The descriptor records are the schema-of-record for the user-facing prompt-composer surface; they share their composer_session_id, turn_draft_id, mention_id, and attachment_id namespaces with the lighter prompt_composer_session_record / prompt_composer_turn_draft_record / prompt_composer_mention_record / prompt_composer_attachment_record carried on schemas/ai/context_assembly.schema.json (which remains the assembly-side projection). A composer surface, an evidence packet, an admin reconciliation lane, a support-replay packet, or an automation harness reads the descriptor records to learn how an AI request was assembled in the composer — which slash command fired, which mentions and attachments rode the draft (with their attached / omitted / pinned / fenced posture), which scope / target / account-provider path / approval posture / route / spend receipt placeholders the composer disclosed before dispatch, and which request_workspace_ref the session anchored to. Raw prompt text, raw retrieved-document bodies, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, raw workspace paths, raw URLs, raw endpoint hostnames, and raw credential material never cross this boundary; the schema carries ids, typed vocabulary, and structured postures only. The eventual AI / prompt-composer crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new mention_kind, attachment_kind, slash_command_class, attachment_disposition_class, disclosure_field_class, approval_posture_class, account_provider_path_class, predispatch_disclosure_state_class, turn_draft_state, dispatch_target_class, slash_command_invocation_state, audit_event_id, or denial_reason value is additive-minor and requires a prompt_composer_session_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/prompt_composer_session_descriptor" },
+    { "$ref": "#/$defs/prompt_composer_turn_draft_descriptor" },
+    { "$ref": "#/$defs/prompt_composer_mention_descriptor" },
+    { "$ref": "#/$defs/prompt_composer_attachment_descriptor" },
+    { "$ref": "#/$defs/prompt_composer_slash_command_invocation_record" },
+    { "$ref": "#/$defs/prompt_composer_predispatch_disclosure_record" },
+    { "$ref": "#/$defs/prompt_composer_session_audit_event_record" }
+  ],
+  "$defs": {
+    "prompt_composer_session_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this prompt-composer session vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "prompt_composer_session_descriptor",
+        "prompt_composer_turn_draft_descriptor",
+        "prompt_composer_mention_descriptor",
+        "prompt_composer_attachment_descriptor",
+        "prompt_composer_slash_command_invocation_record",
+        "prompt_composer_predispatch_disclosure_record",
+        "prompt_composer_session_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw prompt text, raw document bodies, raw URLs, raw paths, raw terminal / log bodies, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show in composer review, admin reconciliation, support export, and claim-manifest review surfaces. Carries no raw prompt text, no raw document bodies, and no raw credential material."
+    },
+
+    "mention_kind": {
+      "type": "string",
+      "enum": [
+        "symbol_mention",
+        "file_mention",
+        "file_slice_mention",
+        "buffer_slice_mention",
+        "editor_selection_mention",
+        "workset_mention",
+        "execution_context_mention",
+        "search_result_mention",
+        "graph_node_mention",
+        "graph_edge_mention",
+        "graph_summary_mention",
+        "docs_anchor_mention",
+        "citation_anchor_mention",
+        "runbook_step_mention",
+        "diagnostic_mention",
+        "diagnostic_set_mention",
+        "terminal_transcript_mention",
+        "log_span_mention",
+        "request_response_mention",
+        "generated_artifact_mention",
+        "notebook_cell_mention",
+        "notebook_output_mention",
+        "review_thread_mention",
+        "branch_agent_dispatch_mention",
+        "connected_provider_resource_mention",
+        "collaboration_participant_mention",
+        "extension_resource_mention",
+        "work_item_mention",
+        "work_item_relation_mention"
+      ],
+      "description": "Frozen mention-kind vocabulary for typed references the user places inside a composer turn draft. Extends the assembly-side schemas/ai/context_assembly.schema.json mention_kind with explicit slots for editor selections, graph nodes / edges / summaries, file slices, buffer slices, diagnostic sets, notebook cells / outputs, and work-item / work-item-relation references. Every mention names exactly one kind; raw strings (free text that happens to look like a path or URL) are not mentions and are never promoted to one silently."
+    },
+
+    "attachment_kind": {
+      "type": "string",
+      "enum": [
+        "retrieved_document",
+        "docs_pack_excerpt_attachment",
+        "citation_anchor_bundle",
+        "editor_selection_excerpt",
+        "buffer_slice_excerpt",
+        "file_slice_excerpt",
+        "graph_summary_excerpt",
+        "diagnostic_bundle",
+        "terminal_log_capture",
+        "log_span_capture",
+        "request_response_payload",
+        "generated_artifact_excerpt",
+        "notebook_cell_excerpt",
+        "notebook_output_excerpt",
+        "user_supplied_text",
+        "user_supplied_file",
+        "workspace_slice_bundle",
+        "branch_agent_evidence_bundle",
+        "review_thread_bundle",
+        "work_item_summary_bundle",
+        "connected_provider_resource_bundle",
+        "extension_resource_bundle"
+      ],
+      "description": "Frozen attachment-kind vocabulary for typed attachments in a composer turn draft. Extends the assembly-side schemas/ai/context_assembly.schema.json attachment_kind with explicit slots for editor selection excerpts, file / buffer slice excerpts, graph summary excerpts, log span captures, notebook cell / output excerpts, review thread bundles, work-item summary bundles, connected-provider resource bundles, and extension resource bundles. Every attachment names exactly one kind and one trust_posture; the composer never assumes attached content is trusted unless the attachment_kind and source establish that posture."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": [
+        "trusted_first_party",
+        "trusted_authority",
+        "reviewed_derived",
+        "unreviewed_derived",
+        "untrusted_external",
+        "untrusted_user_supplied",
+        "untrusted_remote_collaborator",
+        "untrusted_connected_provider",
+        "untrusted_extension_proposed",
+        "untrusted_generated_artifact",
+        "untrusted_log_capture",
+        "policy_quarantined"
+      ],
+      "description": "Trust-posture vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification. Composer attachments / mentions whose trust_posture is one of the untrusted_* values or policy_quarantined MUST ride the tainted-content fence; the composer never promotes untrusted content to instruction authority."
+    },
+
+    "tainted_fence_strategy": {
+      "type": "string",
+      "enum": [
+        "instruction_stripped",
+        "quoted_as_data_only",
+        "sandboxed_excerpt",
+        "summary_only_no_body",
+        "metadata_only_no_content",
+        "citation_reference_only"
+      ],
+      "description": "Tainted fence-strategy vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "tainted_usage_constraint": {
+      "type": "string",
+      "enum": [
+        "must_not_gain_tool_permission",
+        "must_not_escalate_scope",
+        "must_not_mint_citations",
+        "must_not_override_instruction_bundle",
+        "must_not_publish_externally",
+        "must_not_commit_to_repo",
+        "must_not_dispatch_branch_agent",
+        "must_not_route_to_higher_cost_tier",
+        "must_preserve_fence_in_downstream_packet"
+      ],
+      "description": "Tainted-usage-constraint vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "attachment_disposition_class": {
+      "type": "string",
+      "enum": [
+        "attached_default",
+        "pinned_by_user",
+        "pinned_by_composer_plan",
+        "omitted_under_budget",
+        "omitted_outside_scope",
+        "omitted_freshness_floor_unmet",
+        "omitted_dedup_against_pinned",
+        "omitted_user_deselected",
+        "omitted_policy_narrows_scope",
+        "fenced_tainted_default",
+        "fenced_tainted_user_pasted",
+        "fenced_tainted_tool_return",
+        "fenced_tainted_remote_collaborator",
+        "fenced_tainted_connected_provider",
+        "fenced_tainted_extension_proposed",
+        "policy_blocked_workspace_trust",
+        "policy_blocked_admin_policy",
+        "policy_blocked_extension_permission",
+        "policy_blocked_connected_provider_policy",
+        "policy_blocked_secret_projection",
+        "redacted_under_broker_pass",
+        "denied_data_class_denied_always"
+      ],
+      "description": "Frozen attachment / mention disposition vocabulary. Every mention or attachment carried on a turn-draft descriptor names exactly one disposition so a reviewer can answer 'which mentions / attachments were attached, omitted, pinned, fenced, redacted, or policy-blocked' without reading the assembly. omitted_* dispositions MUST carry a typed reason; fenced_tainted_* dispositions MUST carry a tainted_fence_strategy; policy_blocked_* dispositions MUST carry a typed block reason; denied_data_class_denied_always is the canonical disposition for a mention / attachment that resolved to credential_handle_denied_always or secret_projection_denied_always (the composer denies rather than silently dropping)."
+    },
+
+    "slash_command_class": {
+      "type": "string",
+      "enum": [
+        "explain_slash_command",
+        "review_slash_command",
+        "patch_slash_command",
+        "test_generation_slash_command",
+        "refactor_slash_command",
+        "doc_generation_slash_command",
+        "diagnostic_triage_slash_command",
+        "background_branch_agent_slash_command",
+        "review_handoff_slash_command",
+        "search_slash_command",
+        "navigate_slash_command",
+        "attach_slash_command",
+        "pin_slash_command",
+        "unpin_slash_command",
+        "omit_slash_command",
+        "scope_change_slash_command",
+        "model_change_slash_command",
+        "provider_change_slash_command",
+        "approval_request_slash_command",
+        "approval_revoke_slash_command",
+        "support_replay_slash_command",
+        "extension_provided_slash_command",
+        "user_authored_macro_slash_command",
+        "disabled_no_slash_command"
+      ],
+      "description": "Frozen slash-command class vocabulary. Every slash-command invocation names exactly one class so reviewers can fan out which slash command produced which dispatch lane (explain / review / patch / test / etc.) or which composer-side mutation (attach / pin / omit / scope-change / model-change / approval-request) without reading raw command strings. extension_provided_slash_command and user_authored_macro_slash_command name slash commands not declared by the first-party product; both ride the extension effective-permission and macro-authoring controls. disabled_no_slash_command is the canonical state for a slash command row that exists but MUST NOT fire (e.g. policy-disabled); an invocation against disabled_no_slash_command denies with slash_command_disabled_by_policy."
+    },
+
+    "slash_command_invocation_state": {
+      "type": "string",
+      "enum": [
+        "invocation_open",
+        "invocation_argument_validation_pending",
+        "invocation_disclosure_pending",
+        "invocation_approval_pending",
+        "invocation_dispatched",
+        "invocation_completed_success",
+        "invocation_completed_partial",
+        "invocation_failed",
+        "invocation_cancelled",
+        "invocation_superseded",
+        "invocation_denied_by_policy"
+      ],
+      "description": "Frozen slash-command invocation lifecycle vocabulary. Invocations move monotonically through these states (except invocation_superseded MAY be reached from any non-terminal state). Terminal states are invocation_completed_*, invocation_failed, invocation_cancelled, invocation_superseded, and invocation_denied_by_policy."
+    },
+
+    "approval_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_approval_required",
+        "approval_required_user_confirmation",
+        "approval_required_admin_confirmation",
+        "approval_required_browser_handoff_ticket",
+        "approval_already_granted_session_scoped",
+        "approval_already_granted_one_shot",
+        "approval_already_granted_admin_scoped",
+        "approval_revoked_pending_renewal",
+        "approval_denied_by_policy",
+        "approval_denied_by_user",
+        "approval_unknown_until_dispatch"
+      ],
+      "description": "Frozen approval-posture vocabulary. Names what approval the composer must obtain before the turn leaves the composer. approval_required_browser_handoff_ticket integrates with ADR-0010's connected-provider browser-handoff approval ticket; approval_already_granted_* states mean a prior ticket / confirmation is still valid; approval_denied_* states deny dispatch; approval_unknown_until_dispatch is the canonical state when policy resolution is deferred to the dispatch boundary (and the composer renders the unknown state verbatim, never inventing a fabricated 'approved' label)."
+    },
+
+    "account_provider_path_class": {
+      "type": "string",
+      "enum": [
+        "first_party_self_hosted_default_account",
+        "first_party_managed_default_account",
+        "first_party_managed_explicit_account",
+        "connected_provider_vendor_account",
+        "connected_provider_self_hosted_account",
+        "extension_provided_provider_account",
+        "mocked_test_provider_account",
+        "no_account_local_only",
+        "disabled_no_provider"
+      ],
+      "description": "Frozen account / provider path vocabulary. Names which account-and-provider lane the composer would dispatch against. first_party_managed_explicit_account names a managed-cloud lane the user explicitly selected; no_account_local_only names a local-only lane that does not require an account (e.g. local model pack); disabled_no_provider names a provider lane that policy disabled — an invocation against disabled_no_provider denies with provider_disabled_by_policy."
+    },
+
+    "predispatch_disclosure_state_class": {
+      "type": "string",
+      "enum": [
+        "disclosure_drafting",
+        "disclosure_ready",
+        "disclosure_revealed_to_user",
+        "disclosure_user_acknowledged",
+        "disclosure_dispatch_locked_pending_approval",
+        "disclosure_dispatch_authorised",
+        "disclosure_cancelled",
+        "disclosure_denied_by_policy",
+        "disclosure_superseded"
+      ],
+      "description": "Frozen pre-dispatch disclosure state vocabulary. The disclosure record is the typed pre-dispatch card the composer renders verbatim before a turn leaves the composer; the state names where in the disclose-acknowledge-dispatch loop the record sits."
+    },
+
+    "disclosure_field_class": {
+      "type": "string",
+      "enum": [
+        "scope_filter_disclosed",
+        "target_context_disclosed",
+        "active_account_disclosed",
+        "active_provider_disclosed",
+        "active_model_disclosed",
+        "route_path_disclosed",
+        "cost_visibility_disclosed",
+        "estimated_spend_disclosed",
+        "spend_ceiling_disclosed",
+        "approval_posture_disclosed",
+        "tainted_attachment_count_disclosed",
+        "omitted_attachment_count_disclosed",
+        "policy_blocked_attachment_count_disclosed",
+        "redacted_attachment_count_disclosed",
+        "request_workspace_ref_disclosed",
+        "branch_agent_dispatch_intent_disclosed",
+        "review_handoff_intent_disclosed",
+        "freshness_class_disclosed",
+        "redaction_class_disclosed",
+        "instruction_bundle_refs_disclosed",
+        "check_bundle_refs_disclosed",
+        "tool_allowlist_disclosed",
+        "data_class_allowlist_disclosed",
+        "policy_epoch_disclosed",
+        "deployment_profile_disclosed",
+        "workspace_trust_state_disclosed"
+      ],
+      "description": "Frozen disclosure-field vocabulary. The composer's pre-dispatch disclosure card MUST list at least the fields required by the contract (scope, target context, active account / provider / model, approval posture, route path, cost visibility, request_workspace_ref). Optional fields are disclosed when relevant (branch-agent intent, review-handoff intent, redaction class, etc.). The composer never omits a required field silently — a disclosure that lacks a required field denies with required_disclosure_field_missing."
+    },
+
+    "turn_draft_state": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "queued_for_dispatch",
+        "dispatched_inline",
+        "dispatched_branch_agent",
+        "dispatched_review_handoff",
+        "cancelled",
+        "superseded"
+      ],
+      "description": "Turn-draft state vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification. cancelled and superseded are terminal; no descriptor may transition out of a terminal state."
+    },
+
+    "dispatch_target_class": {
+      "type": "string",
+      "enum": [
+        "inline_composer",
+        "background_branch_agent",
+        "review_handoff",
+        "support_replay_only"
+      ],
+      "description": "Dispatch-target vocabulary re-exported from schemas/ai/context_assembly.schema.json without modification."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Client-scope vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Freshness class re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "data_class": {
+      "type": "string",
+      "enum": [
+        "workspace_code_slice_allowed",
+        "workspace_symbol_allowed",
+        "workspace_diagnostic_allowed",
+        "workspace_search_result_allowed",
+        "workspace_graph_summary_allowed",
+        "docs_pack_excerpt_allowed",
+        "generated_reference_excerpt_allowed",
+        "terminal_transcript_excerpt_allowed",
+        "log_excerpt_allowed",
+        "request_response_excerpt_allowed",
+        "generated_artifact_excerpt_allowed",
+        "user_supplied_text_allowed",
+        "user_supplied_file_allowed",
+        "connected_provider_payload_allowed",
+        "extension_proposed_context_allowed",
+        "repo_instruction_bundle_allowed",
+        "repo_check_bundle_allowed",
+        "ai_prior_turn_context_allowed",
+        "credential_handle_denied_always",
+        "secret_projection_denied_always"
+      ],
+      "description": "Data-class vocabulary re-exported from schemas/ai/provider_registry.schema.json without modification. credential_handle_denied_always and secret_projection_denied_always remain on the denied-always set on every composer session, turn draft, mention, attachment, and disclosure record; an admission attempt denies with mention_data_class_denied_always_violation, attachment_data_class_denied_always_violation, or disclosure_data_class_denied_always_violation."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "composer_session_opened",
+        "composer_session_closed",
+        "composer_session_suspended_on_policy_epoch_roll",
+        "composer_session_resumed_after_policy_epoch_roll",
+        "composer_turn_draft_opened",
+        "composer_turn_draft_mention_added",
+        "composer_turn_draft_mention_removed",
+        "composer_turn_draft_attachment_added",
+        "composer_turn_draft_attachment_removed",
+        "composer_turn_draft_attachment_pinned",
+        "composer_turn_draft_attachment_omitted",
+        "composer_turn_draft_attachment_fenced_tainted",
+        "composer_turn_draft_attachment_policy_blocked",
+        "composer_turn_draft_attachment_redacted",
+        "composer_turn_draft_slash_command_invoked",
+        "composer_turn_draft_predispatch_disclosure_minted",
+        "composer_turn_draft_predispatch_disclosure_revealed",
+        "composer_turn_draft_predispatch_disclosure_acknowledged",
+        "composer_turn_draft_predispatch_disclosure_denied",
+        "composer_turn_draft_dispatched_inline",
+        "composer_turn_draft_dispatched_branch_agent",
+        "composer_turn_draft_dispatched_review_handoff",
+        "composer_turn_draft_cancelled",
+        "composer_turn_draft_superseded",
+        "composer_turn_draft_denial_emitted",
+        "composer_session_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the prompt_composer_session audit stream. Events MUST NOT carry raw prompt text, raw document bodies, raw URLs, raw paths, raw terminal / log bodies, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "composer_session_id_unresolvable",
+        "composer_plan_ref_unresolvable",
+        "request_workspace_ref_unresolvable",
+        "request_workspace_ref_drift_detected",
+        "turn_draft_terminal_cannot_dispatch",
+        "turn_draft_dispatch_target_unresolved",
+        "turn_draft_dispatch_target_requires_branch_agent_dispatch_ref",
+        "turn_draft_dispatch_target_requires_review_handoff_ref",
+        "mention_kind_unresolved",
+        "mention_target_ref_unresolvable",
+        "mention_data_class_denied_always_violation",
+        "attachment_kind_unresolved",
+        "attachment_source_ref_unresolvable",
+        "attachment_data_class_denied_always_violation",
+        "attachment_disposition_unresolved",
+        "attachment_disposition_requires_omission_reason",
+        "attachment_disposition_requires_block_reason",
+        "attachment_disposition_requires_fence_strategy",
+        "attachment_disposition_requires_redaction_reason",
+        "tainted_attachment_missing_fence_strategy",
+        "tainted_attachment_missing_usage_constraint",
+        "tainted_attachment_promoted_to_instruction_role_forbidden",
+        "slash_command_class_unresolved",
+        "slash_command_disabled_by_policy",
+        "slash_command_invocation_state_unresolved",
+        "slash_command_invocation_argument_unresolvable",
+        "predispatch_disclosure_state_unresolved",
+        "required_disclosure_field_missing",
+        "approval_posture_unresolved",
+        "approval_denied_by_policy",
+        "account_provider_path_class_unresolved",
+        "provider_disabled_by_policy",
+        "raw_prompt_text_forbidden_on_boundary",
+        "raw_path_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "raw_body_forbidden_on_boundary",
+        "policy_epoch_rolled_invalidations",
+        "prompt_composer_session_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort composer session, turn draft, mention, attachment, slash-command invocation, or pre-dispatch disclosure is forbidden."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the record was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Empty string when minted outside an execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Re-validated on every dispatch; a policy-epoch roll suspends an open composer session and denies every pending dispatch with policy_epoch_rolled_invalidations."
+    },
+
+    "request_workspace_ref": {
+      "$ref": "https://aureline.dev/schemas/ai/request_workspace_ref.schema.json#/$defs/request_workspace_ref_record",
+      "description": "Typed request_workspace_ref_record on schemas/ai/request_workspace_ref.schema.json. The composer session and every turn draft and pre-dispatch disclosure record carry this typed reference rather than an unscoped opaque_id, so reviewers and support tooling can read flow_class / scope_filter_class / isolation_posture_class / privacy_export_posture_class / retention_stance_within_workspace_class / lifecycle_state_class without resolving the owning workspace."
+    },
+
+    "money_amount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unit_label", "amount"],
+      "properties": {
+        "unit_label": { "$ref": "#/$defs/non_empty_string" },
+        "amount": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Decimal amount as a string to avoid floating-point drift across RPC boundaries."
+        }
+      },
+      "description": "Provider-declared cost units. Mirrors the shape used on schemas/ai/context_assembly.schema.json route / spend records so disclosure rows reuse the same arithmetic."
+    },
+
+    "prompt_composer_session_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "composer_session_id",
+        "composer_plan_ref",
+        "request_workspace_ref",
+        "client_scopes",
+        "redaction_class",
+        "policy_context",
+        "opened_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_session_descriptor" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "composer_session_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the composer session. Same namespace as schemas/ai/context_assembly.schema.json prompt_composer_session_record.composer_session_id; the descriptor is the schema-of-record for the composer-UI side."
+        },
+        "display_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable label the composer / admin / support surfaces render verbatim."
+        },
+        "composer_plan_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prompt_composer_plan_record on schemas/ai/prompt_composer_plan.schema.json that governs the session. Plan IDs are stable across turns in the same session."
+        },
+        "request_workspace_ref": { "$ref": "#/$defs/request_workspace_ref" },
+        "default_account_provider_path_class": {
+          "$ref": "#/$defs/account_provider_path_class",
+          "description": "Default account / provider path class the session would dispatch against unless a turn-draft descriptor or slash-command invocation narrows it. Disclosed verbatim on every pre-dispatch disclosure record."
+        },
+        "default_account_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the default account identity (managed-cloud account, connected-provider account, self-hosted account). Raw account names, raw emails, raw tenant tokens, and raw credentials never appear. Null when default_account_provider_path_class = no_account_local_only or disabled_no_provider."
+        },
+        "default_provider_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the default provider identity. Null when default_account_provider_path_class = disabled_no_provider."
+        },
+        "default_model_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the default model identity. Null when no model has been resolved yet (e.g. session opened on a disabled_no_provider lane)."
+        },
+        "default_approval_posture_class": {
+          "$ref": "#/$defs/approval_posture_class",
+          "description": "Default approval posture observed when the session opened. Re-evaluated on every turn-draft descriptor and slash-command invocation; a turn that observes a stricter posture MUST update the descriptor before dispatch."
+        },
+        "active_turn_draft_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the prompt_composer_turn_draft_descriptor records currently open against the session. Empty when the session has no open draft."
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "closed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp the session closed. Null while the session is open."
+        }
+      },
+      "description": "One record per composer session. Reserves the typed session slot so later composer UX work cannot smuggle scope or trust decisions into an ad-hoc payload. The descriptor extends the assembly-side prompt_composer_session_record on schemas/ai/context_assembly.schema.json with default_account_provider_path_class, default account / provider / model identity refs, and default_approval_posture_class — the disclosures the composer must render verbatim before a turn leaves the composer."
+    },
+
+    "prompt_composer_mention_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "mention_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "mention_kind",
+        "target_ref",
+        "trust_posture",
+        "disposition_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_mention_descriptor" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "mention_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the mention. Same namespace as schemas/ai/context_assembly.schema.json prompt_composer_mention_record.mention_id."
+        },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "mention_kind": { "$ref": "#/$defs/mention_kind" },
+        "target_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the typed target (symbol id, file id, file slice id, buffer slice id, editor selection id, workset id, execution context id, search result id, graph node / edge / summary id, docs anchor id, citation anchor id, runbook step id, diagnostic id, diagnostic set id, terminal transcript span id, log span id, request-response id, generated artifact id, notebook cell / output id, review thread id, branch-agent dispatch id, connected-provider resource id, collaboration participant id, extension resource id, work-item id, work-item-relation id). Raw paths, raw URLs, raw symbol bodies, raw prompt text never appear."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "tainted": {
+          "type": "boolean",
+          "description": "True when the mention's trust_posture is one of the untrusted_* or policy_quarantined values; the composer MUST emit the resulting segment with segment_class = tainted on schemas/ai/context_assembly.schema.json."
+        },
+        "disposition_class": { "$ref": "#/$defs/attachment_disposition_class" },
+        "data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Data classes this mention contributes when admitted. credential_handle_denied_always and secret_projection_denied_always MUST NOT appear on a non-denied disposition; an admission attempt denies with mention_data_class_denied_always_violation."
+        },
+        "tainted_fence_strategy": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tainted_fence_strategy" }
+          ],
+          "description": "Required (non-null) when disposition_class is one of the fenced_tainted_* values. Mirrors the schemas/ai/context_assembly.schema.json segment-side fence strategy."
+        },
+        "tainted_usage_constraints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/tainted_usage_constraint" },
+          "description": "Required (non-empty) when disposition_class is one of the fenced_tainted_* values."
+        },
+        "mention_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the mention for support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "tainted_fence_strategy and tainted_usage_constraints MUST be present when disposition_class is fenced_tainted_*.",
+          "if": {
+            "properties": {
+              "disposition_class": {
+                "enum": [
+                  "fenced_tainted_default",
+                  "fenced_tainted_user_pasted",
+                  "fenced_tainted_tool_return",
+                  "fenced_tainted_remote_collaborator",
+                  "fenced_tainted_connected_provider",
+                  "fenced_tainted_extension_proposed"
+                ]
+              }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "tainted_fence_strategy": { "$ref": "#/$defs/tainted_fence_strategy" },
+              "tainted_usage_constraints": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/tainted_usage_constraint" }
+              }
+            },
+            "required": ["tainted_fence_strategy", "tainted_usage_constraints"]
+          }
+        }
+      ],
+      "description": "Typed mention descriptor inside a composer turn draft. Extends the lighter assembly-side prompt_composer_mention_record on schemas/ai/context_assembly.schema.json with disposition_class (attached / pinned / omitted / fenced / policy-blocked / redacted / denied) and explicit data_classes, tainted_fence_strategy, and tainted_usage_constraints so the composer cannot smuggle silent-omit, silent-promote, or silent-fence behaviour past the boundary."
+    },
+
+    "prompt_composer_attachment_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "attachment_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "attachment_kind",
+        "trust_posture",
+        "disposition_class",
+        "data_classes",
+        "redaction_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_attachment_descriptor" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "attachment_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the attachment. Same namespace as schemas/ai/context_assembly.schema.json prompt_composer_attachment_record.attachment_id."
+        },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "attachment_kind": { "$ref": "#/$defs/attachment_kind" },
+        "source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the attachment's underlying source (upload id, terminal transcript span id, log span id, request-response id, generated artifact id, docs anchor id, branch-agent evidence bundle id, review thread id, work item id, connected-provider resource id, extension resource id). Raw bodies never appear."
+        },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "disposition_class": { "$ref": "#/$defs/attachment_disposition_class" },
+        "data_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/data_class" },
+          "description": "Data classes the attachment contributes when admitted. credential_handle_denied_always and secret_projection_denied_always MUST NOT appear on a non-denied disposition; an admission attempt denies with attachment_data_class_denied_always_violation."
+        },
+        "tainted_fence_strategy": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tainted_fence_strategy" }
+          ],
+          "description": "Required (non-null) when disposition_class is one of the fenced_tainted_* values OR trust_posture is one of the untrusted_* / policy_quarantined values."
+        },
+        "tainted_usage_constraints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/tainted_usage_constraint" },
+          "description": "Required (non-empty) when disposition_class is one of the fenced_tainted_* values OR trust_posture is one of the untrusted_* / policy_quarantined values."
+        },
+        "citation_anchor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Citation anchors that back the attachment's authority claim. Required (non-empty) when attachment_kind ∈ {retrieved_document, docs_pack_excerpt_attachment, citation_anchor_bundle}."
+        },
+        "origin_mention_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the prompt_composer_mention_descriptor that produced this attachment when the attachment was introduced via a typed mention rather than direct upload / paste."
+        },
+        "origin_slash_command_invocation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the prompt_composer_slash_command_invocation_record that produced this attachment (e.g. /attach diagnostic-bundle)."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "attachment_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the attachment for support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "tainted_fence_strategy and tainted_usage_constraints MUST be present when trust_posture is untrusted_* or policy_quarantined.",
+          "if": {
+            "properties": {
+              "trust_posture": {
+                "enum": [
+                  "untrusted_external",
+                  "untrusted_user_supplied",
+                  "untrusted_remote_collaborator",
+                  "untrusted_connected_provider",
+                  "untrusted_extension_proposed",
+                  "untrusted_generated_artifact",
+                  "untrusted_log_capture",
+                  "policy_quarantined"
+                ]
+              }
+            },
+            "required": ["trust_posture"]
+          },
+          "then": {
+            "properties": {
+              "tainted_fence_strategy": { "$ref": "#/$defs/tainted_fence_strategy" },
+              "tainted_usage_constraints": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/tainted_usage_constraint" }
+              }
+            },
+            "required": ["tainted_fence_strategy", "tainted_usage_constraints"]
+          }
+        },
+        {
+          "description": "tainted_fence_strategy and tainted_usage_constraints MUST be present when disposition_class is fenced_tainted_*.",
+          "if": {
+            "properties": {
+              "disposition_class": {
+                "enum": [
+                  "fenced_tainted_default",
+                  "fenced_tainted_user_pasted",
+                  "fenced_tainted_tool_return",
+                  "fenced_tainted_remote_collaborator",
+                  "fenced_tainted_connected_provider",
+                  "fenced_tainted_extension_proposed"
+                ]
+              }
+            },
+            "required": ["disposition_class"]
+          },
+          "then": {
+            "properties": {
+              "tainted_fence_strategy": { "$ref": "#/$defs/tainted_fence_strategy" },
+              "tainted_usage_constraints": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/tainted_usage_constraint" }
+              }
+            },
+            "required": ["tainted_fence_strategy", "tainted_usage_constraints"]
+          }
+        },
+        {
+          "description": "citation_anchor_refs MUST be non-empty when attachment_kind requires citation anchors.",
+          "if": {
+            "properties": {
+              "attachment_kind": {
+                "enum": [
+                  "retrieved_document",
+                  "docs_pack_excerpt_attachment",
+                  "citation_anchor_bundle"
+                ]
+              }
+            },
+            "required": ["attachment_kind"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/opaque_id" }
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        }
+      ],
+      "description": "Typed attachment descriptor inside a composer turn draft. Extends the lighter assembly-side prompt_composer_attachment_record on schemas/ai/context_assembly.schema.json with disposition_class (attached / pinned / omitted / fenced / policy-blocked / redacted / denied), data_classes, tainted_usage_constraints, freshness_class, and origin_slash_command_invocation_ref so the composer cannot elevate untrusted bytes to trusted instruction authority by default and so reviewers can answer 'why was this attached / pinned / omitted / fenced' from the descriptor alone."
+    },
+
+    "prompt_composer_slash_command_invocation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "slash_command_invocation_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "slash_command_class",
+        "slash_command_identity_ref",
+        "invocation_state",
+        "argument_refs",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_slash_command_invocation_record" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "slash_command_invocation_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "slash_command_class": { "$ref": "#/$defs/slash_command_class" },
+        "slash_command_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque reference to the concrete slash-command identity (first-party command id, extension-provided command id, user-authored macro id). Raw command strings, raw macro bodies, and raw extension-provided code never appear."
+        },
+        "canonical_command_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the canonical command id (the same canonical_command_id used by other surfaces — palette, menu, CLI). When present, the slash command surfaces the same governance row as those surfaces; M00-374's invocation-result-and-parity contract reads this ref to enforce no-bypass parity."
+        },
+        "invocation_state": { "$ref": "#/$defs/slash_command_invocation_state" },
+        "argument_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to typed arguments the invocation carried (mention refs, attachment refs, scope target refs, model identity refs, account identity refs). Raw argument strings never appear; the schema carries ids only."
+        },
+        "produced_mention_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to mention descriptors the invocation produced (e.g. /attach @file produced a file_mention)."
+        },
+        "produced_attachment_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to attachment descriptors the invocation produced (e.g. /attach diagnostic-bundle produced a diagnostic_bundle attachment)."
+        },
+        "predispatch_disclosure_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the prompt_composer_predispatch_disclosure_record the invocation triggered. Required (non-null) when invocation_state ∈ {invocation_disclosure_pending, invocation_approval_pending, invocation_dispatched, invocation_completed_success, invocation_completed_partial}."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) when invocation_state = invocation_denied_by_policy."
+        },
+        "invocation_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the invocation for support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "Timestamp the invocation reached a terminal state. Null while the invocation is non-terminal."
+        }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null when invocation_state = invocation_denied_by_policy.",
+          "if": {
+            "properties": { "invocation_state": { "const": "invocation_denied_by_policy" } },
+            "required": ["invocation_state"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Typed slash-command invocation. Names which slash command fired, what typed arguments rode it, what mentions / attachments it produced, and what pre-dispatch disclosure it triggered. The record is the boundary surface a reviewer reads to answer 'which slash command produced which dispatch lane' without parsing raw command strings."
+    },
+
+    "predispatch_disclosure_field_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disclosure_field_class", "disclosure_summary"],
+      "properties": {
+        "disclosure_field_class": { "$ref": "#/$defs/disclosure_field_class" },
+        "disclosure_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence the composer renders verbatim for this disclosure field. Carries no raw paths, raw URLs, raw account names, raw model display strings beyond what the surrounding identity refs already disclose, and no raw cost numbers (cost rides the structured estimated_spend / spend_ceiling fields)."
+        },
+        "supporting_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the underlying record that backs the disclosure (request_workspace_id for scope, account identity ref for active account, etc.)."
+        }
+      },
+      "description": "One disclosure field on a prompt_composer_predispatch_disclosure_record. The composer's disclosure card is a closed list of these entries; reviewers walk the list to confirm each required field was disclosed verbatim."
+    },
+
+    "prompt_composer_predispatch_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "predispatch_disclosure_id",
+        "composer_session_ref",
+        "turn_draft_ref",
+        "request_workspace_ref",
+        "disclosure_state",
+        "account_provider_path_class",
+        "approval_posture_class",
+        "disclosure_fields",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_predispatch_disclosure_record" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "predispatch_disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_ref": { "$ref": "#/$defs/opaque_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/request_workspace_ref" },
+        "disclosure_state": { "$ref": "#/$defs/predispatch_disclosure_state_class" },
+        "account_provider_path_class": { "$ref": "#/$defs/account_provider_path_class" },
+        "account_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the account identity disclosed verbatim. Null when account_provider_path_class = no_account_local_only or disabled_no_provider."
+        },
+        "provider_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the provider identity disclosed verbatim. Null when account_provider_path_class = disabled_no_provider."
+        },
+        "model_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the model identity disclosed verbatim. Null when no model has been resolved."
+        },
+        "approval_posture_class": { "$ref": "#/$defs/approval_posture_class" },
+        "approval_ticket_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to an ADR-0010 connected-provider browser-handoff approval ticket. Required (non-null) when approval_posture_class ∈ {approval_required_browser_handoff_ticket, approval_already_granted_session_scoped, approval_already_granted_one_shot, approval_already_granted_admin_scoped}."
+        },
+        "route_plan_placeholder_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Placeholder opaque ref to the ai_route_plan_record that will be minted at dispatch. Null while the disclosure is in disclosure_drafting; required to be set on disclosure_ready and onward."
+        },
+        "spend_plan_placeholder_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Placeholder opaque ref to the ai_spend_plan_record that will be minted at dispatch. Null while the disclosure is in disclosure_drafting; required to be set on disclosure_ready and onward."
+        },
+        "route_receipt_placeholder_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Placeholder opaque ref reserved for the ai_route_receipt_record minted post-dispatch. Null pre-dispatch; populated when a turn draft has been dispatched and the disclosure is reused as the audit record for the dispatch."
+        },
+        "spend_receipt_placeholder_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Placeholder opaque ref reserved for the ai_spend_receipt_record minted post-dispatch. Null pre-dispatch; populated when a turn draft has been dispatched."
+        },
+        "branch_agent_dispatch_placeholder_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Placeholder opaque ref reserved for the ai_branch_agent_dispatch_record. Required (non-null) when the disclosure names a background_branch_agent dispatch intent on disclosure_fields."
+        },
+        "review_handoff_placeholder_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Placeholder opaque ref reserved for the review-handoff packet. Required (non-null) when the disclosure names a review_handoff dispatch intent on disclosure_fields."
+        },
+        "estimated_spend": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/money_amount" }
+          ],
+          "description": "Estimated spend disclosed verbatim. Null when cost_visibility_class on the route plan placeholder = undisclosed_by_provider or bundled_no_incremental_cost."
+        },
+        "spend_ceiling": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/money_amount" }
+          ],
+          "description": "Spend ceiling disclosed verbatim. Null when no ceiling applies (e.g. flat_fee_subscription)."
+        },
+        "tainted_attachment_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of fenced_tainted_* attachments / mentions on the turn draft, disclosed verbatim. Renders as zero when there are no tainted attachments — never omitted, so reviewers can prove a turn was minted with a tainted-count disclosure even when the count is zero."
+        },
+        "omitted_attachment_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of omitted_* attachments / mentions on the turn draft, disclosed verbatim."
+        },
+        "policy_blocked_attachment_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of policy_blocked_* attachments / mentions on the turn draft, disclosed verbatim."
+        },
+        "redacted_attachment_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of redacted_under_broker_pass attachments / mentions on the turn draft, disclosed verbatim."
+        },
+        "disclosure_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": false,
+          "items": { "$ref": "#/$defs/predispatch_disclosure_field_record" },
+          "description": "Closed list of typed disclosure fields the composer rendered verbatim. The list MUST include the contract-required fields scope_filter_disclosed, target_context_disclosed, active_account_disclosed, active_provider_disclosed, active_model_disclosed, approval_posture_class disclosure (approval_posture_disclosed), route_path_disclosed, cost_visibility_disclosed, and request_workspace_ref_disclosed. A disclosure that lacks one of those required fields denies with required_disclosure_field_missing."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) when disclosure_state = disclosure_denied_by_policy."
+        },
+        "disclosure_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence summarising the disclosure card. Renders verbatim in support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "acknowledged_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+        "dispatched_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null when disclosure_state = disclosure_denied_by_policy.",
+          "if": {
+            "properties": { "disclosure_state": { "const": "disclosure_denied_by_policy" } },
+            "required": ["disclosure_state"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        },
+        {
+          "description": "approval_ticket_ref MUST be non-null when approval_posture_class ∈ {approval_required_browser_handoff_ticket, approval_already_granted_*}.",
+          "if": {
+            "properties": {
+              "approval_posture_class": {
+                "enum": [
+                  "approval_required_browser_handoff_ticket",
+                  "approval_already_granted_session_scoped",
+                  "approval_already_granted_one_shot",
+                  "approval_already_granted_admin_scoped"
+                ]
+              }
+            },
+            "required": ["approval_posture_class"]
+          },
+          "then": {
+            "properties": { "approval_ticket_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["approval_ticket_ref"]
+          }
+        }
+      ],
+      "description": "Typed pre-dispatch disclosure card. The composer mints exactly one of these records per turn draft before the turn leaves the composer; the disclosure carries the typed required fields (scope, target context, active account / provider / model, approval posture, route / spend placeholders, request_workspace_ref, tainted / omitted / policy-blocked / redacted attachment counts) so the user can read the dispatch decision verbatim and the audit stream can prove the disclosure happened."
+    },
+
+    "prompt_composer_turn_draft_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "turn_draft_id",
+        "composer_session_ref",
+        "composer_plan_ref",
+        "request_workspace_ref",
+        "draft_state",
+        "mention_descriptor_refs",
+        "attachment_descriptor_refs",
+        "slash_command_invocation_refs",
+        "instruction_bundle_refs",
+        "check_bundle_refs",
+        "dispatch_target_class",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_turn_draft_descriptor" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "turn_draft_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id for the turn draft. Same namespace as schemas/ai/context_assembly.schema.json prompt_composer_turn_draft_record.turn_draft_id."
+        },
+        "composer_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "composer_plan_ref": { "$ref": "#/$defs/opaque_id" },
+        "request_workspace_ref": { "$ref": "#/$defs/request_workspace_ref" },
+        "draft_state": { "$ref": "#/$defs/turn_draft_state" },
+        "mention_descriptor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the prompt_composer_mention_descriptor records carried on the draft. May be empty (e.g. an empty draft)."
+        },
+        "attachment_descriptor_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the prompt_composer_attachment_descriptor records carried on the draft."
+        },
+        "slash_command_invocation_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the prompt_composer_slash_command_invocation_record entries that fired against the draft."
+        },
+        "instruction_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to repo-defined or workspace-defined instruction bundles pulled in for this turn (repo_agents_file, repo_contributing_file, etc.)."
+        },
+        "check_bundle_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to repo-defined or workspace-defined check bundles associated with this turn (repo_test_suite, repo_lint_suite, etc.)."
+        },
+        "dispatch_target_class": { "$ref": "#/$defs/dispatch_target_class" },
+        "predispatch_disclosure_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the prompt_composer_predispatch_disclosure_record minted for this draft. Required (non-null) on draft_state ∈ {queued_for_dispatch, dispatched_inline, dispatched_branch_agent, dispatched_review_handoff}."
+        },
+        "route_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the ai_route_plan_record bound to this draft. Required (non-null) on draft_state ∈ {dispatched_inline, dispatched_branch_agent, dispatched_review_handoff}."
+        },
+        "spend_plan_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the ai_spend_plan_record bound to this draft. Required (non-null) on draft_state ∈ {dispatched_inline, dispatched_branch_agent, dispatched_review_handoff}."
+        },
+        "route_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the ai_route_receipt_record minted for this draft post-dispatch. Null pre-dispatch."
+        },
+        "spend_receipt_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the ai_spend_receipt_record minted for this draft post-dispatch. Null pre-dispatch."
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = background_branch_agent."
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Required (non-null) when dispatch_target_class = review_handoff."
+        },
+        "supersedes_turn_draft_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "draft_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the draft for support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "dispatched_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "description": "branch_agent_dispatch_ref MUST be non-null when dispatch_target_class = background_branch_agent.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "background_branch_agent" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_ref MUST be non-null when dispatch_target_class = review_handoff.",
+          "if": {
+            "properties": { "dispatch_target_class": { "const": "review_handoff" } },
+            "required": ["dispatch_target_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        },
+        {
+          "description": "predispatch_disclosure_ref MUST be non-null when draft_state ∈ {queued_for_dispatch, dispatched_inline, dispatched_branch_agent, dispatched_review_handoff}.",
+          "if": {
+            "properties": {
+              "draft_state": {
+                "enum": [
+                  "queued_for_dispatch",
+                  "dispatched_inline",
+                  "dispatched_branch_agent",
+                  "dispatched_review_handoff"
+                ]
+              }
+            },
+            "required": ["draft_state"]
+          },
+          "then": {
+            "properties": { "predispatch_disclosure_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["predispatch_disclosure_ref"]
+          }
+        }
+      ],
+      "description": "Typed turn-draft descriptor. Extends the lighter assembly-side prompt_composer_turn_draft_record on schemas/ai/context_assembly.schema.json with slash_command_invocation_refs, predispatch_disclosure_ref, route_receipt_ref, spend_receipt_ref, and a typed request_workspace_ref so reviewers can answer 'which slash commands fired, which disclosure was rendered, which receipts were minted' from the draft alone."
+    },
+
+    "prompt_composer_session_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "prompt_composer_session_schema_version",
+        "audit_event_id",
+        "audit_event_seq",
+        "minted_at",
+        "policy_context"
+      ],
+      "properties": {
+        "record_kind": { "const": "prompt_composer_session_audit_event_record" },
+        "prompt_composer_session_schema_version": { "$ref": "#/$defs/prompt_composer_session_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "audit_event_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic per-stream sequence number. Reviewers reconstruct ordering from this field; clock skew across surfaces does not matter."
+        },
+        "composer_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "turn_draft_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "mention_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "attachment_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "slash_command_invocation_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "predispatch_disclosure_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ],
+          "description": "Required (non-null) on every *_denial_emitted event."
+        },
+        "event_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short reviewable sentence describing the event for support / claim-manifest review."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "denial_reason MUST be non-null on composer_turn_draft_denial_emitted events.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "composer_turn_draft_denial_emitted" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "denial_reason": { "$ref": "#/$defs/denial_reason" } },
+            "required": ["denial_reason"]
+          }
+        }
+      ],
+      "description": "Audit event on the prompt_composer_session audit stream. Reuses the existing ai_context_* audit-stream conventions (one typed audit_event_id, one policy_context, one minted_at, nullable refs for the records the event touches, and a denial_reason on every *_denial_emitted event)."
+    }
+  }
+}

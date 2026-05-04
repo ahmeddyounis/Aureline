@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/request_workspace_ref.schema.json",
+  "title": "Aureline AI request-workspace typed-reference contract",
+  "description": "Boundary schema for the request_workspace_ref_record — a typed cross-schema reference to a request_workspace_record on schemas/ai/request_workspace.schema.json. Surfaces that need to point at a request workspace from outside that owning schema (the prompt-composer session contract on schemas/ai/prompt_composer_session.schema.json, the assembly contract on schemas/ai/context_assembly.schema.json, evidence-packet records on schemas/ai/evidence_packet.schema.json, route / spend receipts, branch-agent dispatch packets, review-handoff packets, and replay-evidence records) MUST emit one of these typed references rather than an unscoped opaque_id, so reviewers can answer 'which flow, which scope, which export posture, which lifecycle state, which isolation posture' without resolving the owning record. The reference echoes the same vocabulary the owning schema declares without re-minting it: flow_class, scope_filter_class, isolation_posture_class, privacy_export_posture_class, retention_stance_within_workspace_class, and lifecycle_state_class are re-exported verbatim. Raw workspace paths, raw file bodies, raw URLs, raw terminal / log bodies, raw generated artifact bytes, raw request / response payloads, raw user-supplied text, and raw credential material never cross this boundary; the reference carries ids and typed vocabulary only. The owning request_workspace_record on schemas/ai/request_workspace.schema.json remains the schema of record for full workspace state; this contract is the cross-schema pointer every non-owning surface emits. Adding a new flow_class, scope_filter_class, privacy_export_posture_class, retention_stance_within_workspace_class, isolation_posture_class, lifecycle_state_class, ref_origin_class, or denial_reason value is additive-minor and requires a request_workspace_ref_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/request_workspace_ref_record" }
+  ],
+  "$defs": {
+    "request_workspace_ref_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this AI request-workspace typed-reference vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["request_workspace_ref_record"],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets. Raw paths, raw file bodies, raw URLs, raw terminal / log bodies, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "flow_class": {
+      "type": "string",
+      "enum": [
+        "explain_flow",
+        "review_flow",
+        "patch_flow",
+        "test_generation_flow",
+        "refactor_flow",
+        "inline_completion_flow",
+        "doc_generation_flow",
+        "diagnostic_triage_flow",
+        "background_branch_agent_flow",
+        "review_handoff_flow",
+        "support_replay_flow",
+        "mocked_test_flow",
+        "disabled_no_flow"
+      ],
+      "description": "Flow-class vocabulary re-exported from schemas/ai/request_workspace.schema.json without modification. The reference echoes the owning workspace's flow_class so reviewers do not have to resolve the owning record to learn which lane fired."
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ],
+      "description": "Scope-filter-class re-exported from schemas/runtime/execution_context.schema.json without modification (ADR-0009). The reference echoes the owning workspace's scope filter so downstream segments can confirm scope without re-resolving."
+    },
+
+    "isolation_posture_class": {
+      "type": "string",
+      "enum": [
+        "isolated_per_session",
+        "isolated_per_turn",
+        "shared_across_session_turns",
+        "shared_across_branch_agent_dispatch",
+        "shared_across_review_handoff",
+        "shared_across_support_replay_only"
+      ],
+      "description": "Isolation-posture vocabulary re-exported from schemas/ai/request_workspace.schema.json without modification."
+    },
+
+    "privacy_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "included_by_default_in_support_bundle",
+        "included_metadata_only_in_support_bundle",
+        "opt_in_only_admin_export",
+        "excluded_by_default_from_support_bundle",
+        "excluded_always_support_bundle",
+        "excluded_always_claim_manifest",
+        "excluded_always_legal_hold_release",
+        "redacted_in_support_bundle_restricted"
+      ],
+      "description": "Privacy / export posture vocabulary re-exported from schemas/ai/request_workspace.schema.json without modification."
+    },
+
+    "retention_stance_within_workspace_class": {
+      "type": "string",
+      "enum": [
+        "no_retention_session_scoped",
+        "bounded_retention_session_bounded",
+        "bounded_retention_user_scoped",
+        "bounded_retention_admin_scoped",
+        "bounded_retention_legal_hold_only",
+        "retention_tied_to_assembly_lifetime",
+        "retention_tied_to_evidence_lifetime",
+        "retention_policy_blocked"
+      ],
+      "description": "Retention-stance vocabulary re-exported from schemas/ai/request_workspace.schema.json without modification."
+    },
+
+    "lifecycle_state_class": {
+      "type": "string",
+      "enum": [
+        "workspace_open_active",
+        "workspace_open_idle",
+        "workspace_closed_completed",
+        "workspace_closed_cancelled",
+        "workspace_closed_superseded",
+        "workspace_suspended_policy_change",
+        "workspace_quarantined_pending_review",
+        "workspace_disabled_policy_blocked"
+      ],
+      "description": "Lifecycle-state vocabulary re-exported from schemas/ai/request_workspace.schema.json without modification. The reference echoes the lifecycle state observed when the reference was minted; downstream reads MUST re-resolve the owning record before dispatch."
+    },
+
+    "ref_origin_class": {
+      "type": "string",
+      "enum": [
+        "minted_by_composer_session",
+        "minted_by_composer_turn_draft",
+        "minted_by_assembly",
+        "minted_by_route_receipt",
+        "minted_by_spend_receipt",
+        "minted_by_evidence_packet",
+        "minted_by_branch_agent_dispatch",
+        "minted_by_review_handoff",
+        "minted_by_replay_evidence",
+        "minted_by_support_replay",
+        "minted_by_audit_event"
+      ],
+      "description": "Frozen ref-origin-class vocabulary naming the surface that minted the reference. Reviewers and support tooling use this to diff which surfaces observed which lifecycle / posture for the same underlying workspace."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "request_workspace_ref_minted",
+        "request_workspace_ref_resolved",
+        "request_workspace_ref_lifecycle_drift_observed",
+        "request_workspace_ref_posture_drift_observed",
+        "request_workspace_ref_denial_emitted",
+        "request_workspace_ref_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the request_workspace_ref audit stream. Events MUST NOT carry raw paths, raw file bodies, raw URLs, raw terminal / log bodies, or raw credential material."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "request_workspace_id_unresolvable",
+        "flow_class_drift_detected",
+        "scope_filter_class_drift_detected",
+        "isolation_posture_drift_detected",
+        "privacy_export_posture_drift_detected",
+        "retention_stance_drift_detected",
+        "lifecycle_state_drift_detected",
+        "ref_origin_class_unresolved",
+        "raw_path_forbidden_on_boundary",
+        "raw_body_forbidden_on_boundary",
+        "raw_url_forbidden_on_boundary",
+        "request_workspace_ref_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to a best-effort reference is forbidden. A reference whose echoed flow_class / scope_filter_class / isolation_posture_class / privacy_export_posture_class / retention_stance_within_workspace_class / lifecycle_state_class disagrees with the owning record at resolution time MUST deny rather than silently pick one side."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"],
+          "description": "ADR-0001 workspace-trust state at the moment the reference was minted."
+        },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "managed_cloud",
+            "managed_fleet",
+            "air_gapped"
+          ],
+          "description": "Deployment-profile class re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the reference was minted inside a live execution. Empty string when minted outside an execution context."
+        }
+      },
+      "description": "Policy context the reference was minted under. Re-validated on resolution; a policy-epoch roll observed between mint and resolve denies with policy_epoch_rolled (the surrounding contract's denial reason)."
+    },
+
+    "request_workspace_ref_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "request_workspace_ref_schema_version",
+        "request_workspace_id",
+        "flow_class",
+        "scope_filter_class",
+        "isolation_posture_class",
+        "privacy_export_posture_class",
+        "retention_stance_within_workspace_class",
+        "lifecycle_state_class",
+        "ref_origin_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "request_workspace_ref_record" },
+        "request_workspace_ref_schema_version": { "$ref": "#/$defs/request_workspace_ref_schema_version" },
+        "request_workspace_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id of the owning request_workspace_record on schemas/ai/request_workspace.schema.json. Reviewers resolve this id against the owning record to read full workspace state."
+        },
+        "flow_class": { "$ref": "#/$defs/flow_class" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "isolation_posture_class": { "$ref": "#/$defs/isolation_posture_class" },
+        "privacy_export_posture_class": { "$ref": "#/$defs/privacy_export_posture_class" },
+        "retention_stance_within_workspace_class": { "$ref": "#/$defs/retention_stance_within_workspace_class" },
+        "lifecycle_state_class": { "$ref": "#/$defs/lifecycle_state_class" },
+        "ref_origin_class": { "$ref": "#/$defs/ref_origin_class" },
+        "composer_session_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the prompt-composer session that this reference was minted alongside. Required (non-null) when ref_origin_class ∈ {minted_by_composer_session, minted_by_composer_turn_draft}."
+        },
+        "composer_turn_draft_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the composer turn-draft that this reference was minted alongside. Required (non-null) when ref_origin_class = minted_by_composer_turn_draft."
+        },
+        "assembly_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the ai_context_assembly_record that this reference was minted alongside. Required (non-null) when ref_origin_class = minted_by_assembly."
+        },
+        "branch_agent_dispatch_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the ai_branch_agent_dispatch_record that this reference was minted alongside. Required (non-null) when ref_origin_class = minted_by_branch_agent_dispatch."
+        },
+        "review_handoff_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the review-handoff packet that this reference was minted alongside. Required (non-null) when ref_origin_class = minted_by_review_handoff."
+        },
+        "evidence_packet_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the evidence packet (assembly, replay, branch-agent, review-handoff, support-replay, claim-manifest) the reference rides on. Required (non-null) when ref_origin_class ∈ {minted_by_evidence_packet, minted_by_replay_evidence, minted_by_support_replay}."
+        },
+        "policy_context": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/policy_context" }
+          ],
+          "description": "Optional policy context observed when the reference was minted. Null when the minting surface relies entirely on the owning workspace's policy context."
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "composer_session_ref MUST be non-null when ref_origin_class ∈ {minted_by_composer_session, minted_by_composer_turn_draft}.",
+          "if": {
+            "properties": {
+              "ref_origin_class": {
+                "enum": [
+                  "minted_by_composer_session",
+                  "minted_by_composer_turn_draft"
+                ]
+              }
+            },
+            "required": ["ref_origin_class"]
+          },
+          "then": {
+            "properties": { "composer_session_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["composer_session_ref"]
+          }
+        },
+        {
+          "description": "composer_turn_draft_ref MUST be non-null when ref_origin_class = minted_by_composer_turn_draft.",
+          "if": {
+            "properties": { "ref_origin_class": { "const": "minted_by_composer_turn_draft" } },
+            "required": ["ref_origin_class"]
+          },
+          "then": {
+            "properties": { "composer_turn_draft_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["composer_turn_draft_ref"]
+          }
+        },
+        {
+          "description": "assembly_id_ref MUST be non-null when ref_origin_class = minted_by_assembly.",
+          "if": {
+            "properties": { "ref_origin_class": { "const": "minted_by_assembly" } },
+            "required": ["ref_origin_class"]
+          },
+          "then": {
+            "properties": { "assembly_id_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["assembly_id_ref"]
+          }
+        },
+        {
+          "description": "branch_agent_dispatch_ref MUST be non-null when ref_origin_class = minted_by_branch_agent_dispatch.",
+          "if": {
+            "properties": { "ref_origin_class": { "const": "minted_by_branch_agent_dispatch" } },
+            "required": ["ref_origin_class"]
+          },
+          "then": {
+            "properties": { "branch_agent_dispatch_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["branch_agent_dispatch_ref"]
+          }
+        },
+        {
+          "description": "review_handoff_ref MUST be non-null when ref_origin_class = minted_by_review_handoff.",
+          "if": {
+            "properties": { "ref_origin_class": { "const": "minted_by_review_handoff" } },
+            "required": ["ref_origin_class"]
+          },
+          "then": {
+            "properties": { "review_handoff_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["review_handoff_ref"]
+          }
+        },
+        {
+          "description": "evidence_packet_ref MUST be non-null when ref_origin_class ∈ {minted_by_evidence_packet, minted_by_replay_evidence, minted_by_support_replay}.",
+          "if": {
+            "properties": {
+              "ref_origin_class": {
+                "enum": [
+                  "minted_by_evidence_packet",
+                  "minted_by_replay_evidence",
+                  "minted_by_support_replay"
+                ]
+              }
+            },
+            "required": ["ref_origin_class"]
+          },
+          "then": {
+            "properties": { "evidence_packet_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["evidence_packet_ref"]
+          }
+        }
+      ],
+      "description": "Typed cross-schema reference to a request_workspace_record. The reference is self-describing — a reviewer reads flow_class, scope_filter_class, isolation_posture_class, privacy_export_posture_class, retention_stance_within_workspace_class, and lifecycle_state_class without resolving the owning record. The reference is a snapshot at mint time; downstream reads MUST re-resolve the owning record on schemas/ai/request_workspace.schema.json before dispatch and MUST deny on drift rather than silently picking one side."
+    }
+  }
+}
