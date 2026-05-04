@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/build/raw_event_inspector.schema.json",
+  "title": "Aureline raw-event inspector contract for build runs",
+  "description": "Boundary schema for the raw_event_inspector_record every build-truth surface (run / test / build / debug picker, output pane, problems pane, AI action sheet, CI overlay, support-bundle exporter, review pack) reads when a user opens 'show me the raw events behind this build result'. The record cites source-log groups, parsed events, discarded lines, timing, target identity, and provenance back to the originating run / attempt; it does not embed raw command lines, raw stdout / stderr byte streams, raw env bodies, raw secret values, raw absolute paths, raw URLs, or raw provider responses inline. Producers retain raw inputs out-of-band and cite opaque refs so the inspector renders counts, hashes, classes, and reviewable summaries plus per-segment refs the user MAY open through the existing support-bundle / task-event-envelope surfaces. The inspector resolves through the same originating_run_ref as the matching schemas/build/adapter_confidence_state.schema.json record so the confidence ladder, the reason card, and the inspector all share one lineage. Adding a new source_log_class, parsed_event_class, discarded_line_reason_class, timing_phase_class, target_identity_authority_class, or inspector_redaction_class is additive-minor and bumps raw_event_inspector_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/raw_event_inspector_record" }
+  ],
+  "$defs": {
+    "raw_event_inspector_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "raw_event_inspector_record"
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, replay, and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (run_record, attempt_record, target_descriptor, target_graph_snapshot, build_adapter_confidence_state_record, parser_fallback_reason_card_record, task_event_envelope_record, support_bundle_packet, audit-event id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative duration in whole milliseconds. Fractional durations round up so a zero-millisecond span is always either zero observed events or a single instant."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in pickers, output pane headers, problems pane chips, AI action sheets, CI overlays, support exports, and review packs. Raw command lines, raw env bodies, raw secret values, raw paths, raw URLs, and raw stack traces MUST NOT appear here."
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "byte_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Non-negative byte count of the underlying retained payload. Reviewer-facing only; raw bytes are never inlined."
+    },
+
+    "digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Hash digest opaque to the consumer. Used to match retained payloads across replays without re-emitting raw bytes."
+    },
+
+    "source_log_class": {
+      "type": "string",
+      "enum": [
+        "stdout_line_stream",
+        "stderr_line_stream",
+        "combined_stdout_stderr_stream",
+        "structured_event_stream",
+        "build_server_protocol_message_stream",
+        "bazel_build_event_protocol_stream",
+        "junit_xml_artifact",
+        "tap_artifact",
+        "sarif_artifact",
+        "cargo_message_format_json_stream",
+        "go_build_json_stream",
+        "msbuild_diagnostic_log",
+        "managed_ci_artifact_log",
+        "provider_api_payload_capture",
+        "support_bundle_replay_capture",
+        "ai_emitted_event_capture",
+        "no_source_log_observed"
+      ],
+      "description": "Closed source-log vocabulary. Names what kind of log group each retained-payload group came from. The inspector groups source logs by class so a reviewer can tell whether a structured stream or a free-form stdout was the basis of the parsed events."
+    },
+
+    "parsed_event_class": {
+      "type": "string",
+      "enum": [
+        "compile_unit_event",
+        "compile_diagnostic_event",
+        "link_unit_event",
+        "link_diagnostic_event",
+        "test_case_event",
+        "build_target_started_event",
+        "build_target_completed_event",
+        "build_target_cancelled_event",
+        "produced_artifact_event",
+        "consumed_artifact_event",
+        "exit_code_event",
+        "duration_measurement_event",
+        "warning_summary_event",
+        "error_summary_event",
+        "tool_version_banner_event",
+        "structured_outcome_event",
+        "imported_outcome_event",
+        "replayed_outcome_event"
+      ],
+      "description": "Closed vocabulary for parsed-event classes. Names the typed events the adapter produced from the source log groups. Each parsed_event_segment groups events by class so the inspector renders one row per event class with counts and a representative summary."
+    },
+
+    "discarded_line_reason_class": {
+      "type": "string",
+      "enum": [
+        "unrecognized_format_no_pattern_matched",
+        "structurally_invalid_record",
+        "truncated_payload",
+        "oversize_dropped",
+        "ansi_escape_only_no_content",
+        "duplicate_event_after_dedup",
+        "secret_pattern_redaction_dropped",
+        "policy_filter_dropped",
+        "encoding_invalid_utf8_replaced",
+        "out_of_window_event_dropped",
+        "no_lines_discarded"
+      ],
+      "description": "Closed vocabulary for why a line was discarded. The inspector groups discards by reason so a user can tell whether a line was dropped because it did not match any pattern, was truncated, was oversize, was duplicated, was redacted, or fell outside the run's observation window. no_lines_discarded is the legitimate single-element value when the producer retained every observed line."
+    },
+
+    "timing_phase_class": {
+      "type": "string",
+      "enum": [
+        "queued_in_admission",
+        "preparing_workspace",
+        "preparing_toolchain",
+        "running_compile",
+        "running_link",
+        "running_test",
+        "publishing_artifacts",
+        "draining_logs",
+        "finalising_outcome",
+        "imported_replay_no_phase",
+        "unknown_phase"
+      ],
+      "description": "Closed timing-phase vocabulary. Each timing_phase_entry binds a phase to an observed start, end, and duration so the inspector renders a per-phase strip without re-deriving timing from raw timestamps."
+    },
+
+    "target_identity_authority_class": {
+      "type": "string",
+      "enum": [
+        "publishing_graph_attached",
+        "user_declared_target_set",
+        "inferred_from_manifest_or_lockfile",
+        "inferred_from_filename_or_directory_convention",
+        "imported_from_managed_ci_artifact",
+        "imported_from_provider_api_snapshot",
+        "imported_from_support_bundle",
+        "no_target_identity_admitted"
+      ],
+      "description": "Closed vocabulary for how the inspector's target identity was admitted. Pickers and output pane headers read this so a target-identity authority is never collapsed into a single 'this target' label."
+    },
+
+    "inspector_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture_with_approval_ticket"
+      ],
+      "description": "Default export redaction posture for the inspector. broadened_capture_with_approval_ticket requires an approval-ticket ref carried by the surrounding support export."
+    },
+
+    "source_log_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_log_class",
+        "retained_payload_ref",
+        "byte_count",
+        "line_count",
+        "first_observed_at",
+        "last_observed_at",
+        "digest",
+        "summary"
+      ],
+      "properties": {
+        "source_log_class": { "$ref": "#/$defs/source_log_class" },
+        "retained_payload_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the retained payload group. Resolves through the existing support-bundle / task-event-envelope retention model; raw bytes are never inlined here."
+        },
+        "byte_count": { "$ref": "#/$defs/byte_count" },
+        "line_count": { "$ref": "#/$defs/non_negative_integer" },
+        "first_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "last_observed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "parsed_event_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parsed_event_class",
+        "event_count",
+        "task_event_envelope_id_refs",
+        "summary"
+      ],
+      "properties": {
+        "parsed_event_class": { "$ref": "#/$defs/parsed_event_class" },
+        "event_count": { "$ref": "#/$defs/non_negative_integer" },
+        "task_event_envelope_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to task_event_envelope_record ids whose payload classifies as this parsed_event_class. Pickers, output pane, and problems pane resolve these refs to render typed event rows."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "discarded_line_segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "discarded_line_reason_class",
+        "discarded_line_count",
+        "summary"
+      ],
+      "properties": {
+        "discarded_line_reason_class": { "$ref": "#/$defs/discarded_line_reason_class" },
+        "discarded_line_count": { "$ref": "#/$defs/non_negative_integer" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "timing_phase_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timing_phase_class",
+        "started_at",
+        "ended_at",
+        "duration_ms",
+        "summary"
+      ],
+      "properties": {
+        "timing_phase_class": { "$ref": "#/$defs/timing_phase_class" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "duration_ms": { "$ref": "#/$defs/duration_ms" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "target_identity_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_identity_authority_class",
+        "target_id_ref",
+        "publishing_graph_id_ref",
+        "target_descriptor_ref",
+        "summary"
+      ],
+      "properties": {
+        "target_identity_authority_class": { "$ref": "#/$defs/target_identity_authority_class" },
+        "target_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the target_descriptor_record target_id (schemas/tooling/target_descriptor.schema.json) the inspector applies to. MUST be null only when target_identity_authority_class is no_target_identity_admitted."
+        },
+        "publishing_graph_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the target_graph_snapshot_record graph_id (schemas/tooling/target_graph_snapshot.schema.json) the target_id was minted under. MUST be non-null when target_identity_authority_class is publishing_graph_attached."
+        },
+        "target_descriptor_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the full target_descriptor_record (schemas/tooling/target_descriptor.schema.json) for hover-only context. MAY be null when only the target_id and graph_id are needed."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "provenance_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "originating_run_ref",
+        "originating_attempt_ref",
+        "build_adapter_confidence_state_record_ref",
+        "parser_fallback_reason_card_record_ref",
+        "support_bundle_ref",
+        "summary"
+      ],
+      "properties": {
+        "originating_run_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the originating run_record (schemas/execution/run.schema.json). The inspector and the matching build_adapter_confidence_state_record MUST cite the same originating_run_ref."
+        },
+        "originating_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the originating attempt_record (schemas/execution/attempt.schema.json). MAY be null only when no attempt was admitted (matches the unavailable_result confidence state)."
+        },
+        "build_adapter_confidence_state_record_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the build_adapter_confidence_state_record (schemas/build/adapter_confidence_state.schema.json) the inspector projects under. Pickers and output pane headers read this back-reference to render the matching confidence chip alongside the inspector pane."
+        },
+        "parser_fallback_reason_card_record_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the parser_fallback_reason_card_record when the active state is parser_fallback or stale_result. MUST be null otherwise."
+        },
+        "support_bundle_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the support_bundle_packet that retains the source-log retained_payload_refs. MUST be non-null when at least one source_log_segment.retained_payload_ref resolves through a support bundle."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "raw_event_inspector_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "raw_event_inspector_schema_version",
+        "raw_event_inspector_record_id",
+        "captured_at",
+        "workspace_id",
+        "source_log_segments",
+        "parsed_event_segments",
+        "discarded_line_segments",
+        "timing_phases",
+        "total_observation_window_started_at",
+        "total_observation_window_ended_at",
+        "total_observation_window_duration_ms",
+        "target_identity",
+        "provenance",
+        "inspector_redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "raw_event_inspector_schema_version": { "$ref": "#/$defs/raw_event_inspector_schema_version" },
+        "raw_event_inspector_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "source_log_segments": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/source_log_segment" },
+          "description": "Set of retained source-log groups grouped by source_log_class. MUST be non-empty: an inspector with no source-log segment is non-conforming. The legitimate empty case is a single segment with source_log_class no_source_log_observed and line_count 0."
+        },
+        "parsed_event_segments": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/parsed_event_segment" },
+          "description": "Set of parsed-event groups grouped by parsed_event_class. MAY be empty when build_adapter_confidence_state is unavailable_result and no events were produced."
+        },
+        "discarded_line_segments": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/discarded_line_segment" },
+          "description": "Set of discarded-line groups grouped by reason. MUST be non-empty: producers MUST cite at least one segment, including the no_lines_discarded segment with discarded_line_count 0 when nothing was dropped, so a silent discard is impossible."
+        },
+        "timing_phases": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timing_phase_entry" },
+          "description": "Per-phase timing entries. MUST be non-empty: imported_result and unavailable_result paths cite a single imported_replay_no_phase or unknown_phase entry covering the full observation window so timing is never silently absent."
+        },
+        "total_observation_window_started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "total_observation_window_ended_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "total_observation_window_duration_ms": { "$ref": "#/$defs/duration_ms" },
+        "target_identity": { "$ref": "#/$defs/target_identity_block" },
+        "provenance": { "$ref": "#/$defs/provenance_block" },
+        "inspector_redaction_class": { "$ref": "#/$defs/inspector_redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One raw-event inspector record. Pickers, output pane, problems pane, AI action sheets, CI overlays, and support exports read this record so a user can inspect source logs, parsed events, discarded lines, timing, and target identity from one typed view linked back to the originating run."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "When target_identity_authority_class is no_target_identity_admitted, target_id_ref MUST be null.",
+      "if": {
+        "properties": {
+          "target_identity": {
+            "type": "object",
+            "properties": {
+              "target_identity_authority_class": { "const": "no_target_identity_admitted" }
+            },
+            "required": ["target_identity_authority_class"]
+          }
+        },
+        "required": ["target_identity"]
+      },
+      "then": {
+        "properties": {
+          "target_identity": {
+            "type": "object",
+            "properties": {
+              "target_id_ref": { "type": "null" }
+            },
+            "required": ["target_id_ref"]
+          }
+        }
+      }
+    },
+    {
+      "description": "When target_identity_authority_class is publishing_graph_attached, publishing_graph_id_ref and target_id_ref MUST be non-null.",
+      "if": {
+        "properties": {
+          "target_identity": {
+            "type": "object",
+            "properties": {
+              "target_identity_authority_class": { "const": "publishing_graph_attached" }
+            },
+            "required": ["target_identity_authority_class"]
+          }
+        },
+        "required": ["target_identity"]
+      },
+      "then": {
+        "properties": {
+          "target_identity": {
+            "type": "object",
+            "properties": {
+              "publishing_graph_id_ref": { "$ref": "#/$defs/opaque_ref" },
+              "target_id_ref": { "$ref": "#/$defs/opaque_ref" }
+            },
+            "required": ["publishing_graph_id_ref", "target_id_ref"]
+          }
+        }
+      }
+    }
+  ]
+}

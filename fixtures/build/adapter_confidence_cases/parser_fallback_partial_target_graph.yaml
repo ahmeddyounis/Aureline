@@ -1,0 +1,210 @@
+# Multi-document YAML fixture for the parser-fallback case.
+# Validates against:
+#   schemas/build/adapter_confidence_state.schema.json (record_kind = build_adapter_confidence_state_record)
+#   schemas/build/adapter_confidence_state.schema.json (record_kind = parser_fallback_reason_card_record)
+#   schemas/build/raw_event_inspector.schema.json     (record_kind = raw_event_inspector_record)
+__fixture__:
+  name: parser_fallback_partial_target_graph
+  scenario: >
+    A workspace pinned to an unfamiliar JVM build tool ('moonbeam')
+    has no native runner, no Build Server Protocol session, no Bazel
+    Build Event Protocol stream, no structured importer, and no
+    convention match. The fallback opaque-preservation adapter
+    spawns 'moonbeam build' and a free-form line-oriented parser
+    extracts what it can. Two recognized fields are observable
+    (test_case_outcome via "OK"/"FAIL" markers, exit_code via the
+    final summary line); three fields are guessed (target kind from
+    the source path, produced artifact path from convention, target
+    id from a path match against a partial target graph); three
+    pieces of evidence are missing (no structured event stream, no
+    target graph attached, no tool version banner). The reason card
+    discloses every axis and offers four openable support artifacts
+    including the raw-event inspector. The active state is
+    parser_fallback with ceiling heuristic_best_effort.
+  exercises:
+    build_adapter_confidence_state: parser_fallback
+    confidence_ceiling: heuristic_best_effort
+    evidence_source_class: free_form_log_line_parse
+    parser_fallback_reason_card_emitted: true
+    recognized_artifact_count: 2
+    guessed_artifact_count: 3
+    missing_evidence_count: 3
+    openable_support_artifact_count: 4
+    raw_event_inspector_includes_inspector_action: true
+  seed_roles:
+    - parser_fallback_confidence_state
+    - parser_fallback_reason_card
+    - parser_fallback_raw_event_inspector
+---
+$schema: ../../../schemas/build/adapter_confidence_state.schema.json
+record_kind: build_adapter_confidence_state_record
+adapter_confidence_state_schema_version: 1
+build_adapter_confidence_state_record_id: build.adapter_confidence:wks:moonbeam_jvm:run:moonbeam_build_demo:01
+captured_at: 2026-05-04T12:30:00.000Z
+workspace_id: wks:moonbeam_jvm
+build_adapter_confidence_state: parser_fallback
+confidence_ceiling: heuristic_best_effort
+evidence_source_class_set:
+  - free_form_log_line_parse
+  - regex_or_glob_pattern_match
+freshness_class: cold_cached
+import_source_class: not_imported
+stale_reason_class: not_stale
+unavailable_reason_class: not_unavailable
+evidence_counts:
+  structured_event_count: 0
+  parsed_line_count: 412
+  discarded_line_count: 47
+  missing_evidence_count: 3
+  imported_event_count: 0
+lineage_refs:
+  originating_run_ref: run:wks:moonbeam_jvm:moonbeam_build_demo:01
+  originating_attempt_ref: attempt:wks:moonbeam_jvm:moonbeam_build_demo:01:01
+  publishing_graph_id_ref: graph:tooling.target_graph:moonbeam_jvm:fallback_partial:01
+  target_id_ref: tgt:tooling.target:moonbeam_jvm:demo:jar
+  raw_event_inspector_ref: raw_event_inspector:wks:moonbeam_jvm:moonbeam_build_demo:01
+  task_event_envelope_id_refs:
+    - envelope:moonbeam_build_demo:01:parsed_test_case_outcome_pack
+    - envelope:moonbeam_build_demo:01:parsed_exit_code
+  support_bundle_ref: null
+  summary: Free-form line parser produced two typed event packs over a partial target graph.
+parser_fallback_reason_card_ref: parser_fallback_reason_card:wks:moonbeam_jvm:moonbeam_build_demo:01
+redaction_class: metadata_and_hashes_only
+summary: moonbeam build over an unknown tool fell back to a free-form line parser; ceiling capped at heuristic_best_effort with three missing-evidence axes.
+---
+$schema: ../../../schemas/build/adapter_confidence_state.schema.json
+record_kind: parser_fallback_reason_card_record
+adapter_confidence_state_schema_version: 1
+parser_fallback_reason_card_record_id: parser_fallback_reason_card:wks:moonbeam_jvm:moonbeam_build_demo:01
+captured_at: 2026-05-04T12:30:00.000Z
+workspace_id: wks:moonbeam_jvm
+build_adapter_confidence_state: parser_fallback
+confidence_ceiling: heuristic_best_effort
+recognized_artifacts:
+  - recognized_artifact_class: test_case_outcome
+    evidence_count: 38
+    summary: Parser recognized 38 test outcomes via "OK"/"FAIL" markers in the moonbeam summary block.
+  - recognized_artifact_class: exit_code
+    evidence_count: 1
+    summary: Parser recognized exit code via the final "build finished with status N" line.
+guessed_artifacts:
+  - guessed_artifact_class: build_target_kind_inferred_from_extension
+    evidence_count: 1
+    summary: Target kind guessed as jar from the produced .jar file name.
+  - guessed_artifact_class: produced_artifact_path_inferred_from_convention
+    evidence_count: 1
+    summary: Produced artifact path guessed from build/libs/ convention.
+  - guessed_artifact_class: target_id_inferred_from_path_match
+    evidence_count: 1
+    summary: Target id guessed by matching the parsed path against a partial target graph entry.
+missing_evidence:
+  - missing_evidence_class: no_structured_event_stream_observed
+    summary: moonbeam emitted free-form text only; no JSON / NDJSON / BSP / BEP stream was observed.
+  - missing_evidence_class: no_target_graph_attached
+    summary: Active target graph is partial; no authoritative target descriptor for moonbeam targets.
+  - missing_evidence_class: no_tool_version_banner_observed
+    summary: moonbeam printed no version banner; tool version cannot be pinned for support exports.
+openable_support_artifacts:
+  - support_artifact_class: raw_event_inspector_view
+    open_action_class: open_raw_event_inspector_pane
+    support_artifact_ref: raw_event_inspector:wks:moonbeam_jvm:moonbeam_build_demo:01
+    summary: Open the raw-event inspector pane to review parsed lines, discarded lines, and timing.
+  - support_artifact_class: originating_run_view
+    open_action_class: open_originating_run_pane
+    support_artifact_ref: run:wks:moonbeam_jvm:moonbeam_build_demo:01
+    summary: Open the originating run record to inspect queue, host boundary, and outcome.
+  - support_artifact_class: target_graph_snapshot_view
+    open_action_class: open_target_graph_view
+    support_artifact_ref: graph:tooling.target_graph:moonbeam_jvm:fallback_partial:01
+    summary: Open the partial target graph snapshot to confirm which targets are admitted.
+  - support_artifact_class: support_bundle_export
+    open_action_class: open_support_bundle_export
+    support_artifact_ref: null
+    summary: Export a support bundle that preserves the reason card and inspector record verbatim.
+lineage_refs:
+  originating_run_ref: run:wks:moonbeam_jvm:moonbeam_build_demo:01
+  originating_attempt_ref: attempt:wks:moonbeam_jvm:moonbeam_build_demo:01:01
+  publishing_graph_id_ref: graph:tooling.target_graph:moonbeam_jvm:fallback_partial:01
+  target_id_ref: tgt:tooling.target:moonbeam_jvm:demo:jar
+  raw_event_inspector_ref: raw_event_inspector:wks:moonbeam_jvm:moonbeam_build_demo:01
+  task_event_envelope_id_refs:
+    - envelope:moonbeam_build_demo:01:parsed_test_case_outcome_pack
+    - envelope:moonbeam_build_demo:01:parsed_exit_code
+  support_bundle_ref: null
+  summary: Reason card resolves through the same originating_run_ref as the confidence state record and the inspector.
+linked_build_adapter_confidence_state_record_id_ref: build.adapter_confidence:wks:moonbeam_jvm:run:moonbeam_build_demo:01
+redaction_class: metadata_and_hashes_only
+summary: Parser-fallback reason card for moonbeam build; two recognized fields, three guessed fields, three missing-evidence axes, four openable support artifacts.
+---
+$schema: ../../../schemas/build/raw_event_inspector.schema.json
+record_kind: raw_event_inspector_record
+raw_event_inspector_schema_version: 1
+raw_event_inspector_record_id: raw_event_inspector:wks:moonbeam_jvm:moonbeam_build_demo:01
+captured_at: 2026-05-04T12:30:00.000Z
+workspace_id: wks:moonbeam_jvm
+source_log_segments:
+  - source_log_class: combined_stdout_stderr_stream
+    retained_payload_ref: payload:moonbeam_build_demo:01:combined_stream
+    byte_count: 218704
+    line_count: 459
+    first_observed_at: 2026-05-04T12:29:30.000Z
+    last_observed_at: 2026-05-04T12:29:58.000Z
+    digest: sha256:moonbeam_build_demo_01_combined
+    summary: Combined stdout / stderr capture of the moonbeam build invocation.
+parsed_event_segments:
+  - parsed_event_class: test_case_event
+    event_count: 38
+    task_event_envelope_id_refs:
+      - envelope:moonbeam_build_demo:01:parsed_test_case_outcome_pack
+    summary: 38 typed test outcomes parsed from "OK"/"FAIL" markers.
+  - parsed_event_class: exit_code_event
+    event_count: 1
+    task_event_envelope_id_refs:
+      - envelope:moonbeam_build_demo:01:parsed_exit_code
+    summary: Single exit code event parsed from the final summary line.
+discarded_line_segments:
+  - discarded_line_reason_class: unrecognized_format_no_pattern_matched
+    discarded_line_count: 41
+    summary: 41 lines did not match any known moonbeam pattern; preserved opaquely in the inspector.
+  - discarded_line_reason_class: ansi_escape_only_no_content
+    discarded_line_count: 6
+    summary: 6 lines contained only ANSI escapes after stripping; dropped.
+timing_phases:
+  - timing_phase_class: queued_in_admission
+    started_at: 2026-05-04T12:29:28.000Z
+    ended_at: 2026-05-04T12:29:30.000Z
+    duration_ms: 2000
+    summary: Run admitted; opaque-preservation adapter attached as the only candidate.
+  - timing_phase_class: running_compile
+    started_at: 2026-05-04T12:29:30.000Z
+    ended_at: 2026-05-04T12:29:55.000Z
+    duration_ms: 25000
+    summary: moonbeam build phase observed; phase boundaries derived from timestamp deltas.
+  - timing_phase_class: running_test
+    started_at: 2026-05-04T12:29:55.000Z
+    ended_at: 2026-05-04T12:29:58.000Z
+    duration_ms: 3000
+    summary: moonbeam test phase observed via "OK"/"FAIL" marker block.
+  - timing_phase_class: finalising_outcome
+    started_at: 2026-05-04T12:29:58.000Z
+    ended_at: 2026-05-04T12:29:58.000Z
+    duration_ms: 0
+    summary: Final summary line parsed; exit code captured.
+total_observation_window_started_at: 2026-05-04T12:29:28.000Z
+total_observation_window_ended_at: 2026-05-04T12:29:58.000Z
+total_observation_window_duration_ms: 30000
+target_identity:
+  target_identity_authority_class: inferred_from_filename_or_directory_convention
+  target_id_ref: tgt:tooling.target:moonbeam_jvm:demo:jar
+  publishing_graph_id_ref: graph:tooling.target_graph:moonbeam_jvm:fallback_partial:01
+  target_descriptor_ref: null
+  summary: Target id inferred from path match against a partial graph; no authoritative descriptor available.
+provenance:
+  originating_run_ref: run:wks:moonbeam_jvm:moonbeam_build_demo:01
+  originating_attempt_ref: attempt:wks:moonbeam_jvm:moonbeam_build_demo:01:01
+  build_adapter_confidence_state_record_ref: build.adapter_confidence:wks:moonbeam_jvm:run:moonbeam_build_demo:01
+  parser_fallback_reason_card_record_ref: parser_fallback_reason_card:wks:moonbeam_jvm:moonbeam_build_demo:01
+  support_bundle_ref: null
+  summary: Inspector, confidence state, and reason card all share originating_run_ref run:wks:moonbeam_jvm:moonbeam_build_demo:01.
+inspector_redaction_class: metadata_and_hashes_only
+summary: Inspector for the parser-fallback moonbeam build; 459 lines observed, 412 parsed, 47 discarded across two reasons, four typed timing phases.

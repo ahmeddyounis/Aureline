@@ -1,0 +1,944 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/build/adapter_confidence_state.schema.json",
+  "title": "Aureline build-adapter confidence state and parser-fallback reason card contract",
+  "description": "Boundary schema for two record families every build-truth surface (run / test / build / debug picker, output pane header, problems pane chip, build-graph view, AI action sheet, CI overlay, support-bundle exporter, review pack) reads when it has to answer 'how trustworthy is this build result, and which evidence supported the result vs. which evidence was guessed?'. Family one, build_adapter_confidence_state_record, freezes the seven-state confidence ladder native_adapter / declared_adapter / inferred_adapter / parser_fallback / imported_result / stale_result / unavailable_result, binds each state to one closed reason vocabulary, pins each state to a confidence ceiling re-exported from schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class, and pairs the state with a typed lineage block resolving to one originating run_record (schemas/execution/run.schema.json) and one target identity (target_descriptor target_id and target_graph_snapshot graph_id from schemas/tooling/). Family two, parser_fallback_reason_card_record, freezes one reviewer-facing card the picker, output pane header, and support exporter render whenever the active confidence state is parser_fallback or stale_result: it discloses what the parser recognized, what it guessed, what evidence was missing, and which support / debug artifact a user MAY open without inspecting raw logs first. Raw command lines, raw stdout / stderr byte streams, raw env bodies, raw secret values, raw absolute paths, raw URLs, and raw provider responses MUST NOT appear in any record; records carry opaque refs, hashes, counts, class labels, and reviewable summaries only. Adding a new build_adapter_confidence_state, evidence_source_class, recognized_artifact_class, guessed_artifact_class, missing_evidence_class, support_artifact_class, or open_action_class is additive-minor and bumps adapter_confidence_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/build_adapter_confidence_state_record" },
+    { "$ref": "#/$defs/parser_fallback_reason_card_record" }
+  ],
+  "$defs": {
+    "adapter_confidence_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Document-level schema version. Bumped on breaking payload changes; additive-optional fields and new enum members do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "build_adapter_confidence_state_record",
+        "parser_fallback_reason_card_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, replay, and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another record (run_record, attempt_record, target_descriptor, target_graph_snapshot, raw_event_inspector_record, support-bundle entry, audit-event id, etc.). Consumers resolve refs through the owning registry."
+    },
+
+    "opaque_ref_nullable": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from a monotonic clock source."
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 320,
+      "description": "Short reviewer-facing sentence safe to show in pickers, output pane headers, problems pane chips, AI action sheets, CI overlays, support exports, and review packs. Raw command lines, raw env bodies, raw secret values, raw paths, raw URLs, and raw stack traces MUST NOT appear here."
+    },
+
+    "non_negative_integer": {
+      "type": "integer",
+      "minimum": 0
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_from_source",
+        "structured_parse_match",
+        "heuristic_best_effort",
+        "degraded_partial",
+        "unknown"
+      ],
+      "description": "Re-export of schemas/tooling/task_event_envelope.schema.json#/$defs/confidence_class. Each build_adapter_confidence_state pins a maximum confidence ceiling through the state-to-ceiling invariant below; consumers MUST NOT raise a state's confidence above its pinned ceiling."
+    },
+
+    "build_adapter_confidence_state": {
+      "type": "string",
+      "enum": [
+        "native_adapter",
+        "declared_adapter",
+        "inferred_adapter",
+        "parser_fallback",
+        "imported_result",
+        "stale_result",
+        "unavailable_result"
+      ],
+      "description": "Closed seven-state confidence ladder for build results. native_adapter is reserved for first-party native build runners that own the build graph and emit structured events directly (cargo --message-format=json, go build -json, rustc-driver, etc.). declared_adapter is reserved for an adapter the workspace declared (Build Server Protocol session, Bazel Build Event Protocol stream, configured CMake file API export, declared structured importer) whose events are consumed structurally without parsing free-form output. inferred_adapter is reserved for an adapter inferred from manifest / lockfile / convention discovery (filename heuristics, lockfile inspection) where the workspace did not explicitly declare which adapter to use. parser_fallback is reserved for results synthesised by a free-form line-oriented parser over unstructured tooling output; the parser_fallback_reason_card_record MUST disclose what was recognized, guessed, missing, and openable. imported_result is reserved for a build result imported from a foreign source (managed CI artifact, support-bundle replay, provider snapshot, review packet, release packet) and never re-run locally. stale_result is reserved for a previously trusted result whose freshness expired (toolchain rev changed, lockfile changed, source moved, attempt timestamp older than the staleness floor); the parser_fallback_reason_card_record renders the stale-result variant. unavailable_result is reserved for cases where no adapter could produce a result (no adapter attached, all candidates blocked by policy, target not present in workset scope, or attempt cancelled before producing output)."
+    },
+
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "native_runner_streamed_events",
+        "build_server_protocol_session",
+        "bazel_build_event_protocol_stream",
+        "structured_importer_export_file",
+        "manifest_or_lockfile_observation",
+        "filename_or_directory_convention_match",
+        "regex_or_glob_pattern_match",
+        "free_form_log_line_parse",
+        "support_bundle_replay",
+        "managed_ci_artifact_import",
+        "provider_api_snapshot",
+        "review_pack_snapshot",
+        "release_packet_snapshot",
+        "user_declared_target_set",
+        "ai_proposed_pending_review",
+        "no_evidence_observed"
+      ],
+      "description": "Closed evidence-source vocabulary. Names the input the active confidence state was resolved from. The state-to-evidence-source invariant below pins each confidence state to the evidence sources it MAY cite so a parser-fallback row never claims native-runner streamed events as its source."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "live_streaming",
+        "warm_cached",
+        "cold_cached",
+        "stale_pending_refresh",
+        "imported_read_only",
+        "support_bundle_replay_only",
+        "unknown_freshness"
+      ],
+      "description": "Closed freshness vocabulary projected from the target-graph snapshot freshness model and the language-diagnostic freshness contract. stale_result MUST set freshness_class to stale_pending_refresh; imported_result MUST set freshness_class to one of imported_read_only / support_bundle_replay_only; unavailable_result MUST set freshness_class to unknown_freshness."
+    },
+
+    "lineage_ref_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "originating_run_ref",
+        "originating_attempt_ref",
+        "publishing_graph_id_ref",
+        "target_id_ref",
+        "raw_event_inspector_ref",
+        "task_event_envelope_id_refs",
+        "support_bundle_ref",
+        "summary"
+      ],
+      "properties": {
+        "originating_run_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the run_record (schemas/execution/run.schema.json) this confidence state resolves under. Both record families MUST resolve to the same run; unavailable_result resolves to the run that asked for the result, even when no attempt produced output."
+        },
+        "originating_attempt_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the attempt_record (schemas/execution/attempt.schema.json) that produced the build result. MUST be null only when build_adapter_confidence_state is unavailable_result and no attempt was admitted."
+        },
+        "publishing_graph_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the target_graph_snapshot_record (schemas/tooling/target_graph_snapshot.schema.json) graph_id under which the target identity was resolved. MUST be null only when build_adapter_confidence_state is unavailable_result and no target graph was attached."
+        },
+        "target_id_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the target_descriptor_record (schemas/tooling/target_descriptor.schema.json) target_id the result applies to. MUST be null only when build_adapter_confidence_state is unavailable_result and no target identity was admitted."
+        },
+        "raw_event_inspector_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the raw_event_inspector_record (schemas/build/raw_event_inspector.schema.json) covering the same originating_run_ref. MUST be non-null when at least one source log or task-event envelope was captured for the run; MAY be null for unavailable_result with no_evidence_observed."
+        },
+        "task_event_envelope_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "description": "Refs to task_event_envelope_record ids (schemas/tooling/task_event_envelope.schema.json) that the active state cites. Consumers resolve these refs to confirm that the state's confidence ceiling does not exceed the lowest ceiling among cited envelopes."
+        },
+        "support_bundle_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the support_bundle_packet (when this record is exported through support) the consumer can open to inspect lineage further. MUST be non-null when build_adapter_confidence_state is imported_result and import_source_class is support_bundle."
+        },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      },
+      "description": "Lineage block. Both record families resolve through this block so the confidence ladder, the raw-event inspector, and the target identity share one originating run."
+    },
+
+    "evidence_count_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_event_count",
+        "parsed_line_count",
+        "discarded_line_count",
+        "missing_evidence_count",
+        "imported_event_count"
+      ],
+      "properties": {
+        "structured_event_count": { "$ref": "#/$defs/non_negative_integer" },
+        "parsed_line_count": { "$ref": "#/$defs/non_negative_integer" },
+        "discarded_line_count": { "$ref": "#/$defs/non_negative_integer" },
+        "missing_evidence_count": { "$ref": "#/$defs/non_negative_integer" },
+        "imported_event_count": { "$ref": "#/$defs/non_negative_integer" }
+      },
+      "description": "Count rollup for the evidence the state was resolved from. Mirrors the matching axes on the raw_event_inspector_record so picker chips, output pane headers, and support exports render the same numbers."
+    },
+
+    "import_source_class": {
+      "type": "string",
+      "enum": [
+        "managed_ci_artifact",
+        "provider_api_snapshot",
+        "support_bundle",
+        "review_pack",
+        "release_packet",
+        "local_file_import",
+        "not_imported"
+      ],
+      "description": "Closed import-source vocabulary. MUST be not_imported unless build_adapter_confidence_state is imported_result; MUST NOT be not_imported when build_adapter_confidence_state is imported_result."
+    },
+
+    "stale_reason_class": {
+      "type": "string",
+      "enum": [
+        "toolchain_revision_changed",
+        "lockfile_changed",
+        "manifest_changed",
+        "source_files_changed",
+        "target_graph_revision_changed",
+        "attempt_timestamp_older_than_floor",
+        "imported_baseline_superseded",
+        "stale_reason_unknown_requires_review",
+        "not_stale"
+      ],
+      "description": "Closed stale-reason vocabulary. MUST be not_stale unless build_adapter_confidence_state is stale_result; MUST NOT be not_stale when build_adapter_confidence_state is stale_result."
+    },
+
+    "unavailable_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_adapter_attached",
+        "all_candidates_blocked_by_policy",
+        "target_outside_workset_scope",
+        "attempt_cancelled_before_output",
+        "attempt_blocked_pending_input",
+        "host_runtime_unreachable",
+        "unavailable_reason_unknown_requires_review",
+        "not_unavailable"
+      ],
+      "description": "Closed unavailable-reason vocabulary. MUST be not_unavailable unless build_adapter_confidence_state is unavailable_result; MUST NOT be not_unavailable when build_adapter_confidence_state is unavailable_result."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_and_hashes_only",
+        "support_bundle_scoped",
+        "broadened_capture"
+      ],
+      "description": "Default export redaction posture for the record. metadata_and_hashes_only is the default; broadened_capture requires an approval-ticket ref carried by the surrounding support export."
+    },
+
+    "build_adapter_confidence_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "adapter_confidence_state_schema_version",
+        "build_adapter_confidence_state_record_id",
+        "captured_at",
+        "workspace_id",
+        "build_adapter_confidence_state",
+        "confidence_ceiling",
+        "evidence_source_class_set",
+        "freshness_class",
+        "import_source_class",
+        "stale_reason_class",
+        "unavailable_reason_class",
+        "evidence_counts",
+        "lineage_refs",
+        "parser_fallback_reason_card_ref",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "build_adapter_confidence_state_record" },
+        "adapter_confidence_state_schema_version": { "$ref": "#/$defs/adapter_confidence_state_schema_version" },
+        "build_adapter_confidence_state_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "build_adapter_confidence_state": { "$ref": "#/$defs/build_adapter_confidence_state" },
+        "confidence_ceiling": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence ceiling pinned to the build_adapter_confidence_state by the state-to-ceiling invariant. Consumers MUST NOT render a confidence higher than this ceiling regardless of the underlying tool's claimed confidence."
+        },
+        "evidence_source_class_set": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_source_class" },
+          "description": "Set of evidence sources the state was resolved from. MUST be non-empty: a confidence state without any evidence source is a silent claim. The state-to-evidence-source invariant pins which sources MAY appear with which state."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "import_source_class": { "$ref": "#/$defs/import_source_class" },
+        "stale_reason_class": { "$ref": "#/$defs/stale_reason_class" },
+        "unavailable_reason_class": { "$ref": "#/$defs/unavailable_reason_class" },
+        "evidence_counts": { "$ref": "#/$defs/evidence_count_summary" },
+        "lineage_refs": { "$ref": "#/$defs/lineage_ref_set" },
+        "parser_fallback_reason_card_ref": {
+          "$ref": "#/$defs/opaque_ref_nullable",
+          "description": "Ref to the parser_fallback_reason_card_record describing what was recognized, guessed, missing, and openable. MUST be non-null when build_adapter_confidence_state is parser_fallback or stale_result; MUST be null otherwise."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One build-adapter confidence state. Pickers, output pane headers, problems pane chips, AI action sheets, CI overlays, support exports, and review packs read this record so a parser-fallback or stale result never masquerades as native-adapter certainty."
+    },
+
+    "recognized_artifact_class": {
+      "type": "string",
+      "enum": [
+        "compile_unit_invocation",
+        "compile_diagnostic",
+        "link_unit_invocation",
+        "link_diagnostic",
+        "test_case_outcome",
+        "build_target_path",
+        "build_target_kind",
+        "produced_artifact_path",
+        "produced_artifact_kind",
+        "exit_code",
+        "duration_measurement",
+        "stdout_summary",
+        "stderr_summary",
+        "warning_count",
+        "error_count",
+        "passing_count",
+        "failing_count",
+        "skipped_count",
+        "tool_version_string"
+      ],
+      "description": "Closed vocabulary for what the parser actually recognized. Each item is a structured field the parser extracted with high confidence; the set is reviewer-facing so a user can read the picker chip and tell what the fallback row knows."
+    },
+
+    "guessed_artifact_class": {
+      "type": "string",
+      "enum": [
+        "build_target_kind_inferred_from_extension",
+        "build_target_kind_inferred_from_directory",
+        "produced_artifact_path_inferred_from_convention",
+        "test_case_id_inferred_from_label",
+        "test_outcome_inferred_from_keyword",
+        "duration_measurement_inferred_from_timestamps",
+        "exit_code_inferred_from_summary_line",
+        "warning_count_inferred_from_severity_keyword",
+        "error_count_inferred_from_severity_keyword",
+        "tool_version_inferred_from_banner",
+        "target_id_inferred_from_path_match",
+        "target_id_inferred_from_user_declared_set"
+      ],
+      "description": "Closed vocabulary for what the parser guessed. A guessed artifact is a field the parser produced with heuristic confidence (regex, keyword, pattern). MUST be disclosed in the reason card so reviewers can decide whether to trust the row or escalate to a structured adapter."
+    },
+
+    "missing_evidence_class": {
+      "type": "string",
+      "enum": [
+        "no_structured_event_stream_observed",
+        "no_exit_code_observed",
+        "no_duration_measurement_observed",
+        "no_target_kind_observed",
+        "no_produced_artifact_path_observed",
+        "no_tool_version_banner_observed",
+        "no_test_outcome_record_observed",
+        "no_severity_label_observed",
+        "no_target_graph_attached",
+        "no_target_descriptor_attached",
+        "no_runtime_role_observed",
+        "no_recognized_lines_after_truncation",
+        "no_evidence_source_admissible_under_policy"
+      ],
+      "description": "Closed vocabulary for evidence the parser expected but did not observe. The reason card lists these so the user can tell what they would have to inspect raw logs to recover."
+    },
+
+    "support_artifact_class": {
+      "type": "string",
+      "enum": [
+        "raw_event_inspector_view",
+        "task_event_envelope_view",
+        "originating_run_view",
+        "originating_attempt_view",
+        "support_bundle_export",
+        "imported_scan_record_view",
+        "diagnostic_remap_state_view",
+        "target_graph_snapshot_view",
+        "target_descriptor_view",
+        "fallback_confidence_record_view",
+        "adapter_drift_event_view",
+        "no_support_artifact_admissible"
+      ],
+      "description": "Closed vocabulary for the support / debug artifact the user MAY open from the reason card without inspecting raw logs first. MUST cite at least one non-no_support_artifact_admissible class when build_adapter_confidence_state is parser_fallback so the picker, output pane header, and support export always offer one openable next step. no_support_artifact_admissible is reserved for unavailable_result paths whose only honest disclosure is documenting the absence of evidence."
+    },
+
+    "open_action_class": {
+      "type": "string",
+      "enum": [
+        "open_raw_event_inspector_pane",
+        "open_originating_run_pane",
+        "open_originating_attempt_pane",
+        "open_target_graph_view",
+        "open_target_descriptor_view",
+        "open_support_bundle_export",
+        "open_imported_scan_record",
+        "copy_lineage_refs_to_review_pack",
+        "escalate_to_workspace_admin_via_policy_review",
+        "no_action_admissible_review_only"
+      ],
+      "description": "Closed vocabulary for the picker / output-header / problems-chip action set offered alongside the reason card. MUST be non-empty so a fallback or stale row is never rendered without a typed next step. no_action_admissible_review_only is the legitimate single-element value for unavailable_result paths."
+    },
+
+    "recognized_artifact_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recognized_artifact_class", "evidence_count", "summary"],
+      "properties": {
+        "recognized_artifact_class": { "$ref": "#/$defs/recognized_artifact_class" },
+        "evidence_count": { "$ref": "#/$defs/non_negative_integer" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "guessed_artifact_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guessed_artifact_class", "evidence_count", "summary"],
+      "properties": {
+        "guessed_artifact_class": { "$ref": "#/$defs/guessed_artifact_class" },
+        "evidence_count": { "$ref": "#/$defs/non_negative_integer" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "missing_evidence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["missing_evidence_class", "summary"],
+      "properties": {
+        "missing_evidence_class": { "$ref": "#/$defs/missing_evidence_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "openable_support_artifact_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_artifact_class",
+        "open_action_class",
+        "support_artifact_ref",
+        "summary"
+      ],
+      "properties": {
+        "support_artifact_class": { "$ref": "#/$defs/support_artifact_class" },
+        "open_action_class": { "$ref": "#/$defs/open_action_class" },
+        "support_artifact_ref": { "$ref": "#/$defs/opaque_ref_nullable" },
+        "summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "parser_fallback_reason_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "adapter_confidence_state_schema_version",
+        "parser_fallback_reason_card_record_id",
+        "captured_at",
+        "workspace_id",
+        "build_adapter_confidence_state",
+        "confidence_ceiling",
+        "recognized_artifacts",
+        "guessed_artifacts",
+        "missing_evidence",
+        "openable_support_artifacts",
+        "lineage_refs",
+        "linked_build_adapter_confidence_state_record_id_ref",
+        "redaction_class",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "parser_fallback_reason_card_record" },
+        "adapter_confidence_state_schema_version": { "$ref": "#/$defs/adapter_confidence_state_schema_version" },
+        "parser_fallback_reason_card_record_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "workspace_id": { "$ref": "#/$defs/opaque_id" },
+        "build_adapter_confidence_state": {
+          "$ref": "#/$defs/build_adapter_confidence_state",
+          "description": "MUST be one of parser_fallback or stale_result on a reason card. Reason cards never describe native_adapter, declared_adapter, inferred_adapter, imported_result, or unavailable_result rows; those use the build_adapter_confidence_state_record alone."
+        },
+        "confidence_ceiling": { "$ref": "#/$defs/confidence_class" },
+        "recognized_artifacts": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/recognized_artifact_entry" },
+          "description": "Set of artifacts the parser recognized. MAY be empty when build_adapter_confidence_state is parser_fallback and the parser produced only guesses; MUST be non-empty when build_adapter_confidence_state is stale_result so the prior-trusted row remains identifiable."
+        },
+        "guessed_artifacts": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/guessed_artifact_entry" },
+          "description": "Set of artifacts the parser guessed. MUST be non-empty when build_adapter_confidence_state is parser_fallback so the user can tell which fields are heuristic; MAY be empty when build_adapter_confidence_state is stale_result and only freshness changed."
+        },
+        "missing_evidence": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/missing_evidence_entry" },
+          "description": "Set of evidence the parser expected but did not observe. MUST be non-empty: a reason card without missing-evidence is not a fallback - the row should have used the build_adapter_confidence_state_record alone."
+        },
+        "openable_support_artifacts": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/openable_support_artifact_entry" },
+          "description": "Set of support / debug artifacts the user MAY open. MUST be non-empty so a reason card always offers a typed next step beyond raw-log inspection. At least one entry MUST cite open_raw_event_inspector_pane so the raw-event inspector is always reachable; the linked raw_event_inspector_record carries the per-line evidence the card summarises."
+        },
+        "lineage_refs": { "$ref": "#/$defs/lineage_ref_set" },
+        "linked_build_adapter_confidence_state_record_id_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Ref to the build_adapter_confidence_state_record this card belongs to. Both records MUST cite the same originating_run_ref."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "summary": { "$ref": "#/$defs/short_sentence" },
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" }
+      },
+      "description": "One parser-fallback reason card. Pickers, output pane headers, problems pane chips, AI action sheets, and support exports render this card whenever the active build_adapter_confidence_state is parser_fallback or stale_result so the user can read what was recognized, what was guessed, what evidence was missing, and which support artifact to open without inspecting raw logs first."
+    }
+  },
+
+  "allOf": [
+    {
+      "description": "native_adapter MUST cap confidence_ceiling at authoritative_from_source.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "native_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "authoritative_from_source" }
+        },
+        "required": ["confidence_ceiling"]
+      }
+    },
+    {
+      "description": "declared_adapter MUST cap confidence_ceiling at structured_parse_match. A declared adapter is consumed structurally but the workspace's explicit declaration is not the same as a first-party native runner that owns the build graph.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "declared_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "structured_parse_match" }
+        },
+        "required": ["confidence_ceiling"]
+      }
+    },
+    {
+      "description": "inferred_adapter MUST cap confidence_ceiling at heuristic_best_effort.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "inferred_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "heuristic_best_effort" }
+        },
+        "required": ["confidence_ceiling"]
+      }
+    },
+    {
+      "description": "parser_fallback MUST cap confidence_ceiling at heuristic_best_effort and MUST cite a parser_fallback_reason_card_record.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "parser_fallback" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "heuristic_best_effort" },
+          "parser_fallback_reason_card_ref": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "required": ["confidence_ceiling", "parser_fallback_reason_card_ref"]
+      }
+    },
+    {
+      "description": "imported_result MUST cap confidence_ceiling at structured_parse_match and MUST set import_source_class to a non-not_imported value.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "imported_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": {
+            "enum": ["structured_parse_match", "heuristic_best_effort", "degraded_partial", "unknown"]
+          },
+          "import_source_class": {
+            "enum": [
+              "managed_ci_artifact",
+              "provider_api_snapshot",
+              "support_bundle",
+              "review_pack",
+              "release_packet",
+              "local_file_import"
+            ]
+          },
+          "freshness_class": {
+            "enum": ["imported_read_only", "support_bundle_replay_only"]
+          }
+        },
+        "required": ["confidence_ceiling", "import_source_class", "freshness_class"]
+      }
+    },
+    {
+      "description": "stale_result MUST cap confidence_ceiling at degraded_partial, MUST set freshness_class to stale_pending_refresh, MUST cite a non-not_stale stale_reason_class, and MUST cite a parser_fallback_reason_card_record so the prior-trusted row remains identifiable.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "stale_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": {
+            "enum": ["degraded_partial", "unknown"]
+          },
+          "freshness_class": { "const": "stale_pending_refresh" },
+          "stale_reason_class": {
+            "enum": [
+              "toolchain_revision_changed",
+              "lockfile_changed",
+              "manifest_changed",
+              "source_files_changed",
+              "target_graph_revision_changed",
+              "attempt_timestamp_older_than_floor",
+              "imported_baseline_superseded",
+              "stale_reason_unknown_requires_review"
+            ]
+          },
+          "parser_fallback_reason_card_ref": { "$ref": "#/$defs/opaque_ref" }
+        },
+        "required": ["confidence_ceiling", "freshness_class", "stale_reason_class", "parser_fallback_reason_card_ref"]
+      }
+    },
+    {
+      "description": "unavailable_result MUST cap confidence_ceiling at unknown, MUST set freshness_class to unknown_freshness, MUST cite a non-not_unavailable unavailable_reason_class, and MUST set parser_fallback_reason_card_ref to null.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "unavailable_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "confidence_ceiling": { "const": "unknown" },
+          "freshness_class": { "const": "unknown_freshness" },
+          "unavailable_reason_class": {
+            "enum": [
+              "no_adapter_attached",
+              "all_candidates_blocked_by_policy",
+              "target_outside_workset_scope",
+              "attempt_cancelled_before_output",
+              "attempt_blocked_pending_input",
+              "host_runtime_unreachable",
+              "unavailable_reason_unknown_requires_review"
+            ]
+          },
+          "parser_fallback_reason_card_ref": { "type": "null" }
+        },
+        "required": ["confidence_ceiling", "freshness_class", "unavailable_reason_class", "parser_fallback_reason_card_ref"]
+      }
+    },
+    {
+      "description": "Non-stale states MUST set stale_reason_class to not_stale.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": {
+            "enum": [
+              "native_adapter",
+              "declared_adapter",
+              "inferred_adapter",
+              "parser_fallback",
+              "imported_result",
+              "unavailable_result"
+            ]
+          }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "stale_reason_class": { "const": "not_stale" }
+        },
+        "required": ["stale_reason_class"]
+      }
+    },
+    {
+      "description": "Non-unavailable states MUST set unavailable_reason_class to not_unavailable.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": {
+            "enum": [
+              "native_adapter",
+              "declared_adapter",
+              "inferred_adapter",
+              "parser_fallback",
+              "imported_result",
+              "stale_result"
+            ]
+          }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "unavailable_reason_class": { "const": "not_unavailable" }
+        },
+        "required": ["unavailable_reason_class"]
+      }
+    },
+    {
+      "description": "Non-imported states MUST set import_source_class to not_imported.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": {
+            "enum": [
+              "native_adapter",
+              "declared_adapter",
+              "inferred_adapter",
+              "parser_fallback",
+              "stale_result",
+              "unavailable_result"
+            ]
+          }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "import_source_class": { "const": "not_imported" }
+        },
+        "required": ["import_source_class"]
+      }
+    },
+    {
+      "description": "native_adapter MUST cite at least one of native_runner_streamed_events, build_server_protocol_session, or bazel_build_event_protocol_stream as its evidence source so a parser-fallback evidence source can never appear under a native_adapter row.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "native_adapter" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "evidence_source_class_set": {
+            "type": "array",
+            "contains": {
+              "enum": [
+                "native_runner_streamed_events",
+                "build_server_protocol_session",
+                "bazel_build_event_protocol_stream"
+              ]
+            }
+          }
+        },
+        "required": ["evidence_source_class_set"]
+      }
+    },
+    {
+      "description": "parser_fallback MUST cite free_form_log_line_parse and MUST NOT cite native_runner_streamed_events, build_server_protocol_session, or bazel_build_event_protocol_stream so a parser-fallback row never claims native-adapter certainty.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "parser_fallback" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "evidence_source_class_set": {
+            "type": "array",
+            "contains": { "const": "free_form_log_line_parse" },
+            "items": {
+              "not": {
+                "enum": [
+                  "native_runner_streamed_events",
+                  "build_server_protocol_session",
+                  "bazel_build_event_protocol_stream"
+                ]
+              }
+            }
+          }
+        },
+        "required": ["evidence_source_class_set"]
+      }
+    },
+    {
+      "description": "imported_result MUST cite at least one import-class evidence source and MUST NOT cite native_runner_streamed_events.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "imported_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "evidence_source_class_set": {
+            "type": "array",
+            "contains": {
+              "enum": [
+                "support_bundle_replay",
+                "managed_ci_artifact_import",
+                "provider_api_snapshot",
+                "review_pack_snapshot",
+                "release_packet_snapshot"
+              ]
+            },
+            "items": {
+              "not": { "const": "native_runner_streamed_events" }
+            }
+          }
+        },
+        "required": ["evidence_source_class_set"]
+      }
+    },
+    {
+      "description": "unavailable_result MUST cite no_evidence_observed as one of its evidence sources.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "build_adapter_confidence_state_record" },
+          "build_adapter_confidence_state": { "const": "unavailable_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "evidence_source_class_set": {
+            "type": "array",
+            "contains": { "const": "no_evidence_observed" }
+          }
+        },
+        "required": ["evidence_source_class_set"]
+      }
+    },
+    {
+      "description": "Reason cards MUST carry build_adapter_confidence_state in {parser_fallback, stale_result}.",
+      "if": {
+        "properties": { "record_kind": { "const": "parser_fallback_reason_card_record" } },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "build_adapter_confidence_state": {
+            "enum": ["parser_fallback", "stale_result"]
+          }
+        },
+        "required": ["build_adapter_confidence_state"]
+      }
+    },
+    {
+      "description": "Reason cards MUST cite at least one openable_support_artifact whose open_action_class is open_raw_event_inspector_pane so the raw-event inspector is always reachable.",
+      "if": {
+        "properties": { "record_kind": { "const": "parser_fallback_reason_card_record" } },
+        "required": ["record_kind"]
+      },
+      "then": {
+        "properties": {
+          "openable_support_artifacts": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "open_action_class": { "const": "open_raw_event_inspector_pane" }
+              },
+              "required": ["open_action_class"]
+            }
+          }
+        },
+        "required": ["openable_support_artifacts"]
+      }
+    },
+    {
+      "description": "Reason cards for parser_fallback MUST cite at least one guessed_artifact entry.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "parser_fallback_reason_card_record" },
+          "build_adapter_confidence_state": { "const": "parser_fallback" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "guessed_artifacts": {
+            "type": "array",
+            "minItems": 1
+          }
+        },
+        "required": ["guessed_artifacts"]
+      }
+    },
+    {
+      "description": "Reason cards for stale_result MUST cite at least one recognized_artifact entry so the prior-trusted row remains identifiable.",
+      "if": {
+        "properties": {
+          "record_kind": { "const": "parser_fallback_reason_card_record" },
+          "build_adapter_confidence_state": { "const": "stale_result" }
+        },
+        "required": ["record_kind", "build_adapter_confidence_state"]
+      },
+      "then": {
+        "properties": {
+          "recognized_artifacts": {
+            "type": "array",
+            "minItems": 1
+          }
+        },
+        "required": ["recognized_artifacts"]
+      }
+    }
+  ]
+}
