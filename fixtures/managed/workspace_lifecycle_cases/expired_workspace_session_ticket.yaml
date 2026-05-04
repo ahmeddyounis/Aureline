@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=../../../schemas/managed/workspace_lifecycle_state.schema.json
+__fixture__:
+  name: expired_workspace_session_ticket
+  scenario: >
+    The managed-session ticket for a previously-ready workspace
+    expired. The workspace is technically reachable pending reauth
+    but managed actions are blocked. Local-only continuation surfaces
+    stay open while the user reauthenticates; the retry posture
+    exposes reauth and local-only continuation as distinct outcomes.
+  exercised_contract_sections:
+    - lifecycle_phase_vocabulary
+    - expiry_block
+    - retry_posture
+    - continuation_posture
+
+schema_version: 1
+record_kind: managed_workspace_lifecycle_state_record
+workspace_lifecycle_record_id: wlr:managed:expired_session_ticket:0001
+workspace_ref: workspace:managed:alpha:0001
+workspace_instance_ref: managed_workspace_instance:mw:alpha:0001
+lifecycle_phase_class: expired
+underlying_taxonomy_state_class: ready
+reachability_state_class: unreachable_pending_reauth
+transition:
+  transition_reason_class: session_ticket_expired
+  prior_phase_class: ready
+  prior_taxonomy_state_class: ready
+  admit_next_phase_classes:
+    - sync_warming
+    - rebuild
+    - closed
+  transition_summary: Managed-session ticket expired; managed actions blocked pending reauth.
+  transitioned_at: "2026-05-04T16:30:00Z"
+persistence_posture:
+  workspace_files:
+    persistence_class: persisted_workspace_only
+    note: Workspace volume preserved while reauth is pending.
+  in_progress_processes:
+    persistence_class: ephemeral_lost_on_transition
+    note: Processes do not survive expiry; reauth completes through warming.
+  terminal_sessions:
+    persistence_class: ephemeral_lost_on_transition
+    note: Terminal sessions are lost on session-ticket expiry.
+  forwarded_ports:
+    persistence_class: ephemeral_lost_on_transition
+    note: Port forwards are torn down on expiry.
+  notebook_kernels:
+    persistence_class: ephemeral_lost_on_transition
+    note: Notebook kernels are lost on expiry; new kernels start on resume.
+  credentials_and_tokens:
+    persistence_class: never_persisted_security_boundary
+    credential_redaction_class: never_persisted_security_boundary
+    note: Expired session ticket is invalid; reauth mints a new ticket.
+  evidence_artifacts:
+    persistence_class: persisted_workspace_only
+    evidence_export_posture_class: exportable_during_access_end_window
+    note: Evidence remains in the workspace volume; export available during the access-end window.
+continuation_posture:
+  posture_class: workspace_unavailable_local_only_continuation
+  managed_action_blocking_class: managed_actions_blocked_pending_reauth
+  local_only_continuation_reason_class: session_ticket_expired
+  local_only_admissible_surfaces:
+    - file_open_and_edit
+    - file_save_to_local_disk
+    - local_search
+    - local_git
+    - local_tasks
+    - local_byok_ai
+    - support_bundle_export_local_only
+    - already_exported_local_artifacts
+  continuation_summary: Session ticket expired; editor continues locally while reauth is pending.
+retry_posture:
+  retry_outcomes:
+    - reauth_admissible
+    - local_only_continuation_admissible
+  retry_summary: Reauth is offered; local-only continuation stays available during reauth.
+expiry:
+  expiry_reason_class: session_ticket_expired
+  expired_at: "2026-05-04T16:30:00Z"
+  reauth_path_ref: reauth_path:managed_session:refresh:0001
+  expiry_summary: Session ticket expired; reauth refreshes the ticket and resumes through warming.
+rebuild: null
+closed: null
+degraded: null
+offboarding_posture:
+  workspace_files_offboarding_class: export_available_during_access_end_window
+  evidence_artifacts_offboarding_class: export_available_during_access_end_window
+  credentials_and_tokens_offboarding_class: discarded_at_close
+  support_bundles_offboarding_class: export_available_during_access_end_window
+  access_end_window_open: false
+  access_end_window_closes_at: null
+  offboarding_summary: Access-end window not open; offboarding remains available after reauth or as local-only export.
+caveats:
+  - Reauth is required before managed actions resume.
+  - Notebook kernels and forwarded ports are not preserved across session-ticket expiry.
+policy_context:
+  policy_epoch: policy-epoch:managed_workspace:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T16:30:01Z"
+expires_at: "2026-05-04T16:40:00Z"
+links:
+  contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  lifecycle_matrix_ref: artifacts/runtime/managed_workspace_lifecycle.yaml
+  verification_packet_ref: docs/verification/target_and_host_boundary_packet.md
+  metering_quota_state_refs:
+    - quota-state:managed_workspace:hours:cached:0001
+  target_truth_record_refs:
+    - tt:20260504T163000Z:0003
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_workspace_runtime

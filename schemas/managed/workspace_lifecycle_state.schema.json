@@ -1,0 +1,992 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/managed/workspace_lifecycle_state.schema.json",
+  "title": "Aureline managed-workspace lifecycle-state record",
+  "description": "Boundary schema for one managed_workspace_lifecycle_state_record frozen in docs/managed/managed_workspace_lifecycle_contract.md. The record is the product-wide explainability object every surface that quotes managed-workspace state reads before claiming reachability, persistence, retry, offboarding, or local-only continuation. It freezes the 12-phase reviewer-facing lifecycle (discovery / preflight / allocating / booting / attaching / sync_warming / ready / suspended / degraded / expired / rebuild / closed), projects each phase onto the canonical managed_workspace_lifecycle_state vocabulary, declares per-resource persistence posture for the seven resource classes (workspace_files / in_progress_processes / terminal_sessions / forwarded_ports / notebook_kernels / credentials_and_tokens / evidence_artifacts), and names typed expiry / rebuild / closed / degraded blocks plus continuation posture and retry outcomes. Raw user emails, raw tenant names, raw workspace volume ids, raw provider URLs, and raw container image digests never cross this boundary. Adding enum values is additive-minor and requires a schema_version bump plus a fixture; repurposing an existing value is breaking.",
+  "$ref": "#/$defs/managed_workspace_lifecycle_state_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, exports, support packets, and offboarding packets. Raw customer, billing, provider, URL, prompt, code, container image, and volume identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from an authoritative or monotonic timestamp source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-safe sentence. Must not contain raw prompts, raw code, raw emails, raw tenant names, raw workspace volume ids, raw container image digests, raw billing ids, raw URLs, or provider account identifiers."
+    },
+    "lifecycle_phase_class": {
+      "type": "string",
+      "enum": [
+        "discovery",
+        "preflight",
+        "allocating",
+        "booting",
+        "attaching",
+        "sync_warming",
+        "ready",
+        "suspended",
+        "degraded",
+        "expired",
+        "rebuild",
+        "closed"
+      ]
+    },
+    "underlying_taxonomy_state_class": {
+      "type": "string",
+      "enum": [
+        "undeclared",
+        "provisioning",
+        "warming",
+        "ready",
+        "idle_suspended",
+        "snapshot_paused",
+        "hibernated",
+        "recovering",
+        "quarantined",
+        "retiring",
+        "retired",
+        "not_applicable_local_only"
+      ]
+    },
+    "reachability_state_class": {
+      "type": "string",
+      "enum": [
+        "reachable",
+        "warming",
+        "degraded",
+        "unreachable",
+        "unreachable_pending_reauth",
+        "disabled_by_policy",
+        "not_applicable_local_only"
+      ]
+    },
+    "transition_reason_class": {
+      "type": "string",
+      "enum": [
+        "no_transition_reason_initial_state",
+        "user_requested_create",
+        "user_requested_resume",
+        "user_requested_pause",
+        "user_requested_retire",
+        "user_requested_rebuild",
+        "user_requested_local_fallback",
+        "admin_requested_quarantine",
+        "admin_requested_migration",
+        "admin_requested_local_fallback",
+        "idle_window_elapsed",
+        "hibernation_window_elapsed",
+        "activation_budget_exceeded",
+        "capsule_drift_detected",
+        "capsule_drift_unrecoverable",
+        "volume_drift_detected",
+        "volume_drift_unrecoverable",
+        "route_dependency_unreachable",
+        "policy_epoch_rolled",
+        "kill_switch_tripped",
+        "kill_switch_recovery",
+        "successor_image_available",
+        "control_plane_failure",
+        "control_plane_recovered",
+        "retirement_drain_window_completed",
+        "session_ticket_expired",
+        "managed_control_plane_unreachable",
+        "remote_agent_attach_unreachable",
+        "browser_handoff_return_unavailable",
+        "offboarding_initiated",
+        "offboarding_completed",
+        "access_end_window_expired",
+        "seat_revoked"
+      ]
+    },
+    "resource_class": {
+      "type": "string",
+      "enum": [
+        "workspace_files",
+        "in_progress_processes",
+        "terminal_sessions",
+        "forwarded_ports",
+        "notebook_kernels",
+        "credentials_and_tokens",
+        "evidence_artifacts"
+      ]
+    },
+    "persistence_class": {
+      "type": "string",
+      "enum": [
+        "persisted_durable",
+        "persisted_snapshot",
+        "persisted_workspace_only",
+        "preserved_locally_only",
+        "suspended_resumable",
+        "ephemeral_lost_on_transition",
+        "regenerated_on_resume",
+        "never_persisted_security_boundary",
+        "policy_redacted",
+        "not_applicable"
+      ]
+    },
+    "credential_redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only",
+        "never_persisted_security_boundary",
+        "policy_redacted",
+        "not_applicable"
+      ]
+    },
+    "evidence_export_posture_class": {
+      "type": "string",
+      "enum": [
+        "exportable_from_local_host",
+        "exportable_from_managed_workspace_only",
+        "exportable_during_access_end_window",
+        "policy_held_post_close",
+        "not_exportable",
+        "not_applicable"
+      ]
+    },
+    "posture_class": {
+      "type": "string",
+      "enum": [
+        "workspace_attached",
+        "workspace_unavailable_local_only_continuation",
+        "offboarding_in_progress",
+        "workspace_closed_local_artifacts_only"
+      ]
+    },
+    "local_only_continuation_reason_class": {
+      "type": "string",
+      "enum": [
+        "managed_control_plane_unreachable",
+        "remote_agent_attach_unreachable",
+        "browser_handoff_return_unavailable",
+        "route_dependency_unreachable",
+        "session_ticket_expired",
+        "workspace_suspended_user_continuing_locally",
+        "workspace_expired_user_continuing_locally",
+        "workspace_rebuild_in_progress",
+        "policy_blocked_managed_action",
+        "user_requested_local_fallback",
+        "admin_requested_local_fallback"
+      ]
+    },
+    "local_only_admissible_surface_class": {
+      "type": "string",
+      "enum": [
+        "file_open_and_edit",
+        "file_save_to_local_disk",
+        "local_search",
+        "local_git",
+        "local_tasks",
+        "local_byok_ai",
+        "local_authorized_automation",
+        "support_bundle_export_local_only",
+        "offboarding_export_local_only",
+        "already_exported_local_artifacts"
+      ]
+    },
+    "managed_action_blocking_class": {
+      "type": "string",
+      "enum": [
+        "managed_actions_admissible",
+        "managed_actions_narrowed_recovery_in_flight",
+        "managed_actions_blocked_workspace_unavailable",
+        "managed_actions_blocked_pending_reauth",
+        "managed_actions_blocked_policy_suppressed",
+        "managed_actions_blocked_expired",
+        "managed_actions_blocked_rebuild_review_required",
+        "managed_actions_closed"
+      ]
+    },
+    "retry_outcome_class": {
+      "type": "string",
+      "enum": [
+        "resume_admissible",
+        "reconnect_admissible",
+        "reauth_admissible",
+        "rebuild_review_required",
+        "local_only_continuation_admissible",
+        "offboarding_admissible",
+        "closed_no_action"
+      ]
+    },
+    "expiry_reason_class": {
+      "type": "string",
+      "enum": [
+        "session_ticket_expired",
+        "hibernation_window_elapsed",
+        "retirement_drain_window_completed",
+        "policy_epoch_rolled",
+        "kill_switch_tripped",
+        "successor_image_available",
+        "access_end_window_expired"
+      ]
+    },
+    "rebuild_reason_class": {
+      "type": "string",
+      "enum": [
+        "successor_image_available",
+        "capsule_drift_unrecoverable",
+        "volume_drift_unrecoverable",
+        "admin_requested_migration",
+        "policy_epoch_rolled",
+        "kill_switch_recovery",
+        "user_requested_rebuild"
+      ]
+    },
+    "closed_reason_class": {
+      "type": "string",
+      "enum": [
+        "user_requested_retire",
+        "admin_requested_quarantine",
+        "retirement_drain_window_completed",
+        "access_end_window_expired",
+        "offboarding_completed",
+        "workspace_deleted_by_admin",
+        "seat_revoked"
+      ]
+    },
+    "degraded_reason_class": {
+      "type": "string",
+      "enum": [
+        "control_plane_failure",
+        "capsule_drift_detected",
+        "volume_drift_detected",
+        "network_partition_detected",
+        "partial_route_dependency_unreachable",
+        "session_ticket_expiring_soon"
+      ]
+    },
+    "offboarding_persistence_class": {
+      "type": "string",
+      "enum": [
+        "exported_before_close",
+        "export_available_during_access_end_window",
+        "preserved_locally_after_close",
+        "discarded_at_close",
+        "policy_held_post_close",
+        "not_applicable"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch",
+        "trust_state",
+        "deployment_profile_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+    "transition_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transition_reason_class",
+        "prior_phase_class",
+        "prior_taxonomy_state_class",
+        "admit_next_phase_classes",
+        "transition_summary"
+      ],
+      "properties": {
+        "transition_reason_class": { "$ref": "#/$defs/transition_reason_class" },
+        "prior_phase_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/lifecycle_phase_class" }
+          ]
+        },
+        "prior_taxonomy_state_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/underlying_taxonomy_state_class" }
+          ]
+        },
+        "admit_next_phase_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/lifecycle_phase_class" }
+        },
+        "transition_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "transitioned_at": { "$ref": "#/$defs/nullable_timestamp" }
+      }
+    },
+    "resource_persistence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persistence_class",
+        "note"
+      ],
+      "properties": {
+        "persistence_class": { "$ref": "#/$defs/persistence_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "credentials_persistence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persistence_class",
+        "credential_redaction_class",
+        "note"
+      ],
+      "properties": {
+        "persistence_class": { "$ref": "#/$defs/persistence_class" },
+        "credential_redaction_class": { "$ref": "#/$defs/credential_redaction_class" },
+        "credential_token_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "evidence_persistence_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "persistence_class",
+        "evidence_export_posture_class",
+        "note"
+      ],
+      "properties": {
+        "persistence_class": { "$ref": "#/$defs/persistence_class" },
+        "evidence_export_posture_class": { "$ref": "#/$defs/evidence_export_posture_class" },
+        "evidence_artifact_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "persistence_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_files",
+        "in_progress_processes",
+        "terminal_sessions",
+        "forwarded_ports",
+        "notebook_kernels",
+        "credentials_and_tokens",
+        "evidence_artifacts"
+      ],
+      "properties": {
+        "workspace_files": { "$ref": "#/$defs/resource_persistence_entry" },
+        "in_progress_processes": { "$ref": "#/$defs/resource_persistence_entry" },
+        "terminal_sessions": { "$ref": "#/$defs/resource_persistence_entry" },
+        "forwarded_ports": { "$ref": "#/$defs/resource_persistence_entry" },
+        "notebook_kernels": { "$ref": "#/$defs/resource_persistence_entry" },
+        "credentials_and_tokens": { "$ref": "#/$defs/credentials_persistence_entry" },
+        "evidence_artifacts": { "$ref": "#/$defs/evidence_persistence_entry" }
+      },
+      "allOf": [
+        {
+          "description": "Processes, terminals, forwarded ports, and notebook kernels MUST NOT claim persisted_durable; durability is reserved for committed files, evidence, and credential tokens.",
+          "properties": {
+            "in_progress_processes": {
+              "properties": {
+                "persistence_class": {
+                  "not": { "const": "persisted_durable" }
+                }
+              }
+            },
+            "terminal_sessions": {
+              "properties": {
+                "persistence_class": {
+                  "not": { "const": "persisted_durable" }
+                }
+              }
+            },
+            "forwarded_ports": {
+              "properties": {
+                "persistence_class": {
+                  "not": { "const": "persisted_durable" }
+                }
+              }
+            },
+            "notebook_kernels": {
+              "properties": {
+                "persistence_class": {
+                  "not": { "const": "persisted_durable" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "continuation_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "managed_action_blocking_class",
+        "local_only_continuation_reason_class",
+        "local_only_admissible_surfaces",
+        "continuation_summary"
+      ],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/posture_class" },
+        "managed_action_blocking_class": { "$ref": "#/$defs/managed_action_blocking_class" },
+        "local_only_continuation_reason_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/local_only_continuation_reason_class" }
+          ]
+        },
+        "local_only_admissible_surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/local_only_admissible_surface_class" }
+        },
+        "continuation_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "expiry_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expiry_reason_class",
+        "expired_at",
+        "expiry_summary"
+      ],
+      "properties": {
+        "expiry_reason_class": { "$ref": "#/$defs/expiry_reason_class" },
+        "expired_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "reauth_path_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "expiry_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "rebuild_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rebuild_reason_class",
+        "prior_workspace_instance_ref",
+        "successor_workspace_instance_ref",
+        "rebuild_review_required",
+        "rebuild_summary"
+      ],
+      "properties": {
+        "rebuild_reason_class": { "$ref": "#/$defs/rebuild_reason_class" },
+        "prior_workspace_instance_ref": { "$ref": "#/$defs/opaque_id" },
+        "successor_workspace_instance_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "rebuild_review_required": { "type": "boolean" },
+        "rebuild_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "closed_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "closed_reason_class",
+        "closed_at",
+        "closed_summary"
+      ],
+      "properties": {
+        "closed_reason_class": { "$ref": "#/$defs/closed_reason_class" },
+        "closed_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "offboarding_export_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "closed_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "degraded_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degraded_reason_class",
+        "recovery_admissible",
+        "degraded_summary"
+      ],
+      "properties": {
+        "degraded_reason_class": { "$ref": "#/$defs/degraded_reason_class" },
+        "recovery_admissible": { "type": "boolean" },
+        "recovery_started_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "degraded_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "offboarding_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_files_offboarding_class",
+        "evidence_artifacts_offboarding_class",
+        "credentials_and_tokens_offboarding_class",
+        "support_bundles_offboarding_class",
+        "access_end_window_open",
+        "offboarding_summary"
+      ],
+      "properties": {
+        "workspace_files_offboarding_class": { "$ref": "#/$defs/offboarding_persistence_class" },
+        "evidence_artifacts_offboarding_class": { "$ref": "#/$defs/offboarding_persistence_class" },
+        "credentials_and_tokens_offboarding_class": { "$ref": "#/$defs/offboarding_persistence_class" },
+        "support_bundles_offboarding_class": { "$ref": "#/$defs/offboarding_persistence_class" },
+        "access_end_window_open": { "type": "boolean" },
+        "access_end_window_closes_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "offboarding_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "retry_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retry_outcomes",
+        "retry_summary"
+      ],
+      "properties": {
+        "retry_outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/retry_outcome_class" }
+        },
+        "retry_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_ref",
+        "lifecycle_matrix_ref",
+        "verification_packet_ref"
+      ],
+      "properties": {
+        "contract_ref": {
+          "type": "string",
+          "const": "docs/managed/managed_workspace_lifecycle_contract.md"
+        },
+        "lifecycle_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/runtime/managed_workspace_lifecycle.yaml"
+        },
+        "verification_packet_ref": {
+          "type": "string",
+          "const": "docs/verification/target_and_host_boundary_packet.md"
+        },
+        "metering_quota_state_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "target_truth_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "service_slo_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "managed_workspace_lifecycle_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "workspace_lifecycle_record_id",
+        "workspace_ref",
+        "workspace_instance_ref",
+        "lifecycle_phase_class",
+        "underlying_taxonomy_state_class",
+        "reachability_state_class",
+        "transition",
+        "persistence_posture",
+        "continuation_posture",
+        "retry_posture",
+        "expiry",
+        "rebuild",
+        "closed",
+        "degraded",
+        "offboarding_posture",
+        "policy_context",
+        "minted_at",
+        "links"
+      ],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/schema_version" },
+        "record_kind": {
+          "type": "string",
+          "const": "managed_workspace_lifecycle_state_record"
+        },
+        "workspace_lifecycle_record_id": { "$ref": "#/$defs/opaque_id" },
+        "workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_instance_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "lifecycle_phase_class": { "$ref": "#/$defs/lifecycle_phase_class" },
+        "underlying_taxonomy_state_class": { "$ref": "#/$defs/underlying_taxonomy_state_class" },
+        "reachability_state_class": { "$ref": "#/$defs/reachability_state_class" },
+        "transition": { "$ref": "#/$defs/transition_block" },
+        "persistence_posture": { "$ref": "#/$defs/persistence_posture" },
+        "continuation_posture": { "$ref": "#/$defs/continuation_posture" },
+        "retry_posture": { "$ref": "#/$defs/retry_posture" },
+        "expiry": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/expiry_block" }
+          ]
+        },
+        "rebuild": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/rebuild_block" }
+          ]
+        },
+        "closed": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/closed_block" }
+          ]
+        },
+        "degraded": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/degraded_block" }
+          ]
+        },
+        "offboarding_posture": { "$ref": "#/$defs/offboarding_posture" },
+        "caveats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "links": { "$ref": "#/$defs/links" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture-only annotation block; never emitted by runtime producers."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Ready phase MUST be reachable and project onto the ready taxonomy state with workspace_attached posture.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "ready" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_taxonomy_state_class": { "const": "ready" },
+              "reachability_state_class": { "const": "reachable" },
+              "continuation_posture": {
+                "properties": {
+                  "posture_class": { "const": "workspace_attached" },
+                  "managed_action_blocking_class": {
+                    "enum": [
+                      "managed_actions_admissible",
+                      "managed_actions_narrowed_recovery_in_flight"
+                    ]
+                  },
+                  "local_only_continuation_reason_class": { "type": "null" },
+                  "local_only_admissible_surfaces": { "maxItems": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Suspended phase projects onto idle_suspended or snapshot_paused; processes, terminals, kernels, and ports MUST render the loss-on-suspend posture.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "suspended" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_taxonomy_state_class": {
+                "enum": ["idle_suspended", "snapshot_paused"]
+              },
+              "reachability_state_class": { "const": "unreachable" },
+              "persistence_posture": {
+                "properties": {
+                  "workspace_files": {
+                    "properties": {
+                      "persistence_class": {
+                        "enum": ["persisted_workspace_only", "persisted_snapshot", "persisted_durable"]
+                      }
+                    }
+                  },
+                  "in_progress_processes": {
+                    "properties": {
+                      "persistence_class": {
+                        "enum": ["suspended_resumable", "ephemeral_lost_on_transition"]
+                      }
+                    }
+                  },
+                  "terminal_sessions": {
+                    "properties": {
+                      "persistence_class": {
+                        "enum": ["suspended_resumable", "ephemeral_lost_on_transition"]
+                      }
+                    }
+                  },
+                  "forwarded_ports": {
+                    "properties": {
+                      "persistence_class": {
+                        "enum": ["ephemeral_lost_on_transition", "regenerated_on_resume"]
+                      }
+                    }
+                  },
+                  "notebook_kernels": {
+                    "properties": {
+                      "persistence_class": {
+                        "enum": ["regenerated_on_resume", "ephemeral_lost_on_transition"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Expired phase MUST carry a typed expiry block and unreachable / pending-reauth reachability.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "expired" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "expiry": {
+                "type": "object"
+              },
+              "reachability_state_class": {
+                "enum": ["unreachable", "unreachable_pending_reauth"]
+              },
+              "underlying_taxonomy_state_class": {
+                "enum": ["hibernated", "retiring", "retired", "ready"]
+              }
+            },
+            "required": ["expiry"]
+          }
+        },
+        {
+          "description": "Rebuild phase MUST carry a typed rebuild block.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "rebuild" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "rebuild": {
+                "type": "object"
+              },
+              "underlying_taxonomy_state_class": {
+                "enum": ["provisioning", "warming", "recovering", "retiring", "quarantined"]
+              }
+            },
+            "required": ["rebuild"]
+          }
+        },
+        {
+          "description": "Closed phase MUST carry a typed closed block, an unreachable reachability, and the closed continuation posture.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "closed" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "closed": {
+                "type": "object"
+              },
+              "reachability_state_class": { "const": "unreachable" },
+              "underlying_taxonomy_state_class": {
+                "enum": ["retired", "quarantined"]
+              },
+              "continuation_posture": {
+                "properties": {
+                  "posture_class": { "const": "workspace_closed_local_artifacts_only" },
+                  "managed_action_blocking_class": { "const": "managed_actions_closed" }
+                }
+              }
+            },
+            "required": ["closed"]
+          }
+        },
+        {
+          "description": "Degraded phase MUST carry a typed degraded block.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "degraded" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "degraded": {
+                "type": "object"
+              },
+              "underlying_taxonomy_state_class": { "const": "recovering" },
+              "reachability_state_class": {
+                "enum": ["degraded", "unreachable"]
+              }
+            },
+            "required": ["degraded"]
+          }
+        },
+        {
+          "description": "workspace_unavailable_local_only_continuation requires a typed reason and a non-empty admissible-surface list.",
+          "if": {
+            "properties": {
+              "continuation_posture": {
+                "properties": {
+                  "posture_class": { "const": "workspace_unavailable_local_only_continuation" }
+                },
+                "required": ["posture_class"]
+              }
+            },
+            "required": ["continuation_posture"]
+          },
+          "then": {
+            "properties": {
+              "continuation_posture": {
+                "properties": {
+                  "local_only_continuation_reason_class": {
+                    "not": { "type": "null" }
+                  },
+                  "local_only_admissible_surfaces": {
+                    "minItems": 1
+                  },
+                  "managed_action_blocking_class": {
+                    "enum": [
+                      "managed_actions_blocked_workspace_unavailable",
+                      "managed_actions_blocked_pending_reauth",
+                      "managed_actions_blocked_policy_suppressed",
+                      "managed_actions_blocked_expired",
+                      "managed_actions_blocked_rebuild_review_required",
+                      "managed_actions_narrowed_recovery_in_flight"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "workspace_attached posture forbids local-only continuation reason and admissible-surface entries.",
+          "if": {
+            "properties": {
+              "continuation_posture": {
+                "properties": {
+                  "posture_class": { "const": "workspace_attached" }
+                },
+                "required": ["posture_class"]
+              }
+            },
+            "required": ["continuation_posture"]
+          },
+          "then": {
+            "properties": {
+              "continuation_posture": {
+                "properties": {
+                  "local_only_continuation_reason_class": { "type": "null" },
+                  "local_only_admissible_surfaces": { "maxItems": 0 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Discovery phase has no managed instance and no managed_workspace_boundary persistence on workspace files.",
+          "if": {
+            "properties": {
+              "lifecycle_phase_class": { "const": "discovery" }
+            },
+            "required": ["lifecycle_phase_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_taxonomy_state_class": { "const": "undeclared" },
+              "workspace_instance_ref": { "type": "null" },
+              "reachability_state_class": { "const": "unreachable" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

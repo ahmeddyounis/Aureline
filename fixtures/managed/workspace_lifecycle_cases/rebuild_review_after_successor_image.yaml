@@ -1,0 +1,118 @@
+# yaml-language-server: $schema=../../../schemas/managed/workspace_lifecycle_state.schema.json
+__fixture__:
+  name: rebuild_review_after_successor_image
+  scenario: >
+    A successor capsule image is available; the existing instance is
+    in the retiring drain window. Rebuild review is required: the
+    user MUST acknowledge that committed files and durable evidence
+    persist while uncommitted scratch, processes, terminals, ports,
+    and kernels are lost across the rebuild. Rebuild and resume are
+    distinct retry outcomes; the schema forbids combining them.
+  exercised_contract_sections:
+    - lifecycle_phase_vocabulary
+    - rebuild_block
+    - persistence_posture_matrix
+    - retry_posture
+
+schema_version: 1
+record_kind: managed_workspace_lifecycle_state_record
+workspace_lifecycle_record_id: wlr:managed:rebuild_review:0001
+workspace_ref: workspace:managed:alpha:0001
+workspace_instance_ref: managed_workspace_instance:mw:alpha:0002
+lifecycle_phase_class: rebuild
+underlying_taxonomy_state_class: retiring
+reachability_state_class: warming
+transition:
+  transition_reason_class: successor_image_available
+  prior_phase_class: ready
+  prior_taxonomy_state_class: ready
+  admit_next_phase_classes:
+    - sync_warming
+    - closed
+  transition_summary: Successor image available; instance entering rebuild via the retiring drain window.
+  transitioned_at: "2026-05-04T17:10:00Z"
+persistence_posture:
+  workspace_files:
+    persistence_class: persisted_durable
+    note: Committed Git history persists across the rebuild; uncommitted scratch is lost.
+  in_progress_processes:
+    persistence_class: ephemeral_lost_on_transition
+    note: Build, test, and run processes are lost across rebuild.
+  terminal_sessions:
+    persistence_class: ephemeral_lost_on_transition
+    note: Terminal sessions are lost across rebuild.
+  forwarded_ports:
+    persistence_class: ephemeral_lost_on_transition
+    note: Port forwards are lost across rebuild.
+  notebook_kernels:
+    persistence_class: ephemeral_lost_on_transition
+    note: Notebook kernels are lost across rebuild.
+  credentials_and_tokens:
+    persistence_class: persisted_durable
+    credential_redaction_class: metadata_safe_default
+    credential_token_ref: token:managed_session:0002
+    note: Managed-control-plane token persists; per-process credentials are reissued on the successor image.
+  evidence_artifacts:
+    persistence_class: persisted_durable
+    evidence_export_posture_class: exportable_from_local_host
+    evidence_artifact_refs:
+      - evidence:mutation_journal:committed:0001
+      - evidence:route_truth:0001
+    note: Committed evidence persists across rebuild; uncommitted evidence is lost.
+continuation_posture:
+  posture_class: workspace_unavailable_local_only_continuation
+  managed_action_blocking_class: managed_actions_blocked_rebuild_review_required
+  local_only_continuation_reason_class: workspace_rebuild_in_progress
+  local_only_admissible_surfaces:
+    - file_open_and_edit
+    - file_save_to_local_disk
+    - local_search
+    - local_git
+    - local_tasks
+    - local_byok_ai
+    - support_bundle_export_local_only
+    - offboarding_export_local_only
+    - already_exported_local_artifacts
+  continuation_summary: Workspace rebuild pending review; editor continues locally with the narrowed scope.
+retry_posture:
+  retry_outcomes:
+    - rebuild_review_required
+    - local_only_continuation_admissible
+  retry_summary: Rebuild review is required before commit; local-only continuation stays available during review.
+expiry: null
+rebuild:
+  rebuild_reason_class: successor_image_available
+  prior_workspace_instance_ref: managed_workspace_instance:mw:alpha:0001
+  successor_workspace_instance_ref: managed_workspace_instance:mw:alpha:0002
+  rebuild_review_required: true
+  rebuild_summary: Successor image available; rebuild reviews persistence posture before commit.
+closed: null
+degraded: null
+offboarding_posture:
+  workspace_files_offboarding_class: export_available_during_access_end_window
+  evidence_artifacts_offboarding_class: export_available_during_access_end_window
+  credentials_and_tokens_offboarding_class: discarded_at_close
+  support_bundles_offboarding_class: export_available_during_access_end_window
+  access_end_window_open: false
+  access_end_window_closes_at: null
+  offboarding_summary: Offboarding remains available; rebuild does not consume the access-end window.
+caveats:
+  - Uncommitted edits will be lost when the rebuild commits; commit before approval.
+  - Processes, terminals, ports, and kernels are lost across the rebuild by design.
+policy_context:
+  policy_epoch: policy-epoch:managed_workspace:0043
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T17:10:01Z"
+expires_at: "2026-05-04T17:20:00Z"
+links:
+  contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  lifecycle_matrix_ref: artifacts/runtime/managed_workspace_lifecycle.yaml
+  verification_packet_ref: docs/verification/target_and_host_boundary_packet.md
+  metering_quota_state_refs:
+    - quota-state:managed_workspace:hours:cached:0001
+  target_truth_record_refs:
+    - tt:20260504T171000Z:0004
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_workspace_runtime

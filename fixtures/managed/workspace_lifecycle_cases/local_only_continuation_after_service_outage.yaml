@@ -1,0 +1,117 @@
+# yaml-language-server: $schema=../../../schemas/managed/workspace_lifecycle_state.schema.json
+__fixture__:
+  name: local_only_continuation_after_service_outage
+  scenario: >
+    The managed control plane is unreachable due to a service outage.
+    The workspace was previously ready; the instance is presumed
+    available but cannot be contacted. The lifecycle phase is degraded
+    (control_plane_failure) and the editor continues in local-only
+    continuation. Local edit / save / search / Git / tasks / BYOK AI
+    surfaces stay open; managed actions are blocked with a typed
+    reason rather than a spinner.
+  exercised_contract_sections:
+    - lifecycle_phase_vocabulary
+    - degraded_block
+    - continuation_posture
+    - local_only_continuation_admissible_surfaces
+    - retry_posture
+
+schema_version: 1
+record_kind: managed_workspace_lifecycle_state_record
+workspace_lifecycle_record_id: wlr:managed:local_only_after_outage:0001
+workspace_ref: workspace:managed:alpha:0001
+workspace_instance_ref: managed_workspace_instance:mw:alpha:0001
+lifecycle_phase_class: degraded
+underlying_taxonomy_state_class: recovering
+reachability_state_class: unreachable
+transition:
+  transition_reason_class: managed_control_plane_unreachable
+  prior_phase_class: ready
+  prior_taxonomy_state_class: ready
+  admit_next_phase_classes:
+    - sync_warming
+    - expired
+    - closed
+  transition_summary: Managed control plane unreachable; instance presumed available but unreachable.
+  transitioned_at: "2026-05-04T18:05:00Z"
+persistence_posture:
+  workspace_files:
+    persistence_class: persisted_workspace_only
+    note: Workspace volume presumed intact; not contactable until control plane recovers.
+  in_progress_processes:
+    persistence_class: ephemeral_lost_on_transition
+    note: Processes presumed lost on reconnect; user must rerun on resume.
+  terminal_sessions:
+    persistence_class: ephemeral_lost_on_transition
+    note: Terminal sessions presumed lost on reconnect.
+  forwarded_ports:
+    persistence_class: ephemeral_lost_on_transition
+    note: Port forwards lost during the outage.
+  notebook_kernels:
+    persistence_class: regenerated_on_resume
+    note: Kernels regenerate on reconnect; in-memory state is not preserved.
+  credentials_and_tokens:
+    persistence_class: persisted_durable
+    credential_redaction_class: metadata_safe_default
+    credential_token_ref: token:managed_session:0001
+    note: Session ticket persists; reauth may be required after extended outage.
+  evidence_artifacts:
+    persistence_class: persisted_workspace_only
+    evidence_export_posture_class: exportable_from_managed_workspace_only
+    note: Workspace-resident evidence is unreachable while the control plane is down; local evidence remains available.
+continuation_posture:
+  posture_class: workspace_unavailable_local_only_continuation
+  managed_action_blocking_class: managed_actions_blocked_workspace_unavailable
+  local_only_continuation_reason_class: managed_control_plane_unreachable
+  local_only_admissible_surfaces:
+    - file_open_and_edit
+    - file_save_to_local_disk
+    - local_search
+    - local_git
+    - local_tasks
+    - local_byok_ai
+    - local_authorized_automation
+    - support_bundle_export_local_only
+    - already_exported_local_artifacts
+  continuation_summary: Control plane unreachable; editor continues locally with the narrowed scope.
+retry_posture:
+  retry_outcomes:
+    - reconnect_admissible
+    - local_only_continuation_admissible
+  retry_summary: Reconnect is offered when the control plane recovers; local-only continuation stays available during the outage.
+expiry: null
+rebuild: null
+closed: null
+degraded:
+  degraded_reason_class: control_plane_failure
+  recovery_admissible: true
+  recovery_started_at: null
+  degraded_summary: Managed control plane unreachable; reconnect is admissible once recovery completes.
+offboarding_posture:
+  workspace_files_offboarding_class: export_available_during_access_end_window
+  evidence_artifacts_offboarding_class: export_available_during_access_end_window
+  credentials_and_tokens_offboarding_class: discarded_at_close
+  support_bundles_offboarding_class: preserved_locally_after_close
+  access_end_window_open: false
+  access_end_window_closes_at: null
+  offboarding_summary: Offboarding from local artifacts remains available; managed-side export waits on control-plane recovery.
+caveats:
+  - Local-core surfaces remain available during the managed-service outage.
+  - Managed actions are blocked with a typed reason rather than a generic try-again.
+policy_context:
+  policy_epoch: policy-epoch:managed_workspace:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T18:05:01Z"
+expires_at: "2026-05-04T18:15:00Z"
+links:
+  contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  lifecycle_matrix_ref: artifacts/runtime/managed_workspace_lifecycle.yaml
+  verification_packet_ref: docs/verification/target_and_host_boundary_packet.md
+  metering_quota_state_refs:
+    - quota-state:managed_workspace:hours:unavailable:0001
+  target_truth_record_refs:
+    - tt:20260504T180500Z:0005
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_workspace_runtime

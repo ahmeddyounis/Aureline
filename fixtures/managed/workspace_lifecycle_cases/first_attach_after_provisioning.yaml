@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../../../schemas/managed/workspace_lifecycle_state.schema.json
+__fixture__:
+  name: first_attach_after_provisioning
+  scenario: >
+    A user creates a managed workspace for the first time. Allocation,
+    boot, attach, and capsule warming have completed; the workspace is
+    now ready and reachable. Persistence posture exposes that uncommitted
+    work lives only inside the workspace volume and that processes,
+    terminals, kernels, and ports are workspace-only — none are durable
+    across phase transitions.
+  exercised_contract_sections:
+    - lifecycle_phase_vocabulary
+    - persistence_posture_matrix
+    - continuation_posture
+    - retry_posture
+
+schema_version: 1
+record_kind: managed_workspace_lifecycle_state_record
+workspace_lifecycle_record_id: wlr:managed:first_attach:0001
+workspace_ref: workspace:managed:alpha:0001
+workspace_instance_ref: managed_workspace_instance:mw:alpha:0001
+lifecycle_phase_class: ready
+underlying_taxonomy_state_class: ready
+reachability_state_class: reachable
+transition:
+  transition_reason_class: user_requested_resume
+  prior_phase_class: sync_warming
+  prior_taxonomy_state_class: warming
+  admit_next_phase_classes:
+    - suspended
+    - degraded
+    - rebuild
+    - expired
+    - closed
+  transition_summary: Capsule warming completed; workspace is now ready and reachable.
+  transitioned_at: "2026-05-04T15:22:00Z"
+persistence_posture:
+  workspace_files:
+    persistence_class: persisted_workspace_only
+    note: Edits live in the managed-workspace volume; commit to push to durable Git history.
+  in_progress_processes:
+    persistence_class: persisted_workspace_only
+    note: Build, test, and run processes live inside the workspace; not durable across suspend.
+  terminal_sessions:
+    persistence_class: persisted_workspace_only
+    note: Terminal panes are bound to the workspace shell host.
+  forwarded_ports:
+    persistence_class: persisted_workspace_only
+    note: Port forwards are routed through the workspace network namespace.
+  notebook_kernels:
+    persistence_class: persisted_workspace_only
+    note: Notebook kernels run inside the workspace; in-memory state is workspace-only.
+  credentials_and_tokens:
+    persistence_class: persisted_durable
+    credential_redaction_class: metadata_safe_default
+    credential_token_ref: token:managed_session:0001
+    note: Managed-control-plane token persists durably; surface renders metadata only.
+  evidence_artifacts:
+    persistence_class: persisted_workspace_only
+    evidence_export_posture_class: exportable_from_managed_workspace_only
+    evidence_artifact_refs:
+      - evidence:mutation_journal:0001
+    note: Mutation-journal entries currently live in the workspace volume.
+continuation_posture:
+  posture_class: workspace_attached
+  managed_action_blocking_class: managed_actions_admissible
+  local_only_continuation_reason_class: null
+  local_only_admissible_surfaces: []
+  continuation_summary: Editor is attached; managed actions are admissible.
+retry_posture:
+  retry_outcomes:
+    - resume_admissible
+    - reconnect_admissible
+  retry_summary: From ready, suspend resumes via the warming path and recovery reconnects from degraded.
+expiry: null
+rebuild: null
+closed: null
+degraded: null
+offboarding_posture:
+  workspace_files_offboarding_class: export_available_during_access_end_window
+  evidence_artifacts_offboarding_class: export_available_during_access_end_window
+  credentials_and_tokens_offboarding_class: discarded_at_close
+  support_bundles_offboarding_class: export_available_during_access_end_window
+  access_end_window_open: false
+  access_end_window_closes_at: null
+  offboarding_summary: Access-end window is not open; offboarding remains available on demand from ready.
+caveats: []
+policy_context:
+  policy_epoch: policy-epoch:managed_workspace:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T15:22:01Z"
+expires_at: "2026-05-04T15:32:00Z"
+links:
+  contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  lifecycle_matrix_ref: artifacts/runtime/managed_workspace_lifecycle.yaml
+  verification_packet_ref: docs/verification/target_and_host_boundary_packet.md
+  metering_quota_state_refs:
+    - quota-state:ai.gateway:org:authoritative:0001
+  target_truth_record_refs:
+    - tt:20260504T152200Z:0001
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_workspace_runtime

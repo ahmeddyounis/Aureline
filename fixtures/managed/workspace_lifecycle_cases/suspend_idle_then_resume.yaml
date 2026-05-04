@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=../../../schemas/managed/workspace_lifecycle_state.schema.json
+__fixture__:
+  name: suspend_idle_then_resume
+  scenario: >
+    The managed workspace auto-suspended after the idle window
+    elapsed. Filesystem is preserved; processes are suspended and may
+    resume; terminals can resume; forwarded ports are lost; notebook
+    kernels regenerate on resume. The retry posture exposes resume
+    plus local-only continuation as distinct outcomes — not a generic
+    "try again" button.
+  exercised_contract_sections:
+    - lifecycle_phase_vocabulary
+    - persistence_posture_matrix
+    - continuation_posture
+    - retry_posture
+    - local_only_continuation_admissible_surfaces
+
+schema_version: 1
+record_kind: managed_workspace_lifecycle_state_record
+workspace_lifecycle_record_id: wlr:managed:suspend_idle:0001
+workspace_ref: workspace:managed:alpha:0001
+workspace_instance_ref: managed_workspace_instance:mw:alpha:0001
+lifecycle_phase_class: suspended
+underlying_taxonomy_state_class: idle_suspended
+reachability_state_class: unreachable
+transition:
+  transition_reason_class: idle_window_elapsed
+  prior_phase_class: ready
+  prior_taxonomy_state_class: ready
+  admit_next_phase_classes:
+    - sync_warming
+    - expired
+    - closed
+  transition_summary: Idle window elapsed; instance auto-suspended with preserved filesystem.
+  transitioned_at: "2026-05-04T15:50:00Z"
+persistence_posture:
+  workspace_files:
+    persistence_class: persisted_workspace_only
+    note: Workspace volume preserved across the idle suspend.
+  in_progress_processes:
+    persistence_class: suspended_resumable
+    note: Build and run processes paused; resume is admissible via the warming path.
+  terminal_sessions:
+    persistence_class: suspended_resumable
+    note: Terminal panes paused; pty state preserved for resume.
+  forwarded_ports:
+    persistence_class: ephemeral_lost_on_transition
+    note: Port forwards are lost on suspend; user must re-forward on resume.
+  notebook_kernels:
+    persistence_class: regenerated_on_resume
+    note: Kernel processes are regenerated on resume; in-memory state is not preserved.
+  credentials_and_tokens:
+    persistence_class: persisted_durable
+    credential_redaction_class: metadata_safe_default
+    credential_token_ref: token:managed_session:0001
+    note: Managed-session ticket persists; refresh may still be required if expired.
+  evidence_artifacts:
+    persistence_class: persisted_workspace_only
+    evidence_export_posture_class: exportable_from_managed_workspace_only
+    note: Evidence artifacts remain in the workspace volume; export waits for resume.
+continuation_posture:
+  posture_class: workspace_unavailable_local_only_continuation
+  managed_action_blocking_class: managed_actions_blocked_workspace_unavailable
+  local_only_continuation_reason_class: workspace_suspended_user_continuing_locally
+  local_only_admissible_surfaces:
+    - file_open_and_edit
+    - file_save_to_local_disk
+    - local_search
+    - local_git
+    - local_tasks
+    - local_byok_ai
+    - local_authorized_automation
+    - support_bundle_export_local_only
+    - already_exported_local_artifacts
+  continuation_summary: Workspace suspended; editor continues locally with the narrowed scope.
+retry_posture:
+  retry_outcomes:
+    - resume_admissible
+    - local_only_continuation_admissible
+  retry_summary: Resume rebuilds processes and kernels via the warming path; local-only continuation stays available.
+expiry: null
+rebuild: null
+closed: null
+degraded: null
+offboarding_posture:
+  workspace_files_offboarding_class: export_available_during_access_end_window
+  evidence_artifacts_offboarding_class: export_available_during_access_end_window
+  credentials_and_tokens_offboarding_class: discarded_at_close
+  support_bundles_offboarding_class: export_available_during_access_end_window
+  access_end_window_open: false
+  access_end_window_closes_at: null
+  offboarding_summary: Access-end window not open; offboarding remains on-demand from suspend.
+caveats:
+  - Forwarded ports are lost on suspend; the user re-forwards them on resume.
+  - Notebook kernel in-memory state is regenerated on resume, not restored.
+policy_context:
+  policy_epoch: policy-epoch:managed_workspace:0042
+  trust_state: trusted
+  deployment_profile_class: managed_cloud
+  redaction_class: metadata_safe_default
+minted_at: "2026-05-04T15:50:01Z"
+expires_at: "2026-05-04T16:00:00Z"
+links:
+  contract_ref: docs/managed/managed_workspace_lifecycle_contract.md
+  lifecycle_matrix_ref: artifacts/runtime/managed_workspace_lifecycle.yaml
+  verification_packet_ref: docs/verification/target_and_host_boundary_packet.md
+  metering_quota_state_refs:
+    - quota-state:ai.gateway:org:authoritative:0001
+  target_truth_record_refs:
+    - tt:20260504T155000Z:0002
+  service_slo_refs:
+    - artifacts/service/slo_rows.yaml#managed_workspace_runtime
