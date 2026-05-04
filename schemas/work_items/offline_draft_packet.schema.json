@@ -1,0 +1,1107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/work_items/offline_draft_packet.schema.json",
+  "title": "Aureline work-item offline-draft packet vocabulary",
+  "description": "Boundary schema for the offline_draft_packet_record frozen in docs/work_items/offline_draft_and_reconciliation_contract.md. One record family preserves the typed local change set a user authored against a provider-owned (or local-only) work item under a provider outage, an intentional offline-only session, a managed-workstation no-system-browser environment, a restricted-trust workspace, an unsatisfied freshness floor, a pending policy-epoch re-evaluation, a pending account-mapping resolution, a pending step-up authenticator, or a user-explicit deferral into a draft. The packet pins the bound work_item_detail_record, the bound change_intent / status_transition_packet / external_publish_preview / offline_handoff_packet refs the draft was authored against, the typed draft_origin_class (how the draft was authored), the intended_target_block (which target account / install grant / delegated token / browser-handoff session / managed-admin lane / pending-mapping / local-only target the draft would publish to once reconciled), the ordered local_change_set rows (per typed change kind: provider field overwrite / append / unset / unchanged-local-only / pending-resolution / comment append / linked-review update / validation-evidence attach-or-detach / linked-branch attach-or-detach), the typed expiry_window_block (authored_at, expires_at, freshness_floor_ref, extension_admissibility_class), the typed reconciliation_strategy_class the apply path resolves the draft under (try_publish_now_when_online_within_expiry / queue_for_publish_later_within_expiry / route_through_browser_handoff_when_browser_available / capture_offline_pending_drain / inspect_only_what_if_no_apply / re_review_required_after_expiry / archive_local_only_no_provider_path), the typed conflict_disclosure_block (populated when reconciliation observes a conflict between local draft and provider state), and the typed draft_lifecycle_class. The packet never claims the provider has accepted the draft; the safe default for draft_lifecycle_class is drafted_pending_reconciliation and the apply path runs through a fresh provider_reconciliation_record, a fresh approval ticket, and a fresh provider-callback envelope before the packet may flip to published_clean. Composes with the work_item_detail_record schema (the bound detail row), the change_intent_record schema (rationale / target scope / linked review / approvals), the status_transition_packet_record schema (the captured transition the draft was authored against), the external_publish_preview_record schema (the projected before / after labels), the offline_handoff_packet_record schema (the captured-under-unavailability packet the draft attaches to when the user authored under provider unreachable / browser-blocked / restricted-trust / freshness-unsatisfied / policy-pending / account-pending / step-up-pending / explicit-deferred conditions), the provider_reconciliation_record schema (the typed reconciliation outcome the apply path mints when the draft drains), the publish-later contract (publish_later_queue_item_record, provider_consequence_preview_record, account_mapping_binding_record, provider_callback_envelope_record, browser_handoff_packet_record), and the provider_object_record / traceability_link_record schemas (cited by reference from local-change-set rows that affect a typed provider field or a typed cross-object relation). Raw provider URLs, raw provider issue bodies, raw comment bodies, raw label values that disclose customer / tenant identity, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, raw notification payloads, and raw automation payloads never cross this boundary regardless of redaction class. The eventual work-items crate's Rust types are the schema of record; this is the cross-tool boundary every non-owning surface reads. Adding a new record_kind, draft_origin_class, local_change_kind_class, reconciliation_strategy_class, draft_lifecycle_class, conflict_origin_class, extension_admissibility_class, denial_reason, or audit_event_id is additive-minor and bumps offline_draft_packet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/offline_draft_packet_record" },
+    { "$ref": "#/$defs/offline_draft_packet_audit_event_record" }
+  ],
+  "$defs": {
+    "offline_draft_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the offline-draft packet vocabulary. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "offline_draft_packet_record",
+        "offline_draft_packet_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / queue-review rollups / admin-reconciliation consoles. Raw provider URLs, raw provider issue bodies, raw comment bodies, raw delegated tokens, raw branch / commit URLs, raw author identity strings, raw absolute paths, raw notification payloads, and raw automation payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware reviewable label (<= 1024 graphemes). Carries a presentation-only summary safe for support / audit / queue-review / admin-reconciliation surfaces; never carries the raw payload."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence safe to show in preview, queue-review, and export review surfaces. Never carries the raw payload."
+    },
+
+    "trust_posture": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "ADR-0001 workspace-trust state the offline-draft packet was authored under."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class re-exported from ADR-0010 / ADR-0007. Raw payloads never cross this boundary regardless of class."
+    },
+
+    "target_account_class": {
+      "type": "string",
+      "enum": [
+        "connected_provider_account_resolved",
+        "connected_provider_install_or_app_grant",
+        "connected_provider_delegated_user_token",
+        "connected_provider_project_scoped_grant",
+        "connected_provider_policy_injected_service_identity",
+        "account_mapping_binding_pending_user_resolution",
+        "browser_handoff_account_session_only",
+        "managed_admin_only_account",
+        "local_only_no_provider_account"
+      ],
+      "description": "Target-account class re-exported verbatim from schemas/work_items/external_publish_preview.schema.json. Names which connected-provider account / install grant / delegated token / browser-handoff session / managed-admin lane / pending-mapping / local-only target the draft would publish to once reconciled."
+    },
+
+    "provider_field_class": {
+      "type": "string",
+      "enum": [
+        "title",
+        "body_summary",
+        "lifecycle_state",
+        "assignee",
+        "labels",
+        "milestone_or_iteration",
+        "priority_or_severity",
+        "blocking_relationship",
+        "linked_branch_or_worktree",
+        "linked_review",
+        "linked_change_or_patch_stack",
+        "linked_validation_evidence",
+        "publish_preview",
+        "linked_incident_or_support",
+        "watcher_or_subscriber",
+        "trust_or_redaction",
+        "freshness",
+        "other"
+      ],
+      "description": "Provider-field class re-exported verbatim from schemas/work_items/provider_object.schema.json so a draft change-set row that overwrites / appends / unsets a provider field cites the same vocabulary the projection schema uses."
+    },
+
+    "draft_origin_class": {
+      "type": "string",
+      "enum": [
+        "human_authored_no_network_offline",
+        "human_authored_provider_unreachable",
+        "human_authored_browser_handoff_blocked",
+        "human_authored_workspace_trust_restricted",
+        "human_authored_freshness_floor_unsatisfied",
+        "human_authored_policy_epoch_pending",
+        "human_authored_account_mapping_pending",
+        "human_authored_step_up_pending",
+        "human_authored_user_deferred_explicit_choice",
+        "ai_proposed_pending_user_confirmation",
+        "imported_from_offline_handoff_packet_no_live_provider_path",
+        "imported_from_support_export_no_live_provider_path",
+        "imported_from_incident_workspace_no_live_provider_path",
+        "imported_from_object_handoff_packet_no_live_provider_path",
+        "managed_admin_minted_local_draft",
+        "policy_admin_minted_local_draft"
+      ],
+      "description": "Frozen draft-origin class. Names how the draft was authored. Every imported_from_* value marks the draft as evidence-only with no live provider path; ai_proposed_pending_user_confirmation forbids any reconciliation strategy outside inspect_only_what_if_no_apply or archive_local_only_no_provider_path until a human actor confirms; managed_admin_minted_local_draft / policy_admin_minted_local_draft pin admin-minted overlays."
+    },
+
+    "local_change_kind_class": {
+      "type": "string",
+      "enum": [
+        "provider_field_overwrite",
+        "provider_field_append",
+        "provider_field_unset",
+        "provider_field_unchanged_local_only",
+        "provider_field_pending_resolution",
+        "comment_append_local_draft",
+        "linked_review_update_local_draft",
+        "linked_change_or_patch_stack_update_local_draft",
+        "linked_branch_or_worktree_attach_or_detach_local_draft",
+        "validation_evidence_attach_or_detach_local_draft",
+        "blocking_relationship_change_local_draft",
+        "subscriber_or_watcher_change_local_draft",
+        "rename_or_metadata_change_local_draft",
+        "release_artifact_publish_local_draft",
+        "other_local_change"
+      ],
+      "description": "Frozen local-change kind class for one row in the draft's local_change_set list. Provider-field rows MUST cite a typed provider_field_class plus before / after labels; local-only rows (comment_append_local_draft / linked_review_update_local_draft / etc.) MUST cite the bound artifact ref."
+    },
+
+    "extension_admissibility_class": {
+      "type": "string",
+      "enum": [
+        "extension_not_admissible_re_review_after_expiry_required",
+        "extension_admissible_within_freshness_floor",
+        "extension_admissible_via_explicit_user_re_confirmation",
+        "extension_admissible_via_managed_admin_only",
+        "extension_blocked_by_policy_admin"
+      ],
+      "description": "Frozen extension-admissibility class for the expiry_window_block. Pre-resolves whether the draft's expires_at MAY be extended without re-authoring the draft. extension_not_admissible_re_review_after_expiry_required is the safe default; the reviewer sees typed expiry truth instead of a silently-extended deadline."
+    },
+
+    "reconciliation_strategy_class": {
+      "type": "string",
+      "enum": [
+        "try_publish_now_when_online_within_expiry",
+        "queue_for_publish_later_within_expiry",
+        "route_through_browser_handoff_when_browser_available",
+        "capture_offline_pending_drain",
+        "inspect_only_what_if_no_apply",
+        "re_review_required_after_expiry",
+        "archive_local_only_no_provider_path"
+      ],
+      "description": "Frozen reconciliation-strategy class. Names the apply path the draft will resolve under. try_publish_now_when_online_within_expiry pins an immediate publish on connectivity restoration within the expiry window; queue_for_publish_later_within_expiry admits the draft into the publish-later queue; route_through_browser_handoff_when_browser_available routes through a typed browser-handoff packet on browser availability; capture_offline_pending_drain pins the draft to the bound offline-handoff packet's drain path; inspect_only_what_if_no_apply pins a structured what-if review with no apply path; re_review_required_after_expiry pins a draft whose expiry has elapsed and MUST be re-reviewed before reconciliation; archive_local_only_no_provider_path pins a local-only archival with no provider path."
+    },
+
+    "draft_lifecycle_class": {
+      "type": "string",
+      "enum": [
+        "drafted_pending_reconciliation",
+        "queued_for_publish_within_expiry",
+        "routed_through_browser_handoff_pending_browser",
+        "captured_offline_pending_drain",
+        "published_clean_via_provider_reconciliation",
+        "blocked_by_conflict_pending_re_review",
+        "blocked_by_superseded_remote_state_pending_re_review",
+        "blocked_by_missing_authority_pending_user_action",
+        "blocked_by_account_mismatch_pending_user_action",
+        "blocked_by_workspace_trust_unset_or_restricted",
+        "blocked_by_policy_admin_suppressed",
+        "expired_re_review_required",
+        "archived_local_only_no_provider_path",
+        "withdrawn_before_apply",
+        "superseded_by_offline_draft_packet_record"
+      ],
+      "description": "Frozen draft-lifecycle class. The packet's lifecycle is rendered explicitly on issue / planning, queue-review, support-export, and admin-reconciliation surfaces. drafted_pending_reconciliation is the safe default; published_clean_via_provider_reconciliation is admissible only when the bound provider_reconciliation_record resolves clean_publish_admissible AND the apply path observed a fresh provider_callback_envelope_record."
+    },
+
+    "conflict_origin_class": {
+      "type": "string",
+      "enum": [
+        "no_conflict_observed",
+        "provider_field_value_drifted_during_offline_window",
+        "provider_object_lifecycle_state_drifted",
+        "provider_object_split_or_merge_observed",
+        "provider_object_deleted_or_archived_remotely",
+        "provider_assignee_or_owner_changed_remotely",
+        "provider_label_or_milestone_changed_remotely",
+        "provider_blocking_relationship_changed_remotely",
+        "linked_review_or_change_object_drifted_remotely",
+        "freshness_floor_unsatisfied_remote_object_drifted",
+        "account_remap_observed_during_offline_window",
+        "policy_epoch_rolled_during_offline_window",
+        "imported_handoff_replay_no_live_provider_path"
+      ],
+      "description": "Frozen conflict-origin class for one row in the conflict_disclosure_block.conflict_field_rows list. no_conflict_observed is the safe default emitted on a clean publish; the other twelve values pin the typed drift the reconciliation path observed between the offline draft and the live provider state."
+    },
+
+    "local_change_set_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_change_set_row_id",
+        "local_change_kind_class",
+        "summary"
+      ],
+      "properties": {
+        "local_change_set_row_id": { "$ref": "#/$defs/opaque_id" },
+        "local_change_kind_class": { "$ref": "#/$defs/local_change_kind_class" },
+        "provider_field_class": {
+          "$ref": "#/$defs/provider_field_class",
+          "description": "Required (and outside other) for provider_field_overwrite / provider_field_append / provider_field_unset / provider_field_unchanged_local_only / provider_field_pending_resolution rows; admissible only as other for non-field rows."
+        },
+        "before_state_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the prior state observed at draft authoring time. Required non-empty for provider_field_overwrite / provider_field_append rows; empty when the row's kind has no prior-state slot."
+        },
+        "after_state_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the proposed next state. Required non-empty for provider_field_overwrite / provider_field_append rows; empty when the row's kind has no next-state slot."
+        },
+        "local_overlay_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the local-only overlay value. Required non-empty for provider_field_unchanged_local_only rows."
+        },
+        "linked_artifact_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound artifact (review_workspace_record / change_object_record / patch_stack_record / branch_row / worktree_row / validation evidence record / release_artifact_record / traceability_link_record). Required non-empty for linked_review_update_local_draft / linked_change_or_patch_stack_update_local_draft / linked_branch_or_worktree_attach_or_detach_local_draft / validation_evidence_attach_or_detach_local_draft / blocking_relationship_change_local_draft / release_artifact_publish_local_draft rows."
+        },
+        "linked_traceability_link_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound traceability_link_record when the row crosses the work-item boundary."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "provider_field_overwrite / provider_field_append rows MUST cite a typed provider_field_class plus non-empty before / after labels.",
+          "if": {
+            "properties": {
+              "local_change_kind_class": {
+                "enum": [
+                  "provider_field_overwrite",
+                  "provider_field_append"
+                ]
+              }
+            },
+            "required": ["local_change_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_field_class": {
+                "not": { "const": "other" }
+              },
+              "before_state_value_label": { "$ref": "#/$defs/non_empty_string" },
+              "after_state_value_label": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": [
+              "provider_field_class",
+              "before_state_value_label",
+              "after_state_value_label"
+            ]
+          }
+        },
+        {
+          "description": "provider_field_unset rows MUST cite a typed provider_field_class plus a non-empty before label (the value being unset).",
+          "if": {
+            "properties": {
+              "local_change_kind_class": { "const": "provider_field_unset" }
+            },
+            "required": ["local_change_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_field_class": {
+                "not": { "const": "other" }
+              },
+              "before_state_value_label": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["provider_field_class", "before_state_value_label"]
+          }
+        },
+        {
+          "description": "provider_field_unchanged_local_only rows MUST cite a typed provider_field_class plus a non-empty local_overlay_value_label (the locally-only value that does not publish).",
+          "if": {
+            "properties": {
+              "local_change_kind_class": { "const": "provider_field_unchanged_local_only" }
+            },
+            "required": ["local_change_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "provider_field_class": {
+                "not": { "const": "other" }
+              },
+              "local_overlay_value_label": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["provider_field_class", "local_overlay_value_label"]
+          }
+        },
+        {
+          "description": "linked_review_update_local_draft / linked_change_or_patch_stack_update_local_draft / linked_branch_or_worktree_attach_or_detach_local_draft / validation_evidence_attach_or_detach_local_draft / blocking_relationship_change_local_draft / release_artifact_publish_local_draft rows MUST cite a non-empty linked_artifact_record_id_ref.",
+          "if": {
+            "properties": {
+              "local_change_kind_class": {
+                "enum": [
+                  "linked_review_update_local_draft",
+                  "linked_change_or_patch_stack_update_local_draft",
+                  "linked_branch_or_worktree_attach_or_detach_local_draft",
+                  "validation_evidence_attach_or_detach_local_draft",
+                  "blocking_relationship_change_local_draft",
+                  "release_artifact_publish_local_draft"
+                ]
+              }
+            },
+            "required": ["local_change_kind_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_artifact_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_artifact_record_id_ref"]
+          }
+        }
+      ],
+      "description": "One row in the draft's local_change_set list. The packet carries an ordered list so a downstream queue-review / support-export / admin-reconciliation surface can render the draft's per-change typed truth (which provider field will overwrite, which review will update, which validation evidence will attach) instead of a single 'Save' summary."
+    },
+
+    "intended_target_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_account_class"],
+      "properties": {
+        "target_account_class": { "$ref": "#/$defs/target_account_class" },
+        "target_account_subject_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound target account / install grant / delegated token / browser-handoff session / managed-admin lane subject. Empty when target_account_class is local_only_no_provider_account."
+        },
+        "connected_provider_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound connected_provider_record. Empty when target_account_class is local_only_no_provider_account, account_mapping_binding_pending_user_resolution, or browser_handoff_account_session_only."
+        },
+        "target_object_identity_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider object identity the draft targets. Empty when the draft is a local-draft create with no provider object yet."
+        },
+        "target_object_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label for the bound provider object the draft targets (e.g. issue title, work-item summary). Never the raw provider URL or raw issue body."
+        }
+      },
+      "description": "Intended-target block. Pins the typed target account / install grant / delegated token / browser-handoff session / managed-admin lane / pending-mapping / local-only target the draft would publish to once reconciled. local_only_no_provider_account forbids any provider-bound apply path."
+    },
+
+    "expiry_window_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authored_at",
+        "expires_at",
+        "extension_admissibility_class"
+      ],
+      "properties": {
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "Monotonic timestamp after which the draft must not be reconciled without explicit re-review. The apply path denies an expired draft with policy_epoch_expired_re_evaluation_required or stale_intent_must_re_review_after_expiry."
+        },
+        "freshness_floor_ref": {
+          "type": "string",
+          "description": "Opaque ref to the freshness floor the draft was authored against. Empty admissible only when the draft was authored under no_network_offline or imported_from_* origins."
+        },
+        "extension_admissibility_class": { "$ref": "#/$defs/extension_admissibility_class" }
+      },
+      "description": "Expiry-window block. Pins the typed authored_at / expires_at / freshness_floor / extension-admissibility truth so a downstream surface can show typed 'safe to publish later' vs 'must re-review' truth without inspecting provider logs."
+    },
+
+    "conflict_field_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_field_row_id",
+        "provider_field_class",
+        "conflict_origin_class",
+        "summary"
+      ],
+      "properties": {
+        "conflict_field_row_id": { "$ref": "#/$defs/opaque_id" },
+        "provider_field_class": { "$ref": "#/$defs/provider_field_class" },
+        "conflict_origin_class": { "$ref": "#/$defs/conflict_origin_class" },
+        "local_draft_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the local draft's value for this field at authoring time."
+        },
+        "provider_remote_value_label": {
+          "$ref": "#/$defs/reviewable_label",
+          "description": "Reviewable label of the provider's current remote value for this field as observed at reconciliation time."
+        },
+        "remote_observed_at": {
+          "type": "string",
+          "description": "ISO 8601 timestamp the remote value was observed at reconciliation time. Empty when the conflict was observed without a fresh provider read (e.g. policy-epoch roll observed locally)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "no_conflict_observed conflict-origin is forbidden in conflict_field_rows; that origin is admissible only on the conflict_disclosure_block when no conflict has been observed (and conflict_field_rows is empty).",
+          "if": {
+            "properties": {
+              "conflict_origin_class": { "const": "no_conflict_observed" }
+            },
+            "required": ["conflict_origin_class"]
+          },
+          "then": false
+        }
+      ],
+      "description": "One row in the conflict_disclosure_block.conflict_field_rows list. Each row pins the typed provider field, the typed conflict origin, the local-draft and provider-remote labels, and the observed-at timestamp so a downstream surface can render typed conflict truth without re-fetching the provider object."
+    },
+
+    "conflict_disclosure_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflict_origin_class", "conflict_field_rows"],
+      "properties": {
+        "conflict_origin_class": { "$ref": "#/$defs/conflict_origin_class" },
+        "conflict_field_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/conflict_field_row" },
+          "description": "Ordered conflict-field rows. Empty array is admissible only when conflict_origin_class is no_conflict_observed."
+        },
+        "linked_provider_reconciliation_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_reconciliation_record that observed and disclosed the conflict. Empty only when conflict_origin_class is no_conflict_observed."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "no_conflict_observed conflict-origin MUST resolve conflict_field_rows to an empty array.",
+          "if": {
+            "properties": {
+              "conflict_origin_class": { "const": "no_conflict_observed" }
+            },
+            "required": ["conflict_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "conflict_field_rows": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
+        },
+        {
+          "description": "Any conflict_origin_class outside no_conflict_observed MUST cite a non-empty linked_provider_reconciliation_record_id_ref AND at least one conflict_field_row.",
+          "if": {
+            "properties": {
+              "conflict_origin_class": {
+                "not": { "const": "no_conflict_observed" }
+              }
+            },
+            "required": ["conflict_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_reconciliation_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "conflict_field_rows": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": [
+              "linked_provider_reconciliation_record_id_ref",
+              "conflict_field_rows"
+            ]
+          }
+        }
+      ],
+      "description": "Conflict-disclosure block. The packet's safe default is conflict_origin_class = no_conflict_observed plus an empty conflict_field_rows list; reconciliation populates this block with the typed conflict origin and per-field rows when a conflict is observed between local draft and provider state."
+    },
+
+    "origin_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "host_identity",
+        "workspace_id",
+        "actor_subject",
+        "execution_context_id",
+        "policy_epoch"
+      ],
+      "properties": {
+        "host_identity": { "$ref": "#/$defs/non_empty_string" },
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "actor_subject": { "$ref": "#/$defs/non_empty_string" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" },
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Canonical Aureline origin the draft was authored under. Revalidated at reconciliation; a reconciliation against a mismatched origin denies."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "policy_epoch": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_posture" },
+        "execution_context_id": { "$ref": "#/$defs/non_empty_string" }
+      },
+      "description": "Policy context the draft was authored under. Revalidated at reconciliation; a policy-epoch roll between authoring and reconciliation re-evaluates the draft."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "draft_origin_class_must_resolve_to_typed_class",
+        "local_change_kind_class_must_resolve_to_typed_class",
+        "reconciliation_strategy_class_must_resolve_to_typed_class",
+        "draft_lifecycle_class_must_resolve_to_typed_class",
+        "conflict_origin_class_must_resolve_to_typed_class",
+        "extension_admissibility_class_must_resolve_to_typed_class",
+        "offline_draft_packet_must_bind_work_item_detail_record_id_ref",
+        "stale_intent_must_re_review_after_expiry",
+        "expired_draft_must_not_silently_publish",
+        "conflict_observed_must_block_silent_publish",
+        "superseded_remote_state_must_block_silent_publish",
+        "missing_authority_must_block_silent_publish",
+        "account_mismatch_must_block_silent_publish",
+        "ai_proposed_draft_must_resolve_to_inspect_only_or_archive",
+        "imported_evidence_only_draft_must_resolve_to_inspect_only_or_archive",
+        "local_only_target_account_must_forbid_provider_bound_strategy",
+        "queue_for_publish_later_strategy_must_cite_publish_later_queue_item_record_id_ref",
+        "browser_handoff_strategy_must_cite_browser_handoff_packet_ref",
+        "captured_offline_strategy_must_cite_offline_handoff_packet_record_id_ref",
+        "account_mapping_pending_target_must_cite_account_mapping_binding_record_id_ref",
+        "published_clean_lifecycle_must_cite_provider_reconciliation_record_id_ref",
+        "published_clean_lifecycle_must_cite_provider_callback_envelope_record_id_ref",
+        "blocked_by_conflict_lifecycle_must_cite_typed_conflict_disclosure_block",
+        "policy_epoch_expired_re_evaluation_required",
+        "workspace_trust_unset_or_restricted",
+        "supersedes_offline_draft_packet_record_id_ref_required_for_superseded_lifecycle",
+        "withdrawn_before_apply_must_cite_withdrawn_at",
+        "raw_provider_url_in_offline_draft_packet_forbidden",
+        "raw_notification_payload_in_offline_draft_packet_forbidden",
+        "raw_author_identity_string_in_offline_draft_packet_forbidden"
+      ],
+      "description": "Closed denial-reason vocabulary. stale_intent_must_re_review_after_expiry / expired_draft_must_not_silently_publish are the gates that forbid an expired draft from silently advancing to published_clean without a fresh re-review; conflict_observed_must_block_silent_publish / superseded_remote_state_must_block_silent_publish / missing_authority_must_block_silent_publish / account_mismatch_must_block_silent_publish gate silent publish under conflict / superseded / missing-authority / account-mismatch reconciliation outcomes."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "offline_draft_packet_authored",
+        "offline_draft_packet_local_change_set_amended",
+        "offline_draft_packet_pinned_to_change_intent",
+        "offline_draft_packet_pinned_to_status_transition_packet",
+        "offline_draft_packet_admitted_to_publish_later_queue",
+        "offline_draft_packet_routed_to_browser_handoff",
+        "offline_draft_packet_captured_offline_pending_drain",
+        "offline_draft_packet_reconciliation_attempted",
+        "offline_draft_packet_published_clean",
+        "offline_draft_packet_blocked_by_conflict",
+        "offline_draft_packet_blocked_by_superseded_remote_state",
+        "offline_draft_packet_blocked_by_missing_authority",
+        "offline_draft_packet_blocked_by_account_mismatch",
+        "offline_draft_packet_expired_re_review_required",
+        "offline_draft_packet_archived_local_only",
+        "offline_draft_packet_withdrawn_before_apply",
+        "offline_draft_packet_superseded",
+        "offline_draft_packet_audit_denial_emitted"
+      ],
+      "description": "Closed audit-event vocabulary for the offline-draft packet lifecycle."
+    },
+
+    "offline_draft_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "offline_draft_packet_schema_version",
+        "offline_draft_packet_id",
+        "work_item_detail_record_id_ref",
+        "draft_origin_class",
+        "intended_target_block",
+        "local_change_set",
+        "expiry_window_block",
+        "reconciliation_strategy_class",
+        "conflict_disclosure_block",
+        "draft_lifecycle_class",
+        "origin_disclosure",
+        "policy_context",
+        "redaction_class",
+        "authored_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "offline_draft_packet_record" },
+        "offline_draft_packet_schema_version": {
+          "$ref": "#/$defs/offline_draft_packet_schema_version"
+        },
+        "offline_draft_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "work_item_detail_record_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the bound work_item_detail_record the draft was authored against. The packet never floats free of a work-item row."
+        },
+        "linked_change_intent_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound change_intent_record so the rationale, target scope, linked review, approvals, and validation evidence stay visible. Empty only when the draft was authored without a structured change-intent (rare)."
+        },
+        "linked_status_transition_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound status_transition_packet_record the draft was authored against. Empty admissible only when the draft is a comment-only or rename-only draft with no structured transition packet."
+        },
+        "linked_external_publish_preview_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound external_publish_preview_record so the projected before / after labels stay visible across the draft. Empty for archive_local_only_no_provider_path or inspect_only_what_if_no_apply strategies that have no provider preview."
+        },
+        "linked_offline_handoff_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound offline_handoff_packet_record the draft attaches to when authored under provider unreachable / browser-blocked / imported-from-offline-handoff conditions, OR when the reconciliation_strategy_class is capture_offline_pending_drain. Required for those conditions; admissible (but not required) for restricted-trust / freshness-unsatisfied / policy-pending / account-pending / step-up-pending / user-deferred origins."
+        },
+        "linked_publish_later_queue_item_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound publish_later_queue_item_record. Required when reconciliation_strategy_class is queue_for_publish_later_within_expiry OR draft_lifecycle_class is queued_for_publish_within_expiry."
+        },
+        "linked_browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound browser_handoff_packet_record. Required when reconciliation_strategy_class is route_through_browser_handoff_when_browser_available OR draft_origin_class is human_authored_browser_handoff_blocked."
+        },
+        "linked_account_mapping_binding_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound account_mapping_binding_record. Required when intended_target_block.target_account_class is account_mapping_binding_pending_user_resolution OR draft_origin_class is human_authored_account_mapping_pending OR draft_lifecycle_class is blocked_by_account_mismatch_pending_user_action."
+        },
+        "linked_provider_reconciliation_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the bound provider_reconciliation_record that resolved the draft. Required when draft_lifecycle_class is published_clean_via_provider_reconciliation OR blocked_by_conflict_pending_re_review OR blocked_by_superseded_remote_state_pending_re_review OR blocked_by_missing_authority_pending_user_action OR blocked_by_account_mismatch_pending_user_action OR archived_local_only_no_provider_path."
+        },
+        "linked_provider_callback_envelope_record_id_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to provider_callback_envelope_records that confirmed (or rejected) provider acceptance after reconciliation. Required non-empty when draft_lifecycle_class is published_clean_via_provider_reconciliation."
+        },
+        "draft_origin_class": { "$ref": "#/$defs/draft_origin_class" },
+        "intended_target_block": { "$ref": "#/$defs/intended_target_block" },
+        "local_change_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/local_change_set_row" },
+          "description": "Ordered local-change-set rows. MUST carry at least one row; an empty draft is forbidden (the user has nothing to reconcile)."
+        },
+        "expiry_window_block": { "$ref": "#/$defs/expiry_window_block" },
+        "reconciliation_strategy_class": { "$ref": "#/$defs/reconciliation_strategy_class" },
+        "conflict_disclosure_block": { "$ref": "#/$defs/conflict_disclosure_block" },
+        "draft_lifecycle_class": { "$ref": "#/$defs/draft_lifecycle_class" },
+        "supersedes_offline_draft_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to a prior offline_draft_packet_record this one supersedes (e.g. after the user re-authored under a refreshed freshness floor or a re-resolved account mapping)."
+        },
+        "superseded_by_offline_draft_packet_record_id_ref": {
+          "type": "string",
+          "description": "Opaque ref to the offline_draft_packet_record that superseded this one when draft_lifecycle_class is superseded_by_offline_draft_packet_record."
+        },
+        "rationale_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Optional reviewable rationale summary forwarded from the bound change_intent_record so consumers that read the draft alone (queue-review, support-export) can surface the rationale without re-fetching the change intent."
+        },
+        "block_reason_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Optional reviewable summary of the blocking reason. Required when draft_lifecycle_class is one of the blocked_* lanes; empty otherwise."
+        },
+        "withdrawn_at": {
+          "type": "string",
+          "description": "Required non-empty ISO 8601 timestamp when draft_lifecycle_class is withdrawn_before_apply; empty otherwise."
+        },
+        "origin_disclosure": { "$ref": "#/$defs/origin_disclosure" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "authored_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "ai_proposed_pending_user_confirmation draft origin MUST resolve reconciliation_strategy_class to inspect_only_what_if_no_apply OR archive_local_only_no_provider_path until a human actor confirms.",
+          "if": {
+            "properties": {
+              "draft_origin_class": { "const": "ai_proposed_pending_user_confirmation" }
+            },
+            "required": ["draft_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "reconciliation_strategy_class": {
+                "enum": [
+                  "inspect_only_what_if_no_apply",
+                  "archive_local_only_no_provider_path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_from_* draft origins MUST resolve reconciliation_strategy_class to inspect_only_what_if_no_apply OR archive_local_only_no_provider_path.",
+          "if": {
+            "properties": {
+              "draft_origin_class": {
+                "enum": [
+                  "imported_from_offline_handoff_packet_no_live_provider_path",
+                  "imported_from_support_export_no_live_provider_path",
+                  "imported_from_incident_workspace_no_live_provider_path",
+                  "imported_from_object_handoff_packet_no_live_provider_path"
+                ]
+              }
+            },
+            "required": ["draft_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "reconciliation_strategy_class": {
+                "enum": [
+                  "inspect_only_what_if_no_apply",
+                  "archive_local_only_no_provider_path"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "local_only_no_provider_account target MUST resolve reconciliation_strategy_class to archive_local_only_no_provider_path OR inspect_only_what_if_no_apply.",
+          "if": {
+            "properties": {
+              "intended_target_block": {
+                "properties": {
+                  "target_account_class": { "const": "local_only_no_provider_account" }
+                },
+                "required": ["target_account_class"]
+              }
+            },
+            "required": ["intended_target_block"]
+          },
+          "then": {
+            "properties": {
+              "reconciliation_strategy_class": {
+                "enum": [
+                  "archive_local_only_no_provider_path",
+                  "inspect_only_what_if_no_apply"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "queue_for_publish_later_within_expiry strategy MUST cite a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": {
+              "reconciliation_strategy_class": { "const": "queue_for_publish_later_within_expiry" }
+            },
+            "required": ["reconciliation_strategy_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "route_through_browser_handoff_when_browser_available strategy MUST cite a non-empty linked_browser_handoff_packet_ref.",
+          "if": {
+            "properties": {
+              "reconciliation_strategy_class": { "const": "route_through_browser_handoff_when_browser_available" }
+            },
+            "required": ["reconciliation_strategy_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "capture_offline_pending_drain strategy MUST cite a non-empty linked_offline_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "reconciliation_strategy_class": { "const": "capture_offline_pending_drain" }
+            },
+            "required": ["reconciliation_strategy_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_offline_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "account_mapping_binding_pending_user_resolution target MUST cite a non-empty linked_account_mapping_binding_record_id_ref.",
+          "if": {
+            "properties": {
+              "intended_target_block": {
+                "properties": {
+                  "target_account_class": { "const": "account_mapping_binding_pending_user_resolution" }
+                },
+                "required": ["target_account_class"]
+              }
+            },
+            "required": ["intended_target_block"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "queued_for_publish_within_expiry lifecycle MUST cite a non-empty linked_publish_later_queue_item_record_id_ref.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "queued_for_publish_within_expiry" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_publish_later_queue_item_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_publish_later_queue_item_record_id_ref"]
+          }
+        },
+        {
+          "description": "routed_through_browser_handoff_pending_browser lifecycle MUST cite a non-empty linked_browser_handoff_packet_ref.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "routed_through_browser_handoff_pending_browser" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_browser_handoff_packet_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_browser_handoff_packet_ref"]
+          }
+        },
+        {
+          "description": "captured_offline_pending_drain lifecycle MUST cite a non-empty linked_offline_handoff_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "captured_offline_pending_drain" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_offline_handoff_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "published_clean_via_provider_reconciliation lifecycle MUST cite a non-empty linked_provider_reconciliation_record_id_ref AND a non-empty linked_provider_callback_envelope_record_id_refs.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "published_clean_via_provider_reconciliation" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_reconciliation_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "linked_provider_callback_envelope_record_id_refs": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": [
+              "linked_provider_reconciliation_record_id_ref",
+              "linked_provider_callback_envelope_record_id_refs"
+            ]
+          }
+        },
+        {
+          "description": "blocked_by_conflict_pending_re_review lifecycle MUST cite a non-empty linked_provider_reconciliation_record_id_ref AND resolve conflict_disclosure_block.conflict_origin_class outside no_conflict_observed.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "blocked_by_conflict_pending_re_review" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_reconciliation_record_id_ref": { "$ref": "#/$defs/non_empty_string" },
+              "conflict_disclosure_block": {
+                "properties": {
+                  "conflict_origin_class": {
+                    "not": { "const": "no_conflict_observed" }
+                  }
+                }
+              }
+            },
+            "required": ["linked_provider_reconciliation_record_id_ref"]
+          }
+        },
+        {
+          "description": "blocked_by_superseded_remote_state_pending_re_review / blocked_by_missing_authority_pending_user_action / blocked_by_account_mismatch_pending_user_action / archived_local_only_no_provider_path lifecycles MUST cite a non-empty linked_provider_reconciliation_record_id_ref.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": {
+                "enum": [
+                  "blocked_by_superseded_remote_state_pending_re_review",
+                  "blocked_by_missing_authority_pending_user_action",
+                  "blocked_by_account_mismatch_pending_user_action",
+                  "archived_local_only_no_provider_path"
+                ]
+              }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_provider_reconciliation_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_provider_reconciliation_record_id_ref"]
+          }
+        },
+        {
+          "description": "blocked_by_account_mismatch_pending_user_action lifecycle MUST cite a non-empty linked_account_mapping_binding_record_id_ref.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "blocked_by_account_mismatch_pending_user_action" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_account_mapping_binding_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_account_mapping_binding_record_id_ref"]
+          }
+        },
+        {
+          "description": "Every blocked_* lifecycle MUST cite a non-empty block_reason_summary so a downstream surface renders typed denial copy instead of generic 'something failed' text.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": {
+                "enum": [
+                  "blocked_by_conflict_pending_re_review",
+                  "blocked_by_superseded_remote_state_pending_re_review",
+                  "blocked_by_missing_authority_pending_user_action",
+                  "blocked_by_account_mismatch_pending_user_action",
+                  "blocked_by_workspace_trust_unset_or_restricted",
+                  "blocked_by_policy_admin_suppressed",
+                  "expired_re_review_required"
+                ]
+              }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "block_reason_summary": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["block_reason_summary"]
+          }
+        },
+        {
+          "description": "expired_re_review_required lifecycle MUST resolve reconciliation_strategy_class to re_review_required_after_expiry.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "expired_re_review_required" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "reconciliation_strategy_class": { "const": "re_review_required_after_expiry" }
+            }
+          }
+        },
+        {
+          "description": "withdrawn_before_apply lifecycle MUST cite a non-empty withdrawn_at.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "withdrawn_before_apply" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "withdrawn_at": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["withdrawn_at"]
+          }
+        },
+        {
+          "description": "superseded_by_offline_draft_packet_record lifecycle MUST cite a non-empty superseded_by_offline_draft_packet_record_id_ref.",
+          "if": {
+            "properties": {
+              "draft_lifecycle_class": { "const": "superseded_by_offline_draft_packet_record" }
+            },
+            "required": ["draft_lifecycle_class"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_offline_draft_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["superseded_by_offline_draft_packet_record_id_ref"]
+          }
+        },
+        {
+          "description": "Captured-under-unavailability draft origins MUST cite a non-empty linked_offline_handoff_packet_record_id_ref so the captured-state truth survives across lifecycle. user_deferred_explicit_choice and ai_proposed / managed_admin / policy_admin origins may author without an offline-handoff packet.",
+          "if": {
+            "properties": {
+              "draft_origin_class": {
+                "enum": [
+                  "human_authored_provider_unreachable",
+                  "human_authored_browser_handoff_blocked",
+                  "imported_from_offline_handoff_packet_no_live_provider_path"
+                ]
+              }
+            },
+            "required": ["draft_origin_class"]
+          },
+          "then": {
+            "properties": {
+              "linked_offline_handoff_packet_record_id_ref": { "$ref": "#/$defs/non_empty_string" }
+            },
+            "required": ["linked_offline_handoff_packet_record_id_ref"]
+          }
+        }
+      ],
+      "description": "Frozen offline-draft packet for one local change set authored against a provider-owned (or local-only) work item under a provider outage, an intentional offline-only session, a managed-workstation no-system-browser environment, a restricted-trust workspace, an unsatisfied freshness floor, a pending policy-epoch re-evaluation, a pending account-mapping resolution, a pending step-up authenticator, or a user-explicit deferral into a draft. The packet preserves the typed local change set, the typed intended target, the typed expiry window, the typed reconciliation strategy, and the typed conflict disclosure so a downstream surface can render mechanically what is queued, what is expired, and what conflicts before the user re-confirms."
+    },
+
+    "offline_draft_packet_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "offline_draft_packet_schema_version",
+        "audit_event_id",
+        "offline_draft_packet_record_id_ref",
+        "policy_context",
+        "redaction_class",
+        "occurred_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "offline_draft_packet_audit_event_record" },
+        "offline_draft_packet_schema_version": {
+          "$ref": "#/$defs/offline_draft_packet_schema_version"
+        },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "offline_draft_packet_record_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "denial_reason": { "$ref": "#/$defs/denial_reason" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "offline_draft_packet_audit_denial_emitted MUST cite a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "offline_draft_packet_audit_denial_emitted" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row for the offline-draft packet lifecycle. Denial events MUST cite a typed reason from the closed denial vocabulary."
+    }
+  }
+}
