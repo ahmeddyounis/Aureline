@@ -1,0 +1,429 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/widget_trust_state.schema.json",
+  "title": "Aureline notebook widget trust state",
+  "description": "Boundary schema for notebook_widget_trust_state_record, the notebook-specific widget-trust truth layer frozen in docs/notebooks/kernel_output_lineage_and_widget_contract.md. The record explains whether a widget output is trusted, blocked, gated, replay-only, runtime-unavailable, or unsupported, and which safe-open actions the user can take next. The record composes with ADR-0022 notebook_widget_trust_state vocabulary and with the kernel-output lineage record. Raw widget state, raw comm-channel bytes, raw widget JS, raw kernel-protocol frames, raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material never appear in this record.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_widget_trust_state_record" }
+  ],
+  "$defs": {
+    "widget_trust_state_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "notebook_widget_trust_state_record"
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another boundary record. Raw paths, URLs, hostnames, bodies, and secrets are forbidden."
+    },
+
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Reviewer-facing redaction-aware label."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "support_bundle_scoped",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "raw_payload_forbidden"
+      ]
+    },
+
+    "widget_trust_class": {
+      "type": "string",
+      "enum": [
+        "widget_trusted_live_binding_admitted",
+        "widget_blocked_static_fallback",
+        "widget_gated_pending_admission",
+        "widget_replay_only_evidence",
+        "widget_unavailable_runtime",
+        "widget_unsupported_widget"
+      ],
+      "description": "Closed widget-trust class re-projecting ADR-0022 notebook_widget_trust_state for surfaces that need richer admission/blocked/replay/unavailable/unsupported distinctions."
+    },
+
+    "underlying_widget_trust_state": {
+      "type": "string",
+      "enum": [
+        "widget_trust_denied_by_default",
+        "widget_trust_admitted_with_preview",
+        "widget_trust_suppressed_by_trust",
+        "widget_trust_suppressed_by_policy",
+        "widget_trust_suppressed_by_content_class",
+        "widget_trust_unavailable_no_kernel"
+      ],
+      "description": "Re-export of ADR-0022 notebook_widget_trust_state. May be null only when widget_trust_class is widget_unsupported_widget and ADR-0022 does not model the unsupported class."
+    },
+
+    "nullable_underlying_widget_trust_state": {
+      "oneOf": [
+        { "$ref": "#/$defs/underlying_widget_trust_state" },
+        { "type": "null" }
+      ]
+    },
+
+    "widget_trust_explanation_class": {
+      "type": "string",
+      "enum": [
+        "user_admitted_after_preview",
+        "default_denied_for_safety",
+        "denied_by_workspace_or_document_trust",
+        "denied_by_admin_policy",
+        "denied_by_content_class_safe_preview_detector",
+        "replay_only_no_live_runtime_offered",
+        "runtime_unavailable_no_kernel",
+        "runtime_unavailable_widget_runtime_missing",
+        "runtime_unavailable_remote_transport_lost",
+        "unsupported_widget_class",
+        "unsupported_widget_protocol_version"
+      ]
+    },
+
+    "widget_safe_open_action_class": {
+      "type": "string",
+      "enum": [
+        "keep_static_fallback",
+        "admit_widget_with_preview",
+        "downgrade_to_textual_fallback",
+        "omit_widget_from_export",
+        "install_widget_runtime",
+        "ensure_kernel_available",
+        "reconnect_remote_session",
+        "contact_admin_for_policy_review",
+        "replay_only_inspect_evidence",
+        "no_action_unsupported_widget"
+      ]
+    },
+
+    "widget_safe_open_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "action_label"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/widget_safe_open_action_class" },
+        "action_label": { "$ref": "#/$defs/reviewable_label" },
+        "destination_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["explanation_class", "explanation_label"],
+      "properties": {
+        "explanation_class": { "$ref": "#/$defs/widget_trust_explanation_class" },
+        "explanation_label": { "$ref": "#/$defs/reviewable_label" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "content_class_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "preview_admission_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "identity_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_document_ref",
+        "cell_id_ref",
+        "output_id_ref"
+      ],
+      "properties": {
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "kernel_session_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "widget_runtime_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "static_preview_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "kernel_output_lineage_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "notebook_widget_trust_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "widget_trust_state_schema_version",
+        "widget_trust_state_id",
+        "identity_refs",
+        "widget_trust_class",
+        "underlying_widget_trust_state",
+        "explanation",
+        "safe_open_actions",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "widget_trust_state_schema_version": { "$ref": "#/$defs/widget_trust_state_schema_version" },
+        "widget_trust_state_id": { "$ref": "#/$defs/opaque_ref" },
+        "identity_refs": { "$ref": "#/$defs/identity_refs" },
+        "widget_trust_class": { "$ref": "#/$defs/widget_trust_class" },
+        "underlying_widget_trust_state": { "$ref": "#/$defs/nullable_underlying_widget_trust_state" },
+        "explanation": { "$ref": "#/$defs/explanation" },
+        "safe_open_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/widget_safe_open_action" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Trusted live binding requires the matching ADR-0022 admitted state, an admitted explanation, and at least one keep_static_fallback or replay-only-inspect-evidence action is forbidden.",
+          "if": {
+            "properties": { "widget_trust_class": { "const": "widget_trusted_live_binding_admitted" } },
+            "required": ["widget_trust_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_widget_trust_state": { "const": "widget_trust_admitted_with_preview" },
+              "explanation": {
+                "properties": {
+                  "explanation_class": { "const": "user_admitted_after_preview" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Blocked static fallback must cite a denied/suppressed underlying state and offer a static fallback or downgrade action.",
+          "if": {
+            "properties": { "widget_trust_class": { "const": "widget_blocked_static_fallback" } },
+            "required": ["widget_trust_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_widget_trust_state": {
+                "enum": [
+                  "widget_trust_denied_by_default",
+                  "widget_trust_suppressed_by_trust",
+                  "widget_trust_suppressed_by_policy",
+                  "widget_trust_suppressed_by_content_class"
+                ]
+              },
+              "explanation": {
+                "properties": {
+                  "explanation_class": {
+                    "enum": [
+                      "default_denied_for_safety",
+                      "denied_by_workspace_or_document_trust",
+                      "denied_by_admin_policy",
+                      "denied_by_content_class_safe_preview_detector"
+                    ]
+                  }
+                }
+              },
+              "safe_open_actions": {
+                "contains": {
+                  "properties": {
+                    "action_class": {
+                      "enum": [
+                        "keep_static_fallback",
+                        "downgrade_to_textual_fallback",
+                        "omit_widget_from_export"
+                      ]
+                    }
+                  },
+                  "required": ["action_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Gated pending admission must offer an admit_widget_with_preview action and cite the default-denied underlying state.",
+          "if": {
+            "properties": { "widget_trust_class": { "const": "widget_gated_pending_admission" } },
+            "required": ["widget_trust_class"]
+          },
+          "then": {
+            "properties": {
+              "underlying_widget_trust_state": { "const": "widget_trust_denied_by_default" },
+              "explanation": {
+                "properties": {
+                  "explanation_class": { "const": "default_denied_for_safety" }
+                }
+              },
+              "safe_open_actions": {
+                "contains": {
+                  "properties": {
+                    "action_class": { "const": "admit_widget_with_preview" }
+                  },
+                  "required": ["action_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Replay-only evidence must cite the replay-only explanation and offer a replay_only_inspect_evidence action; admit_widget_with_preview is forbidden because no live runtime is offered.",
+          "if": {
+            "properties": { "widget_trust_class": { "const": "widget_replay_only_evidence" } },
+            "required": ["widget_trust_class"]
+          },
+          "then": {
+            "properties": {
+              "explanation": {
+                "properties": {
+                  "explanation_class": { "const": "replay_only_no_live_runtime_offered" }
+                }
+              },
+              "safe_open_actions": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "action_class": { "const": "replay_only_inspect_evidence" }
+                      },
+                      "required": ["action_class"]
+                    }
+                  },
+                  {
+                    "not": {
+                      "contains": {
+                        "properties": {
+                          "action_class": { "const": "admit_widget_with_preview" }
+                        },
+                        "required": ["action_class"]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "description": "Runtime unavailable must cite a runtime-unavailable explanation and offer a runtime/kernel/transport recovery action.",
+          "if": {
+            "properties": { "widget_trust_class": { "const": "widget_unavailable_runtime" } },
+            "required": ["widget_trust_class"]
+          },
+          "then": {
+            "properties": {
+              "explanation": {
+                "properties": {
+                  "explanation_class": {
+                    "enum": [
+                      "runtime_unavailable_no_kernel",
+                      "runtime_unavailable_widget_runtime_missing",
+                      "runtime_unavailable_remote_transport_lost"
+                    ]
+                  }
+                }
+              },
+              "underlying_widget_trust_state": {
+                "enum": [
+                  "widget_trust_unavailable_no_kernel",
+                  "widget_trust_suppressed_by_policy"
+                ]
+              },
+              "safe_open_actions": {
+                "contains": {
+                  "properties": {
+                    "action_class": {
+                      "enum": [
+                        "ensure_kernel_available",
+                        "install_widget_runtime",
+                        "reconnect_remote_session"
+                      ]
+                    }
+                  },
+                  "required": ["action_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Unsupported widget class must cite an unsupported explanation and offer a no_action_unsupported_widget or downgrade_to_textual_fallback action.",
+          "if": {
+            "properties": { "widget_trust_class": { "const": "widget_unsupported_widget" } },
+            "required": ["widget_trust_class"]
+          },
+          "then": {
+            "properties": {
+              "explanation": {
+                "properties": {
+                  "explanation_class": {
+                    "enum": [
+                      "unsupported_widget_class",
+                      "unsupported_widget_protocol_version"
+                    ]
+                  }
+                }
+              },
+              "safe_open_actions": {
+                "contains": {
+                  "properties": {
+                    "action_class": {
+                      "enum": [
+                        "no_action_unsupported_widget",
+                        "downgrade_to_textual_fallback"
+                      ]
+                    }
+                  },
+                  "required": ["action_class"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "no_action_unsupported_widget is permitted only when widget_trust_class is widget_unsupported_widget.",
+          "if": {
+            "properties": {
+              "safe_open_actions": {
+                "contains": {
+                  "properties": {
+                    "action_class": { "const": "no_action_unsupported_widget" }
+                  },
+                  "required": ["action_class"]
+                }
+              }
+            },
+            "required": ["safe_open_actions"]
+          },
+          "then": {
+            "properties": {
+              "widget_trust_class": { "const": "widget_unsupported_widget" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

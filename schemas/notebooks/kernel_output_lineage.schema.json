@@ -1,0 +1,646 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/kernel_output_lineage.schema.json",
+  "title": "Aureline notebook kernel-output lineage",
+  "description": "Boundary schema for notebook_kernel_output_lineage_record, the notebook-specific lineage layer frozen in docs/notebooks/kernel_output_lineage_and_widget_contract.md. The record ties one notebook output back to its document, cell, cell-execution run, kernel session, output block descriptor, replay capture (when present), widget-trust state record (when applicable), and the export/support packets that may carry it forward. The record composes with ADR-0022 notebook_output_lineage_class, notebook_output_trust_state, notebook_kernel_session_state, notebook_kernel_transport_class, and notebook_execution_queue_admission_class. Raw notebook JSON, raw cell source, raw output bytes, raw widget state, raw kernel-protocol frames, raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material never appear in this record.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notebook_kernel_output_lineage_record" }
+  ],
+  "$defs": {
+    "kernel_output_lineage_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "notebook_kernel_output_lineage_record"
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref to another boundary record. Raw paths, URLs, hostnames, bodies, and secrets are forbidden."
+    },
+
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "support_bundle_scoped",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "raw_payload_forbidden"
+      ]
+    },
+
+    "notebook_output_lineage_class": {
+      "type": "string",
+      "enum": [
+        "live_output_from_current_session",
+        "captured_output_from_prior_session",
+        "replayed_from_captured_output",
+        "orphaned_no_kernel_binding",
+        "widget_gated_output"
+      ],
+      "description": "Re-export of ADR-0022 notebook_output_lineage_class."
+    },
+
+    "notebook_output_trust_state": {
+      "type": "string",
+      "enum": [
+        "output_trust_live_from_current_session",
+        "output_trust_captured_from_prior_session",
+        "output_trust_replayed_from_captured_output",
+        "output_trust_orphaned_no_kernel_binding",
+        "output_trust_widget_gated"
+      ],
+      "description": "Re-export of ADR-0022 notebook_output_trust_state."
+    },
+
+    "notebook_kernel_transport_class": {
+      "type": "string",
+      "enum": [
+        "local_managed_toolchain_kernel",
+        "local_provisioned_kernel",
+        "remote_agent_primary_kernel",
+        "managed_workspace_agent_kernel",
+        "provider_side_remote_kernel",
+        "compatibility_bridge_remote_kernel"
+      ]
+    },
+
+    "nullable_kernel_transport_class": {
+      "oneOf": [
+        { "$ref": "#/$defs/notebook_kernel_transport_class" },
+        { "type": "null" }
+      ]
+    },
+
+    "notebook_execution_queue_admission_class": {
+      "type": "string",
+      "enum": [
+        "admitted_in_order",
+        "admitted_skipped_by_policy",
+        "admitted_deferred_no_kernel",
+        "denied_by_trust"
+      ]
+    },
+
+    "nullable_execution_queue_admission_class": {
+      "oneOf": [
+        { "$ref": "#/$defs/notebook_execution_queue_admission_class" },
+        { "type": "null" }
+      ]
+    },
+
+    "execution_queue_state_class": {
+      "type": "string",
+      "enum": [
+        "not_queued",
+        "queued_admitted_pending_dispatch",
+        "queued_waiting_on_kernel",
+        "running_current_cell",
+        "completed_current_session",
+        "cancelled_by_user",
+        "cancelled_by_trust_downgrade",
+        "cancelled_by_policy",
+        "replaying_from_capture",
+        "orphaned_no_kernel_binding",
+        "remote_unavailable_session_lost"
+      ],
+      "description": "Closed run-progress vocabulary that composes with ADR-0022's admission class. Admission is the host's accept/deny decision; queue state is the run's progress."
+    },
+
+    "replay_capture_class": {
+      "type": "string",
+      "enum": [
+        "no_replay",
+        "replay_from_captured_output",
+        "replay_from_imported_capture",
+        "replay_blocked_no_kernel",
+        "replay_blocked_identity_drift",
+        "replay_blocked_trust_or_policy"
+      ]
+    },
+
+    "output_block_class": {
+      "type": "string",
+      "enum": [
+        "stream_text_block",
+        "error_traceback_block",
+        "display_data_block",
+        "execute_result_block",
+        "widget_view_block",
+        "update_display_data_block",
+        "clear_output_marker_block",
+        "imported_output_block"
+      ]
+    },
+
+    "identity_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_document_ref",
+        "cell_id_ref",
+        "cell_execution_id_ref",
+        "output_id_ref"
+      ],
+      "properties": {
+        "notebook_document_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "cell_execution_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "output_block_descriptor_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "kernel_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kernel_session_id_ref",
+        "kernel_transport_class"
+      ],
+      "properties": {
+        "kernel_session_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "kernelspec_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "kernel_transport_class": { "$ref": "#/$defs/nullable_kernel_transport_class" },
+        "execution_context_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "target_identity_witness_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "remote_agent_session_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "environment_fingerprint_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "data_snapshot_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "queue_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "execution_queue_state_class",
+        "execution_queue_admission_class",
+        "auto_rerun_forbidden"
+      ],
+      "properties": {
+        "execution_queue_state_class": { "$ref": "#/$defs/execution_queue_state_class" },
+        "execution_queue_admission_class": { "$ref": "#/$defs/nullable_execution_queue_admission_class" },
+        "auto_rerun_forbidden": { "type": "boolean" },
+        "queue_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "policy_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "trust_transition_audit_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "queue_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "replay_capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_capture_class",
+        "auto_rerun_forbidden"
+      ],
+      "properties": {
+        "replay_capture_class": { "$ref": "#/$defs/replay_capture_class" },
+        "replay_capture_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "imported_source_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "auto_rerun_forbidden": { "type": "boolean" },
+        "replay_disclosure_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "widget_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "widget_trust_state_record_ref"
+      ],
+      "properties": {
+        "widget_trust_state_record_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "widget_runtime_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "static_preview_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "packet_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "viewer_state_refs",
+        "export_packet_refs",
+        "support_packet_refs",
+        "automation_evidence_packet_refs",
+        "ai_evidence_packet_refs",
+        "task_event_envelope_refs"
+      ],
+      "properties": {
+        "viewer_state_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "export_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "support_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "automation_evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "ai_evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "task_event_envelope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_hash_ref",
+        "renderer_schema_ref",
+        "policy_epoch_ref",
+        "audit_event_refs"
+      ],
+      "properties": {
+        "source_hash_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "renderer_schema_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "policy_epoch_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "mime_bundle_descriptor_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "notebook_kernel_output_lineage_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "kernel_output_lineage_schema_version",
+        "lineage_id",
+        "identity_refs",
+        "kernel_refs",
+        "lineage_class",
+        "output_trust_state",
+        "output_block_class",
+        "queue_state",
+        "replay_capture",
+        "widget_refs",
+        "packet_refs",
+        "provenance",
+        "redaction_class",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "kernel_output_lineage_schema_version": { "$ref": "#/$defs/kernel_output_lineage_schema_version" },
+        "lineage_id": { "$ref": "#/$defs/opaque_ref" },
+        "identity_refs": { "$ref": "#/$defs/identity_refs" },
+        "kernel_refs": { "$ref": "#/$defs/kernel_refs" },
+        "lineage_class": { "$ref": "#/$defs/notebook_output_lineage_class" },
+        "output_trust_state": { "$ref": "#/$defs/notebook_output_trust_state" },
+        "output_block_class": { "$ref": "#/$defs/output_block_class" },
+        "queue_state": { "$ref": "#/$defs/queue_state" },
+        "replay_capture": { "$ref": "#/$defs/replay_capture" },
+        "widget_refs": { "$ref": "#/$defs/widget_refs" },
+        "packet_refs": { "$ref": "#/$defs/packet_refs" },
+        "provenance": { "$ref": "#/$defs/provenance" },
+        "review_summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Lineage class and output_trust_state must agree pairwise with ADR-0022.",
+          "oneOf": [
+            {
+              "properties": {
+                "lineage_class": { "const": "live_output_from_current_session" },
+                "output_trust_state": { "const": "output_trust_live_from_current_session" }
+              }
+            },
+            {
+              "properties": {
+                "lineage_class": { "const": "captured_output_from_prior_session" },
+                "output_trust_state": { "const": "output_trust_captured_from_prior_session" }
+              }
+            },
+            {
+              "properties": {
+                "lineage_class": { "const": "replayed_from_captured_output" },
+                "output_trust_state": { "const": "output_trust_replayed_from_captured_output" }
+              }
+            },
+            {
+              "properties": {
+                "lineage_class": { "const": "orphaned_no_kernel_binding" },
+                "output_trust_state": { "const": "output_trust_orphaned_no_kernel_binding" }
+              }
+            },
+            {
+              "properties": {
+                "lineage_class": { "const": "widget_gated_output" },
+                "output_trust_state": { "const": "output_trust_widget_gated" }
+              }
+            }
+          ]
+        },
+        {
+          "description": "Live output requires current kernel session and cell-execution refs and forbids replay.",
+          "if": {
+            "properties": { "lineage_class": { "const": "live_output_from_current_session" } },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "properties": {
+              "identity_refs": {
+                "properties": {
+                  "cell_execution_id_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              },
+              "kernel_refs": {
+                "properties": {
+                  "kernel_session_id_ref": { "$ref": "#/$defs/opaque_ref" },
+                  "kernel_transport_class": { "$ref": "#/$defs/notebook_kernel_transport_class" }
+                }
+              },
+              "queue_state": {
+                "properties": {
+                  "execution_queue_state_class": {
+                    "enum": [
+                      "running_current_cell",
+                      "completed_current_session"
+                    ]
+                  }
+                }
+              },
+              "replay_capture": {
+                "properties": {
+                  "replay_capture_class": { "const": "no_replay" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Replayed output must cite a non-blocked replay class, set auto-rerun-forbidden, and use the replaying queue state.",
+          "if": {
+            "properties": { "lineage_class": { "const": "replayed_from_captured_output" } },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "properties": {
+              "queue_state": {
+                "properties": {
+                  "execution_queue_state_class": { "const": "replaying_from_capture" },
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              },
+              "replay_capture": {
+                "properties": {
+                  "replay_capture_class": {
+                    "enum": [
+                      "replay_from_captured_output",
+                      "replay_from_imported_capture"
+                    ]
+                  },
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Orphaned output must have a null kernel session ref, an orphaned queue state, and forbid auto-rerun.",
+          "if": {
+            "properties": { "lineage_class": { "const": "orphaned_no_kernel_binding" } },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "properties": {
+              "kernel_refs": {
+                "properties": {
+                  "kernel_session_id_ref": { "type": "null" }
+                }
+              },
+              "queue_state": {
+                "properties": {
+                  "execution_queue_state_class": { "const": "orphaned_no_kernel_binding" },
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Widget-gated output must cite a widget-trust state record and use widget_view_block.",
+          "if": {
+            "properties": { "lineage_class": { "const": "widget_gated_output" } },
+            "required": ["lineage_class"]
+          },
+          "then": {
+            "properties": {
+              "output_block_class": { "const": "widget_view_block" },
+              "widget_refs": {
+                "properties": {
+                  "widget_trust_state_record_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Widget-trust state record refs are reserved for widget outputs.",
+          "if": {
+            "properties": {
+              "output_block_class": {
+                "not": { "const": "widget_view_block" }
+              }
+            },
+            "required": ["output_block_class"]
+          },
+          "then": {
+            "properties": {
+              "widget_refs": {
+                "properties": {
+                  "widget_trust_state_record_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Cancelled, orphaned, replaying, and remote-unavailable queue states forbid auto-rerun.",
+          "if": {
+            "properties": {
+              "queue_state": {
+                "properties": {
+                  "execution_queue_state_class": {
+                    "enum": [
+                      "cancelled_by_user",
+                      "cancelled_by_trust_downgrade",
+                      "cancelled_by_policy",
+                      "replaying_from_capture",
+                      "orphaned_no_kernel_binding",
+                      "remote_unavailable_session_lost"
+                    ]
+                  }
+                },
+                "required": ["execution_queue_state_class"]
+              }
+            },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "queue_state": {
+                "properties": {
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Remote-unavailable queue state requires a remote transport class and a remote-agent session ref.",
+          "if": {
+            "properties": {
+              "queue_state": {
+                "properties": {
+                  "execution_queue_state_class": { "const": "remote_unavailable_session_lost" }
+                },
+                "required": ["execution_queue_state_class"]
+              }
+            },
+            "required": ["queue_state"]
+          },
+          "then": {
+            "properties": {
+              "kernel_refs": {
+                "properties": {
+                  "kernel_transport_class": {
+                    "enum": [
+                      "remote_agent_primary_kernel",
+                      "managed_workspace_agent_kernel",
+                      "provider_side_remote_kernel",
+                      "compatibility_bridge_remote_kernel"
+                    ]
+                  },
+                  "remote_agent_session_id_ref": { "$ref": "#/$defs/opaque_ref" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Replay class other than no_replay forces auto-rerun-forbidden on the replay block.",
+          "if": {
+            "properties": {
+              "replay_capture": {
+                "properties": {
+                  "replay_capture_class": {
+                    "not": { "const": "no_replay" }
+                  }
+                },
+                "required": ["replay_capture_class"]
+              }
+            },
+            "required": ["replay_capture"]
+          },
+          "then": {
+            "properties": {
+              "replay_capture": {
+                "properties": {
+                  "auto_rerun_forbidden": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "At least one citing record must reference this lineage record.",
+          "properties": {
+            "packet_refs": {
+              "anyOf": [
+                {
+                  "properties": {
+                    "viewer_state_refs": { "minItems": 1 }
+                  },
+                  "required": ["viewer_state_refs"]
+                },
+                {
+                  "properties": {
+                    "export_packet_refs": { "minItems": 1 }
+                  },
+                  "required": ["export_packet_refs"]
+                },
+                {
+                  "properties": {
+                    "support_packet_refs": { "minItems": 1 }
+                  },
+                  "required": ["support_packet_refs"]
+                },
+                {
+                  "properties": {
+                    "automation_evidence_packet_refs": { "minItems": 1 }
+                  },
+                  "required": ["automation_evidence_packet_refs"]
+                },
+                {
+                  "properties": {
+                    "ai_evidence_packet_refs": { "minItems": 1 }
+                  },
+                  "required": ["ai_evidence_packet_refs"]
+                },
+                {
+                  "properties": {
+                    "task_event_envelope_refs": { "minItems": 1 }
+                  },
+                  "required": ["task_event_envelope_refs"]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
