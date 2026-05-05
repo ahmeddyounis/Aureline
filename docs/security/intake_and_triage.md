@@ -348,10 +348,11 @@ every advisory it feeds. Empty until at least one advisory is drafted.
 
 ### Linked postmortem records
 
-`linked_postmortem_refs` reserves an opaque-ref slot for postmortem
-records produced after the incident closes. The postmortem schema is a
-later lane; the packet pre-reserves the slot so follow-up ownership
-stays attached to the same identity chain.
+`linked_postmortem_refs` carries opaque refs to postmortem records
+produced after the incident closes. Postmortem records validate against
+[`/schemas/security/postmortem_record.schema.json`](../../schemas/security/postmortem_record.schema.json).
+The slot exists so follow-up ownership stays attached to the same
+identity chain; consumers MUST NOT mint parallel ids for postmortems.
 
 ### Linkage to the incident workspace packet
 
@@ -443,9 +444,10 @@ graph without re-keying incident identity.
 - `linked_postmortem_refs` is populated once the incident closes
   (`triage_resolved_to_advisory`, `triage_resolved_without_advisory`,
   `triage_withdrawn`, `triage_closed_duplicate`).
-- The postmortem schema is a later lane; today's postmortem refs are
-  opaque placeholders. The slot is reserved so postmortem ownership
-  does not have to mint a parallel identity system.
+- Postmortem refs resolve into `postmortem_record` instances (see
+  [`/schemas/security/postmortem_record.schema.json`](../../schemas/security/postmortem_record.schema.json)).
+  The record preserves timeline, blast radius, mitigation path, and
+  follow-up ownership without re-keying the incident.
 
 ## Operational walkthrough
 
@@ -601,9 +603,9 @@ are non-conforming.
 - Open a signing-quorum row specific to the
   `break_glass_invoked_pending_reconciliation` reconciliation clock
   once the release-cadence decision closes.
-- Land the postmortem-record schema so
-  `linked_postmortem_refs` stops being the only remaining reserved
-  slot on the private-triage packet.
+- Keep postmortem linkage strict: postmortem records validate against
+  `/schemas/security/postmortem_record.schema.json` and MUST preserve
+  the incident/advisory identity chain.
 - Open the coordinated-disclosure runbook referenced by the
   `coordinated_disclosure_group` scope value. The packet reserves
   the scope; the party lists and embargo timelines are support /

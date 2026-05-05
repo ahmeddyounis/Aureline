@@ -1,0 +1,530 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/postmortem_record.schema.json",
+  "title": "Aureline signed postmortem record",
+  "description": "Boundary schema for the postmortem_record frozen in docs/security/postmortem_and_compensating_control_contract.md. A postmortem record is the durable post-incident artifact that keeps critical incidents from ending at mitigation: it preserves the incident identity chain, links advisories and emergency artifacts, records an append-only timeline and blast radius, names affected and fixed build identities, captures the mitigation path (fix shipped, disable bundle, compensating control), and freezes follow-up ownership obligations with machine-readable owners and deadlines. The record also carries explicit public/private/export-safe summaries so support, admin handoff packets, and release notes can reference the same incident record without exposing restricted data classes. Raw evidence bodies, raw signatures, raw exploit payloads, raw configuration bodies, raw URLs/hostnames, absolute paths, and raw identity strings never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-safe reviewable summaries only. The eventual security-response crate's Rust types are the schema of record; this file is the cross-tool boundary every post-incident review surface, support/export packet, and release-note binder reads.",
+  "type": "object",
+  "$ref": "#/$defs/postmortem_record",
+  "$defs": {
+    "postmortem_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this postmortem export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "postmortem_record",
+      "description": "Discriminator. Every postmortem carries record_kind = postmortem_record so exports can validate mechanically."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional fixture-only metadata used by worked cases."
+    },
+
+    "opaque_id": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/opaque_id"
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/monotonic_timestamp"
+    },
+
+    "nullable_monotonic_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+
+    "reviewable_sentence": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/reviewable_sentence"
+    },
+
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+
+    "redaction_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/redaction_class"
+    },
+
+    "visibility_class": {
+      "$ref": "./advisory_identity.schema.json#/$defs/visibility_class"
+    },
+
+    "security_severity_class": {
+      "$ref": "./advisory_identity.schema.json#/$defs/security_severity_class"
+    },
+
+    "deployment_profile_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/deployment_profile_class"
+    },
+
+    "affected_install_linkage": {
+      "$ref": "./advisory_record.schema.json#/$defs/affected_install_linkage"
+    },
+
+    "advisory_identity": {
+      "$ref": "./advisory_identity.schema.json#/$defs/advisory_identity"
+    },
+
+    "timeline_event": {
+      "$ref": "./incident_workspace_packet.schema.json#/$defs/timeline_event"
+    },
+
+    "signing_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/signing_class"
+    },
+
+    "signing_material_state_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/signing_material_state_class"
+    },
+
+    "record_signature_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signing_class",
+        "signing_material_state",
+        "signing_authority_ref",
+        "transparency_log_ref",
+        "source_note"
+      ],
+      "properties": {
+        "signing_class": { "$ref": "#/$defs/signing_class" },
+        "signing_material_state": { "$ref": "#/$defs/signing_material_state_class" },
+        "signing_authority_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the signing authority for the postmortem record. Null when signing_class is unsigned_development_only or when the authority is not known."
+        },
+        "transparency_log_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the transparency-log entry for the postmortem record's signature. Null when the record is unsigned or when the signing class does not require a transparency-log anchor."
+        },
+        "source_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Signer / source state for the postmortem record itself. Raw signing material never appears here."
+    },
+
+    "decision_forum_class": {
+      "type": "string",
+      "enum": [
+        "security_trust_review",
+        "release_council",
+        "architecture_council",
+        "performance_council",
+        "product_scope_review",
+        "compatibility_ecosystem_review",
+        "shiproom_executive_scope_review"
+      ],
+      "description": "Forum vocabulary aligned with advisory decision-history entries."
+    },
+
+    "follow_up_status_class": {
+      "type": "string",
+      "enum": [
+        "open",
+        "in_progress",
+        "blocked",
+        "completed",
+        "canceled"
+      ],
+      "description": "Frozen follow-up status vocabulary. Used by dashboards and shiproom tooling to consume the owner/deadline set mechanically."
+    },
+
+    "follow_up_obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "follow_up_id",
+        "title",
+        "owner_ref",
+        "owner_forum",
+        "due_at",
+        "status",
+        "completed_at",
+        "related_artifact_refs",
+        "summary"
+      ],
+      "properties": {
+        "follow_up_id": { "$ref": "#/$defs/opaque_id" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "owner_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque owner ref (team row, on-call rotation ref, or named DRI pseudonym) safe to export."
+        },
+        "owner_forum": {
+          "$ref": "#/$defs/decision_forum_class",
+          "description": "Forum lane this follow-up is reported through. Not a substitute for owner_ref."
+        },
+        "due_at": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC deadline for the follow-up. Null is forbidden so the obligation remains machine-schedulable."
+        },
+        "status": { "$ref": "#/$defs/follow_up_status_class" },
+        "completed_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+        "related_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to the artifacts that satisfy or scope this follow-up (advisory records, build identities, policy bundles, support packets)."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "status = completed requires completed_at to be non-null.",
+          "if": {
+            "properties": { "status": { "const": "completed" } },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "completed_at": { "not": { "type": "null" } } },
+            "required": ["completed_at"]
+          }
+        },
+        {
+          "description": "status != completed requires completed_at to be null.",
+          "if": {
+            "properties": {
+              "status": { "enum": ["open", "in_progress", "blocked", "canceled"] }
+            },
+            "required": ["status"]
+          },
+          "then": {
+            "properties": { "completed_at": { "type": "null" } },
+            "required": ["completed_at"]
+          }
+        }
+      ],
+      "description": "One follow-up obligation with machine-readable owner and deadline."
+    },
+
+    "blast_radius_class": {
+      "type": "string",
+      "enum": [
+        "exact_subject_only",
+        "exact_build_subset",
+        "install_profile_subset",
+        "channel_wide",
+        "deployment_profile_wide",
+        "trust_chain_wide",
+        "unknown_requires_review"
+      ],
+      "description": "Frozen blast-radius vocabulary for postmortems. Values mirror emergency-action blast-radius classes with an explicit unknown_requires_review safe default."
+    },
+
+    "blast_radius": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blast_radius_class",
+        "impact_summary",
+        "impacted_subject_refs",
+        "impacted_exact_build_identity_refs",
+        "impacted_install_profile_card_refs",
+        "impacted_deployment_profile_scope"
+      ],
+      "properties": {
+        "blast_radius_class": { "$ref": "#/$defs/blast_radius_class" },
+        "impact_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "impacted_subject_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to affected subjects (extensions, routes, components). Resolved through linked advisory records when available."
+        },
+        "impacted_exact_build_identity_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json for affected builds. Free-text versions are non-conforming."
+        },
+        "impacted_install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/install_topology_matrix.yaml."
+        },
+        "impacted_deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        }
+      },
+      "description": "Blast-radius envelope. Captures the affected versions/builds and the install/deployment scope in machine-readable form."
+    },
+
+    "mitigation_step_class": {
+      "type": "string",
+      "enum": [
+        "compensating_control_applied",
+        "emergency_disable_bundle_published",
+        "emergency_action_invoked",
+        "revocation_issued",
+        "fixed_release_shipped",
+        "manual_customer_workaround",
+        "monitoring_or_detection_improved",
+        "no_mitigation_required"
+      ],
+      "description": "Frozen mitigation-step vocabulary. Steps are append-only; corrections land as additional steps or a superseding postmortem record."
+    },
+
+    "artifact_ref_kind_class": {
+      "type": "string",
+      "enum": [
+        "private_triage_packet",
+        "incident_workspace_packet",
+        "incident_workspace",
+        "evidence_handoff_bundle",
+        "advisory_record",
+        "emergency_disable_bundle",
+        "emergency_action_record",
+        "revocation_record",
+        "exact_build_identity",
+        "support_bundle",
+        "release_evidence_packet",
+        "other"
+      ]
+    },
+
+    "artifact_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref_kind", "ref_id", "note"],
+      "properties": {
+        "ref_kind": { "$ref": "#/$defs/artifact_ref_kind_class" },
+        "ref_id": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "description": "Typed artifact reference used by mitigation steps."
+    },
+
+    "mitigation_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step_id", "step_class", "effective_at", "summary", "artifact_refs"],
+      "properties": {
+        "step_id": { "$ref": "#/$defs/opaque_id" },
+        "step_class": { "$ref": "#/$defs/mitigation_step_class" },
+        "effective_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_ref" },
+          "description": "Typed references supporting the step (disable bundle id, advisory id, fixed build identity, etc.)."
+        }
+      },
+      "description": "One mitigation-path step."
+    },
+
+    "postmortem_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "postmortem_record_schema_version",
+        "record_kind",
+        "postmortem_id",
+        "title",
+        "severity_class",
+        "visibility_class",
+        "source_incident_workspace_id_ref",
+        "linked_private_triage_packet_ref",
+        "linked_incident_workspace_packet_ref",
+        "linked_evidence_handoff_bundle_refs",
+        "linked_advisory_record_refs",
+        "linked_advisory_identities",
+        "linked_disable_bundle_refs",
+        "linked_emergency_action_refs",
+        "linked_revocation_refs",
+        "affected_install_linkage",
+        "fixed_exact_build_identity_refs",
+        "timeline",
+        "blast_radius",
+        "mitigation_path",
+        "compensating_control_rows",
+        "follow_up_obligations",
+        "public_summary",
+        "export_safe_summary",
+        "private_summary",
+        "record_signature_state",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "postmortem_record_schema_version": { "$ref": "#/$defs/postmortem_record_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "postmortem_id": { "$ref": "#/$defs/opaque_id" },
+
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short postmortem title safe for the record's visibility class."
+        },
+
+        "severity_class": { "$ref": "#/$defs/security_severity_class" },
+
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+
+        "source_incident_workspace_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the source incident_workspace_id (ops lane). Resolves into schemas/ops/* incident workspace artifacts when present."
+        },
+
+        "linked_private_triage_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the private_triage_workspace_packet_record (schemas/security/private_triage_workspace_packet.schema.json)."
+        },
+
+        "linked_incident_workspace_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the incident_workspace_packet_record (schemas/security/incident_workspace_packet.schema.json)."
+        },
+
+        "linked_evidence_handoff_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to evidence_handoff_bundle_record bundle_id values (schemas/ops/evidence_handoff_bundle.schema.json)."
+        },
+
+        "linked_advisory_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to advisory_record ids (schemas/security/advisory_record.schema.json)."
+        },
+
+        "linked_advisory_identities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/advisory_identity" },
+          "description": "Copy-safe advisory identities preserved on the postmortem so downstream surfaces can link without re-parsing other artifacts."
+        },
+
+        "linked_disable_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to emergency_disable_bundle_record ids (schemas/security/emergency_disable_bundle.schema.json)."
+        },
+
+        "linked_emergency_action_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to emergency_action_record ids (schemas/security/emergency_action_record.schema.json)."
+        },
+
+        "linked_revocation_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to revocation_record ids (schemas/security/emergency_action_record.schema.json)."
+        },
+
+        "affected_install_linkage": { "$ref": "#/$defs/affected_install_linkage" },
+
+        "fixed_exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/build/exact_build_identity.schema.json for fixed builds/releases. Empty when a fixed build is not yet available."
+        },
+
+        "timeline": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/timeline_event" },
+          "description": "Append-only timeline. Events are safe summaries; raw evidence bodies are always by reference."
+        },
+
+        "blast_radius": { "$ref": "#/$defs/blast_radius" },
+
+        "mitigation_path": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/mitigation_step" },
+          "description": "Append-only mitigation path describing which temporary controls and permanent fixes were applied."
+        },
+
+        "compensating_control_rows": {
+          "type": "array",
+          "items": { "$ref": "./compensating_control_row.schema.json#/$defs/compensating_control_row_record" },
+          "description": "Inline compensating-control rows referenced by this postmortem. Rows remain valid on their own schema boundary."
+        },
+
+        "follow_up_obligations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/follow_up_obligation" },
+          "description": "Follow-up owner and deadline set. Obligations are machine-readable so dashboards and shiprooms can consume them without parsing prose."
+        },
+
+        "public_summary": {
+          "$ref": "#/$defs/nullable_reviewable_sentence",
+          "description": "Public-safe summary sentence. Null when visibility_class is private or internal-only."
+        },
+
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Export-safe summary sentence admissible in support bundles, admin handoff packets, and release evidence packets."
+        },
+
+        "private_summary": {
+          "$ref": "#/$defs/nullable_reviewable_sentence",
+          "description": "Private summary sentence admissible only under private-triage access control. Never projected into release notes or public exports."
+        },
+
+        "record_signature_state": { "$ref": "#/$defs/record_signature_state" },
+
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "visibility_class = public requires a non-null public_summary.",
+          "if": {
+            "properties": { "visibility_class": { "const": "public" } },
+            "required": ["visibility_class"]
+          },
+          "then": {
+            "properties": { "public_summary": { "not": { "type": "null" } } },
+            "required": ["public_summary"]
+          }
+        }
+      ],
+      "description": "Postmortem record. One durable incident artifact binding incident identity, linked advisories/emergency artifacts, timeline, blast radius, mitigation path, and follow-up ownership into one machine-checkable record."
+    }
+  }
+}

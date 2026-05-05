@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/compensating_control_row.schema.json",
+  "title": "Aureline compensating control row",
+  "description": "Boundary schema for the compensating_control_row_record frozen in docs/security/postmortem_and_compensating_control_contract.md. A compensating control is a **temporary** narrowing or guardrail that reduces risk while a full remediation is developed, verified, and shipped. The row carries the control type, why it is temporary, what residual risk remains, the explicit review horizon that prevents silent permanence, the optional expiry envelope, optional customer action, and the explicit claim/capability narrowing that stays in force while the control is active. A compensating control MUST NOT masquerade as a permanent fix: the record requires a non-null must_review_by and a non-empty narrowing reference set. Raw configuration bodies, raw secrets, raw exploit payloads, raw URLs/hostnames, absolute paths, and internal-only identity strings never cross this boundary; rows carry opaque refs, typed vocabulary, and redaction-safe reviewable sentences only. The eventual security-response crate's Rust types are the schema of record; this file is the cross-tool boundary used by postmortems, support/export packets, and admin handoff projections.",
+  "type": "object",
+  "$ref": "#/$defs/compensating_control_row_record",
+  "$defs": {
+    "compensating_control_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this compensating-control row export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "compensating_control_row_record",
+      "description": "Discriminator. Every compensating control row carries record_kind = compensating_control_row_record so exports can validate mechanically."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional fixture-only metadata used by worked cases."
+    },
+
+    "opaque_id": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/opaque_id"
+    },
+
+    "monotonic_timestamp": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/monotonic_timestamp"
+    },
+
+    "nullable_monotonic_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+
+    "reviewable_sentence": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/reviewable_sentence"
+    },
+
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+
+    "redaction_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/redaction_class"
+    },
+
+    "visibility_class": {
+      "$ref": "./advisory_identity.schema.json#/$defs/visibility_class"
+    },
+
+    "control_type_class": {
+      "type": "string",
+      "enum": [
+        "settings_change",
+        "capability_gate_narrowing",
+        "workspace_trust_narrowing",
+        "secret_class_posture_change",
+        "emergency_disable_bundle_record",
+        "emergency_action_record",
+        "revocation_record",
+        "configuration_note"
+      ],
+      "description": "Closed control-type vocabulary. Values align with the private-triage packet's compensating_control_refs kinds, with an explicit entry for emergency_disable_bundle_record."
+    },
+
+    "control_state_class": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "superseded",
+        "expired",
+        "retired"
+      ],
+      "description": "Closed lifecycle vocabulary for compensating controls. A row is active only while the narrowing remains in force."
+    },
+
+    "capability_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_kind", "capability_id"],
+      "properties": {
+        "capability_kind": {
+          "type": "string",
+          "enum": [
+            "setting",
+            "bundle",
+            "command",
+            "provider_linked_feature",
+            "workspace_capability",
+            "extension_capability",
+            "sdk_or_api_surface",
+            "docs_capability",
+            "support_capability"
+          ],
+          "description": "Capability kind vocabulary aligned with schemas/governance/capability_lifecycle.schema.json."
+        },
+        "capability_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable id of the capability within its kind."
+        }
+      },
+      "description": "Stable reference to a claim/capability that remains narrowed while this control is active."
+    },
+
+    "customer_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_required", "action_note"],
+      "properties": {
+        "action_required": {
+          "type": "boolean",
+          "description": "True when customers/administrators must take an action (change a setting, import a bundle, update to a fixed release) for safety."
+        },
+        "action_note": {
+          "$ref": "#/$defs/nullable_reviewable_sentence",
+          "description": "Nullable export-safe action note. Non-null when action_required is true; null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "action_required = true requires a non-null action_note.",
+          "if": {
+            "properties": { "action_required": { "const": true } },
+            "required": ["action_required"]
+          },
+          "then": {
+            "properties": { "action_note": { "not": { "type": "null" } } },
+            "required": ["action_note"]
+          }
+        },
+        {
+          "description": "action_required = false requires action_note to be null.",
+          "if": {
+            "properties": { "action_required": { "const": false } },
+            "required": ["action_required"]
+          },
+          "then": {
+            "properties": { "action_note": { "type": "null" } },
+            "required": ["action_note"]
+          }
+        }
+      ],
+      "description": "Customer-action envelope. Forces the record to state whether action is required rather than implying it through prose."
+    },
+
+    "compensating_control_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compensating_control_row_schema_version",
+        "record_kind",
+        "control_row_id",
+        "control_type",
+        "control_state",
+        "title",
+        "visibility_class",
+        "temporary_basis_note",
+        "residual_risk_note",
+        "must_review_by",
+        "expires_at",
+        "customer_action",
+        "narrowed_capabilities",
+        "narrowed_claim_manifest_row_refs",
+        "supersedes_control_row_refs",
+        "superseded_by_control_row_ref",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "compensating_control_row_schema_version": { "$ref": "#/$defs/compensating_control_row_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "control_row_id": { "$ref": "#/$defs/opaque_id" },
+
+        "control_type": { "$ref": "#/$defs/control_type_class" },
+        "control_state": { "$ref": "#/$defs/control_state_class" },
+
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short control title safe for UI/CLI/export surfaces."
+        },
+
+        "visibility_class": { "$ref": "#/$defs/visibility_class" },
+
+        "temporary_basis_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Why this control is temporary and MUST NOT be treated as a full remediation."
+        },
+        "residual_risk_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "What risk remains while the control is active. Required so export-safe summaries do not imply a fix."
+        },
+
+        "must_review_by": {
+          "$ref": "#/$defs/monotonic_timestamp",
+          "description": "ISO 8601 UTC timestamp by which the compensating control MUST be reviewed (renewed with explicit evidence, superseded, or retired). This is the hard 'no silent permanence' horizon."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/nullable_monotonic_timestamp",
+          "description": "Optional ISO 8601 UTC expiry time after which the control MUST NOT be treated as active. Null when the control is review-bounded but not time-expiring."
+        },
+
+        "customer_action": { "$ref": "#/$defs/customer_action" },
+
+        "narrowed_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_ref" },
+          "description": "Capabilities that remain narrowed while the control is active. May be empty only when narrowed_claim_manifest_row_refs is non-empty."
+        },
+        "narrowed_claim_manifest_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to claim-manifest rows that remain narrowed while the control is active. May be empty only when narrowed_capabilities is non-empty."
+        },
+
+        "supersedes_control_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to prior compensating-control rows this row supersedes."
+        },
+        "superseded_by_control_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the successor compensating-control row when control_state is superseded; null otherwise."
+        },
+
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" },
+
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "At least one narrowing reference MUST be present (capability or claim). A control that names neither cannot be treated as a compensating control.",
+          "anyOf": [
+            { "properties": { "narrowed_capabilities": { "minItems": 1 } } },
+            { "properties": { "narrowed_claim_manifest_row_refs": { "minItems": 1 } } }
+          ]
+        },
+        {
+          "description": "control_state = superseded requires a non-null superseded_by_control_row_ref.",
+          "if": {
+            "properties": { "control_state": { "const": "superseded" } },
+            "required": ["control_state"]
+          },
+          "then": {
+            "properties": { "superseded_by_control_row_ref": { "not": { "type": "null" } } },
+            "required": ["superseded_by_control_row_ref"]
+          }
+        },
+        {
+          "description": "control_state = expired requires expires_at to be non-null.",
+          "if": {
+            "properties": { "control_state": { "const": "expired" } },
+            "required": ["control_state"]
+          },
+          "then": {
+            "properties": { "expires_at": { "not": { "type": "null" } } },
+            "required": ["expires_at"]
+          }
+        }
+      ],
+      "description": "Compensating control row record. A control is temporary by construction: it carries a must_review_by horizon, residual risk, and explicit narrowing refs so no reader can misinterpret it as a permanent fix."
+    }
+  }
+}
