@@ -19,6 +19,11 @@ Companion artifacts:
 
 This contract composes with, and does not replace:
 
+- [`/docs/network/route_class_matrix.md`](../network/route_class_matrix.md)
+  and
+  [`/artifacts/network/route_classes.yaml`](../../artifacts/network/route_classes.yaml)
+  for canonical route exposure classes (loopback, org-shared, guest, public
+  preview, and machine callbacks).
 - [`/docs/adr/0020-remote-agent-contract.md`](../adr/0020-remote-agent-contract.md)
   for remote-agent hello, heartbeat, reconnect, target-identity witness,
   and capability narrowing.

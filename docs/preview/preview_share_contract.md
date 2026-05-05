@@ -30,6 +30,10 @@ Companion artifacts:
   preview share carries.
 - [`/fixtures/preview/preview_share_cases/`](../../fixtures/preview/preview_share_cases/)
   — worked corpus of share-sheet and share-link cases.
+- [`/docs/network/route_class_matrix.md`](../network/route_class_matrix.md)
+  and [`/artifacts/network/route_classes.yaml`](../../artifacts/network/route_classes.yaml)
+  — canonical route exposure classes that share links and tunnel endpoints map
+  through for support and audit export semantics.
 - [`/schemas/preview/preview_snapshot.schema.json`](../../schemas/preview/preview_snapshot.schema.json)
   and [`/docs/architecture/preview_runtime_contract.md`](../architecture/preview_runtime_contract.md)
   — cross-surface preview-snapshot record this contract projects from.

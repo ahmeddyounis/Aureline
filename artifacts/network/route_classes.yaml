@@ -1,0 +1,304 @@
+# Canonical route exposure-class matrix for shareable or externally reachable
+# routes (preview share links, forwarded endpoints, tunnels/port-forwards, and
+# inbound callbacks).
+#
+# Machine-readable companion to docs/network/route_class_matrix.md.
+# Fixture companion: fixtures/network/route_class_examples/.
+#
+# This artifact defines a single canonical `route_exposure_class` for every
+# shareable or externally reachable route so exposure, TTL, and approval
+# semantics are never inferred ad hoc from UI copy or implementation detail.
+#
+# Rules:
+#   - Every shareable, preview, callback, or tunnel route MUST map to exactly
+#     one `route_exposure_class` value from route_exposure_class_vocabulary.
+#   - Unknown mappings MUST be blocked as unknown (deny-by-default).
+#   - public_preview remains denied by default unless stepped up by an explicit
+#     approval or a higher-trust admission flow.
+#   - Raw URLs, raw tokens, and raw callback bodies MUST NOT appear in support
+#     or audit exports; exports rely on `route_exposure_class` + required fields.
+#   - Planning slugs MUST NOT appear in ids, event names, or descriptions.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/network/route_class_matrix.md
+fixture_source: fixtures/network/route_class_examples/
+
+owner_dri: "@ahmeddyounis"
+owning_decision_forum: security_trust_review
+review_cadence: each_share_callback_or_tunnel_change
+visibility_class: public
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "5.42 Network, proxy, certificates, and transport-governance architecture"
+      - "10.20 Network egress, proxy governance, and transport audit"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "transport governance and explainability"
+      - "preview sharing and revocation"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "preview share sheet disclosure"
+      - "callback and approval gating"
+
+related_contracts:
+  - docs/preview/preview_share_contract.md
+  - docs/remote/attach_tunnel_port_forward_contract.md
+  - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  - docs/network/transport_permission_matrix.md
+
+route_exposure_class_vocabulary:
+  - loopback_local
+  - org_shared
+  - external_guest
+  - public_preview
+  - machine_callback
+  - blocked_unknown_requires_review
+
+ttl_posture_vocabulary:
+  - ephemeral_session_only
+  - short_window
+  - policy_window
+  - persistent_until_revocation
+  - no_ttl_applicable
+
+approval_expectation_vocabulary:
+  - end_user_implicit
+  - user_consent_recorded
+  - admin_policy_approved
+  - signed_org_bundle_approved
+  - managed_service_default
+  - exception_required
+  - approval_not_applicable
+
+revocation_path_vocabulary:
+  - local_session_stop
+  - end_user_revoke_handle
+  - admin_policy_revoke
+  - ticket_or_packet_revoke
+  - explicit_revoke_handle_required
+  - revocation_not_applicable
+
+support_export_field_vocabulary:
+  # Common (always required when the route is shareable or externally reachable).
+  common_required:
+    - route_exposure_class
+    - route_handle_ref
+    - policy_source_class
+    - policy_epoch_ref
+  # Callback-specific.
+  callback_required:
+    - callback_envelope_ref
+    - correlation_ref
+    - replay_posture_class
+    - originating_packet_or_ticket_ref
+  # Share-specific.
+  share_required:
+    - audience_scope_ref
+    - auth_class
+    - expires_at
+    - revoke_handle_ref
+    - approval_evidence_ref
+
+classes:
+
+  - route_exposure_class: loopback_local
+    allowed_audience_summary: Same-device operator only.
+    ttl_default: ephemeral_session_only
+    typical_uses:
+      - local preview runtime
+      - local-only forwarded endpoint
+      - loopback-only OAuth return
+    default_approval_expectation: end_user_implicit
+    badge_requirements:
+      - local_only_badge
+      - termination_disclosure_required
+    revocation_path: local_session_stop
+    support_export_required_fields:
+      - route_exposure_class
+      - route_handle_ref
+      - policy_source_class
+      - policy_epoch_ref
+
+  - route_exposure_class: org_shared
+    allowed_audience_summary: Signed-in users at workspace/org/tenant scope.
+    ttl_default: policy_window
+    typical_uses:
+      - organization-only preview share
+      - managed workspace endpoint access
+      - persistent environment endpoints gated by policy
+    default_approval_expectation: signed_org_bundle_approved
+    badge_requirements:
+      - authenticated_badge
+      - scope_disclosure_required
+    revocation_path: admin_policy_revoke
+    support_export_required_fields:
+      - route_exposure_class
+      - route_handle_ref
+      - policy_source_class
+      - policy_epoch_ref
+      - audience_scope_ref
+      - auth_class
+      - revoke_handle_ref
+
+  - route_exposure_class: external_guest
+    allowed_audience_summary: Authenticated external viewers (invite/allowlist).
+    ttl_default: short_window
+    typical_uses:
+      - external share via controlled relay
+      - same-LAN share with explicit disclosure
+    default_approval_expectation: user_consent_recorded
+    badge_requirements:
+      - external_audience_disclosure_required
+      - auth_posture_disclosure_required
+    revocation_path: explicit_revoke_handle_required
+    support_export_required_fields:
+      - route_exposure_class
+      - route_handle_ref
+      - policy_source_class
+      - policy_epoch_ref
+      - audience_scope_ref
+      - auth_class
+      - expires_at
+      - revoke_handle_ref
+
+  - route_exposure_class: public_preview
+    allowed_audience_summary: Anyone with the link or token (no identity guarantee).
+    ttl_default: short_window
+    typical_uses:
+      - public preview link
+      - public tunnel endpoint (timeboxed)
+    default_approval_expectation: exception_required
+    default_admission: denied_by_default
+    badge_requirements:
+      - public_link_disclosure_required
+      - data_sensitivity_disclosure_required
+      - explicit_expiry_required
+    revocation_path: explicit_revoke_handle_required
+    support_export_required_fields:
+      - route_exposure_class
+      - route_handle_ref
+      - policy_source_class
+      - policy_epoch_ref
+      - expires_at
+      - revoke_handle_ref
+      - approval_evidence_ref
+
+  - route_exposure_class: machine_callback
+    allowed_audience_summary: Provider/webhook/machine actor (non-human).
+    ttl_default: short_window
+    typical_uses:
+      - inbound OAuth callback
+      - webhook delivery
+      - device-code completion callback
+    default_approval_expectation: approval_not_applicable
+    badge_requirements:
+      - callback_origin_disclosure_required
+      - correlation_validation_required
+    revocation_path: ticket_or_packet_revoke
+    support_export_required_fields:
+      - route_exposure_class
+      - route_handle_ref
+      - policy_source_class
+      - policy_epoch_ref
+      - callback_envelope_ref
+      - correlation_ref
+      - replay_posture_class
+      - originating_packet_or_ticket_ref
+
+  - route_exposure_class: blocked_unknown_requires_review
+    allowed_audience_summary: None (blocked).
+    ttl_default: no_ttl_applicable
+    typical_uses:
+      - unknown or contradictory visibility inputs
+      - missing policy context
+      - unmapped destination classes
+    default_approval_expectation: exception_required
+    badge_requirements:
+      - unknown_requires_review_badge
+    revocation_path: revocation_not_applicable
+    support_export_required_fields:
+      - route_exposure_class
+      - policy_source_class
+      - policy_epoch_ref
+
+mapping_rules:
+
+  - source: schemas/remote/forwarded_endpoint.schema.json
+    inputs:
+      - endpoint_class
+      - visibility_class
+    rules:
+      - when:
+          endpoint_class:
+            any_of:
+              - auth_callback_route
+              - webhook_callback_route
+              - machine_to_machine_callback
+        route_exposure_class: machine_callback
+      - when:
+          visibility_class: local_only
+        route_exposure_class: loopback_local
+      - when:
+          visibility_class:
+            any_of:
+              - workspace_only
+              - organization_only
+              - tenant_only
+              - persistent_environment
+        route_exposure_class: org_shared
+      - when:
+          visibility_class: same_device_lan
+        route_exposure_class: external_guest
+      - when:
+          visibility_class: public_ephemeral
+        route_exposure_class: public_preview
+      - when:
+          visibility_class:
+            any_of:
+              - blocked
+              - visibility_unknown_requires_review
+        route_exposure_class: blocked_unknown_requires_review
+
+  - source: schemas/preview/preview_share_link.schema.json
+    inputs:
+      - share_audience_class
+      - share_destination_class
+    rules:
+      - when:
+          share_audience_class: workspace_local_only_no_share
+        route_exposure_class: loopback_local
+      - when:
+          share_audience_class:
+            any_of:
+              - workspace_signed_in_only
+              - organization_signed_in_only
+              - tenant_signed_in_only
+        route_exposure_class: org_shared
+      - when:
+          share_audience_class:
+            any_of:
+              - temporary_external_link_audience
+              - one_time_external_link_audience
+          share_destination_class: approved_third_party_relay
+        route_exposure_class: external_guest
+      - when:
+          share_audience_class:
+            any_of:
+              - temporary_external_link_audience
+              - one_time_external_link_audience
+          share_destination_class:
+            any_of:
+              - temporary_external_browser_link
+              - one_time_external_browser_link
+        route_exposure_class: public_preview
+      - when:
+          share_audience_class:
+            any_of:
+              - policy_blocked_no_share_audience
+              - not_shareable_inherent_surface
+        route_exposure_class: blocked_unknown_requires_review
+

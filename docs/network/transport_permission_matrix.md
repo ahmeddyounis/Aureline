@@ -13,6 +13,10 @@ Companion artifacts:
 - [`/artifacts/network/permission_classes.yaml`](../../artifacts/network/permission_classes.yaml)
   is the machine-readable permission-class and audit-requirement
   register.
+- [`/docs/network/route_class_matrix.md`](route_class_matrix.md)
+  publishes the canonical route exposure classes used by share, tunnel,
+  and callback flows (companion:
+  [`/artifacts/network/route_classes.yaml`](../../artifacts/network/route_classes.yaml)).
 - [`/artifacts/network/mirror_offline_matrix.yaml`](../../artifacts/network/mirror_offline_matrix.yaml)
   is the machine-readable mirror/offline deployment matrix.
 - [`/fixtures/network/audit_event_examples/`](../../fixtures/network/audit_event_examples/)
