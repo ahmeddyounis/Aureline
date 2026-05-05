@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/browser_handoff_record.schema.json",
+  "title": "Aureline browser handoff record for incident-viewer, admin, and policy parity disclosure",
+  "description": "Boundary schema for browser_handoff_record frozen in docs/admin/browser_handoff_and_surface_parity_contract.md. The record is the export-safe handoff object that prevents browser or vendor-console surfaces from becoming hidden control planes by freezing: (1) why the pivot exists, (2) what destination class is being opened, (3) which stable target identity the viewer is reasoning about, (4) what authority scope is being exercised externally, (5) how the user returns to the product, (6) which evidence refs remain stable across product ↔ handoff ↔ export, and (7) whether parity is full, partial, or explicitly non-parity. Raw URLs, raw provider payloads, raw tenant-private identifiers, raw email/display names, raw policy rule bodies, raw hostnames, raw paths, raw tokens, raw cookies/query strings, and raw secret material never cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable summaries only. Adding a new reason_code, destination_class, target_kind, handoff_state_class, authority_scope_class, parity_class, or parity_gap_class value is additive-minor and bumps browser_handoff_record_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "$ref": "#/$defs/browser_handoff_record",
+  "$defs": {
+    "browser_handoff_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the browser handoff record."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "browser_handoff_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, export, and deep-link."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured from a monotonic or bounded-skew source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe for UI, CLI, export, and support surfaces."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short export-safe label."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "included_data_classes",
+        "omitted_data_classes",
+        "redaction_note"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "included_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "minItems": 1
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "minItems": 1
+        },
+        "redaction_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "identity_mode": {
+      "type": "string",
+      "enum": [
+        "account_free_local",
+        "self_hosted_org",
+        "managed_workspace"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "managed_cloud",
+        "air_gapped"
+      ]
+    },
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "policy_epoch_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Opaque policy epoch ref bound to the handoff. Null only when not applicable."
+    },
+    "entitlement_epoch_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Opaque entitlement epoch ref bound to the handoff. Null only when not applicable."
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_mode",
+        "deployment_profile_class",
+        "trust_state",
+        "policy_epoch",
+        "entitlement_epoch"
+      ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "entitlement_epoch": { "$ref": "#/$defs/entitlement_epoch_ref" }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "scenario" ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "handoff_state_class": {
+      "type": "string",
+      "enum": [
+        "disclosed_pending_launch",
+        "launched",
+        "blocked_destination_unavailable",
+        "not_required"
+      ],
+      "description": "State of the handoff at the time this record was assembled."
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "incident_drill",
+        "incident_response_review",
+        "policy_review",
+        "audit_detail_review",
+        "procurement_or_support_packet",
+        "explicit_non_parity_disclosure",
+        "external_docs_or_runbook"
+      ],
+      "description": "Frozen reason-for-handoff vocabulary."
+    },
+    "handoff_reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reason_code",
+        "reason_note"
+      ],
+      "properties": {
+        "reason_code": { "$ref": "#/$defs/reason_code" },
+        "reason_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "destination_class": {
+      "type": "string",
+      "enum": [
+        "incident_viewer_web",
+        "admin_console_web",
+        "policy_console_web",
+        "support_portal_web",
+        "procurement_portal_web",
+        "docs_or_runbook_web",
+        "external_generic_web"
+      ],
+      "description": "Frozen destination surface class for browser/vendor-console pivots."
+    },
+    "handoff_destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "destination_class",
+        "destination_ref",
+        "destination_label",
+        "browser_handoff_packet_ref",
+        "console_handoff_session_ref",
+        "destination_note"
+      ],
+      "properties": {
+        "destination_class": { "$ref": "#/$defs/destination_class" },
+        "destination_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "destination_label": { "$ref": "#/$defs/export_safe_label" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "console_handoff_session_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "destination_note": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      }
+    },
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "incident_workspace",
+        "policy_state",
+        "audit_slice",
+        "deployment_truth_slice",
+        "support_packet",
+        "tenant_or_org_scope",
+        "unknown_target"
+      ],
+      "description": "Frozen target-kind vocabulary for the object the user is reasoning about."
+    },
+    "target_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_kind",
+        "target_ref",
+        "target_label",
+        "target_note"
+      ],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/export_safe_label" },
+        "target_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "authority_scope_class": {
+      "type": "string",
+      "enum": [
+        "read_only_overlay",
+        "limited_mutation_handoff_only",
+        "admin_mutation_handoff_only"
+      ],
+      "description": "Frozen authority scope declared for the external surface."
+    },
+    "authority_transfer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_scope_class",
+        "authority_transfer_note"
+      ],
+      "properties": {
+        "authority_scope_class": { "$ref": "#/$defs/authority_scope_class" },
+        "authority_transfer_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "return_anchor_class": {
+      "type": "string",
+      "enum": [
+        "deep_link_to_target",
+        "open_export_or_packet",
+        "open_policy_or_audit_view",
+        "return_unavailable"
+      ],
+      "description": "Frozen return-anchor class describing where the user returns inside the product."
+    },
+    "return_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "return_anchor_class",
+        "return_anchor_ref",
+        "return_anchor_label",
+        "return_anchor_note"
+      ],
+      "properties": {
+        "return_anchor_class": { "$ref": "#/$defs/return_anchor_class" },
+        "return_anchor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "return_anchor_label": { "$ref": "#/$defs/export_safe_label" },
+        "return_anchor_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "evidence_continuity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_object_ref",
+        "history_row_refs",
+        "related_object_refs",
+        "continuity_note"
+      ],
+      "properties": {
+        "primary_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "history_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "related_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "continuity_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "parity_class": {
+      "type": "string",
+      "enum": [
+        "full_parity",
+        "partial_parity_disclosed",
+        "non_parity_explicit",
+        "handoff_blocked_non_parity_disclosed"
+      ],
+      "description": "Frozen parity disclosure class for the destination relative to the product contract."
+    },
+    "parity_gap_class": {
+      "type": "string",
+      "enum": [
+        "detail_only_in_external_surface",
+        "mutation_only_in_external_surface",
+        "external_surface_unavailable_in_profile",
+        "offline_or_self_hosted_gap",
+        "export_required_for_continuity",
+        "out_of_scope_handoff_only"
+      ],
+      "description": "Frozen parity gap family vocabulary."
+    },
+    "parity_gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gap_class",
+        "gap_note",
+        "safe_fallback_ref"
+      ],
+      "properties": {
+        "gap_class": { "$ref": "#/$defs/parity_gap_class" },
+        "gap_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "safe_fallback_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "parity_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parity_class",
+        "parity_summary",
+        "parity_gaps"
+      ],
+      "properties": {
+        "parity_class": { "$ref": "#/$defs/parity_class" },
+        "parity_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "parity_gaps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parity_gap" }
+        }
+      }
+    },
+    "browser_handoff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "browser_handoff_record_schema_version",
+        "handoff_id",
+        "handoff_state_class",
+        "occurred_at",
+        "assembled_at",
+        "policy_context",
+        "reason",
+        "destination",
+        "target_identity",
+        "authority_transfer",
+        "return_anchor",
+        "evidence_continuity",
+        "parity_disclosure",
+        "human_readable_summary",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "browser_handoff_record_schema_version": { "$ref": "#/$defs/browser_handoff_record_schema_version" },
+        "handoff_id": { "$ref": "#/$defs/opaque_id" },
+        "handoff_state_class": { "$ref": "#/$defs/handoff_state_class" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "assembled_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "reason": { "$ref": "#/$defs/handoff_reason" },
+        "destination": { "$ref": "#/$defs/handoff_destination" },
+        "target_identity": { "$ref": "#/$defs/target_identity" },
+        "authority_transfer": { "$ref": "#/$defs/authority_transfer" },
+        "return_anchor": { "$ref": "#/$defs/return_anchor" },
+        "evidence_continuity": { "$ref": "#/$defs/evidence_continuity" },
+        "parity_disclosure": { "$ref": "#/$defs/parity_disclosure" },
+        "human_readable_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      }
+    }
+  }
+}
+
