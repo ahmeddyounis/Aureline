@@ -1,0 +1,768 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/support_center_capability_card.schema.json",
+  "title": "Aureline Support Center information-architecture capability card and route contract",
+  "description": "Boundary schema for the Support Center information architecture frozen in docs/support/support_center_information_architecture.md. Defines support_center_capability_card_record (one card per top-level Support Center module), support_center_route_record (one rule binding a closed symptom-surface class to a primary capability card and a default first action), and support_center_information_architecture_record (the index that pins the closed nine-module set, the symptom-surface vocabulary, the deployment-context overlay, and the no-upload-first invariant). Reuses the closed vocabularies already frozen in schemas/support/scenario_picker.schema.json, schemas/support/doctor_finding.schema.json, schemas/support/repair_transaction.schema.json, schemas/support/object_handoff_packet.schema.json, schemas/support/support_bundle.schema.json, and schemas/support/recovery_action.schema.json rather than minting parallel tokens. The intake-bound support_capability_card_record in scenario_picker.schema.json carries the picker-side parity rows; this schema carries the IA-side card whose richer field set covers purpose, read-only/mutating posture, confidence class, evidence sources, local-only/export actions, headless availability, policy constraints, and open-related-packet actions.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/support_center_capability_card_record"
+    },
+    {
+      "$ref": "#/$defs/support_center_route_record"
+    },
+    {
+      "$ref": "#/$defs/support_center_information_architecture_record"
+    }
+  ],
+  "$defs": {
+    "support_center_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for this Support Center IA contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/non_empty_string"
+      }
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-facing sentence safe to render in Support Center previews, capability cards, and CLI/headless output. MUST NOT carry milestone or task identifiers."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable lowercase id that permits `:` as a prefix separator so card and route ids match the `support_center_card:<module>` and `support_center_route:<symptom>.<module>` fixture conventions."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "support_center_module_class": {
+      "type": "string",
+      "enum": [
+        "project_doctor",
+        "safe_mode",
+        "bisect_or_quarantine",
+        "support_bundle",
+        "crash_triage",
+        "guided_repair",
+        "issue_or_escalation_handoff",
+        "advisory_or_incident_history",
+        "field_diagnostics"
+      ],
+      "description": "Closed set of Support Center top-level modules required by the Support Center information architecture. Adding a token is breaking and requires a new decision row in artifacts/governance/decision_index.yaml."
+    },
+    "support_capability_class": {
+      "type": "string",
+      "enum": [
+        "doctor",
+        "safe_mode",
+        "extension_bisect",
+        "support_bundle",
+        "crash_triage",
+        "guided_repair",
+        "issue_escalation"
+      ],
+      "description": "Re-exported from schemas/support/scenario_picker.schema.json. Names the intake-bound capability the IA module aligns with so the symptom-to-card route remains 1:1 with the picker capability registry. Modules that have no intake-bound capability (advisory_or_incident_history, field_diagnostics) declare aligned_intake_capability_class: null."
+    },
+    "card_posture_class": {
+      "type": "string",
+      "enum": [
+        "read_only_diagnosis",
+        "read_only_evidence_review",
+        "mutating_with_review_and_preview",
+        "mutating_local_disposable_only",
+        "export_only_local_first",
+        "handoff_only_no_repair"
+      ],
+      "description": "Closed posture vocabulary. read_only_diagnosis covers Project Doctor and field diagnostics. read_only_evidence_review covers advisory or incident history and the support-bundle preview. mutating_with_review_and_preview covers guided repair and any rung that touches workspace, profile, or trust state. mutating_local_disposable_only covers safe mode, bisect, quarantine, and cache-reset candidates that only narrow runtime state. export_only_local_first covers the support-bundle export path. handoff_only_no_repair covers issue or escalation handoff. Adding a token is additive-minor."
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "unsupported"
+      ],
+      "description": "Re-exported from schemas/support/doctor_finding.schema.json. Names the confidence ceiling the card presents on its primary target record."
+    },
+    "evidence_source_class": {
+      "type": "string",
+      "enum": [
+        "doctor_probe_output",
+        "support_pack_item",
+        "support_bundle_preview_item",
+        "recovery_action_record",
+        "repair_preview_record",
+        "repair_transaction_record",
+        "runbook_step_result",
+        "trace_capture_request",
+        "crash_envelope",
+        "object_handoff_packet",
+        "incident_workspace_packet",
+        "advisory_record",
+        "exact_build_identity_manifest",
+        "policy_decision_log",
+        "transport_diagnostic_log"
+      ],
+      "description": "Closed set of evidence sources a Support Center card may surface. Tokens reuse the existing artifact registry; advisory_record and policy_decision_log are reserved for advisory or incident history and field diagnostics. Adding a token is additive-minor."
+    },
+    "local_action_class": {
+      "type": "string",
+      "enum": [
+        "open_inspector_only",
+        "open_preview_with_review",
+        "save_packet_local_only",
+        "render_evidence_local_only",
+        "narrow_runtime_locally",
+        "rebuild_disposable_state_locally",
+        "capture_local_checkpoint",
+        "open_handoff_draft_local_only"
+      ],
+      "description": "Closed set of local-only actions a card may offer. Every card MUST declare at least one local-only action so a Support Center module is never reachable only through a network or upload step."
+    },
+    "export_action_class": {
+      "type": "string",
+      "enum": [
+        "no_export_action",
+        "export_support_bundle",
+        "export_object_handoff_packet",
+        "export_escalation_packet",
+        "export_advisory_history_summary",
+        "export_field_diagnostics_summary",
+        "export_repair_outcome_record"
+      ],
+      "description": "Closed set of export actions a card may offer. no_export_action MUST be the only entry on read-only cards that do not produce an export. Cards that produce an export MUST surface the bundle preview before the export leaves the device."
+    },
+    "headless_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "available_local_only",
+        "limited_available",
+        "read_only",
+        "unavailable_with_named_alternate"
+      ],
+      "description": "Closed availability vocabulary for the CLI/headless rendering of a card. Cards that declare unavailable_with_named_alternate MUST name an alternate path on the cli_headless context-parity row so a support flow never implies a desktop-only happy path."
+    },
+    "policy_constraint_class": {
+      "type": "string",
+      "enum": [
+        "no_constraint",
+        "managed_admin_required_for_apply",
+        "managed_admin_required_for_export",
+        "managed_admin_required_for_handoff",
+        "narrowed_by_trust_state",
+        "narrowed_by_offline_state",
+        "narrowed_by_mirror_only_state",
+        "narrowed_by_self_hosted_state",
+        "no_silent_credential_access"
+      ],
+      "description": "Closed set of policy constraints a card may carry. Cards that have no policy constraint declare no_constraint explicitly so an absent value never silently implies an unconstrained surface. Adding a token is additive-minor."
+    },
+    "deployment_context_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed",
+        "self_hosted",
+        "mirrored",
+        "offline"
+      ],
+      "description": "Closed set of deployment contexts a Support Center card and route MUST declare a parity row for. local_only is the user-installed individual baseline; managed names a fleet under a managed admin or control plane; self_hosted names a user-administered control plane or runtime; mirrored names an internal mirror or proxy of registries, docs, or update artifacts; offline names a fully air-gapped or temporarily disconnected device. Adding a token is breaking and requires a new decision row in artifacts/governance/decision_index.yaml."
+    },
+    "deployment_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "available_read_only",
+        "available_local_only",
+        "limited_available",
+        "read_only",
+        "unavailable"
+      ],
+      "description": "Re-exported from schemas/support/doctor_finding.schema.json availability_class so deployment-context parity uses the same availability tokens as Project Doctor."
+    },
+    "open_related_packet_action_class": {
+      "type": "string",
+      "enum": [
+        "open_doctor_finding_record",
+        "open_support_bundle_preview_item",
+        "open_recovery_action_record",
+        "open_repair_preview_record",
+        "open_runbook_packet",
+        "open_object_handoff_packet",
+        "open_escalation_packet",
+        "open_advisory_record",
+        "open_incident_workspace_packet",
+        "open_trace_capture_request",
+        "open_crash_envelope",
+        "open_field_diagnostics_report"
+      ],
+      "description": "Closed set of open-related-packet actions a card may surface. Every card MUST declare at least one entry so a Support Center surface always names the next packet a reviewer can open instead of free-text follow-up copy."
+    },
+    "symptom_surface_class": {
+      "type": "string",
+      "enum": [
+        "error_surface",
+        "blocked_action_surface",
+        "crash_loop_surface",
+        "update_failure_surface",
+        "policy_denial_surface",
+        "transport_failure_surface"
+      ],
+      "description": "Closed set of in-product symptom surfaces from which Support Center routes start. Every Support Center route record MUST declare exactly one symptom_surface_class. Adding a token is breaking and requires a new decision row in artifacts/governance/decision_index.yaml."
+    },
+    "default_first_action_class": {
+      "type": "string",
+      "enum": [
+        "open_project_doctor",
+        "open_support_bundle_preview",
+        "open_safe_mode_card",
+        "open_bisect_or_quarantine_card",
+        "open_crash_triage_card",
+        "open_guided_repair_card",
+        "open_issue_or_escalation_handoff_draft",
+        "open_advisory_or_incident_history",
+        "open_field_diagnostics",
+        "refuse_route_no_upload_first"
+      ],
+      "description": "Closed set of first actions a Support Center route may resolve to. refuse_route_no_upload_first is reserved for routes whose only network-bound option would otherwise be an upload-first path; the route MUST instead defer to a local-only diagnosis or evidence card."
+    },
+    "deployment_context_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deployment_context_class",
+        "availability_class",
+        "narrowed_when_summary",
+        "alternate_path_summary"
+      ],
+      "properties": {
+        "deployment_context_class": {
+          "$ref": "#/$defs/deployment_context_class"
+        },
+        "availability_class": {
+          "$ref": "#/$defs/deployment_availability_class"
+        },
+        "narrowed_when_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the conditions under which the card or route is narrowed for this deployment context. Use 'not_narrowed' wording when the path is fully available."
+        },
+        "alternate_path_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the alternate path (for example, local-only review, mirror-cached docs pack, deferred handoff) when the context is narrowed."
+        }
+      }
+    },
+    "deployment_context_parity_row_array": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/deployment_context_parity_row"
+      },
+      "description": "Every Support Center capability card and every route record MUST carry exactly one parity row per deployment_context_class so a desktop-only or managed-only happy path cannot be implied."
+    },
+    "evidence_source_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_source_class",
+        "summary"
+      ],
+      "properties": {
+        "evidence_source_class": {
+          "$ref": "#/$defs/evidence_source_class"
+        },
+        "primary_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Optional repo-relative ref to the schema that boundary-checks this evidence source on this card."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "evidence_source_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/evidence_source_row"
+      }
+    },
+    "open_related_packet_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "open_related_packet_action_class",
+        "summary"
+      ],
+      "properties": {
+        "open_related_packet_action_class": {
+          "$ref": "#/$defs/open_related_packet_action_class"
+        },
+        "target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Optional repo-relative ref to the schema that boundary-checks the opened packet."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "open_related_packet_action_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/open_related_packet_action_row"
+      }
+    },
+    "policy_constraint_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_constraint_class",
+        "summary"
+      ],
+      "properties": {
+        "policy_constraint_class": {
+          "$ref": "#/$defs/policy_constraint_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "policy_constraint_row_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/policy_constraint_row"
+      }
+    },
+    "governance_bindings_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_center_concept_ref",
+        "support_intake_contract_ref",
+        "scenario_picker_schema_ref",
+        "doctor_finding_schema_ref",
+        "support_bundle_schema_ref",
+        "object_handoff_packet_schema_ref",
+        "repair_transaction_schema_ref",
+        "recovery_action_schema_ref"
+      ],
+      "properties": {
+        "support_center_concept_ref": {
+          "type": "string",
+          "const": "docs/support/support_center_concept.md"
+        },
+        "support_intake_contract_ref": {
+          "type": "string",
+          "const": "docs/support/support_intake_and_escalation_contract.md"
+        },
+        "scenario_picker_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/scenario_picker.schema.json"
+        },
+        "doctor_finding_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/doctor_finding.schema.json"
+        },
+        "support_bundle_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/support_bundle.schema.json"
+        },
+        "object_handoff_packet_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/object_handoff_packet.schema.json"
+        },
+        "repair_transaction_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/repair_transaction.schema.json"
+        },
+        "recovery_action_schema_ref": {
+          "type": "string",
+          "const": "schemas/support/recovery_action.schema.json"
+        },
+        "scenario_matrix_ref": {
+          "type": "string",
+          "const": "fixtures/support/scenario_matrix.yaml"
+        },
+        "support_center_routes_ref": {
+          "type": "string",
+          "const": "artifacts/support/support_center_routes.yaml"
+        }
+      }
+    },
+    "support_center_capability_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "capability_card_id",
+        "support_center_module_class",
+        "title",
+        "purpose_summary",
+        "card_posture_class",
+        "confidence_class",
+        "primary_target_record_kind",
+        "primary_target_schema_ref",
+        "evidence_sources",
+        "local_actions",
+        "export_actions",
+        "headless_availability_class",
+        "policy_constraints",
+        "open_related_packet_actions",
+        "deployment_context_parity_rows",
+        "aligned_intake_capability_class",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/support_center_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_capability_card_record"
+        },
+        "capability_card_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id following the support_center_card:<support_center_module_class> convention."
+        },
+        "support_center_module_class": {
+          "$ref": "#/$defs/support_center_module_class"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Reviewer-facing card title."
+        },
+        "purpose_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that states the card's purpose so the user does not have to read the contract docs to know what the module does."
+        },
+        "card_posture_class": {
+          "$ref": "#/$defs/card_posture_class"
+        },
+        "confidence_class": {
+          "$ref": "#/$defs/confidence_class",
+          "description": "Confidence ceiling the card presents on its primary target record. Cards with a read-only posture MUST NOT claim higher than the underlying probe or evidence supports."
+        },
+        "primary_target_record_kind": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Record kind the card hands the user to (for example doctor_finding_record, support_bundle_preview_item, recovery_action_record, repair_preview_record, runbook_packet, object_handoff_packet_record, support_escalation_packet_record, advisory_record, field_diagnostics_report)."
+        },
+        "primary_target_schema_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Repo-relative ref to the schema that boundary-checks the primary target record."
+        },
+        "evidence_sources": {
+          "$ref": "#/$defs/evidence_source_row_array"
+        },
+        "local_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/local_action_class"
+          },
+          "description": "Closed list of local-only actions the card offers. MUST include at least one entry so the module is reachable without a network or upload step."
+        },
+        "export_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/export_action_class"
+          },
+          "description": "Closed list of export actions the card offers. Cards that produce no export MUST list no_export_action as the sole entry."
+        },
+        "headless_availability_class": {
+          "$ref": "#/$defs/headless_availability_class"
+        },
+        "headless_availability_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names how the card renders in CLI/headless and what alternate path is available when it is narrowed."
+        },
+        "policy_constraints": {
+          "$ref": "#/$defs/policy_constraint_row_array"
+        },
+        "open_related_packet_actions": {
+          "$ref": "#/$defs/open_related_packet_action_row_array"
+        },
+        "deployment_context_parity_rows": {
+          "$ref": "#/$defs/deployment_context_parity_row_array"
+        },
+        "aligned_intake_capability_class": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/support_capability_class"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Names the intake-bound support_capability_class the card aligns with so the symptom-to-card route remains 1:1 with the picker capability registry. MUST be null on advisory_or_incident_history and field_diagnostics modules, which have no intake-bound capability."
+        },
+        "linked_route_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "description": "Optional list of support_center_route_record ids that resolve to this card."
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_center_route_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "route_id",
+        "symptom_surface_class",
+        "symptom_summary",
+        "primary_module_class",
+        "default_first_action_class",
+        "secondary_module_classes",
+        "no_upload_first_invariant",
+        "deployment_context_parity_rows",
+        "evidence_preserved_for_escalation",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/support_center_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_route_record"
+        },
+        "route_id": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Stable id following the support_center_route:<symptom_surface>.<primary_module> convention."
+        },
+        "symptom_surface_class": {
+          "$ref": "#/$defs/symptom_surface_class"
+        },
+        "symptom_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence that names the symptom surface the route starts from."
+        },
+        "primary_module_class": {
+          "$ref": "#/$defs/support_center_module_class",
+          "description": "The Support Center module the route resolves to first. Routes MUST resolve to the narrowest safe diagnostic or repair surface (Project Doctor, safe mode, bisect/quarantine, crash triage, or field diagnostics) before any export-only or handoff-only module."
+        },
+        "default_first_action_class": {
+          "$ref": "#/$defs/default_first_action_class"
+        },
+        "secondary_module_classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/support_center_module_class"
+          },
+          "description": "Closed list of follow-on modules the route may suggest after the primary module. MUST NOT lead with a module whose card_posture_class is mutating_with_review_and_preview unless the symptom surface is crash_loop_surface or update_failure_surface."
+        },
+        "no_upload_first_invariant": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "local_first_path_named",
+            "upload_required_for_first_action",
+            "summary"
+          ],
+          "properties": {
+            "local_first_path_named": {
+              "type": "boolean",
+              "description": "MUST be true on every route. The route MUST name a local-first path even when the symptom surface looks network-bound."
+            },
+            "upload_required_for_first_action": {
+              "type": "boolean",
+              "description": "MUST be false on every route. A route whose first action requires an upload is non-conforming and the route MUST instead resolve to refuse_route_no_upload_first or to a local-only diagnosis card."
+            },
+            "summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          }
+        },
+        "deployment_context_parity_rows": {
+          "$ref": "#/$defs/deployment_context_parity_row_array"
+        },
+        "evidence_preserved_for_escalation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "scenario_family_ref_optional",
+            "preserved_evidence_id_classes",
+            "summary"
+          ],
+          "properties": {
+            "scenario_family_ref_optional": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "execution_context_mismatch",
+                    "trust_policy_identity_approval_block",
+                    "network_ca_proxy_mirror_failure",
+                    "extension_or_host_regression",
+                    "state_corruption_schema_drift_low_disk_recovery",
+                    "remote_route_collaboration_mismatch"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional scenario_family_class the route preserves on the way to the picker so a later escalation packet does not re-mint a parallel family. Re-exported from schemas/support/scenario_picker.schema.json."
+            },
+            "preserved_evidence_id_classes": {
+              "$ref": "#/$defs/non_empty_string_array",
+              "description": "Stable evidence-id classes the route preserves on the way to a card (for example doctor_finding_id, support_bundle_id, recovery_action_id, object_handoff_packet_id, advisory_record_id) so a later escalation packet can reconstruct the case."
+            },
+            "summary": {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          }
+        },
+        "linked_capability_card_ref": {
+          "$ref": "#/$defs/stable_ref_id",
+          "description": "Optional stable id of the capability card the route resolves to. When present, the card's support_center_module_class MUST equal the route's primary_module_class."
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    },
+    "support_center_information_architecture_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "record_kind",
+        "index_id",
+        "title",
+        "summary",
+        "module_classes_required",
+        "symptom_surface_classes_required",
+        "deployment_context_classes_required",
+        "capability_card_refs",
+        "route_refs",
+        "no_upload_first_invariant_summary",
+        "governance_bindings",
+        "emitted_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/support_center_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "support_center_information_architecture_record"
+        },
+        "index_id": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "title": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "module_classes_required": {
+          "type": "array",
+          "minItems": 9,
+          "maxItems": 9,
+          "items": {
+            "$ref": "#/$defs/support_center_module_class"
+          },
+          "description": "Every conforming Support Center IA MUST list all nine top-level module classes."
+        },
+        "symptom_surface_classes_required": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/symptom_surface_class"
+          },
+          "description": "Every conforming Support Center IA MUST list all six symptom-surface classes."
+        },
+        "deployment_context_classes_required": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/deployment_context_class"
+          },
+          "description": "Every conforming Support Center IA MUST list all five deployment-context classes."
+        },
+        "capability_card_refs": {
+          "type": "array",
+          "minItems": 9,
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "description": "Stable capability_card_id references for the nine required Support Center modules."
+        },
+        "route_refs": {
+          "type": "array",
+          "minItems": 6,
+          "items": {
+            "$ref": "#/$defs/stable_ref_id"
+          },
+          "description": "Stable route_id references for at least one route per symptom-surface class."
+        },
+        "no_upload_first_invariant_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "One sentence restating that no Support Center route resolves to an upload-first first action."
+        },
+        "governance_bindings": {
+          "$ref": "#/$defs/governance_bindings_block"
+        },
+        "notes": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    }
+  }
+}

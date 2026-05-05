@@ -1,0 +1,89 @@
+# Support Center route fixture: self-hosted transport failure → field diagnostics.
+#
+# Worked example for docs/support/support_center_information_architecture.md
+# §Symptom-to-module route contract on a self-hosted deployment context.
+# Projects onto support_center_route_record. This case shows a
+# user whose remote-helper attach against a self-hosted runtime fails
+# with a typed transport reason: the route opens field diagnostics
+# read-only, names the locally available transport, watcher, and
+# policy diagnostic captures, and refuses to recommend an upload-
+# first first action even though the symptom is network-bound.
+
+schema_version: 1
+record_kind: support_center_route_record
+route_id: support_center_route:self_hosted.transport_failure_surface.field_diagnostics
+symptom_surface_class: transport_failure_surface
+symptom_summary: >
+  User on a self-hosted runtime attempts a remote-helper attach; the
+  attach fails with a typed transport reason against the user's
+  self-hosted helper endpoint.
+primary_module_class: field_diagnostics
+default_first_action_class: open_field_diagnostics
+secondary_module_classes:
+  - project_doctor
+  - guided_repair
+  - issue_or_escalation_handoff
+
+no_upload_first_invariant:
+  local_first_path_named: true
+  upload_required_for_first_action: false
+  summary: >
+    First action runs read-only field diagnostics against the
+    transport class; trace capture is opt-in; the route refuses any
+    upload-first first action even though the failure is network-
+    bound.
+
+deployment_context_parity_rows:
+  - deployment_context_class: local_only
+    availability_class: available
+    narrowed_when_summary: Local-only individual installs rarely run remote-helper attach; the route degrades gracefully.
+    alternate_path_summary: Local diagnostic capture remains available against the local helper handle.
+  - deployment_context_class: managed
+    availability_class: available
+    narrowed_when_summary: Managed proxies and CAs render their reachability state verbatim alongside the field diagnostic.
+    alternate_path_summary: Managed-admin handoff is available when the failure is policy-bound.
+  - deployment_context_class: self_hosted
+    availability_class: available
+    narrowed_when_summary: not_narrowed; self-hosted helper reachability is the primary diagnostic on this case.
+    alternate_path_summary: not_applicable; self-hosted is the reference surface for this case.
+  - deployment_context_class: mirrored
+    availability_class: available
+    narrowed_when_summary: Mirror reachability is rendered as a typed state alongside the helper-attach diagnostic.
+    alternate_path_summary: Cached helper-attach diagnostic data remains available; the route names the missing mirror.
+  - deployment_context_class: offline
+    availability_class: available_local_only
+    narrowed_when_summary: Network-bound diagnostics are unavailable offline.
+    alternate_path_summary: Local transport, watcher, and policy diagnostic captures remain available.
+
+evidence_preserved_for_escalation:
+  scenario_family_ref_optional: remote_route_collaboration_mismatch
+  preserved_evidence_id_classes:
+    - transport_diagnostic_log_id
+    - doctor_finding_id
+    - object_handoff_packet_id
+    - exact_build_identity_id
+  summary: >
+    Transport diagnostic log id, Doctor finding id, the object-
+    handoff packet id, and exact-build identity travel with the
+    route so the next reviewer reads the same self-hosted helper
+    transport state without restating the user's environment.
+
+linked_capability_card_ref: support_center_card:field_diagnostics
+governance_bindings:
+  support_center_concept_ref: docs/support/support_center_concept.md
+  support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+  support_center_routes_ref: artifacts/support/support_center_routes.yaml
+notes: >
+  Reference self-hosted deployment-context fixture. The route makes
+  the helper-attach reachability the first read-only diagnostic and
+  preserves the transport diagnostic log id for any later
+  escalation, so a user-administered runtime is never silently
+  routed onto a vendor-case upload path.
+emitted_at: 2026-05-04T00:00:00Z

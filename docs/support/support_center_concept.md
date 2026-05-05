@@ -238,3 +238,27 @@ The Center can mature in layers:
 
 That sequence keeps Aureline from shipping a polished shell over
 non-reconstructable support flows.
+
+## Information architecture and route table
+
+The Support Center information architecture, capability-card field
+contract, and symptom-to-module route table live in
+[`docs/support/support_center_information_architecture.md`](./support_center_information_architecture.md),
+[`schemas/support/support_center_capability_card.schema.json`](../../schemas/support/support_center_capability_card.schema.json),
+and
+[`artifacts/support/support_center_routes.yaml`](../../artifacts/support/support_center_routes.yaml).
+Together they pin the closed nine top-level Support Center modules
+(Project Doctor, safe mode, bisect or quarantine, support bundle,
+crash triage, guided repair, issue or escalation handoff, advisory
+or incident history, field diagnostics), the closed six symptom-
+surface classes (error, blocked-action, crash-loop, update-failure,
+policy-denial, transport-failure), the closed five deployment-context
+classes (local-only, managed, self-hosted, mirrored, offline), the
+no-upload-first first-action invariant, and the rule that every
+route preserves stable evidence-id classes for later escalation
+packets. The seven intake-bound capability cards listed under
+[`support_intake_and_escalation_contract.md`](./support_intake_and_escalation_contract.md)
+align 1:1 with the IA modules' `aligned_intake_capability_class`;
+advisory or incident history and field diagnostics are IA-only
+modules that have no intake-bound capability and resolve to read-
+only review and read-only diagnosis surfaces.

@@ -93,6 +93,22 @@ update in the same change.
   capability cards (Doctor, safe mode, bisect, support bundle, crash
   triage, guided repair, issue escalation) the picker MUST be able to
   route from a symptom to.
+- [`/docs/support/support_center_information_architecture.md`](./support_center_information_architecture.md),
+  [`/schemas/support/support_center_capability_card.schema.json`](../../schemas/support/support_center_capability_card.schema.json),
+  [`/artifacts/support/support_center_routes.yaml`](../../artifacts/support/support_center_routes.yaml),
+  and
+  [`/fixtures/support/support_center_cases/`](../../fixtures/support/support_center_cases/)
+  — Support Center information architecture that adds two IA-only
+  modules (`advisory_or_incident_history`, `field_diagnostics`) on
+  top of the seven intake-bound capabilities, pins the closed six
+  symptom-surface classes and five deployment-context classes, and
+  binds every route to a closed list of preserved evidence-id
+  classes so a later escalation packet can reconstruct the case
+  without re-asking the user. The intake-bound
+  `support_capability_class` vocabulary in this packet remains
+  source of truth for the picker; the IA aligns each intake-bound
+  capability with one IA module via
+  `aligned_intake_capability_class`.
 - [`/schemas/support/support_packet_index.schema.json`](../../schemas/support/support_packet_index.schema.json)
   — support-packet family registry; the escalation packet belongs to
   the `object_issue_handoff` family by way of the handoff packet it

@@ -1,0 +1,91 @@
+# Support Center route fixture: offline crash-loop surface → crash triage.
+#
+# Worked example for docs/support/support_center_information_architecture.md
+# §Symptom-to-module route contract on an offline deployment context.
+# Projects onto support_center_route_record. This case shows a user
+# whose machine is offline and who has hit a crash-loop detection
+# threshold during startup. The route opens crash triage read-only
+# against locally cached symbols, names safe mode and bisect/
+# quarantine as locally available follow-on rungs, and refuses to
+# resolve to a vendor-case upload path even though network handoff
+# would otherwise be the easiest channel.
+
+schema_version: 1
+record_kind: support_center_route_record
+route_id: support_center_route:offline.crash_loop_surface.crash_triage
+symptom_surface_class: crash_loop_surface
+symptom_summary: >
+  User on an offline machine hits the crash-loop detection threshold
+  during startup; the surface offers Support Center entry instead of
+  another auto-restart attempt.
+primary_module_class: crash_triage
+default_first_action_class: open_crash_triage_card
+secondary_module_classes:
+  - safe_mode
+  - bisect_or_quarantine
+  - support_bundle
+  - issue_or_escalation_handoff
+
+no_upload_first_invariant:
+  local_first_path_named: true
+  upload_required_for_first_action: false
+  summary: >
+    First action opens crash triage read-only with locally cached
+    symbol and exact-build identity; safe mode and bisect run
+    locally; the bundle preview is local-first; the route refuses
+    any vendor-case upload first action while the device is
+    offline.
+
+deployment_context_parity_rows:
+  - deployment_context_class: local_only
+    availability_class: available
+    narrowed_when_summary: Local-only individual installs render the same crash triage card.
+    alternate_path_summary: Full crash triage available with locally cached symbols.
+  - deployment_context_class: managed
+    availability_class: limited_available
+    narrowed_when_summary: Managed-admin sign-off MAY gate quarantine apply once the device is back online.
+    alternate_path_summary: Local quarantine state is preserved for managed-admin sign-off after reconnection.
+  - deployment_context_class: self_hosted
+    availability_class: available
+    narrowed_when_summary: Self-hosted symbol stores supply symbolication while online; offline path uses the local cache.
+    alternate_path_summary: Locally cached symbols supply best-effort symbolication.
+  - deployment_context_class: mirrored
+    availability_class: available
+    narrowed_when_summary: Symbol mirror is unreachable while offline; the route flags the mirror state.
+    alternate_path_summary: Locally cached symbols supply partial symbolication.
+  - deployment_context_class: offline
+    availability_class: available_local_only
+    narrowed_when_summary: not_narrowed for local actions; vendor-case and user-upload paths are unavailable.
+    alternate_path_summary: not_applicable; offline is the reference surface for this case. Local-only review records the bundle preview and any handoff draft for later handoff once the user is online.
+
+evidence_preserved_for_escalation:
+  scenario_family_ref_optional: extension_or_host_regression
+  preserved_evidence_id_classes:
+    - crash_envelope_id
+    - exact_build_identity_id
+    - extension_inventory_id
+    - object_handoff_packet_id
+  summary: >
+    Crash envelope, exact-build identity, extension inventory, and
+    object-handoff packet ids are recorded locally so the user
+    keeps full evidence offline; once the device is online again,
+    the handoff packet preserves every preserved id verbatim.
+
+linked_capability_card_ref: support_center_card:crash_triage
+governance_bindings:
+  support_center_concept_ref: docs/support/support_center_concept.md
+  support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+  support_center_routes_ref: artifacts/support/support_center_routes.yaml
+notes: >
+  Reference offline deployment-context fixture. The route preserves
+  the local-first crash triage path even when the device cannot
+  reach a vendor case channel; preserved evidence ids ride forward
+  for a later online handoff.
+emitted_at: 2026-05-04T00:00:00Z

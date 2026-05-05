@@ -1,0 +1,84 @@
+# Support Center route fixture: local-only error surface → Project Doctor.
+#
+# Worked example for docs/support/support_center_information_architecture.md
+# §Symptom-to-module route contract on a local-only deployment context.
+# Projects onto support_center_route_record from
+# schemas/support/support_center_capability_card.schema.json. This case
+# shows the reference local-only path: a per-user installed individual
+# baseline where Project Doctor renders the canonical finding read-only,
+# the support bundle preview is local-first, and no upload is required
+# to understand the failure.
+
+schema_version: 1
+record_kind: support_center_route_record
+route_id: support_center_route:local_only.error_surface.project_doctor
+symptom_surface_class: error_surface
+symptom_summary: >
+  User on a local-only individual install hits a command-result error
+  banner when running the workspace target.
+primary_module_class: project_doctor
+default_first_action_class: open_project_doctor
+secondary_module_classes:
+  - support_bundle
+  - issue_or_escalation_handoff
+  - field_diagnostics
+
+no_upload_first_invariant:
+  local_first_path_named: true
+  upload_required_for_first_action: false
+  summary: >
+    First action opens Project Doctor read-only on the active
+    workspace; bundle preview and handoff drafts are local-first and
+    never auto-upload.
+
+deployment_context_parity_rows:
+  - deployment_context_class: local_only
+    availability_class: available
+    narrowed_when_summary: not_narrowed; full Doctor route available on a per-user individual install.
+    alternate_path_summary: not_applicable; local-only is the reference surface for this case.
+  - deployment_context_class: managed
+    availability_class: available
+    narrowed_when_summary: not_narrowed; managed admins do not gate read-only diagnosis.
+    alternate_path_summary: not_applicable; managed control plane does not change the route on this case.
+  - deployment_context_class: self_hosted
+    availability_class: available
+    narrowed_when_summary: not_narrowed; self-hosted runtimes do not gate read-only diagnosis.
+    alternate_path_summary: not_applicable; self-hosted control plane does not change the route on this case.
+  - deployment_context_class: mirrored
+    availability_class: available
+    narrowed_when_summary: not_narrowed on this case; the failure does not depend on a mirror fetch.
+    alternate_path_summary: not_applicable; mirror state does not affect the route for this symptom.
+  - deployment_context_class: offline
+    availability_class: available
+    narrowed_when_summary: not_narrowed on this case; the failing target does not depend on network resolution.
+    alternate_path_summary: not_applicable; the offline path remains identical to the local-only reference path.
+
+evidence_preserved_for_escalation:
+  scenario_family_ref_optional: execution_context_mismatch
+  preserved_evidence_id_classes:
+    - doctor_finding_id
+    - exact_build_identity_id
+    - support_bundle_preview_id
+  summary: >
+    Doctor finding ids, exact-build identity, and the bundle preview
+    id travel with the route so the user keeps full evidence if they
+    later draft an escalation packet.
+
+linked_capability_card_ref: support_center_card:project_doctor
+governance_bindings:
+  support_center_concept_ref: docs/support/support_center_concept.md
+  support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+  support_center_routes_ref: artifacts/support/support_center_routes.yaml
+notes: >
+  Reference local-only deployment-context fixture. The failing target
+  resolves through the toolchain probe family; intake later picks up
+  the same evidence ids if the user opts to draft an escalation
+  packet rather than declining repair.
+emitted_at: 2026-05-04T00:00:00Z

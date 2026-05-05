@@ -1,0 +1,88 @@
+# Support Center route fixture: mirrored update failure → advisory or incident history.
+#
+# Worked example for docs/support/support_center_information_architecture.md
+# §Symptom-to-module route contract on a mirrored deployment context.
+# Projects onto support_center_route_record. This case shows a user
+# whose internal mirror serves the update artifact but whose update
+# fetch fails because the mirror is stale: the route opens advisory
+# or incident history first so a known mirror staleness issue is
+# not re-reported, then names Doctor and guided repair as locally
+# available follow-on modules without requiring an upload.
+
+schema_version: 1
+record_kind: support_center_route_record
+route_id: support_center_route:mirrored.update_failure_surface.advisory_or_incident_history
+symptom_surface_class: update_failure_surface
+symptom_summary: >
+  User on a mirrored deployment context attempts an update; the
+  mirror returns a stale or unreachable artifact and the updater
+  surfaces a typed update-failure reason.
+primary_module_class: advisory_or_incident_history
+default_first_action_class: open_advisory_or_incident_history
+secondary_module_classes:
+  - project_doctor
+  - guided_repair
+  - issue_or_escalation_handoff
+
+no_upload_first_invariant:
+  local_first_path_named: true
+  upload_required_for_first_action: false
+  summary: >
+    First action checks the local advisory and incident cache so a
+    known mirror-staleness issue is not re-reported; Doctor and
+    guided repair remain available locally; the route never resolves
+    to an upload-first first action.
+
+deployment_context_parity_rows:
+  - deployment_context_class: local_only
+    availability_class: available
+    narrowed_when_summary: Local-only deployments do not depend on a mirror; advisory cache remains readable.
+    alternate_path_summary: Local advisory cache and rollback candidate remain available.
+  - deployment_context_class: managed
+    availability_class: limited_available
+    narrowed_when_summary: Managed admins MAY pin update channels; the advisory feed names the pin.
+    alternate_path_summary: Managed-admin handoff is named when the user needs a channel exception.
+  - deployment_context_class: self_hosted
+    availability_class: available
+    narrowed_when_summary: Self-hosted update sources render their freshness verbatim alongside the advisory.
+    alternate_path_summary: Local advisory cache remains readable when the self-hosted feed is offline.
+  - deployment_context_class: mirrored
+    availability_class: available
+    narrowed_when_summary: not_narrowed; mirror unreachability surfaces a typed stale-update state on this case.
+    alternate_path_summary: not_applicable; mirrored is the reference surface for this case.
+  - deployment_context_class: offline
+    availability_class: available_local_only
+    narrowed_when_summary: Update fetches are unavailable offline; the local rollback candidate is named.
+    alternate_path_summary: Locally cached advisory rows remain readable; rollback candidate remains available.
+
+evidence_preserved_for_escalation:
+  scenario_family_ref_optional: network_ca_proxy_mirror_failure
+  preserved_evidence_id_classes:
+    - advisory_record_id
+    - exact_build_identity_id
+    - update_session_id
+    - mirror_state_id
+  summary: >
+    Advisory ids, exact-build identity, the update session id, and
+    the mirror state id travel with the route so the next reviewer
+    reads the same mirror staleness state without restating the
+    user's environment.
+
+linked_capability_card_ref: support_center_card:advisory_or_incident_history
+governance_bindings:
+  support_center_concept_ref: docs/support/support_center_concept.md
+  support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+  support_center_routes_ref: artifacts/support/support_center_routes.yaml
+notes: >
+  Reference mirrored deployment-context fixture. The route makes
+  mirror staleness explicit through the advisory feed instead of
+  letting a generic update banner imply a product defect; the
+  rollback candidate remains local-only.
+emitted_at: 2026-05-04T00:00:00Z

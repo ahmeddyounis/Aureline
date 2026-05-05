@@ -1,0 +1,1337 @@
+# Support Center symptom-to-module route table.
+#
+# Companion to docs/support/support_center_information_architecture.md and
+# schemas/support/support_center_capability_card.schema.json. Every
+# entry in this file projects onto one
+# support_center_route_record (see schema $defs.support_center_route_record);
+# every capability_card row projects onto one
+# support_center_capability_card_record; and the index row at the
+# bottom projects onto one support_center_information_architecture_record.
+#
+# Rules:
+#   - Every route MUST resolve to the narrowest safe diagnostic or
+#     repair surface (Project Doctor, safe mode, bisect/quarantine,
+#     crash triage, or field diagnostics) before any export-only or
+#     handoff-only module.
+#   - Every route MUST set no_upload_first_invariant.local_first_path_named
+#     to true and no_upload_first_invariant.upload_required_for_first_action
+#     to false. A route whose only first action would otherwise require
+#     an upload MUST resolve to refuse_route_no_upload_first and defer
+#     to a local-only diagnosis or evidence card.
+#   - Every route and every card MUST carry exactly one
+#     deployment_context_parity_row per deployment_context_class
+#     (local_only, managed, self_hosted, mirrored, offline) so a
+#     desktop-only or managed-only happy path cannot be implied.
+#   - Every route MUST preserve at least one stable evidence-id class
+#     so a later escalation packet can reconstruct the case without
+#     re-asking the user.
+#   - Adding a symptom_surface_class, support_center_module_class, or
+#     deployment_context_class is breaking and requires a new decision
+#     row in artifacts/governance/decision_index.yaml. Adding a card
+#     row, route row, evidence_source_class, local_action_class,
+#     export_action_class, or open_related_packet_action_class is
+#     additive-minor.
+
+schema_version: 1
+artifact_id: aureline.support.support_center_routes.v1
+title: Support Center symptom-to-module route table
+
+contract_source: docs/support/support_center_information_architecture.md
+schema_source: schemas/support/support_center_capability_card.schema.json
+
+related_docs:
+  - docs/support/support_center_concept.md
+  - docs/support/support_intake_and_escalation_contract.md
+  - docs/support/project_doctor_packet.md
+  - docs/support/recovery_ladder_packet.md
+  - docs/support/repair_transaction_contract.md
+  - docs/support/support_bundle_contract.md
+  - docs/support/support_bundle_preview_contract.md
+  - docs/support/object_handoff_packet.md
+  - docs/support/runbook_execution_contract.md
+  - docs/support/diagnostic_artifact_matrix.md
+
+companion_refs:
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+  escalation_packet_schema_ref: schemas/support/escalation_packet.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+  runbook_packet_schema_ref: schemas/support/runbook_packet.schema.json
+
+# Closed vocabularies re-exported here for the route table reader.
+# The schema is the source of truth for tooling.
+
+support_center_module_vocabulary:
+  - project_doctor
+  - safe_mode
+  - bisect_or_quarantine
+  - support_bundle
+  - crash_triage
+  - guided_repair
+  - issue_or_escalation_handoff
+  - advisory_or_incident_history
+  - field_diagnostics
+
+symptom_surface_vocabulary:
+  - error_surface
+  - blocked_action_surface
+  - crash_loop_surface
+  - update_failure_surface
+  - policy_denial_surface
+  - transport_failure_surface
+
+deployment_context_vocabulary:
+  - local_only
+  - managed
+  - self_hosted
+  - mirrored
+  - offline
+
+# --------------------------------------------------------------------------
+# Capability cards (one per support_center_module_class).
+#
+# These rows project onto support_center_capability_card_record. The
+# IA narrative companion (docs/support/support_center_information_architecture.md)
+# walks the same fields in long form.
+# --------------------------------------------------------------------------
+
+capability_cards:
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:project_doctor
+    support_center_module_class: project_doctor
+    title: Project Doctor
+    purpose_summary: >
+      Run versioned probes against the active workspace, profile, and
+      target so the user sees stable finding codes, severity,
+      confidence, and repair candidates before any mutation.
+    card_posture_class: read_only_diagnosis
+    confidence_class: high
+    primary_target_record_kind: doctor_finding_record
+    primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+    aligned_intake_capability_class: doctor
+    evidence_sources:
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: >
+          Probe output is the canonical diagnosis layer; other cards
+          quote it rather than mint parallel finding names.
+      - evidence_source_class: exact_build_identity_manifest
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: >
+          Build identity is rendered alongside every finding so a
+          stale docs pack or wrong channel cannot be mistaken for a
+          product defect.
+    local_actions:
+      - open_inspector_only
+      - render_evidence_local_only
+    export_actions:
+      - no_export_action
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless emits the same finding codes, severity, and
+      confidence rows the desktop card renders.
+    policy_constraints:
+      - policy_constraint_class: no_constraint
+        summary: >
+          Diagnosis runs read-only; no managed-admin or trust-state
+          gate applies before the finding is rendered.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_doctor_finding_record
+        target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Hands the user to the canonical Doctor finding record.
+      - open_related_packet_action_class: open_recovery_action_record
+        target_schema_ref: schemas/support/recovery_action.schema.json
+        summary: Names the recovery rung the finding suggests next.
+      - open_related_packet_action_class: open_repair_preview_record
+        target_schema_ref: schemas/support/repair_preview.schema.json
+        summary: Hands a repair candidate to the guided-repair card.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full probe family available on local-only installs.
+        alternate_path_summary: not_applicable; local-only is the reference surface for diagnosis.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: not_narrowed; managed admins do not gate read-only diagnosis.
+        alternate_path_summary: not_applicable; full Doctor card available under managed control plane.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: not_narrowed; self-hosted control plane does not gate read-only diagnosis.
+        alternate_path_summary: not_applicable; full Doctor card available with self-hosted runtime.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Probe families that fetch a docs or symbol mirror surface a mirror_unreachable finding instead of failing silently.
+        alternate_path_summary: Mirror cache supplies cached probe metadata; missing entries are flagged as evidence_missing rather than implied present.
+      - deployment_context_class: offline
+        availability_class: available
+        narrowed_when_summary: Probes that require network resolution surface a typed offline finding instead of stalling.
+        alternate_path_summary: Local probes (toolchain, watcher, cache, extension host) remain available offline.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:safe_mode
+    support_center_module_class: safe_mode
+    title: Safe mode
+    purpose_summary: >
+      Enter the published safe-mode runtime profile so the user can
+      reopen the workspace with extensions, helpers, and non-essential
+      services narrowed.
+    card_posture_class: mutating_local_disposable_only
+    confidence_class: high
+    primary_target_record_kind: recovery_action_record
+    primary_target_schema_ref: schemas/support/recovery_action.schema.json
+    aligned_intake_capability_class: safe_mode
+    evidence_sources:
+      - evidence_source_class: recovery_action_record
+        primary_target_schema_ref: schemas/support/recovery_action.schema.json
+        summary: Safe mode is one rung in the recovery ladder; the card opens the rung's record verbatim.
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Doctor probe output explains why entering safe mode is the suggested rung for the active finding.
+    local_actions:
+      - narrow_runtime_locally
+      - open_inspector_only
+    export_actions:
+      - no_export_action
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless renders the same rung record and entry/exit reason
+      tokens; entering safe mode is a typed local action, not a hidden
+      flag.
+    policy_constraints:
+      - policy_constraint_class: no_constraint
+        summary: Safe mode narrows runtime locally; it does not touch managed policy or trust state.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_recovery_action_record
+        target_schema_ref: schemas/support/recovery_action.schema.json
+        summary: Names the safe-mode recovery rung the user is entering or already inside.
+      - open_related_packet_action_class: open_doctor_finding_record
+        target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Quotes the finding that suggested safe mode rather than free-text reasoning.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; safe mode is a local runtime profile.
+        alternate_path_summary: not_applicable; safe mode runs entirely local-only.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: Managed admins MAY pin the safe-mode profile but never silently auto-exit it.
+        alternate_path_summary: Managed-admin handoff is available if the admin disables safe-mode entry.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted runtimes MAY narrow remote helpers; safe mode disables them locally first.
+        alternate_path_summary: Restricted reopen remains available when safe mode would still require a remote helper.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Safe mode does not depend on mirror reachability.
+        alternate_path_summary: not_applicable; safe-mode entry is independent of mirror state.
+      - deployment_context_class: offline
+        availability_class: available
+        narrowed_when_summary: not_narrowed; safe mode is the reference offline reopen path.
+        alternate_path_summary: not_applicable; safe mode is fully available offline.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:bisect_or_quarantine
+    support_center_module_class: bisect_or_quarantine
+    title: Bisect or quarantine
+    purpose_summary: >
+      Narrow the failing surface by isolating one extension or runtime
+      host at a time, or by quarantining a known-bad component until
+      the user reviews a repair candidate.
+    card_posture_class: mutating_local_disposable_only
+    confidence_class: medium
+    primary_target_record_kind: recovery_action_record
+    primary_target_schema_ref: schemas/support/recovery_action.schema.json
+    aligned_intake_capability_class: extension_bisect
+    evidence_sources:
+      - evidence_source_class: recovery_action_record
+        primary_target_schema_ref: schemas/support/recovery_action.schema.json
+        summary: Bisect and quarantine are recovery rungs; the card opens the rung's record verbatim.
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: The extension-host probe family identifies which extension or host suggested the rung.
+    local_actions:
+      - narrow_runtime_locally
+      - open_inspector_only
+    export_actions:
+      - no_export_action
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless exposes the same bisect step sequence and
+      quarantine state; entering or advancing the rung is a typed
+      action.
+    policy_constraints:
+      - policy_constraint_class: managed_admin_required_for_apply
+        summary: >
+          Managed deployments MAY require admin sign-off before a
+          quarantined extension is uninstalled or rolled back; the
+          card surfaces that gate before apply.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_recovery_action_record
+        target_schema_ref: schemas/support/recovery_action.schema.json
+        summary: Opens the bisect or quarantine rung record with the active step.
+      - open_related_packet_action_class: open_doctor_finding_record
+        target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Quotes the finding that suggested bisect or quarantine.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; bisect and quarantine run locally on the user's machine.
+        alternate_path_summary: not_applicable; local-only is the reference surface for bisect.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Quarantine is available; rollback or reinstall may need managed-admin sign-off.
+        alternate_path_summary: Managed-admin handoff is available when rollback is gated.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted control planes MAY pin extension allowlists; bisect respects the pin.
+        alternate_path_summary: Local-only review remains available if the pin blocks an isolation step.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Reinstall pulls from the mirror; mirror unreachability surfaces a typed finding.
+        alternate_path_summary: Quarantine alone (no reinstall) remains available offline-from-mirror.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Reinstall is unavailable while offline; bisect and quarantine remain available.
+        alternate_path_summary: Quarantine state is preserved for a later online reinstall once connectivity returns.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:support_bundle
+    support_center_module_class: support_bundle
+    title: Support bundle
+    purpose_summary: >
+      Preview, redact, and export a local-first support bundle so
+      every artifact, redaction, and exclusion is visible before the
+      bundle leaves the device.
+    card_posture_class: export_only_local_first
+    confidence_class: high
+    primary_target_record_kind: support_bundle_preview_item
+    primary_target_schema_ref: schemas/support/support_bundle_preview_item.schema.json
+    aligned_intake_capability_class: support_bundle
+    evidence_sources:
+      - evidence_source_class: support_bundle_preview_item
+        primary_target_schema_ref: schemas/support/support_bundle_preview_item.schema.json
+        summary: Preview rows show every included, excluded, and redacted artifact before export.
+      - evidence_source_class: support_pack_item
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Bundle composition reuses the pack-item registry rather than minting new artifact classes.
+      - evidence_source_class: exact_build_identity_manifest
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Exact-build identity is preserved in the bundle even after redaction.
+    local_actions:
+      - open_preview_with_review
+      - save_packet_local_only
+    export_actions:
+      - export_support_bundle
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless renders the same preview rows and emits the bundle
+      to a local file the user can attach later.
+    policy_constraints:
+      - policy_constraint_class: managed_admin_required_for_export
+        summary: >
+          Managed deployments MAY require admin sign-off before the
+          bundle leaves the device; the preview shows the gate
+          before any export action.
+      - policy_constraint_class: no_silent_credential_access
+        summary: >
+          The bundle never reads or rotates credentials; redaction
+          shows credential-class fields excluded by default.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_support_bundle_preview_item
+        target_schema_ref: schemas/support/support_bundle_preview_item.schema.json
+        summary: Opens the preview row for one artifact at a time.
+      - open_related_packet_action_class: open_object_handoff_packet
+        target_schema_ref: schemas/support/object_handoff_packet.schema.json
+        summary: Composes the bundle into an object-issue handoff for escalation.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full preview, redaction, and local export available.
+        alternate_path_summary: not_applicable; local-only is the reference surface for bundle export.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Managed-admin sign-off MAY gate the export action; the preview itself remains available read-only.
+        alternate_path_summary: Local-only review keeps the bundle on the device until admin sign-off.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted control planes MAY redirect the bundle to a self-hosted vendor case path.
+        alternate_path_summary: Local-only review is preserved at primary equal prominence regardless of the self-hosted destination.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Bundle composition does not depend on mirror reachability.
+        alternate_path_summary: not_applicable; bundle export is mirror-independent.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Vendor-case and user-upload paths are unavailable while offline.
+        alternate_path_summary: Local-only review records the bundle for later handoff once the user is online.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:crash_triage
+    support_center_module_class: crash_triage
+    title: Crash triage
+    purpose_summary: >
+      Open the symbolicated crash envelope, exact-build identity, and
+      symbol/source-map fidelity state so the user can tell a product
+      crash from a stale-symbol artifact before any export or
+      escalation.
+    card_posture_class: read_only_diagnosis
+    confidence_class: medium
+    primary_target_record_kind: crash_envelope
+    primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+    aligned_intake_capability_class: crash_triage
+    evidence_sources:
+      - evidence_source_class: crash_envelope
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: The symbolicated crash envelope is the canonical record for the crash.
+      - evidence_source_class: exact_build_identity_manifest
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Exact-build and symbol fidelity state are rendered alongside the crash so a stale symbol pack cannot be mistaken for a defect.
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Doctor probe output explains whether the crash matches a known finding family.
+    local_actions:
+      - open_inspector_only
+      - render_evidence_local_only
+    export_actions:
+      - no_export_action
+    headless_availability_class: available_read_only
+    headless_availability_summary: >
+      CLI/headless renders the symbolicated stack, exact-build, and
+      symbol fidelity fields read-only.
+    policy_constraints:
+      - policy_constraint_class: no_silent_credential_access
+        summary: >
+          Crash triage never reads memory regions classified as
+          credential-bearing; redaction shows the boundary.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_crash_envelope
+        target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Opens the symbolicated crash envelope record.
+      - open_related_packet_action_class: open_support_bundle_preview_item
+        target_schema_ref: schemas/support/support_bundle_preview_item.schema.json
+        summary: Composes the crash envelope into a bundle preview before any export.
+      - open_related_packet_action_class: open_object_handoff_packet
+        target_schema_ref: schemas/support/object_handoff_packet.schema.json
+        summary: Composes the crash into an object-issue handoff packet for escalation.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full symbolication available on local-only installs.
+        alternate_path_summary: not_applicable; local-only is the reference surface for crash triage.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: not_narrowed; managed admins do not gate read-only crash triage.
+        alternate_path_summary: not_applicable; full crash triage available under managed control plane.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted symbol stores MUST be reachable for full symbolication; otherwise the card surfaces a stale-symbol state.
+        alternate_path_summary: Stack rendering remains available without symbols; the card flags the fidelity gap.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Symbol and source-map mirror reachability is required for full symbolication.
+        alternate_path_summary: Cached symbols supply partial symbolication; missing entries are flagged as evidence_missing.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Symbol fetches that require network are unavailable offline.
+        alternate_path_summary: Locally cached symbols supply best-effort symbolication; the card flags the fidelity gap.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:guided_repair
+    support_center_module_class: guided_repair
+    title: Guided repair
+    purpose_summary: >
+      Run a reviewed repair transaction from preview to apply to
+      verify, with a checkpoint and a named reversal class so the
+      user keeps a rollback path on every step.
+    card_posture_class: mutating_with_review_and_preview
+    confidence_class: medium
+    primary_target_record_kind: repair_preview_record
+    primary_target_schema_ref: schemas/support/repair_preview.schema.json
+    aligned_intake_capability_class: guided_repair
+    evidence_sources:
+      - evidence_source_class: repair_preview_record
+        primary_target_schema_ref: schemas/support/repair_preview.schema.json
+        summary: The repair preview is the user-visible review surface before any apply step.
+      - evidence_source_class: repair_transaction_record
+        primary_target_schema_ref: schemas/support/repair_transaction.schema.json
+        summary: The repair transaction names checkpoints, reversal class, and the verification plan.
+      - evidence_source_class: runbook_step_result
+        primary_target_schema_ref: schemas/support/runbook_step_result.schema.json
+        summary: Runbook step results carry the per-step apply, verify, and rollback outcomes.
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Doctor probe output names the finding the repair targets.
+    local_actions:
+      - open_preview_with_review
+      - capture_local_checkpoint
+    export_actions:
+      - export_repair_outcome_record
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless emits the same preview, checkpoint, apply, verify,
+      and rollback step records the desktop card renders.
+    policy_constraints:
+      - policy_constraint_class: managed_admin_required_for_apply
+        summary: >
+          Managed deployments MAY require admin sign-off before the
+          apply step; the preview surfaces the gate verbatim.
+      - policy_constraint_class: narrowed_by_trust_state
+        summary: >
+          Repairs that touch trust state, managed policy, user-
+          authored files, or credentials are forbidden; the preview
+          names the boundary instead of attempting the change.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_repair_preview_record
+        target_schema_ref: schemas/support/repair_preview.schema.json
+        summary: Opens the user-visible preview before apply.
+      - open_related_packet_action_class: open_runbook_packet
+        target_schema_ref: schemas/support/runbook_packet.schema.json
+        summary: Opens the guided runbook the repair runs through.
+      - open_related_packet_action_class: open_recovery_action_record
+        target_schema_ref: schemas/support/recovery_action.schema.json
+        summary: Names the recovery rung the repair narrows from.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full preview, apply, verify, and rollback available.
+        alternate_path_summary: not_applicable; local-only is the reference surface for guided repair.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Apply step MAY require managed-admin sign-off; preview, checkpoint, and verify remain available.
+        alternate_path_summary: Managed-admin handoff is available at primary prominence when apply is gated.
+      - deployment_context_class: self_hosted
+        availability_class: limited_available
+        narrowed_when_summary: Self-hosted runtimes MAY require remote-helper reattach approval before apply.
+        alternate_path_summary: Local-only preview and checkpoint capture remain available while apply waits.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Repair packs that pull from a mirror surface a typed mirror_unreachable state instead of failing silently.
+        alternate_path_summary: Cached repair packs supply preview content; missing artifacts are flagged.
+      - deployment_context_class: offline
+        availability_class: limited_available
+        narrowed_when_summary: Repairs that require network resolution are unavailable offline.
+        alternate_path_summary: Local-only preview, checkpoint capture, and disposable rebuilds remain available.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:issue_or_escalation_handoff
+    support_center_module_class: issue_or_escalation_handoff
+    title: Issue or escalation handoff
+    purpose_summary: >
+      Compose a contextual object-issue handoff or escalation packet
+      from the object that failed so the next reviewer does not start
+      from a blank page.
+    card_posture_class: handoff_only_no_repair
+    confidence_class: high
+    primary_target_record_kind: support_escalation_packet_record
+    primary_target_schema_ref: schemas/support/escalation_packet.schema.json
+    aligned_intake_capability_class: issue_escalation
+    evidence_sources:
+      - evidence_source_class: object_handoff_packet
+        primary_target_schema_ref: schemas/support/object_handoff_packet.schema.json
+        summary: The escalation packet composes with one object-handoff packet rather than re-flattening route, transport, or destination vocabulary.
+      - evidence_source_class: support_bundle_preview_item
+        primary_target_schema_ref: schemas/support/support_bundle_preview_item.schema.json
+        summary: Bundle preview rows are attached by reference, not re-uploaded blindly.
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Doctor finding codes travel with the packet so the next reviewer reads stable codes.
+    local_actions:
+      - open_handoff_draft_local_only
+      - save_packet_local_only
+    export_actions:
+      - export_object_handoff_packet
+      - export_escalation_packet
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless emits the same packet draft and writes it to a
+      local file the user can attach later.
+    policy_constraints:
+      - policy_constraint_class: managed_admin_required_for_handoff
+        summary: >
+          Managed deployments MAY require admin sign-off before the
+          packet leaves the device; the preview surfaces the gate.
+      - policy_constraint_class: no_silent_credential_access
+        summary: >
+          Escalation packets never embed raw credentials; redaction
+          shows credential-class fields excluded by default.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_object_handoff_packet
+        target_schema_ref: schemas/support/object_handoff_packet.schema.json
+        summary: Opens the object-handoff packet the escalation packet composes with.
+      - open_related_packet_action_class: open_escalation_packet
+        target_schema_ref: schemas/support/escalation_packet.schema.json
+        summary: Opens the escalation packet draft.
+      - open_related_packet_action_class: open_support_bundle_preview_item
+        target_schema_ref: schemas/support/support_bundle_preview_item.schema.json
+        summary: Quotes the bundle preview rows attached to the packet.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; local-only review keeps the packet on the device.
+        alternate_path_summary: not_applicable; local-only is the reference delivery path.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Vendor-case or managed-admin handoff MAY require admin sign-off.
+        alternate_path_summary: Local-only review keeps the packet drafted until admin sign-off.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted control planes MAY redirect the packet to a self-hosted vendor case path.
+        alternate_path_summary: Local-only review remains at primary equal prominence regardless of the self-hosted destination.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Packet composition does not depend on mirror reachability.
+        alternate_path_summary: not_applicable; packet composition is mirror-independent.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Vendor-case and user-upload paths are unavailable while offline.
+        alternate_path_summary: Local-only review records the packet for later handoff once the user is online.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:advisory_or_incident_history
+    support_center_module_class: advisory_or_incident_history
+    title: Advisory or incident history
+    purpose_summary: >
+      Browse the local advisory and incident history so the user can
+      tell a known issue from a new one and pick up a previously
+      drafted handoff packet without restating their case.
+    card_posture_class: read_only_evidence_review
+    confidence_class: medium
+    primary_target_record_kind: advisory_record
+    primary_target_schema_ref: schemas/support/escalation_packet.schema.json
+    aligned_intake_capability_class: null
+    evidence_sources:
+      - evidence_source_class: advisory_record
+        primary_target_schema_ref: schemas/support/escalation_packet.schema.json
+        summary: Advisory rows are reviewed locally; advisories never auto-fetch from network on first render.
+      - evidence_source_class: incident_workspace_packet
+        primary_target_schema_ref: schemas/support/escalation_packet.schema.json
+        summary: Incident workspace packets are linked by reference for previously drafted handoffs.
+      - evidence_source_class: object_handoff_packet
+        primary_target_schema_ref: schemas/support/object_handoff_packet.schema.json
+        summary: Prior handoff packets are attached so the user can resume an in-progress escalation.
+    local_actions:
+      - open_inspector_only
+      - render_evidence_local_only
+    export_actions:
+      - export_advisory_history_summary
+    headless_availability_class: available_read_only
+    headless_availability_summary: >
+      CLI/headless lists the advisory and incident rows read-only and
+      emits the summary to a local file when the user requests
+      export.
+    policy_constraints:
+      - policy_constraint_class: narrowed_by_offline_state
+        summary: >
+          Network-bound advisory updates are deferred while offline;
+          the locally cached advisory set remains readable.
+      - policy_constraint_class: narrowed_by_mirror_only_state
+        summary: >
+          Mirrored deployments read advisory updates from the mirror;
+          mirror unreachability surfaces a typed stale-advisory state
+          rather than implying current.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_advisory_record
+        target_schema_ref: schemas/support/escalation_packet.schema.json
+        summary: Opens an advisory row with finding-code linkage.
+      - open_related_packet_action_class: open_incident_workspace_packet
+        target_schema_ref: schemas/support/escalation_packet.schema.json
+        summary: Opens a previously drafted incident workspace packet.
+      - open_related_packet_action_class: open_object_handoff_packet
+        target_schema_ref: schemas/support/object_handoff_packet.schema.json
+        summary: Resumes a prior handoff packet draft.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; locally cached advisory and incident rows are always available.
+        alternate_path_summary: not_applicable; local-only is the reference surface for advisory review.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: Managed admins MAY pin an advisory feed; the card surfaces the feed source.
+        alternate_path_summary: Local advisory cache remains readable when the managed feed is unreachable.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted advisory feeds are read read-only; freshness is shown verbatim.
+        alternate_path_summary: Locally cached advisory rows remain readable when the self-hosted feed is offline.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Mirror reachability gates advisory updates; stale advisories are flagged rather than implied current.
+        alternate_path_summary: Locally cached advisory rows remain readable while the mirror is unreachable.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Advisory updates are deferred while offline; the local cache remains readable.
+        alternate_path_summary: Locally cached advisory and incident rows remain available offline.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_capability_card_record
+    schema_version: 1
+    capability_card_id: support_center_card:field_diagnostics
+    support_center_module_class: field_diagnostics
+    title: Field diagnostics
+    purpose_summary: >
+      Collect read-only field-diagnostic snapshots (transport, policy,
+      trust, watcher, network reachability) so a support engineer can
+      tell a transient failure from a structural one without asking
+      the user to restate their environment.
+    card_posture_class: read_only_diagnosis
+    confidence_class: medium
+    primary_target_record_kind: trace_capture_request
+    primary_target_schema_ref: schemas/support/trace_capture_request.schema.json
+    aligned_intake_capability_class: null
+    evidence_sources:
+      - evidence_source_class: trace_capture_request
+        primary_target_schema_ref: schemas/support/trace_capture_request.schema.json
+        summary: Trace captures are explicitly user-initiated and bounded; auto-captures never run.
+      - evidence_source_class: transport_diagnostic_log
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Transport diagnostic logs are summarized read-only; raw payloads stay redacted by default.
+      - evidence_source_class: policy_decision_log
+        primary_target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Policy decision logs name the rule that produced a denial without leaking credential bytes.
+      - evidence_source_class: doctor_probe_output
+        primary_target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Doctor probe output names the finding family the diagnostic is gathering evidence for.
+    local_actions:
+      - render_evidence_local_only
+      - save_packet_local_only
+    export_actions:
+      - export_field_diagnostics_summary
+    headless_availability_class: available
+    headless_availability_summary: >
+      CLI/headless emits the same diagnostic summary and writes it to
+      a local file; trace capture is a typed user-initiated action.
+    policy_constraints:
+      - policy_constraint_class: no_silent_credential_access
+        summary: >
+          Field diagnostics never read credentials, secrets, or
+          managed policy bodies; redaction is verbatim.
+      - policy_constraint_class: narrowed_by_trust_state
+        summary: >
+          Diagnostics that would inspect a trusted-only surface are
+          gated behind explicit user opt-in; the card names the
+          gate.
+    open_related_packet_actions:
+      - open_related_packet_action_class: open_trace_capture_request
+        target_schema_ref: schemas/support/trace_capture_request.schema.json
+        summary: Opens the user-initiated trace capture request record.
+      - open_related_packet_action_class: open_field_diagnostics_report
+        target_schema_ref: schemas/support/support_pack_item.schema.json
+        summary: Opens the field-diagnostic summary record.
+      - open_related_packet_action_class: open_doctor_finding_record
+        target_schema_ref: schemas/support/doctor_finding.schema.json
+        summary: Quotes the finding the diagnostic gathered evidence for.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full diagnostic surface available.
+        alternate_path_summary: not_applicable; local-only is the reference surface for field diagnostics.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Managed admins MAY narrow which diagnostic classes the user can capture.
+        alternate_path_summary: Locally available diagnostics remain capturable; gated diagnostics are named.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted runtimes MAY scope which transport endpoints the diagnostic touches.
+        alternate_path_summary: Local-only diagnostic capture remains available within scope.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Mirror reachability gates probes that depend on a mirror; failures are typed.
+        alternate_path_summary: Locally cached diagnostic data remains available; missing entries are flagged.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Network-bound diagnostics are unavailable offline.
+        alternate_path_summary: Local diagnostic captures (transport, policy, watcher) remain available offline.
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+# --------------------------------------------------------------------------
+# Routes (one or more per symptom_surface_class).
+#
+# These rows project onto support_center_route_record. Every route
+# resolves to the narrowest safe diagnostic or repair surface before
+# any export-only or handoff-only module, names a local-first first
+# action, and preserves a stable evidence-id class for later
+# escalation.
+# --------------------------------------------------------------------------
+
+routes:
+  - record_kind: support_center_route_record
+    schema_version: 1
+    route_id: support_center_route:error_surface.project_doctor
+    symptom_surface_class: error_surface
+    symptom_summary: >
+      User hits an in-product error notification, banner, or command-
+      result error.
+    primary_module_class: project_doctor
+    default_first_action_class: open_project_doctor
+    secondary_module_classes:
+      - support_bundle
+      - issue_or_escalation_handoff
+      - field_diagnostics
+    no_upload_first_invariant:
+      local_first_path_named: true
+      upload_required_for_first_action: false
+      summary: >
+        First action opens Project Doctor read-only; bundle preview
+        and handoff draft are local-first and never auto-upload.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full Doctor route available.
+        alternate_path_summary: not_applicable; local-only is the reference surface.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: not_narrowed; managed admins do not gate diagnosis.
+        alternate_path_summary: not_applicable; full Doctor route available under managed control plane.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: not_narrowed; self-hosted runtimes do not gate diagnosis.
+        alternate_path_summary: not_applicable; full Doctor route available with self-hosted runtime.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Probes that fetch from a mirror surface a typed mirror_unreachable finding instead of stalling.
+        alternate_path_summary: Cached probes supply diagnosis; missing entries are flagged as evidence_missing.
+      - deployment_context_class: offline
+        availability_class: available
+        narrowed_when_summary: Network-bound probes surface a typed offline finding instead of stalling.
+        alternate_path_summary: Local probes (toolchain, watcher, cache, extension host) remain available offline.
+    evidence_preserved_for_escalation:
+      scenario_family_ref_optional: null
+      preserved_evidence_id_classes:
+        - doctor_finding_id
+        - exact_build_identity_id
+      summary: >
+        Doctor finding ids and exact-build identity travel with the
+        route so the user does not restate the case if they later
+        open an escalation packet.
+    linked_capability_card_ref: support_center_card:project_doctor
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_route_record
+    schema_version: 1
+    route_id: support_center_route:blocked_action_surface.project_doctor
+    symptom_surface_class: blocked_action_surface
+    symptom_summary: >
+      User attempts a command, target run, or save and the surface
+      blocks the action with a reason class instead of executing.
+    primary_module_class: project_doctor
+    default_first_action_class: open_project_doctor
+    secondary_module_classes:
+      - guided_repair
+      - issue_or_escalation_handoff
+      - advisory_or_incident_history
+    no_upload_first_invariant:
+      local_first_path_named: true
+      upload_required_for_first_action: false
+      summary: >
+        First action opens Project Doctor read-only against the
+        blocked action's reason class; no upload is required to
+        understand the block.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full Doctor route available against the blocked action.
+        alternate_path_summary: not_applicable; local-only is the reference surface.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: Managed-policy blocks render a policy-decision summary alongside the Doctor finding.
+        alternate_path_summary: Managed-admin handoff is named when the user wants a policy review.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted control planes render their policy decision verbatim alongside the finding.
+        alternate_path_summary: Self-hosted admin handoff remains available at primary prominence.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Mirror unreachability is rendered as a typed finding rather than a generic block.
+        alternate_path_summary: Cached docs and policy data supply context while the mirror is unreachable.
+      - deployment_context_class: offline
+        availability_class: available
+        narrowed_when_summary: Offline state is rendered as a typed finding when the block is network-bound.
+        alternate_path_summary: Local-only review keeps the finding and any handoff draft on the device.
+    evidence_preserved_for_escalation:
+      scenario_family_ref_optional: trust_policy_identity_approval_block
+      preserved_evidence_id_classes:
+        - doctor_finding_id
+        - policy_decision_id
+        - object_handoff_packet_id
+      summary: >
+        Doctor finding ids, the policy-decision id, and the object-
+        handoff packet id travel with the route so the user keeps
+        the case context if they escalate.
+    linked_capability_card_ref: support_center_card:project_doctor
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_route_record
+    schema_version: 1
+    route_id: support_center_route:crash_loop_surface.crash_triage
+    symptom_surface_class: crash_loop_surface
+    symptom_summary: >
+      Repeated crashes during startup or session run trigger the
+      crash-loop detection threshold.
+    primary_module_class: crash_triage
+    default_first_action_class: open_crash_triage_card
+    secondary_module_classes:
+      - safe_mode
+      - bisect_or_quarantine
+      - support_bundle
+      - issue_or_escalation_handoff
+    no_upload_first_invariant:
+      local_first_path_named: true
+      upload_required_for_first_action: false
+      summary: >
+        First action opens crash triage read-only; safe mode and
+        bisect run locally; bundle preview and handoff are local-
+        first.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full crash triage and recovery rungs available.
+        alternate_path_summary: not_applicable; local-only is the reference surface for crash recovery.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Quarantine apply MAY require managed-admin sign-off; safe mode and triage remain available.
+        alternate_path_summary: Local quarantine state is preserved for managed-admin sign-off.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted symbol stores supply symbolication; missing symbols are flagged.
+        alternate_path_summary: Stack rendering remains available without symbols.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Symbol mirror reachability is required for full symbolication; mirror state is typed.
+        alternate_path_summary: Cached symbols supply partial symbolication.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Symbol fetches that require network are unavailable offline.
+        alternate_path_summary: Locally cached symbols supply best-effort symbolication; the card flags the fidelity gap.
+    evidence_preserved_for_escalation:
+      scenario_family_ref_optional: extension_or_host_regression
+      preserved_evidence_id_classes:
+        - crash_envelope_id
+        - exact_build_identity_id
+        - extension_inventory_id
+      summary: >
+        Crash envelope, exact-build identity, and extension inventory
+        ids travel with the route so the user keeps full evidence if
+        the crash escalates.
+    linked_capability_card_ref: support_center_card:crash_triage
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_route_record
+    schema_version: 1
+    route_id: support_center_route:update_failure_surface.advisory_or_incident_history
+    symptom_surface_class: update_failure_surface
+    symptom_summary: >
+      Update or install attempt fails, stalls, or rolls back; user
+      sees an updater error or stuck-update banner.
+    primary_module_class: advisory_or_incident_history
+    default_first_action_class: open_advisory_or_incident_history
+    secondary_module_classes:
+      - project_doctor
+      - guided_repair
+      - issue_or_escalation_handoff
+    no_upload_first_invariant:
+      local_first_path_named: true
+      upload_required_for_first_action: false
+      summary: >
+        First action checks the local advisory and incident cache so
+        a known update issue is not re-reported as new; Doctor and
+        guided repair remain available locally.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: not_narrowed; full advisory and Doctor route available.
+        alternate_path_summary: not_applicable; local-only is the reference surface.
+      - deployment_context_class: managed
+        availability_class: limited_available
+        narrowed_when_summary: Managed admins MAY pin update channels; the advisory feed names the pin.
+        alternate_path_summary: Managed-admin handoff is named when the user needs a channel exception.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted update sources render their freshness verbatim.
+        alternate_path_summary: Local advisory cache remains readable when the self-hosted feed is offline.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Mirror unreachability surfaces a typed stale-update state instead of implying current.
+        alternate_path_summary: Local advisory cache and rollback candidate remain available.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Update fetches are unavailable offline; the local rollback candidate is named.
+        alternate_path_summary: Locally cached advisory rows remain readable; rollback candidate remains available.
+    evidence_preserved_for_escalation:
+      scenario_family_ref_optional: state_corruption_schema_drift_low_disk_recovery
+      preserved_evidence_id_classes:
+        - advisory_record_id
+        - exact_build_identity_id
+        - update_session_id
+      summary: >
+        Advisory ids, exact-build identity, and the update session id
+        travel with the route so the next reviewer reads the same
+        update history.
+    linked_capability_card_ref: support_center_card:advisory_or_incident_history
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_route_record
+    schema_version: 1
+    route_id: support_center_route:policy_denial_surface.project_doctor
+    symptom_surface_class: policy_denial_surface
+    symptom_summary: >
+      Managed policy, trust state, or approval expiry denies a user
+      action; the surface returns a typed policy-denial reason.
+    primary_module_class: project_doctor
+    default_first_action_class: open_project_doctor
+    secondary_module_classes:
+      - field_diagnostics
+      - issue_or_escalation_handoff
+      - advisory_or_incident_history
+    no_upload_first_invariant:
+      local_first_path_named: true
+      upload_required_for_first_action: false
+      summary: >
+        First action opens Project Doctor read-only against the
+        policy-denial reason; field diagnostics and handoff drafting
+        are local-first.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: Local-only deployments still surface trust-state findings; managed-policy classes are absent by definition.
+        alternate_path_summary: not_applicable; local-only renders the same Doctor route.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: Managed-policy denials render the policy decision id alongside the Doctor finding.
+        alternate_path_summary: Managed-admin handoff is named when the user needs a policy review.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted control plane policies render their policy decision verbatim.
+        alternate_path_summary: Self-hosted admin handoff remains available.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Policy fetches from a mirror surface a typed mirror state; cached policy is read-only.
+        alternate_path_summary: Cached policy rows remain readable; mirror state is named.
+      - deployment_context_class: offline
+        availability_class: available
+        narrowed_when_summary: Cached policy rows remain enforced; updates are deferred.
+        alternate_path_summary: Local-only review keeps the finding and any handoff draft on the device.
+    evidence_preserved_for_escalation:
+      scenario_family_ref_optional: trust_policy_identity_approval_block
+      preserved_evidence_id_classes:
+        - policy_decision_id
+        - doctor_finding_id
+        - object_handoff_packet_id
+      summary: >
+        The policy decision id, Doctor finding id, and object handoff
+        packet id travel with the route so the user keeps the case
+        context if a managed-admin handoff is needed.
+    linked_capability_card_ref: support_center_card:project_doctor
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+  - record_kind: support_center_route_record
+    schema_version: 1
+    route_id: support_center_route:transport_failure_surface.field_diagnostics
+    symptom_surface_class: transport_failure_surface
+    symptom_summary: >
+      Network, proxy, mirror, CA, or remote-helper transport fails;
+      the user sees a typed transport-error reason class.
+    primary_module_class: field_diagnostics
+    default_first_action_class: open_field_diagnostics
+    secondary_module_classes:
+      - project_doctor
+      - guided_repair
+      - issue_or_escalation_handoff
+    no_upload_first_invariant:
+      local_first_path_named: true
+      upload_required_for_first_action: false
+      summary: >
+        First action runs read-only field diagnostics against the
+        transport class; trace capture is opt-in. The route refuses
+        to recommend an upload-first first action even when the
+        symptom is network-bound.
+    deployment_context_parity_rows:
+      - deployment_context_class: local_only
+        availability_class: available
+        narrowed_when_summary: Local-only deployments rarely hit transport failures except for opt-in update fetches.
+        alternate_path_summary: Local diagnostic capture remains available.
+      - deployment_context_class: managed
+        availability_class: available
+        narrowed_when_summary: Managed proxies and CAs render their reachability state verbatim.
+        alternate_path_summary: Managed-admin handoff is available when the failure is policy-bound.
+      - deployment_context_class: self_hosted
+        availability_class: available
+        narrowed_when_summary: Self-hosted runtimes and helpers render their reachability state verbatim.
+        alternate_path_summary: Self-hosted admin handoff is available when the failure is helper-bound.
+      - deployment_context_class: mirrored
+        availability_class: available
+        narrowed_when_summary: Mirror reachability is the primary diagnostic; mirror state is typed.
+        alternate_path_summary: Cached diagnostic data remains available; the route names the missing mirror.
+      - deployment_context_class: offline
+        availability_class: available_local_only
+        narrowed_when_summary: Network-bound diagnostics are unavailable offline.
+        alternate_path_summary: Local transport, watcher, and policy diagnostic captures remain available.
+    evidence_preserved_for_escalation:
+      scenario_family_ref_optional: network_ca_proxy_mirror_failure
+      preserved_evidence_id_classes:
+        - transport_diagnostic_log_id
+        - doctor_finding_id
+        - object_handoff_packet_id
+      summary: >
+        Transport diagnostic log id, Doctor finding id, and object
+        handoff packet id travel with the route so the next reviewer
+        reads the same transport state.
+    linked_capability_card_ref: support_center_card:field_diagnostics
+    governance_bindings:
+      support_center_concept_ref: docs/support/support_center_concept.md
+      support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+      scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+      doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+      support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+      object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+      repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+      recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+      scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+      support_center_routes_ref: artifacts/support/support_center_routes.yaml
+    emitted_at: 2026-05-04T00:00:00Z
+
+# --------------------------------------------------------------------------
+# Information-architecture index.
+#
+# Projects onto support_center_information_architecture_record. Pins
+# the closed module, symptom-surface, and deployment-context sets and
+# names every card and route the IA expects.
+# --------------------------------------------------------------------------
+
+information_architecture_index:
+  record_kind: support_center_information_architecture_record
+  schema_version: 1
+  index_id: support_center_ia:v1
+  title: Support Center information architecture index
+  summary: >
+    Pins the nine top-level Support Center modules, the six symptom-
+    surface classes, the five deployment-context classes, the seven
+    capability cards in this file, and the six required symptom-to-
+    module routes.
+  module_classes_required:
+    - project_doctor
+    - safe_mode
+    - bisect_or_quarantine
+    - support_bundle
+    - crash_triage
+    - guided_repair
+    - issue_or_escalation_handoff
+    - advisory_or_incident_history
+    - field_diagnostics
+  symptom_surface_classes_required:
+    - error_surface
+    - blocked_action_surface
+    - crash_loop_surface
+    - update_failure_surface
+    - policy_denial_surface
+    - transport_failure_surface
+  deployment_context_classes_required:
+    - local_only
+    - managed
+    - self_hosted
+    - mirrored
+    - offline
+  capability_card_refs:
+    - support_center_card:project_doctor
+    - support_center_card:safe_mode
+    - support_center_card:bisect_or_quarantine
+    - support_center_card:support_bundle
+    - support_center_card:crash_triage
+    - support_center_card:guided_repair
+    - support_center_card:issue_or_escalation_handoff
+    - support_center_card:advisory_or_incident_history
+    - support_center_card:field_diagnostics
+  route_refs:
+    - support_center_route:error_surface.project_doctor
+    - support_center_route:blocked_action_surface.project_doctor
+    - support_center_route:crash_loop_surface.crash_triage
+    - support_center_route:update_failure_surface.advisory_or_incident_history
+    - support_center_route:policy_denial_surface.project_doctor
+    - support_center_route:transport_failure_surface.field_diagnostics
+  no_upload_first_invariant_summary: >
+    No Support Center route resolves to an upload-first first action;
+    every route names a local-first path and preserves stable
+    evidence-id classes for later escalation.
+  governance_bindings:
+    support_center_concept_ref: docs/support/support_center_concept.md
+    support_intake_contract_ref: docs/support/support_intake_and_escalation_contract.md
+    scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+    doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+    support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+    object_handoff_packet_schema_ref: schemas/support/object_handoff_packet.schema.json
+    repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+    recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+    scenario_matrix_ref: fixtures/support/scenario_matrix.yaml
+    support_center_routes_ref: artifacts/support/support_center_routes.yaml
+  emitted_at: 2026-05-04T00:00:00Z
