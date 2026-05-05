@@ -49,9 +49,10 @@ Companion artifacts:
 - [`/fixtures/security/emergency_action_examples/`](../../fixtures/security/emergency_action_examples/)
   — worked emergency_action_record and revocation_record fixtures whose
   manual-import `receipt_ref` values this policy realizes.
-- [`/fixtures/security/manual_import_receipts/`](../../fixtures/security/manual_import_receipts/)
-  — worked manual_import_receipt_record fixtures exercising live,
-  mirrored, manual, and air-gapped paths.
+- [`/fixtures/security/manual_import_cases/`](../../fixtures/security/manual_import_cases/)
+  — worked manual_import_receipt_record and metadata_chain_entry_record
+  fixtures exercising mirror, manual, offline, supersedence, and stale
+  metadata paths.
 
 Normative sources this policy projects from:
 

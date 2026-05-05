@@ -1,0 +1,179 @@
+# yaml-language-server: $schema=../../../schemas/security/manual_import_receipt.schema.json
+__fixture__:
+  name: preview_helper_extension_mirror_sync
+  scenario: >
+    Worked manual_import_receipt_record for a mirror import of a signed
+    emergency-disable snapshot. The snapshot is verified but stale past
+    grace; the receipt preserves mirror_sync chain-of-custody and the
+    follow-up obligations required for refresh or last-known-good pinning.
+  contract_sections:
+    - "Metadata-chain stub"
+    - "Mirror import evidence"
+    - "Stale metadata follow-up"
+
+manual_import_receipt_schema_version: 3
+record_kind: manual_import_receipt_record
+
+receipt_id: receipt.preview_helper.mirror_sync.0103
+receipt_state: active
+imported_record_kind: emergency_disable_bundle_record
+
+artifact_family_refs:
+  - artifact_family.extension_api_surface
+
+subject_refs:
+  - subject_kind: extension
+    subject_id: extension.preview-helper
+    note: Mirror-imported emergency disable applies; the extension remains disabled until a fresher snapshot supersedes it.
+
+title: >
+  Mirror sync imported emergency-disable snapshot (stale past grace)
+summary: >
+  Mirror operator imported and verified the signed emergency disable
+  snapshot for the preview-helper extension. The snapshot is stale past
+  grace, so the receipt carries explicit freshness/validation labels and
+  follow-up obligations required to refresh or pin last-known-good state.
+
+operator:
+  operator_class: mirror_operator
+  operator_account_ref: operator.mirror_operator.approved_private_mirror.0103
+  operator_role_ref: role.mirror_operator.emergency_metadata_import
+  operator_note: >
+    Mirror operator imported the signed snapshot into an approved
+    private mirror. Raw endpoints, raw device identifiers, and raw
+    operator identifiers are intentionally out of band.
+
+import_path_class: mirror_sync
+
+source_artifact:
+  source_artifact_class: mirror_snapshot_export_file
+  source_artifact_ref: source_artifact.preview_helper_extension.mirror_snapshot.0103
+  source_artifact_digests:
+    - digest_role: source_artifact_payload
+      digest_value: sha256:5c4e6a8f2d1b0c9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5
+      digest_note: Digest of the mirror snapshot payload as imported into the mirror.
+    - digest_role: detached_signature
+      digest_value: sha256:2a6c4d8e0f1b3c5d7e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1
+      digest_note: Digest of the detached signature file accompanying the snapshot.
+  upstream_distribution_id_ref: distribution.disable_bundle.preview_helper_extension.mirror_sync.0103
+  upstream_receipt_ref: null
+  source_path_note: >
+    Mirror snapshot imported via an approved mirror sync path; the
+    receipt records only export-safe refs and digests.
+
+verification:
+  detached_signature_status: detached_signature_present
+  verification_outcome: verified_current_signer
+  verifying_tool_ref: verifying_tool.mirror_verifier.aureline.stable.v1
+  verification_policy_ref: verification_policy.emergency_import.mirror_operator
+  verification_started_at: "2026-04-26T09:00:00Z"
+  verification_completed_at: "2026-04-26T09:00:30Z"
+  verification_note: >
+    Snapshot signature verified under the current release emergency-control chain.
+
+observed_signer_continuity_state: same_signer_chain
+freshness_class: mirrored_stale_past_grace
+validation_state: verified_but_stale
+
+target_scope:
+  target_scope_class: mirror_snapshot
+  install_profile_card_refs: []
+  deployment_profile_scope:
+    - enterprise_online
+  mirror_scope_refs:
+    - mirror.approved_private_mirror.operator.0103
+  offline_bundle_scope_refs: []
+  scope_note: >
+    Receipt applies to the approved mirror snapshot scope only; downstream
+    clients consume mirror freshness/validation labels from this receipt.
+
+applied_state: applied
+supersedence_state: no_prior_snapshot_on_target
+
+expiry:
+  expiry_hook_class: inherit_parent_record_expiry
+  effective_expiry_at: "2026-05-03T08:59:30Z"
+  expiry_policy_ref: expiry_policy.inherit.emergency_disable_bundle.default
+  expiry_note: >
+    Receipt inherits the emergency disable bundle expiry; stale mirror
+    state is not a reason to silently clear the disable.
+
+follow_up_obligations:
+  - obligation_id: obligation.preview_helper.mirror_sync.pin_last_known_good
+    obligation_class: pin_last_known_good_until_resolve
+    owner_class: mirror_operator
+    deadline_semantics: before_channel_resume
+    deadline_at: "2026-04-26T18:00:00Z"
+    obligation_note: >
+      Keep the last known good authenticated snapshot pinned on the mirror
+      until a fresh signed snapshot is imported and reviewed.
+  - obligation_id: obligation.preview_helper.mirror_sync.notify_security_review
+    obligation_class: notify_security_trust_review
+    owner_class: mirror_operator
+    deadline_semantics: immediate
+    deadline_at: "2026-04-26T09:10:00Z"
+    obligation_note: >
+      Notify security trust review that the mirror snapshot is stale past
+      grace so refresh and disclosure actions are tracked.
+  - obligation_id: obligation.preview_helper.mirror_sync.export_support
+    obligation_class: export_support_packet
+    owner_class: mirror_operator
+    deadline_semantics: informational_only
+    deadline_at: null
+    obligation_note: >
+      Export a support packet containing receipt refs and digests if downstream
+      installations cannot refresh from the authoritative origin.
+
+metadata_chain:
+  chain_id: metadata_chain.disable_bundle.preview_helper_extension.0103
+  authoritative_origin_ref: disable_bundle.preview_helper_extension.mirror_only
+  chain_links:
+    - link_id: link.preview_helper.disable_bundle.origin
+      link_class: from_authoritative_origin
+      peer_ref: disable_bundle.preview_helper_extension.mirror_only
+      observed_signer_continuity_state: same_signer_chain
+      observed_at: "2026-04-26T08:59:30Z"
+      link_note: Chain roots at the signed disable bundle record.
+    - link_id: link.preview_helper.disable_bundle.mirror_sync
+      link_class: from_approved_mirror_snapshot
+      peer_ref: distribution.disable_bundle.preview_helper_extension.mirror_sync.0103
+      observed_signer_continuity_state: same_signer_chain
+      observed_at: "2026-04-26T09:00:30Z"
+      link_note: >
+        Mirror sync imported the signed disable snapshot and recorded
+        stale-past-grace freshness explicitly.
+  chain_note: >
+    Two-hop chain from the disable bundle origin into the approved mirror import.
+
+trust_root_rotation_state_refs: []
+
+relationship_links:
+  imported_emergency_action_ref: null
+  imported_revocation_ref: null
+  imported_advisory_ref: null
+  imported_disable_bundle_ref: disable_bundle.preview_helper_extension.mirror_only
+  upstream_distribution_receipt_refs: []
+  downstream_distribution_receipt_refs: []
+  superseded_receipt_refs: []
+  superseded_by_receipt_ref: null
+  related_advisory_refs:
+    - advisory_record.AURELINE-ADV-2026-0103
+  related_incident_workspace_packet_refs:
+    - incident_workspace_packet.preview_helper_extension
+  related_support_packet_refs:
+    - support_packet.preview_helper_extension.mirror_only
+  related_admin_export_refs:
+    - admin_export.preview_helper_extension.mirror_only.2026-04-26
+
+imported_at: "2026-04-26T09:00:30Z"
+applied_at: "2026-04-26T09:01:00Z"
+
+policy_context:
+  policy_epoch: policy_epoch.security_response_pre_implementation.2026.04
+  trust_state: managed_admin
+  execution_context_id: execution_context.security_trust_review.private_security_channel
+
+redaction_class: release_public
+
+minted_at: "2026-04-26T09:01:00Z"
+

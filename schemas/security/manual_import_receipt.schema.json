@@ -2,13 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://aureline.dev/schemas/security/manual_import_receipt.schema.json",
   "title": "Aureline manual emergency-import receipt contract",
-  "description": "Boundary schema for manual_import_receipt_record, the reviewable artifact produced when an operator imports signed emergency metadata (emergency_action_record or revocation_record) into a mirrored, offline, or air-gapped target that cannot rely on a live authoritative pull. One receipt records who imported the metadata, the source artifact and import path, the detached-signature verification outcome, the observed signer continuity, the apply time, the target scope, the freshness and supersedence state that now applies, the follow-up obligations the import imposes, and a metadata-chain stub linking the receipt to its authoritative-origin predecessor and to any downstream receipts it supersedes. Raw bundle bytes, raw signatures, raw trust-root payloads, raw operator identifiers, raw device identifiers, and raw file bodies never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-safe summary fields only. This receipt is the object that mirror-import views, manual-import surfaces, admin exports, and support packets quote when they say 'this emergency action was imported here'; surfaces MUST NOT invent receipt-local freshness, signer-continuity, or supersedence terms that disagree with the parent emergency_action_record or revocation_record. Adding a new operator_class, import_path_class, verification_outcome_class, applied_state_class, target_scope_class, import_supersedence_state_class, receipt_state_class, metadata_chain_link_class, or follow_up_obligation_class is additive-minor and requires a manual_import_receipt_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
+  "description": "Boundary schema for manual_import_receipt_record, the reviewable artifact produced when an operator imports signed emergency metadata (emergency_action_record, revocation_record, advisory_record, or emergency_disable_bundle_record) into a mirrored, offline, or air-gapped target that cannot rely on a live authoritative pull. One receipt records who imported the metadata, the source artifact and import path, the detached-signature verification outcome, the observed signer continuity, the apply time, the target scope, the freshness and supersedence state that now applies, the follow-up obligations the import imposes, and a metadata-chain stub linking the receipt to its authoritative-origin predecessor and to any downstream receipts it supersedes. Raw bundle bytes, raw signatures, raw trust-root payloads, raw operator identifiers, raw device identifiers, and raw file bodies never cross this boundary; the record carries opaque refs, typed vocabulary, and redaction-safe summary fields only. This receipt is the object that mirror-import views, manual-import surfaces, admin exports, and support packets quote when they say 'this emergency metadata was imported here'; surfaces MUST NOT invent receipt-local freshness, signer-continuity, or supersedence terms that disagree with the parent emergency_action_record / revocation_record / advisory_record / emergency_disable_bundle_record. Adding a new operator_class, import_path_class, verification_outcome_class, applied_state_class, target_scope_class, import_supersedence_state_class, receipt_state_class, metadata_chain_link_class, or follow_up_obligation_class is additive-minor and requires a manual_import_receipt_schema_version bump; repurposing an existing value is breaking and requires a new decision row co-signed by security_trust_review and release_council.",
   "$ref": "#/$defs/manual_import_receipt_record",
   "$defs": {
     "manual_import_receipt_schema_version": {
       "type": "integer",
-      "const": 1,
-      "description": "Integer schema version for this manual-import receipt export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+      "const": 3,
+      "description": "Integer schema version for this manual-import receipt export. Current value is 3. Bumped on payload changes that would invalidate prior receipts."
     },
 
     "record_kind": {
@@ -35,13 +35,48 @@
       "description": "Short, reviewable sentence describing posture, continuity, verification, or operator guidance. Raw secret material and raw payload bytes MUST NOT appear."
     },
 
+    "digest_role_class": {
+      "type": "string",
+      "enum": [
+        "source_artifact_payload",
+        "source_artifact_manifest",
+        "detached_signature",
+        "imported_record_payload"
+      ],
+      "description": "Closed digest-role vocabulary. Digest rows describe which component of the imported material the digest covers (payload, manifest, detached signature, or extracted imported record payload)."
+    },
+
+    "digest_value": {
+      "type": "string",
+      "pattern": "^(sha256|sha512|blake3):[a-f0-9]{16,256}$",
+      "description": "Digest string with an algorithm prefix (for example sha256:<hex>). Digest values are export-safe and MUST NOT be replaced with opaque refs."
+    },
+
+    "digest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "digest_role",
+        "digest_value",
+        "digest_note"
+      ],
+      "properties": {
+        "digest_role": { "$ref": "#/$defs/digest_role_class" },
+        "digest_value": { "$ref": "#/$defs/digest_value" },
+        "digest_note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One digest row describing which imported component was hashed and under which digest algorithm. Raw bytes never cross this boundary."
+    },
+
     "imported_record_kind_class": {
       "type": "string",
       "enum": [
         "emergency_action_record",
-        "revocation_record"
+        "revocation_record",
+        "advisory_record",
+        "emergency_disable_bundle_record"
       ],
-      "description": "Which record kind from schemas/security/emergency_action_record.schema.json this receipt imported. Mirrors the discriminator on that schema so a receipt and its parent record cannot drift on kind."
+      "description": "Which record kind this receipt imported (emergency_action_record or revocation_record from schemas/security/emergency_action_record.schema.json, advisory_record from schemas/security/advisory_record.schema.json, or emergency_disable_bundle_record from schemas/security/emergency_disable_bundle.schema.json). Mirrors the discriminator on the imported record so a receipt and its parent record cannot drift on kind."
     },
 
     "operator_class": {
@@ -89,13 +124,14 @@
       "type": "string",
       "enum": [
         "file_import",
+        "mirror_sync",
         "offline_transfer",
         "removable_media_transfer",
         "approved_courier_transfer",
         "cross_domain_transfer",
         "air_gap_relay_transfer"
       ],
-      "description": "Frozen import-path vocabulary. file_import is a signed metadata file imported via a managed UI or CLI. offline_transfer and removable_media_transfer cover manual snapshot movement. approved_courier_transfer and cross_domain_transfer cover escorted transfers across trust boundaries. air_gap_relay_transfer covers a staged relay between air-gapped environments."
+      "description": "Frozen import-path vocabulary. file_import is a signed metadata file imported via a managed UI or CLI. mirror_sync is an operator-controlled mirror import/sync event that MUST leave a reviewable receipt. offline_transfer and removable_media_transfer cover manual snapshot movement. approved_courier_transfer and cross_domain_transfer cover escorted transfers across trust boundaries. air_gap_relay_transfer covers a staged relay between air-gapped environments."
     },
 
     "source_artifact_class": {
@@ -116,6 +152,7 @@
       "required": [
         "source_artifact_class",
         "source_artifact_ref",
+        "source_artifact_digests",
         "upstream_distribution_id_ref",
         "upstream_receipt_ref",
         "source_path_note"
@@ -125,6 +162,12 @@
         "source_artifact_ref": {
           "$ref": "#/$defs/opaque_id",
           "description": "Opaque ref to the source-artifact manifest or export record the receipt imported. Raw file paths, raw URLs, raw media serial numbers, and raw courier identifiers MUST NOT appear."
+        },
+        "source_artifact_digests": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/digest_record" },
+          "description": "Digest set for the imported source artifact. At minimum, receipts include a digest for the imported payload and the detached signature when present, so offline reviewers can confirm chain-of-custody without relying on operator memory."
         },
         "upstream_distribution_id_ref": {
           "oneOf": [
@@ -466,7 +509,7 @@
         },
         "authoritative_origin_ref": {
           "$ref": "#/$defs/opaque_id",
-          "description": "Opaque ref to the authoritative emergency_action_record / revocation_record the chain ultimately roots in. Required so even a multi-hop air-gapped import can be traced back to its signed origin."
+          "description": "Opaque ref to the authoritative emergency_action_record / revocation_record / advisory_record / emergency_disable_bundle_record the chain ultimately roots in. Required so even a multi-hop air-gapped import can be traced back to its signed origin."
         },
         "chain_links": {
           "type": "array",
@@ -483,6 +526,8 @@
       "required": [
         "imported_emergency_action_ref",
         "imported_revocation_ref",
+        "imported_advisory_ref",
+        "imported_disable_bundle_ref",
         "upstream_distribution_receipt_refs",
         "downstream_distribution_receipt_refs",
         "superseded_receipt_refs",
@@ -498,14 +543,28 @@
             { "type": "null" },
             { "$ref": "#/$defs/opaque_id" }
           ],
-          "description": "Opaque ref to the emergency_action_record this receipt imported. Null iff imported_revocation_ref is populated."
+          "description": "Opaque ref to the emergency_action_record this receipt imported. Non-null only when imported_record_kind = emergency_action_record."
         },
         "imported_revocation_ref": {
           "oneOf": [
             { "type": "null" },
             { "$ref": "#/$defs/opaque_id" }
           ],
-          "description": "Opaque ref to the revocation_record this receipt imported. Null iff imported_emergency_action_ref is populated."
+          "description": "Opaque ref to the revocation_record this receipt imported. Non-null only when imported_record_kind = revocation_record."
+        },
+        "imported_advisory_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the advisory_record this receipt imported. Non-null only when imported_record_kind = advisory_record."
+        },
+        "imported_disable_bundle_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the emergency_disable_bundle_record this receipt imported. Non-null only when imported_record_kind = emergency_disable_bundle_record."
         },
         "upstream_distribution_receipt_refs": {
           "type": "array",
@@ -542,7 +601,7 @@
           "items": { "$ref": "#/$defs/opaque_id" }
         }
       },
-      "description": "Typed relation envelope binding the receipt to exactly one imported emergency_action_record or revocation_record, to upstream and downstream peer receipts, and to the same advisory / incident / support / admin-export graph the parent record already uses."
+      "description": "Typed relation envelope binding the receipt to exactly one imported emergency_action_record / revocation_record / advisory_record / emergency_disable_bundle_record, to upstream and downstream peer receipts, and to the same advisory / incident / support / admin-export graph the parent record already uses."
     },
 
     "redaction_class": {
@@ -562,6 +621,8 @@
         "receipt_id",
         "receipt_state",
         "imported_record_kind",
+        "artifact_family_refs",
+        "subject_refs",
         "title",
         "summary",
         "operator",
@@ -577,6 +638,7 @@
         "expiry",
         "follow_up_obligations",
         "metadata_chain",
+        "trust_root_rotation_state_refs",
         "relationship_links",
         "imported_at",
         "applied_at",
@@ -590,6 +652,18 @@
         "receipt_id": { "$ref": "#/$defs/opaque_id" },
         "receipt_state": { "$ref": "#/$defs/receipt_state_class" },
         "imported_record_kind": { "$ref": "#/$defs/imported_record_kind_class" },
+        "artifact_family_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into artifacts/release/artifact_family_map.yaml naming the artifact families this imported emergency metadata governs on the receiving target. Required so support, admin, and shiproom exports can reconstruct scope without re-loading the full parent record."
+        },
+        "subject_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "./emergency_action_record.schema.json#/$defs/affected_subject_ref" },
+          "description": "Typed subject refs mirrored from the imported record (emergency_action_record / revocation_record / advisory_record / emergency_disable_bundle_record). Required so an offline receipt export remains reviewable even when the parent record is not present in the same packet."
+        },
         "title": {
           "type": "string",
           "minLength": 1,
@@ -612,6 +686,11 @@
           "items": { "$ref": "#/$defs/follow_up_obligation_record" }
         },
         "metadata_chain": { "$ref": "#/$defs/metadata_chain_stub" },
+        "trust_root_rotation_state_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs into schemas/release/trust_root_rotation_state.schema.json for the trust-root rotation state(s) that governed verification on the receiving target. Required (non-empty) when target_scope.target_scope_class = trust_root_scope so offline reviewers can inspect the rotation posture without leaving the packet."
+        },
         "relationship_links": { "$ref": "#/$defs/relationship_links" },
         "imported_at": { "$ref": "#/$defs/monotonic_timestamp" },
         "applied_at": {
@@ -627,7 +706,7 @@
       },
       "allOf": [
         {
-          "description": "Exactly one of imported_emergency_action_ref or imported_revocation_ref is populated, matching imported_record_kind.",
+          "description": "imported_record_kind = emergency_action_record requires imported_emergency_action_ref populated and all other imported_* refs null.",
           "if": {
             "properties": {
               "imported_record_kind": { "const": "emergency_action_record" }
@@ -639,17 +718,72 @@
               "relationship_links": {
                 "properties": {
                   "imported_emergency_action_ref": { "not": { "type": "null" } },
-                  "imported_revocation_ref": { "type": "null" }
+                  "imported_revocation_ref": { "type": "null" },
+                  "imported_advisory_ref": { "type": "null" },
+                  "imported_disable_bundle_ref": { "type": "null" }
                 }
               }
             }
+          }
+        },
+        {
+          "description": "imported_record_kind = revocation_record requires imported_revocation_ref populated and all other imported_* refs null.",
+          "if": {
+            "properties": {
+              "imported_record_kind": { "const": "revocation_record" }
+            },
+            "required": ["imported_record_kind"]
           },
-          "else": {
+          "then": {
             "properties": {
               "relationship_links": {
                 "properties": {
                   "imported_emergency_action_ref": { "type": "null" },
-                  "imported_revocation_ref": { "not": { "type": "null" } }
+                  "imported_revocation_ref": { "not": { "type": "null" } },
+                  "imported_advisory_ref": { "type": "null" },
+                  "imported_disable_bundle_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_record_kind = advisory_record requires imported_advisory_ref populated and all other imported_* refs null.",
+          "if": {
+            "properties": {
+              "imported_record_kind": { "const": "advisory_record" }
+            },
+            "required": ["imported_record_kind"]
+          },
+          "then": {
+            "properties": {
+              "relationship_links": {
+                "properties": {
+                  "imported_emergency_action_ref": { "type": "null" },
+                  "imported_revocation_ref": { "type": "null" },
+                  "imported_advisory_ref": { "not": { "type": "null" } },
+                  "imported_disable_bundle_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "imported_record_kind = emergency_disable_bundle_record requires imported_disable_bundle_ref populated and all other imported_* refs null.",
+          "if": {
+            "properties": {
+              "imported_record_kind": { "const": "emergency_disable_bundle_record" }
+            },
+            "required": ["imported_record_kind"]
+          },
+          "then": {
+            "properties": {
+              "relationship_links": {
+                "properties": {
+                  "imported_emergency_action_ref": { "type": "null" },
+                  "imported_revocation_ref": { "type": "null" },
+                  "imported_advisory_ref": { "type": "null" },
+                  "imported_disable_bundle_ref": { "not": { "type": "null" } }
                 }
               }
             }
@@ -761,6 +895,25 @@
                   "superseded_by_receipt_ref": { "not": { "type": "null" } }
                 }
               }
+            }
+          }
+        },
+        {
+          "description": "A receipt whose target_scope_class is trust_root_scope MUST carry at least one trust_root_rotation_state_ref so trust-root state stays inspectable in offline exports.",
+          "if": {
+            "properties": {
+              "target_scope": {
+                "properties": {
+                  "target_scope_class": { "const": "trust_root_scope" }
+                },
+                "required": ["target_scope_class"]
+              }
+            },
+            "required": ["target_scope"]
+          },
+          "then": {
+            "properties": {
+              "trust_root_rotation_state_refs": { "minItems": 1 }
             }
           }
         }
