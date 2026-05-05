@@ -1,0 +1,189 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: heavy_indexing_yields_before_hot_path_starves
+  scenario: >
+    A full-repo indexing scan is running in a yieldable maintenance worker class
+    when interactive input pressure spikes (frame misses and keystroke-to-paint
+    regressions). The governor transitions to protect-core. The indexing task
+    must checkpoint and yield before it can starve UI/input or render submission.
+    Diagnostics and support export records must make the decision explainable.
+  exercised_contract_sections:
+    - "Worker-class matrix — indexing_search_maintenance"
+    - "Yieldability (frozen) — yield_with_checkpoint"
+    - "Starvation detection, backpressure, and shedding"
+    - "Diagnostics and support export contract"
+  exercised_classes_summary:
+    protected_hot_path_worker_classes:
+      - ui_input
+      - render_submission
+    degraded_first_worker_class: indexing_search_maintenance
+    governor_state_at_pressure: protect_core
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:index:20260505T210000Z:0001"
+    task_kind: index.full_scan
+    worker_class: indexing_search_maintenance
+    priority_policy: medium_yieldable
+    yieldability: yield_with_checkpoint
+    cancellation_contract: checkpoint_then_cancel
+    latency_budget_owner: knowledge_maintenance
+    requested_at: "2026-05-05T21:00:00Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 4
+    note: >
+      Full-scan indexing runs as yield-with-checkpoint maintenance work; it is
+      admitted while the governor is nominal and may be paused under protect-core.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:index:20260505T210001Z:0001"
+    task_id: "task:index:20260505T210000Z:0001"
+    task_kind: index.full_scan
+    requested_worker_class: indexing_search_maintenance
+    admitted_worker_class: indexing_search_maintenance
+    governor_state: nominal
+    queue_lane: maintenance
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 4
+    decided_at: "2026-05-05T21:00:01Z"
+    rationale_summary: >
+      Indexing full scan is admitted as yield-with-checkpoint maintenance work
+      within the current concurrency cap; hot paths remain protected by higher
+      worker-class priority.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:index:20260505T210012Z:0002"
+    task_id: "task:index:20260505T210000Z:0001"
+    task_kind: index.full_scan
+    requested_worker_class: indexing_search_maintenance
+    admitted_worker_class: indexing_search_maintenance
+    governor_state: protect_core
+    queue_lane: maintenance
+    admission_decision: paused
+    decision_reason: paused_until_checkpoint
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-05T21:00:12Z"
+    rationale_summary: >
+      protect-core posture is active. Indexing work is paused until its next
+      checkpoint to preserve UI/input and render submission latency budgets.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: yield_event_record
+    worker_class_schema_version: 1
+    event_id: "yield:index:20260505T210012Z:0001"
+    task_id: "task:index:20260505T210000Z:0001"
+    task_kind: index.full_scan
+    yielding_worker_class: indexing_search_maintenance
+    preempting_worker_class: ui_input
+    yield_reason: governor_protect_core
+    yielded_at: "2026-05-05T21:00:12Z"
+    resumed_at: "2026-05-05T21:01:30Z"
+    note: >
+      Indexing yields at a checkpoint boundary after protect-core activates; it
+      resumes only after interactive pressure clears.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: worker_class_diagnostics_record
+    worker_class_schema_version: 1
+    snapshot_id: "sched:snapshot:20260505T210013Z:0001"
+    governor_state: protect_core
+    captured_at: "2026-05-05T21:00:13Z"
+    note: >
+      Snapshot taken immediately after protect-core activation; maintenance work
+      is paused and hot-path classes remain runnable.
+    worker_classes:
+      - worker_class: ui_input
+        effective_concurrency_cap: 1
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: render_submission
+        effective_concurrency_cap: 1
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: foreground_user_intent
+        effective_concurrency_cap: 2
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: indexing_search_maintenance
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 1
+        blocked_count: 0
+        oldest_runnable_age_ms: 250
+        starvation_alarm_state: none
+        top_blocking_reason: >
+          Paused at checkpoint by protect-core posture; awaiting governor recovery.
+      - worker_class: extension_background_work
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 3
+        blocked_count: 0
+        oldest_runnable_age_ms: 1200
+        starvation_alarm_state: none
+        top_blocking_reason: >
+          Deferred by protect-core; background extension polling does not borrow hot-path capacity.
+      - worker_class: ai_background_jobs
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 2
+        blocked_count: 0
+        oldest_runnable_age_ms: 1800
+        starvation_alarm_state: none
+        top_blocking_reason: >
+          Deferred by protect-core; best-effort AI maintenance work remains queued.
+      - worker_class: sync_metadata_refresh
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 1
+        blocked_count: 0
+        oldest_runnable_age_ms: 600
+        starvation_alarm_state: none
+        top_blocking_reason: >
+          Deferred by protect-core; sync refresh remains paused until recovery.
+

@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: ai_background_jobs_defer_under_interactive_pressure
+  scenario: >
+    AI background maintenance (embeddings refresh and model warmup) is requested
+    while the user is actively typing and invoking interactive language actions.
+    AI background jobs are budgeted best-effort work: they must defer and yield
+    under interactive pressure and may not consume capacity reserved for hot
+    paths.
+  exercised_contract_sections:
+    - "Worker-class matrix — ai_background_jobs"
+    - "Admission control and concurrency caps"
+    - "Instrumentation labels (required)"
+  exercised_classes_summary:
+    interactive_classes:
+      - ui_input
+      - interactive_language_actions
+    best_effort_class: ai_background_jobs
+    governor_state_at_deferral: constrained
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:ai:20260505T220000Z:0001"
+    task_kind: ai.embedding_refresh
+    worker_class: ai_background_jobs
+    priority_policy: low_to_medium_budgeted
+    yieldability: yield_with_checkpoint
+    cancellation_contract: cancel_after_phase
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-05T22:00:00Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 1
+    note: >
+      Embedding refresh is best-effort AI maintenance. It yields at checkpoints
+      and defers under interactive pressure.
+    instrumentation:
+      worker_class: ai_background_jobs
+      priority_policy: low_to_medium_budgeted
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: ai.embedding_refresh
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ai:20260505T220000Z:0001"
+    task_id: "task:ai:20260505T220000Z:0001"
+    task_kind: ai.embedding_refresh
+    requested_worker_class: ai_background_jobs
+    admitted_worker_class: ai_background_jobs
+    governor_state: constrained
+    queue_lane: maintenance
+    admission_decision: deferred
+    decision_reason: deferred_by_governor_state
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-05T22:00:00Z"
+    rationale_summary: >
+      Interactive pressure is active (typing + language actions). AI background jobs
+      are deferred to avoid latency regressions on protected hot paths.
+    instrumentation:
+      worker_class: ai_background_jobs
+      priority_policy: low_to_medium_budgeted
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: ai.embedding_refresh
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: yield_event_record
+    worker_class_schema_version: 1
+    event_id: "yield:ai:20260505T220005Z:0001"
+    task_id: "task:ai:20260505T220000Z:0001"
+    task_kind: ai.embedding_refresh
+    yielding_worker_class: ai_background_jobs
+    preempting_worker_class: interactive_language_actions
+    yield_reason: cooperative_timeslice
+    yielded_at: "2026-05-05T22:00:05Z"
+    resumed_at: null
+    note: >
+      AI maintenance yields and remains deferred while interactive language actions
+      continue; resumption is handled by the governor's recovery ramp.
+    instrumentation:
+      worker_class: ai_background_jobs
+      priority_policy: low_to_medium_budgeted
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: ai.embedding_refresh
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+

@@ -1,0 +1,561 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/worker_class.schema.json",
+  "title": "Aureline worker-class scheduling decision and diagnostics record",
+  "description": "Boundary schema for worker-class scheduling decisions, cooperative-yield events, and worker-class diagnostics snapshots. See docs/runtime/threading_and_scheduling_contract.md. These records exist so benchmark traces and support exports can explain why work executed on a given worker class, whether it yielded or was cancelled, and whether starvation or priority inversion was suspected. This schema reuses the queue-lane vocabulary from schemas/runtime/background_job.schema.json and the governor state vocabulary from docs/runtime/resource_governor_contract.md; it does not mint parallel lane or governor-state names. Adding a new worker_class, priority_policy, yieldability, admission decision, decision reason, or yield reason is additive-minor and MUST bump worker_class_schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/worker_task_record"
+    },
+    {
+      "$ref": "#/$defs/scheduling_decision_record"
+    },
+    {
+      "$ref": "#/$defs/yield_event_record"
+    },
+    {
+      "$ref": "#/$defs/worker_class_diagnostics_record"
+    }
+  ],
+  "$defs": {
+    "worker_class_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for worker-class scheduling records. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and export. Raw payload bytes never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source at the scheduler or diagnostics snapshot point."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720,
+      "description": "Short reviewable sentence explaining posture, reason, or operator guidance. Raw secret material, raw file contents, raw provider payloads, and raw user content MUST NOT appear."
+    },
+    "dotted_lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical dotted lower-snake id used for task_kind and related identifiers."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "worker_task_record",
+        "scheduling_decision_record",
+        "yield_event_record",
+        "worker_class_diagnostics_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+    "worker_class_id": {
+      "type": "string",
+      "enum": [
+        "ui_input",
+        "render_submission",
+        "foreground_user_intent",
+        "interactive_language_actions",
+        "task_debug_control",
+        "indexing_search_maintenance",
+        "extension_background_work",
+        "ai_background_jobs",
+        "sync_metadata_refresh"
+      ],
+      "description": "Frozen worker-class vocabulary. See docs/runtime/threading_and_scheduling_contract.md."
+    },
+    "priority_policy_id": {
+      "type": "string",
+      "enum": [
+        "highest_priority",
+        "high_priority_bounded",
+        "high",
+        "medium_high",
+        "medium_yieldable",
+        "low_capped",
+        "low_to_medium_budgeted",
+        "low"
+      ],
+      "description": "Frozen worker-class priority policy vocabulary."
+    },
+    "yieldability_id": {
+      "type": "string",
+      "enum": [
+        "non_yieldable_hot_path",
+        "yield_at_safe_points_only",
+        "yield_with_checkpoint"
+      ],
+      "description": "Frozen yieldability vocabulary."
+    },
+    "governor_state_id": {
+      "type": "string",
+      "enum": [
+        "nominal",
+        "constrained",
+        "degraded",
+        "protect_core",
+        "recovery"
+      ],
+      "description": "Frozen governor-state vocabulary. Matches the resource governor contract."
+    },
+    "queue_lane_id": {
+      "type": "string",
+      "enum": [
+        "foreground",
+        "interactive_background",
+        "maintenance",
+        "provider_overlay",
+        "upload_replication"
+      ],
+      "description": "Frozen queue-lane vocabulary reused from the background-queue contract."
+    },
+    "admission_decision_id": {
+      "type": "string",
+      "enum": [
+        "admitted",
+        "deferred",
+        "paused",
+        "shed",
+        "denied"
+      ],
+      "description": "Admission outcome for a scheduling decision."
+    },
+    "decision_reason_id": {
+      "type": "string",
+      "enum": [
+        "admitted_within_cap",
+        "deferred_by_concurrency_cap",
+        "deferred_by_governor_state",
+        "deferred_by_efficiency_state",
+        "collapsed_as_superseded",
+        "paused_until_checkpoint",
+        "shed_to_protect_hot_path",
+        "denied_forbidden_worker_class",
+        "denied_policy_or_trust_narrowing",
+        "denied_unknown_requires_review"
+      ],
+      "description": "Frozen reason vocabulary explaining why work was admitted, deferred, paused, shed, or denied."
+    },
+    "cancellation_contract_id": {
+      "type": "string",
+      "enum": [
+        "cancel_immediate",
+        "checkpoint_then_cancel",
+        "cancel_after_phase",
+        "no_inflight_cancel"
+      ],
+      "description": "Frozen cancellation contract vocabulary aligned with artifacts/runtime/queue_lane_matrix.yaml."
+    },
+    "latency_budget_owner_id": {
+      "type": "string",
+      "enum": [
+        "hot_path_input",
+        "hot_path_render_submission",
+        "hot_path_save_undo",
+        "visible_foreground_intent",
+        "interactive_language",
+        "task_debug_control",
+        "knowledge_maintenance",
+        "best_effort_background",
+        "no_latency_budget"
+      ],
+      "description": "Frozen owner vocabulary naming which plane owns the latency obligation for this work item."
+    },
+    "yield_reason_id": {
+      "type": "string",
+      "enum": [
+        "ui_input_arrived",
+        "render_deadline_pressure",
+        "governor_protect_core",
+        "cooperative_timeslice",
+        "checkpoint_boundary_reached",
+        "cancellation_requested",
+        "yield_reason_unknown_requires_review"
+      ],
+      "description": "Frozen yield-reason vocabulary."
+    },
+    "starvation_alarm_state_id": {
+      "type": "string",
+      "enum": [
+        "none",
+        "warning",
+        "firing"
+      ],
+      "description": "Starvation-alarm posture at the time of diagnostics snapshot."
+    },
+    "nullable_queue_lane_id": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/queue_lane_id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "nullable_integer": {
+      "oneOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "instrumentation_labels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worker_class",
+        "priority_policy",
+        "yieldability",
+        "admission_decision",
+        "task_kind"
+      ],
+      "properties": {
+        "worker_class": {
+          "$ref": "#/$defs/worker_class_id"
+        },
+        "priority_policy": {
+          "$ref": "#/$defs/priority_policy_id"
+        },
+        "yieldability": {
+          "$ref": "#/$defs/yieldability_id"
+        },
+        "admission_decision": {
+          "$ref": "#/$defs/admission_decision_id"
+        },
+        "task_kind": {
+          "$ref": "#/$defs/dotted_lower_snake_id"
+        },
+        "queue_lane": {
+          "$ref": "#/$defs/nullable_queue_lane_id"
+        },
+        "latency_budget_owner": {
+          "$ref": "#/$defs/latency_budget_owner_id"
+        }
+      },
+      "description": "Minimum label set used across logs, traces, and support exports to explain scheduling posture."
+    },
+    "worker_task_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "worker_class_schema_version",
+        "task_id",
+        "task_kind",
+        "worker_class",
+        "priority_policy",
+        "yieldability",
+        "cancellation_contract",
+        "latency_budget_owner",
+        "requested_at",
+        "instrumentation"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "worker_task_record"
+        },
+        "worker_class_schema_version": {
+          "$ref": "#/$defs/worker_class_schema_version"
+        },
+        "task_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "task_kind": {
+          "$ref": "#/$defs/dotted_lower_snake_id"
+        },
+        "worker_class": {
+          "$ref": "#/$defs/worker_class_id"
+        },
+        "priority_policy": {
+          "$ref": "#/$defs/priority_policy_id"
+        },
+        "yieldability": {
+          "$ref": "#/$defs/yieldability_id"
+        },
+        "cancellation_contract": {
+          "$ref": "#/$defs/cancellation_contract_id"
+        },
+        "latency_budget_owner": {
+          "$ref": "#/$defs/latency_budget_owner_id"
+        },
+        "requested_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "queue_lane": {
+          "$ref": "#/$defs/nullable_queue_lane_id"
+        },
+        "effective_concurrency_cap": {
+          "$ref": "#/$defs/nullable_integer"
+        },
+        "note": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ]
+        },
+        "instrumentation": {
+          "$ref": "#/$defs/instrumentation_labels"
+        }
+      },
+      "description": "One scheduled work item (or scheduled intent) with its declared worker-class envelope."
+    },
+    "scheduling_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "worker_class_schema_version",
+        "decision_id",
+        "task_id",
+        "task_kind",
+        "requested_worker_class",
+        "admitted_worker_class",
+        "governor_state",
+        "admission_decision",
+        "decision_reason",
+        "decided_at",
+        "rationale_summary",
+        "instrumentation"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "scheduling_decision_record"
+        },
+        "worker_class_schema_version": {
+          "$ref": "#/$defs/worker_class_schema_version"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "task_kind": {
+          "$ref": "#/$defs/dotted_lower_snake_id"
+        },
+        "requested_worker_class": {
+          "$ref": "#/$defs/worker_class_id"
+        },
+        "admitted_worker_class": {
+          "$ref": "#/$defs/worker_class_id"
+        },
+        "governor_state": {
+          "$ref": "#/$defs/governor_state_id"
+        },
+        "queue_lane": {
+          "$ref": "#/$defs/nullable_queue_lane_id"
+        },
+        "admission_decision": {
+          "$ref": "#/$defs/admission_decision_id"
+        },
+        "decision_reason": {
+          "$ref": "#/$defs/decision_reason_id"
+        },
+        "effective_concurrency_cap": {
+          "$ref": "#/$defs/nullable_integer"
+        },
+        "decided_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "rationale_summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "instrumentation": {
+          "$ref": "#/$defs/instrumentation_labels"
+        }
+      },
+      "description": "One explicit admission/deferral/denial decision for a requested task on a worker class."
+    },
+    "yield_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "worker_class_schema_version",
+        "event_id",
+        "task_id",
+        "task_kind",
+        "yielding_worker_class",
+        "yield_reason",
+        "yielded_at",
+        "instrumentation"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "yield_event_record"
+        },
+        "worker_class_schema_version": {
+          "$ref": "#/$defs/worker_class_schema_version"
+        },
+        "event_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "task_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "task_kind": {
+          "$ref": "#/$defs/dotted_lower_snake_id"
+        },
+        "yielding_worker_class": {
+          "$ref": "#/$defs/worker_class_id"
+        },
+        "preempting_worker_class": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/worker_class_id"
+            }
+          ],
+          "description": "Worker class that induced the yield (for example ui_input). Null when not attributable to another class."
+        },
+        "yield_reason": {
+          "$ref": "#/$defs/yield_reason_id"
+        },
+        "yielded_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "resumed_at": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/monotonic_timestamp"
+            }
+          ]
+        },
+        "note": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ]
+        },
+        "instrumentation": {
+          "$ref": "#/$defs/instrumentation_labels"
+        }
+      },
+      "description": "One cooperative yield / pause / resume observation for a task."
+    },
+    "worker_class_diagnostics_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worker_class",
+        "effective_concurrency_cap",
+        "running_count",
+        "runnable_count",
+        "blocked_count",
+        "oldest_runnable_age_ms",
+        "starvation_alarm_state"
+      ],
+      "properties": {
+        "worker_class": {
+          "$ref": "#/$defs/worker_class_id"
+        },
+        "effective_concurrency_cap": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "running_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runnable_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocked_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "oldest_runnable_age_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "starvation_alarm_state": {
+          "$ref": "#/$defs/starvation_alarm_state_id"
+        },
+        "top_blocking_reason": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ],
+          "description": "Reviewable summary of the most common blocking or delay reason (CPU saturation, lock contention, I/O wait, retry loop)."
+        }
+      },
+      "description": "One worker-class diagnostics row inside a diagnostics snapshot."
+    },
+    "worker_class_diagnostics_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "worker_class_schema_version",
+        "snapshot_id",
+        "governor_state",
+        "captured_at",
+        "worker_classes"
+      ],
+      "properties": {
+        "record_kind": {
+          "const": "worker_class_diagnostics_record"
+        },
+        "worker_class_schema_version": {
+          "$ref": "#/$defs/worker_class_schema_version"
+        },
+        "snapshot_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "governor_state": {
+          "$ref": "#/$defs/governor_state_id"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        },
+        "worker_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/worker_class_diagnostics_row"
+          }
+        },
+        "note": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ]
+        }
+      },
+      "description": "Snapshot of worker-class runnable/running/blocked posture plus starvation alarms under an explicit governor state."
+    }
+  }
+}

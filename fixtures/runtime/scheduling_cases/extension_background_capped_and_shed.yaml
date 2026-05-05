@@ -1,0 +1,154 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: extension_background_capped_and_shed
+  scenario: >
+    An extension host attempts to schedule multiple background polls and preview
+    warmups while the foreground is busy with visible navigation and render
+    submission. Extension background work is low priority and capped. When the
+    cap is reached, new extension work is deferred and then shed (dropped) if it
+    is superseded or stale, rather than causing queue growth or hot-path delay.
+  exercised_contract_sections:
+    - "Worker-class matrix — extension_background_work"
+    - "Admission control and concurrency caps"
+    - "Backpressure and burst shedding"
+  exercised_classes_summary:
+    protected_hot_path_worker_classes:
+      - ui_input
+      - render_submission
+    background_class: extension_background_work
+    cap_behavior: low_capped
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:ext:20260505T213000Z:0001"
+    task_kind: extension.poll
+    worker_class: extension_background_work
+    priority_policy: low_capped
+    yieldability: yield_with_checkpoint
+    cancellation_contract: cancel_after_phase
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-05T21:30:00Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 1
+    note: >
+      Extension polling is best-effort and bounded. It may be deferred or shed
+      when the cap is reached or when superseded by a newer poll.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: extension.poll
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ext:20260505T213000Z:0001"
+    task_id: "task:ext:20260505T213000Z:0001"
+    task_kind: extension.poll
+    requested_worker_class: extension_background_work
+    admitted_worker_class: extension_background_work
+    governor_state: constrained
+    queue_lane: maintenance
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 1
+    decided_at: "2026-05-05T21:30:00Z"
+    rationale_summary: >
+      Extension background poll admitted within the low-priority concurrency cap.
+      The scheduler must still yield or cancel before impacting UI input or render submission.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: extension.poll
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ext:20260505T213002Z:0002"
+    task_id: "task:ext:20260505T213000Z:0001"
+    task_kind: extension.poll
+    requested_worker_class: extension_background_work
+    admitted_worker_class: extension_background_work
+    governor_state: constrained
+    queue_lane: maintenance
+    admission_decision: deferred
+    decision_reason: deferred_by_concurrency_cap
+    effective_concurrency_cap: 1
+    decided_at: "2026-05-05T21:30:02Z"
+    rationale_summary: >
+      A newer extension poll arrives while the cap is fully utilized. The work is
+      deferred; if superseded again, it is collapsed/shed rather than queued unboundedly.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: extension.poll
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ext:20260505T213010Z:0003"
+    task_id: "task:ext:20260505T213000Z:0001"
+    task_kind: extension.poll
+    requested_worker_class: extension_background_work
+    admitted_worker_class: extension_background_work
+    governor_state: degraded
+    queue_lane: maintenance
+    admission_decision: shed
+    decision_reason: shed_to_protect_hot_path
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-05T21:30:10Z"
+    rationale_summary: >
+      Under degraded posture the extension background cap narrows to zero and
+      non-essential polls are shed. The surface must explain the shed rather than silently stalling.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: shed
+      task_kind: extension.poll
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: worker_class_diagnostics_record
+    worker_class_schema_version: 1
+    snapshot_id: "sched:snapshot:20260505T213011Z:0001"
+    governor_state: degraded
+    captured_at: "2026-05-05T21:30:11Z"
+    note: >
+      Extension work is capped and shed first; hot-path classes are healthy.
+    worker_classes:
+      - worker_class: ui_input
+        effective_concurrency_cap: 1
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: render_submission
+        effective_concurrency_cap: 1
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: extension_background_work
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 4
+        blocked_count: 0
+        oldest_runnable_age_ms: 5200
+        starvation_alarm_state: none
+        top_blocking_reason: >
+          Degraded posture: extension background work shed/deferred; awaiting recovery.
+

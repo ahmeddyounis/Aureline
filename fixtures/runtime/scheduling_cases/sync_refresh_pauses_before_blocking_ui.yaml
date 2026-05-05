@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: sync_refresh_pauses_before_blocking_ui
+  scenario: >
+    A metadata sync refresh is requested while the device is in an efficiency-
+    constrained posture. Sync/replication work must pause or defer before it can
+    cause input or render deadlines to miss. The decision must be explicit and
+    explainable in support exports.
+  exercised_contract_sections:
+    - "Worker-class matrix — sync_metadata_refresh"
+    - "Admission control and concurrency caps"
+    - "Diagnostics and support export contract"
+  exercised_classes_summary:
+    protected_hot_path_worker_classes:
+      - ui_input
+      - render_submission
+    background_class: sync_metadata_refresh
+    governor_state: constrained
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:sync:20260505T230000Z:0001"
+    task_kind: sync.metadata_refresh
+    worker_class: sync_metadata_refresh
+    priority_policy: low
+    yieldability: yield_with_checkpoint
+    cancellation_contract: checkpoint_then_cancel
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-05T23:00:00Z"
+    queue_lane: upload_replication
+    effective_concurrency_cap: 1
+    note: >
+      Sync refresh is best-effort background replication. It yields at checkpoints
+      and pauses under efficiency-aware or constrained posture.
+    instrumentation:
+      worker_class: sync_metadata_refresh
+      priority_policy: low
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: sync.metadata_refresh
+      queue_lane: upload_replication
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:sync:20260505T230000Z:0001"
+    task_id: "task:sync:20260505T230000Z:0001"
+    task_kind: sync.metadata_refresh
+    requested_worker_class: sync_metadata_refresh
+    admitted_worker_class: sync_metadata_refresh
+    governor_state: constrained
+    queue_lane: upload_replication
+    admission_decision: paused
+    decision_reason: deferred_by_efficiency_state
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-05T23:00:00Z"
+    rationale_summary: >
+      Efficiency-aware posture narrows replication. Sync refresh is paused to
+      preserve protected hot-path budgets; it resumes in recovery with bounded ramp-up.
+    instrumentation:
+      worker_class: sync_metadata_refresh
+      priority_policy: low
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: sync.metadata_refresh
+      queue_lane: upload_replication
+      latency_budget_owner: best_effort_background
+
