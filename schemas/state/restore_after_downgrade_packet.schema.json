@@ -1,0 +1,494 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/restore_after_downgrade_packet.schema.json",
+  "title": "Aureline restore-after-downgrade packet",
+  "description": "Boundary schema for the restore-after-downgrade packet frozen in docs/state/durable_state_compatibility_contract.md. The packet is the producer's reviewable answer to 'what changed when this artifact crossed the downgrade boundary, what was preserved by backup, what was translated, what was dropped, and what remains unsupported on the target.' Each packet carries original artifact identity, backup path, migrated state, downgraded target, the closed preserved-versus-lost field rows, and the closed next-safe-action class. Raw paths, raw URLs, raw secrets, raw command lines, raw logs, and raw source content do not cross this boundary; only opaque refs and class-level vocabularies appear.",
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/restore_after_downgrade_packet_record" }
+  ],
+  "$defs": {
+    "restore_after_downgrade_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this restore-after-downgrade vocabulary. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for manifests, logs, support exports, and compare handles."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Reviewable prose or label after the active redaction policy has already been applied."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "restore_after_downgrade_packet_record",
+      "description": "Discriminator for the restore-after-downgrade packet payload."
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_durable_state",
+        "workspace_authored_durable_state",
+        "cache_or_index_state",
+        "public_schemas_or_interfaces",
+        "portable_state_packages",
+        "generated_or_structured_artifacts"
+      ],
+      "description": "Re-export of the compatibility-window row's artifact_family_class vocabulary."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ui_string_only",
+        "redact_value_preserve_shape",
+        "redact_to_class_label",
+        "exclude_from_export"
+      ],
+      "description": "Re-export of the profile-and-state map redaction-class vocabulary."
+    },
+    "fidelity_label": {
+      "type": "string",
+      "enum": ["exact", "compatible", "layout_only", "manual_review"],
+      "description": "Re-export of the migration-and-restore playbook's shared fidelity-label vocabulary."
+    },
+    "downgrade_trigger_class": {
+      "type": "string",
+      "enum": [
+        "schema_translation_required",
+        "schema_meaning_changed",
+        "missing_extension_dependency",
+        "missing_remote_session",
+        "missing_remote_authority",
+        "unsupported_display_topology",
+        "excluded_secret_material",
+        "excluded_live_handle",
+        "workspace_manifest_conflict",
+        "policy_narrowing",
+        "manual_repair_required",
+        "producer_schema_downgrade_refused",
+        "platform_class_mismatch",
+        "channel_floor_violation",
+        "compatibility_range_outside",
+        "destination_unsupported_section",
+        "generated_structure_fallback_to_compare_only",
+        "generated_structure_fallback_to_read_only"
+      ],
+      "description": "Closed downgrade-trigger vocabulary. Re-exports the migration-and-restore playbook plus the portable-state package contract triggers and adds the two generated-structure fallback triggers covered by the compatibility contract."
+    },
+    "next_safe_action_class": {
+      "type": "string",
+      "enum": [
+        "open_compare_with_backup",
+        "open_compare_with_translated",
+        "run_repair_flow",
+        "restore_backup_and_hold",
+        "export_for_review",
+        "hold_at_inspect_only",
+        "open_in_read_only_mode",
+        "open_in_compare_only_mode",
+        "request_admin_review",
+        "rebuild_from_authoritative_truth",
+        "no_action_required"
+      ],
+      "description": "Closed next-safe-action class. The packet emits exactly one next-safe-action so downstream surfaces (help, support, migration center, shiproom) render the same affordance."
+    },
+    "field_status_class": {
+      "type": "string",
+      "enum": [
+        "preserved_exact",
+        "preserved_through_equivalence_map",
+        "preserved_with_documented_fallback",
+        "translated_meaning_changed",
+        "dropped_unsupported_on_target",
+        "dropped_intentional_redaction",
+        "replaced_with_default",
+        "replaced_with_placeholder",
+        "manual_review_required",
+        "compare_only_no_apply",
+        "read_only_no_apply"
+      ],
+      "description": "Closed per-field outcome vocabulary the packet uses to label every named field-class crossing the downgrade boundary."
+    },
+    "field_class_class": {
+      "type": "string",
+      "enum": [
+        "settings_field",
+        "keybinding_binding",
+        "snippet_body",
+        "theme_token",
+        "command_alias_binding",
+        "ai_preset_binding",
+        "extension_selection_entry",
+        "terminal_preference_entry",
+        "workspace_manifest_field",
+        "workset_manifest_field",
+        "task_or_launch_config_entry",
+        "extension_lockfile_entry",
+        "extension_recommendation_entry",
+        "saved_view_filter",
+        "saved_query_predicate",
+        "approved_docs_pack_ref",
+        "portable_layout_preset_field",
+        "portable_state_package_section",
+        "public_schema_field",
+        "public_interface_method",
+        "generated_structure_node",
+        "generated_structure_attribute",
+        "index_cache_entry",
+        "object_store_blob_ref",
+        "execution_context_entry",
+        "log_or_trace_record"
+      ],
+      "description": "Closed per-field-class vocabulary. Surfaces MUST quote one of these classes; free-form labels are non-conforming."
+    },
+    "unsupported_state_class": {
+      "type": "string",
+      "enum": [
+        "remains_unsupported_on_target_schema",
+        "remains_unsupported_on_target_channel",
+        "remains_unsupported_on_target_platform",
+        "remains_unsupported_pending_admin_authority",
+        "remains_unsupported_pending_user_repair",
+        "remains_unsupported_compare_only",
+        "remains_unsupported_read_only",
+        "no_unsupported_state",
+        "remains_unsupported_typed_gap"
+      ],
+      "description": "Closed unsupported-state class. Every packet labels what (if anything) remains unsupported on the downgraded target."
+    },
+    "producer_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null]
+        },
+        "producer_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null]
+        },
+        "producer_instance_handle": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "target_build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_schema_version"],
+      "properties": {
+        "target_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_channel": {
+          "type": ["string", "null"],
+          "enum": ["experimental", "beta", "stable", "lts", null]
+        },
+        "target_platform_class": {
+          "type": ["string", "null"],
+          "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null]
+        },
+        "target_instance_handle": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "The downgraded target's build identity. Pseudonymous; never a raw hostname."
+    },
+    "original_artifact_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_family_class",
+        "source_artifact_ref",
+        "source_schema_version",
+        "producer_build"
+      ],
+      "properties": {
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "source_artifact_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_build": { "$ref": "#/$defs/producer_build_stamp" },
+        "compatibility_window_row_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Identity of the artifact that crossed the downgrade boundary. The compatibility_window_row_ref binds the packet to one row in the compatibility matrix."
+    },
+    "backup_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "backup_present",
+        "preserved_prior_artifact_ref",
+        "preservation_reason",
+        "redaction_class"
+      ],
+      "properties": {
+        "backup_present": { "type": "boolean" },
+        "preserved_prior_artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "preservation_reason": {
+          "type": "string",
+          "enum": [
+            "schema_meaning_changed",
+            "schema_translation_required",
+            "destructive_migration",
+            "manual_review_required",
+            "user_offered_optional_snapshot",
+            "no_preservation_required_disposable",
+            "no_preservation_required_content_addressed",
+            "no_preservation_handled_by_authority"
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "compare_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "export_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Backup-before-migrate evidence. backup_present=true requires a non-null preserved_prior_artifact_ref. backup_present=false requires a no_preservation_* preservation_reason."
+    },
+    "migrated_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "migrated_artifact_ref",
+        "migrated_schema_version",
+        "fidelity_label",
+        "equivalence_map_ref"
+      ],
+      "properties": {
+        "migrated_artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "migrated_schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "fidelity_label": { "$ref": "#/$defs/fidelity_label" },
+        "equivalence_map_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "translation_note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "The translated body's identity and the equivalence map that produced it. equivalence_map_ref is non-null whenever fidelity_label is compatible or manual_review."
+    },
+    "downgraded_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_build",
+        "downgrade_triggers"
+      ],
+      "properties": {
+        "target_build": { "$ref": "#/$defs/target_build_stamp" },
+        "downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger_class" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "platform_class_allowance_note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "What the downgraded target looks like and which typed downgrade triggers narrowed the apply."
+    },
+    "preserved_versus_lost_field_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field_row_id",
+        "field_class",
+        "status",
+        "redaction_class"
+      ],
+      "properties": {
+        "field_row_id": { "$ref": "#/$defs/opaque_id" },
+        "field_class": { "$ref": "#/$defs/field_class_class" },
+        "status": { "$ref": "#/$defs/field_status_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "preserved_value_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "translated_value_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "downgrade_trigger_ref": { "$ref": "#/$defs/downgrade_trigger_class" },
+        "reason": { "$ref": "#/$defs/redaction_aware_text" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One per-field outcome row. The packet emits one row per named field-class that crossed the downgrade boundary, including drops, translations, and manual-review escalations."
+    },
+    "next_safe_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "action_target_ref",
+        "reason"
+      ],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/next_safe_action_class" },
+        "action_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "reason": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "The single next-safe-action the packet recommends. Surfaces resolve their affordance against this block; they MUST NOT mint a parallel action label."
+    },
+    "restore_provenance_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/opaque_id" },
+      "uniqueItems": true,
+      "description": "Optional opaque refs to state_restore_provenance_record bodies that worked through this packet."
+    },
+    "restore_after_downgrade_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "restore_after_downgrade_schema_version",
+        "packet_id",
+        "packet_label",
+        "original_artifact_identity",
+        "backup_path",
+        "migrated_state",
+        "downgraded_target",
+        "preserved_versus_lost_fields",
+        "next_safe_action",
+        "unsupported_state",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "restore_after_downgrade_schema_version": { "$ref": "#/$defs/restore_after_downgrade_schema_version" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "original_artifact_identity": { "$ref": "#/$defs/original_artifact_identity" },
+        "backup_path": { "$ref": "#/$defs/backup_path" },
+        "migrated_state": { "$ref": "#/$defs/migrated_state" },
+        "downgraded_target": { "$ref": "#/$defs/downgraded_target" },
+        "preserved_versus_lost_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/preserved_versus_lost_field_row" },
+          "minItems": 1
+        },
+        "next_safe_action": { "$ref": "#/$defs/next_safe_action" },
+        "unsupported_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unsupported_state_class"],
+          "properties": {
+            "unsupported_state_class": { "$ref": "#/$defs/unsupported_state_class" },
+            "reason": { "$ref": "#/$defs/redaction_aware_text" }
+          }
+        },
+        "restore_provenance_refs": { "$ref": "#/$defs/restore_provenance_refs" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "backup_path": {
+                "properties": { "backup_present": { "const": true } }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "backup_path": {
+                "properties": {
+                  "preserved_prior_artifact_ref": { "$ref": "#/$defs/opaque_id" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "backup_path": {
+                "properties": { "backup_present": { "const": false } }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "backup_path": {
+                "properties": {
+                  "preservation_reason": {
+                    "enum": [
+                      "no_preservation_required_disposable",
+                      "no_preservation_required_content_addressed",
+                      "no_preservation_handled_by_authority",
+                      "user_offered_optional_snapshot"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "migrated_state": {
+                "properties": { "fidelity_label": { "enum": ["compatible", "manual_review"] } }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "migrated_state": {
+                "properties": {
+                  "equivalence_map_ref": { "$ref": "#/$defs/opaque_id" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "original_artifact_identity": {
+                "properties": {
+                  "artifact_family_class": { "const": "user_authored_durable_state" }
+                }
+              },
+              "migrated_state": {
+                "properties": {
+                  "fidelity_label": { "enum": ["compatible", "manual_review"] }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "backup_path": {
+                "properties": { "backup_present": { "const": true } }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Restore-after-downgrade packet record. Carries original artifact identity, backup path, migrated state, downgraded target, the closed preserved-versus-lost field rows, the closed next-safe-action, and the closed unsupported-state class so help, support, migration-center, and shiproom surfaces can render the same answer."
+    }
+  }
+}

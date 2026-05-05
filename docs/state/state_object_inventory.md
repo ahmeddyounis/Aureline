@@ -53,6 +53,16 @@ non-conforming.
 - [`/docs/state/migration_and_restore_playbook.md`](./migration_and_restore_playbook.md)
   — shared state migration / restore playbook and the fidelity-label
   vocabulary this inventory re-exports.
+- [`/docs/state/durable_state_compatibility_contract.md`](./durable_state_compatibility_contract.md)
+  — durable-state compatibility-window matrix and restore-after-
+  downgrade packet that re-export this inventory's authority owner,
+  schema-evolution posture, backup-before-migrate rule, and
+  corruption posture verbatim into the closed cross-surface family
+  rows (`user_authored_durable_state`,
+  `workspace_authored_durable_state`, `cache_or_index_state`,
+  `public_schemas_or_interfaces`, `portable_state_packages`,
+  `generated_or_structured_artifacts`) Help, Support Center,
+  Migration Center, and the shiproom dashboard resolve against.
 - [`/docs/runtime/storage_classes_and_gc.md`](../runtime/storage_classes_and_gc.md)
   and
   [`/artifacts/runtime/storage_classes.yaml`](../../artifacts/runtime/storage_classes.yaml)

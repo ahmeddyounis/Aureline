@@ -1,0 +1,350 @@
+# Worked example: aggregate compatibility-window matrix carrying one
+# row per artifact family.
+#
+# Companion to docs/state/durable_state_compatibility_contract.md and
+# schemas/state/compatibility_window_row.schema.json.
+#
+# The matrix is the single source of truth Help, Support Center,
+# Migration Center, and the shiproom dashboard panel resolve their
+# per-family compatibility answers against. Each row binds
+# artifact-family class to backward-readable window, forward-read
+# expectations, backup rule, rollback / downgrade behavior, corruption
+# / repair path, migration-policy owner, downgrade readability, and
+# the closed downstream surfaces it feeds.
+
+__fixture__:
+  name: compatibility_window_matrix
+  scenario: >
+    Reviewer projection of the compatibility matrix carrying one row
+    per artifact family. Consumer surfaces resolve their per-family
+    answers verbatim against this matrix.
+  doc_sections:
+    - "§1 Compatibility-window row shape"
+    - "§2 Artifact-family rows"
+    - "§3 Backup-before-migrate matrix"
+    - "§5 Cross-surface consumption"
+
+record_kind: compatibility_window_matrix_record
+compatibility_window_schema_version: 1
+matrix_id: compatibility-window-matrix-0001
+matrix_label: Durable-state compatibility-window matrix (one row per artifact family)
+rows:
+  - record_kind: compatibility_window_row_record
+    compatibility_window_schema_version: 1
+    row_id: compatibility-window-row-user-authored-durable-0001
+    artifact_family_class: user_authored_durable_state
+    row_label: User-authored durable state (settings, keybindings, snippets, themes, AI presets)
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_readable_window: translation_required_through_equivalence_map
+    forward_read_expectations: compatible_forward_read_with_translation
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    rollback_or_downgrade_behavior: rollback_to_preserved_prior_artifact
+    corruption_or_repair_path: backup_rollback
+    migration_policy_owner: user_authored_durable_truth
+    downgrade_readability: downgrade_reads_with_fallback
+    stable_label_implication: stable_label_implies_compatible_translation_with_backup
+    applicable_state_object_refs:
+      - state-object-user-global-settings
+      - state-object-keybindings
+      - state-object-themes-and-design-tokens
+      - state-object-extension-selection-inventory
+      - state-object-ai-preset-selection
+    consumer_surfaces:
+      - help_center
+      - support_center
+      - migration_center
+      - shiproom_dashboard
+      - project_doctor
+      - portable_state_export_sheet
+    policy_summary_text_keys:
+      title: User-authored durable state
+      backward_readable_window: >
+        Older targets read newer bodies through a declared equivalence
+        map; an in-place rewrite without backup is non-conforming.
+      forward_read_expectations: >
+        Newer targets read older bodies compatibly through the
+        equivalence map; translated bodies are reviewable.
+      backup_before_migrate: >
+        A destructive migration MUST preserve the pre-translation body
+        by opaque ref before writing the translated result.
+      rollback_or_downgrade: >
+        Roll back to the preserved prior artifact whenever the
+        translated body is rejected.
+      corruption_or_repair: >
+        Refuse the corrupted body and restore the preserved prior
+        artifact named by the backup-before-migrate ref.
+      migration_policy_owner: >
+        The user owns the durable truth; the product never rewrites it
+        without preserving the prior body.
+      stable_label_implication: >
+        Stable-channel claims for this family promise compatible
+        translation with a preserved prior artifact, not byte-for-byte
+        identity.
+    restore_packet_refs:
+      - restore-after-downgrade-settings-compatible-0001
+    notes: >
+      Re-exports the user_authored_durable_truth authority owner row;
+      the schema enforces the backup-before-migrate rule on this row.
+
+  - record_kind: compatibility_window_row_record
+    compatibility_window_schema_version: 1
+    row_id: compatibility-window-row-workspace-authored-durable-0001
+    artifact_family_class: workspace_authored_durable_state
+    row_label: Workspace-authored durable state (manifest, worksets, tasks/launch, lockfile)
+    schema_evolution_posture: migrating_with_equivalence_map
+    backward_readable_window: translation_required_through_equivalence_map
+    forward_read_expectations: compatible_forward_read_with_translation
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    rollback_or_downgrade_behavior: rollback_to_preserved_prior_artifact
+    corruption_or_repair_path: repair_flow
+    migration_policy_owner: workspace_authored_durable_truth
+    downgrade_readability: downgrade_reads_with_fallback
+    stable_label_implication: stable_label_implies_compatible_translation_with_backup
+    applicable_state_object_refs:
+      - state-object-workspace-manifest
+      - state-object-workset-manifest
+      - state-object-tasks-and-launch-configs
+      - state-object-extension-lockfile
+    consumer_surfaces:
+      - help_center
+      - support_center
+      - migration_center
+      - shiproom_dashboard
+      - project_doctor
+    policy_summary_text_keys:
+      title: Workspace-authored durable state
+      backward_readable_window: >
+        Older targets read newer bodies through the declared
+        equivalence map; conflicts stop at diff/review.
+      forward_read_expectations: >
+        Newer targets translate older bodies compatibly; manifest
+        conflicts route through the workspace repair flow.
+      backup_before_migrate: >
+        Destructive migrations preserve the prior body before writing
+        the translated result.
+      rollback_or_downgrade: >
+        Roll back to the preserved prior artifact whenever the
+        translated body is rejected by the workspace authority.
+      corruption_or_repair: >
+        Stop at an explicit repair-flow rung; never silently overwrite
+        workspace truth.
+      migration_policy_owner: >
+        Workspace truth belongs to the workspace; the product mediates
+        rather than authoring it.
+      stable_label_implication: >
+        Stable claims for workspace truth promise compatible
+        translation with backup, not in-place rewrite.
+    restore_packet_refs:
+      - restore-after-downgrade-workspace-tasks-compatible-0001
+    notes: >
+      Re-exports workspace-authored durable truth ownership; the
+      repair-flow corruption posture composes with
+      docs/support/recovery_ladder_packet.md rungs.
+
+  - record_kind: compatibility_window_row_record
+    compatibility_window_schema_version: 1
+    row_id: compatibility-window-row-cache-or-index-state-0001
+    artifact_family_class: cache_or_index_state
+    row_label: Cache or index state (index cache, object store, execution-context cache, logs/traces)
+    schema_evolution_posture: content_addressed_immutable
+    backward_readable_window: no_backward_window_content_addressed
+    forward_read_expectations: forward_read_content_addressed_supersede
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    rollback_or_downgrade_behavior: downgrade_rebuild_from_authoritative_truth
+    corruption_or_repair_path: rebuild_automatically
+    migration_policy_owner: disposable_derived_cache
+    downgrade_readability: downgrade_reads_fully
+    stable_label_implication: stable_label_implies_content_addressed_supersede
+    applicable_state_object_refs:
+      - state-object-index-cache
+      - state-object-object-store
+      - state-object-execution-context-cache
+      - state-object-logs-and-traces
+      - state-object-prebuild-environment-cache
+    consumer_surfaces:
+      - help_center
+      - support_center
+      - migration_center
+      - project_doctor
+    policy_summary_text_keys:
+      title: Cache or index state
+      backward_readable_window: >
+        Disposable. Older targets rebuild from authoritative truth
+        rather than reading newer bodies.
+      forward_read_expectations: >
+        New digest supersedes the old; the old digest stays reachable
+        by ref.
+      backup_before_migrate: >
+        Not applicable. Caches rebuild from authoritative truth.
+      rollback_or_downgrade: >
+        Rebuild from authoritative truth; never claim compatible
+        translation against a disposable cache.
+      corruption_or_repair: >
+        Discard the corrupted body and rebuild from authoritative
+        truth; user work is unaffected.
+      migration_policy_owner: >
+        The product owns the cache rebuild; the user's authoritative
+        truth lives elsewhere.
+      stable_label_implication: >
+        Stable claims for caches promise content-addressed supersede,
+        not field-for-field translation.
+    restore_packet_refs: []
+    notes: >
+      Disposable derived state; rebuild is the only admitted recovery
+      posture for this family.
+
+  - record_kind: compatibility_window_row_record
+    compatibility_window_schema_version: 1
+    row_id: compatibility-window-row-public-schemas-or-interfaces-0001
+    artifact_family_class: public_schemas_or_interfaces
+    row_label: Public schemas or interfaces (public WIT, OpenAPI, published schemas)
+    schema_evolution_posture: additive_minor_only
+    backward_readable_window: stable_within_major_version
+    forward_read_expectations: compatible_forward_read_with_translation
+    backup_before_migrate_rule: backup_handled_by_authority
+    rollback_or_downgrade_behavior: downgrade_reads_with_documented_fallback
+    corruption_or_repair_path: open_with_warning
+    migration_policy_owner: public_interface_authority
+    downgrade_readability: downgrade_reads_with_fallback
+    stable_label_implication: stable_label_implies_no_format_change
+    applicable_state_object_refs: []
+    consumer_surfaces:
+      - help_center
+      - public_changelog
+      - release_notes
+      - shiproom_dashboard
+      - migration_center
+      - admin_console
+    policy_summary_text_keys:
+      title: Public schemas or interfaces
+      backward_readable_window: >
+        Stable within the major version; breaking changes require a
+        new decision row.
+      forward_read_expectations: >
+        Newer consumers read older bodies compatibly through documented
+        fallbacks; the public-interface authority owns the migration
+        story.
+      backup_before_migrate: >
+        Backup is handled by the public-interface authority through
+        published versioned bodies.
+      rollback_or_downgrade: >
+        Older targets read newer bodies through documented fallbacks;
+        breaking changes are versioned, not rewritten.
+      corruption_or_repair: >
+        Surfaces consuming a corrupted public body open with a
+        warning; privileged operations may fail closed.
+      migration_policy_owner: >
+        The public-interface authority owns the migration policy and
+        publishes the change log.
+      stable_label_implication: >
+        Stable claims for public schemas promise no format change
+        within the major version.
+    restore_packet_refs: []
+    notes: >
+      Public-surface family; sits above the per-object inventory.
+      Breaking the major version requires a governance decision row.
+
+  - record_kind: compatibility_window_row_record
+    compatibility_window_schema_version: 1
+    row_id: compatibility-window-row-portable-state-packages-0001
+    artifact_family_class: portable_state_packages
+    row_label: Portable-state packages (manifest, profile sync, layout snapshot, support recovery)
+    schema_evolution_posture: additive_minor_only
+    backward_readable_window: stable_within_major_version
+    forward_read_expectations: forward_read_inspect_only_off_producing_machine
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    rollback_or_downgrade_behavior: downgrade_inspect_only_off_producing_machine
+    corruption_or_repair_path: compare_only_no_apply
+    migration_policy_owner: portable_state_package_authority
+    downgrade_readability: downgrade_requires_export_only
+    stable_label_implication: stable_label_implies_compatible_translation_with_backup
+    applicable_state_object_refs: []
+    consumer_surfaces:
+      - help_center
+      - support_center
+      - migration_center
+      - shiproom_dashboard
+      - portable_state_export_sheet
+    policy_summary_text_keys:
+      title: Portable-state packages
+      backward_readable_window: >
+        Manifest stable within the major version; per-section bodies
+        follow their own family rows.
+      forward_read_expectations: >
+        Off the producing machine, support-review and restore-compare
+        packages are inspect-only by default.
+      backup_before_migrate: >
+        Per-section bodies preserve the prior artifact under the
+        per-family rules; the package authority owns the wrapper.
+      rollback_or_downgrade: >
+        Inspect-only off the producing machine; compare against the
+        prior export remains admitted.
+      corruption_or_repair: >
+        Compare-only; the destination never overwrites local truth
+        with a corrupted package.
+      migration_policy_owner: >
+        The package authority owns the wrapper; per-section bodies
+        carry their own family rules.
+      stable_label_implication: >
+        Stable claims promise compatible translation with backup;
+        signed packages also promise epoch-validated provenance.
+    restore_packet_refs:
+      - restore-after-downgrade-portable-state-package-0001
+    notes: >
+      Composes over per-section family rows; never authors policy the
+      wrapped sections do not back.
+
+  - record_kind: compatibility_window_row_record
+    compatibility_window_schema_version: 1
+    row_id: compatibility-window-row-generated-structure-0001
+    artifact_family_class: generated_or_structured_artifacts
+    row_label: Generated or structured artifacts (structured views, derived schemas, render atlases the user inspects)
+    schema_evolution_posture: content_addressed_immutable
+    backward_readable_window: no_backward_window_content_addressed
+    forward_read_expectations: forward_read_content_addressed_supersede
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    rollback_or_downgrade_behavior: downgrade_compare_only_no_apply
+    corruption_or_repair_path: compare_only_no_apply
+    migration_policy_owner: generated_structure_producer
+    downgrade_readability: downgrade_reads_fully
+    stable_label_implication: stable_label_implies_compare_or_read_only_fallback
+    applicable_state_object_refs: []
+    consumer_surfaces:
+      - help_center
+      - support_center
+      - migration_center
+      - project_doctor
+    policy_summary_text_keys:
+      title: Generated or structured artifacts
+      backward_readable_window: >
+        Content-addressed and immutable; older targets read older
+        digests rather than translating new ones.
+      forward_read_expectations: >
+        New digest supersedes the old; the older digest stays
+        reachable for compare.
+      backup_before_migrate: >
+        Not applicable. Older digests remain reachable; no separate
+        backup is required.
+      rollback_or_downgrade: >
+        Compare-only and read-only fallback; the surface never
+        claims compatible translation against a generated body.
+      corruption_or_repair: >
+        Compare-only; corrupted bodies are inspectable but not
+        applied to user-authored truth.
+      migration_policy_owner: >
+        The generated-structure producer owns regeneration; the user
+        inspects but does not author.
+      stable_label_implication: >
+        Stable claims promise compare-or-read-only fallback rather
+        than translation.
+    restore_packet_refs:
+      - restore-after-downgrade-generated-structure-0001
+    notes: >
+      Generated-structure family; the matrix's compare-only and
+      read-only fallback covers every cross-version display.
+
+notes: >
+  One row per artifact family. The matrix re-exports the state-object
+  inventory's per-row vocabularies and adds the public-schema,
+  portable-state-package, and generated-structure family rows that ride
+  above the per-object inventory.

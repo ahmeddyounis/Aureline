@@ -1,0 +1,133 @@
+# Worked example: restore-after-downgrade packet for a workspace
+# task-and-launch-config migration that translated through an
+# equivalence map; one task entry escalated to manual review.
+#
+# Companion to docs/state/durable_state_compatibility_contract.md and
+# schemas/state/restore_after_downgrade_packet.schema.json.
+#
+# A workspace tasks_and_launch_configs body crosses a schema migration
+# in which a deprecated launch field maps to two new fields. One task
+# entry has both legacy fields populated; the equivalence map cannot
+# decide and the row escalates to manual_review_required, keeping the
+# preserved body reachable for compare and repair.
+
+__fixture__:
+  name: workspace_tasks_compatible_migration_with_backup
+  scenario: >
+    Workspace-authored durable manifest crosses a destructive migration.
+    Most rows translate compatibly; one task entry escalates to manual
+    review because the equivalence map cannot decide between two
+    candidate fields without user input.
+  doc_sections:
+    - "§2.2 workspace_authored_durable_state"
+    - "§3 Backup-before-migrate matrix"
+    - "§4 Restore-after-downgrade packet shape"
+    - "§6 Seed cases"
+
+record_kind: restore_after_downgrade_packet_record
+restore_after_downgrade_schema_version: 1
+packet_id: restore-after-downgrade-workspace-tasks-compatible-0001
+packet_label: Workspace tasks/launch — compatible translation with one manual-review escalation
+original_artifact_identity:
+  artifact_family_class: workspace_authored_durable_state
+  source_artifact_ref: workspace-tasks-and-launch-pre-migration-0001
+  source_schema_version: tasks-and-launch-schema-v1
+  source_artifact_label: Workspace tasks/launch (pre-migration body)
+  producer_build:
+    producer_name: aureline
+    producer_version: 0.0.0-dev
+    producer_channel: experimental
+    producer_platform_class: linux
+    producer_instance_handle: producer-instance-handle-workspace-tasks-0001
+  compatibility_window_row_ref: compatibility-window-row-workspace-authored-durable-0001
+backup_path:
+  backup_present: true
+  preserved_prior_artifact_ref: preserved-workspace-tasks-and-launch-pre-migration-0001
+  preservation_reason: destructive_migration
+  redaction_class: ui_string_only
+  compare_ref: compare-preserved-vs-translated-workspace-tasks-0001
+  export_ref: export-preserved-workspace-tasks-pre-migration-0001
+  rollback_checkpoint_ref: rollback-checkpoint-workspace-tasks-migration-0001
+  note: >
+    Preserved before mutation. The migration center keeps both bodies
+    reachable so the manual-review escalation can resolve against
+    either side.
+migrated_state:
+  migrated_artifact_ref: workspace-tasks-and-launch-post-migration-0001
+  migrated_schema_version: tasks-and-launch-schema-v2
+  fidelity_label: manual_review
+  equivalence_map_ref: equivalence-map-tasks-and-launch-v1-to-v2-0001
+  translation_note: >
+    Most rows translated compatibly. One task entry's deprecated field
+    is populated alongside its replacement; the row stops at manual
+    review rather than overwriting workspace truth.
+downgraded_target:
+  target_build:
+    target_schema_version: tasks-and-launch-schema-v1
+    target_channel: stable
+    target_platform_class: linux
+    target_instance_handle: target-instance-handle-workspace-tasks-0001
+  downgrade_triggers:
+    - schema_translation_required
+    - schema_meaning_changed
+    - workspace_manifest_conflict
+    - manual_repair_required
+  platform_class_allowance_note: >
+    Same platform class on both ends. The triggers reflect the
+    translation, the meaning shift, and the per-row manual-review
+    escalation rather than a target-side limitation.
+preserved_versus_lost_fields:
+  - field_row_id: field-tasks-build-task-shell-binding-0001
+    field_class: task_or_launch_config_entry
+    status: preserved_through_equivalence_map
+    redaction_class: ui_string_only
+    preserved_value_ref: preserved-value-build-task-shell-binding-0001
+    translated_value_ref: translated-value-build-task-shell-binding-0001
+    downgrade_trigger_ref: schema_translation_required
+    reason: >
+      `shell` field renamed to `command_runner.shell`; equivalence map
+      decides without ambiguity.
+  - field_row_id: field-tasks-launch-runner-mode-0001
+    field_class: task_or_launch_config_entry
+    status: manual_review_required
+    redaction_class: ui_string_only
+    preserved_value_ref: preserved-value-launch-runner-mode-0001
+    translated_value_ref: null
+    downgrade_trigger_ref: manual_repair_required
+    reason: >
+      Both legacy `runner` and replacement `command_runner.mode` are
+      populated; the equivalence map cannot decide without user input.
+    note: >
+      Migration center stops at diff/apply; the preserved body remains
+      reachable for compare/export until the user resolves the row.
+  - field_row_id: field-tasks-deprecated-debug-flag-0001
+    field_class: task_or_launch_config_entry
+    status: dropped_unsupported_on_target
+    redaction_class: ui_string_only
+    preserved_value_ref: preserved-value-deprecated-debug-flag-0001
+    translated_value_ref: null
+    downgrade_trigger_ref: schema_meaning_changed
+    reason: >
+      Deprecated debug flag has no v2 counterpart. The migration drops
+      the field but keeps it reachable in the preserved body for
+      compare and support export.
+next_safe_action:
+  action_class: run_repair_flow
+  action_target_ref: repair-flow-workspace-tasks-manual-review-0001
+  reason: >
+    One row escalated to manual review. The next safe action routes
+    through the workspace repair flow so the user can resolve the
+    ambiguous binding before the translation lands on workspace
+    truth.
+unsupported_state:
+  unsupported_state_class: remains_unsupported_pending_user_repair
+  reason: >
+    The manual-review row remains unsupported on the target until the
+    user resolves the ambiguous binding through the repair flow.
+restore_provenance_refs:
+  - state-restore-provenance-workspace-tasks-manual-review-0001
+emitted_at: "mono:7400:00:00:00.0000"
+notes: >
+  Workspace-authored durable state migration. The matrix row enforces
+  the backup-before-migrate rule and the workspace repair-flow
+  posture; the packet keeps the manual-review escalation explicit.

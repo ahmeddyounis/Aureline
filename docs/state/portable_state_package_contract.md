@@ -36,6 +36,7 @@ This contract composes with:
 
 - [`/docs/state/profile_and_state_map.md`](./profile_and_state_map.md)
 - [`/docs/state/migration_and_restore_playbook.md`](./migration_and_restore_playbook.md)
+- [`/docs/state/durable_state_compatibility_contract.md`](./durable_state_compatibility_contract.md)
 - [`/docs/state/restore_artifact_family_contract.md`](./restore_artifact_family_contract.md)
 - [`/docs/state/workspace_memory_contract.md`](./workspace_memory_contract.md)
 - [`/docs/ux/persistence_inspector_contract.md`](../ux/persistence_inspector_contract.md)

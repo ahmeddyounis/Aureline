@@ -1,0 +1,137 @@
+# Worked example: restore-after-downgrade packet for a portable-state
+# package landing on a target whose channel sits below the package's
+# floor; one section drops to a placeholder because of a missing
+# extension dependency.
+#
+# Companion to docs/state/durable_state_compatibility_contract.md and
+# schemas/state/restore_after_downgrade_packet.schema.json.
+#
+# The package itself is the manifest body validated by
+# /schemas/state/portable_state_manifest.schema.json. This packet is
+# the producer's reviewable answer to "what changed when the package
+# crossed onto a target whose channel and extension surface cannot
+# admit it for full apply."
+
+__fixture__:
+  name: portable_state_package_downgraded_off_producing_machine
+  scenario: >
+    Portable-state package crosses the channel floor and a missing
+    extension dependency. The destination posture downgrades; one
+    section drops to placeholder; the next safe action holds at
+    inspect-only and surfaces compare against a prior export.
+  doc_sections:
+    - "§2.5 portable_state_packages"
+    - "§3 Backup-before-migrate matrix"
+    - "§4 Restore-after-downgrade packet shape"
+    - "§6 Seed cases"
+
+record_kind: restore_after_downgrade_packet_record
+restore_after_downgrade_schema_version: 1
+packet_id: restore-after-downgrade-portable-state-package-0001
+packet_label: Portable-state package — downgraded import, missing extension dependency
+original_artifact_identity:
+  artifact_family_class: portable_state_packages
+  source_artifact_ref: portable-state-manifest-record-source-0001
+  source_schema_version: portable-state-manifest-v1
+  source_artifact_label: Portable-state package manifest (producing-machine source)
+  producer_build:
+    producer_name: aureline
+    producer_version: 0.0.0-dev
+    producer_channel: beta
+    producer_platform_class: macos
+    producer_instance_handle: producer-instance-handle-portable-state-0001
+  compatibility_window_row_ref: compatibility-window-row-portable-state-packages-0001
+backup_path:
+  backup_present: true
+  preserved_prior_artifact_ref: preserved-portable-state-package-prior-export-0001
+  preservation_reason: destructive_migration
+  redaction_class: ui_string_only
+  compare_ref: compare-portable-state-package-vs-prior-export-0001
+  export_ref: export-portable-state-package-prior-export-0001
+  rollback_checkpoint_ref: rollback-checkpoint-portable-state-package-import-0001
+  note: >
+    The destination still has a prior portable-state export from this
+    producer; the packet keeps it reachable so compare against the
+    prior export remains the next-safe-action target.
+migrated_state:
+  migrated_artifact_ref: null
+  migrated_schema_version: portable-state-manifest-v1
+  fidelity_label: manual_review
+  equivalence_map_ref: equivalence-map-portable-state-package-extension-binding-0001
+  translation_note: >
+    Apply is blocked because the destination falls below the channel
+    floor and one section depends on an extension the destination
+    does not have.
+downgraded_target:
+  target_build:
+    target_schema_version: portable-state-manifest-v1
+    target_channel: experimental
+    target_platform_class: linux
+    target_instance_handle: target-instance-handle-portable-state-0001
+  downgrade_triggers:
+    - channel_floor_violation
+    - missing_extension_dependency
+    - destination_unsupported_section
+  platform_class_allowance_note: >
+    The package admits any platform class, so the downgrade is driven
+    by the channel-floor violation and the missing extension dependency,
+    not by the platform class.
+preserved_versus_lost_fields:
+  - field_row_id: field-package-saved-view-recent-issues-0001
+    field_class: portable_state_package_section
+    status: replaced_with_placeholder
+    redaction_class: ui_string_only
+    preserved_value_ref: preserved-saved-view-recent-issues-0001
+    translated_value_ref: placeholder-saved-view-recent-issues-0001
+    downgrade_trigger_ref: missing_extension_dependency
+    reason: >
+      The saved view binds an extension query the destination does
+      not have. The row is replaced with a safe placeholder; the
+      original section body remains reachable through the preserved
+      prior export.
+  - field_row_id: field-package-keybindings-section-0001
+    field_class: portable_state_package_section
+    status: compare_only_no_apply
+    redaction_class: none
+    preserved_value_ref: preserved-keybindings-section-0001
+    translated_value_ref: null
+    downgrade_trigger_ref: channel_floor_violation
+    reason: >
+      Apply is disabled at the package layer because the destination
+      sits below the channel floor; compare with the prior export
+      remains admitted.
+  - field_row_id: field-package-machine-addendum-section-0001
+    field_class: portable_state_package_section
+    status: dropped_unsupported_on_target
+    redaction_class: exclude_from_export
+    preserved_value_ref: null
+    translated_value_ref: null
+    downgrade_trigger_ref: destination_unsupported_section
+    reason: >
+      The package's machine-addendum section is intentionally excluded
+      from this destination class; the row was already redacted at
+      export time and stays excluded under the matrix's
+      portable-state-package row.
+next_safe_action:
+  action_class: hold_at_inspect_only
+  action_target_ref: inspect-only-handle-portable-state-package-0001
+  reason: >
+    Channel-floor violation plus missing-extension dependency block
+    apply. The next safe action holds at inspect-only and surfaces
+    compare against the prior export so the destination can review
+    differences without writing.
+unsupported_state:
+  unsupported_state_class: remains_unsupported_on_target_channel
+  reason: >
+    The destination's channel sits below the package's floor; until
+    the destination upgrades or the producer re-exports under a lower
+    floor, the package remains inspect-only on this target.
+restore_provenance_refs:
+  - state-restore-provenance-portable-state-package-inspect-only-0001
+emitted_at: "mono:7500:00:00:00.0000"
+notes: >
+  Portable-state package downgrade. Per the matrix row for
+  portable_state_packages, the package's per-section bodies remain
+  governed by their own family rows (settings sections by the
+  user-authored row, workspace sections by the workspace-authored
+  row); this packet only records the package-layer downgrade.

@@ -1,0 +1,120 @@
+# Worked example: restore-after-downgrade packet for a generated /
+# structured artifact that falls back to compare-only and read-only
+# mode on a target whose schema cannot read the producer's body.
+#
+# Companion to docs/state/durable_state_compatibility_contract.md and
+# schemas/state/restore_after_downgrade_packet.schema.json.
+#
+# A generated structured-view body sits content-addressed-immutable
+# under the matrix's generated_or_structured_artifacts family. The
+# producer's digest is unknown to the older target's reader; the
+# surface falls back to compare-only and read-only mode rather than
+# claiming a translation.
+
+__fixture__:
+  name: generated_structure_fallback_to_compare_only
+  scenario: >
+    Generated structured artifact lands on a target whose schema
+    cannot read it. Per the matrix row for
+    generated_or_structured_artifacts, the surface falls back to
+    compare-only and read-only mode without claiming compatible
+    translation.
+  doc_sections:
+    - "§2.6 generated_or_structured_artifacts"
+    - "§4 Restore-after-downgrade packet shape"
+    - "§6 Seed cases"
+
+record_kind: restore_after_downgrade_packet_record
+restore_after_downgrade_schema_version: 1
+packet_id: restore-after-downgrade-generated-structure-0001
+packet_label: Generated structure — fallback to compare-only and read-only mode
+original_artifact_identity:
+  artifact_family_class: generated_or_structured_artifacts
+  source_artifact_ref: generated-structured-view-source-0001
+  source_schema_version: structured-view-schema-v3
+  source_artifact_label: Generated structured view (producer body)
+  producer_build:
+    producer_name: aureline
+    producer_version: 0.0.0-dev
+    producer_channel: beta
+    producer_platform_class: linux
+    producer_instance_handle: producer-instance-handle-generated-structure-0001
+  compatibility_window_row_ref: compatibility-window-row-generated-structure-0001
+backup_path:
+  backup_present: false
+  preserved_prior_artifact_ref: null
+  preservation_reason: no_preservation_required_content_addressed
+  redaction_class: none
+  compare_ref: compare-generated-structure-vs-target-known-good-0001
+  export_ref: null
+  rollback_checkpoint_ref: null
+  note: >
+    The body is content-addressed and immutable; no preservation is
+    required because the older digest remains reachable. Compare
+    handles target the older known-good digest the destination still
+    holds.
+migrated_state:
+  migrated_artifact_ref: null
+  migrated_schema_version: structured-view-schema-v2
+  fidelity_label: layout_only
+  equivalence_map_ref: null
+  translation_note: >
+    No translation. The producer body is not readable under the
+    target's schema; the surface falls back to compare against the
+    older known-good digest and to read-only inspection of the new
+    body's metadata.
+downgraded_target:
+  target_build:
+    target_schema_version: structured-view-schema-v2
+    target_channel: stable
+    target_platform_class: linux
+    target_instance_handle: target-instance-handle-generated-structure-0001
+  downgrade_triggers:
+    - generated_structure_fallback_to_compare_only
+    - generated_structure_fallback_to_read_only
+  platform_class_allowance_note: >
+    Same platform class on both ends; the downgrade is the schema
+    boundary, not the platform class.
+preserved_versus_lost_fields:
+  - field_row_id: field-generated-root-node-0001
+    field_class: generated_structure_node
+    status: compare_only_no_apply
+    redaction_class: none
+    preserved_value_ref: preserved-root-node-known-good-0001
+    translated_value_ref: null
+    downgrade_trigger_ref: generated_structure_fallback_to_compare_only
+    reason: >
+      The new root node carries v3 attributes the target cannot read.
+      Compare against the older known-good digest is admitted; apply
+      is not.
+  - field_row_id: field-generated-attribute-typed-edge-0001
+    field_class: generated_structure_attribute
+    status: read_only_no_apply
+    redaction_class: none
+    preserved_value_ref: preserved-attribute-typed-edge-known-good-0001
+    translated_value_ref: null
+    downgrade_trigger_ref: generated_structure_fallback_to_read_only
+    reason: >
+      The typed-edge attribute is new under v3. The target opens a
+      read-only inspector view; no apply or translation is offered.
+next_safe_action:
+  action_class: open_in_compare_only_mode
+  action_target_ref: compare-generated-structure-vs-target-known-good-0001
+  reason: >
+    Producer body is unreadable under the target's schema. The next
+    safe action opens the matrix's compare-only mode; the target may
+    additionally open the read-only inspector for the new body's
+    metadata.
+unsupported_state:
+  unsupported_state_class: remains_unsupported_compare_only
+  reason: >
+    The new structured-view schema remains unsupported on this target
+    until it upgrades. Compare-only and read-only mode are the matrix
+    fallback for the generated-structure family.
+restore_provenance_refs: []
+emitted_at: "mono:7600:00:00:00.0000"
+notes: >
+  Generated-structure fallback. The packet is layout_only in fidelity
+  terms because no portable-truth translation occurred; the matrix's
+  stable-label implication for this family is
+  stable_label_implies_compare_or_read_only_fallback.

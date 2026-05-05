@@ -1,0 +1,116 @@
+# Worked example: restore-after-downgrade packet for a user-authored
+# settings / profile migration that translated through an equivalence
+# map under the backup-before-migrate rule.
+#
+# Companion to docs/state/durable_state_compatibility_contract.md and
+# schemas/state/restore_after_downgrade_packet.schema.json.
+#
+# Two settings fields move from a deprecated shape to a compatible
+# shape. Because the inventory row for user_global_settings declares
+# schema_evolution_posture = migrating_with_equivalence_map and
+# backup_before_migrate_rule = backup_required_before_destructive_migration,
+# the pre-translation body is preserved by opaque ref before the
+# translated result is written. The packet binds back to the
+# user_authored_durable_state row of the compatibility matrix, names
+# both fields under preserved_versus_lost_fields[], and recommends
+# open_compare_with_backup as the next safe action.
+
+__fixture__:
+  name: settings_profile_compatible_migration_with_backup
+  scenario: >
+    User-authored settings cross a destructive migration; backup is
+    mandatory and the next safe action opens a compare against the
+    preserved body. Fidelity is compatible, not exact.
+  doc_sections:
+    - "§1 Compatibility-window row shape"
+    - "§3 Backup-before-migrate matrix"
+    - "§4 Restore-after-downgrade packet shape"
+    - "§6 Seed cases"
+
+record_kind: restore_after_downgrade_packet_record
+restore_after_downgrade_schema_version: 1
+packet_id: restore-after-downgrade-settings-compatible-0001
+packet_label: Settings migration — compatible translation with preserved prior artifact
+original_artifact_identity:
+  artifact_family_class: user_authored_durable_state
+  source_artifact_ref: user-global-settings-pre-migration-0001
+  source_schema_version: settings-body-schema-v1
+  source_artifact_label: User-global settings (pre-migration body)
+  producer_build:
+    producer_name: aureline
+    producer_version: 0.0.0-dev
+    producer_channel: experimental
+    producer_platform_class: macos
+    producer_instance_handle: producer-instance-handle-settings-0001
+  compatibility_window_row_ref: compatibility-window-row-user-authored-durable-0001
+backup_path:
+  backup_present: true
+  preserved_prior_artifact_ref: preserved-user-global-settings-pre-migration-0001
+  preservation_reason: schema_meaning_changed
+  redaction_class: ui_string_only
+  compare_ref: compare-preserved-vs-translated-settings-0001
+  export_ref: export-preserved-settings-pre-migration-0001
+  rollback_checkpoint_ref: rollback-checkpoint-settings-migration-0001
+  note: >
+    Preserved before mutation per the backup-before-migrate rule on
+    user_global_settings. Compare and export handles expose either side.
+migrated_state:
+  migrated_artifact_ref: user-global-settings-post-migration-0001
+  migrated_schema_version: settings-body-schema-v2
+  fidelity_label: compatible
+  equivalence_map_ref: equivalence-map-settings-v1-to-v2-0001
+  translation_note: >
+    Two fields translated through the declared equivalence map; meaning
+    is preserved for the surface but the field shape changed. The
+    translated body is reviewable in compare against the preserved one.
+downgraded_target:
+  target_build:
+    target_schema_version: settings-body-schema-v1
+    target_channel: stable
+    target_platform_class: macos
+    target_instance_handle: target-instance-handle-settings-0001
+  downgrade_triggers:
+    - schema_translation_required
+    - schema_meaning_changed
+  platform_class_allowance_note: >
+    Same platform class on both ends; the translation is the only
+    boundary the packet records.
+preserved_versus_lost_fields:
+  - field_row_id: field-settings-editor-tab-size-0001
+    field_class: settings_field
+    status: preserved_through_equivalence_map
+    redaction_class: ui_string_only
+    preserved_value_ref: preserved-value-editor-tab-size-0001
+    translated_value_ref: translated-value-editor-tab-size-0001
+    downgrade_trigger_ref: schema_translation_required
+    reason: Field renamed under equivalence map; semantics unchanged.
+    note: Translated value reflects the new field name; preserved value retains the old name for compare.
+  - field_row_id: field-settings-format-on-save-rules-0001
+    field_class: settings_field
+    status: translated_meaning_changed
+    redaction_class: ui_string_only
+    preserved_value_ref: preserved-value-format-on-save-rules-0001
+    translated_value_ref: translated-value-format-on-save-rules-0001
+    downgrade_trigger_ref: schema_meaning_changed
+    reason: >
+      Rule shape changed from per-language list to per-language map; meaning
+      is preserved by the equivalence map but a future rollback would need
+      the preserved body.
+    note: Compare available against the preserved body.
+next_safe_action:
+  action_class: open_compare_with_backup
+  action_target_ref: compare-preserved-vs-translated-settings-0001
+  reason: >
+    Translation crossed a schema-meaning shift. The next safe action
+    is to open compare against the preserved body before any further
+    edits land on top of the translated one.
+unsupported_state:
+  unsupported_state_class: no_unsupported_state
+  reason: Both translated fields are reachable on the target schema.
+restore_provenance_refs:
+  - state-restore-provenance-settings-compatible-migration-0001
+emitted_at: "mono:7300:00:00:00.0000"
+notes: >
+  User-authored durable state migration. Backup-before-migrate rule
+  populated the preserved body ref; the matrix row enforces the
+  backup_required_before_destructive_migration rule for this family.

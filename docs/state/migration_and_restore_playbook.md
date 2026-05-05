@@ -29,10 +29,20 @@ around the same fidelity vocabulary is frozen at:
 - [`/docs/state/portable_state_package_contract.md`](./portable_state_package_contract.md)
 - [`/schemas/state/portable_state_manifest.schema.json`](../../schemas/state/portable_state_manifest.schema.json)
 
+The durable-state compatibility window, backup-before-migrate matrix,
+and restore-after-downgrade packet that bind each artifact family's
+backward window, forward-read expectations, backup rule, and rollback
+or downgrade behavior are frozen at:
+
+- [`/docs/state/durable_state_compatibility_contract.md`](./durable_state_compatibility_contract.md)
+- [`/schemas/state/compatibility_window_row.schema.json`](../../schemas/state/compatibility_window_row.schema.json)
+- [`/schemas/state/restore_after_downgrade_packet.schema.json`](../../schemas/state/restore_after_downgrade_packet.schema.json)
+
 Worked fixtures live under:
 
 - [`/fixtures/state/migration_cases/`](../../fixtures/state/migration_cases/)
 - [`/fixtures/state/portable_state_packages/`](../../fixtures/state/portable_state_packages/)
+- [`/fixtures/state/durable_state_cases/`](../../fixtures/state/durable_state_cases/)
 
 This contract is normative. Where it disagrees with the PRD, TAD, TDD,
 or the specialized profile or layout contracts, those documents win and
