@@ -1,0 +1,130 @@
+schema_version: 1
+record_kind: shiproom_dashboard_case
+case_id: shiproom.case.panel_degraded_by_missing_source
+case_class: panel_degraded_by_missing_source
+scenario_summary: >
+  The support_center_readiness panel cannot resolve a required source
+  ref. The support_packet_index artifact at the path declared in the
+  panel's source contract does not exist on the candidate revision, so
+  the panel reports panel_red_missing_required_source rather than
+  rendering green by omission. The daily threshold
+  alert.supportability_drill_regression.deployment_drill does not fire
+  (no drill regression observed), but the missing required source
+  routes the support owner to staff_correction_lane via the
+  checklist.beta.support_packet_family_coverage row. The fixture
+  exercises invariant 1 of the contract: every panel that cannot name
+  at least one current required source ref is rendered in a closed
+  degraded state.
+schema_refs:
+  shiproom_panel: schemas/release/shiproom_panel.schema.json
+  alert_thresholds: artifacts/release/shiproom_alert_thresholds.yaml
+  promotion_checklist: artifacts/release/promotion_checklist.yaml
+
+panel_records:
+  - shiproom_panel_schema_version: 1
+    record_kind: shiproom_panel_record
+    panel_id: shiproom_panel:support_center_readiness.beta.missing_index
+    panel_class: support_center_readiness
+    title: Support Center readiness, packet families, and deployment drills
+    panel_status: panel_red_missing_required_source
+    freshness:
+      freshness_class: missing_blocking
+      captured_at: null
+      stale_after: P14D
+      source_revision: candidate.beta.0_8_0
+      freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+      freshness_note: Required support_packet_index ref does not resolve on the candidate revision; panel cannot render green by omission.
+    source_refs:
+      - source_artifact_ref: schemas/support/support_packet_index.schema.json
+        source_role_class: support_packet_index
+        required: true
+        freshness_class: missing_blocking
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_missing_required_source
+        captured_at: null
+        stale_after: P14D
+        source_note: Support packet index ref is declared in the source contract but is unresolved on the candidate revision; missing required source.
+      - source_artifact_ref: artifacts/support/deployment_drill_catalog_seed.yaml
+        source_role_class: deployment_drill_catalog
+        required: true
+        freshness_class: current
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_stale_required_source
+        captured_at: "2026-05-04T13:30:00Z"
+        stale_after: P30D
+        source_note: Deployment drill catalog is current and shows no regressions.
+      - source_artifact_ref: artifacts/release/support_class_rows.yaml
+        source_role_class: support_evidence_pack_matrix
+        required: true
+        freshness_class: current
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_stale_required_source
+        captured_at: "2026-05-04T13:30:00Z"
+        stale_after: P30D
+        source_note: Support class rows are current and resolve every claimed support family.
+    rows:
+      - row_id: shiproom_panel:support_center_readiness.beta.missing_index.row.packet_index
+        row_label: Support packet index
+        row_class: support_packet_family_row
+        row_status: row_missing
+        evidence_refs:
+          - schemas/support/support_packet_index.schema.json
+        owner_ref: "@support-owners"
+        blocker_ref: blocker:support_packet_index.unresolved
+        waiver_ref: null
+        freeze_exception_ref: null
+        claim_row_ref: null
+        default_action_class: staff_correction_lane
+        row_summary: Required support packet index ref is unresolved on the candidate revision; support owner must staff a correction lane to land or restore the packet before promotion can proceed.
+    promotion_decision_inputs:
+      feeds_beta_widening: true
+      feeds_stable_widening: true
+      feeds_milestone_close: true
+      feeds_correction_lane_staffing: true
+      feeds_public_proof: false
+    audit_back_to_source:
+      auditable: true
+      audit_source_refs:
+        - schemas/support/support_packet_index.schema.json
+        - artifacts/support/deployment_drill_catalog_seed.yaml
+        - artifacts/release/support_class_rows.yaml
+      audit_note: Missing-source call is auditable through the source contract; the unresolved ref is the path the action will land or restore.
+    alert_threshold_refs: []
+    promotion_checklist_row_refs:
+      - checklist.beta.support_packet_family_coverage
+      - checklist.beta.evidence_freshness_within_slo
+    summary: Support Center readiness panel is red because the required support packet index source ref is unresolved.
+
+alert_firings: []
+
+checklist_outcome:
+  gate_class: beta_widening
+  rows:
+    - checklist_row_ref: checklist.beta.support_packet_family_coverage
+      answer: no
+      panel_refs:
+        - shiproom_panel:support_center_readiness.beta.missing_index
+      evidence_refs:
+        - schemas/support/support_packet_index.schema.json
+        - artifacts/support/deployment_drill_catalog_seed.yaml
+      default_no_action: staff_correction_lane
+    - checklist_row_ref: checklist.beta.evidence_freshness_within_slo
+      answer: no
+      panel_refs:
+        - shiproom_panel:support_center_readiness.beta.missing_index
+      evidence_refs:
+        - artifacts/governance/evidence_freshness_slos.yaml
+        - schemas/support/support_packet_index.schema.json
+      default_no_action: refresh_evidence_packet
+  proceed_decision: hold
+  decision_summary: >
+    Beta widening is held. Support owner staffs a correction lane to
+    land or restore the missing support packet index; the dashboard
+    rerolls on the next shiproom slot once the source ref resolves.
+
+expected_dashboard_contract:
+  every_required_panel_present_or_explained: true
+  no_panel_green_with_stale_required_source: true
+  every_alert_firing_names_default_action: true
+  every_no_checklist_row_routes_to_action: true
+  call_justifiable_from_dashboard_alone: true

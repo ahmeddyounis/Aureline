@@ -1,0 +1,352 @@
+# Shiproom promotion checklist.
+#
+# Machine-readable companion to docs/release/shiproom_dashboard_contract.md.
+# Each checklist_row binds one gate_class (beta widening, stable
+# widening, milestone close) to one yes/no question, the panels the
+# answer reads from, the answer required to proceed, and the default
+# action when the answer is "no". The rows together name the minimum
+# set of yes/no answers required before widening a channel or closing
+# a milestone.
+#
+# Rules.
+#   - Every checklist_row MUST name exactly one gate_class drawn from
+#     gate_class_vocabulary.
+#   - Every checklist_row MUST list at least one panel_class_ref drawn
+#     from the closed panel_class vocabulary in
+#     schemas/release/shiproom_panel.schema.json.
+#   - Every checklist_row MUST set required_answer to "yes" so the
+#     register is uniformly oriented.
+#   - Every checklist_row MUST set default_no_action to a value from
+#     default_action_class_vocabulary so a "no" answer routes to a
+#     named action and not a colour change.
+#   - A promotion may not proceed while any required checklist_row
+#     under its gate_class returns "no".
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version and updating the contract doc in the same change.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+
+schema_version: 1
+record_kind: promotion_checklist_record
+checklist_id: aureline.shiproom_promotion_checklist
+status: seeded
+
+contract_ref: docs/release/shiproom_dashboard_contract.md
+panel_schema_ref: schemas/release/shiproom_panel.schema.json
+alert_thresholds_ref: artifacts/release/shiproom_alert_thresholds.yaml
+runbook_ref: docs/release/shiproom_runbook.md
+freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+
+gate_class_vocabulary:
+  - beta_widening
+  - stable_widening
+  - milestone_close
+
+panel_class_vocabulary:
+  - build_identity
+  - readiness_scorecard
+  - protected_path_health
+  - certified_archetype_or_compatibility
+  - support_center_readiness
+  - transport_and_policy_posture
+  - migration_and_interface_health
+  - docs_and_claim_parity
+  - correction_or_backport_posture
+  - open_blockers
+
+default_action_class_vocabulary:
+  - narrow_claim
+  - hold_promotion
+  - staff_correction_lane
+  - block_milestone_close
+  - refresh_evidence_packet
+  - rebaseline_decision
+
+checklist_rows:
+  - checklist_row_id: checklist.beta.rollback_target_named
+    gate_class: beta_widening
+    question: >
+      Does the candidate name a current rollback target, rollback
+      manifest, and last-known-good exact-build set?
+    panel_class_refs:
+      - build_identity
+      - protected_path_health
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - artifacts/release/artifact_family_map.yaml
+      - schemas/release/update_manifest.schema.json
+      - schemas/release/rollback_revocation_panel.schema.json
+
+  - checklist_row_id: checklist.beta.support_window_copy_current
+    gate_class: beta_widening
+    question: >
+      Is the support-window copy current and matching the live channel
+      matrix, support class, and claim row?
+    panel_class_refs:
+      - support_center_readiness
+      - docs_and_claim_parity
+    required_answer: yes
+    default_no_action: refresh_evidence_packet
+    evidence_ref_examples:
+      - docs/release/channel_support_window_contract.md
+      - artifacts/release/channel_matrix.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+
+  - checklist_row_id: checklist.beta.known_limits_attested
+    gate_class: beta_widening
+    question: >
+      Are known-limits attested in the claim manifest and quoted
+      verbatim in the release notice and Help/About surfaces?
+    panel_class_refs:
+      - docs_and_claim_parity
+    required_answer: yes
+    default_no_action: narrow_claim
+    evidence_ref_examples:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/release_notice_seed.yaml
+
+  - checklist_row_id: checklist.beta.evidence_freshness_within_slo
+    gate_class: beta_widening
+    question: >
+      Is every required source ref under each panel within its
+      freshness SLO or covered by an active named waiver?
+    panel_class_refs:
+      - build_identity
+      - readiness_scorecard
+      - protected_path_health
+      - certified_archetype_or_compatibility
+      - support_center_readiness
+      - transport_and_policy_posture
+      - migration_and_interface_health
+      - docs_and_claim_parity
+      - correction_or_backport_posture
+      - open_blockers
+    required_answer: yes
+    default_no_action: refresh_evidence_packet
+    evidence_ref_examples:
+      - artifacts/governance/evidence_freshness_slos.yaml
+      - artifacts/governance/evidence_rerun_triggers.yaml
+      - docs/governance/evidence_freshness_policy.md
+
+  - checklist_row_id: checklist.beta.compatibility_reports_current
+    gate_class: beta_widening
+    question: >
+      Are certified-archetype and compatibility reports current and
+      passing for every claimed reference profile?
+    panel_class_refs:
+      - certified_archetype_or_compatibility
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - docs/release/certified_archetype_report_template.md
+      - docs/release/compatibility_report_template.md
+
+  - checklist_row_id: checklist.beta.migration_and_interface_health_current
+    gate_class: beta_widening
+    question: >
+      Is the migration packet aligned with the version skew register
+      and the candidate's interface contracts?
+    panel_class_refs:
+      - migration_and_interface_health
+    required_answer: yes
+    default_no_action: narrow_claim
+    evidence_ref_examples:
+      - artifacts/compat/version_skew_register.yaml
+      - artifacts/governance/release_notice_seed.yaml
+
+  - checklist_row_id: checklist.beta.support_packet_family_coverage
+    gate_class: beta_widening
+    question: >
+      Does every support packet family named in
+      support_packet_index.schema.json have current contract refs and
+      bundle linkage?
+    panel_class_refs:
+      - support_center_readiness
+    required_answer: yes
+    default_no_action: staff_correction_lane
+    evidence_ref_examples:
+      - schemas/support/support_packet_index.schema.json
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+
+  - checklist_row_id: checklist.beta.no_unresolved_protected_blockers
+    gate_class: beta_widening
+    question: >
+      Are all blockers on protected lanes either resolved, narrowed
+      with a named claim row, or covered by an unexpired named waiver?
+    panel_class_refs:
+      - open_blockers
+      - readiness_scorecard
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - artifacts/governance/decision_index.yaml
+      - artifacts/governance/ownership_matrix.yaml
+      - docs/governance/blocker_aging_slas.md
+
+  - checklist_row_id: checklist.stable.beta_checklist_already_yes
+    gate_class: stable_widening
+    question: >
+      Did the candidate satisfy every beta_widening checklist row
+      under the same exact-build set?
+    panel_class_refs:
+      - build_identity
+      - readiness_scorecard
+      - protected_path_health
+      - certified_archetype_or_compatibility
+      - support_center_readiness
+      - transport_and_policy_posture
+      - migration_and_interface_health
+      - docs_and_claim_parity
+      - correction_or_backport_posture
+      - open_blockers
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - docs/release/shiproom_runbook.md
+      - artifacts/release/promotion_gate_map.yaml
+
+  - checklist_row_id: checklist.stable.no_active_release_waiver
+    gate_class: stable_widening
+    question: >
+      Is the candidate free of active release-class waivers and
+      late-proof placeholders, per shiproom_runbook stable rules?
+    panel_class_refs:
+      - readiness_scorecard
+      - protected_path_health
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - docs/release/shiproom_runbook.md
+      - schemas/release/waiver_packet.schema.json
+
+  - checklist_row_id: checklist.stable.transport_and_policy_posture_expected
+    gate_class: stable_widening
+    question: >
+      Are signing, transparency log, revocation, mirror trust, and
+      policy bundles in their expected stable posture for the lane?
+    panel_class_refs:
+      - transport_and_policy_posture
+      - protected_path_health
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - artifacts/release/trust_framework_rows.yaml
+      - artifacts/release/cache_trust_classes.yaml
+      - artifacts/release/pipeline_lane_rules.yaml
+
+  - checklist_row_id: checklist.stable.public_proof_parity_matches
+    gate_class: stable_widening
+    question: >
+      Do public-proof surfaces (release notes, Help/About, public
+      truth parity matrix) quote the claim manifest verbatim with no
+      widening above effective_claim_posture?
+    panel_class_refs:
+      - docs_and_claim_parity
+    required_answer: yes
+    default_no_action: narrow_claim
+    evidence_ref_examples:
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/claim_manifest_seed.yaml
+
+  - checklist_row_id: checklist.stable.upgrade_and_rollback_drills_passed
+    gate_class: stable_widening
+    question: >
+      Did the latest upgrade and rollback drills pass against the
+      candidate exact-build set, with provenance, support bundle, and
+      ring-history packet refs current?
+    panel_class_refs:
+      - protected_path_health
+      - support_center_readiness
+    required_answer: yes
+    default_no_action: hold_promotion
+    evidence_ref_examples:
+      - docs/release/update_and_rollback_contract.md
+      - artifacts/release/ring_matrix.yaml
+      - schemas/release/ring_history_packet.schema.json
+
+  - checklist_row_id: checklist.stable.correction_lane_quiet_or_staffed
+    gate_class: stable_widening
+    question: >
+      If a correction trigger is firing, has the correction lane been
+      staffed with a named owner and a target evidence ref?
+    panel_class_refs:
+      - correction_or_backport_posture
+      - open_blockers
+    required_answer: yes
+    default_no_action: staff_correction_lane
+    evidence_ref_examples:
+      - artifacts/governance/correction_trigger_table.yaml
+      - artifacts/release/channel_matrix.yaml
+
+  - checklist_row_id: checklist.milestone_close.no_repeat_freeze_exception
+    gate_class: milestone_close
+    question: >
+      Is the milestone free of repeat freeze exceptions on the same
+      protected path that have not been rebaselined or descoped?
+    panel_class_refs:
+      - readiness_scorecard
+    required_answer: yes
+    default_no_action: rebaseline_decision
+    evidence_ref_examples:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+      - artifacts/governance/decision_index.yaml
+
+  - checklist_row_id: checklist.milestone_close.scorecard_signoff_complete
+    gate_class: milestone_close
+    question: >
+      Has the milestone scorecard recorded explicit calls for every
+      protected lane with current evidence and DRI assignments?
+    panel_class_refs:
+      - readiness_scorecard
+      - open_blockers
+    required_answer: yes
+    default_no_action: block_milestone_close
+    evidence_ref_examples:
+      - artifacts/milestones/M0_scorecard.yaml
+      - artifacts/governance/ownership_matrix.yaml
+
+  - checklist_row_id: checklist.milestone_close.handoff_packets_named
+    gate_class: milestone_close
+    question: >
+      Does the milestone close name the receiving owner, due packet,
+      and follow-on milestone for every yellow or red item carried
+      forward?
+    panel_class_refs:
+      - readiness_scorecard
+      - open_blockers
+      - correction_or_backport_posture
+    required_answer: yes
+    default_no_action: block_milestone_close
+    evidence_ref_examples:
+      - docs/release/shiproom_runbook.md
+      - artifacts/governance/decision_index.yaml
+
+cross_register_invariants:
+  - id: minimum_rows_present
+    statement: >
+      The checklist MUST cover at minimum: rollback target, support
+      window copy, known-limits state, evidence freshness,
+      compatibility reports, migration and interface health, support
+      packet family coverage, protected blockers, transport and policy
+      posture, public-proof parity, upgrade and rollback drills,
+      correction lane staffing, repeat freeze exception, scorecard
+      signoff, and handoff packets. Removing any of these rows is
+      breaking.
+  - id: every_row_names_default_no_action
+    statement: >
+      A "no" answer on any required row MUST route to one
+      default_no_action drawn from default_action_class_vocabulary.
+      A row that returns "no" without a named action is non-conforming.
+  - id: stable_inherits_beta
+    statement: >
+      stable_widening rows assume every beta_widening row already
+      returned "yes" under the same exact-build set; this is restated
+      explicitly by checklist.stable.beta_checklist_already_yes.
+  - id: milestone_close_consumes_dashboard
+    statement: >
+      milestone_close rows MUST read from dashboard panels rather than
+      inventing a parallel sign-off form. A milestone close that
+      proceeds without a green or explained call on every required
+      panel is non-conforming.

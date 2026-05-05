@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/shiproom_panel.schema.json",
+  "title": "Aureline shiproom dashboard panel",
+  "description": "Boundary schema for shiproom_panel_record frozen in docs/release/shiproom_dashboard_contract.md. Each panel projects underlying release, governance, support, and claim artifacts into one daily decision row. Raw artifacts, raw signatures, raw attestations, raw support bundles, and raw logs never cross this boundary; records carry refs, stable ids, typed states, freshness summaries, and named default actions only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "shiproom_panel_schema_version",
+    "record_kind",
+    "panel_id",
+    "panel_class",
+    "title",
+    "panel_status",
+    "freshness",
+    "source_refs",
+    "rows",
+    "promotion_decision_inputs",
+    "audit_back_to_source",
+    "alert_threshold_refs",
+    "promotion_checklist_row_refs",
+    "summary"
+  ],
+  "$defs": {
+    "shiproom_panel_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "utc_datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_utc_datetime": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_datetime" }
+      ]
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+S)?)?$"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "panel_class": {
+      "type": "string",
+      "enum": [
+        "build_identity",
+        "readiness_scorecard",
+        "protected_path_health",
+        "certified_archetype_or_compatibility",
+        "support_center_readiness",
+        "transport_and_policy_posture",
+        "migration_and_interface_health",
+        "docs_and_claim_parity",
+        "correction_or_backport_posture",
+        "open_blockers"
+      ],
+      "description": "Closed vocabulary of dashboard panels. Every shiproom dashboard MUST render one panel per value."
+    },
+    "panel_status": {
+      "type": "string",
+      "enum": [
+        "panel_green",
+        "panel_yellow_explained",
+        "panel_yellow_waiver_active",
+        "panel_red_blocking",
+        "panel_red_missing_required_source",
+        "panel_red_stale_required_source",
+        "panel_red_repeated_freeze_exception"
+      ],
+      "description": "Closed degraded-state vocabulary. A panel that cannot reach a required source MUST NOT report panel_green."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "current",
+        "current_with_waiver",
+        "stale_blocking",
+        "stale_non_blocking",
+        "missing_blocking",
+        "not_applicable"
+      ]
+    },
+    "row_status": {
+      "type": "string",
+      "enum": [
+        "row_ok",
+        "row_explained",
+        "row_waiver_active",
+        "row_blocking",
+        "row_stale",
+        "row_missing"
+      ]
+    },
+    "row_class": {
+      "type": "string",
+      "enum": [
+        "exact_build_identity_row",
+        "rollback_atom_row",
+        "release_evidence_packet_row",
+        "ring_history_packet_row",
+        "scorecard_lane_row",
+        "owner_dri_row",
+        "freeze_exception_row",
+        "trust_root_or_signing_row",
+        "transparency_log_row",
+        "revocation_or_advisory_row",
+        "mirror_or_origin_row",
+        "policy_bundle_row",
+        "compatibility_report_row",
+        "certified_archetype_row",
+        "version_skew_row",
+        "support_packet_family_row",
+        "deployment_drill_row",
+        "support_window_copy_row",
+        "known_limit_row",
+        "claim_manifest_row",
+        "docs_help_about_row",
+        "release_notice_row",
+        "migration_packet_row",
+        "interface_contract_row",
+        "correction_lane_row",
+        "backport_lane_row",
+        "blocker_row",
+        "waiver_row",
+        "assumption_row",
+        "decision_row"
+      ],
+      "description": "Closed vocabulary of row classes panels may carry. Per panel_class, only the row_class values that match the panel's source contract are admissible."
+    },
+    "source_role_class": {
+      "type": "string",
+      "enum": [
+        "exact_build_identity_set",
+        "release_evidence_packet",
+        "artifact_family_map",
+        "ring_history_packet",
+        "milestone_scorecard",
+        "ownership_matrix",
+        "freeze_exception_catalog",
+        "trust_framework_rows",
+        "pipeline_lane_rules",
+        "update_manifest_or_rollback_evidence",
+        "certified_archetype_report",
+        "compatibility_report",
+        "claim_manifest",
+        "version_skew_register",
+        "support_packet_index",
+        "support_evidence_pack_matrix",
+        "deployment_drill_catalog",
+        "cache_trust_classes",
+        "policy_bundle_or_revocation_manifest",
+        "migration_packet_or_release_notice",
+        "public_truth_parity_matrix",
+        "docs_pack_or_help_about",
+        "release_notice",
+        "channel_matrix_backport_lane_rows",
+        "correction_trigger_table",
+        "decision_index",
+        "blocker_aging_slas"
+      ]
+    },
+    "missing_disposition_class": {
+      "type": "string",
+      "enum": [
+        "panel_red_missing_required_source",
+        "panel_red_stale_required_source",
+        "panel_yellow_waiver_active",
+        "panel_yellow_explained",
+        "panel_red_repeated_freeze_exception",
+        "not_applicable"
+      ]
+    },
+    "default_action_class": {
+      "type": "string",
+      "enum": [
+        "narrow_claim",
+        "hold_promotion",
+        "staff_correction_lane",
+        "block_milestone_close",
+        "refresh_evidence_packet",
+        "rebaseline_decision"
+      ]
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freshness_class",
+        "captured_at",
+        "stale_after",
+        "source_revision",
+        "freshness_policy_ref",
+        "freshness_note"
+      ],
+      "properties": {
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "captured_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "stale_after": { "$ref": "#/$defs/iso_duration" },
+        "source_revision": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_policy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "freshness_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "source_ref_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_artifact_ref",
+        "source_role_class",
+        "required",
+        "freshness_class",
+        "freshness_rule_ref",
+        "missing_disposition_class",
+        "captured_at",
+        "stale_after",
+        "source_note"
+      ],
+      "properties": {
+        "source_artifact_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_role_class": { "$ref": "#/$defs/source_role_class" },
+        "required": { "type": "boolean" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "freshness_rule_ref": { "$ref": "#/$defs/non_empty_string" },
+        "missing_disposition_class": { "$ref": "#/$defs/missing_disposition_class" },
+        "captured_at": { "$ref": "#/$defs/nullable_utc_datetime" },
+        "stale_after": { "$ref": "#/$defs/iso_duration" },
+        "source_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "panel_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_label",
+        "row_class",
+        "row_status",
+        "evidence_refs",
+        "owner_ref",
+        "row_summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/non_empty_string" },
+        "row_label": { "$ref": "#/$defs/non_empty_string" },
+        "row_class": { "$ref": "#/$defs/row_class" },
+        "row_status": { "$ref": "#/$defs/row_status" },
+        "evidence_refs": { "$ref": "#/$defs/ref_array" },
+        "owner_ref": { "$ref": "#/$defs/nullable_string" },
+        "blocker_ref": { "$ref": "#/$defs/nullable_string" },
+        "waiver_ref": { "$ref": "#/$defs/nullable_string" },
+        "freeze_exception_ref": { "$ref": "#/$defs/nullable_string" },
+        "claim_row_ref": { "$ref": "#/$defs/nullable_string" },
+        "default_action_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/default_action_class" }
+          ]
+        },
+        "row_summary": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "promotion_decision_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feeds_beta_widening",
+        "feeds_stable_widening",
+        "feeds_milestone_close",
+        "feeds_correction_lane_staffing",
+        "feeds_public_proof"
+      ],
+      "properties": {
+        "feeds_beta_widening": { "type": "boolean" },
+        "feeds_stable_widening": { "type": "boolean" },
+        "feeds_milestone_close": { "type": "boolean" },
+        "feeds_correction_lane_staffing": { "type": "boolean" },
+        "feeds_public_proof": { "type": "boolean" }
+      }
+    },
+    "audit_back_to_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auditable",
+        "audit_source_refs",
+        "audit_note"
+      ],
+      "properties": {
+        "auditable": { "type": "boolean", "const": true },
+        "audit_source_refs": { "$ref": "#/$defs/non_empty_ref_array" },
+        "audit_note": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  },
+  "properties": {
+    "shiproom_panel_schema_version": {
+      "$ref": "#/$defs/shiproom_panel_schema_version"
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "shiproom_panel_record"
+    },
+    "panel_id": {
+      "type": "string",
+      "pattern": "^shiproom_panel:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "panel_class": { "$ref": "#/$defs/panel_class" },
+    "title": { "$ref": "#/$defs/non_empty_string" },
+    "panel_status": { "$ref": "#/$defs/panel_status" },
+    "freshness": { "$ref": "#/$defs/freshness" },
+    "source_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/source_ref_row" },
+      "minItems": 1
+    },
+    "rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/panel_row" }
+    },
+    "promotion_decision_inputs": { "$ref": "#/$defs/promotion_decision_inputs" },
+    "audit_back_to_source": { "$ref": "#/$defs/audit_back_to_source" },
+    "alert_threshold_refs": { "$ref": "#/$defs/ref_array" },
+    "promotion_checklist_row_refs": { "$ref": "#/$defs/ref_array" },
+    "summary": { "$ref": "#/$defs/non_empty_string" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "panel_status": { "const": "panel_green" }
+        },
+        "required": ["panel_status"]
+      },
+      "then": {
+        "properties": {
+          "freshness": {
+            "properties": {
+              "freshness_class": {
+                "enum": ["current", "not_applicable"]
+              }
+            }
+          }
+        },
+        "description": "panel_green requires panel-level freshness to be current or not_applicable."
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "panel_status": { "const": "panel_yellow_waiver_active" }
+        },
+        "required": ["panel_status"]
+      },
+      "then": {
+        "properties": {
+          "freshness": {
+            "properties": {
+              "freshness_class": {
+                "enum": ["current", "current_with_waiver", "stale_non_blocking"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

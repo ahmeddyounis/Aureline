@@ -1,0 +1,168 @@
+schema_version: 1
+record_kind: shiproom_dashboard_case
+case_id: shiproom.case.milestone_close_blocked_by_repeat_freeze_exception
+case_class: milestone_close_blocked_by_repeat_freeze_exception
+scenario_summary: >
+  Milestone close is blocked. The readiness_scorecard panel observes a
+  second freeze exception logged against the same protected path without
+  a rebaseline. The panel reports panel_red_repeated_freeze_exception.
+  The daily threshold alert.repeated_freeze_exception.same_protected_path
+  fires with default_action: rebaseline_decision, and the close-time
+  variant alert.repeated_freeze_exception.milestone_close fires with
+  default_action: block_milestone_close. The
+  checklist.milestone_close.no_repeat_freeze_exception row returns no
+  with default_no_action: rebaseline_decision. The milestone does not
+  close until the architecture owner records a rebaseline decision or a
+  scoped descope.
+schema_refs:
+  shiproom_panel: schemas/release/shiproom_panel.schema.json
+  alert_thresholds: artifacts/release/shiproom_alert_thresholds.yaml
+  promotion_checklist: artifacts/release/promotion_checklist.yaml
+
+panel_records:
+  - shiproom_panel_schema_version: 1
+    record_kind: shiproom_panel_record
+    panel_id: shiproom_panel:readiness_scorecard.close.repeat_freeze
+    panel_class: readiness_scorecard
+    title: Readiness scorecard and DRI coverage
+    panel_status: panel_red_repeated_freeze_exception
+    freshness:
+      freshness_class: stale_blocking
+      captured_at: "2026-05-04T13:50:00Z"
+      stale_after: P14D
+      source_revision: scorecard.close.candidate.0_8_0
+      freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+      freshness_note: Freeze exception catalog records a second exception on the same protected path without a rebaseline.
+    source_refs:
+      - source_artifact_ref: artifacts/milestones/M0_scorecard.yaml
+        source_role_class: milestone_scorecard
+        required: true
+        freshness_class: current
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_missing_required_source
+        captured_at: "2026-05-04T13:45:00Z"
+        stale_after: P14D
+        source_note: Scorecard reflects the candidate scope.
+      - source_artifact_ref: artifacts/governance/ownership_matrix.yaml
+        source_role_class: ownership_matrix
+        required: true
+        freshness_class: current
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_missing_required_source
+        captured_at: "2026-05-04T13:40:00Z"
+        stale_after: P30D
+        source_note: Every protected lane resolves to a DRI.
+      - source_artifact_ref: artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+        source_role_class: freeze_exception_catalog
+        required: true
+        freshness_class: stale_blocking
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_repeated_freeze_exception
+        captured_at: "2026-05-04T13:30:00Z"
+        stale_after: P14D
+        source_note: Freeze exception catalog logs a second exception on the protected build-isolation path without a rebaseline decision.
+    rows:
+      - row_id: shiproom_panel:readiness_scorecard.close.repeat_freeze.row.scorecard_lane
+        row_label: Build isolation protected lane
+        row_class: scorecard_lane_row
+        row_status: row_blocking
+        evidence_refs:
+          - artifacts/milestones/M0_scorecard.yaml
+          - artifacts/governance/ownership_matrix.yaml
+        owner_ref: "@architecture-owners"
+        blocker_ref: blocker:build_isolation.repeat_freeze
+        waiver_ref: null
+        freeze_exception_ref: freeze_exception:build_isolation.second
+        claim_row_ref: null
+        default_action_class: rebaseline_decision
+        row_summary: Build-isolation protected lane has a second freeze exception with no rebaseline; lane is non-promotable until architecture owner records a rebaseline or scoped descope.
+      - row_id: shiproom_panel:readiness_scorecard.close.repeat_freeze.row.freeze_exception
+        row_label: Repeat freeze exception
+        row_class: freeze_exception_row
+        row_status: row_blocking
+        evidence_refs:
+          - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+        owner_ref: "@architecture-owners"
+        blocker_ref: null
+        waiver_ref: null
+        freeze_exception_ref: freeze_exception:build_isolation.second
+        claim_row_ref: null
+        default_action_class: rebaseline_decision
+        row_summary: Second freeze exception on the same protected path triggers auto-no_go per the runbook; rebaseline decision required.
+    promotion_decision_inputs:
+      feeds_beta_widening: false
+      feeds_stable_widening: false
+      feeds_milestone_close: true
+      feeds_correction_lane_staffing: false
+      feeds_public_proof: false
+    audit_back_to_source:
+      auditable: true
+      audit_source_refs:
+        - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+        - artifacts/governance/decision_index.yaml
+        - artifacts/governance/ownership_matrix.yaml
+      audit_note: Repeat freeze exception is named in the catalog and the scorecard lane; rebaseline decision is the only path forward.
+    alert_threshold_refs:
+      - alert.repeated_freeze_exception.same_protected_path
+      - alert.repeated_freeze_exception.milestone_close
+    promotion_checklist_row_refs:
+      - checklist.milestone_close.no_repeat_freeze_exception
+      - checklist.milestone_close.scorecard_signoff_complete
+    summary: Readiness scorecard panel is red for milestone close because a protected path has a repeat freeze exception.
+
+alert_firings:
+  - threshold_ref: alert.repeated_freeze_exception.same_protected_path
+    panel_ref: shiproom_panel:readiness_scorecard.close.repeat_freeze
+    fired_at: "2026-05-04T14:00:00Z"
+    observed_value: 2
+    threshold_value: 2
+    default_action_class: rebaseline_decision
+    escalation_owner_class: architecture_owner
+    evidence_refs_to_update:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+      - artifacts/governance/decision_index.yaml
+    firing_note: Second freeze exception on the same protected path; auto-no_go pending a rebaseline decision.
+  - threshold_ref: alert.repeated_freeze_exception.milestone_close
+    panel_ref: shiproom_panel:readiness_scorecard.close.repeat_freeze
+    fired_at: "2026-05-04T14:00:00Z"
+    observed_value: 1
+    threshold_value: 1
+    default_action_class: block_milestone_close
+    escalation_owner_class: architecture_owner
+    evidence_refs_to_update:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+      - artifacts/governance/decision_index.yaml
+    firing_note: Open freeze exception at milestone-close review; milestone does not close without rebaseline or scoped descope.
+
+checklist_outcome:
+  gate_class: milestone_close
+  rows:
+    - checklist_row_ref: checklist.milestone_close.no_repeat_freeze_exception
+      answer: no
+      panel_refs:
+        - shiproom_panel:readiness_scorecard.close.repeat_freeze
+      evidence_refs:
+        - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+        - artifacts/governance/decision_index.yaml
+      default_no_action: rebaseline_decision
+    - checklist_row_ref: checklist.milestone_close.scorecard_signoff_complete
+      answer: no
+      panel_refs:
+        - shiproom_panel:readiness_scorecard.close.repeat_freeze
+      evidence_refs:
+        - artifacts/milestones/M0_scorecard.yaml
+        - artifacts/governance/ownership_matrix.yaml
+      default_no_action: block_milestone_close
+  proceed_decision: hold
+  decision_summary: >
+    Milestone close is blocked. Architecture owner records a rebaseline
+    decision or scoped descope for the repeat freeze exception; the
+    dashboard rerolls on the next shiproom slot before milestone close
+    is reattempted.
+
+expected_dashboard_contract:
+  every_required_panel_present_or_explained: true
+  no_panel_green_with_stale_required_source: true
+  every_alert_firing_names_default_action: true
+  every_no_checklist_row_routes_to_action: true
+  call_justifiable_from_dashboard_alone: true

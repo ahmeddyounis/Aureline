@@ -1,0 +1,136 @@
+schema_version: 1
+record_kind: shiproom_dashboard_case
+case_id: shiproom.case.stable_widening_held_by_stale_evidence
+case_class: stable_widening_held_by_stale_evidence
+scenario_summary: >
+  Stable widening is held. The build_identity panel's required
+  release-evidence packet has not been refreshed within the seven-day
+  freshness ceiling. The panel reports panel_red_stale_required_source.
+  The daily threshold alert.stale_packet.required_release_evidence
+  fires with default_action: refresh_evidence_packet. The
+  checklist.beta.evidence_freshness_within_slo row returns no, which
+  cascades to checklist.stable.beta_checklist_already_yes returning no.
+  Promotion does not proceed; release owner refreshes the named packet.
+schema_refs:
+  shiproom_panel: schemas/release/shiproom_panel.schema.json
+  alert_thresholds: artifacts/release/shiproom_alert_thresholds.yaml
+  promotion_checklist: artifacts/release/promotion_checklist.yaml
+
+panel_records:
+  - shiproom_panel_schema_version: 1
+    record_kind: shiproom_panel_record
+    panel_id: shiproom_panel:build_identity.stable.stale
+    panel_class: build_identity
+    title: Build identity, rollback atom, and release-evidence packet
+    panel_status: panel_red_stale_required_source
+    freshness:
+      freshness_class: stale_blocking
+      captured_at: "2026-04-25T18:30:00Z"
+      stale_after: P7D
+      source_revision: candidate.stable.1_0_0_rc
+      freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+      freshness_note: Release-evidence packet captured ten days ago without refresh.
+    source_refs:
+      - source_artifact_ref: artifacts/release/artifact_family_map.yaml
+        source_role_class: artifact_family_map
+        required: true
+        freshness_class: current
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_missing_required_source
+        captured_at: "2026-05-04T13:00:00Z"
+        stale_after: P30D
+        source_note: Artifact family map current.
+      - source_artifact_ref: docs/release/release_evidence_packet_template.md
+        source_role_class: release_evidence_packet
+        required: true
+        freshness_class: stale_blocking
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_stale_required_source
+        captured_at: "2026-04-25T18:30:00Z"
+        stale_after: P7D
+        source_note: Required release-evidence packet has not been regenerated within the seven-day window.
+      - source_artifact_ref: schemas/release/ring_history_packet.schema.json
+        source_role_class: ring_history_packet
+        required: true
+        freshness_class: current
+        freshness_rule_ref: artifacts/governance/evidence_freshness_slos.yaml
+        missing_disposition_class: panel_red_missing_required_source
+        captured_at: "2026-05-04T13:30:00Z"
+        stale_after: P14D
+        source_note: Ring history packet current.
+    rows:
+      - row_id: shiproom_panel:build_identity.stable.stale.row.evidence_packet
+        row_label: Release-evidence packet refresh required
+        row_class: release_evidence_packet_row
+        row_status: row_stale
+        evidence_refs:
+          - docs/release/release_evidence_packet_template.md
+        owner_ref: "@release-engineering"
+        blocker_ref: null
+        waiver_ref: null
+        freeze_exception_ref: null
+        claim_row_ref: claim_row:build.exact_build_identity
+        default_action_class: refresh_evidence_packet
+        row_summary: Release-evidence packet captured-at is ten days old; packet must be regenerated against the current exact-build set before stable widening can proceed.
+    promotion_decision_inputs:
+      feeds_beta_widening: true
+      feeds_stable_widening: true
+      feeds_milestone_close: true
+      feeds_correction_lane_staffing: false
+      feeds_public_proof: false
+    audit_back_to_source:
+      auditable: true
+      audit_source_refs:
+        - docs/release/release_evidence_packet_template.md
+        - artifacts/governance/evidence_freshness_slos.yaml
+      audit_note: Stale-source call resolves through the freshness SLO matrix.
+    alert_threshold_refs:
+      - alert.stale_packet.required_release_evidence
+    promotion_checklist_row_refs:
+      - checklist.beta.evidence_freshness_within_slo
+      - checklist.stable.beta_checklist_already_yes
+    summary: Build identity panel is red because the required release-evidence packet is stale.
+
+alert_firings:
+  - threshold_ref: alert.stale_packet.required_release_evidence
+    panel_ref: shiproom_panel:build_identity.stable.stale
+    fired_at: "2026-05-04T14:10:00Z"
+    observed_value: P10D
+    threshold_value: P7D
+    default_action_class: refresh_evidence_packet
+    escalation_owner_class: release_owner
+    evidence_refs_to_update:
+      - docs/release/release_evidence_packet_template.md
+      - artifacts/release/promotion_gate_map.yaml
+    firing_note: Release-evidence packet must be regenerated for the candidate exact-build set.
+
+checklist_outcome:
+  gate_class: stable_widening
+  rows:
+    - checklist_row_ref: checklist.beta.evidence_freshness_within_slo
+      answer: no
+      panel_refs:
+        - shiproom_panel:build_identity.stable.stale
+      evidence_refs:
+        - artifacts/governance/evidence_freshness_slos.yaml
+        - docs/release/release_evidence_packet_template.md
+      default_no_action: refresh_evidence_packet
+    - checklist_row_ref: checklist.stable.beta_checklist_already_yes
+      answer: no
+      panel_refs:
+        - shiproom_panel:build_identity.stable.stale
+      evidence_refs:
+        - docs/release/shiproom_runbook.md
+      default_no_action: hold_promotion
+  proceed_decision: hold
+  decision_summary: >
+    Stable widening is held. Release owner refreshes the
+    release-evidence packet; the dashboard rerolls on the next
+    shiproom slot.
+
+expected_dashboard_contract:
+  every_required_panel_present_or_explained: true
+  no_panel_green_with_stale_required_source: true
+  every_alert_firing_names_default_action: true
+  every_no_checklist_row_routes_to_action: true
+  call_justifiable_from_dashboard_alone: true

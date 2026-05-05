@@ -1,0 +1,287 @@
+# Shiproom daily alert thresholds.
+#
+# Machine-readable companion to docs/release/shiproom_dashboard_contract.md.
+# Each threshold_row binds one panel_class to one signal_class, one
+# threshold expression, one default action drawn from the closed
+# default_action_class vocabulary, and the evidence ref the action will
+# refresh, narrow, or escalate. A firing threshold without a default
+# action is non-conforming.
+#
+# Rules.
+#   - Every threshold_row MUST name exactly one panel_class_ref drawn
+#     from the closed panel_class vocabulary in
+#     schemas/release/shiproom_panel.schema.json.
+#   - Every threshold_row MUST name exactly one signal_class drawn
+#     from the closed signal_class_vocabulary below.
+#   - Every threshold_row MUST name exactly one default_action_class
+#     drawn from the closed default_action_class_vocabulary below.
+#   - Every threshold_row MUST name an evidence_refs_required_on_action
+#     list of at least one stable artifact ref the action will update,
+#     refresh, narrow, or hand off.
+#   - Adding a vocabulary value is additive-minor and requires bumping
+#     schema_version and updating the contract doc in the same change.
+#     Repurposing an existing value is breaking.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field.
+
+schema_version: 1
+record_kind: shiproom_alert_thresholds_record
+register_id: aureline.shiproom_alert_thresholds
+status: seeded
+
+contract_ref: docs/release/shiproom_dashboard_contract.md
+panel_schema_ref: schemas/release/shiproom_panel.schema.json
+checklist_ref: artifacts/release/promotion_checklist.yaml
+runbook_ref: docs/release/shiproom_runbook.md
+freshness_policy_ref: docs/governance/evidence_freshness_policy.md
+freshness_slos_ref: artifacts/governance/evidence_freshness_slos.yaml
+blocker_aging_slas_ref: docs/governance/blocker_aging_slas.md
+
+panel_class_vocabulary:
+  - build_identity
+  - readiness_scorecard
+  - protected_path_health
+  - certified_archetype_or_compatibility
+  - support_center_readiness
+  - transport_and_policy_posture
+  - migration_and_interface_health
+  - docs_and_claim_parity
+  - correction_or_backport_posture
+  - open_blockers
+
+signal_class_vocabulary:
+  - stale_packet
+  - blocker_age
+  - repeated_freeze_exception
+  - declining_compatibility_pass_rate
+  - supportability_drill_regression
+  - docs_help_about_drift
+  - upgrade_or_rollback_failure
+
+default_action_class_vocabulary:
+  - narrow_claim
+  - hold_promotion
+  - staff_correction_lane
+  - block_milestone_close
+  - refresh_evidence_packet
+  - rebaseline_decision
+
+escalation_owner_class_vocabulary:
+  - release_owner
+  - support_owner
+  - docs_owner
+  - security_owner
+  - architecture_owner
+  - benchmark_owner
+  - compatibility_owner
+
+threshold_expression_class_vocabulary:
+  - duration_exceeds_iso8601
+  - count_at_or_above
+  - percentage_at_or_below
+  - percentage_at_or_above
+  - boolean_true
+
+threshold_rows:
+  - threshold_id: alert.stale_packet.required_release_evidence
+    panel_class_ref: build_identity
+    signal_class: stale_packet
+    threshold_expression_class: duration_exceeds_iso8601
+    threshold_expression_value: P7D
+    summary: >
+      The candidate's required release-evidence packet has not been
+      regenerated within seven days of the captured-at timestamp.
+    default_action_class: refresh_evidence_packet
+    escalation_owner_class: release_owner
+    evidence_refs_required_on_action:
+      - docs/release/release_evidence_packet_template.md
+      - artifacts/release/promotion_gate_map.yaml
+      - artifacts/governance/evidence_freshness_slos.yaml
+
+  - threshold_id: alert.stale_packet.benchmark_publication
+    panel_class_ref: certified_archetype_or_compatibility
+    signal_class: stale_packet
+    threshold_expression_class: duration_exceeds_iso8601
+    threshold_expression_value: P7D
+    summary: >
+      The benchmark publication packet or reference-capture run has
+      not been refreshed within seven days; benchmark public-proof
+      copy must narrow until refreshed.
+    default_action_class: narrow_claim
+    escalation_owner_class: benchmark_owner
+    evidence_refs_required_on_action:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+
+  - threshold_id: alert.blocker_age.protected_lane
+    panel_class_ref: open_blockers
+    signal_class: blocker_age
+    threshold_expression_class: duration_exceeds_iso8601
+    threshold_expression_value: P14D
+    summary: >
+      A blocker on a protected lane has remained open for fourteen
+      days without a narrowing or rebaseline decision.
+    default_action_class: hold_promotion
+    escalation_owner_class: architecture_owner
+    evidence_refs_required_on_action:
+      - artifacts/governance/decision_index.yaml
+      - artifacts/governance/ownership_matrix.yaml
+      - docs/governance/blocker_aging_slas.md
+
+  - threshold_id: alert.repeated_freeze_exception.same_protected_path
+    panel_class_ref: readiness_scorecard
+    signal_class: repeated_freeze_exception
+    threshold_expression_class: count_at_or_above
+    threshold_expression_value: 2
+    summary: >
+      A protected path has logged a second or later freeze exception
+      without rebaseline; auto-no_go per the runbook.
+    default_action_class: rebaseline_decision
+    escalation_owner_class: architecture_owner
+    evidence_refs_required_on_action:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+      - artifacts/governance/decision_index.yaml
+
+  - threshold_id: alert.declining_compatibility_pass_rate.certified_archetype
+    panel_class_ref: certified_archetype_or_compatibility
+    signal_class: declining_compatibility_pass_rate
+    threshold_expression_class: percentage_at_or_below
+    threshold_expression_value: 95
+    summary: >
+      Certified-archetype or compatibility pass rate has fallen at or
+      below ninety-five percent across the last published report
+      window.
+    default_action_class: hold_promotion
+    escalation_owner_class: compatibility_owner
+    evidence_refs_required_on_action:
+      - docs/release/compatibility_report_template.md
+      - docs/release/certified_archetype_report_template.md
+      - artifacts/governance/claim_manifest_seed.yaml
+
+  - threshold_id: alert.supportability_drill_regression.deployment_drill
+    panel_class_ref: support_center_readiness
+    signal_class: supportability_drill_regression
+    threshold_expression_class: boolean_true
+    threshold_expression_value: true
+    summary: >
+      A deployment drill or supportability rehearsal regressed against
+      its previous pass without a named waiver.
+    default_action_class: staff_correction_lane
+    escalation_owner_class: support_owner
+    evidence_refs_required_on_action:
+      - artifacts/support/deployment_drill_catalog_seed.yaml
+      - schemas/support/support_packet_index.schema.json
+      - artifacts/governance/correction_trigger_table.yaml
+
+  - threshold_id: alert.docs_help_about_drift.claim_parity
+    panel_class_ref: docs_and_claim_parity
+    signal_class: docs_help_about_drift
+    threshold_expression_class: boolean_true
+    threshold_expression_value: true
+    summary: >
+      Help/About copy, release notes, or known-limit copy disagrees
+      with the claim manifest's effective_claim_posture or
+      known_limit_refs.
+    default_action_class: narrow_claim
+    escalation_owner_class: docs_owner
+    evidence_refs_required_on_action:
+      - artifacts/governance/claim_manifest_seed.yaml
+      - artifacts/governance/public_truth_parity_matrix.yaml
+      - artifacts/governance/release_notice_seed.yaml
+
+  - threshold_id: alert.upgrade_or_rollback_failure.update_manifest
+    panel_class_ref: protected_path_health
+    signal_class: upgrade_or_rollback_failure
+    threshold_expression_class: count_at_or_above
+    threshold_expression_value: 1
+    summary: >
+      One or more upgrade or rollback runs failed against the candidate
+      without a named recovery plan; protected path is not promotable.
+    default_action_class: hold_promotion
+    escalation_owner_class: release_owner
+    evidence_refs_required_on_action:
+      - docs/release/update_and_rollback_contract.md
+      - schemas/release/update_manifest.schema.json
+      - artifacts/release/artifact_family_map.yaml
+
+  - threshold_id: alert.stale_packet.support_window_copy
+    panel_class_ref: support_center_readiness
+    signal_class: stale_packet
+    threshold_expression_class: duration_exceeds_iso8601
+    threshold_expression_value: P30D
+    summary: >
+      Support-window copy or end-of-support notice has not been
+      reviewed within thirty days against the live channel matrix.
+    default_action_class: refresh_evidence_packet
+    escalation_owner_class: support_owner
+    evidence_refs_required_on_action:
+      - docs/release/channel_support_window_contract.md
+      - artifacts/release/channel_matrix.yaml
+
+  - threshold_id: alert.repeated_freeze_exception.milestone_close
+    panel_class_ref: readiness_scorecard
+    signal_class: repeated_freeze_exception
+    threshold_expression_class: count_at_or_above
+    threshold_expression_value: 1
+    summary: >
+      A freeze exception remains open at milestone-close review;
+      milestone may not close without rebaseline or scoped descope.
+    default_action_class: block_milestone_close
+    escalation_owner_class: architecture_owner
+    evidence_refs_required_on_action:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+      - artifacts/governance/decision_index.yaml
+
+  - threshold_id: alert.docs_help_about_drift.migration_packet
+    panel_class_ref: migration_and_interface_health
+    signal_class: docs_help_about_drift
+    threshold_expression_class: boolean_true
+    threshold_expression_value: true
+    summary: >
+      Migration packet or release notice disagrees with the version
+      skew register or the live compatibility report.
+    default_action_class: narrow_claim
+    escalation_owner_class: docs_owner
+    evidence_refs_required_on_action:
+      - artifacts/governance/release_notice_seed.yaml
+      - artifacts/compat/version_skew_register.yaml
+      - docs/release/compatibility_report_template.md
+
+  - threshold_id: alert.blocker_age.correction_lane_unstaffed
+    panel_class_ref: correction_or_backport_posture
+    signal_class: blocker_age
+    threshold_expression_class: duration_exceeds_iso8601
+    threshold_expression_value: P3D
+    summary: >
+      A correction trigger has fired and remained unstaffed for more
+      than three days; promotion holds until a named owner accepts.
+    default_action_class: staff_correction_lane
+    escalation_owner_class: release_owner
+    evidence_refs_required_on_action:
+      - artifacts/governance/correction_trigger_table.yaml
+      - artifacts/release/channel_matrix.yaml
+      - artifacts/governance/ownership_matrix.yaml
+
+cross_register_invariants:
+  - id: every_threshold_names_default_action
+    statement: >
+      Every threshold_rows entry MUST set default_action_class to a
+      value drawn from default_action_class_vocabulary. A firing alert
+      that does not name a default action is non-conforming.
+  - id: every_threshold_names_evidence_refs
+    statement: >
+      Every threshold_rows entry MUST set
+      evidence_refs_required_on_action to a non-empty list of stable
+      artifact paths the action will refresh, narrow, or hand off. An
+      action without a target evidence ref is non-conforming.
+  - id: every_threshold_panel_class_in_closed_set
+    statement: >
+      Every panel_class_ref MUST be drawn from
+      panel_class_vocabulary so threshold rows align one-to-one with
+      a panel record in the dashboard.
+  - id: signal_class_does_not_proliferate
+    statement: >
+      Adding a signal_class is additive-minor and requires bumping
+      schema_version and updating
+      docs/release/shiproom_dashboard_contract.md plus
+      schemas/release/shiproom_panel.schema.json in the same change.
