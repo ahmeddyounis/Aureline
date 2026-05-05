@@ -76,3 +76,6 @@ export TZ=UTC
 export LC_ALL=C
 
 python3 "${REPO_ROOT}/tools/ci/validate_contract_artifacts.py" "${ARGS[@]}" | tee "${SUMMARY_PATH}"
+
+printf '\n[contract-validation] validating geometry token ledger and cases\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/ci/validate_geometry_cases.py" | tee -a "${SUMMARY_PATH}"
