@@ -46,6 +46,11 @@ This contract composes with and does not replace:
 - [`/docs/generated/lineage_hint_packet.md`](../generated/lineage_hint_packet.md)
   — generated and mirrored artifact posture. This contract cites those
   labels; it does not invent a second generated-source dialect.
+- [`/docs/language/framework_pack_contract.md`](./framework_pack_contract.md)
+  — framework-pack descriptor, package-manager identity, and lineage
+  disclosure contract. Framework-pack lanes here remain attributable and
+  cannot grow pack-private metadata outside shared graph/execution/lineage
+  records.
 - [`/docs/ai/context_assembly_contract.md`](../ai/context_assembly_contract.md)
   — AI context/evidence contract. AI-assist lanes here remain advisory
   and attributable; they do not bypass that evidence model.

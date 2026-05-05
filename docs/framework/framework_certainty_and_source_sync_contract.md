@@ -37,6 +37,10 @@ runtimes' results are allowed to surface.
   — provider-family taxonomy, framework-certainty classes, primary-
   source classes, and source-of-certainty chains. This contract
   re-exports those vocabularies; it does not mint a parallel dialect.
+- [`/docs/language/framework_pack_contract.md`](../language/framework_pack_contract.md)
+  — framework-pack descriptor, package/workspace-manager identity, and
+  lineage disclosure contract that keeps framework packs from growing
+  pack-private metadata or hidden state.
 - [`/docs/architecture/preview_runtime_contract.md`](../architecture/preview_runtime_contract.md)
   — cross-surface preview-snapshot record, source-sync state vocabulary,
   source-revision and runtime-identity blocks, hot-reload state, and

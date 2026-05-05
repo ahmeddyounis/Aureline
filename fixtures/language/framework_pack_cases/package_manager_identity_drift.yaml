@@ -1,0 +1,148 @@
+# yaml-language-server: $schema=../../../schemas/language/framework_pack_descriptor.schema.json
+record_kind: framework_pack_descriptor_record
+framework_pack_descriptor_schema_version: 1
+pack_id: framework.pack.web_identity_sensitive_overlay.v1
+pack_display_label: Web framework pack (identity-sensitive)
+pack_version: 1.0.0
+pack_source_class: first_party
+ecosystem: nodejs
+supported_framework_claims:
+  - framework_id: framework.web_monorepo.v1
+    framework_display_label: Web monorepo (framework-agnostic overlay)
+    supported_overlay_families:
+      - route_overlay
+      - config_overlay
+      - test_overlay
+    proving_artifact_classes:
+      - workspace_graph_projection
+      - unknown_requires_review
+    claim_summary: Framework claims are withheld unless package/workspace identity and root authority can be proven.
+supported_overlay_families:
+  - route_overlay
+  - config_overlay
+  - test_overlay
+required_contract_bindings:
+  - contract_class: workspace_graph
+    schema_refs:
+      - schemas/graph/workspace_graph_seed.schema.json
+    doc_refs:
+      - docs/graph/workspace_graph_seed.md
+    binding_summary: Framework overlays must project into the shared graph; when identity is ambiguous, overlays degrade rather than minting private truth.
+  - contract_class: search_truth
+    schema_refs:
+      - schemas/search/search_truth_packet.schema.json
+    doc_refs:
+      - docs/search/search_navigation_truth_packet.md
+    binding_summary: Search truth and degraded-state labeling remain explicit even when packs withhold framework facts due to identity ambiguity.
+  - contract_class: build_target_events
+    schema_refs:
+      - schemas/build/raw_event_inspector.schema.json
+    doc_refs:
+      - docs/build/adapter_confidence_and_event_inspection_contract.md
+    binding_summary: Build/test intent binds to build-target vocabulary; ambiguous package roots prevent authoritative build target binding.
+  - contract_class: docs_pack
+    schema_refs:
+      - schemas/docs/docs_pack_manifest.schema.json
+    doc_refs:
+      - docs/docs/docs_pack_manifest_contract.md
+    binding_summary: Any documentation surfaced by the pack remains governed by docs-pack publication and redaction rules.
+  - contract_class: execution_context
+    schema_refs:
+      - schemas/runtime/execution_context.schema.json
+    doc_refs:
+      - docs/runtime/execution_context_vocabulary.md
+    binding_summary: Toolchain and root selection provenance must route through execution-context provenance records; ambiguity is exposed, not hidden.
+  - contract_class: generated_artifact_lineage
+    schema_refs:
+      - schemas/workspace/generated_artifact_lineage.schema.json
+    doc_refs:
+      - docs/generated/lineage_hint_packet.md
+    binding_summary: Derived artifacts remain lineage-labeled; identity drift does not permit treating generated outputs as canonical source.
+  - contract_class: debug_artifact_manifest
+    schema_refs:
+      - schemas/debug/debug_artifact_manifest.schema.json
+      - schemas/build/exact_build_identity.schema.json
+    doc_refs:
+      - docs/debug/artifact_resolution_seed.md
+      - docs/build/exact_build_identity_model.md
+    binding_summary: Source maps and debug artifacts require exact-build linkage; when package/toolchain identity is ambiguous, debug linkage degrades explicitly.
+package_manager_identity:
+  selected_identity:
+    ecosystem: nodejs
+    package_manager_family: package_manager_unknown_requires_review
+    package_manager_version: null
+    workspace_manager_family: workspace_manager_unknown_requires_review
+    workspace_root_resolution:
+      resolution_class: unknown_requires_review
+      workspace_root_ref: workspace:root:webapp:unknown
+      summary: Multiple plausible workspace roots and managers were observed; pack refuses to select an authoritative root without review.
+    manifest_authority:
+      entries:
+        - authority_class: lockfile
+          manifest_ref: fs:identity:pnpm-lock.yaml:01
+          selected_as_authoritative: false
+          summary: pnpm lockfile present but conflicts with other manager evidence.
+        - authority_class: lockfile
+          manifest_ref: fs:identity:yarn.lock:01
+          selected_as_authoritative: false
+          summary: yarn lockfile present but conflicts with other manager evidence.
+        - authority_class: workspace_manifest
+          manifest_ref: fs:identity:pnpm-workspace.yaml:01
+          selected_as_authoritative: false
+          summary: pnpm workspace manifest present but root selection is ambiguous across multiple roots.
+        - authority_class: workspace_manifest
+          manifest_ref: fs:identity:package.json:root:01
+          selected_as_authoritative: false
+          summary: npm workspaces evidence exists, but conflicts with other workspace-manager signals.
+      selection_summary: No manifest is authoritative until identity drift is reviewed and a single root/manager is selected.
+    execution_context_id: exec:language:webapp:local:drifted:01
+    execution_context_provenance_ref: exec:prov:webapp:local:drifted:01
+    selection_summary: Pack fails closed on identity selection; downstream surfaces must degrade rather than treating framework overlays as authoritative.
+  observed_identities:
+    - ecosystem: nodejs
+      package_manager_family: pnpm
+      package_manager_version: null
+      workspace_manager_family: pnpm_workspaces
+      workspace_root_resolution:
+        resolution_class: workspace_manifest_ancestor
+        workspace_root_ref: workspace:root:webapp:01
+        summary: pnpm root candidate anchored by pnpm-workspace.yaml, but conflicts with yarn evidence.
+      manifest_authority:
+        entries:
+          - authority_class: workspace_manifest
+            manifest_ref: fs:identity:pnpm-workspace.yaml:01
+            selected_as_authoritative: false
+            summary: Candidate root manifest; not selected due to drift.
+        selection_summary: pnpm candidate identity is recorded as non-authoritative.
+      execution_context_id: exec:language:webapp:local:drifted:01
+      execution_context_provenance_ref: exec:prov:webapp:local:drifted:01
+      selection_summary: pnpm candidate identity cannot be promoted without resolving drift.
+    - ecosystem: nodejs
+      package_manager_family: yarn
+      package_manager_version: null
+      workspace_manager_family: yarn_workspaces
+      workspace_root_resolution:
+        resolution_class: workspace_manifest_ancestor
+        workspace_root_ref: workspace:root:webapp:02
+        summary: yarn root candidate anchored by yarn.lock and workspace manifests, but conflicts with pnpm evidence.
+      manifest_authority:
+        entries:
+          - authority_class: lockfile
+            manifest_ref: fs:identity:yarn.lock:01
+            selected_as_authoritative: false
+            summary: Candidate lockfile; not selected due to drift.
+        selection_summary: yarn candidate identity is recorded as non-authoritative.
+      execution_context_id: exec:language:webapp:local:drifted:01
+      execution_context_provenance_ref: exec:prov:webapp:local:drifted:01
+      selection_summary: yarn candidate identity cannot be promoted without resolving drift.
+  identity_drift:
+    drift_reason_class: root_ambiguity
+    summary: Multiple lockfiles and workspace manifests imply conflicting workspace roots/managers; pack refuses to claim authoritative framework overlays until resolved.
+lineage_obligations:
+  - obligation_class: generated_artifact_lineage_required
+    summary: Even under identity drift, derived artifacts must carry lineage records; packs never treat generated outputs as canonical source edits.
+  - obligation_class: row_lineage_hint_required
+    summary: Row-level lineage hints remain required so derived artifacts are labeled correctly in explorer/search/review surfaces.
+captured_at: "2026-05-05T21:32:00Z"
+export_safe_summary: Framework pack fails closed on package/workspace identity drift and requires explicit review before framework overlays may claim authority.
+

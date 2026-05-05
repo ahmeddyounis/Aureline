@@ -1,0 +1,573 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/framework_pack_descriptor.schema.json",
+  "title": "Aureline framework-pack descriptor record",
+  "description": "Boundary schema for framework_pack_descriptor_record as frozen in docs/language/framework_pack_contract.md. The descriptor is the publishable identity and contract-binding record for one framework pack. It exists so protected surfaces (router decisions, result provenance, framework certainty rows, search/docs rows, support exports, AI evidence lanes) can attribute framework-aware facts to one pack identity, one package/workspace-manager identity snapshot, and one set of shared contracts (graph/search/build/docs/execution/lineage/debug) rather than allowing framework packs to grow private metadata and hidden state. Raw source text, raw provider logs, raw command lines, raw hostnames, raw URLs, raw manifest bodies, raw lockfile bodies, raw build outputs, raw source map bytes, and raw secrets never cross this boundary; records carry opaque ids, typed vocabulary, filesystem-identity refs, and reviewable summaries only. Adding a new enum member or a new optional field is additive-minor and requires a framework_pack_descriptor_schema_version bump; repurposing an existing token is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/framework_pack_descriptor_record" }
+  ],
+  "$defs": {
+    "framework_pack_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the framework pack descriptor payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "framework_pack_descriptor_record"
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Stable token suitable for identifiers and closed-vocabulary members."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable dot-separated identifier (e.g. provider ids, pack ids, schema ids)."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support exports."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured when the descriptor was recorded."
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short reviewer-facing summary safe for UI, CLI, and support export. Raw paths outside filesystem-identity records, raw URLs, raw manifest bodies, and raw secrets never appear here."
+    },
+    "nullable_reviewable_summary": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_summary" }
+      ]
+    },
+
+    "ecosystem_class": {
+      "type": "string",
+      "enum": [
+        "nodejs",
+        "python",
+        "jvm",
+        "dotnet",
+        "go",
+        "rust",
+        "ruby",
+        "php",
+        "terraform",
+        "container",
+        "unknown_requires_review"
+      ],
+      "description": "Coarse ecosystem class the pack targets. Used for inspection and for routing packs to applicable workspaces."
+    },
+    "pack_source_class": {
+      "type": "string",
+      "enum": [
+        "first_party",
+        "third_party_signed",
+        "local_dev",
+        "imported_snapshot",
+        "unknown_requires_review"
+      ],
+      "description": "High-level provenance class for where the pack came from. Does not carry raw URLs or registry coordinates; those are disclosed through other governance and package/extension contracts."
+    },
+
+    "overlay_family_class": {
+      "type": "string",
+      "enum": [
+        "route_overlay",
+        "config_overlay",
+        "test_overlay",
+        "diagnostics_overlay",
+        "docs_overlay",
+        "debug_overlay",
+        "generated_source_overlay"
+      ],
+      "description": "Family of overlays the pack can emit. These are categories of evidence and projection, not framework-specific feature lists."
+    },
+
+    "contract_binding_class": {
+      "type": "string",
+      "enum": [
+        "workspace_graph",
+        "search_truth",
+        "build_target_events",
+        "docs_pack",
+        "execution_context",
+        "generated_artifact_lineage",
+        "debug_artifact_manifest"
+      ],
+      "description": "Shared contract classes a framework pack must bind to. Packs MUST not mint parallel dialects for these domains."
+    },
+    "contract_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_class",
+        "schema_refs",
+        "doc_refs",
+        "binding_summary"
+      ],
+      "properties": {
+        "contract_class": { "$ref": "#/$defs/contract_binding_class" },
+        "schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "One or more schema references (repo-relative schema paths or schema $id strings) the pack commits to using for this contract class."
+        },
+        "doc_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "One or more repository doc paths the pack claims to compose with for this contract class."
+        },
+        "binding_summary": { "$ref": "#/$defs/reviewable_summary" }
+      },
+      "description": "One declared binding to an existing contract family. Consumers use this to audit whether the pack is reusing shared records and vocabulary."
+    },
+
+    "workspace_manager_family": {
+      "type": "string",
+      "enum": [
+        "npm_workspaces",
+        "pnpm_workspaces",
+        "yarn_workspaces",
+        "bun_workspaces",
+        "rush",
+        "nx",
+        "turborepo",
+        "bazel",
+        "cargo_workspace",
+        "poetry_workspace",
+        "pip_venv_only",
+        "workspace_manager_unknown_requires_review"
+      ],
+      "description": "Closed vocabulary naming the workspace boundary model that defines member/package roots for the ecosystem."
+    },
+    "root_resolution_class": {
+      "type": "string",
+      "enum": [
+        "explicit_config",
+        "workspace_manifest_ancestor",
+        "package_manifest_ancestor",
+        "vcs_root",
+        "imported_or_support_projection",
+        "heuristic_guess",
+        "unknown_requires_review"
+      ],
+      "description": "How the workspace root and package/workspace boundary was selected. When unknown_requires_review, framework claims must degrade."
+    },
+    "manifest_authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_manifest",
+        "package_manifest",
+        "lockfile",
+        "toolchain_manifest",
+        "framework_config",
+        "test_config",
+        "generated_manifest",
+        "imported_snapshot_manifest",
+        "unknown_requires_review"
+      ],
+      "description": "Class of manifest treated as authoritative for the pack's identity decisions. Does not expose raw manifest bodies."
+    },
+
+    "filesystem_identity_record": {
+      "$ref": "https://aureline.dev/schemas/filesystem/save_target_token.schema.json#/$defs/filesystem_identity_record"
+    },
+
+    "workspace_root_resolution_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolution_class",
+        "workspace_root_ref",
+        "summary"
+      ],
+      "properties": {
+        "resolution_class": { "$ref": "#/$defs/root_resolution_class" },
+        "workspace_root_ref": { "$ref": "#/$defs/opaque_id" },
+        "anchor_manifest_identity": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/filesystem_identity_record" }
+          ],
+          "default": null,
+          "description": "Optional filesystem-identity record of the manifest/config that anchored root resolution."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_summary" }
+      },
+      "description": "Workspace-root selection disclosure. Packs MUST not treat root selection as folklore."
+    },
+
+    "manifest_authority_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_class",
+        "selected_as_authoritative",
+        "summary"
+      ],
+      "anyOf": [
+        { "required": ["manifest_identity"] },
+        { "required": ["manifest_ref"] }
+      ],
+      "properties": {
+        "authority_class": { "$ref": "#/$defs/manifest_authority_class" },
+        "manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "default": null,
+          "description": "Opaque ref to a filesystem-identity record or other admitted manifest identity row. Preferred over embedding the full filesystem identity in compact packets."
+        },
+        "manifest_identity": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/filesystem_identity_record" }
+          ],
+          "default": null,
+          "description": "Optional embedded filesystem identity record for the manifest/config/lockfile. Consumers may use manifest_ref instead to keep packets compact."
+        },
+        "selected_as_authoritative": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/reviewable_summary" }
+      },
+      "description": "One manifest/config/lockfile that influenced or could have influenced pack semantics. At least one entry MUST have selected_as_authoritative=true unless the identity is unknown_requires_review."
+    },
+    "manifest_authority_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entries",
+        "selection_summary"
+      ],
+      "properties": {
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/manifest_authority_entry" }
+        },
+        "selection_summary": { "$ref": "#/$defs/reviewable_summary" }
+      }
+    },
+
+    "package_manager_family": {
+      "$ref": "https://aureline.dev/schemas/execution/package_change_plan.schema.json#/$defs/package_manager_family"
+    },
+
+    "package_manager_identity_selection_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ecosystem",
+        "package_manager_family",
+        "workspace_manager_family",
+        "workspace_root_resolution",
+        "manifest_authority",
+        "execution_context_id",
+        "execution_context_provenance_ref",
+        "selection_summary"
+      ],
+      "properties": {
+        "ecosystem": { "$ref": "#/$defs/ecosystem_class" },
+        "package_manager_family": { "$ref": "#/$defs/package_manager_family" },
+        "package_manager_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "default": null
+        },
+        "workspace_manager_family": { "$ref": "#/$defs/workspace_manager_family" },
+        "workspace_root_resolution": { "$ref": "#/$defs/workspace_root_resolution_block" },
+        "manifest_authority": { "$ref": "#/$defs/manifest_authority_block" },
+        "execution_context_id": {
+          "$ref": "https://aureline.dev/schemas/runtime/execution_context.schema.json#/$defs/execution_context_id"
+        },
+        "execution_context_provenance_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the execution_context_provenance_record that explains toolchain/runtime selection. Packs MUST cite provenance rather than invent a private explanation format."
+        },
+        "selection_summary": { "$ref": "#/$defs/reviewable_summary" }
+      }
+    },
+
+    "identity_drift_reason_class": {
+      "type": "string",
+      "enum": [
+        "multiple_lockfiles_present",
+        "conflicting_workspace_manifests",
+        "explicit_override_present",
+        "support_or_import_projection_partial",
+        "toolchain_mismatch",
+        "root_ambiguity",
+        "unknown_requires_review"
+      ],
+      "description": "Closed reason vocabulary for why identity selection drifted or could not be made authoritative."
+    },
+    "identity_drift_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drift_reason_class",
+        "summary"
+      ],
+      "properties": {
+        "drift_reason_class": { "$ref": "#/$defs/identity_drift_reason_class" },
+        "related_manifest_identities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/filesystem_identity_record" },
+          "description": "Optional list of manifest/lockfile identities implicated in the drift. Empty when redaction or lack of evidence prevents naming them."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_summary" }
+      }
+    },
+
+    "package_manager_identity_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_identity",
+        "identity_drift"
+      ],
+      "properties": {
+        "selected_identity": { "$ref": "#/$defs/package_manager_identity_selection_record" },
+        "observed_identities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/package_manager_identity_selection_record" },
+          "description": "Optional alternate/observed identities that were not selected. Present when drift exists or when the pack needs to prove its selection against plausible alternatives."
+        },
+        "identity_drift": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/identity_drift_record" }
+          ],
+          "default": null
+        }
+      }
+    },
+
+    "proving_artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_graph_projection",
+        "generated_artifact_lineage",
+        "debug_artifact_manifest_entry",
+        "runtime_snapshot",
+        "build_output",
+        "framework_manifest",
+        "imported_snapshot",
+        "unknown_requires_review"
+      ],
+      "description": "Closed vocabulary for the evidence classes a pack may cite when claiming framework-aware facts."
+    },
+    "framework_claim_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "framework_id",
+        "framework_display_label",
+        "supported_overlay_families",
+        "proving_artifact_classes",
+        "claim_summary"
+      ],
+      "properties": {
+        "framework_id": { "$ref": "#/$defs/stable_dot_id" },
+        "framework_display_label": { "$ref": "#/$defs/reviewable_summary" },
+        "supported_overlay_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/overlay_family_class" }
+        },
+        "proving_artifact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/proving_artifact_class" }
+        },
+        "claim_summary": { "$ref": "#/$defs/reviewable_summary" }
+      }
+    },
+
+    "lineage_obligation_class": {
+      "type": "string",
+      "enum": [
+        "generated_artifact_lineage_required",
+        "row_lineage_hint_required",
+        "exact_build_identity_required_for_source_maps",
+        "debug_artifact_manifest_required_for_debug_artifacts"
+      ],
+      "description": "Explicit lineage obligations the pack commits to honoring when it produces or consumes derived artifacts."
+    },
+    "lineage_obligation_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "obligation_class",
+        "summary"
+      ],
+      "properties": {
+        "obligation_class": { "$ref": "#/$defs/lineage_obligation_class" },
+        "summary": { "$ref": "#/$defs/reviewable_summary" }
+      }
+    },
+
+    "framework_pack_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "framework_pack_descriptor_schema_version",
+        "pack_id",
+        "pack_display_label",
+        "pack_version",
+        "pack_source_class",
+        "ecosystem",
+        "supported_framework_claims",
+        "supported_overlay_families",
+        "required_contract_bindings",
+        "package_manager_identity",
+        "lineage_obligations",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "framework_pack_descriptor_schema_version": { "$ref": "#/$defs/framework_pack_descriptor_schema_version" },
+        "pack_id": { "$ref": "#/$defs/stable_dot_id" },
+        "pack_display_label": { "$ref": "#/$defs/reviewable_summary" },
+        "pack_version": { "type": "string", "minLength": 1 },
+        "pack_source_class": { "$ref": "#/$defs/pack_source_class" },
+        "ecosystem": { "$ref": "#/$defs/ecosystem_class" },
+        "supported_framework_claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/framework_claim_record" }
+        },
+        "supported_overlay_families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/overlay_family_class" }
+        },
+        "required_contract_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/contract_binding_record" },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "workspace_graph" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "search_truth" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "build_target_events" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "docs_pack" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "execution_context" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "generated_artifact_lineage" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "contract_class": { "const": "debug_artifact_manifest" } },
+                "required": ["contract_class"]
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "package_manager_identity": { "$ref": "#/$defs/package_manager_identity_record" },
+        "lineage_obligations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/lineage_obligation_record" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "export_safe_summary": { "$ref": "#/$defs/reviewable_summary" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "package_manager_identity": {
+                "properties": {
+                  "selected_identity": {
+                    "properties": {
+                      "workspace_root_resolution": {
+                        "properties": {
+                          "resolution_class": { "const": "unknown_requires_review" }
+                        },
+                        "required": ["resolution_class"]
+                      }
+                    },
+                    "required": ["workspace_root_resolution"]
+                  }
+                },
+                "required": ["selected_identity"]
+              }
+            },
+            "required": ["package_manager_identity"]
+          },
+          "then": {
+            "properties": {
+              "package_manager_identity": {
+                "properties": {
+                  "identity_drift": {
+                    "not": { "type": "null" }
+                  }
+                },
+                "required": ["identity_drift"]
+              }
+            }
+          }
+        }
+      ],
+      "description": "One published framework pack descriptor. Framework packs emit this record so other surfaces can attribute framework facts, root/manager selection, and derived-artifact lineage obligations without relying on hidden metadata."
+    }
+  }
+}
