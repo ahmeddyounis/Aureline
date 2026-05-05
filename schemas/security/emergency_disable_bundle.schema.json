@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/emergency_disable_bundle.schema.json",
+  "title": "Aureline emergency disable bundle contract",
+  "description": "Boundary schema for the emergency_disable_bundle_record frozen in docs/security/emergency_disable_bundle_contract.md. The record is the signed, inspectable emergency-disable object that can disable or freeze extensions, provider routes, endpoints, mirror routes, or release channels without hiding what still works locally. It carries subject refs, bounded target scope, minimum required version guidance, pinned precedence layer, issuer and approval-chain metadata, signer continuity, distribution freshness across live/mirror/manual-import/offline paths, explicit expiry and supersedence, follow-up rules, and a local continuity note. Raw bundle bytes, raw signature bytes, raw trust roots, raw registry payloads, raw URLs/hostnames, raw absolute paths, and secret material never cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable summaries only. Adding a new subject_kind, action_class, follow_up_rule_class, or approval-chain vocabulary value is additive-minor and requires an emergency_disable_bundle_schema_version bump; repurposing an existing value is breaking and requires a new governance decision.",
+  "type": "object",
+  "$ref": "#/$defs/emergency_disable_bundle_record",
+  "$defs": {
+    "emergency_disable_bundle_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this emergency-disable bundle export. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "emergency_disable_bundle_record",
+      "description": "Discriminator for this payload."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional fixture-only metadata used by worked cases."
+    },
+    "opaque_id": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/opaque_id"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/monotonic_timestamp"
+    },
+    "nullable_monotonic_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/reviewable_sentence"
+    },
+    "trigger_source_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/trigger_source_class"
+    },
+    "record_state_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/record_state_class"
+    },
+    "signer_continuity": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/signer_continuity"
+    },
+    "distribution_status_record": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/distribution_status_record"
+    },
+    "deployment_profile_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/deployment_profile_class"
+    },
+    "affected_install_linkage": {
+      "$ref": "./advisory_record.schema.json#/$defs/affected_install_linkage"
+    },
+    "redaction_class": {
+      "$ref": "./advisory_record.schema.json#/$defs/redaction_class"
+    },
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "extension",
+        "provider_route",
+        "mirror_route",
+        "endpoint",
+        "update_channel",
+        "capability_gate"
+      ],
+      "description": "Closed subject-kind vocabulary for what the bundle disables or freezes."
+    },
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "block",
+        "force_disable",
+        "channel_freeze",
+        "provider_disable",
+        "mirror_disable",
+        "endpoint_disable"
+      ],
+      "description": "Closed action-class vocabulary for emergency disablement. Values align with the local emergency-disable evidence record in schemas/policy/policy_bundle_cache_entry.schema.json."
+    },
+    "subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_kind", "subject_ref", "action_class", "note"],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One subject disabled or frozen by the bundle."
+    },
+    "precedence_layer": {
+      "type": "string",
+      "const": "emergency_disable",
+      "description": "Pinned precedence layer identifier aligned with docs/policy/admin_policy_and_bundle_cache_contract.md. This bundle is always the highest-priority ratchet layer."
+    },
+    "approval_forum_class": {
+      "type": "string",
+      "enum": [
+        "security_trust_review",
+        "release_council",
+        "architecture_council",
+        "performance_council",
+        "product_scope_review",
+        "compatibility_ecosystem_review",
+        "shiproom_executive_scope_review"
+      ],
+      "description": "Approval forum vocabulary aligned with advisory decision-history forum lanes."
+    },
+    "approval_outcome_class": {
+      "type": "string",
+      "enum": [
+        "approved",
+        "break_glass_approved",
+        "rejected",
+        "pending_additional_review"
+      ],
+      "description": "Closed approval-outcome vocabulary."
+    },
+    "approval_chain_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approved_at", "forum", "outcome", "approver_ref", "note"],
+      "properties": {
+        "approved_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "forum": { "$ref": "#/$defs/approval_forum_class" },
+        "outcome": { "$ref": "#/$defs/approval_outcome_class" },
+        "approver_ref": { "$ref": "#/$defs/opaque_id" },
+        "note": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "description": "One approval-chain entry. Entries are append-only; supersedence or reconciliation is represented by later bundles, not mutation."
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "follow_up_rule_class": {
+      "type": "string",
+      "enum": [
+        "superseding_bundle_required",
+        "post_incident_review_required",
+        "emergency_action_record_required",
+        "manual_clear_required",
+        "expiry_only"
+      ],
+      "description": "Closed follow-up rule vocabulary naming what must happen next for the emergency state to clear safely."
+    },
+    "follow_up_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_class", "rule_note", "follow_up_refs"],
+      "properties": {
+        "rule_class": { "$ref": "#/$defs/follow_up_rule_class" },
+        "rule_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "follow_up_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to follow-up artifacts (post-incident review, support packet, emergency-action record, admin export)."
+        }
+      },
+      "description": "Follow-up rule and linkage required for recovery."
+    },
+    "emergency_disable_bundle_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emergency_disable_bundle_schema_version",
+        "record_kind",
+        "disable_bundle_id",
+        "record_state",
+        "trigger_source_class",
+        "precedence_layer",
+        "issuer_ref",
+        "approval_chain",
+        "subject_refs",
+        "affected_install_linkage",
+        "deployment_profile_scope",
+        "minimum_required_version_ref",
+        "signer_continuity",
+        "distribution_statuses",
+        "effective_at",
+        "expires_at",
+        "supersedes_disable_bundle_refs",
+        "superseded_by_disable_bundle_ref",
+        "follow_up_rule",
+        "local_continuity_note",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "emergency_disable_bundle_schema_version": { "$ref": "#/$defs/emergency_disable_bundle_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+
+        "disable_bundle_id": { "$ref": "#/$defs/opaque_id" },
+
+        "record_state": { "$ref": "#/$defs/record_state_class" },
+        "trigger_source_class": { "$ref": "#/$defs/trigger_source_class" },
+
+        "precedence_layer": { "$ref": "#/$defs/precedence_layer" },
+
+        "issuer_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the issuing authority (security response, mirror operator, or approved admin issuer)."
+        },
+        "approval_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/approval_chain_entry" },
+          "description": "Approval chain describing how this emergency disable was authorised."
+        },
+
+        "subject_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/subject_ref" },
+          "description": "Subjects disabled or frozen by this bundle."
+        },
+
+        "affected_install_linkage": { "$ref": "#/$defs/affected_install_linkage" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+
+        "minimum_required_version_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref naming a minimum safe/required version (build identity, extension version, or route version) for recovery guidance. Null when a minimum version is not the recovery path."
+        },
+
+        "signer_continuity": { "$ref": "#/$defs/signer_continuity" },
+        "distribution_statuses": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/distribution_status_record" },
+          "description": "Distribution rows describing live/mirror/manual/offline projection without pretending imported state is live-authoritative."
+        },
+
+        "effective_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_monotonic_timestamp" },
+
+        "supersedes_disable_bundle_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to prior disable bundles this bundle supersedes."
+        },
+        "superseded_by_disable_bundle_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the successor disable bundle when record_state is superseded; null otherwise."
+        },
+
+        "follow_up_rule": { "$ref": "#/$defs/follow_up_rule" },
+
+        "local_continuity_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short, export-safe continuity note describing what still works locally while the disable is enforced."
+        },
+
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "record_state = superseded requires superseded_by_disable_bundle_ref to be non-null.",
+          "if": {
+            "properties": { "record_state": { "const": "superseded" } },
+            "required": ["record_state"]
+          },
+          "then": {
+            "properties": {
+              "superseded_by_disable_bundle_ref": { "not": { "type": "null" } }
+            },
+            "required": ["superseded_by_disable_bundle_ref"]
+          }
+        }
+      ]
+    }
+  }
+}
+

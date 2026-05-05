@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/local_continuity_card.schema.json",
+  "title": "Aureline local-continuity card contract",
+  "description": "Boundary schema for local_continuity_card_record frozen in docs/security/emergency_disable_bundle_contract.md. The card is the durable explanation object surfaces render when a capability is disabled, frozen, or narrowed by runtime policy, registry metadata, a signed emergency disable bundle, or an admin override. It states what still works, what is blocked, which source triggered the state, the evidence freshness/validation when the source is mirrored/offline, and the next safe recovery path. Raw policy bodies, raw registry payloads, raw bundle bytes, raw signatures, raw URLs/hostnames, raw absolute paths, raw tenant names, and secret material never cross this boundary; the card carries opaque refs, typed vocabulary, and reviewable summaries only. Adding a new next_safe_path_class is additive-minor and requires a local_continuity_card_schema_version bump; repurposing an existing value is breaking and requires governance review.",
+  "type": "object",
+  "$ref": "#/$defs/local_continuity_card_record",
+  "$defs": {
+    "local_continuity_card_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this local-continuity card export. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "local_continuity_card_record",
+      "description": "Discriminator for this payload."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional fixture-only metadata used by worked cases."
+    },
+    "opaque_id": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/opaque_id"
+    },
+    "monotonic_timestamp": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/monotonic_timestamp"
+    },
+    "reviewable_sentence": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/reviewable_sentence"
+    },
+    "nullable_reviewable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "trigger_source_class": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/trigger_source_class"
+    },
+    "distribution_status_record": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/distribution_status_record"
+    },
+    "local_continuity_record": {
+      "$ref": "./emergency_action_record.schema.json#/$defs/local_continuity_record"
+    },
+    "target_class": {
+      "$ref": "../policy/policy_bundle_cache_entry.schema.json#/$defs/target_class"
+    },
+    "next_safe_path_class": {
+      "type": "string",
+      "enum": [
+        "inspect_details",
+        "update_to_minimum_required_version",
+        "import_new_snapshot",
+        "refresh_via_approved_mirror",
+        "contact_admin_or_owner",
+        "clear_local_override",
+        "pin_last_known_good_until_resolve"
+      ],
+      "description": "Closed next-safe-path vocabulary for recovery guidance."
+    },
+    "next_safe_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path_class", "path_ref", "note"],
+      "properties": {
+        "path_class": { "$ref": "#/$defs/next_safe_path_class" },
+        "path_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the action target (bundle ref, mirror receipt ref, admin export ref, help doc ref). Null when no stable deep-link exists."
+        },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "One next-safe recovery path row."
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_class", "target_ref", "target_label"],
+      "properties": {
+        "target_class": { "$ref": "#/$defs/target_class" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "The disabled/frozen/narrowed target the card explains."
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trigger_source_class", "source_ref", "source_distribution", "note"],
+      "properties": {
+        "trigger_source_class": { "$ref": "#/$defs/trigger_source_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_distribution": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/distribution_status_record" }
+          ],
+          "description": "Distribution evidence when the trigger source is a signed or imported snapshot. Null for runtime-policy or local override triggers."
+        },
+        "note": { "$ref": "#/$defs/nullable_reviewable_sentence" }
+      },
+      "description": "Source attribution for the continuity card."
+    },
+    "local_continuity_card_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "local_continuity_card_schema_version",
+        "local_continuity_card_id",
+        "target",
+        "source",
+        "local_continuity",
+        "next_safe_paths",
+        "rendered_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "local_continuity_card_schema_version": { "$ref": "#/$defs/local_continuity_card_schema_version" },
+        "local_continuity_card_id": { "$ref": "#/$defs/opaque_id" },
+        "target": { "$ref": "#/$defs/target" },
+        "source": { "$ref": "#/$defs/source" },
+        "local_continuity": { "$ref": "#/$defs/local_continuity_record" },
+        "next_safe_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/next_safe_path" }
+        },
+        "rendered_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+

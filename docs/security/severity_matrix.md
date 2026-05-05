@@ -154,11 +154,14 @@ Out of scope until a superseding decision row opens:
 - Final emergency-action UI behaviour beyond the object model, shared
   field set, and linkage refs frozen here and in
   [`/docs/security/emergency_action_model.md`](./emergency_action_model.md).
-- Disable-bundle artefact bytes. The advisory record reserves the
-  linkage ref (`disable_bundle_refs`); the disable-bundle schema is a
-  later lane co-owned by security / trust review and release council.
-- Revocation-record bodies. The advisory record reserves the linkage
-  ref (`revocation_refs`); the revocation schema is a later lane.
+- Disable-bundle raw payload and transport bytes. Disable bundles are
+  modeled as `emergency_disable_bundle_record` objects in
+  [`/schemas/security/emergency_disable_bundle.schema.json`](../../schemas/security/emergency_disable_bundle.schema.json);
+  raw bytes and transport plumbing remain out of scope at this revision.
+- Revocation raw payload and transport bytes. Revocations are modeled as
+  `revocation_record` objects in
+  [`/schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json);
+  raw bytes and transport plumbing remain out of scope at this revision.
 - CVSS or other quantitative scoring systems. The severity class is a
   closed label every downstream surface uses; attaching a CVSS vector
   is additive-minor and requires a companion schema bump when it
@@ -507,8 +510,11 @@ view.
   identity graph as advisories and emergency actions; it no longer
   relies on a future placeholder schema.
 - **Disable bundle.** The advisory record reserves
-  `disable_bundle_refs` for opaque disable-bundle ids. The disable-
-  bundle artefact is a later lane.
+  `disable_bundle_refs` for emergency disable bundle ids that resolve
+  into
+  [`/schemas/security/emergency_disable_bundle.schema.json`](../../schemas/security/emergency_disable_bundle.schema.json)
+  `emergency_disable_bundle_record` objects. Disable bundles remain
+  durable and inspectable even when superseded or expired.
 
 ## Change control
 
@@ -537,9 +543,9 @@ view.
 - Open decision rows that bind the severity clocks above to named
   release-council SLAs once the release-cadence decision (D-0010)
   closes.
-- Land the disable-bundle transport/payload schema under
-  `/schemas/security/` so `disable_bundle_refs` stops being the only
-  remaining reserved slot in the security-response object family.
+- Land the disable-bundle raw-payload and signature-envelope schema
+  (transport bytes) so publication/import tooling can be implemented
+  without changing the boundary-record contract.
 - Open the coordinated-disclosure runbook referenced by the
   `coordinated_disclosure_group` scope value. The schema reserves the
   scope; the runbook content is support / security authority.

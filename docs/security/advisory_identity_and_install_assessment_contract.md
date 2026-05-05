@@ -23,6 +23,9 @@ Companion artifacts:
   - advisory-surface projection; consumes `advisory_identity_record` and affected-install assessment fields.
 - [`/docs/security/severity_matrix.md`](./severity_matrix.md)
   - severity vocabulary and subject-kind vocabulary.
+- [`/docs/security/emergency_disable_bundle_contract.md`](./emergency_disable_bundle_contract.md)
+  and [`/schemas/security/emergency_disable_bundle.schema.json`](../../schemas/security/emergency_disable_bundle.schema.json)
+  - emergency disable bundle contract referenced by `disable_bundle_refs[]`.
 - [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml)
   and [`/schemas/build/exact_build_identity.schema.json`](../../schemas/build/exact_build_identity.schema.json)
   - install-profile cards and exact-build identities every assessment binds to.
