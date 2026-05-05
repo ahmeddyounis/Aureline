@@ -83,5 +83,8 @@ python3 "${REPO_ROOT}/tools/ci/validate_geometry_cases.py" | tee -a "${SUMMARY_P
 printf '\n[contract-validation] validating motion token ledger and cases\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/ci/validate_motion_cases.py" | tee -a "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating component metrics ledger and cases\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/ci/validate_component_metric_cases.py" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating UI copy lint rules and cases\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/ci/validate_ui_copy_cases.py" | tee -a "${SUMMARY_PATH}"
