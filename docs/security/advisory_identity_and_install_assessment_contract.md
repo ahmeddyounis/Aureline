@@ -17,6 +17,10 @@ Companion artifacts:
   - machine boundary for `advisory_identity_record`.
 - [`/schemas/security/affected_install_assessment.schema.json`](../../schemas/security/affected_install_assessment.schema.json)
   - machine boundary for `affected_install_assessment_record`.
+- [`/docs/security/advisory_history_and_resolution_contract.md`](./advisory_history_and_resolution_contract.md)
+  and [`/schemas/security/advisory_timeline_entry.schema.json`](../../schemas/security/advisory_timeline_entry.schema.json)
+  - timeline and retention rules that keep resolved/superseded advisories
+    inspectable without losing copy-safe identity.
 - [`/schemas/security/advisory_record.schema.json`](../../schemas/security/advisory_record.schema.json)
   - canonical advisory record; its identity and severity vocabulary are shared with `advisory_identity_record`.
 - [`/schemas/security/advisory_card.schema.json`](../../schemas/security/advisory_card.schema.json)

@@ -15,6 +15,10 @@ immediate remediation.
 
 Companion artifacts:
 
+- [`/docs/security/advisory_history_and_resolution_contract.md`](./advisory_history_and_resolution_contract.md)
+  plus [`/schemas/security/advisory_timeline_entry.schema.json`](../../schemas/security/advisory_timeline_entry.schema.json)
+  - advisory history timeline and resolved/superseded retention rules that
+    keep mitigated incidents auditable without emergency prominence.
 - [`/schemas/security/advisory_card.schema.json`](../../schemas/security/advisory_card.schema.json)
   - machine-readable boundary for the `advisory_surface_record`.
 - [`/schemas/security/advisory_record.schema.json`](../../schemas/security/advisory_record.schema.json)
