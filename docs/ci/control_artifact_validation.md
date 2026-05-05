@@ -10,8 +10,9 @@ protected-path package and module boundary rules, and command-parity tool
 health.
 
 The shared wrapper also validates a small set of contract-adjacent fixture packs
-that serve as mechanical review gates: design token ledgers (geometry and motion)
-and UI copy lint rules and cases.
+that serve as mechanical review gates: design token ledgers (geometry and motion),
+component metric ledgers and cases, component conformance packets, and UI copy
+lint rules and cases.
 
 Companion artifacts:
 
@@ -24,6 +25,10 @@ Companion artifacts:
   — validates geometry token ledger and worked cases.
 - [`/tools/ci/validate_motion_cases.py`](../../tools/ci/validate_motion_cases.py)
   — validates motion token ledger and worked cases.
+- [`/tools/ci/validate_component_metric_cases.py`](../../tools/ci/validate_component_metric_cases.py)
+  — validates component metrics ledger and worked cases.
+- [`/tools/ci/check_component_conformance.py`](../../tools/ci/check_component_conformance.py)
+  — validates the component conformance matrix and packet fixtures.
 - [`/tools/ci/validate_ui_copy_cases.py`](../../tools/ci/validate_ui_copy_cases.py)
   — validates UI copy lint rules and worked cases.
 - [`/tools/check_frozen_surfaces.py`](../../tools/check_frozen_surfaces.py)

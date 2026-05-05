@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/component_conformance_matrix.schema.json",
+  "title": "Aureline component conformance matrix",
+  "description": "Boundary schema for the component conformance matrix. The matrix lists component families, required packet sections, and the CI fail-gate contract used to reject launch-critical components that ship without conformance packet coverage, metric ids, or minimum keyboard/accessibility/screenshot evidence hooks.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "component_conformance_schema_version",
+    "matrix_id",
+    "source_of_truth_refs",
+    "packet_fixture_dir_ref",
+    "ci_fail_gate_contract",
+    "component_family_rows",
+    "launch_critical_packet_refs",
+    "minted_at"
+  ],
+  "properties": {
+    "record_kind": { "type": "string", "const": "component_conformance_matrix_record" },
+    "component_conformance_schema_version": { "type": "integer", "const": 1 },
+    "matrix_id": { "$ref": "#/$defs/opaque_id" },
+    "source_of_truth_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonempty_string" },
+      "minItems": 1
+    },
+    "packet_fixture_dir_ref": { "$ref": "#/$defs/nonempty_string" },
+    "ci_fail_gate_contract": { "$ref": "#/$defs/ci_fail_gate_contract" },
+    "component_family_rows": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/component_family_row" },
+      "minItems": 1
+    },
+    "launch_critical_packet_refs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonempty_string" }
+    },
+    "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "$defs": {
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "nonempty_string": { "type": "string", "minLength": 1 },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "component_family_class": {
+      "$ref": "./component_conformance_packet.schema.json#/$defs/component_family_class"
+    },
+    "launch_priority_class": {
+      "$ref": "./component_conformance_packet.schema.json#/$defs/launch_priority_class"
+    },
+    "section_class": {
+      "type": "string",
+      "enum": [
+        "component_contract",
+        "state_taxonomy",
+        "metric_rows",
+        "token_inheritance",
+        "appearance_evidence",
+        "keyboard_evidence",
+        "accessibility_evidence",
+        "screenshot_baselines",
+        "extension_embedded_exceptions"
+      ]
+    },
+    "component_family_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_family_class",
+        "family_title",
+        "launch_priority_default",
+        "required_section_classes",
+        "notes"
+      ],
+      "properties": {
+        "component_family_class": { "$ref": "#/$defs/component_family_class" },
+        "family_title": { "$ref": "#/$defs/nonempty_string" },
+        "launch_priority_default": { "$ref": "#/$defs/launch_priority_class" },
+        "required_section_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/section_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" }
+        }
+      }
+    },
+    "priority_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "launch_priority_class",
+        "required_nonempty_fields",
+        "allowed_conformance_posture_classes"
+      ],
+      "properties": {
+        "launch_priority_class": { "$ref": "#/$defs/launch_priority_class" },
+        "required_nonempty_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" }
+        },
+        "allowed_conformance_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+    "ci_fail_gate_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_version", "launch_priority_policies"],
+      "properties": {
+        "contract_version": { "type": "integer", "const": 1 },
+        "launch_priority_policies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/priority_policy" },
+          "minItems": 1
+        }
+      }
+    }
+  }
+}
+

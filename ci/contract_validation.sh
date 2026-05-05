@@ -88,3 +88,6 @@ python3 "${REPO_ROOT}/tools/ci/validate_component_metric_cases.py" | tee -a "${S
 
 printf '\n[contract-validation] validating UI copy lint rules and cases\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/ci/validate_ui_copy_cases.py" | tee -a "${SUMMARY_PATH}"
+
+printf '\n[contract-validation] validating component conformance packets\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/ci/check_component_conformance.py" | tee -a "${SUMMARY_PATH}"
