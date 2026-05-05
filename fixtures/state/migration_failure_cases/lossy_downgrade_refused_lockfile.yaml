@@ -1,0 +1,57 @@
+# Worked example: lossy downgrade refused for generator-owned lockfile.
+#
+# Companion to docs/state/feature_scoped_migration_failure_contract.md and
+# schemas/state/migration_failure_state.schema.json.
+
+__fixture__:
+  name: lossy_downgrade_refused_lockfile
+  scenario: >
+    Extension lockfile is generator-owned and refuses unknown fields.
+    The current build cannot interpret the file's newer schema version.
+    A lossy downgrade is refused; extension pinning is disabled until the
+    lockfile is regenerated through an explicit preview.
+  doc_sections:
+    - "§2 Unknown-field preservation rules"
+    - "§3 Feature-scoped migration-failure routing"
+    - "§5 Seed cases"
+
+record_kind: migration_failure_state_record
+migration_failure_state_schema_version: 1
+state_id: migfail.lockfile.lossy-downgrade-refused.0001
+workspace_ref: workspace.opaque.0003
+workspace_open_posture: workspace_open_partial
+
+feature_limits:
+  - feature_family: extensions
+    limit_class: disabled
+    affected_artifact_result_refs:
+      - artifact-result-lockfile-0001
+    summary: >
+      Extension pinning and resolver-backed installs are disabled because
+      the lockfile is authored at a newer schema and refuses unknown
+      fields. The workspace remains editable; extension operations route
+      through regenerate-and-review.
+    recovery_actions:
+      - regenerate_through_preview
+      - upgrade_producer_or_consumer
+      - export_for_support
+
+artifact_results:
+  - artifact_result_id: artifact-result-lockfile-0001
+    artifact_family_class: workspace_owned_durable
+    artifact_label: Extension lockfile
+    state_object_ref: extension_lockfile
+    unknown_field_posture: refuse_read
+    unknown_fields_observed: []
+    failure_class: migration_lossy_downgrade_refused
+    artifact_open_posture: blocked
+    impact_note: >
+      The lockfile is generator-owned and unknown-field posture is
+      refuse_read. The product refuses a lossy rewrite and requires
+      explicit regenerate-and-review to produce a readable lockfile.
+
+emitted_at: "mono:7700:00:00:00.0003"
+notes: >
+  Lockfile routing avoids destructive resets and avoids best-effort
+  downgrades that could hide integrity drift.
+

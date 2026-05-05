@@ -1,0 +1,52 @@
+# Worked example: unknown fields preserved on a human-edited tasks file.
+#
+# Companion to docs/state/feature_scoped_migration_failure_contract.md and
+# schemas/state/migration_failure_state.schema.json.
+
+__fixture__:
+  name: unknown_fields_preserved_tasks
+  scenario: >
+    Workspace tasks file includes additive extension-owned fields and a
+    future runner hint. Per unknown-field posture preserve_verbatim, the
+    reader preserves the fields and tasks remain runnable.
+  doc_sections:
+    - "§2 Unknown-field preservation rules"
+    - "§5 Seed cases"
+
+record_kind: migration_failure_state_record
+migration_failure_state_schema_version: 1
+state_id: migfail.tasks.unknown-fields.0001
+workspace_ref: workspace.opaque.0001
+workspace_open_posture: workspace_open
+
+feature_limits:
+  - feature_family: tasks_and_launch
+    limit_class: degraded
+    affected_artifact_result_refs:
+      - artifact-result-tasks-0001
+    summary: >
+      Tasks are runnable, but unknown fields were preserved and surfaced
+      as diagnostics. No write-back or reset occurred.
+    recovery_actions:
+      - continue_without_feature
+
+artifact_results:
+  - artifact_result_id: artifact-result-tasks-0001
+    artifact_family_class: workspace_owned_durable
+    artifact_label: Workspace tasks file
+    state_object_ref: tasks_and_launch_configs
+    unknown_field_posture: preserve_verbatim
+    unknown_fields_observed:
+      - tasks[0].x-extension.runnerHints
+      - x-aureline.previewWorkflow
+    failure_class: unknown_fields_observed
+    artifact_open_posture: open_normal
+    impact_note: >
+      Unknown fields were preserved verbatim. The task runner ignores the
+      unknown members but does not delete or rewrite them.
+
+emitted_at: "mono:7700:00:00:00.0001"
+notes: >
+  Preserve-verbatim unknown fields are not a reason to reset or block
+  workspace open. The degraded note is informational only.
+

@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/migration_failure_state.schema.json",
+  "title": "Aureline feature-scoped migration-failure state",
+  "description": "Boundary schema for the migration_failure_state_record frozen in docs/state/feature_scoped_migration_failure_contract.md. The record captures which persisted artifacts could not be read or migrated, the unknown-field posture that governed the reader/writer, the resulting workspace partial-open posture, and the feature families that were disabled, degraded, read-only, or compare-only. Raw paths, raw bytes, raw logs, and raw secrets do not cross this boundary; records carry opaque refs, controlled vocabularies, and reviewable redaction-aware notes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "migration_failure_state_schema_version",
+    "state_id",
+    "workspace_ref",
+    "workspace_open_posture",
+    "feature_limits",
+    "artifact_results",
+    "emitted_at"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+    "record_kind": {
+      "type": "string",
+      "const": "migration_failure_state_record",
+      "description": "Discriminator for this record family."
+    },
+    "migration_failure_state_schema_version": {
+      "$ref": "#/$defs/migration_failure_state_schema_version"
+    },
+    "state_id": { "$ref": "#/$defs/opaque_id" },
+    "workspace_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Opaque workspace instance ref. Not a raw filesystem path."
+    },
+    "workspace_open_posture": { "$ref": "#/$defs/workspace_open_posture" },
+    "feature_limits": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/feature_limit_record" },
+      "description": "Non-empty list of feature-family limits currently in effect."
+    },
+    "artifact_results": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/artifact_result_record" },
+      "description": "Per-artifact results that motivated the feature limits."
+    },
+    "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "notes": {
+      "anyOf": [
+        { "$ref": "#/$defs/redaction_aware_text" },
+        { "type": "null" }
+      ],
+      "description": "Optional short note."
+    }
+  },
+  "$defs": {
+    "migration_failure_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the migration-failure state record. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for logs, support exports, and compare handles."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Reviewable prose or label after the active redaction policy has already been applied."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "workspace_open_posture": {
+      "type": "string",
+      "enum": [
+        "workspace_open",
+        "workspace_open_partial",
+        "workspace_open_read_only",
+        "workspace_open_blocked"
+      ],
+      "description": "Workspace-level open posture implied by the current failure set."
+    },
+    "feature_family": {
+      "type": "string",
+      "enum": [
+        "settings_and_preferences",
+        "tasks_and_launch",
+        "debug",
+        "extensions",
+        "policy_and_trust",
+        "ai_policy_and_instructions",
+        "portability_and_import_export",
+        "support_and_diagnostics",
+        "search_and_index",
+        "generated_structured_views"
+      ],
+      "description": "Closed feature-family vocabulary used by partial-open and degraded-mode surfaces."
+    },
+    "feature_limit_class": {
+      "type": "string",
+      "enum": [
+        "disabled",
+        "degraded",
+        "read_only",
+        "compare_only",
+        "blocked_privileged_operations"
+      ],
+      "description": "How the feature family is currently limited."
+    },
+    "recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "open_in_text_mode",
+        "open_compare_view",
+        "upgrade_producer_or_consumer",
+        "regenerate_through_preview",
+        "run_repair_flow",
+        "refetch_signed_authority",
+        "rebuild_cache_or_index",
+        "export_for_support",
+        "continue_without_feature"
+      ],
+      "description": "Closed next-action vocabulary for recovery and support surfaces."
+    },
+    "unknown_field_posture": {
+      "type": "string",
+      "enum": [
+        "preserve_verbatim",
+        "preserve_under_namespaced_key",
+        "drop_with_disclosure",
+        "refuse_read"
+      ],
+      "description": "Unknown-field posture re-used from schema-migration records and the format-selection matrix."
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "user_owned_durable",
+        "workspace_owned_durable",
+        "admin_or_control",
+        "cache_or_index",
+        "generated_or_structured",
+        "evidence_or_support"
+      ],
+      "description": "Artifact family class used by this contract's routing rules."
+    },
+    "artifact_failure_class": {
+      "type": "string",
+      "enum": [
+        "unknown_fields_observed",
+        "unsupported_schema_version",
+        "schema_validation_failed",
+        "parse_failed",
+        "migration_translation_failed",
+        "migration_lossy_downgrade_refused",
+        "corruption_integrity_failure",
+        "storage_io_error",
+        "signature_verification_failed"
+      ],
+      "description": "Typed failure class used for feature-scoped routing."
+    },
+    "artifact_open_posture": {
+      "type": "string",
+      "enum": [
+        "open_normal",
+        "open_with_warning",
+        "open_read_only",
+        "open_compare_only",
+        "blocked"
+      ],
+      "description": "Per-artifact surface posture."
+    },
+    "feature_limit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "feature_family",
+        "limit_class",
+        "affected_artifact_result_refs",
+        "summary",
+        "recovery_actions"
+      ],
+      "properties": {
+        "feature_family": { "$ref": "#/$defs/feature_family" },
+        "limit_class": { "$ref": "#/$defs/feature_limit_class" },
+        "affected_artifact_result_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Artifact-result ids this limit is attributable to."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action_class" },
+          "uniqueItems": true
+        }
+      },
+      "description": "One feature-family limit row for partial-open and workflow-block messaging."
+    },
+    "artifact_result_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_result_id",
+        "artifact_family_class",
+        "artifact_label",
+        "unknown_field_posture",
+        "failure_class",
+        "artifact_open_posture",
+        "impact_note"
+      ],
+      "properties": {
+        "artifact_result_id": { "$ref": "#/$defs/opaque_id" },
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "artifact_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "state_object_ref": {
+          "anyOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional ref to an artifacts/state/state_objects.yaml row id, when applicable."
+        },
+        "unknown_field_posture": { "$ref": "#/$defs/unknown_field_posture" },
+        "unknown_fields_observed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "uniqueItems": true,
+          "description": "Optional list of field paths (redaction-safe) observed as unknown."
+        },
+        "failure_class": { "$ref": "#/$defs/artifact_failure_class" },
+        "artifact_open_posture": { "$ref": "#/$defs/artifact_open_posture" },
+        "impact_note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Per-artifact result row captured by the migration failure state."
+    }
+  }
+}
+

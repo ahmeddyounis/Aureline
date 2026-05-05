@@ -1,0 +1,57 @@
+# Worked example: generated structured artifact corruption falls back to compare/read-only.
+#
+# Companion to docs/state/feature_scoped_migration_failure_contract.md and
+# schemas/state/migration_failure_state.schema.json.
+
+__fixture__:
+  name: corruption_generated_artifact_compare_only
+  scenario: >
+    A generated structured artifact (for example, a semantic workspace
+    graph snapshot) is corrupted or unreadable. The workspace opens, but
+    generated views fall back to compare-only and read-only inspection;
+    rebuild is explicit and does not rewrite user or workspace truth.
+  doc_sections:
+    - "§3 Feature-scoped migration-failure routing"
+    - "§4 Partial-open and messaging contract"
+    - "§5 Seed cases"
+
+record_kind: migration_failure_state_record
+migration_failure_state_schema_version: 1
+state_id: migfail.generated.compare-only.0001
+workspace_ref: workspace.opaque.0004
+workspace_open_posture: workspace_open_partial
+
+feature_limits:
+  - feature_family: generated_structured_views
+    limit_class: compare_only
+    affected_artifact_result_refs:
+      - artifact-result-generated-0001
+    summary: >
+      Generated structured views are available for compare-only and
+      read-only inspection because the current generated snapshot is
+      corrupted. Editing and source truth are unaffected.
+    recovery_actions:
+      - open_compare_view
+      - rebuild_cache_or_index
+      - continue_without_feature
+
+artifact_results:
+  - artifact_result_id: artifact-result-generated-0001
+    artifact_family_class: generated_or_structured
+    artifact_label: Generated structured artifact
+    state_object_ref: null
+    unknown_field_posture: refuse_read
+    unknown_fields_observed: []
+    failure_class: corruption_integrity_failure
+    artifact_open_posture: open_compare_only
+    impact_note: >
+      The generated body is unreadable. The product does not claim a safe
+      translation and does not overwrite source truth; the surface offers
+      compare-only and read-only inspection plus an explicit rebuild
+      action.
+
+emitted_at: "mono:7700:00:00:00.0004"
+notes: >
+  Generated artifacts degrade to compare-only/read-only mode; they do not
+  trigger full workspace failure.
+

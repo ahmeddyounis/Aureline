@@ -1,0 +1,55 @@
+# Worked example: unsupported schema version disables tasks only.
+#
+# Companion to docs/state/feature_scoped_migration_failure_contract.md and
+# schemas/state/migration_failure_state.schema.json.
+
+__fixture__:
+  name: unsupported_schema_version_tasks
+  scenario: >
+    Workspace tasks/launch configs were authored by a newer build and
+    declare a schema version the current reader cannot interpret. The
+    workspace still opens, but task and debug launch execution is
+    disabled until the file is upgraded or repaired.
+  doc_sections:
+    - "§3 Feature-scoped migration-failure routing"
+    - "§4 Partial-open and messaging contract"
+    - "§5 Seed cases"
+
+record_kind: migration_failure_state_record
+migration_failure_state_schema_version: 1
+state_id: migfail.tasks.unsupported-schema.0001
+workspace_ref: workspace.opaque.0002
+workspace_open_posture: workspace_open_partial
+
+feature_limits:
+  - feature_family: tasks_and_launch
+    limit_class: disabled
+    affected_artifact_result_refs:
+      - artifact-result-tasks-0002
+    summary: >
+      Task and launch execution is disabled because the workspace tasks
+      file is authored at an unsupported schema version. Editing and
+      navigation remain available.
+    recovery_actions:
+      - open_in_text_mode
+      - upgrade_producer_or_consumer
+
+artifact_results:
+  - artifact_result_id: artifact-result-tasks-0002
+    artifact_family_class: workspace_owned_durable
+    artifact_label: Workspace tasks file
+    state_object_ref: tasks_and_launch_configs
+    unknown_field_posture: preserve_verbatim
+    unknown_fields_observed: []
+    failure_class: unsupported_schema_version
+    artifact_open_posture: open_with_warning
+    impact_note: >
+      The schema version is newer than the current reader. No best-effort
+      parse is attempted; the artifact is left unmodified and the
+      dependent workflow is disabled.
+
+emitted_at: "mono:7700:00:00:00.0002"
+notes: >
+  Feature-scoped disable. The contract forbids turning this into a full
+  workspace reset.
+
