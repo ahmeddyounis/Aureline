@@ -1,0 +1,887 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/lifecycle_badge.schema.json",
+  "title": "Aureline capability lifecycle / support-class / channel / freshness / scope badge contract",
+  "description": "Boundary schema for lifecycle_badge_case_record fixtures frozen in docs/ux/capability_lifecycle_badge_contract.md. The schema defines the controlled badge families (lifecycle, support class, channel, freshness, deployment scope, client scope, certified archetype state, compatibility state), the minimum cross-surface disclosure requirements for strong support or compatibility claims, and the downgrade/refusal constraints when evidence is stale, support windows expire, compatibility mismatches, client scope excludes the surface, or policy disables a capability. Badge labels are text-first and export-safe; icons are reinforcement only. Raw policy bodies, raw provider payloads, raw credentials, raw URLs with secrets, and user content never cross this boundary; fixtures carry controlled vocabulary plus reviewable sentences only. Adding new enum values or optional fields is additive-minor and bumps lifecycle_badge_schema_version; repurposing an existing value is breaking and requires a new decision record.",
+  "type": "object",
+  "$ref": "#/$defs/lifecycle_badge_case_record",
+  "$defs": {
+    "lifecycle_badge_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for lifecycle badge fixtures."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "lifecycle_badge_case_record",
+      "description": "Discriminator for lifecycle badge fixture records."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of runtime records."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque, stable id safe for logs, fixtures, exports, and support artifacts."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Short display label suitable for compact badges. Should be <= two words when practical."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900,
+      "description": "Short plain-language sentence intended for product surfaces. Generic prose is forbidden when a more precise statement is knowable."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "density_class": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"]
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "marketplace",
+        "about",
+        "help",
+        "service_health",
+        "update",
+        "docs",
+        "cli",
+        "support_export",
+        "manifest_export"
+      ],
+      "description": "High-level surface class projecting the badge group."
+    },
+    "badge_family": {
+      "type": "string",
+      "enum": [
+        "lifecycle",
+        "support_class",
+        "channel",
+        "freshness",
+        "deployment_scope",
+        "client_scope",
+        "certified_archetype_state",
+        "compatibility_state"
+      ],
+      "description": "Closed badge family taxonomy for this contract."
+    },
+    "badge_icon_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Optional stable icon key. Icon is reinforcement only; the text label remains mandatory."
+    },
+    "details_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route_class", "route_ref"],
+      "properties": {
+        "route_class": {
+          "type": "string",
+          "enum": [
+            "open_details_sheet",
+            "open_hovercard_or_focus_popover",
+            "open_inspector_panel",
+            "open_command_palette_entry",
+            "open_support_export_section",
+            "no_details_route"
+          ]
+        },
+        "route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "route_class": { "const": "no_details_route" } },
+            "required": ["route_class"]
+          },
+          "then": {
+            "properties": { "route_ref": { "const": null } }
+          }
+        }
+      ]
+    },
+    "badge_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "term", "label_text", "icon_key", "explanation_sentence", "details_route"],
+      "properties": {
+        "family": { "$ref": "#/$defs/badge_family" },
+        "term": { "type": "string", "minLength": 1 },
+        "label_text": { "$ref": "#/$defs/short_label_text" },
+        "icon_key": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/badge_icon_key" }
+          ]
+        },
+        "explanation_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "details_route": { "$ref": "#/$defs/details_route" }
+      }
+    },
+
+    "lifecycle_term": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ]
+    },
+    "support_class_term": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "not_certified_in_this_mode",
+        "not_configured",
+        "disabled_by_policy",
+        "not_supported"
+      ]
+    },
+    "channel_term": {
+      "type": "string",
+      "enum": [
+        "nightly_channel",
+        "experimental_channel",
+        "preview_channel",
+        "stable_channel",
+        "lts_channel",
+        "managed_only_channel"
+      ]
+    },
+    "freshness_term": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "deployment_scope_term": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "managed",
+        "self_hosted",
+        "mirrored",
+        "offline_capable"
+      ]
+    },
+    "client_scope_term": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "certified_archetype_state_term": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "supported",
+        "best_effort",
+        "untested",
+        "degraded",
+        "unsupported",
+        "retest_pending",
+        "evidence_stale"
+      ]
+    },
+    "compatibility_state_term": {
+      "type": "string",
+      "enum": ["exact_match", "compatible", "limited", "mismatch", "unknown"]
+    },
+
+    "lifecycle_badge": {
+      "allOf": [
+        { "$ref": "#/$defs/badge_base" },
+        {
+          "properties": {
+            "family": { "const": "lifecycle" },
+            "term": { "$ref": "#/$defs/lifecycle_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "labs" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Labs" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "preview" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Preview" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "beta" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Beta" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "stable" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Stable" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "lts_facing" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "LTS-facing" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "deprecated" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Deprecated" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "disabled_by_policy" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Policy disabled" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "retired" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Retired" } } }
+            }
+          ]
+        }
+      ]
+    },
+    "support_class_badge": {
+      "allOf": [
+        { "$ref": "#/$defs/badge_base" },
+        {
+          "properties": {
+            "family": { "const": "support_class" },
+            "term": { "$ref": "#/$defs/support_class_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "certified" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Certified" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "supported" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Supported" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "community" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Community" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "experimental" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Experimental" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "not_certified_in_this_mode" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Not certified" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "not_configured" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Not configured" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "disabled_by_policy" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Policy disabled" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "not_supported" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Not supported" } } }
+            }
+          ]
+        }
+      ]
+    },
+    "channel_badge": {
+      "allOf": [
+        { "$ref": "#/$defs/badge_base" },
+        {
+          "properties": {
+            "family": { "const": "channel" },
+            "term": { "$ref": "#/$defs/channel_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "nightly_channel" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Nightly" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "experimental_channel" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Experimental" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "preview_channel" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Preview" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "stable_channel" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Stable" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "lts_channel" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "LTS" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "managed_only_channel" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Managed only" } } }
+            }
+          ]
+        }
+      ]
+    },
+    "freshness_badge": {
+      "allOf": [
+        { "$ref": "#/$defs/badge_base" },
+        {
+          "properties": {
+            "family": { "const": "freshness" },
+            "term": { "$ref": "#/$defs/freshness_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "authoritative_live" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Live" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "warm_cached" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Warm" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "degraded_cached" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Cached" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "stale" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Stale" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unverified" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unverified" } } }
+            }
+          ]
+        }
+      ]
+    },
+    "certified_archetype_badge": {
+      "allOf": [
+        { "$ref": "#/$defs/badge_base" },
+        {
+          "properties": {
+            "family": { "const": "certified_archetype_state" },
+            "term": { "$ref": "#/$defs/certified_archetype_state_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "not_applicable" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Not applicable" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "supported" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Supported" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "best_effort" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Best effort" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "untested" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Untested" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "degraded" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Degraded" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unsupported" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unsupported" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "retest_pending" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Retest pending" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "evidence_stale" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Evidence stale" } } }
+            }
+          ]
+        }
+      ]
+    },
+    "compatibility_badge": {
+      "allOf": [
+        { "$ref": "#/$defs/badge_base" },
+        {
+          "properties": {
+            "family": { "const": "compatibility_state" },
+            "term": { "$ref": "#/$defs/compatibility_state_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "exact_match" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Exact match" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "compatible" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Compatible" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "limited" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Limited" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "mismatch" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Mismatch" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unknown" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unknown" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "deployment_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term", "label_text", "icon_key"],
+      "properties": {
+        "term": { "$ref": "#/$defs/deployment_scope_term" },
+        "label_text": { "$ref": "#/$defs/short_label_text" },
+        "icon_key": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/badge_icon_key" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "term": { "const": "local_only" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Local only" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "managed" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Managed" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "self_hosted" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Self-hosted" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "mirrored" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Mirrored" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "offline_capable" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Offline-capable" } } }
+        }
+      ]
+    },
+    "client_scope_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term", "label_text", "icon_key"],
+      "properties": {
+        "term": { "$ref": "#/$defs/client_scope_term" },
+        "label_text": { "$ref": "#/$defs/short_label_text" },
+        "icon_key": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/badge_icon_key" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "term": { "const": "desktop_product" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Desktop" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "cli" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "CLI" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "companion_surface" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Companion" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "remote_agent" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Remote agent" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "sdk_or_api" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "SDK/API" } } }
+        },
+        {
+          "if": { "properties": { "term": { "const": "managed_admin_surface" } }, "required": ["term"] },
+          "then": { "properties": { "label_text": { "const": "Admin" } } }
+        }
+      ]
+    },
+
+    "deployment_scope_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "entries", "visible_label_text", "explanation_sentence", "details_route"],
+      "properties": {
+        "family": { "type": "string", "const": "deployment_scope" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployment_scope_entry" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "visible_label_text": { "$ref": "#/$defs/short_label_text" },
+        "explanation_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "details_route": { "$ref": "#/$defs/details_route" }
+      }
+    },
+    "client_scope_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "entries", "visible_label_text", "explanation_sentence", "details_route"],
+      "properties": {
+        "family": { "type": "string", "const": "client_scope" },
+        "entries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/client_scope_entry" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "visible_label_text": { "$ref": "#/$defs/short_label_text" },
+        "explanation_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "details_route": { "$ref": "#/$defs/details_route" }
+      }
+    },
+
+    "badges_by_family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lifecycle", "support_class", "channel", "freshness", "client_scope"],
+      "properties": {
+        "lifecycle": { "$ref": "#/$defs/lifecycle_badge" },
+        "support_class": { "$ref": "#/$defs/support_class_badge" },
+        "channel": { "$ref": "#/$defs/channel_badge" },
+        "freshness": { "$ref": "#/$defs/freshness_badge" },
+        "deployment_scope": { "$ref": "#/$defs/deployment_scope_group" },
+        "client_scope": { "$ref": "#/$defs/client_scope_group" },
+        "certified_archetype_state": { "$ref": "#/$defs/certified_archetype_badge" },
+        "compatibility_state": { "$ref": "#/$defs/compatibility_badge" }
+      }
+    },
+
+    "downgrade_trigger": {
+      "type": "string",
+      "enum": [
+        "required_evidence_missing",
+        "required_evidence_stale",
+        "required_evidence_narrower_than_claim",
+        "docs_version_mismatch",
+        "docs_freshness_floor_unmet",
+        "known_limit_missing",
+        "compatibility_row_degraded",
+        "support_window_expired",
+        "policy_disabled",
+        "replacement_available"
+      ],
+      "description": "Re-export of the claim-manifest downgrade trigger vocabulary (schemas/governance/claim_manifest.schema.json#/$defs/downgrade_trigger)."
+    },
+
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["density_class", "inline_budget", "high_contrast", "forced_colors"],
+      "properties": {
+        "density_class": { "$ref": "#/$defs/density_class" },
+        "inline_budget": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "high_contrast": { "type": "boolean" },
+        "forced_colors": { "type": "boolean" }
+      }
+    },
+    "overflow_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_text", "hidden_badge_count", "hidden_badges", "must_be_keyboard_reachable"],
+      "properties": {
+        "label_text": { "$ref": "#/$defs/short_label_text" },
+        "hidden_badge_count": { "type": "integer", "minimum": 0 },
+        "hidden_badges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/badge_family" },
+          "uniqueItems": true
+        },
+        "must_be_keyboard_reachable": { "type": "boolean" }
+      }
+    },
+    "expected_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inline_badges", "overflow", "accessible_name_must_include", "export_text"],
+      "properties": {
+        "inline_badges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/badge_family" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "overflow": { "$ref": "#/$defs/overflow_projection" },
+        "accessible_name_must_include": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "export_text": { "type": "string", "minLength": 1, "maxLength": 900 }
+      }
+    },
+    "invalid_badge_combination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["combination_id", "summary", "badges", "reason"],
+      "properties": {
+        "combination_id": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 220 },
+        "badges": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["family", "term"],
+            "properties": {
+              "family": { "$ref": "#/$defs/badge_family" },
+              "term": { "type": "string", "minLength": 1, "maxLength": 64 }
+            }
+          }
+        },
+        "reason": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text_first_not_hue_only",
+        "supports_overflow_and_keyboard",
+        "export_text_parity_with_badges"
+      ],
+      "properties": {
+        "text_first_not_hue_only": { "type": "boolean" },
+        "supports_overflow_and_keyboard": { "type": "boolean" },
+        "export_text_parity_with_badges": { "type": "boolean" }
+      }
+    },
+
+    "lifecycle_badge_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "lifecycle_badge_schema_version",
+        "case_id",
+        "surface_class",
+        "layout",
+        "badges_by_family",
+        "active_downgrade_triggers",
+        "expected_projection",
+        "assertions",
+        "captured_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "lifecycle_badge_schema_version": { "$ref": "#/$defs/lifecycle_badge_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "layout": { "$ref": "#/$defs/layout" },
+        "badges_by_family": { "$ref": "#/$defs/badges_by_family" },
+        "active_downgrade_triggers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/downgrade_trigger" },
+          "uniqueItems": true
+        },
+        "invalid_combinations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/invalid_badge_combination" },
+          "uniqueItems": true
+        },
+        "expected_projection": { "$ref": "#/$defs/expected_projection" },
+        "assertions": { "$ref": "#/$defs/assertions" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "badges_by_family": {
+                "properties": {
+                  "support_class": {
+                    "properties": {
+                      "term": { "enum": ["certified", "supported"] }
+                    },
+                    "required": ["term"]
+                  }
+                },
+                "required": ["support_class"]
+              }
+            },
+            "required": ["badges_by_family"]
+          },
+          "then": {
+            "properties": {
+              "badges_by_family": {
+                "properties": {
+                  "freshness": {
+                    "properties": {
+                      "term": { "not": { "const": "unverified" } }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Strong support claims cannot pair with unverified freshness."
+        },
+        {
+          "if": {
+            "properties": {
+              "active_downgrade_triggers": {
+                "contains": { "const": "support_window_expired" }
+              }
+            },
+            "required": ["active_downgrade_triggers"]
+          },
+          "then": {
+            "properties": {
+              "badges_by_family": {
+                "properties": {
+                  "support_class": {
+                    "properties": { "term": { "not": { "enum": ["certified", "supported"] } } }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Support-window expiry forces support claims to narrow below certified/supported."
+        },
+        {
+          "if": {
+            "properties": {
+              "active_downgrade_triggers": {
+                "contains": { "const": "required_evidence_stale" }
+              }
+            },
+            "required": ["active_downgrade_triggers"]
+          },
+          "then": {
+            "properties": {
+              "badges_by_family": {
+                "properties": {
+                  "freshness": {
+                    "properties": { "term": { "enum": ["stale", "unverified"] } }
+                  },
+                  "support_class": {
+                    "properties": { "term": { "not": { "enum": ["certified", "supported"] } } }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Stale-evidence downgrade requires stale/unverified freshness and prohibits certified/supported support claims."
+        },
+        {
+          "if": {
+            "properties": {
+              "badges_by_family": {
+                "properties": {
+                  "compatibility_state": {
+                    "properties": { "term": { "const": "mismatch" } },
+                    "required": ["term"]
+                  }
+                },
+                "required": ["compatibility_state"]
+              }
+            },
+            "required": ["badges_by_family"]
+          },
+          "then": {
+            "properties": {
+              "badges_by_family": {
+                "properties": {
+                  "support_class": {
+                    "properties": { "term": { "not": { "enum": ["certified", "supported"] } } }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Compatibility mismatch refuses certified/supported support claims."
+        }
+      ]
+    }
+  }
+}
+
