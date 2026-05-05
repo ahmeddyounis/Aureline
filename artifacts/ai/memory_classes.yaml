@@ -1,0 +1,187 @@
+# AI memory-class matrix and durable-state boundary projection.
+#
+# Machine-readable companion to:
+#   - docs/ai/memory_class_matrix.md (compact reviewer matrix)
+#   - docs/ai/memory_and_reconciliation_contract.md (full narrative contract)
+#   - schemas/ai/memory_object.schema.json (boundary schema of record)
+#
+# This artifact exists so reviewers, clear-data/export/support surfaces, and
+# later conformance tooling can answer delete/export/retention questions by
+# ai_memory_class instead of feature-local wording.
+#
+# Adding a new ai_memory_class is additive-minor and requires bumping:
+#   - ai_memory_object_schema_version in schemas/ai/memory_object.schema.json
+#   - schema_version here
+# Repurposing a class is breaking and requires a new decision row.
+
+schema_version: 1
+
+contract_doc: docs/ai/memory_and_reconciliation_contract.md
+matrix_doc: docs/ai/memory_class_matrix.md
+contract_schema: schemas/ai/memory_object.schema.json
+
+related_refs:
+  record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+  runtime_storage_classes_ref: artifacts/runtime/storage_classes.yaml
+  managed_service_retention_rows_ref: artifacts/service/retention_rows.yaml
+  examples_fixture_corpus_ref: fixtures/ai/memory_class_examples/
+
+governance:
+  owner_roles:
+    - AI platform owner
+    - Security/privacy lead
+    - Supportability owner
+    - Clear-data/export surface owner
+  change_rules:
+    - Adding a new memory class MUST include: schema enum update, contract narrative update, this matrix update, and at least one fixture example that demonstrates delete/export fan-out for the new class.
+    - Removing or weakening a boundary invariant is breaking and requires explicit security/privacy review.
+    - A class MAY be narrowed (stricter provenance, stricter scope defaults), but MAY NOT be widened silently (e.g. expanding default cross-workspace reuse).
+
+# ---------------------------------------------------------------------------
+# Boundary invariants (applies to every class unless stated otherwise).
+# ---------------------------------------------------------------------------
+boundary_invariants:
+  - No AI state crosses workspace, repository, tenant, account, or provider boundaries unless the row carries an explicit ai_memory_class, explicit provenance bindings (refs + fingerprints), and an inspectable admitting policy decision.
+  - Delete and export MUST be answerable per ai_memory_class; surfaces MUST NOT collapse multiple classes into one "AI history" blob.
+  - Any derived row that depends on identities (provider/model, prompt pack, tool pack, embedder, policy epoch, workspace identity/trust) MUST carry invalidation_fingerprints so cache reuse never silently crosses a boundary change.
+
+# ---------------------------------------------------------------------------
+# Memory-class rows.
+#
+# Each row fixes:
+#   1. ai_memory_class (frozen enum)
+#   2. default scope and durability expectation
+#   3. per-class delete/export/retention defaults (contract posture enums)
+#   4. minimum provenance and fingerprint requirements
+#   5. representative forbidden behaviors reviewers should flag
+# ---------------------------------------------------------------------------
+memory_classes:
+  - ai_memory_class: turn_state_ephemeral
+    human_label: Turn state (ephemeral)
+    default_scope_summary: process / session / workspace
+    durable_by_default: false
+    default_postures:
+      retention_posture_class: transient_session_only
+      delete_posture_class: delete_clears_local_only
+      export_posture_class: not_exportable_local_authority_only
+    provenance_requirements:
+      required_non_null_fields:
+        - conversation_thread_ref
+      required_invalidation_fingerprints: []
+    forbidden_by_default:
+      - durable_retention_or_cross_session_replay
+      - cross_workspace_reuse
+
+  - ai_memory_class: conversation_history_user_visible
+    human_label: Conversation history (user-visible)
+    default_scope_summary: user + workspace
+    durable_by_default: true
+    default_postures:
+      retention_posture_class: conversation_scoped
+      delete_posture_class: delete_request_supported_with_destruction_receipt
+      export_posture_class: exportable_as_user_visible
+    provenance_requirements:
+      required_non_null_fields:
+        - conversation_thread_ref
+      required_invalidation_fingerprints: []
+      required_storage_authority_class: user_authored_durable_truth
+    forbidden_by_default:
+      - hidden_shadow_history_outside_user_visible_export
+      - unlabeled_cross_workspace_recall
+
+  - ai_memory_class: derived_cache_regeneratable
+    human_label: Derived cache (regeneratable)
+    default_scope_summary: workspace + feature + provider/model (identity-keyed)
+    durable_by_default: true
+    default_postures:
+      retention_posture_class: workspace_scoped
+      delete_posture_class: delete_clears_local_only
+      export_posture_class: not_exportable_regeneratable_only
+    provenance_requirements:
+      required_non_null_fields:
+        - workspace_identity_ref
+      required_invalidation_fingerprints:
+        min_count: 1
+        must_include_at_least_one_of:
+          - model_identity_ref
+          - prompt_pack_ref
+          - tool_pack_ref
+      required_storage_authority_class: disposable_derived_cache
+    forbidden_by_default:
+      - treating_cache_as_user_history_or_export_payload
+      - cross_workspace_cache_key_reuse_without_scope_label
+
+  - ai_memory_class: embedding_row_regeneratable
+    human_label: Embedding row (regeneratable)
+    default_scope_summary: workspace + embedder identity (identity-keyed)
+    durable_by_default: true
+    default_postures:
+      retention_posture_class: workspace_scoped
+      delete_posture_class: delete_clears_local_only
+      export_posture_class: not_exportable_regeneratable_only
+    provenance_requirements:
+      required_non_null_fields:
+        - workspace_identity_ref
+      required_invalidation_fingerprints:
+        min_count: 1
+        must_include:
+          - embedder_identity_ref
+      required_storage_authority_class: disposable_derived_cache
+    forbidden_by_default:
+      - cross_workspace_embedding_reuse
+      - export_payload_including_raw_vectors
+
+  - ai_memory_class: reusable_repo_fact_workspace_scope
+    human_label: Reusable repo fact (workspace-scoped)
+    default_scope_summary: workspace (identity-keyed)
+    durable_by_default: true
+    default_postures:
+      retention_posture_class: workspace_scoped
+      delete_posture_class: delete_clears_local_only
+      export_posture_class: exportable_metadata_only
+    provenance_requirements:
+      required_non_null_fields:
+        - workspace_identity_ref
+      required_invalidation_fingerprints:
+        min_count: 1
+        must_include:
+          - workspace_identity_ref
+      required_storage_authority_class: disposable_derived_cache
+    forbidden_by_default:
+      - cross_repo_or_cross_workspace_memory_without_scope_label
+      - proprietary_fact_retained_without_regenerable_source
+
+  - ai_memory_class: retained_evidence_packet_copy
+    human_label: Retained evidence packet copy
+    default_scope_summary: action-scoped (evidence-governed)
+    durable_by_default: false
+    default_postures:
+      retention_posture_class: packet_expiry_or_case_close
+      delete_posture_class: delete_denied_evidence_packet_overrides
+      export_posture_class: exportable_as_evidence_packet
+    provenance_requirements:
+      required_non_null_fields:
+        - originating_evidence_packet_ref
+      required_invalidation_fingerprints: []
+      required_storage_authority_class: ai_retained_evidence_packet_class
+    forbidden_by_default:
+      - evidence_copy_used_as_general_cache
+      - post_hoc_mutation_without_new_evidence_object
+
+  - ai_memory_class: explicit_saved_memory_user_owned
+    human_label: Explicit saved memory (user-pinned)
+    default_scope_summary: user (pin-scoped; inspectable)
+    durable_by_default: true
+    default_postures:
+      retention_posture_class: user_pin_only
+      delete_posture_class: delete_request_supported_with_destruction_receipt
+      export_posture_class: exportable_as_user_visible
+    provenance_requirements:
+      required_non_null_fields:
+        - user_pin_ref
+      required_invalidation_fingerprints: []
+      required_storage_authority_class: user_owned_recovery_state
+    forbidden_by_default:
+      - silently_applying_pin_outside_declared_scope
+      - implicit_cross_tenant_carryover
+

@@ -19,6 +19,11 @@ conforming.
 
 The companion artifacts are:
 
+- [`/docs/ai/memory_class_matrix.md`](./memory_class_matrix.md)
+  — compact, review-friendly per-class matrix (scope, durability,
+  delete/export posture, provenance requirements, and boundary rules).
+- [`/artifacts/ai/memory_classes.yaml`](../../artifacts/ai/memory_classes.yaml)
+  — machine-readable memory-class matrix.
 - [`/schemas/ai/memory_object.schema.json`](../../schemas/ai/memory_object.schema.json)
   — boundary schema for the `ai_memory_object_record`,
   `ai_memory_invalidation_event_record`,
@@ -30,6 +35,8 @@ The companion artifacts are:
   `deferred_intent_state_transition_record`,
   `deferred_intent_reconciliation_record`, and
   `deferred_intent_audit_event_record` shapes.
+- [`/fixtures/ai/memory_class_examples/`](../../fixtures/ai/memory_class_examples/)
+  — compact YAML examples showing per-class delete/export fan-out.
 - [`/fixtures/ai/memory_delete_export_cases/`](../../fixtures/ai/memory_delete_export_cases/)
   — worked-example corpus covering delete-thread, delete-workspace-
   AI-state, embedder-change invalidation, evidence-packet override,
@@ -155,6 +162,12 @@ export shape, and one deferred-intent reconciliation shape**.
 
 Every AI-derived row that survives the active turn binds to exactly
 one `ai_memory_class`:
+
+For the compact table plus the machine-readable projection used by
+review and tooling surfaces, see:
+
+- [`/docs/ai/memory_class_matrix.md`](./memory_class_matrix.md)
+- [`/artifacts/ai/memory_classes.yaml`](../../artifacts/ai/memory_classes.yaml)
 
 | Memory class                            | What it holds                                                                | Storage authority                          |
 |-----------------------------------------|------------------------------------------------------------------------------|--------------------------------------------|
