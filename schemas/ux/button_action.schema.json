@@ -1,0 +1,545 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/button_action.schema.json",
+  "title": "Aureline button, icon-button, and split-button contract",
+  "description": "Boundary schema for button action records frozen in docs/ux/button_family_contract.md. The records and fixtures make button hierarchy (primary/secondary/quiet/destructive), icon-only tooltip+keyboard parity, destructive ordering defaults, and split-button default/alternate routing reviewable before implementation hardens. Raw paths, raw URLs, raw policy bodies, raw provider payloads, raw hostnames, secret values, and user-authored content never cross this boundary; fixtures carry opaque ids, controlled vocabulary, and short review-safe labels only. Adding enum values or optional fields is additive-minor with a button_action_schema_version bump when payload semantics change; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/button_action_record" },
+    { "$ref": "#/$defs/button_action_group_record" }
+  ],
+  "$defs": {
+    "button_action_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the button action contract."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["button_action_record", "button_action_group_record"]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Stable opaque id safe for logs, RPC, fixtures, and support exports."
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Repo-relative document ref, schema ref, fixture ref, or opaque locator."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "onboarding",
+        "install_review",
+        "admin_policy",
+        "package_review",
+        "migration_import",
+        "connection_setup",
+        "request_runtime",
+        "editor",
+        "command_surface",
+        "generic_form"
+      ]
+    },
+    "local_region_class": {
+      "type": "string",
+      "enum": [
+        "toolbar_group",
+        "panel_header_actions",
+        "dialog_action_row",
+        "sheet_action_row",
+        "inline_row_actions",
+        "form_footer_actions"
+      ]
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": [
+        "reversible_local",
+        "recoverable_durable",
+        "external_shared",
+        "irreversible_high_blast"
+      ]
+    },
+    "actionability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_no_valid_action",
+        "read_only_inspectable",
+        "locked_policy_or_managed",
+        "locked_permission_or_trust",
+        "busy_temporarily_blocked",
+        "pending_validation_blocked",
+        "preview_required",
+        "review_required",
+        "destructive_confirmation_required"
+      ]
+    },
+    "label_role_class": {
+      "type": "string",
+      "enum": [
+        "verb_first_action",
+        "review_action_label",
+        "cancel_no_mutation"
+      ]
+    },
+    "button_variant_class": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "secondary",
+        "tertiary_quiet",
+        "destructive",
+        "ghost_icon",
+        "split"
+      ]
+    },
+    "activation_effect_class": {
+      "type": "string",
+      "enum": [
+        "commits_directly",
+        "opens_preview",
+        "opens_review",
+        "opens_disclosure_menu"
+      ]
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical command id. Buttons, menus, palettes, and shortcuts resolve to the same command identity."
+    },
+    "action_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "not": {
+        "enum": ["Yes", "No", "OK", "Continue", "Apply", "Confirm", "Submit", "Accept"]
+      },
+      "description": "Rendered action label. Consequential actions must name the outcome; generic acknowledgements are forbidden."
+    },
+    "tooltip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tooltip_text"],
+      "properties": {
+        "tooltip_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Tooltip text. Must be privacy-safe and must not embed raw paths, URLs, secrets, or policy bodies."
+        },
+        "shortcut_hint": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "docs_help_anchor_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "keyboard_equivalence_class": {
+      "type": "string",
+      "enum": ["shortcut", "palette_route", "no_keyboard_equivalent"]
+    },
+    "keyboard_equivalent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["equivalence_class"],
+      "properties": {
+        "equivalence_class": { "$ref": "#/$defs/keyboard_equivalence_class" },
+        "shortcut_display": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Human-facing shortcut hint, when one exists."
+        },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "hit_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_hit_target_px"],
+      "properties": {
+        "min_hit_target_px": { "type": "integer", "minimum": 28 }
+      }
+    },
+    "why_unavailable_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "no_valid_action",
+        "policy_blocked",
+        "dependency_missing",
+        "degraded_index",
+        "wrong_target",
+        "read_only",
+        "host_unavailable",
+        "unsupported_current_mode",
+        "quota_or_budget_exhausted",
+        "preview_only",
+        "stale_context"
+      ]
+    },
+    "why_unavailable_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class_id", "summary", "safe_next_step"],
+      "properties": {
+        "reason_class_id": { "$ref": "#/$defs/why_unavailable_reason_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "safe_next_step": { "$ref": "#/$defs/reviewable_sentence" },
+        "alternate_route_command_id_ref": {
+          "type": ["string", "null"],
+          "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "docs_help_anchor_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "pending_feedback_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preserves_label_width", "progress_indicator_class"],
+      "properties": {
+        "preserves_label_width": { "type": "boolean", "const": true },
+        "progress_indicator_class": {
+          "type": "string",
+          "enum": ["none", "spinner", "labeled_spinner", "progress_bar", "status_text"]
+        },
+        "work_label": { "type": ["string", "null"], "minLength": 1, "maxLength": 80 },
+        "cancellable": { "type": "boolean" }
+      }
+    },
+    "split_branch_side_effect_class": {
+      "type": "string",
+      "enum": ["same_side_effect_as_default", "different_side_effect_material"]
+    },
+    "split_button_branch_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["branch_id", "label", "command_id_ref", "side_effect_class"],
+      "properties": {
+        "branch_id": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/action_label" },
+        "command_id_ref": { "$ref": "#/$defs/command_id" },
+        "side_effect_class": { "$ref": "#/$defs/split_branch_side_effect_class" },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 220 }
+      }
+    },
+    "split_button_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_branch", "alternate_branches", "disclosure_affordance_label"],
+      "properties": {
+        "default_branch": { "$ref": "#/$defs/split_button_branch_record" },
+        "alternate_branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/split_button_branch_record" },
+          "uniqueItems": false
+        },
+        "disclosure_affordance_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Short disclosure affordance label (e.g., tooltip or accessible name) for the alternate-route trigger."
+        },
+        "audit_event_id_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Opaque ref recorded when branches differ materially so support/export can distinguish which route ran."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "alternate_branches": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "side_effect_class": { "const": "different_side_effect_material" }
+                  },
+                  "required": ["side_effect_class"]
+                }
+              }
+            },
+            "required": ["alternate_branches"]
+          },
+          "then": {
+            "required": ["audit_event_id_ref"],
+            "properties": {
+              "audit_event_id_ref": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "button_action_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "variant",
+        "visible_label",
+        "label_role_class",
+        "actionability_class",
+        "activation_effect_class",
+        "command_id_ref",
+        "keyboard_equivalent",
+        "hit_target"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "variant": { "$ref": "#/$defs/button_variant_class" },
+        "visible_label": { "$ref": "#/$defs/action_label" },
+        "label_role_class": { "$ref": "#/$defs/label_role_class" },
+        "actionability_class": { "$ref": "#/$defs/actionability_class" },
+        "activation_effect_class": { "$ref": "#/$defs/activation_effect_class" },
+        "command_id_ref": { "$ref": "#/$defs/command_id" },
+        "accessible_name": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Accessible name. Icon-only controls must provide one even if a tooltip is also present."
+        },
+        "tooltip": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/tooltip_record" }] },
+        "keyboard_equivalent": { "$ref": "#/$defs/keyboard_equivalent_record" },
+        "hit_target": { "$ref": "#/$defs/hit_target_record" },
+        "why_unavailable": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/why_unavailable_record" }] },
+        "pending_feedback": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/pending_feedback_record" }] },
+        "split_button": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/split_button_record" }] }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "variant": { "const": "ghost_icon" } },
+            "required": ["variant"]
+          },
+          "then": {
+            "required": ["tooltip", "accessible_name"],
+            "properties": {
+              "tooltip": { "not": { "type": "null" } },
+              "accessible_name": { "not": { "type": "null" } },
+              "keyboard_equivalent": {
+                "properties": {
+                  "equivalence_class": { "not": { "const": "no_keyboard_equivalent" } }
+                },
+                "required": ["equivalence_class"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actionability_class": {
+                "enum": [
+                  "disabled_no_valid_action",
+                  "locked_policy_or_managed",
+                  "locked_permission_or_trust",
+                  "pending_validation_blocked",
+                  "preview_required",
+                  "review_required"
+                ]
+              }
+            },
+            "required": ["actionability_class"]
+          },
+          "then": {
+            "required": ["why_unavailable"],
+            "properties": {
+              "why_unavailable": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "actionability_class": {
+                "enum": ["busy_temporarily_blocked"]
+              }
+            },
+            "required": ["actionability_class"]
+          },
+          "then": {
+            "required": ["pending_feedback"],
+            "properties": {
+              "pending_feedback": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    },
+    "ordering_semantics_class": {
+      "type": "string",
+      "enum": ["outcome_clarity", "safe_then_destructive"]
+    },
+    "direction_class": {
+      "type": "string",
+      "enum": ["ltr", "rtl"]
+    },
+    "group_layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "direction_class",
+        "ordering_semantics_class",
+        "default_focus_action_role",
+        "default_enter_action_role"
+      ],
+      "properties": {
+        "direction_class": { "$ref": "#/$defs/direction_class" },
+        "ordering_semantics_class": { "$ref": "#/$defs/ordering_semantics_class" },
+        "default_focus_action_role": {
+          "type": "string",
+          "enum": ["safe_non_mutating", "primary_mutating", "destructive_commit"]
+        },
+        "default_enter_action_role": {
+          "type": "string",
+          "enum": ["safe_non_mutating", "primary_mutating", "destructive_commit", "none"]
+        },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 280 }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linked_docs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "button_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "button_action_schema_version",
+        "record_kind",
+        "button_action_id",
+        "surface_family",
+        "local_region_class",
+        "consequence_class",
+        "action",
+        "emitted_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "button_action_schema_version": { "$ref": "#/$defs/button_action_schema_version" },
+        "record_kind": { "type": "string", "const": "button_action_record" },
+        "button_action_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "local_region_class": { "$ref": "#/$defs/local_region_class" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "action": { "$ref": "#/$defs/button_action_spec" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ref" }
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      }
+    },
+    "button_action_group_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "button_action_schema_version",
+        "record_kind",
+        "button_action_group_id",
+        "surface_family",
+        "local_region_class",
+        "consequence_class",
+        "layout",
+        "actions",
+        "emitted_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "button_action_schema_version": { "$ref": "#/$defs/button_action_schema_version" },
+        "record_kind": { "type": "string", "const": "button_action_group_record" },
+        "button_action_group_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "local_region_class": { "$ref": "#/$defs/local_region_class" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "layout": { "$ref": "#/$defs/group_layout" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/button_action_spec" },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": { "variant": { "const": "primary" } },
+                "required": ["variant"]
+              },
+              "minContains": 0,
+              "maxContains": 1
+            }
+          ]
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ref" }
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "consequence_class": { "enum": ["external_shared", "irreversible_high_blast"] }
+            },
+            "required": ["consequence_class"]
+          },
+          "then": {
+            "properties": {
+              "layout": {
+                "properties": { "default_focus_action_role": { "const": "safe_non_mutating" } },
+                "required": ["default_focus_action_role"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
