@@ -45,6 +45,9 @@ The companion artifacts are:
   contrast light theme rows plus the five accessibility /
   runtime motion postures (standard, reduced, low-motion,
   power-saver, critical-hot-path).
+- [`/artifacts/design/motion_tokens.yaml`](../../artifacts/design/motion_tokens.yaml)
+  — motion duration/easing token ledger plus role-level defaults used by
+  motion preset records (enter/exit/emphasis/progress/attention/recovery).
 - [`/artifacts/design/layer_and_scrim_tokens.yaml`](../../artifacts/design/layer_and_scrim_tokens.yaml)
   — layer / portal order tokens and scrim / overlay tokens.
 - [`/docs/design/token_conformance_audit.md`](./token_conformance_audit.md),

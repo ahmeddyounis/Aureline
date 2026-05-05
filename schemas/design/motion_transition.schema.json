@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/motion_transition.schema.json",
+  "title": "Aureline motion token ledger and motion-case fixtures",
+  "description": "Boundary schema for the motion token ledger frozen in artifacts/design/motion_tokens.yaml plus the motion-case fixtures under fixtures/design/motion_cases. The token ledger publishes the frozen motion duration and easing token values so tooling and later component packets can cite stable names instead of re-minting milliseconds or cubic-bezier literals ad hoc. Motion-case fixtures are expressed as motion_preset_record instances (see schemas/ux/motion_preset.schema.json) so reduced-motion, low-motion, power-saver, and critical-hot-path fallbacks remain mechanically inspectable and semantically equivalent across postures.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/motion_token_ledger_record" },
+    { "$ref": "../ux/motion_preset.schema.json" }
+  ],
+  "$defs": {
+    "motion_transition_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the motion token ledger payload."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "nonempty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "motion_duration_token": {
+      "type": "string",
+      "enum": [
+        "motion.instant",
+        "motion.fast",
+        "motion.ui",
+        "motion.panel",
+        "motion.dialog"
+      ],
+      "description": "Frozen motion duration token vocabulary. Values are pinned in artifacts/design/motion_tokens.yaml and described in the style guide motion system section."
+    },
+    "motion_easing_token": {
+      "type": "string",
+      "enum": [
+        "ease.standard",
+        "ease.exit",
+        "ease.enter"
+      ],
+      "description": "Frozen motion easing token vocabulary. Values are pinned in artifacts/design/motion_tokens.yaml and described in the style guide motion system section."
+    },
+    "semantic_transition_role_class": {
+      "type": "string",
+      "enum": [
+        "enter",
+        "exit",
+        "emphasis",
+        "progress",
+        "attention",
+        "recovery"
+      ],
+      "description": "High-level semantic transition role vocabulary used by the motion token ledger. Roles map to the frozen duration/easing tokens; concrete motion_preset_record instances refine the role for a specific surface."
+    },
+    "duration_token_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token_name", "ms", "use_hint", "source_of_truth_ref"],
+      "properties": {
+        "token_name": { "$ref": "#/$defs/motion_duration_token" },
+        "ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Duration in milliseconds."
+        },
+        "use_hint": { "$ref": "#/$defs/nonempty_string" },
+        "source_of_truth_ref": { "$ref": "#/$defs/nonempty_string" }
+      }
+    },
+    "easing_token_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token_name", "curve", "use_hint", "source_of_truth_ref"],
+      "properties": {
+        "token_name": { "$ref": "#/$defs/motion_easing_token" },
+        "curve": { "$ref": "#/$defs/nonempty_string" },
+        "use_hint": { "$ref": "#/$defs/nonempty_string" },
+        "source_of_truth_ref": { "$ref": "#/$defs/nonempty_string" }
+      }
+    },
+    "semantic_transition_role_binding_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role_class", "default_duration_tokens", "default_easing_tokens"],
+      "properties": {
+        "role_class": { "$ref": "#/$defs/semantic_transition_role_class" },
+        "default_duration_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/motion_duration_token" },
+          "uniqueItems": true
+        },
+        "default_easing_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/motion_easing_token" },
+          "uniqueItems": true
+        },
+        "notes": { "$ref": "#/$defs/nonempty_string" }
+      }
+    },
+    "motion_token_ledger_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "motion_transition_schema_version",
+        "ledger_id",
+        "source_of_truth_refs",
+        "duration_tokens",
+        "easing_tokens",
+        "semantic_transition_roles",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "type": "string", "const": "motion_token_ledger_record" },
+        "motion_transition_schema_version": { "$ref": "#/$defs/motion_transition_schema_version" },
+        "ledger_id": { "$ref": "#/$defs/nonempty_string" },
+        "source_of_truth_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty_string" },
+          "uniqueItems": true
+        },
+        "duration_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/duration_token_row" }
+        },
+        "easing_tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/easing_token_row" }
+        },
+        "semantic_transition_roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/semantic_transition_role_binding_record" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "The motion duration/easing token ledger plus semantic role bindings."
+    }
+  }
+}
+
