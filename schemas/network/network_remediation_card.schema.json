@@ -1,0 +1,992 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/network/network_remediation_card.schema.json",
+  "title": "Aureline network remediation card",
+  "description": "Boundary schema for one network_remediation_card_record. The transport inspector, support packet, and enterprise-lab export surfaces all emit cards in this shape so a user, admin, or separate review team can read the typed failure family (missing_proxy_configuration, pac_evaluation_error, direct_route_disallowed, ca_mismatch, ssh_host_proof_mismatch, client_certificate_absence, or mirror_freshness_or_signer_mismatch), the endpoint class the card refers to, the typed fix lane, the admin-versus-user repair boundary, the linked trust-proof packet, and the per-profile export availability without ever rendering raw URLs, raw host names, raw IP addresses, raw proxy credentials, PAC script bodies, certificate PEM, private keys, raw SSH keys, tokens, request bodies, or response bodies. The same record is consumed verbatim by product UI, CLI explain output, support-export packets, and enterprise-lab export bundles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "remediation_card_id",
+    "captured_at",
+    "remediation_card_family",
+    "endpoint_class_context",
+    "linked_trust_proof_packet_ref",
+    "failure_summary",
+    "fix_lane",
+    "repair_boundary",
+    "evidence_refs",
+    "no_bypass_projection",
+    "export_actions",
+    "redaction_class",
+    "export_safe",
+    "remediation_summary_sentence",
+    "narrative_refs"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "record_kind": { "type": "string", "const": "network_remediation_card_record" },
+    "remediation_card_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable opaque id for this card. Must not contain raw endpoint names, raw hosts, raw IPs, or planning slugs."
+    },
+    "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+    "remediation_card_family": { "$ref": "#/$defs/remediation_card_family_class" },
+    "endpoint_class_context": { "$ref": "#/$defs/endpoint_class_context" },
+    "linked_decision_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "linked_effective_route_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "linked_denial_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "linked_trust_proof_packet_ref": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Every remediation card binds one trust_proof_packet_record so the failure narrative and the verifiable evidence travel together."
+    },
+    "linked_certificate_card_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+    "linked_support_packet_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/opaque_id" }
+    },
+    "failure_summary": { "$ref": "#/$defs/failure_summary" },
+    "fix_lane": { "$ref": "#/$defs/fix_lane" },
+    "repair_boundary": { "$ref": "#/$defs/repair_boundary" },
+    "evidence_refs": { "$ref": "#/$defs/evidence_refs" },
+    "no_bypass_projection": { "$ref": "#/$defs/no_bypass_projection" },
+    "export_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/export_action_projection" },
+      "description": "Per-profile export availability for this card. Every action class must appear exactly once."
+    },
+    "enterprise_lab_export_posture": { "$ref": "#/$defs/enterprise_lab_export_posture" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "export_safe": { "type": "boolean", "default": true },
+    "remediation_summary_sentence": {
+      "$ref": "#/$defs/reviewable_sentence",
+      "description": "One privacy-safe sentence that names the failure family, fix lane, and repair boundary without revealing secrets."
+    },
+    "narrative_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" }
+    },
+    "notes": { "type": "string" },
+    "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+  },
+  "allOf": [
+    {
+      "description": "Every remediation card enforces no-bypass posture and forbids direct or insecure fallback regardless of family.",
+      "properties": {
+        "no_bypass_projection": {
+          "properties": {
+            "no_bypass_status": { "const": "no_bypass_enforced" },
+            "direct_fallback_allowed": { "const": false },
+            "insecure_fallback_allowed": { "const": false }
+          },
+          "required": [
+            "no_bypass_status",
+            "direct_fallback_allowed",
+            "insecure_fallback_allowed"
+          ]
+        }
+      },
+      "required": ["no_bypass_projection"]
+    },
+    {
+      "description": "missing_proxy_configuration cards must name a typed proxy fix lane and a typed proxy/PAC trust failure marker.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "missing_proxy_configuration" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "review_proxy_settings_lane",
+                  "switch_to_system_proxy_lane",
+                  "switch_to_manual_admin_policy_lane",
+                  "request_admin_proxy_review_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "proxy_unreachable",
+                  "proxy_auth_required_no_handle",
+                  "proxy_auth_denied",
+                  "manual_user_setting_disagrees_with_admin_policy",
+                  "no_effective_proxy_resolved"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "pac_evaluation_error cards must name a typed PAC fix lane and a typed PAC failure class.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "pac_evaluation_error" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "review_pac_resolution_lane",
+                  "refresh_pac_script_lane",
+                  "request_admin_proxy_review_lane",
+                  "switch_to_manual_admin_policy_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "pac_resolution_error",
+                  "pac_unreachable",
+                  "pac_blocked_by_policy",
+                  "pac_disagrees_with_admin_policy",
+                  "pac_loaded_stale"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "direct_route_disallowed cards must name a typed eligibility class and refuse to mark public origin allowed.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "direct_route_disallowed" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "request_admin_published_exception_lane",
+                  "switch_mirror_lane",
+                  "managed_service_handoff_lane",
+                  "request_admin_proxy_review_lane",
+                  "no_repair_supported_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "direct_disallowed_policy",
+                  "direct_disallowed_mirror_only_profile",
+                  "direct_disallowed_offline_or_air_gapped",
+                  "direct_disallowed_trust_floor",
+                  "direct_disallowed_managed_relay_required",
+                  "direct_disallowed_no_route"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          },
+          "endpoint_class_context": {
+            "properties": { "public_origin_allowed": { "const": false } },
+            "required": ["public_origin_allowed"]
+          }
+        }
+      }
+    },
+    {
+      "description": "ca_mismatch cards must name a non-none trust-failure state and a typed CA fix lane.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "ca_mismatch" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "add_org_ca_bundle_lane",
+                  "refresh_org_ca_bundle_lane",
+                  "refresh_pinned_root_lane",
+                  "rotate_trust_anchor_lane",
+                  "request_admin_trust_review_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "ca_untrusted",
+                  "hostname_mismatch",
+                  "bundle_stale",
+                  "pin_mismatch",
+                  "rotation_required",
+                  "trust_store_verification_failed",
+                  "org_ca_bundle_not_loaded",
+                  "pinned_control_plane_trust_mismatch"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "ssh_host_proof_mismatch cards must name an SSH host-proof failure and the strict-host repair lane.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "ssh_host_proof_mismatch" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "review_ssh_host_proof_lane",
+                  "request_admin_to_publish_pin_lane",
+                  "refresh_known_hosts_from_policy_lane",
+                  "rebind_to_new_host_proof_with_admin_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "ssh_host_key_unknown",
+                  "ssh_host_key_mismatch",
+                  "ssh_host_key_strict_mode_rejected"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "client_certificate_absence cards must name a typed client-certificate failure and a client-certificate fix lane.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "client_certificate_absence" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "renew_client_certificate_lane",
+                  "request_managed_handle_lane",
+                  "request_admin_to_provision_handle_lane",
+                  "switch_to_supported_auth_path_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "required_missing",
+                  "expired",
+                  "handle_unavailable",
+                  "policy_blocked"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          }
+        }
+      }
+    },
+    {
+      "description": "mirror_freshness_or_signer_mismatch cards must name a mirror failure and a typed mirror fix lane.",
+      "if": {
+        "properties": {
+          "remediation_card_family": { "const": "mirror_freshness_or_signer_mismatch" }
+        },
+        "required": ["remediation_card_family"]
+      },
+      "then": {
+        "properties": {
+          "fix_lane": {
+            "properties": {
+              "fix_lane_class": {
+                "enum": [
+                  "switch_mirror_lane",
+                  "refresh_mirror_lane",
+                  "request_admin_mirror_review_lane",
+                  "retry_after_mirror_refresh_lane",
+                  "request_signed_offline_bundle_import_lane"
+                ]
+              }
+            },
+            "required": ["fix_lane_class"]
+          },
+          "failure_summary": {
+            "properties": {
+              "failure_class": {
+                "enum": [
+                  "mirror_past_extended_window",
+                  "mirror_freshness_unknown",
+                  "mirror_signer_mismatch",
+                  "mirror_metadata_unsigned",
+                  "mirror_unreachable"
+                ]
+              }
+            },
+            "required": ["failure_class"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "non_empty_string": { "type": "string", "minLength": 1 },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$"
+    },
+    "nullable_opaque_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+    },
+    "opaque_fingerprint": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[:_-][a-z0-9]+)+$"
+    },
+    "nullable_opaque_fingerprint": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_fingerprint" }]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280
+    },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "remediation_card_family_class": {
+      "type": "string",
+      "enum": [
+        "missing_proxy_configuration",
+        "pac_evaluation_error",
+        "direct_route_disallowed",
+        "ca_mismatch",
+        "ssh_host_proof_mismatch",
+        "client_certificate_absence",
+        "mirror_freshness_or_signer_mismatch"
+      ]
+    },
+    "network_component_class": {
+      "type": "string",
+      "enum": [
+        "desktop_shell_component",
+        "cli_headless_component",
+        "update_client_component",
+        "extension_registry_component",
+        "extension_host_component",
+        "ai_broker_component",
+        "docs_pack_component",
+        "policy_distribution_component",
+        "telemetry_sink_component",
+        "remote_tunnel_component",
+        "remote_ssh_component",
+        "remote_agent_component",
+        "managed_control_plane_component",
+        "git_vcs_component",
+        "notebook_kernel_component",
+        "debugger_symbol_component",
+        "api_client_component",
+        "mirror_refresh_component",
+        "browser_handoff_launcher_component",
+        "provider_callback_receiver_component",
+        "heuristic_unknown_component"
+      ]
+    },
+    "network_permission_class": {
+      "type": "string",
+      "enum": [
+        "core_update",
+        "registry_read",
+        "registry_write",
+        "ai_context_egress",
+        "ai_tool_egress",
+        "docs_fetch",
+        "remote_connect",
+        "vcs_network",
+        "extension_network",
+        "policy_refresh",
+        "telemetry_send",
+        "tunnel_publish",
+        "provider_callback_inbound",
+        "mirror_refresh",
+        "browser_handoff_launch",
+        "api_client_request"
+      ]
+    },
+    "network_target_class": {
+      "type": "string",
+      "enum": [
+        "local_host_target",
+        "device_local_loopback_target",
+        "remote_ssh_target",
+        "remote_agent_target",
+        "managed_workspace_target",
+        "connected_provider_target",
+        "system_browser_target",
+        "embedded_webview_target",
+        "mirror_endpoint_target",
+        "private_registry_target",
+        "public_registry_target",
+        "ai_provider_endpoint_target",
+        "docs_mirror_target",
+        "policy_endpoint_target",
+        "update_feed_target",
+        "telemetry_sink_target",
+        "tunnel_exposed_target",
+        "bridged_helper_target",
+        "unknown_target"
+      ]
+    },
+    "egress_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "target_local",
+        "org_approved_external",
+        "public_internet",
+        "deny_all"
+      ]
+    },
+    "auth_mode_class": {
+      "type": "string",
+      "enum": [
+        "no_auth_public",
+        "api_key_handle",
+        "oauth_delegated_handle",
+        "device_code_handle",
+        "mtls_client_cert",
+        "ssh_host_key_pinned",
+        "system_browser_callback_token",
+        "org_ca_bundle_pinned",
+        "managed_service_identity",
+        "step_up_authenticator_required",
+        "auth_unknown"
+      ]
+    },
+    "origin_scope_class": {
+      "type": "string",
+      "enum": [
+        "desktop_client",
+        "headless_runner",
+        "extension_host",
+        "remote_target",
+        "managed_service",
+        "system_browser",
+        "local_helper"
+      ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [
+        "enterprise_online",
+        "managed_cloud",
+        "self_hosted",
+        "sovereign_mirror_only",
+        "air_gapped",
+        "deny_all_offline_only",
+        "consumer_default"
+      ]
+    },
+    "fix_lane_class": {
+      "type": "string",
+      "enum": [
+        "review_proxy_settings_lane",
+        "switch_to_system_proxy_lane",
+        "switch_to_manual_admin_policy_lane",
+        "review_pac_resolution_lane",
+        "refresh_pac_script_lane",
+        "request_admin_proxy_review_lane",
+        "request_admin_published_exception_lane",
+        "switch_mirror_lane",
+        "refresh_mirror_lane",
+        "request_admin_mirror_review_lane",
+        "retry_after_mirror_refresh_lane",
+        "request_signed_offline_bundle_import_lane",
+        "add_org_ca_bundle_lane",
+        "refresh_org_ca_bundle_lane",
+        "refresh_pinned_root_lane",
+        "rotate_trust_anchor_lane",
+        "request_admin_trust_review_lane",
+        "review_ssh_host_proof_lane",
+        "request_admin_to_publish_pin_lane",
+        "refresh_known_hosts_from_policy_lane",
+        "rebind_to_new_host_proof_with_admin_lane",
+        "renew_client_certificate_lane",
+        "request_managed_handle_lane",
+        "request_admin_to_provision_handle_lane",
+        "switch_to_supported_auth_path_lane",
+        "managed_service_handoff_lane",
+        "no_repair_supported_lane"
+      ]
+    },
+    "admin_or_user_repair_boundary_class": {
+      "type": "string",
+      "enum": [
+        "end_user_can_repair",
+        "admin_must_repair",
+        "support_assisted_repair",
+        "managed_service_must_repair",
+        "repair_unavailable_in_profile"
+      ]
+    },
+    "no_bypass_status_class": {
+      "type": "string",
+      "enum": [
+        "no_bypass_enforced",
+        "bypass_not_applicable",
+        "published_exception_required",
+        "published_exception_active",
+        "no_bypass_violation_detected"
+      ]
+    },
+    "forbidden_bypass_class": {
+      "type": "string",
+      "enum": [
+        "silent_direct_origin_fallback",
+        "insecure_tls_fallback",
+        "proxy_resolution_skip",
+        "cli_desktop_proxy_divergence",
+        "extension_ambient_egress",
+        "remote_origin_hidden",
+        "public_origin_on_mirror_only_profile",
+        "feature_specific_retry_under_deny_all",
+        "destructive_offline_defer",
+        "generic_network_error_when_typed_reason_known"
+      ]
+    },
+    "export_action_class": {
+      "type": "string",
+      "enum": [
+        "copy_summary",
+        "open_policy_details",
+        "open_trust_proof",
+        "open_route_history",
+        "export_packet"
+      ]
+    },
+    "export_action_availability_class": {
+      "type": "string",
+      "enum": [
+        "available",
+        "unavailable_redaction_restricted",
+        "unavailable_air_gapped_no_export",
+        "unavailable_managed_policy_blocked",
+        "unavailable_offline_packet_only",
+        "unavailable_remote_target_no_local_state",
+        "unavailable_admin_only_for_user",
+        "unavailable_unsupported_for_profile"
+      ]
+    },
+    "export_action_unavailable_reason_class": {
+      "type": "string",
+      "enum": [
+        "profile_air_gapped_no_export",
+        "managed_policy_disallows_export",
+        "offline_packet_only_no_live_export",
+        "redaction_restricted_above_default",
+        "remote_target_no_local_state",
+        "extension_host_no_route_history",
+        "cli_headless_no_ui_action",
+        "admin_only_action_not_available_to_user",
+        "ai_broker_preflight_no_history_yet",
+        "no_artifact_present_for_attempt",
+        "not_applicable_no_unavailability"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "endpoint_class_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_class",
+        "permission_class",
+        "egress_class",
+        "target_class",
+        "target_identity_ref",
+        "auth_mode",
+        "origin_scope",
+        "deployment_profile",
+        "tenant_scope_ref",
+        "target_scope_ref",
+        "public_origin_allowed",
+        "endpoint_sentence"
+      ],
+      "properties": {
+        "component_class": { "$ref": "#/$defs/network_component_class" },
+        "component_instance_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "permission_class": { "$ref": "#/$defs/network_permission_class" },
+        "permission_grant_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "egress_class": { "$ref": "#/$defs/egress_class" },
+        "target_class": { "$ref": "#/$defs/network_target_class" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "auth_mode": { "$ref": "#/$defs/auth_mode_class" },
+        "auth_handle_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "origin_scope": { "$ref": "#/$defs/origin_scope_class" },
+        "deployment_profile": { "$ref": "#/$defs/deployment_profile_class" },
+        "public_origin_allowed": { "type": "boolean" },
+        "endpoint_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "failure_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "failure_class",
+        "trust_failure_state",
+        "client_certificate_state",
+        "mirror_freshness_class",
+        "conflict_state_class",
+        "offline_state_class",
+        "failure_sentence"
+      ],
+      "properties": {
+        "failure_class": { "$ref": "#/$defs/failure_class" },
+        "trust_failure_state": { "$ref": "#/$defs/trust_failure_state" },
+        "client_certificate_state": { "$ref": "#/$defs/client_certificate_state" },
+        "mirror_freshness_class": { "$ref": "#/$defs/mirror_freshness_class" },
+        "conflict_state_class": { "$ref": "#/$defs/conflict_state_class" },
+        "offline_state_class": { "$ref": "#/$defs/offline_state_class" },
+        "failure_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "fix_lane": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fix_lane_class",
+        "repair_boundary_class",
+        "fix_lane_sentence"
+      ],
+      "properties": {
+        "fix_lane_class": { "$ref": "#/$defs/fix_lane_class" },
+        "repair_boundary_class": { "$ref": "#/$defs/admin_or_user_repair_boundary_class" },
+        "fix_lane_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "exception_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "no_bypass_safe": { "type": "boolean", "default": true },
+        "fix_lane_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "repair_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_boundary_class",
+        "boundary_sentence"
+      ],
+      "properties": {
+        "primary_boundary_class": { "$ref": "#/$defs/admin_or_user_repair_boundary_class" },
+        "secondary_boundary_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/admin_or_user_repair_boundary_class" }
+        },
+        "exception_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "boundary_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "evidence_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_epoch_ref",
+        "active_policy_bundle_ref",
+        "trust_proof_packet_ref",
+        "evidence_sentence"
+      ],
+      "properties": {
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "active_policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_rule_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "trust_proof_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "decision_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "denial_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "evidence_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "no_bypass_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_bypass_status",
+        "direct_fallback_allowed",
+        "insecure_fallback_allowed",
+        "forbidden_bypass_classes",
+        "no_bypass_sentence"
+      ],
+      "properties": {
+        "no_bypass_status": { "$ref": "#/$defs/no_bypass_status_class" },
+        "direct_fallback_allowed": { "type": "boolean" },
+        "insecure_fallback_allowed": { "type": "boolean" },
+        "forbidden_bypass_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/forbidden_bypass_class" }
+        },
+        "exception_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "no_bypass_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "export_action_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_action_class",
+        "availability_class",
+        "unavailable_reason_class",
+        "action_sentence"
+      ],
+      "properties": {
+        "export_action_class": { "$ref": "#/$defs/export_action_class" },
+        "availability_class": { "$ref": "#/$defs/export_action_availability_class" },
+        "unavailable_reason_class": { "$ref": "#/$defs/export_action_unavailable_reason_class" },
+        "action_target_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "action_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "enterprise_lab_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lab_export_class",
+        "audience_class",
+        "review_team_handoff_class",
+        "lab_export_sentence"
+      ],
+      "properties": {
+        "lab_export_class": {
+          "type": "string",
+          "enum": [
+            "exportable_to_enterprise_lab",
+            "exportable_redaction_restricted",
+            "lab_export_blocked_managed_policy",
+            "lab_export_blocked_air_gapped",
+            "lab_export_not_applicable"
+          ]
+        },
+        "audience_class": {
+          "type": "string",
+          "enum": [
+            "end_user_only",
+            "admin_only",
+            "support_export_only",
+            "enterprise_lab_review_only",
+            "end_user_and_admin",
+            "all_inspectors"
+          ]
+        },
+        "review_team_handoff_class": {
+          "type": "string",
+          "enum": [
+            "no_handoff_required",
+            "admin_team_handoff",
+            "trust_or_pki_team_handoff",
+            "ssh_or_remote_target_team_handoff",
+            "mirror_or_release_team_handoff",
+            "support_assisted_handoff"
+          ]
+        },
+        "lab_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "lab_export_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "trust_failure_state": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ca_untrusted",
+        "hostname_mismatch",
+        "bundle_stale",
+        "pin_mismatch",
+        "rotation_required",
+        "ssh_host_key_unknown",
+        "ssh_host_key_mismatch",
+        "client_certificate_required",
+        "client_certificate_expired",
+        "policy_blocked"
+      ]
+    },
+    "client_certificate_state": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "handle_valid",
+        "required_missing",
+        "expired",
+        "handle_unavailable",
+        "policy_blocked"
+      ]
+    },
+    "mirror_freshness_class": {
+      "type": "string",
+      "enum": [
+        "mirror_fresh_within_window",
+        "mirror_within_extended_window",
+        "mirror_past_extended_window",
+        "mirror_freshness_unknown",
+        "not_applicable"
+      ]
+    },
+    "conflict_state_class": {
+      "type": "string",
+      "enum": [
+        "pac_proxy_disagrees_with_system_proxy",
+        "environment_proxy_disagrees_with_admin_policy",
+        "manual_user_setting_disagrees_with_admin_policy",
+        "pac_unreachable_with_admin_required",
+        "proxy_resolution_unknown_required_review",
+        "proxy_auth_required_no_handle",
+        "proxy_auth_denied",
+        "cli_desktop_proxy_divergence_detected",
+        "proxy_conflict_not_applicable"
+      ]
+    },
+    "offline_state_class": {
+      "type": "string",
+      "enum": [
+        "offline_grace_active",
+        "offline_air_gapped_active",
+        "network_disabled_by_user",
+        "deny_all_enforced",
+        "network_degraded_heuristic",
+        "offline_state_not_applicable"
+      ]
+    },
+    "failure_class": {
+      "type": "string",
+      "enum": [
+        "proxy_unreachable",
+        "proxy_auth_required_no_handle",
+        "proxy_auth_denied",
+        "manual_user_setting_disagrees_with_admin_policy",
+        "no_effective_proxy_resolved",
+        "pac_resolution_error",
+        "pac_unreachable",
+        "pac_blocked_by_policy",
+        "pac_disagrees_with_admin_policy",
+        "pac_loaded_stale",
+        "direct_disallowed_policy",
+        "direct_disallowed_mirror_only_profile",
+        "direct_disallowed_offline_or_air_gapped",
+        "direct_disallowed_trust_floor",
+        "direct_disallowed_managed_relay_required",
+        "direct_disallowed_no_route",
+        "ca_untrusted",
+        "hostname_mismatch",
+        "bundle_stale",
+        "pin_mismatch",
+        "rotation_required",
+        "trust_store_verification_failed",
+        "org_ca_bundle_not_loaded",
+        "pinned_control_plane_trust_mismatch",
+        "ssh_host_key_unknown",
+        "ssh_host_key_mismatch",
+        "ssh_host_key_strict_mode_rejected",
+        "required_missing",
+        "expired",
+        "handle_unavailable",
+        "policy_blocked",
+        "mirror_past_extended_window",
+        "mirror_freshness_unknown",
+        "mirror_signer_mismatch",
+        "mirror_metadata_unsigned",
+        "mirror_unreachable"
+      ]
+    }
+  }
+}
