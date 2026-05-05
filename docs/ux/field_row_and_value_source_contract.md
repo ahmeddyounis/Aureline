@@ -28,10 +28,19 @@ document wins and the surface is non-conforming.
   - worked JSON records covering a policy-locked settings row, stale
     object references under narrowed permission, an external-vault
     source, and a preview-first multi-value row.
+- Settings specialization:
+  - [`/docs/settings/settings_row_contract.md`](../settings/settings_row_contract.md)
+    for settings-row deep links, search landing/highlight, lock behavior,
+    and reset/diff affordances.
+  - [`/schemas/settings/settings_row_state.schema.json`](../../schemas/settings/settings_row_state.schema.json)
+    for the settings-only specialization of `field_row_record`.
+  - [`/fixtures/settings/setting_rows/`](../../fixtures/settings/setting_rows/)
+    for additional settings-row examples (precedence, overrides, high-risk
+    preview-first settings).
 - [`/docs/ux/forms_validation_contract.md`](./forms_validation_contract.md)
   and [`/schemas/ux/staged_review_state.schema.json`](../../schemas/ux/staged_review_state.schema.json)
   - validation, staged apply, probe freshness, mutation-blocking, and
-    lock explanation vocabulary. A staged-review `field_rows[]` entry
+  lock explanation vocabulary. A staged-review `field_rows[]` entry
     is the compact projection of this richer row contract.
 - [`/docs/ux/field_rules_contract.md`](./field_rules_contract.md)
   and [`/schemas/ux/field_rule.schema.json`](../../schemas/ux/field_rule.schema.json)
