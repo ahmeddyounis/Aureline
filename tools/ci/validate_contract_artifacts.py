@@ -68,6 +68,12 @@ CONTRACT_VALIDATION_DOC_REL = "docs/ci/control_artifact_validation.md"
 CONTRACT_VALIDATION_SCENARIO_REL = "fixtures/ci/contract_validation/missing_deployment_profile.json"
 PROTECTED_DEPENDENCY_TOOL_REL = "tools/check_protected_dependencies.py"
 PROTECTED_DEPENDENCY_SCENARIO_REL = "fixtures/ci/contract_validation/protected_dependency_violation.json"
+PRINCIPLE_ENFORCEMENT_MATRIX_DOC_REL = "docs/architecture/principle_enforcement_matrix.md"
+PRINCIPLE_CHECKS_REL = "artifacts/architecture/principle_checks.yaml"
+PRINCIPLE_VIOLATION_EXAMPLES_REL = "artifacts/architecture/principle_violation_examples.yaml"
+FITNESS_CATALOG_REL = "artifacts/bench/fitness_function_catalog.yaml"
+REJECTED_PATTERNS_REL = "artifacts/architecture/driver_to_rejected_pattern_refs.yaml"
+MANDATORY_REVIEW_ARTIFACTS_REL = "artifacts/governance/mandatory_review_artifacts.yaml"
 
 SENTINEL_REFS = {"not_yet_seeded", "outline_only", "contract_not_yet_seeded"}
 LAYER_ORDER = {"L0": 0, "L1": 1, "L2": 2, "L3": 3, "LX": 99}
@@ -79,6 +85,9 @@ REQUIRED_CONTROL_ROWS = {
     "service_topology_process_placement_policy": PROTECTED_DEPENDENCY_OVERVIEW_REL,
     "protected_path_dependency_rules": PROTECTED_DEPENDENCY_RULES_REL,
     "process_placement_map": PROTECTED_DEPENDENCY_PROCESS_MAP_REL,
+    "architecture_principle_enforcement_matrix": PRINCIPLE_ENFORCEMENT_MATRIX_DOC_REL,
+    "architecture_principle_checks": PRINCIPLE_CHECKS_REL,
+    "architecture_principle_violation_examples": PRINCIPLE_VIOLATION_EXAMPLES_REL,
     "contract_artifact_validation_lane": CONTRACT_VALIDATION_WORKFLOW_REL,
     "frozen_surface_manifests": FROZEN_SURFACE_MANIFEST_REL,
 }
@@ -1833,6 +1842,517 @@ def validate_command_parity(repo: RepoView) -> tuple[list[Finding], dict[str, An
     return findings, analysis
 
 
+def validate_principle_checks(repo: RepoView) -> list[Finding]:
+    findings: list[Finding] = []
+    if not repo.exists(PRINCIPLE_CHECKS_REL):
+        findings.append(
+            make_finding(
+                "error",
+                "principle_checks.file_exists",
+                PRINCIPLE_CHECKS_REL,
+                PRINCIPLE_CHECKS_REL,
+                f"missing architecture principle checks: {PRINCIPLE_CHECKS_REL}",
+                "Add artifacts/architecture/principle_checks.yaml and register it in control_artifact_index.yaml.",
+            )
+        )
+        return findings
+
+    payload = repo.yaml(PRINCIPLE_CHECKS_REL)
+    if payload.get("artifact_id") != "aureline.architecture_principle_checks":
+        findings.append(
+            make_finding(
+                "error",
+                "principle_checks.artifact_id",
+                PRINCIPLE_CHECKS_REL,
+                PRINCIPLE_CHECKS_REL,
+                "principle_checks artifact_id must be 'aureline.architecture_principle_checks'",
+                "Fix artifacts/architecture/principle_checks.yaml artifact_id to match the canonical id.",
+            )
+        )
+
+    if payload.get("overview_document") != PRINCIPLE_ENFORCEMENT_MATRIX_DOC_REL:
+        findings.append(
+            make_finding(
+                "error",
+                "principle_checks.overview_document",
+                PRINCIPLE_CHECKS_REL,
+                PRINCIPLE_CHECKS_REL,
+                "principle_checks overview_document must point at the enforcement matrix doc",
+                f"Set overview_document to {PRINCIPLE_ENFORCEMENT_MATRIX_DOC_REL}.",
+            )
+        )
+
+    principles = payload.get("principles")
+    if not isinstance(principles, list) or not principles:
+        findings.append(
+            make_finding(
+                "error",
+                "principle_checks.principles_list",
+                PRINCIPLE_CHECKS_REL,
+                PRINCIPLE_CHECKS_REL,
+                "principle_checks must define a non-empty top-level principles list",
+                "Populate artifacts/architecture/principle_checks.yaml with one row per architecture principle.",
+            )
+        )
+        return findings
+
+    catalog = repo.yaml(FITNESS_CATALOG_REL)
+    allowed_principles = set(catalog.get("architecture_principles", []))
+    if not allowed_principles:
+        raise SystemExit(f"{FITNESS_CATALOG_REL} must define architecture_principles vocabulary")
+
+    rejected = repo.yaml(REJECTED_PATTERNS_REL)
+    rejected_ids = {row.get("pattern_id") for row in rejected.get("rejected_patterns", []) if isinstance(row, dict)}
+
+    mandatory_review = repo.yaml(MANDATORY_REVIEW_ARTIFACTS_REL)
+    artifact_classes = {
+        row.get("artifact_class_id")
+        for row in mandatory_review.get("artifact_classes", [])
+        if isinstance(row, dict) and row.get("artifact_class_id")
+    }
+
+    ownership = repo.yaml(OWNERSHIP_MATRIX_REL)
+    decision_forums = {row.get("id") for row in ownership.get("decision_forums", []) if isinstance(row, dict)}
+
+    principle_ids = [row.get("principle_id") for row in principles if isinstance(row, dict)]
+    for duplicate in register_duplicates([pid for pid in principle_ids if isinstance(pid, str)]):
+        findings.append(
+            make_finding(
+                "error",
+                "principle_checks.unique_principle_ids",
+                PRINCIPLE_CHECKS_REL,
+                PRINCIPLE_CHECKS_REL,
+                f"principle_checks duplicates principle_id '{duplicate}'",
+                "Keep exactly one principle_checks row per architecture principle id.",
+                row_ref=duplicate,
+            )
+        )
+
+    for row in principles:
+        if not isinstance(row, dict):
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.row_shape",
+                    PRINCIPLE_CHECKS_REL,
+                    PRINCIPLE_CHECKS_REL,
+                    "principle_checks contains a non-object row",
+                    "Keep every principles[] entry a YAML mapping/object.",
+                )
+            )
+            continue
+
+        principle_id = row.get("principle_id")
+        row_ref = None if not isinstance(principle_id, str) else f"principle_id:{principle_id}"
+
+        if not isinstance(principle_id, str) or principle_id not in allowed_principles:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.principle_id_vocabulary",
+                    PRINCIPLE_CHECKS_REL,
+                    FITNESS_CATALOG_REL,
+                    f"principle_checks row uses unknown principle_id '{principle_id}'",
+                    "Use a principle_id from artifacts/bench/fitness_function_catalog.yaml#architecture_principles.",
+                    row_ref=row_ref,
+                    allowed_count=len(allowed_principles),
+                )
+            )
+
+        for required_field in ("title", "statement", "protected_paths", "invariants", "enforcement"):
+            if required_field not in row:
+                findings.append(
+                    make_finding(
+                        "error",
+                        f"principle_checks.required_field.{required_field}",
+                        PRINCIPLE_CHECKS_REL,
+                        PRINCIPLE_CHECKS_REL,
+                        f"principle_checks row '{principle_id}' missing required field '{required_field}'",
+                        "Populate the missing required field so reviewers and CI have a complete checklist.",
+                        row_ref=row_ref,
+                    )
+                )
+
+        invariants = row.get("invariants")
+        if not isinstance(invariants, list) or not invariants:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.invariants_non_empty",
+                    PRINCIPLE_CHECKS_REL,
+                    PRINCIPLE_CHECKS_REL,
+                    f"principle_checks row '{principle_id}' must define a non-empty invariants list",
+                    "Add at least one invariant that names what must hold and what failure looks like.",
+                    row_ref=row_ref,
+                )
+            )
+
+        protected_paths = row.get("protected_paths", {})
+        if isinstance(protected_paths, dict):
+            for ref in protected_paths.get("control_artifact_refs", []) or []:
+                if isinstance(ref, str) and not existing_path_ref(repo, ref):
+                    findings.append(
+                        make_finding(
+                            "error",
+                            "principle_checks.control_artifact_ref_exists",
+                            PRINCIPLE_CHECKS_REL,
+                            ref,
+                            f"principle_checks row '{principle_id}' references missing control artifact '{ref}'",
+                            "Keep control_artifact_refs limited to real repo paths (or remove the ref).",
+                            row_ref=row_ref,
+                        )
+                    )
+
+        for anti_ref in row.get("anti_pattern_refs", []) or []:
+            if not isinstance(anti_ref, str) or anti_ref not in rejected_ids:
+                findings.append(
+                    make_finding(
+                        "warning",
+                        "principle_checks.anti_pattern_ref_resolves",
+                        PRINCIPLE_CHECKS_REL,
+                        REJECTED_PATTERNS_REL,
+                        f"principle_checks row '{principle_id}' cites unknown anti-pattern ref '{anti_ref}'",
+                        "Prefer refs from artifacts/architecture/driver_to_rejected_pattern_refs.yaml#rejected_patterns[].pattern_id.",
+                        row_ref=row_ref,
+                    )
+                )
+
+        enforcement = row.get("enforcement")
+        if not isinstance(enforcement, dict):
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.enforcement_object",
+                    PRINCIPLE_CHECKS_REL,
+                    PRINCIPLE_CHECKS_REL,
+                    f"principle_checks row '{principle_id}' enforcement must be an object",
+                    "Define enforcement.controlling_forums, waiver_authority_forum, evidence_packet_families, and machine_gates.",
+                    row_ref=row_ref,
+                )
+            )
+            continue
+
+        controlling_forums = enforcement.get("controlling_forums")
+        if not isinstance(controlling_forums, list) or not controlling_forums:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.controlling_forums_non_empty",
+                    PRINCIPLE_CHECKS_REL,
+                    OWNERSHIP_MATRIX_REL,
+                    f"principle_checks row '{principle_id}' must name at least one controlling forum",
+                    "Add at least one forum id from artifacts/governance/ownership_matrix.yaml#decision_forums.",
+                    row_ref=row_ref,
+                )
+            )
+        else:
+            unknown = sorted({forum for forum in controlling_forums if isinstance(forum, str)} - decision_forums)
+            if unknown:
+                findings.append(
+                    make_finding(
+                        "error",
+                        "principle_checks.controlling_forums_resolve",
+                        PRINCIPLE_CHECKS_REL,
+                        OWNERSHIP_MATRIX_REL,
+                        f"principle_checks row '{principle_id}' references unknown controlling forum(s): {', '.join(unknown)}",
+                        "Use decision forum ids from artifacts/governance/ownership_matrix.yaml#decision_forums.",
+                        row_ref=row_ref,
+                    )
+                )
+
+        waiver_forum = enforcement.get("waiver_authority_forum")
+        if not isinstance(waiver_forum, str) or waiver_forum not in decision_forums:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.waiver_authority_forum_resolves",
+                    PRINCIPLE_CHECKS_REL,
+                    OWNERSHIP_MATRIX_REL,
+                    f"principle_checks row '{principle_id}' has unknown waiver_authority_forum '{waiver_forum}'",
+                    "Set waiver_authority_forum to a decision forum id from artifacts/governance/ownership_matrix.yaml#decision_forums.",
+                    row_ref=row_ref,
+                )
+            )
+
+        evidence_families = enforcement.get("evidence_packet_families")
+        if not isinstance(evidence_families, list) or not evidence_families:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.evidence_packet_families_non_empty",
+                    PRINCIPLE_CHECKS_REL,
+                    MANDATORY_REVIEW_ARTIFACTS_REL,
+                    f"principle_checks row '{principle_id}' must name at least one evidence packet family",
+                    "List one or more artifact_class_id values from artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes.",
+                    row_ref=row_ref,
+                )
+            )
+        else:
+            unknown = sorted({family for family in evidence_families if isinstance(family, str)} - artifact_classes)
+            if unknown:
+                findings.append(
+                    make_finding(
+                        "error",
+                        "principle_checks.evidence_packet_families_resolve",
+                        PRINCIPLE_CHECKS_REL,
+                        MANDATORY_REVIEW_ARTIFACTS_REL,
+                        f"principle_checks row '{principle_id}' references unknown evidence packet family(s): {', '.join(unknown)}",
+                        "Use artifact_class_id values from artifacts/governance/mandatory_review_artifacts.yaml.",
+                        row_ref=row_ref,
+                    )
+                )
+
+        machine_gates = enforcement.get("machine_gates")
+        if not isinstance(machine_gates, list) or not machine_gates:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_checks.machine_gates_non_empty",
+                    PRINCIPLE_CHECKS_REL,
+                    PRINCIPLE_CHECKS_REL,
+                    f"principle_checks row '{principle_id}' must define at least one machine gate or explicit review gate",
+                    "Add at least one enforcement.machine_gates[] entry (or explicitly scope the principle to review-only with a documented gate).",
+                    row_ref=row_ref,
+                )
+            )
+        else:
+            for gate in machine_gates:
+                if not isinstance(gate, dict):
+                    findings.append(
+                        make_finding(
+                            "error",
+                            "principle_checks.machine_gate_shape",
+                            PRINCIPLE_CHECKS_REL,
+                            PRINCIPLE_CHECKS_REL,
+                            f"principle_checks row '{principle_id}' contains a non-object machine_gates entry",
+                            "Keep every enforcement.machine_gates[] entry a YAML mapping/object.",
+                            row_ref=row_ref,
+                        )
+                    )
+                    continue
+                tool_ref = gate.get("tool_ref")
+                if isinstance(tool_ref, str) and not existing_path_ref(repo, tool_ref):
+                    findings.append(
+                        make_finding(
+                            "error",
+                            "principle_checks.machine_gate_tool_ref_exists",
+                            PRINCIPLE_CHECKS_REL,
+                            tool_ref,
+                            f"principle_checks row '{principle_id}' references missing gate tool '{tool_ref}'",
+                            "Keep tool_ref limited to real repo paths (or remove the ref).",
+                            row_ref=row_ref,
+                        )
+                    )
+                for ref in gate.get("primary_config_refs", []) or []:
+                    if isinstance(ref, str) and not existing_path_ref(repo, ref):
+                        findings.append(
+                            make_finding(
+                                "error",
+                                "principle_checks.machine_gate_config_ref_exists",
+                                PRINCIPLE_CHECKS_REL,
+                                ref,
+                                f"principle_checks row '{principle_id}' references missing gate config '{ref}'",
+                                "Keep primary_config_refs limited to real repo paths (or remove the ref).",
+                                row_ref=row_ref,
+                            )
+                        )
+
+    return findings
+
+
+def validate_principle_violation_examples(repo: RepoView) -> list[Finding]:
+    findings: list[Finding] = []
+    if not repo.exists(PRINCIPLE_VIOLATION_EXAMPLES_REL):
+        findings.append(
+            make_finding(
+                "error",
+                "principle_violation_examples.file_exists",
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                f"missing architecture principle violation examples: {PRINCIPLE_VIOLATION_EXAMPLES_REL}",
+                "Add artifacts/architecture/principle_violation_examples.yaml and register it in control_artifact_index.yaml.",
+            )
+        )
+        return findings
+
+    payload = repo.yaml(PRINCIPLE_VIOLATION_EXAMPLES_REL)
+    if payload.get("artifact_id") != "aureline.architecture_principle_violation_examples":
+        findings.append(
+            make_finding(
+                "error",
+                "principle_violation_examples.artifact_id",
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                "principle_violation_examples artifact_id must be 'aureline.architecture_principle_violation_examples'",
+                "Fix artifacts/architecture/principle_violation_examples.yaml artifact_id to match the canonical id.",
+            )
+        )
+
+    examples = payload.get("examples")
+    if not isinstance(examples, list) or not examples:
+        findings.append(
+            make_finding(
+                "error",
+                "principle_violation_examples.examples_list",
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                "principle_violation_examples must define a non-empty examples list",
+                "Populate artifacts/architecture/principle_violation_examples.yaml with worked cases.",
+            )
+        )
+        return findings
+
+    catalog = repo.yaml(FITNESS_CATALOG_REL)
+    allowed_principles = set(catalog.get("architecture_principles", []))
+    classes = payload.get("example_class_vocabulary", [])
+    allowed_classes = set(classes) if isinstance(classes, list) else set()
+    if not allowed_classes:
+        allowed_classes = {"temporary_narrowing", "release_blocking_contradiction"}
+
+    example_ids = [row.get("example_id") for row in examples if isinstance(row, dict)]
+    for duplicate in register_duplicates([eid for eid in example_ids if isinstance(eid, str)]):
+        findings.append(
+            make_finding(
+                "error",
+                "principle_violation_examples.unique_example_ids",
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                f"principle_violation_examples duplicates example_id '{duplicate}'",
+                "Keep exactly one example per example_id.",
+                row_ref=duplicate,
+            )
+        )
+
+    by_principle: dict[str, set[str]] = defaultdict(set)
+    for row in examples:
+        if not isinstance(row, dict):
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.row_shape",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    "principle_violation_examples contains a non-object row",
+                    "Keep every examples[] entry a YAML mapping/object.",
+                )
+            )
+            continue
+
+        example_id = row.get("example_id")
+        principle_id = row.get("principle_id")
+        classification = row.get("classification")
+        row_ref = None if not isinstance(example_id, str) else f"example_id:{example_id}"
+
+        for field_name in ("example_id", "principle_id", "classification", "scenario", "required_controls"):
+            if field_name not in row:
+                findings.append(
+                    make_finding(
+                        "error",
+                        f"principle_violation_examples.required_field.{field_name}",
+                        PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                        PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                        f"principle_violation_examples row '{example_id}' missing required field '{field_name}'",
+                        "Populate the missing required field so the example is reviewable and machine-checkable.",
+                        row_ref=row_ref,
+                    )
+                )
+
+        if classification == "temporary_narrowing" and not isinstance(row.get("why_it_is_acceptable"), str):
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.why_required_for_narrowing",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    f"principle_violation_examples row '{example_id}' must include why_it_is_acceptable for temporary_narrowing",
+                    "Add why_it_is_acceptable so reviewers can see why the narrowing remains truthful and bounded.",
+                    row_ref=row_ref,
+                )
+            )
+        if classification == "release_blocking_contradiction" and not isinstance(row.get("why_it_is_blocking"), str):
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.why_required_for_blocking",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    f"principle_violation_examples row '{example_id}' must include why_it_is_blocking for release_blocking_contradiction",
+                    "Add why_it_is_blocking so reviewers can see why it contradicts a protected principle or claim-bearing posture.",
+                    row_ref=row_ref,
+                )
+            )
+
+        if not isinstance(principle_id, str) or principle_id not in allowed_principles:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.principle_id_vocabulary",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    FITNESS_CATALOG_REL,
+                    f"principle_violation_examples row '{example_id}' uses unknown principle_id '{principle_id}'",
+                    "Use a principle_id from artifacts/bench/fitness_function_catalog.yaml#architecture_principles.",
+                    row_ref=row_ref,
+                )
+            )
+        else:
+            if isinstance(classification, str):
+                by_principle[principle_id].add(classification)
+
+        if not isinstance(classification, str) or classification not in allowed_classes:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.classification_vocabulary",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    f"principle_violation_examples row '{example_id}' uses unknown classification '{classification}'",
+                    "Use a classification from example_class_vocabulary.",
+                    row_ref=row_ref,
+                )
+            )
+
+        required_controls = row.get("required_controls")
+        if not isinstance(required_controls, list) or not required_controls:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.required_controls_non_empty",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    f"principle_violation_examples row '{example_id}' must carry a non-empty required_controls list",
+                    "List at least one concrete machine gate or review forum used to adjudicate the scenario.",
+                    row_ref=row_ref,
+                )
+            )
+
+    # Ensure the most commonly debated principles have both narrowing and blocking examples.
+    required_pairs = {
+        "local_first_shell_remote_capable_services",
+        "one_command_graph",
+        "one_execution_context_model",
+        "caches_disposable_user_state_durable",
+        "optional_services_additive",
+        "accessibility_and_trust_are_system_qualities",
+    }
+    for principle in sorted(required_pairs):
+        seen = by_principle.get(principle, set())
+        missing = sorted({"temporary_narrowing", "release_blocking_contradiction"} - seen)
+        if missing:
+            findings.append(
+                make_finding(
+                    "error",
+                    "principle_violation_examples.required_principle_pairing",
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    PRINCIPLE_VIOLATION_EXAMPLES_REL,
+                    f"principle_violation_examples is missing {', '.join(missing)} example(s) for principle '{principle}'",
+                    "Add at least one worked example for each classification so reviewers can distinguish narrowing from contradiction.",
+                    row_ref=f"principle_id:{principle}",
+                )
+            )
+
+    return findings
+
+
 def validate_contract_validation_lane(repo: RepoView) -> list[Finding]:
     findings: list[Finding] = []
     lane_ref = item_ref("contract_artifact_validation_lane", CONTROL_ARTIFACT_INDEX_REL)
@@ -2210,6 +2730,8 @@ def main() -> int:
     )
     command_findings, command_parity_analysis = validate_command_parity(repo)
     checks.append(("command_parity", command_findings))
+    checks.append(("principle_checks", validate_principle_checks(repo)))
+    checks.append(("principle_violation_examples", validate_principle_violation_examples(repo)))
     checks.append(("contract_validation_lane", validate_contract_validation_lane(repo)))
 
     all_findings = [finding for _, findings in checks for finding in findings]

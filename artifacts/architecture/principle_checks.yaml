@@ -1,0 +1,481 @@
+# Architecture principle enforcement hooks.
+#
+# This artifact turns the Technical Architecture Document §4.1 principles into a
+# machine-readable checklist that review and CI tooling can consume.
+#
+# It does not invent new principles. `principle_id` values are the closed
+# vocabulary defined in docs/benchmarks/fitness_function_catalog.md §5 and
+# mirrored in artifacts/bench/fitness_function_catalog.yaml#architecture_principles.
+#
+# The human-readable narrative and routing table live in
+# docs/architecture/principle_enforcement_matrix.md. If the two disagree, this
+# file is authoritative for tooling and the narrative must be updated in the
+# same change.
+
+schema_version: 1
+artifact_id: aureline.architecture_principle_checks
+title: Architecture principles — enforcement hooks, invariants, and failure conditions
+overview_document: docs/architecture/principle_enforcement_matrix.md
+
+source_documents:
+  - ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    sections:
+      - "§3.3 Hard constraints"
+      - "§4.1 Architecture principles"
+      - "§4.2 Architecture decision summary"
+      - "§4.3 Build-vs-buy and strategic reuse posture"
+      - "§4.4 Rejected patterns and prohibited shortcuts"
+  - ref: docs/benchmarks/fitness_function_catalog.md
+    sections:
+      - "§4 Architecture-driver vocabulary (closed)"
+      - "§5 Architecture-principle vocabulary (closed)"
+      - "§9 Waiver authority and review cadence"
+
+companion_refs:
+  principle_violation_examples_ref: artifacts/architecture/principle_violation_examples.yaml
+  rejected_pattern_map_ref: artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+  protected_dependency_rules_ref: artifacts/architecture/protected_path_dependency_rules.yaml
+  process_placement_map_ref: artifacts/architecture/process_placement_map.yaml
+  subsystem_contract_cards_ref: artifacts/architecture/subsystem_contract_cards/
+  fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+  mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+  control_artifact_index_ref: artifacts/governance/control_artifact_index.yaml
+  ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+  waiver_register_contract_ref: docs/governance/waiver_register_contract.md
+  claim_publication_gate_ref: ci/claim_publication_gate.yaml
+
+principle_vocabulary_ref: artifacts/bench/fitness_function_catalog.yaml#architecture_principles
+decision_forum_vocabulary_ref: artifacts/governance/ownership_matrix.yaml#decision_forums
+evidence_packet_family_vocabulary_ref: artifacts/governance/mandatory_review_artifacts.yaml#artifact_classes
+
+# -----------------------------------------------------------------------------
+# Principles
+# -----------------------------------------------------------------------------
+principles:
+  - principle_id: local_first_shell_remote_capable_services
+    tad_principle_number: 1
+    title: Local-first shell, remote-capable services
+    statement: >
+      Input, rendering, keybindings, layout, and core interaction remain local
+      even when compute is remote.
+    protected_paths:
+      primary_packages:
+        - aureline-render
+        - aureline-text
+        - aureline-buffer
+        - aureline-vfs
+        - aureline-rpc
+      governing_cards:
+        - card:shell_renderer
+        - card:execution_context_tooling
+        - card:workspace_vfs_persistence
+      control_artifact_refs:
+        - artifacts/architecture/protected_path_dependency_rules.yaml
+        - artifacts/architecture/process_placement_map.yaml
+        - artifacts/perf/protected_path_ledger.yaml
+        - artifacts/perf/latency_budget_ledger.yaml
+    invariants:
+      - invariant_id: no_blocking_io_on_protected_interaction_paths
+        required: >
+          Protected shell/renderer interaction paths do not perform blocking
+          filesystem, network, or process-launch work.
+      - invariant_id: core_workflows_survive_remote_unavailability
+        required: >
+          Core open/edit/save/command-entry flows remain usable when remote
+          compute or optional services are unavailable, with truthful degraded
+          labels instead of stalls.
+    anti_pattern_refs:
+      - rp.blocking_io_on_hot_path
+      - rp.optional_service_on_core_path
+      - rp.forced_account_or_network_gate_before_local_work
+    enforcement:
+      controlling_forums:
+        - architecture_council
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - verification_packet
+        - benchmark_report
+      machine_gates:
+        - gate_id: contract_artifact_validation_lane
+          tool_ref: tools/check_protected_dependencies.py
+          primary_config_refs:
+            - artifacts/architecture/protected_path_dependency_rules.yaml
+            - artifacts/architecture/process_placement_map.yaml
+          explicit_failure_conditions:
+            - forbidden sentinel import in a monitored protected module path
+            - forbidden dependency-class edge involving a protected package
+        - gate_id: protected_fitness_catalog
+          tool_ref: artifacts/bench/fitness_function_catalog.yaml
+          primary_config_refs:
+            - artifacts/bench/fitness_function_catalog.yaml
+          explicit_failure_conditions:
+            - a release-usable claim cites a protected path or fitness row without fresh evidence or waiver coverage
+
+  - principle_id: one_command_graph
+    tad_principle_number: 2
+    title: One command graph
+    statement: >
+      UI, keyboard shortcuts, CLI, AI tools, recipes, and extensions all dispatch
+      through a stable, typed command model.
+    protected_paths:
+      governing_cards:
+        - card:command_plane
+        - card:shell_renderer
+      control_artifact_refs:
+        - docs/commands/command_descriptor_contract.md
+        - schemas/commands/command_descriptor.schema.json
+        - artifacts/commands/command_parity_seed.yaml
+    invariants:
+      - invariant_id: single_command_identity_across_surfaces
+        required: >
+          Every launch-bearing surface resolves commands by stable command id and
+          descriptor-owned argument/result contract, not surface-local callbacks.
+      - invariant_id: typed_narrowing_only
+        required: >
+          Surface-specific unavailability is represented by typed disabled
+          reasons; the surface does not silently drop or rename commands.
+    anti_pattern_refs:
+      - rp.private_command_paths_bypass_descriptors
+    enforcement:
+      controlling_forums:
+        - architecture_council
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - verification_packet
+        - benchmark_report
+      machine_gates:
+        - gate_id: contract_artifact_validation_lane
+          tool_ref: tools/ci/validate_contract_artifacts.py
+          primary_config_refs:
+            - tools/commands/parity_diff_seed.py
+            - artifacts/commands/command_parity_seed.yaml
+          explicit_failure_conditions:
+            - command parity tool cannot execute or emits invalid JSON
+            - seed corpus contains actionable parity drift (when run under strict mode)
+
+  - principle_id: one_execution_context_model
+    tad_principle_number: 3
+    title: One execution-context model
+    statement: >
+      Tasks, tests, debug sessions, terminals, scaffolding tools, and AI actions
+      resolve through the same inspectable toolchain and environment resolver.
+    protected_paths:
+      governing_cards:
+        - card:execution_context_tooling
+        - card:command_plane
+      control_artifact_refs:
+        - docs/adr/0009-execution-context-and-scope.md
+        - schemas/runtime/execution_context.schema.json
+        - docs/runtime/execution_context_vocabulary.md
+    invariants:
+      - invariant_id: launch_surfaces_emit_execution_context_truth
+        required: >
+          Launch-capable surfaces can emit an execution-context record that
+          explains toolchain, target, activators, and policy decisions.
+      - invariant_id: fallback_is_labeled
+        required: >
+          Fallback resolution, partial trust, and missing adapters are disclosed
+          by typed labels rather than hidden ad-hoc behavior.
+    anti_pattern_refs:
+      - rp.hidden_retry_loop_past_deadline
+      - rp.hidden_replay_or_mutation_on_restore
+    enforcement:
+      controlling_forums:
+        - architecture_council
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - verification_packet
+      machine_gates:
+        - gate_id: frozen_surface_manifest
+          tool_ref: tools/check_frozen_surfaces.py
+          primary_config_refs:
+            - artifacts/contracts/frozen_surface_manifest.yaml
+            - schemas/runtime/execution_context.schema.json
+          explicit_failure_conditions:
+            - execution-context schema changes without required diff metadata and companion updates
+
+  - principle_id: one_semantic_workspace_graph
+    tad_principle_number: 4
+    title: One semantic workspace graph
+    statement: >
+      Search, navigation, refactors, review, AI context, and impact analysis
+      must not maintain incompatible private truth models.
+    protected_paths:
+      governing_cards:
+        - card:search_navigation_graph
+        - card:docs_public_truth
+      control_artifact_refs:
+        - docs/adr/0014-search-readiness-ranking-result-truth.md
+        - artifacts/search/result_truth_labels.yaml
+        - docs/graph/project_graph_and_indexing_seed.md
+    invariants:
+      - invariant_id: shared_truth_vocabulary_across_consumers
+        required: >
+          Result truth labels (freshness/confidence/provenance) are shared and
+          composable across UI, CLI, AI, docs, and support consumers.
+      - invariant_id: no_silent_private_semantic_store
+        required: >
+          New semantic stores cannot ship as private per-feature truth; any
+          experimental or partial store is explicitly labeled and sunset.
+    anti_pattern_refs:
+      - rp.unbounded_workspace_scan_on_core_path
+    enforcement:
+      controlling_forums:
+        - architecture_council
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - verification_packet
+      machine_gates:
+        - gate_id: interface_freeze_matrix
+          tool_ref: tools/ci/validate_contract_artifacts.py
+          primary_config_refs:
+            - artifacts/governance/interface_freeze_matrix.yaml
+          explicit_failure_conditions:
+            - widening a frozen truth vocabulary without the required decision row
+
+  - principle_id: heavy_work_out_of_process
+    tad_principle_number: 5
+    title: Heavy work out of process
+    statement: >
+      Language servers, debug adapters, indexers, AI providers, risky
+      integrations, and other heavyweight work run outside the shell.
+    protected_paths:
+      governing_cards:
+        - card:shell_renderer
+        - card:rpc_reactive_truth
+      control_artifact_refs:
+        - artifacts/architecture/process_placement_map.yaml
+        - artifacts/architecture/runtime_host_classes.yaml
+        - docs/runtime/fault_domains_and_restart_policy.md
+    invariants:
+      - invariant_id: shell_plane_does_not_host_heavy_execution
+        required: >
+          Heavy execution is isolated to supervised workers/hosts and does not
+          run inline on the shell interaction path.
+    anti_pattern_refs:
+      - rp.background_work_starves_input
+    enforcement:
+      controlling_forums:
+        - architecture_council
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - verification_packet
+      machine_gates:
+        - gate_id: contract_artifact_validation_lane
+          tool_ref: tools/check_protected_dependencies.py
+          primary_config_refs:
+            - artifacts/architecture/process_placement_map.yaml
+            - artifacts/architecture/protected_path_dependency_rules.yaml
+          explicit_failure_conditions:
+            - a protected shell/renderer package depends on forbidden heavy-work dependency classes
+
+  - principle_id: every_write_is_reversible
+    tad_principle_number: 6
+    title: Every write is reversible
+    statement: >
+      Code actions, formatter runs, AI edits, refactors, and generated changes
+      are previewable, attributable, and undoable.
+    protected_paths:
+      governing_cards:
+        - card:workspace_vfs_persistence
+        - card:execution_context_tooling
+        - card:ai_context_runtime
+      control_artifact_refs:
+        - docs/architecture/preview_runtime_contract.md
+        - artifacts/architecture/undo_class_rows.yaml
+        - docs/architecture/generated_artifact_safe_edit_policy.md
+    invariants:
+      - invariant_id: multi_file_mutations_are_reviewable
+        required: >
+          Multi-file mutations produce a previewable patch or checkpoint and a
+          lineage record sufficient for undo/rollback.
+      - invariant_id: no_silent_live_tree_writes
+        required: >
+          Automation and AI do not silently write to the working tree without an
+          explicit review artifact and undo checkpoint.
+    anti_pattern_refs:
+      - rp.unreviewable_write_without_journal_or_preview
+      - rp.silent_contract_downgrade
+    enforcement:
+      controlling_forums:
+        - architecture_council
+        - release_council
+      waiver_authority_forum: release_council
+      evidence_packet_families:
+        - verification_packet
+        - waiver_packet
+      machine_gates:
+        - gate_id: claim_publication_gate
+          tool_ref: ci/claim_publication_gate.yaml
+          primary_config_refs:
+            - ci/claim_publication_gate.yaml
+            - schemas/governance/claim_publication_binding.schema.json
+          explicit_failure_conditions:
+            - public claim widening without required evidence rows or waiver register entry
+
+  - principle_id: caches_disposable_user_state_durable
+    tad_principle_number: 7
+    title: Caches are disposable; user state is durable
+    statement: >
+      Human-authored state stays in open text formats. Derived data is versioned,
+      rebuildable, and safe to discard.
+    protected_paths:
+      governing_cards:
+        - card:workspace_vfs_persistence
+        - card:docs_public_truth
+      control_artifact_refs:
+        - docs/state/profile_and_state_map.md
+        - docs/runtime/context_cache_and_terminal_restore_contract.md
+        - artifacts/perf/protected_path_ledger.yaml
+    invariants:
+      - invariant_id: durable_state_is_human_readable_and_versioned
+        required: >
+          Durable user/workspace state is in open, reviewable formats and has an
+          explicit versioning and migration story.
+      - invariant_id: derived_state_is_rebuildable
+        required: >
+          Derived/cached state is rebuildable and may be discarded without
+          breaking correctness; caches never become hidden sources of truth.
+    anti_pattern_refs: []
+    enforcement:
+      controlling_forums:
+        - architecture_council
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - verification_packet
+        - benchmark_report
+      machine_gates:
+        - gate_id: protected_fitness_catalog
+          tool_ref: artifacts/bench/fitness_function_catalog.yaml
+          primary_config_refs:
+            - artifacts/bench/fitness_function_catalog.yaml
+          explicit_failure_conditions:
+            - save/restore correctness rows regress or lose their data source without demotion to provisional or an active waiver
+
+  - principle_id: open_standards_over_bespoke_lock_in
+    tad_principle_number: 8
+    title: Open standards over bespoke lock-in
+    statement: >
+      Prefer established standards where they fit and make deviations explicit.
+    protected_paths:
+      governing_cards:
+        - card:release_build_identity
+        - card:docs_public_truth
+        - card:extension_ecosystem_lifecycle
+      control_artifact_refs:
+        - artifacts/governance/standards_matrix.yaml
+        - docs/architecture/standards_interchange_matrix.md
+        - docs/governance/deviation_adr_template.md
+    invariants:
+      - invariant_id: standard_claims_have_a_register_row
+        required: >
+          Any standard-compatibility claim has a standards-matrix row (or an
+          explicit deviation decision) that names ownership, version range, and
+          evidence.
+    anti_pattern_refs: []
+    enforcement:
+      controlling_forums:
+        - architecture_council
+        - compatibility_ecosystem_review
+      waiver_authority_forum: architecture_council
+      evidence_packet_families:
+        - compatibility_report
+        - verification_packet
+      machine_gates:
+        - gate_id: deviation_decision_workflow
+          tool_ref: artifacts/governance/decision_index.yaml
+          primary_config_refs:
+            - artifacts/governance/standards_matrix.yaml
+            - artifacts/governance/decision_index.yaml
+          explicit_failure_conditions:
+            - adding a new externally-consumable format without a standards-matrix row or recorded deviation decision id
+
+  - principle_id: optional_services_additive
+    tad_principle_number: 9
+    title: Optional services are additive
+    statement: >
+      Sync, relays, registries, AI gateways, and managed control planes may
+      enhance the product but must not become hidden prerequisites.
+    protected_paths:
+      governing_cards:
+        - card:security_policy_support
+        - card:docs_public_truth
+      control_artifact_refs:
+        - artifacts/governance/deployment_profiles.yaml
+        - artifacts/governance/residual_dependencies.yaml
+        - docs/governance/deployment_profile_truth.md
+        - docs/service/api_inventory_seed.md
+    invariants:
+      - invariant_id: core_local_workflows_not_blocked_by_optional_services
+        required: >
+          The individual-local and air-gapped postures retain core local
+          workflows without requiring optional service reachability.
+      - invariant_id: service_impairment_is_typed_and_disclosed
+        required: >
+          Service impairment is represented by typed dependency classes and
+          explicit degrade posture; “service down” is not a free-form excuse.
+    anti_pattern_refs:
+      - rp.optional_service_on_core_path
+      - rp.forced_account_or_network_gate_before_local_work
+    enforcement:
+      controlling_forums:
+        - product_scope_review
+        - architecture_council
+      waiver_authority_forum: product_scope_review
+      evidence_packet_families:
+        - compatibility_report
+        - verification_packet
+      machine_gates:
+        - gate_id: deployment_profile_truth
+          tool_ref: artifacts/governance/residual_dependencies.yaml
+          primary_config_refs:
+            - artifacts/governance/deployment_profiles.yaml
+            - artifacts/governance/residual_dependencies.yaml
+          explicit_failure_conditions:
+            - a claim-bearing posture contradicts a dependency_class posture marked forbidden in a profile
+
+  - principle_id: accessibility_and_trust_are_system_qualities
+    tad_principle_number: 10
+    title: Accessibility and trust are system qualities
+    statement: >
+      Accessibility, privacy, provenance, and failure recovery are designed into
+      the platform, not layered on after the shell ships.
+    protected_paths:
+      governing_cards:
+        - card:shell_renderer
+        - card:security_policy_support
+        - card:command_plane
+      control_artifact_refs:
+        - docs/accessibility/review_charter.md
+        - docs/architecture/logical_planes_and_trust_boundaries.md
+        - artifacts/architecture/trust_boundaries.yaml
+        - artifacts/governance/capability_badge_axes.yaml
+    invariants:
+      - invariant_id: keyboard_complete_command_routes
+        required: >
+          Launch-bearing surfaces are keyboard-complete and route through the
+          typed command graph; parity gaps are explicit and time-boxed.
+      - invariant_id: no_silent_trust_or_permission_widening
+        required: >
+          Trust, permission, and egress posture is explicit and inspectable; no
+          hidden provider calls, hidden capability widening, or provenance loss.
+    anti_pattern_refs:
+      - rp.silent_target_rebind_or_widening
+      - rp.provider_egress_before_policy
+    enforcement:
+      controlling_forums:
+        - accessibility_review
+        - security_trust_review
+      waiver_authority_forum: accessibility_review
+      evidence_packet_families:
+        - design_packet
+        - verification_packet
+      machine_gates:
+        - gate_id: forum_review
+          tool_ref: artifacts/governance/ownership_matrix.yaml#decision_forums
+          primary_config_refs:
+            - artifacts/governance/ownership_matrix.yaml
+          explicit_failure_conditions:
+            - launch-critical UX surface changes ship without accessibility review or required design packet
+            - trust boundary changes ship without security-trust review and a waiver/decision record when required
+

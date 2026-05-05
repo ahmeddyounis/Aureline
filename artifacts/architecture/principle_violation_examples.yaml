@@ -1,0 +1,235 @@
+# Architecture principle violation examples.
+#
+# This file provides worked examples that classify proposed changes as either:
+# - temporary_narrowing: acceptable with explicit disclosure, correct review,
+#   and (when required) a waiver packet; or
+# - release_blocking_contradiction: a contradiction of a protected principle on
+#   a protected path or a claim-bearing posture, treated as a merge/release
+#   blocker unless an explicit, scoped waiver is approved.
+#
+# Examples are illustrative. They do not replace the normative principle
+# statements in the Technical Architecture Document or the enforcement hooks in
+# artifacts/architecture/principle_checks.yaml.
+
+schema_version: 1
+artifact_id: aureline.architecture_principle_violation_examples
+title: Architecture principles — temporary narrowing vs release-blocking contradiction examples
+overview_document: docs/architecture/principle_enforcement_matrix.md
+
+companion_refs:
+  principle_checks_ref: artifacts/architecture/principle_checks.yaml
+  rejected_pattern_map_ref: artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+  waiver_template_ref: docs/governance/templates/waiver_template.md
+  mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+
+principle_vocabulary_ref: artifacts/bench/fitness_function_catalog.yaml#architecture_principles
+
+example_class_vocabulary:
+  - temporary_narrowing
+  - release_blocking_contradiction
+
+examples:
+  # ---------------------------------------------------------------------------
+  # Local-first shell, remote-capable services
+  # ---------------------------------------------------------------------------
+  - example_id: ex.local_first.remote_indexing_degraded_but_truthful
+    principle_id: local_first_shell_remote_capable_services
+    classification: temporary_narrowing
+    scenario: >
+      Remote indexing is unavailable; the shell stays responsive, returns
+      partial results with explicit stale/partial labels, and refines later.
+    why_it_is_acceptable: >
+      The local interaction path remains local and responsive; the system is
+      truthful about degraded capability and does not block core workflows.
+    required_controls:
+      - machine gate: tools/check_protected_dependencies.py (no blocking I/O on protected paths)
+      - review forum: architecture_council (degraded-mode disclosure)
+    contradiction_triggers:
+      - core open/edit/save/command-entry blocks on remote readiness without a degraded path
+      - the shell performs blocking network/process work on the interaction path
+
+  - example_id: ex.local_first.shell_requires_network_for_first_useful_work
+    principle_id: local_first_shell_remote_capable_services
+    classification: release_blocking_contradiction
+    scenario: >
+      First-useful chrome, file open, or command entry requires network success
+      (sign-in, registry, service health) before any local work is possible.
+    why_it_is_blocking: >
+      It makes the local-first claim untrue for protected startup/open/edit
+      journeys and violates the “no mandatory hosted services for core
+      workflows” constraint.
+    required_controls:
+      - machine gate: deployment profile truth + residual dependency ledger
+      - review forum: product_scope_review + architecture_council
+    contradiction_triggers:
+      - any “individual_local” or “air_gapped” posture depends on a forbidden dependency
+
+  # ---------------------------------------------------------------------------
+  # One command graph
+  # ---------------------------------------------------------------------------
+  - example_id: ex.command_graph.new_surface_initially_narrows_with_typed_disabled_reasons
+    principle_id: one_command_graph
+    classification: temporary_narrowing
+    scenario: >
+      A new surface (e.g. onboarding tips) routes through command descriptors
+      but initially exposes a smaller subset of commands, using typed disabled
+      reasons and canonical docs anchors for unavailable routes.
+    why_it_is_acceptable: >
+      Command identity remains unified and reviewable; narrowing is explicit and
+      does not mint surface-local command ids.
+    required_controls:
+      - machine gate: tools/commands/parity_diff_seed.py (parity report)
+      - review forum: architecture_council (surface parity posture)
+    contradiction_triggers:
+      - surface invokes private callbacks not representable as command descriptors
+
+  - example_id: ex.command_graph.surface_mints_private_command_identity
+    principle_id: one_command_graph
+    classification: release_blocking_contradiction
+    scenario: >
+      A UI surface creates its own action ids and bypasses the shared command
+      descriptor + invocation-session contract.
+    why_it_is_blocking: >
+      It breaks command parity and makes behavior unreviewable across keyboard,
+      CLI, automation, and AI callers.
+    required_controls:
+      - machine gate: command parity seed + contract validation lane
+      - review forum: architecture_council
+    contradiction_triggers:
+      - more than one stable id exists for the “same” user intent across surfaces
+
+  # ---------------------------------------------------------------------------
+  # One execution-context model
+  # ---------------------------------------------------------------------------
+  - example_id: ex.exec_context.temporary_fallback_resolution_is_labeled
+    principle_id: one_execution_context_model
+    classification: temporary_narrowing
+    scenario: >
+      A new tool adapter is incomplete; the system still emits an execution
+      context record but labels it as fallback/partial and avoids claiming exact
+      reproducibility.
+    why_it_is_acceptable: >
+      The unified model remains the integration point; degraded truth is
+      explicit, not hidden.
+    required_controls:
+      - machine gate: frozen-surface policy for execution-context schema changes
+      - review forum: architecture_council
+    contradiction_triggers:
+      - ad-hoc environment resolution bypasses execution-context truth entirely
+
+  - example_id: ex.exec_context.launch_bypasses_context_truth
+    principle_id: one_execution_context_model
+    classification: release_blocking_contradiction
+    scenario: >
+      A new launch-capable surface spawns tools using local-only heuristics and
+      cannot produce an inspectable execution context record for support/export.
+    why_it_is_blocking: >
+      It breaks provenance, debuggability, and supportability across UI and
+      headless flows.
+    required_controls:
+      - review forum: architecture_council
+      - mandatory artifact: ADR when a runtime boundary is proposed
+    contradiction_triggers:
+      - support bundles cannot explain “why this toolchain/target/policy decision?”
+
+  # ---------------------------------------------------------------------------
+  # Caches are disposable; user state is durable
+  # ---------------------------------------------------------------------------
+  - example_id: ex.caches.derived_index_cache_versioned_and_rebuildable
+    principle_id: caches_disposable_user_state_durable
+    classification: temporary_narrowing
+    scenario: >
+      A derived index cache is added for performance, but is explicitly versioned,
+      can be rebuilt from durable state, and may be safely deleted on corruption.
+    why_it_is_acceptable: >
+      Cache remains derived and disposable; correctness does not depend on its
+      presence.
+    required_controls:
+      - review forum: architecture_council
+      - evidence family: benchmark_report or verification_packet when claim-bearing
+    contradiction_triggers:
+      - cache becomes a hidden source of truth required for correctness
+
+  - example_id: ex.caches.durable_user_state_written_only_to_cache
+    principle_id: caches_disposable_user_state_durable
+    classification: release_blocking_contradiction
+    scenario: >
+      User-authored durable state (settings, workspace identity, journals) is
+      stored only in a cache directory or in an unversioned opaque binary blob.
+    why_it_is_blocking: >
+      It breaks portability and recovery; deleting caches should not destroy
+      durable user intent.
+    required_controls:
+      - review forum: architecture_council
+      - mandatory artifact: ADR for durable storage/schema changes
+    contradiction_triggers:
+      - deleting derived state causes unrecoverable loss of user-authored state
+
+  # ---------------------------------------------------------------------------
+  # Optional services are additive
+  # ---------------------------------------------------------------------------
+  - example_id: ex.optional_services.service_enhancement_with_offline_continuity
+    principle_id: optional_services_additive
+    classification: temporary_narrowing
+    scenario: >
+      A collaboration relay enhances the experience, but when unreachable the UI
+      continues with local-core editing and explicitly labels the relay as down.
+    why_it_is_acceptable: >
+      The service remains additive; absence behavior is explicit and routed
+      through the residual dependency vocabulary.
+    required_controls:
+      - machine gate: artifacts/governance/residual_dependencies.yaml posture rows
+      - review forum: product_scope_review
+    contradiction_triggers:
+      - core local workflows become blocked when the optional service is down
+
+  - example_id: ex.optional_services.core_editing_requires_optional_service
+    principle_id: optional_services_additive
+    classification: release_blocking_contradiction
+    scenario: >
+      Local editing/search/save is gated behind an account, hosted sync, or a
+      managed control plane, even in profiles that are supposed to work offline.
+    why_it_is_blocking: >
+      It violates the additive-service rule and contradicts deployment-profile
+      truth for offline/air-gapped operation.
+    required_controls:
+      - review forum: product_scope_review + architecture_council
+      - mandatory artifact: waiver_packet if an exception is proposed
+    contradiction_triggers:
+      - dependency posture is marked forbidden or not applicable but required in practice
+
+  # ---------------------------------------------------------------------------
+  # Accessibility and trust are system qualities
+  # ---------------------------------------------------------------------------
+  - example_id: ex.a11y_trust.accessibility_regression_covered_by_time_boxed_waiver
+    principle_id: accessibility_and_trust_are_system_qualities
+    classification: temporary_narrowing
+    scenario: >
+      A launch-critical surface temporarily lacks a non-blocking accessibility
+      feature (e.g. a specific live-region affordance), but the gap is explicit,
+      time-boxed, and covered by an approved waiver packet with an expiry and a
+      correction plan.
+    why_it_is_acceptable: >
+      The gap is not silent, review forums can route it, and release posture can
+      narrow truthfully until corrected.
+    required_controls:
+      - review forum: accessibility_review
+      - mandatory artifact: waiver_packet with expiry and scope
+    contradiction_triggers:
+      - keyboard/screen-reader parity gaps are silent or untracked
+
+  - example_id: ex.a11y_trust.silent_permission_widening_or_egress
+    principle_id: accessibility_and_trust_are_system_qualities
+    classification: release_blocking_contradiction
+    scenario: >
+      A feature performs provider/network egress or capability widening before
+      trust/policy gates, or hides provenance/auditability from support/export.
+    why_it_is_blocking: >
+      It breaks trust posture and makes security/enterprise governance
+      non-credible.
+    required_controls:
+      - review forum: security_trust_review
+      - mandatory artifact: ADR or waiver_packet for boundary/trust changes
+    contradiction_triggers:
+      - any hidden provider call on a protected path without a typed policy/trust justification
+
