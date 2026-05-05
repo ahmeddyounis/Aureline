@@ -1,0 +1,278 @@
+# Driver → rejected pattern reference map.
+#
+# This artifact freezes the "do not do this" shortcuts that would violate
+# the architecture's business drivers, hard constraints, or quality bars.
+# It is a companion to docs/architecture/driver_traceability_matrix.md and
+# to artifacts/architecture/protected_journey_map.yaml.
+#
+# The goal is not to enumerate every future anti-pattern. The goal is to
+# provide a stable set of *named* rejected patterns that reviewers can cite
+# when challenging a claim, a feature cut, or an architecture exception.
+
+schema_version: 1
+artifact_id: aureline.driver_to_rejected_pattern_refs
+title: Rejected patterns and prohibited shortcuts (traceability join)
+overview_document: docs/architecture/driver_traceability_matrix.md
+
+companion_refs:
+  protected_journey_map_ref: artifacts/architecture/protected_journey_map.yaml
+  dependency_rules_ref: artifacts/architecture/protected_path_dependency_rules.yaml
+  subsystem_contract_cards_ref: artifacts/architecture/subsystem_contract_cards/
+  correction_trigger_table_ref: artifacts/governance/correction_trigger_table.yaml
+  waiver_register_contract_ref: docs/governance/waiver_register_contract.md
+  release_evidence_packet_template_ref: docs/release/release_evidence_packet_template.md
+
+rejected_patterns:
+  - pattern_id: rp.blocking_io_on_hot_path
+    title: Blocking filesystem/network/process I/O on protected UI paths
+    description: >
+      Any direct blocking filesystem, network, or subprocess work on the
+      input/render/command-entry hot path. This violates the UI hot-path hard
+      constraint and undermines protected latency budgets.
+    primary_enforcement_refs:
+      - artifacts/architecture/protected_path_dependency_rules.yaml#sentinel_class_vocabulary
+      - artifacts/architecture/subsystem_contract_cards/shell_renderer.yaml
+    validation_hooks:
+      - tools/check_protected_dependencies.py
+    violated_driver_refs:
+      hard_constraints:
+        - hc.no_blocking_io_on_ui_hot_path
+      quality_attributes:
+        - latency
+        - accessibility
+
+  - pattern_id: rp.unbounded_workspace_scan_on_core_path
+    title: Unbounded repo scan or index wait on the critical path
+    description: >
+      Full repository walks, full index completion, or other unbounded
+      knowledge-plane work that blocks first paint, first useful chrome, file
+      open, or first edit.
+    primary_enforcement_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml
+      - artifacts/architecture/subsystem_contract_cards/search_navigation_graph.yaml
+    violated_driver_refs:
+      business_drivers:
+        - bd.win_switching_moments
+      quality_attributes:
+        - latency
+        - scalability
+
+  - pattern_id: rp.background_work_starves_input
+    title: Background work starves typing or visible interaction
+    description: >
+      Allowing optional or maintenance work to consume capacity reserved for
+      protected input, render submission, or visible edit response.
+    primary_enforcement_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml
+      - artifacts/architecture/subsystem_contract_cards/shell_renderer.yaml
+    violated_driver_refs:
+      quality_attributes:
+        - latency
+        - accessibility
+
+  - pattern_id: rp.optional_service_on_core_path
+    title: Optional service dependency on a core local workflow
+    description: >
+      Making collaboration, managed services, sync, or hosted AI a hard
+      dependency for core local editing, open, save, or command entry.
+    primary_enforcement_refs:
+      - artifacts/architecture/subsystem_contract_cards/shell_renderer.yaml
+      - .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+    violated_driver_refs:
+      hard_constraints:
+        - hc.no_mandatory_hosted_service_for_core_workflows
+      business_drivers:
+        - bd.open_and_portable
+
+  - pattern_id: rp.private_command_paths_bypass_descriptors
+    title: Private command paths that bypass command descriptors
+    description: >
+      Minting action ids privately by surfaces or routing UI/CLI/AI through
+      different command identity. Breaks command parity and makes workflows
+      unreviewable.
+    primary_enforcement_refs:
+      - artifacts/architecture/subsystem_contract_cards/command_plane.yaml
+      - docs/commands/command_descriptor_contract.md
+    violated_driver_refs:
+      hard_constraints:
+        - hc.unified_command_and_execution_contracts
+      quality_attributes:
+        - supportability
+
+  - pattern_id: rp.unreviewable_write_without_journal_or_preview
+    title: Unreviewable multi-file mutation without preview/checkpoint/journal
+    description: >
+      Applying refactors, AI edits, migrations, or batch changes without a
+      previewable patch, checkpoint, or mutation lineage record.
+    primary_enforcement_refs:
+      - artifacts/architecture/subsystem_contract_cards/workspace_vfs_persistence.yaml
+      - artifacts/architecture/subsystem_contract_cards/execution_context_tooling.yaml
+      - artifacts/architecture/subsystem_contract_cards/ai_context_runtime.yaml
+    violated_driver_refs:
+      quality_attributes:
+        - correctness
+        - recoverability
+
+  - pattern_id: rp.silent_contract_downgrade
+    title: Silent downgrade of a protected contract or truth label
+    description: >
+      Narrowing a save/restore/route/identity contract or weakening truth
+      labels without explicit degraded-state disclosure and without updating
+      the owning ledger row.
+    primary_enforcement_refs:
+      - artifacts/perf/latency_budget_ledger.yaml
+      - artifacts/perf/protected_path_ledger.yaml
+      - docs/benchmarks/protected_path_ledgers.md
+    violated_driver_refs:
+      quality_attributes:
+        - correctness
+        - supportability
+
+  - pattern_id: rp.hidden_replay_or_mutation_on_restore
+    title: Hidden replay or silent mutation during restore/reconnect
+    description: >
+      Replaying mutating commands, queued intents, or tool invocations during
+      restore or reconnect without explicit user-visible disclosure and
+      approval re-check.
+    primary_enforcement_refs:
+      - artifacts/architecture/subsystem_contract_cards/execution_context_tooling.yaml
+      - artifacts/perf/critical_sequence_latencies.yaml
+    violated_driver_refs:
+      quality_attributes:
+        - recoverability
+        - security
+
+  - pattern_id: rp.forced_account_or_network_gate_before_local_work
+    title: Forced account sign-in or network gate before useful local work
+    description: >
+      Requiring an account, hosted service, marketplace fetch, or network
+      success before the user can open, edit, and save local files.
+    primary_enforcement_refs:
+      - artifacts/perf/latency_budget_ledger.yaml#budget.path.onboarding.start_center_first_useful_edit
+      - .t2/docs/Aureline_Technical_Architecture_Document.md §3.1
+    violated_driver_refs:
+      business_drivers:
+        - bd.open_and_portable
+      hard_constraints:
+        - hc.no_mandatory_hosted_service_for_core_workflows
+
+  - pattern_id: rp.public_claim_from_seed_only_or_stale_evidence
+    title: Public or stable claim made from seed-only or stale evidence
+    description: >
+      Treating seed-only dashboards, provisional rows, or stale packets as
+      release-grade proof, without an explicit waiver/exception packet.
+    primary_enforcement_refs:
+      - artifacts/architecture/subsystem_contract_cards/quality_benchmark_claims.yaml
+      - artifacts/governance/evidence_freshness_slos.yaml
+      - docs/release/shiproom_runbook.md
+    violated_driver_refs:
+      quality_attributes:
+        - supportability
+        - portability
+
+  - pattern_id: rp.hidden_retry_loop_past_deadline
+    title: Hidden retry loops that exceed the journey deadline
+    description: >
+      Retrying remote attach/reconnect, provider calls, or route resolution
+      past the stated deadline without an actionable failure surface.
+    primary_enforcement_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+    violated_driver_refs:
+      quality_attributes:
+        - latency
+        - recoverability
+
+  - pattern_id: rp.silent_target_rebind_or_widening
+    title: Silent target rebind or capability widening on remote attach
+    description: >
+      Changing the remote target identity or widening capabilities after
+      attach without re-approval, provenance, and a visible narrowing reason.
+    primary_enforcement_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+      - artifacts/architecture/subsystem_contract_cards/security_policy_support.yaml
+    violated_driver_refs:
+      quality_attributes:
+        - security
+        - correctness
+
+  - pattern_id: rp.provider_egress_before_policy
+    title: Provider egress before policy/trust gates
+    description: >
+      Any AI/provider network egress or tool invocation before policy checks,
+      trust-state validation, and an inspectable approval record.
+    primary_enforcement_refs:
+      - artifacts/architecture/subsystem_contract_cards/security_policy_support.yaml
+      - artifacts/architecture/subsystem_contract_cards/ai_context_runtime.yaml
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+    violated_driver_refs:
+      quality_attributes:
+        - security
+        - supportability
+
+# -----------------------------------------------------------------------------
+# Driver → rejected-pattern mapping (review convenience).
+# -----------------------------------------------------------------------------
+driver_to_rejected_patterns:
+  business_drivers:
+    bd.beat_incumbent_tradeoffs:
+      - rp.blocking_io_on_hot_path
+      - rp.background_work_starves_input
+    bd.win_switching_moments:
+      - rp.unbounded_workspace_scan_on_core_path
+      - rp.private_command_paths_bypass_descriptors
+    bd.open_and_portable:
+      - rp.optional_service_on_core_path
+      - rp.forced_account_or_network_gate_before_local_work
+    bd.enterprise_deployment_scale:
+      - rp.hidden_retry_loop_past_deadline
+      - rp.silent_target_rebind_or_widening
+
+  hard_constraints:
+    hc.native_desktop_shell:
+      - rp.optional_service_on_core_path
+    hc.no_blocking_io_on_ui_hot_path:
+      - rp.blocking_io_on_hot_path
+      - rp.unbounded_workspace_scan_on_core_path
+    hc.no_mandatory_hosted_service_for_core_workflows:
+      - rp.optional_service_on_core_path
+      - rp.forced_account_or_network_gate_before_local_work
+    hc.unified_command_and_execution_contracts:
+      - rp.private_command_paths_bypass_descriptors
+    hc.multi_deployment_modes_supported:
+      - rp.hidden_retry_loop_past_deadline
+      - rp.silent_target_rebind_or_widening
+    hc.signed_mirrorable_revocable_artifacts:
+      - rp.public_claim_from_seed_only_or_stale_evidence
+    hc.monthly_release_with_optional_lts:
+      - rp.public_claim_from_seed_only_or_stale_evidence
+
+  quality_attribute_drivers:
+    latency:
+      - rp.blocking_io_on_hot_path
+      - rp.unbounded_workspace_scan_on_core_path
+      - rp.background_work_starves_input
+      - rp.hidden_retry_loop_past_deadline
+    scalability:
+      - rp.unbounded_workspace_scan_on_core_path
+    correctness:
+      - rp.unreviewable_write_without_journal_or_preview
+      - rp.silent_contract_downgrade
+      - rp.silent_target_rebind_or_widening
+    recoverability:
+      - rp.hidden_replay_or_mutation_on_restore
+      - rp.hidden_retry_loop_past_deadline
+    security:
+      - rp.provider_egress_before_policy
+      - rp.silent_target_rebind_or_widening
+    portability:
+      - rp.forced_account_or_network_gate_before_local_work
+      - rp.public_claim_from_seed_only_or_stale_evidence
+    extensibility:
+      - rp.private_command_paths_bypass_descriptors
+    supportability:
+      - rp.public_claim_from_seed_only_or_stale_evidence
+      - rp.silent_contract_downgrade
+    accessibility:
+      - rp.blocking_io_on_hot_path
+      - rp.background_work_starves_input
+

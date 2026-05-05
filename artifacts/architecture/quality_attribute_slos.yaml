@@ -1,0 +1,245 @@
+# Quality-attribute SLO register.
+#
+# Machine-readable register of the journey-level SLO rows the Technical
+# Architecture Document and UI/UX spec define. This file exists so the
+# driver/journey traceability join can resolve by stable ids without
+# re-parsing prose documents.
+#
+# If this file disagrees with the TAD, UX spec, or PRD, those sources win
+# and this file updates in the same change.
+
+schema_version: 1
+artifact_id: aureline.quality_attribute_slos
+title: Quality-attribute journey SLO register
+overview_document: docs/architecture/driver_traceability_matrix.md
+
+source_documents:
+  - ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    sections:
+      - "§3.1 Business and product drivers"
+      - "§3.2 Quality attribute drivers"
+      - "§3.3 Hard constraints"
+      - "§3.4 Quality-attribute scenarios and measurable SLOs"
+  - ref: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    sections:
+      - "§3.3 Success-critical journeys"
+      - "§3.4 Protected journey latency and responsiveness budgets"
+  - ref: .t2/docs/Aureline_PRD.md
+    sections:
+      - "Appendix K Success-critical user journeys and latency budgets"
+
+companion_refs:
+  fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  evidence_linkage_seed_ref: artifacts/perf/evidence_linkage_seed.yaml
+  critical_sequence_latencies_ref: artifacts/perf/critical_sequence_latencies.yaml
+  quality_scenario_hooks_ref: artifacts/qe/quality_scenario_hooks.yaml
+
+quality_attribute_driver_vocabulary_ref: artifacts/bench/fitness_function_catalog.yaml#architecture_drivers
+protected_slo_family_vocabulary_ref: artifacts/bench/fitness_function_catalog.yaml#protected_slo_families
+
+# -----------------------------------------------------------------------------
+# SLO rows.
+#
+# `slo_id` values are stable review handles. Downstream joins reference these
+# ids rather than re-stating the prose journey names.
+# -----------------------------------------------------------------------------
+slo_rows:
+  - slo_id: slo.open_repo_to_first_useful_navigation_or_edit
+    title: Open repository to first useful navigation/edit
+    protected_slo_family: startup_and_first_useful_work
+    primary_quality_attribute_drivers:
+      - latency
+      - scalability
+    primary_sli: time from workspace-open intent to editable buffer plus first useful navigation result
+    targets:
+      warm:
+        p50_s: 30
+        p95_s: 60
+      cold:
+        p50_s: 90
+        p95_s: 120
+    required_degradation_posture: >
+      Files must open immediately; search and editing remain usable before
+      full indexing completes.
+    subsystem_card_refs:
+      - card:shell_renderer
+      - card:workspace_vfs_persistence
+      - card:search_navigation_graph
+      - card:editor_buffer_text
+    notes: >
+      This is the end-to-end user-facing bar. Protected-path ledgers and
+      critical-sequence packs decompose it into path-level and stage-level
+      budgets; those decompositions must still resolve back to this row id.
+
+  - slo_id: slo.quick_open_file_symbol_command
+    title: Quick open file/symbol/command
+    protected_slo_family: quick_open_and_command_dispatch
+    primary_quality_attribute_drivers:
+      - latency
+      - scalability
+      - supportability
+    primary_sli: interactive result latency
+    targets:
+      p50_ms: 30
+      p95_ms: 75
+    required_degradation_posture: >
+      Ranking may refine later, but an answer must appear without vanishing
+      or full reset.
+    subsystem_card_refs:
+      - card:shell_renderer
+      - card:search_navigation_graph
+      - card:command_plane
+
+  - slo_id: slo.keystroke_to_screen_active_editor
+    title: Keystroke to screen in active editor
+    protected_slo_family: input_response
+    primary_quality_attribute_drivers:
+      - latency
+      - accessibility
+    primary_sli: key-to-paint latency
+    targets:
+      p50_ms: 4
+      p95_ms: 8
+    required_degradation_posture: >
+      Background work yields before input stalls; no blocking I/O on the hot path.
+    subsystem_card_refs:
+      - card:shell_renderer
+      - card:editor_buffer_text
+      - card:workspace_vfs_persistence
+
+  - slo_id: slo.save_pipeline_durable_completion
+    title: Save request to durable completion (contract + latency)
+    protected_slo_family: save_and_filesystem_correctness
+    primary_quality_attribute_drivers:
+      - correctness
+      - recoverability
+      - portability
+    primary_sli: save pipeline completion with atomicity and continuity gates
+    targets:
+      contract_gates:
+        - compare_before_write_floor (must_hold)
+        - save_mode_downgrade_without_envelope_permission (must_not_occur)
+        - recovery_journal_written_before_target_write (must_hold)
+      save_pipeline_p50_ms: to_be_set_by_benchmark_council
+      save_pipeline_p95_ms: to_be_set_by_benchmark_council
+      provenance_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.save
+    required_degradation_posture: >
+      Atomic replace stays preferred; any in-place or conditional fallback
+      remains explicit and reviewable.
+    subsystem_card_refs:
+      - card:workspace_vfs_persistence
+      - card:editor_buffer_text
+      - card:quality_benchmark_claims
+    notes: >
+      This SLO is partly a contract gate: save evidence must remain traceable
+      to the mutation lineage and recovery journal hooks, not just a latency
+      number.
+
+  - slo_id: slo.restore_prompt_to_delivered_restore_level
+    title: Restore prompt to delivered restore level (contract + latency)
+    protected_slo_family: recoverability_and_restore
+    primary_quality_attribute_drivers:
+      - recoverability
+      - correctness
+      - supportability
+    primary_sli: restore-to-usable-session latency with restore fidelity disclosure
+    targets:
+      workspace_snapshot_restore_ms: 120
+      restore_fidelity_match_rate: to_be_set_by_benchmark_council
+      contract_gates:
+        - restore_level_must_not_exceed_advertised (must_hold)
+        - no_silent_mutating_command_replay (must_hold)
+      provenance_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.workspace.restore
+    required_degradation_posture: >
+      Compatible restore or evidence-only downgrade stays visible; journal
+      replay is never hidden.
+    subsystem_card_refs:
+      - card:workspace_vfs_persistence
+      - card:shell_renderer
+      - card:quality_benchmark_claims
+      - card:release_build_identity
+    notes: >
+      Restore bars include both time and truth: the delivered restore level
+      must not overclaim what was actually restored, and any replay limitations
+      must remain visible in-product and in exported evidence packets.
+
+  - slo_id: slo.rerun_last_task_or_test
+    title: Rerun last task or test
+    protected_slo_family: null
+    primary_quality_attribute_drivers:
+      - latency
+      - correctness
+      - recoverability
+    primary_sli: dispatch latency to first visible lifecycle event
+    targets:
+      p50_ms: 150
+      p95_ms: 400
+    required_degradation_posture: >
+      Streaming output may lag briefly, but routing and cancellation stay responsive.
+    subsystem_card_refs:
+      - card:execution_context_tooling
+      - card:command_plane
+      - card:rpc_reactive_truth
+    notes: >
+      The SLO family is retained here because it is governed like other
+      protected bars. It is not yet represented as a protected fitness row,
+      so the fitness-catalog protected-SLO-family vocabulary does not name it.
+      The traceability matrix still needs a stable row id for the journey.
+
+  - slo_id: slo.rename_with_preview
+    title: Rename with preview
+    protected_slo_family: rename_with_preview
+    primary_quality_attribute_drivers:
+      - latency
+      - correctness
+      - recoverability
+    primary_sli: local rename-preview latency
+    targets:
+      p50_ms: 120
+      p95_ms: 400
+      p95_profile_note: warm-project
+    required_degradation_posture: >
+      If semantic analysis is unavailable, offer explicit text fallback or a
+      partial-scope warning.
+    subsystem_card_refs:
+      - card:search_navigation_graph
+      - card:editor_buffer_text
+      - card:execution_context_tooling
+
+  - slo_id: slo.remote_reconnect_to_usable_session
+    title: Attach/reconnect to remote workspace
+    protected_slo_family: remote_reconnect
+    primary_quality_attribute_drivers:
+      - latency
+      - recoverability
+      - security
+    primary_sli: reconnect-to-usable-session latency
+    targets:
+      p50_s: 3
+      p95_s: 10
+    required_degradation_posture: >
+      Reconnect state must be visible and the local shell must remain controllable.
+    subsystem_card_refs:
+      - card:remote_collaboration_runtime
+      - card:execution_context_tooling
+      - card:shell_renderer
+
+  - slo_id: slo.ai_explain_selected_failure
+    title: AI explain selected failure
+    protected_slo_family: ai_first_response
+    primary_quality_attribute_drivers:
+      - latency
+      - supportability
+      - security
+    primary_sli: time to first useful response
+    targets:
+      first_tokens_p50_s: 2
+      useful_answer_p95_s: 8
+    required_degradation_posture: >
+      AI may degrade independently, but local diagnostics and task evidence remain available.
+    subsystem_card_refs:
+      - card:ai_context_runtime
+      - card:execution_context_tooling
+      - card:docs_public_truth

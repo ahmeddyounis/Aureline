@@ -1,0 +1,675 @@
+# Protected journey traceability map.
+#
+# One join table linking:
+#   - business/product drivers and hard constraints (TAD §3.1 + §3.3),
+#   - quality-attribute drivers (TAD §3.2),
+#   - quality-attribute SLO rows (artifacts/architecture/quality_attribute_slos.yaml),
+#   - protected-path ids + budgets + evidence lanes (artifacts/perf/*),
+#   - QE scenario ids (artifacts/qe/quality_scenario_hooks.yaml), and
+#   - rejected patterns / prohibited shortcuts (artifacts/architecture/driver_to_rejected_pattern_refs.yaml).
+#
+# This file intentionally does NOT replace the protected-path ledgers, budget
+# ledgers, fitness catalog, or QE registry. It is the traceability join that
+# lets a reviewer challenge a claim or architecture exception against named
+# driver rows and named evidence lanes without re-interpreting prose.
+
+schema_version: 1
+artifact_id: aureline.protected_journey_traceability_map
+title: Driver ↔ SLO ↔ protected journey evidence join
+overview_document: docs/architecture/driver_traceability_matrix.md
+
+companion_refs:
+  quality_attribute_slos_ref: artifacts/architecture/quality_attribute_slos.yaml
+  rejected_patterns_ref: artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+  fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  evidence_linkage_seed_ref: artifacts/perf/evidence_linkage_seed.yaml
+  critical_sequence_latencies_ref: artifacts/perf/critical_sequence_latencies.yaml
+  quality_scenario_hooks_ref: artifacts/qe/quality_scenario_hooks.yaml
+  m0_architecture_pack_ref: artifacts/milestones/M0_architecture_pack/
+  correction_trigger_table_ref: artifacts/governance/correction_trigger_table.yaml
+  ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+
+critical_path_epoch_vocabulary:
+  - foundations_seed
+  - implementation_alpha
+
+row_status_vocabulary:
+  - seeded
+  - provisional
+
+# -----------------------------------------------------------------------------
+# Driver vocabulary (stable ids).
+# -----------------------------------------------------------------------------
+business_drivers:
+  - driver_id: bd.beat_incumbent_tradeoffs
+    title: Beat incumbent trade-offs
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.1
+  - driver_id: bd.win_switching_moments
+    title: Win specific switching moments
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.1
+  - driver_id: bd.open_and_portable
+    title: Remain open and portable
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.1
+  - driver_id: bd.enterprise_deployment_scale
+    title: Scale from individual use to enterprise deployment
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.1
+
+hard_constraints:
+  - constraint_id: hc.native_desktop_shell
+    title: Native desktop flagship
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+  - constraint_id: hc.no_blocking_io_on_ui_hot_path
+    title: UI hot path performs no blocking I/O
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+  - constraint_id: hc.no_mandatory_hosted_service_for_core_workflows
+    title: Core workflows remain available without mandatory hosted services
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+  - constraint_id: hc.unified_command_and_execution_contracts
+    title: Automation/CLI/AI/extensions use shared command + execution contracts
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+  - constraint_id: hc.multi_deployment_modes_supported
+    title: Supports local/remote/managed/self-hosted/air-gapped modes
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+  - constraint_id: hc.signed_mirrorable_revocable_artifacts
+    title: Extension and update artifacts are signed, mirrorable, revocable
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+  - constraint_id: hc.monthly_release_with_optional_lts
+    title: Monthly stable releases and optional LTS lines
+    source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §3.3
+
+# -----------------------------------------------------------------------------
+# Journey rows.
+#
+# For seeded protected paths, SLI targets and evidence refs come from the
+# perf ledgers (latency_budget_ledger + evidence_linkage_seed).
+# For provisional future journeys, this join records the driver/SLO intent
+# and the seeded evidence lanes (QE scenarios, sequence packs) that must be
+# wired before claims widen.
+# -----------------------------------------------------------------------------
+journey_rows:
+  - id: journey_row:path.shell.launch
+    title: Warm startup to first paint
+    status: seeded
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.shell.launch
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+    business_driver_refs:
+      - bd.beat_incumbent_tradeoffs
+      - bd.win_switching_moments
+    hard_constraint_refs:
+      - hc.native_desktop_shell
+      - hc.no_blocking_io_on_ui_hot_path
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - latency
+      - recoverability
+    primary_sli: first_paint_warm_ms
+    targets:
+      release_bar_ms: 150
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.launch
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.launch
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-render
+    evidence_row_ref: evidence.path.shell.launch
+    benchmark_corpus_refs:
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.reference.micro_local_folder
+    fitness_function_refs:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+    quality_scenario_refs: []
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/canonical_matrices.yaml
+      - artifacts/milestones/M0_architecture_pack/packet_index.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        Release-grade claims that cite this bar require current evidence or a
+        time-bounded waiver; repeated waivers trigger rebaseline routing.
+    rejected_pattern_refs:
+      - rp.blocking_io_on_hot_path
+      - rp.optional_service_on_core_path
+
+  - id: journey_row:path.shell.first_useful_chrome
+    title: Warm startup to first useful chrome / palette-ready surface
+    status: seeded
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.shell.first_useful_chrome
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+      - slo.quick_open_file_symbol_command
+    business_driver_refs:
+      - bd.win_switching_moments
+      - bd.beat_incumbent_tradeoffs
+    hard_constraint_refs:
+      - hc.no_blocking_io_on_ui_hot_path
+      - hc.no_mandatory_hosted_service_for_core_workflows
+      - hc.unified_command_and_execution_contracts
+    quality_attribute_driver_refs:
+      - latency
+      - accessibility
+    primary_sli: palette_available_warm_ms
+    targets:
+      release_bar_ms: 400
+      contract_gates:
+        - indexing_must_not_block_first_command_entry
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.first_useful_chrome
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.first_useful_chrome
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-render
+    evidence_row_ref: evidence.path.shell.first_useful_chrome
+    benchmark_corpus_refs:
+      - corpus.workflow.startup_warm_to_first_paint
+      - corpus.reference.micro_local_folder
+    fitness_function_refs:
+      - ff.warm_start_to_first_paint
+      - ff.first_paint
+      - ff.command_parity
+    quality_scenario_refs: []
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/canonical_matrices.yaml
+      - artifacts/milestones/M0_architecture_pack/packet_index.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        If the shell cannot provide early command entry without waiting for
+        indexing or network state, the claim must narrow or a waiver must
+        disclose the fail-soft posture and scope.
+    rejected_pattern_refs:
+      - rp.blocking_io_on_hot_path
+      - rp.private_command_paths_bypass_descriptors
+
+  - id: journey_row:path.command_palette.open
+    title: Command palette open to first ranked results
+    status: provisional
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.command_palette.open
+    slo_row_refs:
+      - slo.quick_open_file_symbol_command
+    business_driver_refs:
+      - bd.win_switching_moments
+    hard_constraint_refs:
+      - hc.no_blocking_io_on_ui_hot_path
+      - hc.unified_command_and_execution_contracts
+    quality_attribute_driver_refs:
+      - latency
+      - scalability
+      - supportability
+    primary_sli: interactive result latency
+    targets:
+      palette_open_warm_ms: 50
+      quick_open_p50_ms: 30
+      quick_open_p95_ms: 75
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.command_palette.open
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.command_palette.open
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - lane:shell_command_system
+      - card:search_navigation_graph
+    evidence_row_ref: evidence.path.command_palette.open
+    benchmark_corpus_refs:
+      - fixtures/commands/seed_commands/command_palette_open.registry.json
+      - corpus.workflow.startup_warm_to_first_paint
+    fitness_function_refs: []
+    quality_scenario_refs: []
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/canonical_matrices.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        This path is still stitched (reserved trace segments). Claims that
+        treat it as release-grade must either wire the trace family or keep
+        the surface in a narrowed posture.
+    rejected_pattern_refs:
+      - rp.blocking_io_on_hot_path
+      - rp.private_command_paths_bypass_descriptors
+
+  - id: journey_row:path.editor.placeholder_open
+    title: Placeholder file open to editable buffer
+    status: seeded
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.editor.placeholder_open
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+    business_driver_refs:
+      - bd.win_switching_moments
+      - bd.beat_incumbent_tradeoffs
+    hard_constraint_refs:
+      - hc.no_blocking_io_on_ui_hot_path
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - latency
+      - correctness
+    primary_sli: file open latency
+    targets:
+      file_open_small_project_ms: 50
+      file_open_typical_project_ms: 70
+      file_open_large_repo_ms: 90
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.placeholder_open
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.placeholder_open
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - package:aureline-buffer
+      - package:aureline-vfs
+      - lane:shell_command_system
+    evidence_row_ref: evidence.path.editor.placeholder_open
+    benchmark_corpus_refs:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.reference.small_rust_self_host_slice
+    fitness_function_refs: []
+    quality_scenario_refs: []
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/packet_index.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        File open is a switching moment; if the path regresses, claim scope
+        must narrow (or stay provisional) until evidence is refreshed.
+    rejected_pattern_refs:
+      - rp.blocking_io_on_hot_path
+      - rp.unbounded_workspace_scan_on_core_path
+
+  - id: journey_row:path.editor.first_useful_edit
+    title: First accepted edit reflected on screen
+    status: seeded
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.editor.first_useful_edit
+    slo_row_refs:
+      - slo.keystroke_to_screen_active_editor
+      - slo.open_repo_to_first_useful_navigation_or_edit
+    business_driver_refs:
+      - bd.beat_incumbent_tradeoffs
+      - bd.win_switching_moments
+    hard_constraint_refs:
+      - hc.no_blocking_io_on_ui_hot_path
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - latency
+      - correctness
+      - accessibility
+    primary_sli: key_to_paint latency
+    targets:
+      p50_ms: 4
+      p95_ms: 8
+      contract_gates:
+        - useful_edit_before_semantic_warmup
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.first_useful_edit
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.first_useful_edit
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - package:aureline-buffer
+      - package:aureline-render
+    evidence_row_ref: evidence.path.editor.first_useful_edit
+    benchmark_corpus_refs:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.micro.interaction_safety_cases
+    fitness_function_refs:
+      - ff.input_to_paint
+      - ff.buffer_operations
+    quality_scenario_refs: []
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/canonical_matrices.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        Input responsiveness is non-negotiable. If degraded, non-critical
+        chrome must drop before typing stalls; any waiver must state the
+        visible fail-soft posture.
+    rejected_pattern_refs:
+      - rp.blocking_io_on_hot_path
+      - rp.background_work_starves_input
+
+  - id: journey_row:path.editor.save
+    title: Save request to durable save completion
+    status: seeded
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.editor.save
+    slo_row_refs:
+      - slo.save_pipeline_durable_completion
+    business_driver_refs:
+      - bd.open_and_portable
+      - bd.win_switching_moments
+    hard_constraint_refs:
+      - hc.no_mandatory_hosted_service_for_core_workflows
+      - hc.unified_command_and_execution_contracts
+    quality_attribute_driver_refs:
+      - correctness
+      - recoverability
+      - portability
+    primary_sli: save pipeline contract + latency (pending calibration)
+    targets:
+      contract_gates:
+        - compare_before_write_floor
+        - save_mode_downgrade_without_envelope_permission
+        - conflict_outcome_taxonomy_completeness
+        - recovery_journal_written_before_target_write
+      p50_ms: to_be_set_by_benchmark_council
+      p95_ms: to_be_set_by_benchmark_council
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.save
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.save
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - package:aureline-vfs
+      - package:aureline-buffer
+    evidence_row_ref: evidence.path.editor.save
+    benchmark_corpus_refs:
+      - corpus.workflow.first_useful_edit_rust_self_host
+      - corpus.boundary.filesystem_identity_cases
+      - corpus.boundary.mutation_lineage_cases
+    fitness_function_refs:
+      - ff.vfs_save_conflict_handling
+      - ff.buffer_operations
+    quality_scenario_refs:
+      - scenario:portability_export_integrity
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+      - artifacts/milestones/M0_architecture_pack/packet_index.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        Save correctness gates are not waive-by-silence. Any waiver must
+        remain time-bounded and record why the degraded save posture is still
+        user-truthful.
+    rejected_pattern_refs:
+      - rp.unreviewable_write_without_journal_or_preview
+      - rp.silent_contract_downgrade
+
+  - id: journey_row:path.workspace.restore
+    title: Restore prompt to delivered restore level
+    status: seeded
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.workspace.restore
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+      - slo.restore_prompt_to_delivered_restore_level
+    business_driver_refs:
+      - bd.open_and_portable
+      - bd.beat_incumbent_tradeoffs
+    hard_constraint_refs:
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - recoverability
+      - correctness
+      - supportability
+    primary_sli: restore-to-usable-session latency + restore-fidelity gates
+    targets:
+      workspace_snapshot_restore_ms: 120
+      contract_gates:
+        - restore_level_must_not_exceed_advertised
+        - no_silent_mutating_command_replay
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.workspace.restore
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.workspace.restore
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - package:aureline-buffer
+      - package:aureline-vfs
+      - lane:support_export
+    evidence_row_ref: evidence.path.workspace.restore
+    benchmark_corpus_refs:
+      - corpus.recovery.restore_last_session_compatible
+      - corpus.boundary.entry_restore_cases
+    fitness_function_refs:
+      - ff.restore_fidelity
+    quality_scenario_refs:
+      - scenario:repair_rollback
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/packet_index.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.protected_waiver_rebaseline
+      consequence_notes: >
+        Restore and replay truth is release-evidence bearing. A waiver must
+        keep the restore level and any replay limitations explicit.
+    rejected_pattern_refs:
+      - rp.hidden_replay_or_mutation_on_restore
+      - rp.public_claim_from_seed_only_or_stale_evidence
+
+  - id: journey_row:path.onboarding.start_center_first_useful_edit
+    title: Start Center first run to first useful edit
+    status: provisional
+    critical_path_epoch: foundations_seed
+    protected_path_ref: path.onboarding.start_center_first_useful_edit
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+      - slo.keystroke_to_screen_active_editor
+    business_driver_refs:
+      - bd.win_switching_moments
+      - bd.open_and_portable
+    hard_constraint_refs:
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - latency
+      - portability
+      - accessibility
+    primary_sli: time to first useful edit (warm/cold)
+    targets:
+      warm_p50_s: 30
+      warm_p95_s: 60
+      cold_p50_s: 90
+      cold_p95_s: 120
+      contract_gates:
+        - forced_sign_in_before_useful_local_work (must_not_occur)
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.onboarding.start_center_first_useful_edit
+    degradation_posture_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.onboarding.start_center_first_useful_edit
+    measurement_lane_ref: lane:benchmark_lab
+    journey_owner_refs:
+      - lane:shell_command_system
+      - package:aureline-buffer
+      - package:aureline-vfs
+    evidence_row_ref: evidence.path.onboarding.start_center_first_useful_edit
+    benchmark_corpus_refs:
+      - fixture.entry_open_local_folder
+      - corpus.reference.micro_local_folder
+    fitness_function_refs: []
+    quality_scenario_refs:
+      - scenario:onboarding_voice_accessibility
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/packet_index.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: performance_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.public_truth_descoping
+      consequence_notes: >
+        This row is still stitched. Any widening claim about onboarding
+        speed or account-free local-first onboarding must bind to current
+        evidence or narrow the posture.
+    rejected_pattern_refs:
+      - rp.forced_account_or_network_gate_before_local_work
+      - rp.public_claim_from_seed_only_or_stale_evidence
+
+  # -- Implementation-alpha critical journeys (not yet expressed as protected paths) --
+
+  - id: journey_row:remote_reconnect_to_usable_session
+    title: Attach/reconnect to remote workspace (to usable session)
+    status: provisional
+    critical_path_epoch: implementation_alpha
+    protected_path_ref: null
+    sequence_pack_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+    slo_row_refs:
+      - slo.remote_reconnect_to_usable_session
+    business_driver_refs:
+      - bd.enterprise_deployment_scale
+    hard_constraint_refs:
+      - hc.multi_deployment_modes_supported
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - latency
+      - recoverability
+      - security
+    primary_sli: reconnect-to-usable-session latency
+    targets:
+      p50_s: 3
+      p95_s: 10
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.remote_reconnect_to_usable_session
+    degradation_posture_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.remote_reconnect_to_usable_session
+    measurement_lane_ref: lane:protected_sequence_packet_validation
+    journey_owner_refs:
+      - card:remote_collaboration_runtime
+      - card:execution_context_tooling
+    evidence_row_ref: null
+    benchmark_corpus_refs: []
+    fitness_function_refs: []
+    quality_scenario_refs:
+      - scenario:connectivity_reconciliation
+      - scenario:terminal_run_test_debug_replay_safety
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: release_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.deferred_contract_family_requires_exception
+      consequence_notes: >
+        Until the remote attach/reconnect sequence families are fully wired
+        and validated, claims must remain explicitly narrowed; any exception
+        requires an exception/waiver packet.
+    rejected_pattern_refs:
+      - rp.hidden_retry_loop_past_deadline
+      - rp.silent_target_rebind_or_widening
+
+  - id: journey_row:rerun_last_task_or_test_dispatch
+    title: Rerun last task/test dispatch to first lifecycle event
+    status: provisional
+    critical_path_epoch: implementation_alpha
+    protected_path_ref: null
+    sequence_pack_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+    slo_row_refs:
+      - slo.rerun_last_task_or_test
+    business_driver_refs:
+      - bd.win_switching_moments
+      - bd.enterprise_deployment_scale
+    hard_constraint_refs:
+      - hc.unified_command_and_execution_contracts
+    quality_attribute_driver_refs:
+      - latency
+      - correctness
+      - recoverability
+    primary_sli: dispatch latency to first visible lifecycle event
+    targets:
+      p50_ms: 150
+      p95_ms: 400
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.rerun_last_task_or_test
+    degradation_posture_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.rerun_last_task_or_test
+    measurement_lane_ref: lane:protected_sequence_packet_validation
+    journey_owner_refs:
+      - card:execution_context_tooling
+      - lane:shell_command_system
+    evidence_row_ref: null
+    benchmark_corpus_refs: []
+    fitness_function_refs: []
+    quality_scenario_refs:
+      - scenario:terminal_run_test_debug_replay_safety
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: release_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.shell_host_keyboard_descoping
+      consequence_notes: >
+        If rerun-last-task cannot remain responsive and replay-safe, the
+        launch-critical workflow must narrow (or stay experimental) until
+        evidence and sequence validation are current.
+    rejected_pattern_refs:
+      - rp.hidden_replay_or_mutation_on_restore
+      - rp.private_command_paths_bypass_descriptors
+
+  - id: journey_row:ai_explain_selected_failure
+    title: AI explain selected failure to useful answer
+    status: provisional
+    critical_path_epoch: implementation_alpha
+    protected_path_ref: null
+    sequence_pack_refs: []
+    slo_row_refs:
+      - slo.ai_explain_selected_failure
+    business_driver_refs:
+      - bd.win_switching_moments
+    hard_constraint_refs:
+      - hc.unified_command_and_execution_contracts
+      - hc.no_mandatory_hosted_service_for_core_workflows
+    quality_attribute_driver_refs:
+      - latency
+      - supportability
+      - security
+    primary_sli: time to first useful response
+    targets:
+      first_tokens_p50_s: 2
+      useful_answer_p95_s: 8
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.ai_explain_selected_failure
+    degradation_posture_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.ai_explain_selected_failure
+    measurement_lane_ref: lane:performance_ci
+    journey_owner_refs:
+      - card:ai_context_runtime
+      - card:execution_context_tooling
+    evidence_row_ref: null
+    benchmark_corpus_refs: []
+    fitness_function_refs: []
+    quality_scenario_refs:
+      - scenario:provider_arbitration_truth
+      - scenario:connectivity_reconciliation
+    architecture_pack_refs:
+      - artifacts/milestones/M0_architecture_pack/coverage_and_freeze_exceptions.yaml
+    release_evidence_packet_refs:
+      - docs/release/release_evidence_packet_template.md
+    waiver_and_descope_consequences:
+      waiver_authority_ref: release_council
+      waiver_packet_expected: true
+      correction_trigger_refs:
+        - corr.deferred_contract_family_requires_exception
+      consequence_notes: >
+        AI explain must degrade independently. If provider paths are
+        unavailable, local diagnostics and breadcrumbs remain the primary
+        evidence lane; claims must not imply the AI lane is required.
+    rejected_pattern_refs:
+      - rp.optional_service_on_core_path
+      - rp.provider_egress_before_policy
