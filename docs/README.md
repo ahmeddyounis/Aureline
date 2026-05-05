@@ -1437,6 +1437,16 @@ code.
   [`/artifacts/design/theme_support_rows.yaml`](../artifacts/design/theme_support_rows.yaml);
   layer and scrim tokens in
   [`/artifacts/design/layer_and_scrim_tokens.yaml`](../artifacts/design/layer_and_scrim_tokens.yaml).
+- [`design/typography_text_contract.md`](./design/typography_text_contract.md)
+  — typography roles, scale, font fallback posture, and overflow/copy-
+  honesty contract for shell, docs/help, editor-adjacent UI, tables,
+  badges, terminal metadata, and teaching surfaces. Canonical scale
+  artifact in
+  [`/artifacts/design/typography_scale.yaml`](../artifacts/design/typography_scale.yaml);
+  boundary schema in
+  [`/schemas/design/text_role.schema.json`](../schemas/design/text_role.schema.json);
+  worked render cases in
+  [`/fixtures/design/text_render_cases/`](../fixtures/design/text_render_cases/).
 - [`ux/appearance_import_and_checkpoint_contract.md`](./ux/appearance_import_and_checkpoint_contract.md)
   — appearance-session, import-report, token-overlay, checkpoint,
   rollback, and extension/embedded-surface inheritance contract for

@@ -1,0 +1,253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/text_role.schema.json",
+  "title": "Aureline typography scale, text-role, and render-case records",
+  "description": "Boundary schema for the typography scale record and text render-case fixtures frozen in docs/design/typography_text_contract.md. The scale record publishes the canonical `type.*` rows (size/line-height/weight) referenced by every surface. Render-case fixtures exercise the cross-surface contract for text roles, overflow behavior, bidi isolation, and copy-honesty recovery routes without embedding raw design assets.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/typography_scale_record" },
+    { "$ref": "#/$defs/text_render_case_record" }
+  ],
+  "$defs": {
+    "text_role_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for typography scale and text render-case records."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in fixtures. Raw user content is not required to be carried by ids."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "nonempty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonempty_string" },
+        "scenario": { "$ref": "#/$defs/nonempty_string" },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" }
+        }
+      }
+    },
+
+    "scale_token": {
+      "type": "string",
+      "enum": [
+        "type.display",
+        "type.title.1",
+        "type.title.2",
+        "type.title.3",
+        "type.body.lg",
+        "type.body.md",
+        "type.body.sm",
+        "type.label.md",
+        "type.label.sm",
+        "type.code.md",
+        "type.code.sm"
+      ],
+      "description": "Frozen typography scale tokens."
+    },
+
+    "typography_role_token": {
+      "type": "string",
+      "enum": ["type.role.ui_sans", "type.role.monospace", "type.role.prose"],
+      "description": "Frozen typography role tokens selecting a font-family stack and baseline shaping posture."
+    },
+
+    "text_role_class": {
+      "type": "string",
+      "enum": [
+        "display",
+        "title",
+        "body",
+        "supporting",
+        "caption",
+        "code",
+        "terminal",
+        "dense_metric"
+      ],
+      "description": "Closed text-role vocabulary used by render-case fixtures and surface contracts."
+    },
+
+    "text_direction": {
+      "type": "string",
+      "enum": ["ltr", "rtl"],
+      "description": "Locale paragraph direction for a render case."
+    },
+
+    "copy_recovery_route": {
+      "type": "string",
+      "enum": [
+        "copy_full_value_action",
+        "reveal_on_focus",
+        "tooltip_or_hover_reveal",
+        "accessible_name_full",
+        "open_detail_view",
+        "multi_line_expand",
+        "horizontal_scroll"
+      ],
+      "description": "How a truncated/clamped field remains recoverable without inventing per-surface behavior."
+    },
+
+    "typography_scale_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scale_token",
+        "font_size_px",
+        "line_height_px",
+        "font_weight",
+        "intended_use"
+      ],
+      "properties": {
+        "scale_token": { "$ref": "#/$defs/scale_token" },
+        "font_size_px": { "type": "integer", "minimum": 1 },
+        "line_height_px": { "type": "integer", "minimum": 1 },
+        "font_weight": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 900
+        },
+        "intended_use": { "$ref": "#/$defs/nonempty_string" }
+      }
+    },
+
+    "typography_scale_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "text_role_schema_version",
+        "scale_id",
+        "source_of_truth_refs",
+        "minted_at",
+        "scale_rows"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "typography_scale_record" },
+        "text_role_schema_version": { "$ref": "#/$defs/text_role_schema_version" },
+        "scale_id": { "$ref": "#/$defs/opaque_id" },
+        "source_of_truth_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty_string" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scale_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/typography_scale_row" }
+        }
+      }
+    },
+
+    "content_kind_class": {
+      "$ref": "./component_contract.schema.json#/$defs/content_kind_class"
+    },
+
+    "overflow_behavior_class": {
+      "$ref": "./component_contract.schema.json#/$defs/overflow_behavior_class"
+    },
+
+    "text_render_slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slot_id",
+        "content_kind_class",
+        "text_role_class",
+        "typography_role_token",
+        "scale_token",
+        "overflow_behavior_class",
+        "copy_recovery_routes"
+      ],
+      "properties": {
+        "slot_id": { "$ref": "#/$defs/nonempty_string" },
+        "content_kind_class": { "$ref": "#/$defs/content_kind_class" },
+        "text_role_class": { "$ref": "#/$defs/text_role_class" },
+        "typography_role_token": { "$ref": "#/$defs/typography_role_token" },
+        "scale_token": { "$ref": "#/$defs/scale_token" },
+        "overflow_behavior_class": { "$ref": "#/$defs/overflow_behavior_class" },
+        "example_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "description": "Short illustrative text snippet for this slot (may include mixed-script/bidi examples)."
+        },
+        "max_lines": { "type": "integer", "minimum": 1 },
+        "uses_ellipsis": { "type": "boolean" },
+        "copy_recovery_routes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/copy_recovery_route" }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+
+    "text_render_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "text_role_schema_version",
+        "case_id",
+        "surface_kind",
+        "locale_direction",
+        "effective_text_scale_percent",
+        "slots",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "text_render_case_record" },
+        "text_role_schema_version": { "$ref": "#/$defs/text_role_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_kind": {
+          "type": "string",
+          "enum": [
+            "tab",
+            "status_item",
+            "badge",
+            "settings_row",
+            "tree_row",
+            "table_row",
+            "docs_citation",
+            "terminal_metadata",
+            "notebook_output"
+          ]
+        },
+        "locale_direction": { "$ref": "#/$defs/text_direction" },
+        "effective_text_scale_percent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 400
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/text_render_slot" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
