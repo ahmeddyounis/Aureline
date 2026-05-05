@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/device_rebind_event.schema.json",
+  "title": "Aureline device rebind audit event record",
+  "description": "Boundary schema for device_rebind_event_record frozen in docs/admin/deprovision_and_rebind_contract.md. A device rebind event is the export-safe audit record that proves a device binding rotated (typically as part of account recovery or risk response) without requiring a hosted console. The event preserves actor class, tenant/org scope, affected seat/device refs, rebind reason, and whether local-work preservation and export guidance were shown. Raw device fingerprints, raw user identifiers, raw IdP payloads, raw provider URLs, raw tokens, raw hostnames, raw IP addresses, raw paths, and secret material never cross this boundary; the record carries opaque refs, typed vocabulary, and reviewable summaries only. Adding a new actor_class, rebind_reason_class, or local_artifacts_safety_class value is additive-minor and bumps device_rebind_event_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "$ref": "#/$defs/device_rebind_event_record",
+  "$defs": {
+    "device_rebind_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for device-rebind audit events."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, export, and deep-link."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured from a monotonic or bounded-skew source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe for UI, CLI, export, and support surfaces."
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short export-safe label."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_class",
+        "included_data_classes",
+        "omitted_data_classes",
+        "redaction_note"
+      ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "included_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" }
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_safe_label" }
+        },
+        "redaction_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "scenario" ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "end_user",
+        "org_admin",
+        "support_operator",
+        "signed_lifecycle_update",
+        "identity_provider",
+        "system_resolver"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_class",
+        "actor_ref",
+        "actor_label"
+      ],
+      "properties": {
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "actor_label": { "$ref": "#/$defs/export_safe_label" }
+      }
+    },
+    "rebind_reason_class": {
+      "type": "string",
+      "enum": [
+        "account_recovery",
+        "device_compromise_or_loss",
+        "seat_transfer",
+        "policy_reset_or_reissue",
+        "unknown"
+      ]
+    },
+    "local_artifacts_safety_class": {
+      "type": "string",
+      "enum": [
+        "local_artifacts_safe_export_available",
+        "local_artifacts_safe_export_guidance_shown",
+        "local_artifacts_safe_export_blocked_by_policy",
+        "local_artifacts_safe_continue_local_only",
+        "unknown"
+      ]
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_or_org_ref",
+        "seat_id_ref",
+        "previous_device_id_ref",
+        "device_id_ref",
+        "managed_session_state_ref"
+      ],
+      "properties": {
+        "tenant_or_org_ref": { "$ref": "#/$defs/opaque_id" },
+        "seat_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "previous_device_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "device_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "managed_session_state_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "guidance_capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_work_preservation_notice_shown",
+        "export_guidance_shown",
+        "local_artifacts_safety_class",
+        "handoff_record_ref",
+        "note"
+      ],
+      "properties": {
+        "local_work_preservation_notice_shown": { "type": "boolean" },
+        "export_guidance_shown": { "type": "boolean" },
+        "local_artifacts_safety_class": { "$ref": "#/$defs/local_artifacts_safety_class" },
+        "handoff_record_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "device_rebind_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "device_rebind_event_schema_version",
+        "event_id",
+        "occurred_at",
+        "actor",
+        "scope",
+        "rebind_reason_class",
+        "guidance_capture",
+        "reviewable_summary",
+        "related_object_refs",
+        "redaction_summary"
+      ],
+      "properties": {
+        "record_kind": { "const": "device_rebind_event_record" },
+        "device_rebind_event_schema_version": { "$ref": "#/$defs/device_rebind_event_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "actor": { "$ref": "#/$defs/actor" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "rebind_reason_class": { "$ref": "#/$defs/rebind_reason_class" },
+        "guidance_capture": { "$ref": "#/$defs/guidance_capture" },
+        "reviewable_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "related_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      }
+    }
+  }
+}
+
