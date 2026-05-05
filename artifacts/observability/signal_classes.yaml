@@ -1,0 +1,446 @@
+# yaml-language-server: $schema=../../schemas/observability/signal_class_matrix.schema.json
+schema_version: 1
+record_kind: signal_class_matrix
+matrix_id: observability.signal_class_matrix.v1
+title: Signal-class matrix (telemetry, diagnostics, and support transfers)
+governing_refs:
+  - docs/observability/signal_class_matrix.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_PRD.md
+  - docs/governance/telemetry_and_support_schema_registry.md
+  - docs/governance/privacy_history_and_lifecycle_contract.md
+  - docs/support/support_bundle_contract.md
+  - artifacts/governance/consent_ledger_seed.yaml
+  - artifacts/governance/record_class_registry.yaml
+
+signal_class_rows:
+  - signal_class_id: install_update_active_version_counts
+    title: Install/update/version counters
+    description: >
+      Coarse install/update and active-version counters used for release
+      health and compatibility planning without collecting user content.
+      Upload is opt-in; local aggregation remains bounded and
+      inspectable.
+    default_collection_postures:
+      - local_only
+      - explicit_opt_in_upload
+    upload_preview_requirement: not_required_schema_bound
+    explicitly_allowed_content:
+      - coarse counts (install, update, active version) aggregated over time windows
+      - product version, release channel, and platform/device class buckets
+      - schema revision and aggregation window metadata
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Counters never embed raw payload bodies or per-event free-form fields.
+      - Identifiers beyond the declared schema fields are forbidden by default.
+    retention_expectation: >
+      Local aggregates are bounded and user-resettable; any optional
+      upload retains only the declared aggregate window and closes on
+      version-replace, user reset, or policy timer.
+    override_paths:
+      - user_opt_in_setting
+      - admin_policy_bundle
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs: []
+      record_class_id_refs:
+        - telemetry_contract_schema
+      notes: >
+        This class is the review bucket for lifecycle counters even when
+        the exact counter family is introduced later as a dedicated
+        schema-registry entry.
+
+  - signal_class_id: feature_usage_counters
+    title: Feature-usage counters
+    description: >
+      Stable event ids and counters describing broad feature usage. The
+      class forbids raw content, free text, and undeclared identifiers by
+      default so opt-in analytics remains data-minimized.
+    default_collection_postures:
+      - local_only
+      - explicit_opt_in_upload
+    upload_preview_requirement: not_required_schema_bound
+    explicitly_allowed_content:
+      - stable event ids, feature or capability classes, and coarse counters
+      - build flavor and coarse device class buckets
+      - sampling and aggregation metadata
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Raw payloads never ride alongside counters; only declared aggregates are allowed.
+      - Any widening requires a schema-registry revision and separate review.
+    retention_expectation: >
+      Local aggregates are bounded; optional uploads retain only
+      aggregated counters under the schema-registry retention posture and
+      do not degrade local product function when disabled.
+    override_paths:
+      - user_opt_in_setting
+      - admin_policy_bundle
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs:
+        - telemetry.ux_product_event
+        - telemetry.learning_onboarding_event
+      record_class_id_refs:
+        - telemetry_contract_schema
+
+  - signal_class_id: performance_metrics
+    title: Performance metrics
+    description: >
+      Coarse performance metrics and bounded capture evidence used to
+      power local performance inspectors and (optionally) support or
+      release evidence. Raw traces and profile bodies are excluded by
+      default and require an explicit preview gate when exported.
+    default_collection_postures:
+      - local_only
+      - explicit_opt_in_upload
+    upload_preview_requirement: required_for_raw_or_sensitive_payloads
+    explicitly_allowed_content:
+      - coarse timings, frame-time buckets, queue depth, and memory buckets
+      - stable workflow or event ids and digests (not raw payload bodies)
+      - downsample/truncation disclosure and capture window metadata
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Raw trace chunks, replay sidecars, or profile bodies require explicit preview and export posture.
+      - Metrics must not contain raw labels that encode user content or identifiers outside schema.
+    retention_expectation: >
+      Local performance evidence is user-owned and bounded by retention
+      policy; exported or uploaded evidence follows the governed
+      performance evidence record class and support/release retention
+      rules when attached by explicit export.
+    override_paths:
+      - user_opt_in_setting
+      - admin_policy_bundle
+      - support_preview_gate
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs: []
+      record_class_id_refs:
+        - performance_capture_evidence
+
+  - signal_class_id: crash_panic_reports
+    title: Crash/panic reports
+    description: >
+      Crash and panic diagnostic payloads captured locally with bounded
+      retention. Upload is never implicit; export or submission requires
+      explicit user/admin action with preview and redaction.
+    default_collection_postures:
+      - local_only
+      - explicit_opt_in_upload
+    upload_preview_requirement: required_before_any_transfer
+    explicitly_allowed_content:
+      - redacted stack traces, crash envelope metadata, and build identity
+      - enabled extension inventory (summary/digest), coarse environment metadata
+      - dump/core manifest metadata and redaction scan results (not raw dump bytes)
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Raw memory dumps and cores are high-risk; default exports carry manifests and omission markers.
+      - Any raw workspace content requires separate explicit item selection under support preview.
+    retention_expectation: >
+      Local crash artifacts remain user-controlled; any managed copy
+      exists only after explicit submit and follows support-case
+      retention, holds, and deletion semantics.
+    override_paths:
+      - user_opt_in_setting
+      - admin_policy_bundle
+      - support_preview_gate
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs:
+        - diagnostics.crash_payload
+      record_class_id_refs:
+        - crash_diagnostic_payload
+
+  - signal_class_id: support_bundle_transfer_events
+    title: Support-bundle transfer events
+    description: >
+      Manual support-bundle export/upload events and receipts. This class
+      exists to prevent an ambient “always-on support capture” path by
+      forcing support transfers to be explicit, previewed, and auditable
+      separately from telemetry.
+    default_collection_postures:
+      - export_only_user_initiated
+    upload_preview_requirement: required_before_any_transfer
+    explicitly_allowed_content:
+      - bundle manifest metadata (bundle id, sections, item ids, redaction class)
+      - inclusion/omission reasons and upload result receipts
+      - governed refs to sibling payload families by id (no raw embedding by default)
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Transfers must not occur without an explicit user/admin action and a preview gate.
+      - Telemetry pipelines must never receive raw support bundle bodies outside the declared packet family.
+    retention_expectation: >
+      The exported bundle is an explicit packet; local files remain user
+      controlled. Managed retention applies only when a bundle is
+      attached to a support case under explicit export posture.
+    override_paths:
+      - support_preview_gate
+      - admin_policy_bundle
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs:
+        - support.bundle_manifest
+        - support.bundle_redaction_profile
+      record_class_id_refs:
+        - support_bundle_archive
+
+  - signal_class_id: managed_analytics_aggregates
+    title: Managed analytics aggregates and packets
+    description: >
+      Managed-lane aggregates and admin-gated packets (usage, parity,
+      compliance, offboarding inventory) that exist only when a managed
+      relationship or explicit admin policy enables them. The class is
+      metadata-first and endpoint-explainable by design.
+    default_collection_postures:
+      - admin_policy_gated
+      - managed_policy_enabled
+    upload_preview_requirement: required_before_any_transfer
+    explicitly_allowed_content:
+      - aggregated usage/quota summaries and contract-scoped packet metadata
+      - compliance, parity, and inventory digests and verification results
+      - retention/hold posture markers and destination identifiers by opaque ref
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Managed packets must not silently expand to new schema shapes; expansion is policy-visible and schema-registry governed.
+      - Payloads remain metadata-only unless a separately reviewed packet schema permits otherwise.
+    retention_expectation: >
+      Retention and deletion semantics are governed by record classes and
+      managed-service retention rows; local copies do not imply managed
+      retention or managed deletion completeness.
+    override_paths:
+      - admin_policy_bundle
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs:
+        - usage.metering_export_packet
+        - review.hosted_parity_record
+        - assurance.compliance_packet
+        - offboarding.exit_packet
+        - linkage.usage_export_offboarding
+      record_class_id_refs: []
+
+  - signal_class_id: local_diagnostic_signal
+    title: Local diagnostic signals
+    description: >
+      Local-only diagnostic signals used for self-inspection (Doctor,
+      safe mode, local logs/traces summaries). These signals are bounded,
+      redaction-aware, and can be promoted into support exports only via
+      explicit preview.
+    default_collection_postures:
+      - local_only
+    upload_preview_requirement: required_for_raw_or_sensitive_payloads
+    explicitly_allowed_content:
+      - redacted structured events, typed error codes, and digests
+      - bounded timeline summaries suitable for local diagnostics
+      - omission markers and redaction counts
+    forbidden_by_default_exclusion_classes:
+      - raw_code_bodies
+      - raw_ai_prompts
+      - raw_ai_responses
+      - repo_names
+      - file_paths
+      - directory_names
+      - branch_names
+      - clipboard_contents
+      - full_search_queries
+      - user_free_text_input
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - notebook_cell_contents
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Local-only does not mean unbounded; retention remains short and inspectable.
+      - Promotion into support export requires the support preview gate and explicit selection.
+    retention_expectation: >
+      Retention is local and bounded; deletion and reset are user-driven
+      and policy-narrowable. When exported, the resulting packet inherits
+      the destination record-class retention semantics.
+    override_paths:
+      - admin_policy_bundle
+      - support_preview_gate
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs:
+        - diagnostics.repair_transaction_packet
+        - privacy.voice_dictation_event
+        - cli.headless_diagnostic_payload
+      record_class_id_refs:
+        - crash_diagnostic_payload
+
+  - signal_class_id: manual_support_evidence
+    title: Manual support evidence attachments
+    description: >
+      User-selected evidence attached during support export: bounded code
+      excerpts, selected logs, reproducible minimal samples, and other
+      explicitly chosen attachments. Nothing in this class is captured
+      automatically.
+    default_collection_postures:
+      - export_only_user_initiated
+    upload_preview_requirement: required_per_item_selection
+    explicitly_allowed_content:
+      - user-selected bounded excerpts with hashes and explicit range disclosure
+      - redaction summaries and omission markers per attachment
+      - per-item opt-in receipts tied to the support preview
+    forbidden_by_default_exclusion_classes:
+      - raw_ai_prompts
+      - raw_ai_responses
+      - clipboard_contents
+      - terminal_command_payloads
+      - raw_environment_variables
+      - raw_hostnames
+      - raw_user_identifiers
+      - voice_or_dictation_audio
+      - voice_transcripts
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - Unbounded workspace export, full terminal history, and raw secrets have no consent path under this class.
+      - Attachments must be itemized; “attach everything” is forbidden by default.
+    retention_expectation: >
+      Attachments exist only after explicit user selection and are
+      governed by the destination support-bundle export posture and
+      retention class.
+    override_paths:
+      - support_preview_gate
+      - admin_policy_bundle
+      - schema_registry_revision_required
+    linkage:
+      schema_registry_entry_refs: []
+      record_class_id_refs:
+        - support_bundle_archive
+
+  - signal_class_id: forbidden_secret_bearing_artifact
+    title: Forbidden secret-bearing artifacts
+    description: >
+      Sentinel class for artifacts that must never be collected, exported,
+      or uploaded (raw secrets, raw tokens, raw credentials, and similar
+      prohibited material). Only omission markers and redaction receipts
+      are admissible.
+    default_collection_postures:
+      - not_collected
+    upload_preview_requirement: not_applicable_forbidden
+    explicitly_allowed_content:
+      - omission markers and redaction receipts only
+    forbidden_by_default_exclusion_classes:
+      - secret_or_token_material
+    forbidden_by_default_content_notes:
+      - No override path exists for exporting raw secret material through telemetry or support.
+    retention_expectation: >
+      No payload exists; only a redaction/omission receipt may remain
+      when a workflow proves a forbidden artifact was blocked.
+    override_paths:
+      - never_permitted
+    linkage:
+      schema_registry_entry_refs: []
+      record_class_id_refs: []
+

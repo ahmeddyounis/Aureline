@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=../../../schemas/observability/signal_class_example.schema.json
+__fixture__:
+  name: crash_report_local_then_submit
+  scenario: >
+    A crash occurs. The crash envelope is retained locally, but upload is
+    performed only after explicit user submit. The submit flow requires a
+    preview/redaction gate because crash artifacts are high-risk even
+    when redacted.
+
+signal_class_example_schema_version: 1
+record_kind: signal_class_example_record
+example_id: signal-class-example.crash.local-then-submit
+signal_class_id: crash_panic_reports
+scenario_title: Crash retained locally; submit requires preview and redaction
+default_collection_postures:
+  - local_only
+  - explicit_opt_in_upload
+upload_preview_requirement: required_before_any_transfer
+allowed_payload_notes:
+  - Redacted stack trace and crash envelope metadata (build id, process class).
+  - Enabled extensions as a summary or digest (not raw private storage).
+  - Dump/core manifest metadata and redaction scan results (not raw dump bytes).
+forbidden_payload_notes:
+  - Raw memory dump/core bytes are forbidden by default; only manifests/receipts are admissible without separate high-friction consent.
+  - Raw workspace content (code bodies, notebook cells) is forbidden by default.
+  - Secrets and tokens are forbidden by default and must be represented only as redaction markers.
+linkage:
+  schema_registry_entry_refs:
+    - diagnostics.crash_payload
+  privacy_history_event_types:
+    - crash_upload_posture_changed
+    - support_bundle_exported
+  support_contract_refs:
+    - docs/support/support_bundle_preview_contract.md
+    - docs/support/diagnostic_artifact_matrix.md
+  record_class_id_refs:
+    - crash_diagnostic_payload
+decision_note: >
+  Local capture does not require a preview because nothing leaves the
+  device. Upload does require a preview because crash artifacts may
+  accidentally expose file paths, memory contents, or user identifiers
+  unless the redaction profile and omission markers are applied visibly.
+

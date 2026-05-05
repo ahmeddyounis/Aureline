@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/observability/signal_class_matrix.schema.json",
+  "title": "Aureline signal-class matrix",
+  "description": "Boundary schema for the machine-readable signal-class matrix published in artifacts/observability/signal_classes.yaml. Signal classes unify observability, privacy, and support capture rules by naming intent + risk (not transport) for telemetry counters, crash/diagnostic payloads, performance metrics, support transfers, and managed aggregates before implementation adds shared plumbing. Adding a new signal_class_id or upload_preview_requirement value is additive-minor and requires schema_version to advance; repurposing an existing value is breaking.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_kind",
+    "matrix_id",
+    "title",
+    "governing_refs",
+    "signal_class_rows"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "signal_class_matrix"
+    },
+    "matrix_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "governing_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "signal_class_rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/signal_class_row"
+      }
+    }
+  },
+  "$defs": {
+    "signal_class_id": {
+      "type": "string",
+      "enum": [
+        "install_update_active_version_counts",
+        "crash_panic_reports",
+        "performance_metrics",
+        "feature_usage_counters",
+        "support_bundle_transfer_events",
+        "managed_analytics_aggregates",
+        "local_diagnostic_signal",
+        "manual_support_evidence",
+        "forbidden_secret_bearing_artifact"
+      ],
+      "description": "Stable signal class id referenced by privacy-history events, support-pack matrices, and schema-registry reviews."
+    },
+    "collection_posture": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "explicit_opt_in_upload",
+        "admin_policy_gated",
+        "managed_policy_enabled",
+        "policy_denied",
+        "export_only_user_initiated",
+        "not_collected"
+      ],
+      "description": "Collection posture vocabulary aligned to governance privacy-history records."
+    },
+    "upload_preview_requirement": {
+      "type": "string",
+      "enum": [
+        "not_required_schema_bound",
+        "required_for_raw_or_sensitive_payloads",
+        "required_before_any_transfer",
+        "required_per_item_selection",
+        "not_applicable_forbidden"
+      ],
+      "description": "Whether a local preview/redaction gate is required before bytes leave the device."
+    },
+    "telemetry_exclusion_class": {
+      "type": "string",
+      "enum": [
+        "raw_code_bodies",
+        "raw_ai_prompts",
+        "raw_ai_responses",
+        "repo_names",
+        "file_paths",
+        "directory_names",
+        "branch_names",
+        "clipboard_contents",
+        "full_search_queries",
+        "user_free_text_input",
+        "terminal_command_payloads",
+        "raw_environment_variables",
+        "raw_hostnames",
+        "raw_user_identifiers",
+        "voice_or_dictation_audio",
+        "voice_transcripts",
+        "notebook_cell_contents",
+        "secret_or_token_material"
+      ],
+      "description": "Forbidden-by-default raw/sensitive payload classes aligned to the schema-registry exclusion vocabulary."
+    },
+    "override_path": {
+      "type": "string",
+      "enum": [
+        "user_opt_in_setting",
+        "admin_policy_bundle",
+        "support_preview_gate",
+        "schema_registry_revision_required",
+        "never_permitted"
+      ],
+      "description": "Permitted override path for widening/narrowing collection. Widening beyond forbidden-by-default requires schema-registry review."
+    },
+    "signal_class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signal_class_id",
+        "title",
+        "description",
+        "default_collection_postures",
+        "upload_preview_requirement",
+        "explicitly_allowed_content",
+        "forbidden_by_default_exclusion_classes",
+        "forbidden_by_default_content_notes",
+        "retention_expectation",
+        "override_paths"
+      ],
+      "properties": {
+        "signal_class_id": {
+          "$ref": "#/$defs/signal_class_id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default_collection_postures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/collection_posture"
+          }
+        },
+        "upload_preview_requirement": {
+          "$ref": "#/$defs/upload_preview_requirement"
+        },
+        "explicitly_allowed_content": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "forbidden_by_default_exclusion_classes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/telemetry_exclusion_class"
+          }
+        },
+        "forbidden_by_default_content_notes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "retention_expectation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "override_paths": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/override_path"
+          }
+        },
+        "linkage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "schema_registry_entry_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "record_class_id_refs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

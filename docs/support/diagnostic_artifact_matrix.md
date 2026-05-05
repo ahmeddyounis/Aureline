@@ -37,6 +37,10 @@ Companion artifacts:
 - [`/docs/governance/telemetry_and_support_schema_registry.md`](../governance/telemetry_and_support_schema_registry.md)
   - consent, endpoint, retention, and support-transfer separation
   rules.
+- [`/docs/observability/signal_class_matrix.md`](../observability/signal_class_matrix.md)
+  and
+  [`/artifacts/observability/signal_classes.yaml`](../../artifacts/observability/signal_classes.yaml)
+  - signal-class defaults referenced by `signal_class_binding`.
 
 Normative source anchors:
 

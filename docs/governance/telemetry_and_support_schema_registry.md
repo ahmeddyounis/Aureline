@@ -17,6 +17,12 @@ Companion artifacts:
   row conforms to the boundary schema below.
 - [`/schemas/governance/schema_registry_entry.schema.json`](../../schemas/governance/schema_registry_entry.schema.json)
   — boundary schema for one `schema_registry_entry_row`.
+- [`/docs/observability/signal_class_matrix.md`](../observability/signal_class_matrix.md)
+  and
+  [`/artifacts/observability/signal_classes.yaml`](../../artifacts/observability/signal_classes.yaml)
+  — signal-class matrix used by privacy-history events, support-bundle
+  previews, and schema-registry reviews to keep intent/risk categories
+  consistent.
 - [`./record_class_governance.md`](./record_class_governance.md) and
   [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
   — class-level retention, export, delete, hold, and offboarding

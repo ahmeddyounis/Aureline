@@ -13,6 +13,11 @@ Companion artifacts:
   defines one privacy-history row.
 - [`/schemas/governance/export_delete_request_summary.schema.json`](../../schemas/governance/export_delete_request_summary.schema.json)
   defines one export, delete, or offboarding request summary.
+- [`/docs/observability/signal_class_matrix.md`](../observability/signal_class_matrix.md)
+  and
+  [`/artifacts/observability/signal_classes.yaml`](../../artifacts/observability/signal_classes.yaml)
+  define the shared signal-class matrix used by privacy-history rows and
+  support/export surfaces.
 - [`/fixtures/governance/privacy_history_cases/`](../../fixtures/governance/privacy_history_cases/)
   carries worked cases for consent toggles, policy-locked upload,
   support export, held deletion, and offboarding export exclusions.
@@ -227,6 +232,11 @@ Signal classes:
 - `feature_usage_counters`
 - `support_bundle_transfer_events`
 - `managed_analytics_aggregates`
+
+Per-class defaults (allowed/forbidden content, preview gates, and
+override paths) are published in
+[`/docs/observability/signal_class_matrix.md`](../observability/signal_class_matrix.md)
+and [`/artifacts/observability/signal_classes.yaml`](../../artifacts/observability/signal_classes.yaml).
 
 AI memory classes:
 
