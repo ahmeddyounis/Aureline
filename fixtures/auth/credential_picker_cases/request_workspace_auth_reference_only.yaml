@@ -1,0 +1,184 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_picker_state.schema.json
+__fixture__:
+  name: request_workspace_auth_reference_only
+  scenario: >
+    A request workspace binds an auth handle through reference-only
+    environment sources. The picker makes the chosen source attributable
+    and export-safe without rendering raw secret bytes.
+  contract_sections:
+    - Vault/keychain picker contract
+    - Reveal-on-demand, copy, and export behavior
+  exercised_axes:
+    target_class: api_request_workspace
+    selected_source: environment_passthrough
+
+record_kind: credential_picker_state_record
+credential_picker_schema_version: 1
+picker_state_id: credential-picker:request-workspace:auth
+display_label: Select request auth source
+subject:
+  target_class: api_request_workspace
+  target_ref: request-workspace:orders-api
+  target_label: Orders API request workspace
+  secret_class: ai_provider_token
+  scope_ref: request-env:orders:staging
+  scope_label: Staging request environment
+  audience_label: API auth handle
+selected_option_id: picker-option:request:env-pass
+options:
+  - option_id: picker-option:request:env-pass
+    option_class: environment_passthrough
+    availability_class: handle_only
+    display_label: Environment layer (handle ref)
+    source_label: Reference-only environment source
+    scope_label: Staging environment layer stack
+    storage_mode_class: handle_only
+    store_source_class: file_backed_secret_ref
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:request:orders:env
+    handle_ref: credential-handle:request:orders:env
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 15
+      reveal_note: Reference-only auth carries a handle ref; raw bearer tokens do not appear in request exports by default.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: aliases_and_source_labels_only
+      automation_export_posture: handle_alias_only
+      export_note: Exports include environment scope labels and handle refs only; raw secret bytes are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rebind_handle
+        - open_policy_detail
+      escalation_action: export_support_metadata
+      safe_retry_allowed: true
+      escalation_note: If the environment retargets or changes tenant, rebind the handle explicitly; export metadata-only diagnostics for support when blocked.
+    open_source_of_truth_action:
+      action_class: open_environment_reference
+      action_label: Open environment layer source
+      action_ref: null
+    audit_event_refs:
+      - request-event:environment-resolved:handles-pending
+    option_note: The environment layer uses a handle ref so portable exports remain secret-safe and auditable.
+
+  - option_id: picker-option:request:workspace-var
+    option_class: workspace_variable
+    availability_class: handle_only
+    display_label: Workspace variable (handle ref)
+    source_label: Reference-only workspace source
+    scope_label: Workspace-local request settings
+    storage_mode_class: handle_only
+    store_source_class: file_backed_secret_ref
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:request:orders:workspace
+    handle_ref: credential-handle:request:orders:workspace
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 15
+      reveal_note: Workspace variables for requests are handle refs; raw tokens are not serialized into request documents.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: aliases_and_source_labels_only
+      automation_export_posture: handle_alias_only
+      export_note: Exports include handle refs and scope labels only; raw secrets are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rebind_handle
+        - import_credential
+      escalation_action: open_policy_detail
+      safe_retry_allowed: true
+      escalation_note: If the referenced handle is missing for the active consumer/scope, import or rebind rather than inlining a literal secret.
+    open_source_of_truth_action:
+      action_class: open_workspace_reference
+      action_label: Open workspace variable source
+      action_ref: null
+    audit_event_refs: []
+    option_note: Workspace-scoped handle refs preserve portability without leaking raw tokens into versioned files.
+
+  - option_id: picker-option:request:keychain
+    option_class: system_credential_store
+    availability_class: available
+    display_label: OS keychain
+    source_label: System credential store
+    scope_label: This device only
+    storage_mode_class: system_credential_store
+    store_source_class: os_keychain
+    credential_origin_class: local_secret_handle
+    alias_ref: credential-alias:request:orders:keychain
+    handle_ref: credential-handle:request:orders:keychain
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: "2026-08-01T00:00:00Z"
+    refresh_after: "2026-07-20T00:00:00Z"
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 20
+      reveal_note: Reveal is user-initiated and audited; raw secret bytes remain excluded from request exports.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include alias and audit refs only; raw secret bytes are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rotate_credential
+        - open_policy_detail
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: If policy forbids local storage for this workspace, use an enterprise store or request an exception.
+    open_source_of_truth_action:
+      action_class: open_os_keychain
+      action_label: Open OS keychain entry
+      action_ref: null
+    audit_event_refs:
+      - secret-event:handle-issued:request-orders-keychain
+    option_note: OS keychain keeps long-lived material in the platform boundary; portable exports remain alias-only.
+
+audit_event_refs:
+  - picker-event:opened:request-auth
+  - picker-event:selected:env-layer-handle-ref
+policy_context:
+  identity_mode: self_hosted_org
+  policy_epoch: policy-epoch:request-env
+  trust_state: trusted
+  execution_context_id: execution-context:request-workspace-auth
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - logs_local
+  - support_bundle
+  - profile_export
+  - clipboard_projection
+minted_at: "2026-05-05T19:10:00Z"
+

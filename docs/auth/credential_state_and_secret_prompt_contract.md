@@ -26,6 +26,11 @@ Upstream contracts this document composes with:
 - [`/docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md)
   for secret classes, trust-store classes, unlock states, projection
   modes, denial reasons, audit events, and redaction defaults.
+- [`/docs/auth/credential_picker_contract.md`](./credential_picker_contract.md)
+  for the vault/keychain picker state and the credential-row anatomy
+  that surfaces storage-mode, scope, expiry, auditability, and repair
+  actions consistently across auth, registry, request-workspace, remote,
+  and provider-linking flows.
 - [`/docs/auth/system_browser_callback_packet.md`](./system_browser_callback_packet.md)
   for browser/device-code handoff, callback correlation, and
   credential-store lock-state packet vocabulary.

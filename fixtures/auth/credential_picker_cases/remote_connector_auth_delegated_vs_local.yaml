@@ -1,0 +1,184 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_picker_state.schema.json
+__fixture__:
+  name: remote_connector_auth_delegated_vs_local
+  scenario: >
+    A remote-attach flow offers a delegated identity (agent-owned) and a
+    local OS-keychain SSH handle. The picker keeps the trust boundary
+    explicit: raw private-key bytes are never revealed or exported; the
+    user can still audit which source supplied the credential.
+  contract_sections:
+    - Vault/keychain picker contract
+    - Reveal-on-demand, copy, and export behavior
+  exercised_axes:
+    target_class: remote_target
+    secret_class: ssh_key_material
+
+record_kind: credential_picker_state_record
+credential_picker_schema_version: 1
+picker_state_id: credential-picker:remote:attach
+display_label: Select remote authentication source
+subject:
+  target_class: remote_target
+  target_ref: remote-target:ssh:attach
+  target_label: Remote attach
+  secret_class: ssh_key_material
+  scope_ref: remote-scope:prod
+  scope_label: Remote target scope
+  audience_label: SSH identity handle
+selected_option_id: picker-option:remote:delegated
+options:
+  - option_id: picker-option:remote:delegated
+    option_class: delegated_identity
+    availability_class: available
+    display_label: Delegated identity (agent-owned)
+    source_label: Delegated identity via remote agent
+    scope_label: Target-scoped delegated authority
+    storage_mode_class: delegated
+    store_source_class: agent_socket
+    credential_origin_class: service_issued_delegated_identity
+    alias_ref: credential-alias:remote:ssh:delegated
+    handle_ref: credential-handle:remote:ssh:delegated
+    delegated_credential_ref: delegated-credential:remote:ssh
+    policy_owner_ref: policy-owner:remote:platform
+    browser_handoff_ref: null
+    expires_at: "2026-05-05T20:10:00Z"
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: sign_only_metadata_reveal
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: SSH private-key bytes are never revealed; delegated identity remains inspectable via metadata and audit refs only.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: audit_refs_only
+      automation_export_posture: required_class_only
+      export_note: Exports include delegated identity refs, scope, expiry, and audit refs only; private-key bytes never export.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - approve_step_up_access
+        - open_policy_detail
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: If policy blocks delegated identity for this target, open policy detail and request admission from an admin.
+    open_source_of_truth_action:
+      action_class: open_delegated_identity_source
+      action_label: View delegated identity source
+      action_ref: null
+    audit_event_refs:
+      - secret-event:remote-agent-attached:broker
+    option_note: Delegated identity is a different trust boundary than forwarding a local key; the picker keeps that distinction explicit.
+
+  - option_id: picker-option:remote:keychain
+    option_class: system_credential_store
+    availability_class: available
+    display_label: OS keychain (local SSH handle)
+    source_label: System credential store
+    scope_label: This device only
+    storage_mode_class: system_credential_store
+    store_source_class: os_keychain
+    credential_origin_class: local_secret_handle
+    alias_ref: credential-alias:remote:ssh:keychain
+    handle_ref: credential-handle:remote:ssh:keychain
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: sign_only_metadata_reveal
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: SSH private-key bytes are never revealed; the UI may offer copy-public-key only outside this contract boundary.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include alias/handle refs and audit refs only; private-key bytes never export.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rotate_credential
+        - open_policy_detail
+      escalation_action: export_support_metadata
+      safe_retry_allowed: true
+      escalation_note: If the keychain is locked, unlock it or export metadata-only diagnostics for support; plaintext fallback is forbidden.
+    open_source_of_truth_action:
+      action_class: open_os_keychain
+      action_label: Open OS keychain entry
+      action_ref: null
+    audit_event_refs:
+      - secret-event:handle-issued:remote-ssh-keychain
+    option_note: Local keychain use keeps long-lived material in the platform boundary; remote sessions consume handles or broker callbacks, not raw private bytes.
+
+  - option_id: picker-option:remote:workspace-ref
+    option_class: workspace_variable
+    availability_class: handle_only
+    display_label: Workspace reference (handle ref)
+    source_label: Reference-only workspace source
+    scope_label: Workspace-local remote settings
+    storage_mode_class: handle_only
+    store_source_class: file_backed_secret_ref
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:remote:ssh:workspace
+    handle_ref: credential-handle:remote:ssh:workspace
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: sign_only_metadata_reveal
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: Workspace references for SSH are handle refs; private-key bytes are never revealed or exported.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: aliases_and_source_labels_only
+      automation_export_posture: handle_alias_only
+      export_note: Exports include handle refs only; any raw private bytes observed in workspace state are represented as a denial/repair event.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rebind_handle
+        - import_credential
+      escalation_action: open_policy_detail
+      safe_retry_allowed: true
+      escalation_note: If the handle ref is invalid for the active target/scope, rebind or import through approved flows rather than inlining raw key bytes.
+    open_source_of_truth_action:
+      action_class: open_workspace_reference
+      action_label: Open workspace reference source
+      action_ref: null
+    audit_event_refs: []
+    option_note: Reference-only sources preserve portability and keep private bytes out of workspace artifacts.
+
+audit_event_refs:
+  - picker-event:opened:remote-attach
+  - picker-event:selected:delegated-identity
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:remote-attach
+  trust_state: trusted
+  execution_context_id: execution-context:remote-attach
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - logs_local
+  - support_bundle
+  - profile_export
+minted_at: "2026-05-05T19:12:30Z"
+

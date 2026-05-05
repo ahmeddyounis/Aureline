@@ -1,0 +1,190 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_picker_state.schema.json
+__fixture__:
+  name: provider_linking_browser_handoff
+  scenario: >
+    A provider-linking sheet offers OS keychain, enterprise vault, and a
+    browser/device-code acquisition path. The handoff is represented as a
+    handle-returning source; raw device codes and callback payloads never
+    appear in picker state.
+  contract_sections:
+    - Vault/keychain picker contract
+    - Browser/device-code handoff tie-ins
+    - Reveal-on-demand, copy, and export behavior
+  exercised_axes:
+    target_class: provider_connector
+    option_classes:
+      - system_credential_store
+      - enterprise_secret_store
+      - browser_device_code_handoff
+
+record_kind: credential_picker_state_record
+credential_picker_schema_version: 1
+picker_state_id: credential-picker:provider-linking:ai
+display_label: Select credential source
+subject:
+  target_class: provider_connector
+  target_ref: provider-connector:ai:link
+  target_label: AI provider link
+  secret_class: ai_provider_token
+  scope_ref: workspace:managed:ai
+  scope_label: Managed workspace scope
+  audience_label: Provider access token
+selected_option_id: picker-option:provider-linking:handoff
+options:
+  - option_id: picker-option:provider-linking:keychain
+    option_class: system_credential_store
+    availability_class: available
+    display_label: OS keychain
+    source_label: System credential store
+    scope_label: This device only
+    storage_mode_class: system_credential_store
+    store_source_class: os_keychain
+    credential_origin_class: local_secret_handle
+    alias_ref: credential-alias:provider:ai:keychain
+    handle_ref: credential-handle:provider:ai:keychain
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: "2026-08-01T00:00:00Z"
+    refresh_after: "2026-07-20T00:00:00Z"
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 20
+      reveal_note: Reveal is user-initiated, per-handle, time-bounded, and audited; raw values are never exported.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include alias/source labels and audit refs only; raw token bytes are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rotate_credential
+        - open_policy_detail
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: If policy requires enterprise storage, switch to the vault option or contact an admin for admission.
+    open_source_of_truth_action:
+      action_class: open_os_keychain
+      action_label: Open OS keychain entry
+      action_ref: null
+    audit_event_refs:
+      - secret-event:handle-issued:provider-ai-keychain
+    option_note: OS keychain stores long-lived material in the platform boundary; consumers receive brokered handles by default.
+
+  - option_id: picker-option:provider-linking:vault
+    option_class: enterprise_secret_store
+    availability_class: available
+    display_label: Enterprise vault
+    source_label: Enterprise secret store
+    scope_label: Organization-managed scope
+    storage_mode_class: enterprise_secret_store
+    store_source_class: enterprise_vault_adapter
+    credential_origin_class: customer_managed_secret_store
+    alias_ref: credential-alias:provider:ai:vault
+    handle_ref: credential-handle:provider:ai:vault
+    delegated_credential_ref: null
+    policy_owner_ref: policy-owner:security:secrets
+    browser_handoff_ref: null
+    expires_at: "2026-08-01T00:00:00Z"
+    refresh_after: "2026-07-20T00:00:00Z"
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 20
+      reveal_note: Reveal is governed by secret class and policy; enterprise deployments may restrict reveal further.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include vault class, policy owner, alias, and audit refs only; raw token bytes are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rotate_credential
+        - request_policy_exception
+        - open_policy_detail
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: Vault-backed secrets may be required by policy; contact an admin if this option is blocked.
+    open_source_of_truth_action:
+      action_class: open_enterprise_vault
+      action_label: Open enterprise vault record
+      action_ref: null
+    audit_event_refs:
+      - secret-event:handle-issued:provider-ai-vault
+    option_note: Enterprise vault keeps material outside the local host; Aureline uses handles and audit refs only.
+
+  - option_id: picker-option:provider-linking:handoff
+    option_class: browser_device_code_handoff
+    availability_class: handle_only
+    display_label: Browser/device-code sign-in
+    source_label: System-browser or device-code handoff
+    scope_label: Operation-scoped acquisition
+    storage_mode_class: handle_only
+    store_source_class: browser_device_code_handoff
+    credential_origin_class: browser_or_device_code_handoff
+    alias_ref: credential-alias:provider:ai:handoff:pending
+    handle_ref: null
+    delegated_credential_ref: null
+    policy_owner_ref: policy-owner:provider:auth
+    browser_handoff_ref: browser-handoff:provider-ai
+    expires_at: "2026-05-05T19:15:00Z"
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: Handoff returns a handle; raw device codes and callback payloads are never stored or shown in picker state.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include handoff ref, alias, and expiry metadata only; raw codes and provider payloads are excluded.
+    safe_actions:
+      primary_action: start_browser_handoff
+      fallback_actions:
+        - use_device_code_handoff
+        - continue_without_credential
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: Use browser handoff where available; device code is the fallback when browser launch is policy-blocked.
+    open_source_of_truth_action:
+      action_class: open_browser_handoff_status
+      action_label: View sign-in handoff status
+      action_ref: null
+    audit_event_refs:
+      - auth-event:browser-handoff-started:provider-ai
+    option_note: Browser/device-code sign-in acquires authority by returning a broker handle; it does not embed raw secrets into settings.
+
+audit_event_refs:
+  - picker-event:opened:provider-linking
+  - picker-event:selected:browser-handoff
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:provider-linking
+  trust_state: trusted
+  execution_context_id: execution-context:provider-linking
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - logs_local
+  - support_bundle
+  - profile_export
+minted_at: "2026-05-05T19:00:10Z"
+

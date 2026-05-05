@@ -1,0 +1,45 @@
+schema_version: 1
+contract_ref: docs/auth/credential_picker_contract.md
+credential_picker_schema_ref: schemas/auth/credential_picker_state.schema.json
+credential_state_schema_ref: schemas/auth/credential_state.schema.json
+secret_class_matrix_ref: artifacts/security/secret_class_rows.yaml
+
+rules:
+  - Every fixture validates as one credential_picker_state_record.
+  - Raw secret material, passwords, private keys, refresh tokens, OAuth codes, PKCE verifiers, raw request headers, and ambient delegated credentials never appear.
+  - Each option declares storage_mode_class, store_source_class, and credential_origin_class so reviewers can audit source attribution mechanically without seeing secret material.
+  - Reference-only options (workspace/env) are handle-only; any raw secret observed in portable state is represented as a denial/repair posture, not as a valid selectable source.
+  - Reveal-on-demand posture is derived from the secret-class matrix and remains explicit; classes that forbid reveal never advertise clipboard projection.
+
+cases:
+  - fixture: provider_linking_browser_handoff.yaml
+    subject_secret_class: ai_provider_token
+    covers:
+      - provider_linking
+      - browser_device_code_as_acquisition
+      - handle_only_destination
+  - fixture: package_registry_auth_store_unavailable.yaml
+    subject_secret_class: package_registry_token
+    covers:
+      - store_unavailable_visible
+      - session_only_fallback_disclosed
+      - reference_only_workspace_env_options
+  - fixture: request_workspace_auth_reference_only.yaml
+    subject_secret_class: ai_provider_token
+    covers:
+      - request_workspace_auth
+      - environment_reference_only
+      - export_safe_selection_state
+  - fixture: remote_connector_auth_delegated_vs_local.yaml
+    subject_secret_class: ssh_key_material
+    covers:
+      - remote_connector_auth
+      - delegated_identity_vs_local_handle
+      - no_private_key_reveal
+  - fixture: policy_denied_picker_requires_repair.yaml
+    subject_secret_class: package_registry_token
+    covers:
+      - policy_denied_source
+      - safe_repair_actions
+      - no_misleading_unknown_state
+

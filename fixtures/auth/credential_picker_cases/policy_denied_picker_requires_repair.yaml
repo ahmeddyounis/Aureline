@@ -1,0 +1,181 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_picker_state.schema.json
+__fixture__:
+  name: policy_denied_picker_requires_repair
+  scenario: >
+    A registry auth picker shows explicit policy blocks for certain
+    sources. The user sees what is blocked, what still works, and how to
+    repair or escalate without copying raw secrets into portable state.
+  contract_sections:
+    - Vault/keychain picker contract
+    - Rotation, rebinding, and source switching
+  exercised_axes:
+    target_class: package_registry
+    denial: policy_blocked
+
+record_kind: credential_picker_state_record
+credential_picker_schema_version: 1
+picker_state_id: credential-picker:registry:policy-block
+display_label: Select registry credential source
+subject:
+  target_class: package_registry
+  target_ref: registry:crates:publish
+  target_label: Registry publish
+  secret_class: package_registry_token
+  scope_ref: registry-scope:crates:org
+  scope_label: Registry scope (org publish)
+  audience_label: Package registry token
+selected_option_id: null
+options:
+  - option_id: picker-option:policy:vault
+    option_class: enterprise_secret_store
+    availability_class: policy_blocked
+    display_label: Enterprise vault
+    source_label: Enterprise secret store
+    scope_label: Organization-managed scope
+    storage_mode_class: enterprise_secret_store
+    store_source_class: enterprise_vault_adapter
+    credential_origin_class: customer_managed_secret_store
+    alias_ref: credential-alias:registry:crates:vault
+    handle_ref: null
+    delegated_credential_ref: null
+    policy_owner_ref: policy-owner:security:secrets
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: Policy blocks this vault source for the current scope; reveal is not offered on blocked sources.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: blocked_by_policy
+      automation_export_posture: blocked_by_policy
+      export_note: Exports include policy owner and denial posture only; raw token bytes are excluded.
+    safe_actions:
+      primary_action: open_policy_detail
+      fallback_actions:
+        - request_policy_exception
+      escalation_action: contact_admin
+      safe_retry_allowed: false
+      escalation_note: This source is blocked by policy for the current scope; contact an admin to change policy or grant an exception.
+    open_source_of_truth_action:
+      action_class: open_enterprise_vault
+      action_label: Open enterprise vault policy context
+      action_ref: null
+    audit_event_refs:
+      - secret-event:policy-denied:enterprise-vault
+    option_note: Policy blocks this source; the picker surfaces the owner and a repair/escalation path rather than hiding the option.
+
+  - option_id: picker-option:policy:env-pass
+    option_class: environment_passthrough
+    availability_class: policy_blocked
+    display_label: Environment passthrough (handle ref)
+    source_label: Reference-only environment source
+    scope_label: Publish environment scope
+    storage_mode_class: handle_only
+    store_source_class: file_backed_secret_ref
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:registry:crates:env
+    handle_ref: null
+    delegated_credential_ref: null
+    policy_owner_ref: policy-owner:security:secrets
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: Policy blocks environment passthrough for publish scope; use an approved secure store or request admission.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: blocked_by_policy
+      automation_export_posture: blocked_by_policy
+      export_note: Exports include denial posture and policy owner only; raw token bytes are excluded.
+    safe_actions:
+      primary_action: open_policy_detail
+      fallback_actions:
+        - request_policy_exception
+      escalation_action: contact_admin
+      safe_retry_allowed: false
+      escalation_note: Environment passthrough is blocked by policy for publish; contact an admin for admission or use a different allowed source.
+    open_source_of_truth_action:
+      action_class: open_policy_source
+      action_label: View policy source-of-truth
+      action_ref: null
+    audit_event_refs:
+      - secret-event:policy-denied:env-passthrough
+    option_note: Policy blocks reference-only environment sources for publish actions; the picker must not encourage literal secret entry as a workaround.
+
+  - option_id: picker-option:policy:keychain
+    option_class: system_credential_store
+    availability_class: absent
+    display_label: OS keychain
+    source_label: System credential store
+    scope_label: This device only
+    storage_mode_class: system_credential_store
+    store_source_class: os_keychain
+    credential_origin_class: local_secret_handle
+    alias_ref: credential-alias:registry:crates:keychain
+    handle_ref: null
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 15
+      reveal_note: Reveal is governed by secret class and policy; no reveal occurs unless a handle is present and the user explicitly requests it.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include alias labels and audit refs only; raw token bytes are excluded.
+    safe_actions:
+      primary_action: import_credential
+      fallback_actions:
+        - start_browser_handoff
+        - use_device_code_handoff
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: Import a credential into an approved store or use a brokered handoff path; avoid storing raw tokens in workspace files.
+    open_source_of_truth_action:
+      action_class: open_os_keychain
+      action_label: Open OS keychain entry
+      action_ref: null
+    audit_event_refs: []
+    option_note: No keychain handle exists yet for this publish scope; import or acquire a handle through approved handoff flows.
+
+audit_event_refs:
+  - picker-event:opened:registry-publish
+  - picker-event:blocked-by-policy
+policy_context:
+  identity_mode: managed_workspace
+  policy_epoch: policy-epoch:registry-publish
+  trust_state: trusted
+  execution_context_id: execution-context:registry-publish
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - logs_local
+  - support_bundle
+  - profile_export
+minted_at: "2026-05-05T19:14:05Z"
+

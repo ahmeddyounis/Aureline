@@ -1,0 +1,232 @@
+# yaml-language-server: $schema=../../../schemas/auth/credential_picker_state.schema.json
+__fixture__:
+  name: package_registry_auth_store_unavailable
+  scenario: >
+    A registry login flow sees the OS keychain as unavailable, so the
+    picker offers an explicit session-only fallback and reference-only
+    sources. Raw registry tokens never appear in UI or exports.
+  contract_sections:
+    - Vault/keychain picker contract
+    - Credential-state row anatomy
+    - Reveal-on-demand, copy, and export behavior
+  exercised_axes:
+    target_class: package_registry
+    store_failure: store_unavailable
+    fallback: session_only
+
+record_kind: credential_picker_state_record
+credential_picker_schema_version: 1
+picker_state_id: credential-picker:registry:login
+display_label: Select registry credential source
+subject:
+  target_class: package_registry
+  target_ref: registry:npm:login
+  target_label: Registry login
+  secret_class: package_registry_token
+  scope_ref: registry-scope:npm:org
+  scope_label: Registry scope (org)
+  audience_label: Package registry token
+selected_option_id: picker-option:registry:session-only
+options:
+  - option_id: picker-option:registry:keychain
+    option_class: system_credential_store
+    availability_class: store_unavailable
+    display_label: OS keychain
+    source_label: System credential store
+    scope_label: This device only
+    storage_mode_class: system_credential_store
+    store_source_class: os_keychain
+    credential_origin_class: local_secret_handle
+    alias_ref: credential-alias:registry:npm:keychain
+    handle_ref: null
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: false
+      clipboard_projection_allowed: false
+      clipboard_lifetime_seconds: 0
+      reveal_note: Keychain is unavailable; the picker does not offer reveal or clipboard projection while store recovery is pending.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: blocked_by_policy
+      export_note: Exports include keychain state/failure metadata only; raw registry token bytes are excluded.
+    safe_actions:
+      primary_action: retry_after_store_recovery
+      fallback_actions:
+        - unlock_store
+        - switch_to_handle_only_projection
+      escalation_action: export_support_metadata
+      safe_retry_allowed: true
+      escalation_note: Recover or unlock the keychain to restore persistent storage; export metadata-only diagnostics for support if recovery fails.
+    open_source_of_truth_action:
+      action_class: open_os_keychain
+      action_label: Open keychain status
+      action_ref: null
+    audit_event_refs:
+      - secret-event:trust-store-unavailable:os-keychain
+    option_note: OS keychain is currently unavailable; Aureline will not fall back to plaintext storage.
+
+  - option_id: picker-option:registry:session-only
+    option_class: session_only
+    availability_class: available
+    display_label: Session-only (degraded)
+    source_label: Session-only in-memory
+    scope_label: This session only
+    storage_mode_class: session_only
+    store_source_class: no_secure_store
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:registry:npm:session
+    handle_ref: credential-handle:registry:npm:session
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: "2026-05-05T20:00:00Z"
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 15
+      reveal_note: Session-only authority is time-bounded and cleared on restart; reveal remains high-friction and is never exportable.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: metadata_only
+      automation_export_posture: denied_until_prompt
+      export_note: Exports include alias/handle refs and expiry posture only; raw registry token bytes are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - write_secret_to_store
+        - rotate_credential
+      escalation_action: export_support_metadata
+      safe_retry_allowed: true
+      escalation_note: Store the credential in an approved secure store when available; session-only is a visible degraded posture.
+    open_source_of_truth_action:
+      action_class: not_applicable
+      action_label: No persistent source-of-truth
+      action_ref: null
+    audit_event_refs:
+      - secret-event:trust-store-degraded-session-only
+    option_note: Session-only fallback is explicit and re-prompts on the next process start; plaintext fallback is forbidden.
+
+  - option_id: picker-option:registry:workspace-var
+    option_class: workspace_variable
+    availability_class: handle_only
+    display_label: Workspace variable (handle ref)
+    source_label: Reference-only workspace source
+    scope_label: Workspace-local
+    storage_mode_class: handle_only
+    store_source_class: file_backed_secret_ref
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:registry:npm:workspace
+    handle_ref: credential-handle:registry:npm:workspace
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 15
+      reveal_note: Workspace variables carry handle refs only; raw registry tokens are not stored in workspace state or exports.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: aliases_and_source_labels_only
+      automation_export_posture: handle_alias_only
+      export_note: Exports may include alias/handle refs only; any raw secret observed in a workspace file is represented as a denial/repair event.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - rebind_handle
+        - import_credential
+      escalation_action: open_policy_detail
+      safe_retry_allowed: true
+      escalation_note: If the handle ref no longer matches the active registry scope, rebind to a successor handle rather than reusing the old binding.
+    open_source_of_truth_action:
+      action_class: open_workspace_reference
+      action_label: Open workspace variable source
+      action_ref: null
+    audit_event_refs: []
+    option_note: Reference-only sources remain portable because they carry opaque handle refs, not raw secret bytes.
+
+  - option_id: picker-option:registry:env-pass
+    option_class: environment_passthrough
+    availability_class: handle_only
+    display_label: Environment passthrough (handle ref)
+    source_label: Reference-only environment source
+    scope_label: Environment layer scope
+    storage_mode_class: handle_only
+    store_source_class: file_backed_secret_ref
+    credential_origin_class: imported_reference_only
+    alias_ref: credential-alias:registry:npm:env
+    handle_ref: credential-handle:registry:npm:env
+    delegated_credential_ref: null
+    policy_owner_ref: null
+    browser_handoff_ref: null
+    expires_at: null
+    refresh_after: null
+    reveal_policy:
+      raw_reveal_default: protocol_required_header_only
+      reveal_on_demand_allowed: true
+      clipboard_projection_allowed: true
+      clipboard_lifetime_seconds: 15
+      reveal_note: Environment passthrough is reference-only; portable exports keep handle refs and never inline raw tokens.
+    export_rules:
+      handles_aliases_source_labels_may_travel: true
+      raw_secret_material_may_travel: false
+      private_keys_may_travel: false
+      refresh_tokens_may_travel: false
+      ambient_delegated_credentials_may_travel: false
+      support_export_posture: aliases_and_source_labels_only
+      automation_export_posture: handle_alias_only
+      export_note: Exports include handle refs and scope labels only; raw environment values known to be secrets are excluded.
+    safe_actions:
+      primary_action: use_existing_handle
+      fallback_actions:
+        - import_credential
+        - open_policy_detail
+      escalation_action: contact_admin
+      safe_retry_allowed: true
+      escalation_note: If policy requires an enterprise vault, use the enterprise option or contact an admin for admission.
+    open_source_of_truth_action:
+      action_class: open_environment_reference
+      action_label: Open environment layer source
+      action_ref: null
+    audit_event_refs: []
+    option_note: Reference-only environment sources remain explainable and export-safe because they carry opaque refs, not raw values.
+
+audit_event_refs:
+  - picker-event:opened:registry-login
+  - picker-event:selected:session-only-fallback
+policy_context:
+  identity_mode: account_free_local
+  policy_epoch: policy-epoch:registry-login
+  trust_state: trusted
+  execution_context_id: execution-context:registry-login
+surface_redaction_class: metadata_safe_default
+secret_redaction_class_refs:
+  - logs_local
+  - support_bundle
+  - profile_export
+  - clipboard_projection
+minted_at: "2026-05-05T19:05:20Z"
+
