@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=../../../schemas/support/doctor_probe.schema.json
+# Probe descriptor: schema-drift cache rebuild repair preview. The probe
+# is a repair_preview class probe: it produces a local preview manifest
+# describing what a reviewed cache rebuild would do. It NEVER applies
+# the rebuild; the manifest is a read-only artifact. The mutating
+# rebuild itself runs through the repair_transaction path on explicit
+# invocation only.
+
+doctor_probe_schema_version: 1
+record_kind: doctor_probe_descriptor_record
+
+probe_id: doctor.probe.caches.schema_drift_repair_preview
+probe_version: probe.caches.schema_drift_repair_preview.v1
+probe_class: repair_preview
+diagnosis_posture_default: previewing_repair_only
+invocation_policy: with_user_consent
+
+automatic_run_gate:
+  permitted: false
+  max_data_class: metadata_only
+  max_redaction_class: metadata_safe_default
+  must_label_diagnosis_posture: previewing_repair_only
+  denial_reason: >
+    Repair previews materialise a local preview manifest; Doctor
+    requires single-step user review before rendering the preview to
+    avoid implying the rebuild will run automatically.
+
+consent_gate:
+  consent_required: true
+  consent_kind: single_step_review
+  consent_text_key: doctor.probe.schema_drift.consent_review
+  managed_admin_required: false
+  high_friction_consent_required: false
+
+probe_catalog_link:
+  probe_catalog_ref: schemas/support/probe_catalog_entry.schema.json#doctor.probe.caches.schema_rebuild_candidate
+  mutability_class_ref: metadata_write_local_evidence_only
+  doctor_admission_class_ref: admitted_metadata_evidence_only
+  side_effect_attestation_ref: docs/support/project_doctor_probe_contract.md#no-hidden-probe-side-effects
+
+headless_parity_rows:
+  - support_context_class: desktop
+    parity_class: ui_suppressed_consent_required
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - rule_id
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - confidence_class
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - repair_preview_ref
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_blocked_consent_required
+    notes: >
+      Desktop hides the apply affordance until the consent dialog is
+      acknowledged; the preview-diff pane renders only after consent.
+  - support_context_class: cli_headless
+    parity_class: ui_suppressed_consent_required
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - rule_id
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - confidence_class
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - repair_preview_ref
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+      - preview_diff_pane
+      - consent_dialog
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_blocked_consent_required
+    notes: >
+      Headless invocation requires --confirm-repair-preview to
+      materialise the preview manifest; absent that flag the exit
+      class is consent required.
+  - support_context_class: remote_managed
+    parity_class: ui_suppressed_managed_authority_required
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - repair_preview_ref
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+      - preview_diff_pane
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_blocked_consent_required
+    notes: >
+      Managed contexts require admin authority to materialise the
+      preview manifest against managed cache state.
+  - support_context_class: offline_local
+    parity_class: full_parity
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - repair_preview_ref
+      - exit_code_class
+    suppressed_ui_affordances: []
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_findings_actionable
+    notes: >
+      Offline mode renders the preview manifest against locally cached
+      schema inventory; the rebuild itself remains under the repair
+      transaction path.
+
+owner_ref: lane:support_export
+emitted_at: "2026-05-04T00:00:00Z"

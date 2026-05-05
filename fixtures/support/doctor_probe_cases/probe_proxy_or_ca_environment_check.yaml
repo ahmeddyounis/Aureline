@@ -1,0 +1,129 @@
+# yaml-language-server: $schema=../../../schemas/support/doctor_probe.schema.json
+# Probe descriptor: proxy or CA reachability environment check. The probe
+# issues read-only TLS handshakes and proxy reachability checks against
+# the configured network metadata refs and reports whether the proxy or
+# trust anchor is the cause of a transport failure. No certificate
+# install, proxy override, or trust mutation is permitted from Doctor.
+
+doctor_probe_schema_version: 1
+record_kind: doctor_probe_descriptor_record
+
+probe_id: doctor.probe.network_proxy_ca_transport.proxy_or_ca_reachability
+probe_version: probe.network_proxy_ca_transport.proxy_or_ca_reachability.v1
+probe_class: environment_check
+diagnosis_posture_default: proving_diagnosis
+invocation_policy: with_user_consent
+
+automatic_run_gate:
+  permitted: false
+  max_data_class: environment_adjacent
+  max_redaction_class: metadata_safe_default
+  must_label_diagnosis_posture: proving_diagnosis
+  denial_reason: >
+    Network probes touch the user's local proxy and trust store; Doctor
+    requires a single-step user review before issuing the reachability
+    check.
+
+consent_gate:
+  consent_required: true
+  consent_kind: single_step_review
+  consent_text_key: doctor.probe.proxy_or_ca.consent_review
+  managed_admin_required: false
+  high_friction_consent_required: false
+
+probe_catalog_link:
+  probe_catalog_ref: schemas/support/probe_catalog_entry.schema.json#doctor.probe.network_proxy_ca_transport.proxy_or_ca_reachability
+  mutability_class_ref: non_mutating_read_only
+  doctor_admission_class_ref: admitted_safe_probe
+  side_effect_attestation_ref: docs/support/project_doctor_probe_contract.md#no-hidden-probe-side-effects
+
+headless_parity_rows:
+  - support_context_class: desktop
+    parity_class: ui_suppressed_consent_required
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - rule_id
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - confidence_class
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_blocked_consent_required
+    notes: >
+      Desktop hides the run-probe affordance until the consent dialog
+      is acknowledged; headless emits the same identifiers and the
+      consent-required exit class.
+  - support_context_class: cli_headless
+    parity_class: ui_suppressed_consent_required
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - rule_id
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - confidence_class
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+      - evidence_drawer
+      - consent_dialog
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_blocked_consent_required
+    notes: >
+      Headless invocation requires --confirm-network-probe to bypass
+      the consent gate; absent that flag, the exit class is consent
+      required and no probe is issued.
+  - support_context_class: remote_managed
+    parity_class: ui_suppressed_managed_authority_required
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - confidence_class
+      - root_cause_class
+      - evidence_refs
+      - suggested_next_action_id
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+      - consent_dialog
+    unimplemented_capability_class: implemented
+    headless_exit_code_class: exit_blocked_consent_required
+    notes: >
+      Managed contexts require admin authority to issue a network probe
+      against the managed proxy; absent authority, the probe is blocked.
+  - support_context_class: offline_local
+    parity_class: unavailable_in_context
+    machine_readable_result_fields:
+      - finding_id
+      - finding_code
+      - probe_id
+      - probe_class
+      - diagnosis_posture
+      - unsupported_state_class
+      - exit_code_class
+    suppressed_ui_affordances:
+      - primary_action_button
+      - consent_dialog
+      - evidence_drawer
+    unimplemented_capability_class: permanently_unsupported
+    headless_exit_code_class: exit_unsupported_context
+    notes: >
+      Offline mode cannot issue a network reachability check; Doctor
+      labels the context unsupported and refuses without side effects.
+
+owner_ref: lane:support_export
+emitted_at: "2026-05-04T00:00:00Z"

@@ -1,0 +1,666 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/doctor_probe.schema.json",
+  "title": "Aureline Project Doctor probe semantics and headless parity contract",
+  "description": "Boundary schema for one Project Doctor probe descriptor. The descriptor narrows the broader probe-catalog entry into a closed probe-class vocabulary (read-only inspection, simulation, environment check, repair preview, unsafe or unsupported), a closed invocation-policy vocabulary (automatic, with consent, never without explicit invocation), and a desktop versus CLI/headless parity contract. The schema is read-only by default: a probe whose probe_class is repair_preview emits a preview manifest only and a probe whose probe_class is unsafe_or_unsupported is never runnable from Doctor and must promote into a reviewed repair transaction. Doctor invocation, headless invocation, support-bundle assembly, and Support Center routing all consume this descriptor verbatim instead of inventing per-surface invocation semantics or parity assumptions.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/doctor_probe_descriptor_record"
+    }
+  ],
+  "$defs": {
+    "doctor_probe_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Collection schema version for the Project Doctor probe descriptor contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short reviewer-facing sentence safe to render in Doctor UI, CLI/headless output, and support-bundle previews. MUST NOT carry milestone or task identifiers."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "stable_ref_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:[.:][a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable reference. Raw paths, raw URLs, raw code bodies, raw provider payloads, and raw secrets never appear here."
+    },
+    "nullable_opaque_ref": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "probe_class": {
+      "type": "string",
+      "enum": [
+        "read_only_inspection",
+        "simulation",
+        "environment_check",
+        "repair_preview",
+        "unsafe_or_unsupported"
+      ],
+      "description": "Closed probe-class vocabulary. read_only_inspection reads existing manifests, hashes, logs, or health events without side effects. simulation evaluates a hypothetical state (e.g. would-this-policy-allow) against existing evidence without applying changes. environment_check reads adjacent device, network, proxy, or runtime state by issuing read-only system or reachability calls (no mutations). repair_preview produces a local preview manifest describing what a reviewed repair would do; it never applies the change. unsafe_or_unsupported is never runnable from Doctor: the descriptor exists so the catalog can label the failure mode and either promote to a repair transaction or refuse with an unsupported-state finding."
+    },
+    "probe_invocation_policy": {
+      "type": "string",
+      "enum": [
+        "automatic",
+        "automatic_inferring_only",
+        "with_user_consent",
+        "with_managed_admin_consent",
+        "never_without_explicit_invocation"
+      ],
+      "description": "When Doctor may run the probe without an explicit user gesture. automatic is reserved for read_only_inspection and environment_check whose data class is metadata_only or environment_adjacent and whose redaction class is metadata_safe_default. automatic_inferring_only is the same allowlist but the probe must label its finding as inferring or simulating rather than proving a diagnosis. with_user_consent requires a single-step user confirmation before the probe runs. with_managed_admin_consent requires managed-admin authority. never_without_explicit_invocation is the default for repair_preview and unsafe_or_unsupported."
+    },
+    "diagnosis_posture_class": {
+      "type": "string",
+      "enum": [
+        "proving_diagnosis",
+        "inferring_from_partial_evidence",
+        "simulating_hypothetical",
+        "previewing_repair_only",
+        "refusing_unsupported"
+      ],
+      "description": "How the probe labels its outcome. proving_diagnosis is reserved for read_only_inspection or environment_check that completed with full evidence. inferring_from_partial_evidence covers probes that completed with a typed gap. simulating_hypothetical is reserved for simulation. previewing_repair_only is reserved for repair_preview. refusing_unsupported is reserved for unsafe_or_unsupported and for any probe that detects an unsupported context before evidence collection."
+    },
+    "support_context_class": {
+      "type": "string",
+      "enum": [
+        "desktop",
+        "cli_headless",
+        "remote_managed",
+        "offline_local"
+      ]
+    },
+    "ui_affordance_class": {
+      "type": "string",
+      "enum": [
+        "primary_action_button",
+        "secondary_action_button",
+        "evidence_drawer",
+        "preview_diff_pane",
+        "consent_dialog",
+        "managed_admin_dialog",
+        "open_help_link",
+        "open_runbook_link",
+        "export_support_packet_link"
+      ],
+      "description": "Closed set of desktop UI affordances a finding card may surface. Headless and managed contexts must declare the same affordances either as machine-readable result fields or as suppressed-affordance rows so parity gaps are visible rather than implicit."
+    },
+    "headless_output_field_class": {
+      "type": "string",
+      "enum": [
+        "finding_id",
+        "finding_code",
+        "rule_id",
+        "probe_id",
+        "probe_class",
+        "diagnosis_posture",
+        "confidence_class",
+        "confidence_score",
+        "affected_scope_class",
+        "affected_scope_ref",
+        "root_cause_class",
+        "evidence_refs",
+        "remaining_unknowns",
+        "unsupported_state_class",
+        "suggested_next_action_id",
+        "safe_mode_ref",
+        "bisect_ref",
+        "repair_preview_ref",
+        "support_bundle_ref",
+        "escalation_packet_ref",
+        "exit_code_class"
+      ],
+      "description": "Closed set of fields the CLI/headless renderer MUST emit for every finding card, so a desktop card and its headless JSON sibling are byte-equivalent on machine-readable identifiers. Adding a token is additive-minor; repurposing a token is breaking."
+    },
+    "headless_exit_code_class": {
+      "type": "string",
+      "enum": [
+        "exit_clean_no_findings",
+        "exit_findings_advisory_only",
+        "exit_findings_actionable",
+        "exit_unsupported_context",
+        "exit_blocked_consent_required",
+        "exit_probe_runtime_error"
+      ]
+    },
+    "parity_class": {
+      "type": "string",
+      "enum": [
+        "full_parity",
+        "machine_readable_only_no_ui",
+        "ui_suppressed_consent_required",
+        "ui_suppressed_unsupported",
+        "ui_suppressed_managed_authority_required",
+        "unavailable_in_context"
+      ],
+      "description": "How the probe and its rendered finding card render across desktop and CLI/headless. full_parity means desktop and headless emit the same affordances. machine_readable_only_no_ui means the headless renderer emits the result but no desktop affordance is appropriate (rare; reserved for non-interactive automation contexts). ui_suppressed_consent_required marks a probe whose desktop affordance is hidden until the user gives explicit consent in headless; the headless equivalent is exit_blocked_consent_required. ui_suppressed_unsupported labels a context where the probe is unavailable. unavailable_in_context labels a context where the probe is not implemented at all."
+    },
+    "unimplemented_capability_class": {
+      "type": "string",
+      "enum": [
+        "implemented",
+        "not_yet_implemented_planned",
+        "not_yet_implemented_descoped",
+        "deprecated_will_remove",
+        "permanently_unsupported"
+      ],
+      "description": "Lifecycle marker for probe rows that exist in the descriptor but are not yet executable. Headless renderers MUST surface a labeled row rather than dropping the descriptor silently."
+    },
+    "automatic_run_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "permitted",
+        "max_data_class",
+        "max_redaction_class",
+        "must_label_diagnosis_posture",
+        "denial_reason"
+      ],
+      "properties": {
+        "permitted": {
+          "type": "boolean"
+        },
+        "max_data_class": {
+          "type": "string",
+          "enum": [
+            "metadata_only",
+            "environment_adjacent",
+            "code_adjacent",
+            "high_risk"
+          ]
+        },
+        "max_redaction_class": {
+          "type": "string",
+          "enum": [
+            "metadata_safe_default",
+            "operator_only_restricted",
+            "internal_support_restricted",
+            "signing_evidence_only"
+          ]
+        },
+        "must_label_diagnosis_posture": {
+          "$ref": "#/$defs/diagnosis_posture_class"
+        },
+        "denial_reason": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/reviewable_sentence"
+            }
+          ]
+        }
+      },
+      "description": "Pre-condition Doctor evaluates before honouring an automatic invocation policy. If permitted is false the probe must drop to with_user_consent or never_without_explicit_invocation and denial_reason MUST carry a reviewable sentence."
+    },
+    "consent_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consent_required",
+        "consent_kind",
+        "consent_text_key",
+        "managed_admin_required",
+        "high_friction_consent_required"
+      ],
+      "properties": {
+        "consent_required": {
+          "type": "boolean"
+        },
+        "consent_kind": {
+          "type": "string",
+          "enum": [
+            "no_consent_read_only",
+            "single_step_review",
+            "managed_admin_consent",
+            "high_friction_consent"
+          ]
+        },
+        "consent_text_key": {
+          "$ref": "#/$defs/nullable_opaque_ref"
+        },
+        "managed_admin_required": {
+          "type": "boolean"
+        },
+        "high_friction_consent_required": {
+          "type": "boolean"
+        }
+      }
+    },
+    "headless_parity_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "support_context_class",
+        "parity_class",
+        "machine_readable_result_fields",
+        "suppressed_ui_affordances",
+        "unimplemented_capability_class",
+        "headless_exit_code_class",
+        "notes"
+      ],
+      "properties": {
+        "support_context_class": {
+          "$ref": "#/$defs/support_context_class"
+        },
+        "parity_class": {
+          "$ref": "#/$defs/parity_class"
+        },
+        "machine_readable_result_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/headless_output_field_class"
+          },
+          "uniqueItems": true,
+          "description": "Fields the CLI/headless renderer emits for this context. The set MUST include finding_id, finding_code, probe_id, probe_class, diagnosis_posture, confidence_class, and exit_code_class so a finding can be replayed without semantic drift across surfaces."
+        },
+        "suppressed_ui_affordances": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ui_affordance_class"
+          },
+          "uniqueItems": true,
+          "description": "Desktop affordances explicitly suppressed in this context. Empty array means no affordances are suppressed in this context."
+        },
+        "unimplemented_capability_class": {
+          "$ref": "#/$defs/unimplemented_capability_class"
+        },
+        "headless_exit_code_class": {
+          "$ref": "#/$defs/headless_exit_code_class"
+        },
+        "notes": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "probe_catalog_link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_catalog_ref",
+        "mutability_class_ref",
+        "doctor_admission_class_ref",
+        "side_effect_attestation_ref"
+      ],
+      "properties": {
+        "probe_catalog_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "mutability_class_ref": {
+          "type": "string",
+          "enum": [
+            "non_mutating_read_only",
+            "metadata_write_local_evidence_only",
+            "mutates_disposable_cache",
+            "mutates_target_or_route",
+            "mutates_user_files",
+            "mutates_trust_policy_or_credentials",
+            "external_service_side_effect",
+            "prohibited"
+          ]
+        },
+        "doctor_admission_class_ref": {
+          "type": "string",
+          "enum": [
+            "admitted_safe_probe",
+            "admitted_metadata_evidence_only",
+            "blocked_promote_to_repair",
+            "prohibited_probe"
+          ]
+        },
+        "side_effect_attestation_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        }
+      },
+      "description": "Pointer back to the broader probe-catalog row this descriptor narrows. Doctor MUST refuse to honour a descriptor whose probe_class disagrees with the catalog's mutability_class."
+    },
+    "doctor_probe_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "doctor_probe_schema_version",
+        "record_kind",
+        "probe_id",
+        "probe_version",
+        "probe_class",
+        "diagnosis_posture_default",
+        "invocation_policy",
+        "automatic_run_gate",
+        "consent_gate",
+        "probe_catalog_link",
+        "headless_parity_rows",
+        "owner_ref",
+        "emitted_at"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "probe_class": {
+                "const": "read_only_inspection"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "probe_catalog_link": {
+                "properties": {
+                  "mutability_class_ref": {
+                    "enum": [
+                      "non_mutating_read_only",
+                      "metadata_write_local_evidence_only"
+                    ]
+                  },
+                  "doctor_admission_class_ref": {
+                    "enum": [
+                      "admitted_safe_probe",
+                      "admitted_metadata_evidence_only"
+                    ]
+                  }
+                }
+              },
+              "diagnosis_posture_default": {
+                "enum": [
+                  "proving_diagnosis",
+                  "inferring_from_partial_evidence",
+                  "refusing_unsupported"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "probe_class": {
+                "const": "environment_check"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "probe_catalog_link": {
+                "properties": {
+                  "mutability_class_ref": {
+                    "enum": [
+                      "non_mutating_read_only",
+                      "metadata_write_local_evidence_only"
+                    ]
+                  }
+                }
+              },
+              "diagnosis_posture_default": {
+                "enum": [
+                  "proving_diagnosis",
+                  "inferring_from_partial_evidence",
+                  "refusing_unsupported"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "probe_class": {
+                "const": "simulation"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "probe_catalog_link": {
+                "properties": {
+                  "mutability_class_ref": {
+                    "enum": [
+                      "non_mutating_read_only",
+                      "metadata_write_local_evidence_only"
+                    ]
+                  }
+                }
+              },
+              "diagnosis_posture_default": {
+                "const": "simulating_hypothetical"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "probe_class": {
+                "const": "repair_preview"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "probe_catalog_link": {
+                "properties": {
+                  "mutability_class_ref": {
+                    "const": "metadata_write_local_evidence_only"
+                  },
+                  "doctor_admission_class_ref": {
+                    "const": "admitted_metadata_evidence_only"
+                  }
+                }
+              },
+              "invocation_policy": {
+                "enum": [
+                  "with_user_consent",
+                  "with_managed_admin_consent",
+                  "never_without_explicit_invocation"
+                ]
+              },
+              "diagnosis_posture_default": {
+                "const": "previewing_repair_only"
+              },
+              "automatic_run_gate": {
+                "properties": {
+                  "permitted": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "probe_class": {
+                "const": "unsafe_or_unsupported"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "probe_catalog_link": {
+                "properties": {
+                  "doctor_admission_class_ref": {
+                    "enum": [
+                      "blocked_promote_to_repair",
+                      "prohibited_probe"
+                    ]
+                  }
+                }
+              },
+              "invocation_policy": {
+                "const": "never_without_explicit_invocation"
+              },
+              "diagnosis_posture_default": {
+                "const": "refusing_unsupported"
+              },
+              "automatic_run_gate": {
+                "properties": {
+                  "permitted": {
+                    "const": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "invocation_policy": {
+                "enum": [
+                  "automatic",
+                  "automatic_inferring_only"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "automatic_run_gate": {
+                "properties": {
+                  "permitted": {
+                    "const": true
+                  }
+                }
+              },
+              "consent_gate": {
+                "properties": {
+                  "consent_required": {
+                    "const": false
+                  },
+                  "consent_kind": {
+                    "const": "no_consent_read_only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "invocation_policy": {
+                "const": "with_user_consent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "consent_gate": {
+                "properties": {
+                  "consent_required": {
+                    "const": true
+                  },
+                  "consent_kind": {
+                    "enum": [
+                      "single_step_review",
+                      "high_friction_consent"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "invocation_policy": {
+                "const": "with_managed_admin_consent"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "consent_gate": {
+                "properties": {
+                  "consent_required": {
+                    "const": true
+                  },
+                  "managed_admin_required": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "doctor_probe_schema_version": {
+          "$ref": "#/$defs/doctor_probe_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "doctor_probe_descriptor_record"
+        },
+        "probe_id": {
+          "$ref": "#/$defs/stable_dot_id"
+        },
+        "probe_version": {
+          "$ref": "#/$defs/stable_ref_id"
+        },
+        "probe_class": {
+          "$ref": "#/$defs/probe_class"
+        },
+        "diagnosis_posture_default": {
+          "$ref": "#/$defs/diagnosis_posture_class"
+        },
+        "invocation_policy": {
+          "$ref": "#/$defs/probe_invocation_policy"
+        },
+        "automatic_run_gate": {
+          "$ref": "#/$defs/automatic_run_gate"
+        },
+        "consent_gate": {
+          "$ref": "#/$defs/consent_gate"
+        },
+        "probe_catalog_link": {
+          "$ref": "#/$defs/probe_catalog_link"
+        },
+        "headless_parity_rows": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/headless_parity_row"
+          },
+          "description": "One row per support_context_class. Every descriptor MUST carry exactly four rows so parity gaps are explicit and testable across desktop, cli_headless, remote_managed, and offline_local. The four support_context_class values MUST appear, each exactly once."
+        },
+        "owner_ref": {
+          "$ref": "#/$defs/opaque_ref"
+        },
+        "emitted_at": {
+          "$ref": "#/$defs/monotonic_timestamp"
+        }
+      }
+    }
+  }
+}

@@ -23,8 +23,25 @@ systems must emit once implemented.
   defines one catalog row with mutability class, prerequisites,
   expected latency, evidence produced, local or remote support class,
   redaction class, failure-mode handling, and side-effect admission.
+- [`/schemas/support/doctor_probe.schema.json`](../../schemas/support/doctor_probe.schema.json)
+  narrows the catalog row into one probe descriptor that pins the
+  closed probe-class taxonomy (read-only inspection, simulation,
+  environment check, repair preview, unsafe or unsupported), the
+  closed invocation policy (automatic, automatic-inferring-only, with
+  user consent, with managed-admin consent, never without explicit
+  invocation), and the per-context headless parity rows.
+- [`/schemas/support/doctor_finding_card.schema.json`](../../schemas/support/doctor_finding_card.schema.json)
+  defines one rendered Project Doctor finding card with finding
+  identity, confidence, affected scope, root-cause class, evidence
+  source, unsupported-state note, suggested next action, links to
+  safe mode, bisect, repair preview, support bundle, and export
+  packet, plus exactly four headless parity rows.
 - [`/schemas/support/doctor_explanation.schema.json`](../../schemas/support/doctor_explanation.schema.json)
   defines one finding explanation and repair-handoff packet.
+- [`/fixtures/support/doctor_probe_cases/`](../../fixtures/support/doctor_probe_cases/)
+  contains six paired probe-descriptor and finding-card seeds covering
+  missing toolchain, proxy or CA failure, extension regression, schema
+  drift, local-history corruption, and remote-target mismatch.
 - [`/fixtures/support/project_doctor_cases/`](../../fixtures/support/project_doctor_cases/)
   contains seed packets proving read-only probe admission, mutating
   probe promotion, and finding-to-repair handoff.
@@ -164,6 +181,132 @@ Partial diagnoses must carry typed unknowns in both the probe catalog
 failure handling and the explanation packet confidence block. Free-form
 unknown text is for review summaries only.
 
+## Probe Class And Invocation Policy
+
+The probe descriptor (`schemas/support/doctor_probe.schema.json`)
+narrows every probe to one of five classes drawn from a closed set:
+
+| `probe_class` | What the probe does | Allowed mutability classes | Default `diagnosis_posture` |
+|---|---|---|---|
+| `read_only_inspection` | Reads existing manifests, hashes, logs, or health events. | `non_mutating_read_only`, `metadata_write_local_evidence_only` | `proving_diagnosis` (or `inferring_from_partial_evidence` when typed unknowns remain) |
+| `simulation` | Evaluates a hypothetical state (would-this-policy-allow, would-this-target-bind) against existing evidence. | `non_mutating_read_only`, `metadata_write_local_evidence_only` | `simulating_hypothetical` |
+| `environment_check` | Reads adjacent device, network, proxy, or runtime state by issuing read-only system or reachability calls. | `non_mutating_read_only`, `metadata_write_local_evidence_only` | `proving_diagnosis` (or `inferring_from_partial_evidence`) |
+| `repair_preview` | Materialises a local preview manifest describing what a reviewed repair would do. Never applies. | `metadata_write_local_evidence_only` only | `previewing_repair_only` |
+| `unsafe_or_unsupported` | Cannot be run from Doctor at all. The descriptor exists so the catalog can label the failure mode and route through the reviewed repair path or refuse with an unsupported-state finding. | any mutating class | `refusing_unsupported` |
+
+Every descriptor must also pin one `invocation_policy`:
+
+| `invocation_policy` | When Doctor may run the probe |
+|---|---|
+| `automatic` | Permitted only for `read_only_inspection`, `environment_check`, or `simulation` whose data class is at most `environment_adjacent` and whose redaction class is `metadata_safe_default`. The descriptor's `automatic_run_gate.permitted` MUST be `true`. |
+| `automatic_inferring_only` | Same allowlist as `automatic`, but the probe MUST label its finding with `diagnosis_posture` of `inferring_from_partial_evidence` or `simulating_hypothetical` so a reader cannot mistake it for a proven diagnosis. |
+| `with_user_consent` | A single-step user review (or high-friction consent for high-risk captures) gates the probe. `consent_gate.consent_required` MUST be `true`. |
+| `with_managed_admin_consent` | Managed-admin authority gates the probe. `consent_gate.managed_admin_required` MUST be `true`. |
+| `never_without_explicit_invocation` | The default for `repair_preview` and `unsafe_or_unsupported`. Doctor never runs the probe automatically; the user must invoke it from a deeper surface. |
+
+The schema's `if/then` blocks enforce the matrix above mechanically:
+a `repair_preview` descriptor cannot declare `mutability_class` outside
+`metadata_write_local_evidence_only`, and an `unsafe_or_unsupported`
+descriptor cannot declare an automatic or with-consent invocation
+policy. Doctor MUST refuse to honour a descriptor whose probe class
+disagrees with the catalog row's mutability class.
+
+## Read-Only-By-Default Finding Card
+
+The finding card (`schemas/support/doctor_finding_card.schema.json`)
+is the surface-agnostic render contract every Project Doctor finding
+emits before it reaches a desktop UI, a CLI/headless renderer, or a
+support packet. The card carries:
+
+- `finding_id`, `finding_code`, `rule_id`, `probe_id`, and a pointer
+  to the probe descriptor that produced it;
+- `card_posture_class` drawn from a closed six-value set
+  (`read_only_diagnosis`, `read_only_evidence_review`,
+  `preview_only_no_apply`, `mutating_with_review_and_preview`,
+  `handoff_only_no_repair`, `refusing_unsupported`);
+- `confidence_class`, `confidence_score`, and `diagnosis_posture` so
+  the reader can tell whether Doctor is proving, inferring,
+  simulating, previewing, or refusing;
+- `affected_scope` (scope class, scope ref, and the support context
+  the card was rendered for);
+- `root_cause_class` drawn from a closed nineteen-value vocabulary
+  spanning the seeded scenario families (missing toolchain, proxy or
+  CA failure, schema drift, local-history corruption, remote-target
+  mismatch, and so on);
+- `evidence_sources[]`, where each source declares its evidence ref,
+  source class, redaction class, support-pack inclusion class,
+  replayability class, and which card field it supports;
+- `unsupported_state_note` with one `unsupported_state_class` (`none`
+  for normal cards) and reviewable text keys;
+- `remaining_unknowns[]` drawn from the typed-unknown vocabulary;
+- `card_text_keys` for title, summary, expected, observed, belief
+  basis, confidence, root cause, remaining unknowns, next action, and
+  unsupported-state copy (prose may localise; keys may not);
+- `suggested_next_action` (action id, action class, approval posture,
+  reason text key, rollback ref, checkpoint ref);
+- `linked_handoff_refs` for safe mode, bisect, repair preview, repair
+  transaction, runbook, help article, support bundle, export packet,
+  and escalation packet — every field is required, and an
+  inapplicable handoff MUST be `null` rather than omitted; and
+- exactly four `headless_parity_rows` (one per support context).
+
+A `read_only_diagnosis` card itself applies no mutation. It MAY
+deep-link to a mutating handoff (safe mode, bisect, repair preview,
+repair transaction); each of those surfaces carries its own consent
+and review gate. A `preview_only_no_apply` card MUST have a non-null
+`linked_handoff_refs.repair_preview_ref` and a `suggested_next_action`
+of `open_repair_preview`. A `refusing_unsupported` card MUST carry an
+`unsupported_state_class` other than `none` and MUST suggest one of
+`refuse_unsupported`, `stop_and_escalate`, `open_help_article`,
+`open_runbook`, `create_support_bundle`, or `create_escalation_packet`
+as its next action.
+
+A finding whose `diagnosis_posture` is `inferring_from_partial_evidence`
+or `simulating_hypothetical` MAY NOT declare `confidence_class` of
+`observed_authoritative`. The schema enforces this so a card cannot
+present an inferred or simulated outcome with the same confidence
+language as a proven one.
+
+## Headless Parity Contract
+
+Both probe descriptors and finding cards carry exactly four
+`headless_parity_rows`, one per `support_context_class`: `desktop`,
+`cli_headless`, `remote_managed`, and `offline_local`. Every row
+declares:
+
+- `parity_class` drawn from a closed six-value vocabulary
+  (`full_parity`, `machine_readable_only_no_ui`,
+  `ui_suppressed_consent_required`, `ui_suppressed_unsupported`,
+  `ui_suppressed_managed_authority_required`, `unavailable_in_context`);
+- `machine_readable_result_fields[]` drawn from a closed twenty-one
+  value field vocabulary. Every row's set MUST include `finding_id`,
+  `finding_code`, `probe_id`, `probe_class`, `diagnosis_posture`, and
+  `exit_code_class` so the same finding can be replayed across
+  surfaces without semantic drift;
+- `suppressed_ui_affordances[]` drawn from the desktop UI affordance
+  vocabulary (primary action button, secondary action button, evidence
+  drawer, preview-diff pane, consent dialog, managed-admin dialog,
+  help link, runbook link, export link). Empty array means no
+  affordance is suppressed in this context;
+- `unimplemented_capability_class` drawn from a closed five-value
+  lifecycle vocabulary (`implemented`, `not_yet_implemented_planned`,
+  `not_yet_implemented_descoped`, `deprecated_will_remove`,
+  `permanently_unsupported`) so a row that does not yet exist is
+  labelled rather than dropped silently;
+- `headless_exit_code_class` drawn from a closed six-value vocabulary
+  (`exit_clean_no_findings`, `exit_findings_advisory_only`,
+  `exit_findings_actionable`, `exit_unsupported_context`,
+  `exit_blocked_consent_required`, `exit_probe_runtime_error`); and
+- a reviewable `notes` sentence describing the parity decision.
+
+This four-row block is the parity audit. A reviewer can read all four
+rows side-by-side and see which UI affordances are hidden, which JSON
+fields are still emitted, which capability is not yet implemented, and
+which exit class the headless renderer returns. A parity gap is
+visible per row instead of implied by omission, so the same finding
+can be rendered credibly in desktop UI, CLI/headless, and support
+packets without semantic drift.
+
 ## Seed Cases
 
 The seed cases cover:
@@ -174,6 +317,19 @@ The seed cases cover:
 | `probe_catalog_cache_repair_promoted.yaml` | probe catalog | cache mutation blocked in Doctor and promoted to a reviewed repair transaction |
 | `finding_explanation_extension_crash_loop.yaml` | explanation | extension crash-loop finding linked to safe mode, bisect, repair transaction, help, support bundle, and escalation packet |
 | `finding_explanation_helper_attach_escalation.yaml` | explanation | remote-helper finding linked to managed approval, runbook, support bundle, rollback refs, and escalation packet |
+
+Six new paired cases live under
+[`/fixtures/support/doctor_probe_cases/`](../../fixtures/support/doctor_probe_cases/),
+one probe descriptor and one finding card per scenario:
+
+| Scenario | Probe class | Invocation policy | Card posture |
+|---|---|---|---|
+| Missing toolchain | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
+| Proxy or CA failure | `environment_check` | `with_user_consent` | `read_only_diagnosis` |
+| Extension regression | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
+| Schema drift (cache rebuild preview) | `repair_preview` | `with_user_consent` | `preview_only_no_apply` |
+| Local-history corruption | `unsafe_or_unsupported` | `never_without_explicit_invocation` | `refusing_unsupported` |
+| Remote-target mismatch | `simulation` | `automatic_inferring_only` | `read_only_diagnosis` |
 
 The case manifest lists assertions that reviewers can validate without
 a live Project Doctor runtime.

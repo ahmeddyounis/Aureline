@@ -24,12 +24,17 @@ Companion artifacts:
 
 - [`/docs/support/project_doctor_probe_contract.md`](./project_doctor_probe_contract.md),
   [`/schemas/support/probe_catalog_entry.schema.json`](../../schemas/support/probe_catalog_entry.schema.json),
+  [`/schemas/support/doctor_probe.schema.json`](../../schemas/support/doctor_probe.schema.json),
+  [`/schemas/support/doctor_finding_card.schema.json`](../../schemas/support/doctor_finding_card.schema.json),
   and
   [`/schemas/support/doctor_explanation.schema.json`](../../schemas/support/doctor_explanation.schema.json)
-  — concrete probe-catalog and finding-explanation packet contracts
-  that project this scenario matrix into runnable Doctor admission
-  rules, evidence refs, no-hidden-side-effect handling, governed next
-  actions, and repair handoff anchors.
+  — concrete probe-catalog, probe-descriptor, finding-card, and
+  finding-explanation packet contracts that project this scenario
+  matrix into runnable Doctor admission rules, the closed probe-class
+  taxonomy, the read-only-by-default finding card, evidence refs,
+  no-hidden-side-effect handling, governed next actions, the
+  desktop-versus-headless parity contract, and repair handoff
+  anchors.
 - [`/fixtures/support/scenario_matrix.yaml`](../../fixtures/support/scenario_matrix.yaml)
   — machine-readable scenario matrix covering missing toolchain,
   blocked trust state, broken watcher, incompatible cache/profile,
