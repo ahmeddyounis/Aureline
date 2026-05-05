@@ -30,6 +30,9 @@ This contract composes with existing owners and does not replace them:
   owns delivery-surface class, attention class, interruptibility tier,
   quiet-hours mode, suppression reason, privacy payload class, dedupe
   scheme, dismissal verb, and reopen-target vocabulary.
+- [`toast_contract.md`](./toast_contract.md) owns toast-only posture,
+  undo semantics, action budget, and durable rediscovery requirements for
+  acknowledgement toasts.
 - [`notification_delivery_contract.md`](./notification_delivery_contract.md)
   owns canonical event lineage, delivery steps, release steps, durable
   linkbacks, and action taxonomy.

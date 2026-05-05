@@ -1,0 +1,628 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/toast_event.schema.json",
+  "title": "Aureline toast acknowledgement, undo, and durable-linkback contract",
+  "description": "Boundary schema for toast_event_record and toast_request_review_record frozen in docs/ux/toast_contract.md. The toast_event_record binds the toast posture class, timer/dismissal rules, action budget (primary + optional undo), grouping/dedupe metadata, and the durable linkback requirement so transient acknowledgement does not become the sole durable record of meaningful product state. The toast_request_review_record captures routing/conformance decisions for toast-only requests that must be rejected or downgraded to a mirror because connectivity loss, policy denial, remote failure, blocking errors, long-running work, or other durable state requires a persistent owner surface. Toast actions are command-backed only; raw paths, raw URLs, raw provider payloads, raw prompt/completion text, raw command bodies, secret material, and customer-owned identifiers never cross this boundary. Adding a new posture class, denial reason, durable target kind, or dedupe key scheme is additive-minor and requires a toast_event_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/toast_event_record" },
+    { "$ref": "#/$defs/toast_request_review_record" }
+  ],
+  "$defs": {
+    "toast_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this toast contract export. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for RPC, manifests, journals, and support bundles."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Short privacy-safe label text. Must not contain raw paths, raw URLs, raw provider payloads, raw secret material, raw customer-owned identifiers, or raw prompt / completion text."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "toast_event_record",
+        "toast_request_review_record"
+      ]
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical command id. Toast actions, buttons, menus, and shortcuts resolve to the same command identity."
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ],
+      "description": "Re-exported from schemas/ux/activity_event_envelope.schema.json without modification."
+    },
+    "toast_posture_class": {
+      "type": "string",
+      "enum": [
+        "simple_acknowledgement",
+        "toast_with_action",
+        "burst_grouped",
+        "reversible_mutation"
+      ],
+      "description": "Toast posture class frozen by docs/ux/toast_contract.md."
+    },
+    "toast_severity_class": {
+      "type": "string",
+      "enum": [
+        "info",
+        "success"
+      ],
+      "description": "Toasts are acknowledgement affordances. Warning/error states that remain meaningful after dismissal require a durable owner surface."
+    },
+    "toast_dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "none",
+        "canonical_event_id",
+        "canonical_object_target_ref_plus_message"
+      ],
+      "description": "Closed dedupe-key scheme vocabulary for toast bursts. A scheme of none implies no dedupe and is only conforming for low-frequency acknowledgement toasts."
+    },
+    "durable_target_kind": {
+      "type": "string",
+      "enum": [
+        "history_row",
+        "durable_job_row",
+        "activity_center_row",
+        "status_item",
+        "canonical_object_inspector"
+      ],
+      "description": "Durable target kind a toast links back to when rediscovery is required."
+    },
+    "toast_denial_reason_class": {
+      "type": "string",
+      "enum": [
+        "connectivity_loss_requires_durable_owner",
+        "policy_denial_requires_durable_owner",
+        "remote_failure_requires_durable_owner",
+        "blocking_error_requires_durable_owner",
+        "long_running_work_requires_durable_owner",
+        "durable_degraded_state_requires_durable_owner",
+        "review_required_requires_durable_owner",
+        "toast_action_budget_exceeded",
+        "toast_missing_durable_linkback"
+      ]
+    },
+    "durable_linkback_target_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durable_target_kind",
+        "target_identity_ref",
+        "durable_summary_label"
+      ],
+      "properties": {
+        "durable_target_kind": { "$ref": "#/$defs/durable_target_kind" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "durable_summary_label": { "$ref": "#/$defs/short_label_text" },
+        "open_details_action": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/toast_action_record" }
+          ]
+        }
+      }
+    },
+    "durable_linkback_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durable_link_required",
+        "durable_linkback_target"
+      ],
+      "properties": {
+        "durable_link_required": {
+          "type": "boolean",
+          "description": "Whether the toast outcome must remain rediscoverable via a durable surface with the same object identity and summary wording."
+        },
+        "durable_linkback_target": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/durable_linkback_target_record" }
+          ]
+        }
+      }
+    },
+    "toast_timer_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "auto_dismiss_timeout_millis",
+        "pauses_on_pointer_hover",
+        "pauses_on_keyboard_focus",
+        "pauses_on_screen_reader_announcement"
+      ],
+      "properties": {
+        "auto_dismiss_timeout_millis": {
+          "type": "integer",
+          "minimum": 2000,
+          "maximum": 30000,
+          "description": "Auto-dismiss timeout in milliseconds. Persistent-to-resolution treatments are non-conforming for toast."
+        },
+        "pauses_on_pointer_hover": { "type": "boolean" },
+        "pauses_on_keyboard_focus": { "type": "boolean" },
+        "pauses_on_screen_reader_announcement": { "type": "boolean" }
+      }
+    },
+    "toast_dismissal_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dismissible",
+        "dismissal_affordance_present",
+        "preserves_durable_history"
+      ],
+      "properties": {
+        "dismissible": { "type": "boolean", "const": true },
+        "dismissal_affordance_present": {
+          "type": "boolean",
+          "const": true,
+          "description": "Whether the close affordance is present. Toasts are always user-dismissible."
+        },
+        "preserves_durable_history": {
+          "type": "boolean",
+          "const": true,
+          "description": "Closing a toast does not erase durable history."
+        }
+      }
+    },
+    "toast_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "command_id_ref",
+        "target_identity_ref",
+        "is_destructive"
+      ],
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "not": {
+            "enum": ["Yes", "No", "OK", "Continue", "Apply", "Confirm", "Submit", "Accept"]
+          },
+          "description": "Rendered action label. Consequential actions must name the outcome; generic acknowledgements are forbidden."
+        },
+        "command_id_ref": { "$ref": "#/$defs/command_id" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "is_destructive": {
+          "type": "boolean",
+          "const": false,
+          "description": "Toast actions are not a destructive shortcut surface."
+        }
+      }
+    },
+    "toast_action_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_action",
+        "undo_action",
+        "undo_window_millis",
+        "records_reversal_in_history"
+      ],
+      "properties": {
+        "primary_action": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/toast_action_record" }
+          ]
+        },
+        "undo_action": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/toast_action_record" }
+          ]
+        },
+        "undo_window_millis": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 2000, "maximum": 60000 }
+          ],
+          "description": "When undo_action is present, names the minimum expected time window during which undo remains valid."
+        },
+        "records_reversal_in_history": {
+          "type": "boolean",
+          "description": "Whether undo, when invoked, records the reversal in durable history where history exists."
+        }
+      }
+    },
+    "toast_grouping_policy_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dedupe_key_scheme",
+        "dedupe_key_ref",
+        "collapsed_toast_count",
+        "group_summary_label"
+      ],
+      "properties": {
+        "dedupe_key_scheme": { "$ref": "#/$defs/toast_dedupe_key_scheme" },
+        "dedupe_key_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "collapsed_toast_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of suppressed duplicates collapsed into this one toast. Zero means no duplicates were suppressed."
+        },
+        "group_summary_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "When collapsed_toast_count > 0, the grouped toast should name what was grouped (e.g. '4 saves completed')."
+        }
+      }
+    },
+    "toast_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "toast_event_schema_version",
+        "toast_event_id",
+        "canonical_event_id",
+        "event_lineage_id_ref",
+        "source_subsystem",
+        "source_event_ref",
+        "actor_identity_ref",
+        "canonical_object_target_ref",
+        "toast_posture_class",
+        "severity_class",
+        "toast_message_label",
+        "timer_policy",
+        "dismissal_policy",
+        "action_policy",
+        "grouping_policy",
+        "durable_linkback_policy",
+        "occurred_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "toast_event_record" },
+        "toast_event_schema_version": { "$ref": "#/$defs/toast_event_schema_version" },
+        "toast_event_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "source_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "toast_posture_class": { "$ref": "#/$defs/toast_posture_class" },
+        "severity_class": { "$ref": "#/$defs/toast_severity_class" },
+        "toast_message_label": { "$ref": "#/$defs/short_label_text" },
+        "toast_context_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "timer_policy": { "$ref": "#/$defs/toast_timer_policy_record" },
+        "dismissal_policy": { "$ref": "#/$defs/toast_dismissal_policy_record" },
+        "action_policy": { "$ref": "#/$defs/toast_action_policy_record" },
+        "grouping_policy": { "$ref": "#/$defs/toast_grouping_policy_record" },
+        "durable_linkback_policy": { "$ref": "#/$defs/durable_linkback_policy_record" },
+        "occurred_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "simple_acknowledgement toasts have no actions.",
+          "if": {
+            "properties": { "toast_posture_class": { "const": "simple_acknowledgement" } },
+            "required": ["toast_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "action_policy": {
+                "properties": {
+                  "primary_action": { "type": "null" },
+                  "undo_action": { "type": "null" },
+                  "undo_window_millis": { "type": "null" },
+                  "records_reversal_in_history": { "const": false }
+                }
+              },
+              "timer_policy": {
+                "properties": {
+                  "auto_dismiss_timeout_millis": { "minimum": 2000, "maximum": 12000 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "toast_with_action requires primary_action and pause-on-hover/focus/screen-reader.",
+          "if": {
+            "properties": { "toast_posture_class": { "const": "toast_with_action" } },
+            "required": ["toast_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "action_policy": {
+                "required": ["primary_action"],
+                "properties": {
+                  "primary_action": { "not": { "type": "null" } },
+                  "undo_action": { "type": "null" },
+                  "undo_window_millis": { "type": "null" },
+                  "records_reversal_in_history": { "const": false }
+                }
+              },
+              "timer_policy": {
+                "required": [
+                  "pauses_on_pointer_hover",
+                  "pauses_on_keyboard_focus",
+                  "pauses_on_screen_reader_announcement"
+                ],
+                "properties": {
+                  "pauses_on_pointer_hover": { "const": true },
+                  "pauses_on_keyboard_focus": { "const": true },
+                  "pauses_on_screen_reader_announcement": { "const": true }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "burst_grouped requires grouping metadata and a non-null group_summary_label when duplicates were suppressed.",
+          "if": {
+            "properties": { "toast_posture_class": { "const": "burst_grouped" } },
+            "required": ["toast_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "grouping_policy": {
+                "properties": {
+                  "dedupe_key_scheme": { "not": { "const": "none" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "When collapsed_toast_count > 0, group_summary_label must be present.",
+          "if": {
+            "properties": { "grouping_policy": { "properties": { "collapsed_toast_count": { "minimum": 1 } }, "required": ["collapsed_toast_count"] } },
+            "required": ["grouping_policy"]
+          },
+          "then": {
+            "properties": {
+              "grouping_policy": {
+                "properties": {
+                  "group_summary_label": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "reversible_mutation requires undo_action, pause-on-hover/focus/screen-reader, and durable linkback.",
+          "if": {
+            "properties": { "toast_posture_class": { "const": "reversible_mutation" } },
+            "required": ["toast_posture_class"]
+          },
+          "then": {
+            "properties": {
+              "action_policy": {
+                "required": ["undo_action", "undo_window_millis"],
+                "properties": {
+                  "undo_action": { "not": { "type": "null" } },
+                  "undo_window_millis": { "not": { "type": "null" } }
+                }
+              },
+              "timer_policy": {
+                "properties": {
+                  "pauses_on_pointer_hover": { "const": true },
+                  "pauses_on_keyboard_focus": { "const": true },
+                  "pauses_on_screen_reader_announcement": { "const": true }
+                }
+              },
+              "durable_linkback_policy": {
+                "properties": {
+                  "durable_link_required": { "const": true },
+                  "durable_linkback_target": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "If durable_link_required, durable_linkback_target must be present.",
+          "if": {
+            "properties": {
+              "durable_linkback_policy": {
+                "properties": { "durable_link_required": { "const": true } },
+                "required": ["durable_link_required"]
+              }
+            },
+            "required": ["durable_linkback_policy"]
+          },
+          "then": {
+            "properties": {
+              "durable_linkback_policy": {
+                "properties": {
+                  "durable_linkback_target": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "toast_request_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "toast_event_schema_version",
+        "request_id",
+        "source_subsystem",
+        "canonical_object_target_ref",
+        "requested_posture_class",
+        "requested_severity_class",
+        "requested_message_label",
+        "requested_action_count",
+        "requested_includes_undo",
+        "requested_toast_only",
+        "decision_class",
+        "denial_reasons",
+        "required_durable_owner_kinds",
+        "evaluated_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "toast_request_review_record" },
+        "toast_event_schema_version": { "$ref": "#/$defs/toast_event_schema_version" },
+        "request_id": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "requested_posture_class": { "$ref": "#/$defs/toast_posture_class" },
+        "requested_severity_class": {
+          "type": "string",
+          "enum": [
+            "info",
+            "success",
+            "warning",
+            "error",
+            "blocking",
+            "critical"
+          ]
+        },
+        "requested_message_label": { "$ref": "#/$defs/short_label_text" },
+        "requested_action_count": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "requested_includes_undo": { "type": "boolean" },
+        "requested_toast_only": {
+          "type": "boolean",
+          "description": "Whether the producer attempted toast-only representation rather than a mirror of a durable owner."
+        },
+        "decision_class": {
+          "type": "string",
+          "enum": [
+            "allowed",
+            "allowed_as_mirror_requires_durable_owner",
+            "rejected_requires_durable_owner"
+          ]
+        },
+        "denial_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/toast_denial_reason_class" },
+          "uniqueItems": true
+        },
+        "required_durable_owner_kinds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/durable_target_kind" },
+          "uniqueItems": true
+        },
+        "evaluated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "allowed decisions must not carry denial_reasons or required durable owners.",
+          "if": {
+            "properties": { "decision_class": { "const": "allowed" } },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reasons": { "maxItems": 0 },
+              "required_durable_owner_kinds": { "maxItems": 0 }
+            }
+          }
+        },
+        {
+          "description": "rejected/ downgraded decisions must name at least one denial reason and at least one durable owner kind.",
+          "if": {
+            "properties": {
+              "decision_class": {
+                "enum": [
+                  "allowed_as_mirror_requires_durable_owner",
+                  "rejected_requires_durable_owner"
+                ]
+              }
+            },
+            "required": ["decision_class"]
+          },
+          "then": {
+            "properties": {
+              "denial_reasons": { "minItems": 1 },
+              "required_durable_owner_kinds": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

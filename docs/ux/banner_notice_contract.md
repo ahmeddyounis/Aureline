@@ -28,9 +28,14 @@ surface is non-conforming.
 
 This contract composes with existing owners and does not replace them:
 
-- [`notification_contract.md`](./notification_contract.md) owns toast
-  prohibitions, notification event lineage, and the rule that toasts are
-  acknowledgement affordances or mirrors only.
+- [`toast_contract.md`](./toast_contract.md) owns toast acknowledgement,
+  undo posture, durable rediscovery, and the rule that a toast must never
+  be the only durable record of a condition that still matters after
+  dismissal.
+- [`notification_contract.md`](./notification_contract.md) owns
+  notification event lineage, exact-reopen posture, and the high-level
+  prohibition that toast-only delivery cannot carry durable outage,
+  policy denial, connectivity loss, or long-running work.
 - [`overlay_layer_contract.md`](./overlay_layer_contract.md) owns banner
   versus toast overlay placement, z-order, and focus behavior.
 - [`dialog_sheet_contract.md`](./dialog_sheet_contract.md) owns when a
@@ -273,4 +278,3 @@ these are true:
    visibility; a durable indicator remains until resolved (or until
    acknowledged for `success_long_lived`).
 7. No long-lived condition is represented only as a toast.
-
