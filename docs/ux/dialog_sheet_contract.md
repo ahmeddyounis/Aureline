@@ -16,9 +16,10 @@ Companion artifacts:
 - [`/schemas/ux/review_surface.schema.json`](../../schemas/ux/review_surface.schema.json)
   - boundary schema for one `review_surface_record`.
 - [`/fixtures/ux/dialog_sheet_cases/`](../../fixtures/ux/dialog_sheet_cases/)
-  - worked cases for binary destructive confirmation, structured
-  permission review, dense evidence takeover, multi-step setup handoff,
-  product-owned nested overlay denial, and platform-auth exception.
+  - worked cases for destructive confirmation, trust/policy permission
+  prompts, publish/revoke review, restricted-mode reopen, package review,
+  recovery/reset review, dense evidence takeover, nested overlay denial,
+  and platform-auth exception.
 
 This contract composes with, and does not replace:
 
@@ -36,6 +37,9 @@ This contract composes with, and does not replace:
 - [`/docs/ux/trust_prompt_contract.md`](./trust_prompt_contract.md)
   for trust, policy, permission, side-effect, denial, and revocation
   prompt anatomy.
+- [`/docs/docs_integrity/assist_to_help_bridge_contract.md`](../docs_integrity/assist_to_help_bridge_contract.md)
+  for docs/help link routing, browser handoff, citation retention, and
+  return-path preservation.
 
 Normative source sections projected here include
 `.t2/docs/Aureline_UI_UX_Spec_Document.md` sections 9.8, 9.14, 16.18, and
@@ -72,6 +76,41 @@ No product-owned flow may stack a second dialog or sheet over a product
 dialog or sheet. It must update the current surface, replace it with a
 larger surface, or hand off to a durable target. Platform auth and
 platform file pickers are the only allowed nested overlays.
+
+## Anatomy and Sizing
+
+Every dialog, sheet, and dedicated review surface MUST provide this
+anatomy at the same time as any consequence-bearing action is
+available:
+
+- **Title**: verb + object (and scope when material). It preserves the
+  invoking origin; it must not be a generic question like `Are you sure?`.
+- **One-sentence rationale**: why this interruption exists now and what
+  choice gates.
+- **Optional severity tag**: when stakes are high, render a short tag
+  that matches the consequence/boundary posture (e.g. destructive,
+  external/shared, policy, restricted).
+- **Primary content**: the inspectable detail, diff, checklist, or
+  structured inputs the user must review.
+- **Consequence block** (required when risky): a visible region that
+  names target, scope, authority, consequence, and recovery posture. For
+  destructive or cross-boundary flows, it MUST remain visible with the
+  action row.
+- **Action row**: primary, safe, and details actions with explicit
+  labels and safe default focus.
+- **Help/docs link** (when stakes are high): routes through the
+  assist-to-help bridge so the surface can open help without losing
+  provenance, citations, redaction posture, or return path. Help links
+  MUST NOT silently dismiss the review surface.
+
+Size classes are frozen for `review_surface_record.surface_size_class`:
+
+| Size class | Typical use |
+|---|---|
+| `small` | Single confirmation, short form, one warning. |
+| `medium` | Short structured setup, conflict choice, simple review. |
+| `large` | Permission/trust review, package review, recovery step, or evidence that needs scan space. |
+| `full` | Dedicated review surfaces or takeovers with side-by-side scanning, large evidence, or durable review state. |
 
 ## Selection Matrix
 
