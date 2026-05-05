@@ -1,0 +1,918 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/trust/capability_sheet.schema.json",
+  "title": "Aureline capability sheet contract",
+  "description": "Boundary schema for capability_sheet_record frozen in docs/trust/capability_sheet_contract.md. The record is the reusable inspectable permission/capability sheet surface across extension review, AI tool access, remote connector widening, package/script risk review, and policy-admin preapproval/denial explanations. It freezes actor identity, capability rows grouped by real-world consequence, plain-language why, scope options, reduced-mode alternatives, governing policy source, transitive/inherited scope disclosure, remembered approvals, revocation routes, and host-mandated approval steps so reviewers can tell when an apparent approval expands via transitive inheritance and can revoke remembered decisions from a stable surface using the same controlled vocabulary. Raw policy payloads, raw prompt bodies, raw URLs, raw file bodies, raw secret material, and raw provider tokens MUST NOT cross this boundary; the record carries opaque refs and reviewable labels only. Adding a new value to a closed vocabulary is additive-minor and bumps capability_sheet_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_kind",
+    "capability_sheet_schema_version",
+    "capability_sheet_id",
+    "surface_class",
+    "sheet_mode_class",
+    "sheet_title",
+    "requester",
+    "authority_owner",
+    "support_class",
+    "policy_lock",
+    "target_scope",
+    "capability_groups",
+    "reduced_mode_options",
+    "transitive_scope_disclosure",
+    "remembered_approvals",
+    "approval_path",
+    "sheet_actions",
+    "details_action",
+    "copy_export_posture",
+    "support_trace",
+    "cli_trace",
+    "audit_trace",
+    "redaction_class",
+    "created_at"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "record_kind": { "const": "capability_sheet_record" },
+    "capability_sheet_schema_version": { "$ref": "#/$defs/capability_sheet_schema_version" },
+    "capability_sheet_id": { "$ref": "#/$defs/opaque_id" },
+    "surface_class": { "$ref": "#/$defs/surface_class" },
+    "sheet_mode_class": { "$ref": "#/$defs/sheet_mode_class" },
+    "sheet_title": { "$ref": "#/$defs/reviewable_sentence" },
+    "requester": { "$ref": "#/$defs/requester" },
+    "authority_owner": { "$ref": "#/$defs/authority_owner" },
+    "support_class": { "$ref": "#/$defs/support_class" },
+    "policy_lock": { "$ref": "#/$defs/policy_lock" },
+    "target_scope": { "$ref": "#/$defs/target_scope" },
+    "capability_groups": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capability_group_row" }
+    },
+    "reduced_mode_options": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reduced_mode_option" }
+    },
+    "transitive_scope_disclosure": { "$ref": "#/$defs/transitive_scope_disclosure" },
+    "remembered_approvals": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/remembered_approval" },
+      "uniqueItems": true
+    },
+    "approval_path": { "$ref": "#/$defs/approval_path" },
+    "sheet_actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/sheet_action" }
+    },
+    "details_action": { "$ref": "#/$defs/details_action" },
+    "copy_export_posture": { "$ref": "#/$defs/copy_export_posture" },
+    "support_trace": { "$ref": "#/$defs/projection_trace" },
+    "cli_trace": { "$ref": "#/$defs/projection_trace" },
+    "audit_trace": { "$ref": "#/$defs/audit_trace" },
+    "redaction_class": { "$ref": "#/$defs/redaction_class" },
+    "created_at": { "$ref": "#/$defs/monotonic_timestamp" }
+  },
+  "$defs": {
+    "capability_sheet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this capability-sheet vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, traces, support bundles, CLI output, and evidence packets. Raw paths, raw URLs, raw policy payloads, and raw secret material never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "Short reviewable sentence safe for UI, CLI, docs/help, support export, and audit evidence. Do not include raw secrets, raw URLs, raw policy payloads, raw file bodies, or raw provider payloads."
+    },
+
+    "specific_action_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "not": {
+        "enum": [
+          "Yes",
+          "No",
+          "OK",
+          "Ok",
+          "Continue",
+          "Apply",
+          "Accept",
+          "Submit",
+          "Allow",
+          "Deny",
+          "Cancel"
+        ]
+      },
+      "description": "Specific action label. Vague one-word labels are forbidden on product-owned consequential sheets."
+    },
+
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "extension_prompt",
+        "ai_tool_prompt",
+        "remote_attach_prompt",
+        "starter_setup_prompt",
+        "package_script_risk_review",
+        "consent_renewal_prompt",
+        "publish_promote_rollback_review",
+        "policy_admin_prompt",
+        "provider_handoff_prompt",
+        "trust_elevation_prompt"
+      ],
+      "description": "Names the sheet's originating surface family. Reuses the trust-prompt surface-class vocabulary so review language stays stable across prompt and settings surfaces."
+    },
+
+    "sheet_mode_class": {
+      "type": "string",
+      "enum": [
+        "request_review",
+        "grant_inspector",
+        "revocation_review",
+        "policy_block_explanation"
+      ],
+      "description": "High-level sheet mode. request_review is used at decision time; grant_inspector is used in stable settings/trust surfaces; revocation_review is used when confirming revoke/narrow; policy_block_explanation is used when policy denies or pre-approves without user override."
+    },
+
+    "requester_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "extension",
+        "ai_tool",
+        "remote_connector",
+        "package_adapter",
+        "starter_or_template",
+        "provider_adapter",
+        "policy_service",
+        "supervisor"
+      ]
+    },
+
+    "owner_class": {
+      "type": "string",
+      "enum": [
+        "local_user",
+        "workspace_owner",
+        "extension_publisher",
+        "ai_tool_provider",
+        "package_manager_adapter",
+        "remote_host_owner",
+        "provider_installation",
+        "managed_admin",
+        "policy_bundle",
+        "supervisor",
+        "system"
+      ]
+    },
+
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "supported",
+        "community",
+        "experimental",
+        "unsupported_here"
+      ]
+    },
+
+    "policy_lock_state": {
+      "type": "string",
+      "enum": [
+        "unlocked_user_editable",
+        "policy_ceiling_narrows",
+        "policy_locked_no_override",
+        "policy_injected_grant",
+        "policy_source_unavailable_fail_closed",
+        "policy_unknown_review_required"
+      ]
+    },
+
+    "user_override_posture": {
+      "type": "string",
+      "enum": [
+        "user_may_choose",
+        "user_may_choose_narrower_only",
+        "user_may_request_admin_review",
+        "user_override_forbidden",
+        "not_applicable"
+      ]
+    },
+
+    "scope_filter_class": {
+      "type": "string",
+      "enum": [
+        "current_root",
+        "named_workset",
+        "sparse_slice",
+        "full_workspace",
+        "docs_pack_only",
+        "policy_limited_view",
+        "review_workspace",
+        "companion_surface",
+        "remote_workspace"
+      ]
+    },
+
+    "permission_grant_scope": {
+      "type": "string",
+      "enum": ["once", "session", "workspace", "profile", "policy_managed"]
+    },
+
+    "capability_group_class": {
+      "type": "string",
+      "enum": [
+        "workspace_read",
+        "workspace_write",
+        "subprocess_or_terminal",
+        "network_egress",
+        "secret_or_identity",
+        "remote_attach",
+        "debug_or_privileged_inspection",
+        "ai_tool_mutation",
+        "extension_host_capability",
+        "package_or_script_execution",
+        "publish_promote_rollback",
+        "policy_or_admin_change",
+        "support_export",
+        "copy_or_export",
+        "starter_setup"
+      ],
+      "description": "Closed capability-group vocabulary used on prompts and capability sheets. Values are real-world capability classes, not internal API names."
+    },
+
+    "risk_group_class": {
+      "type": "string",
+      "enum": [
+        "first_run_trust",
+        "capability_widening",
+        "boundary_crossing",
+        "external_side_effect",
+        "destructive_local_action",
+        "credential_projection",
+        "raw_secret_exposure",
+        "unsandboxed_script",
+        "remote_execution",
+        "policy_locked",
+        "remembered_scope",
+        "high_blast_radius",
+        "suspicious_identity",
+        "support_export_sensitive"
+      ],
+      "description": "Closed risk-class vocabulary. Used to group capability rows and to flag transitive expansions."
+    },
+
+    "degraded_capability_class": {
+      "type": "string",
+      "enum": [
+        "no_degrade_available",
+        "local_only_continues",
+        "read_only_inspection_continues",
+        "draft_saved_locally",
+        "preview_only_continues",
+        "metadata_only_export",
+        "open_in_browser_or_provider",
+        "request_admin_change",
+        "install_disabled_capability_removed"
+      ],
+      "description": "Closed reduced-mode / degrade vocabulary. A sheet that offers a reduced mode must name one of these tokens and explain the resulting behavior."
+    },
+
+    "details_surface_class": {
+      "type": "string",
+      "enum": [
+        "inline_expander",
+        "side_sheet",
+        "inspector_route",
+        "docs_anchor",
+        "cli_explain",
+        "support_export_entry"
+      ]
+    },
+
+    "copy_export_class": {
+      "type": "string",
+      "enum": [
+        "no_copy_export",
+        "metadata_only",
+        "sanitized_summary",
+        "structured_trace_refs_only",
+        "raw_allowed_with_label",
+        "blocked_by_policy"
+      ]
+    },
+
+    "representation_class": {
+      "type": "string",
+      "enum": [
+        "raw",
+        "rendered",
+        "escaped",
+        "sanitized",
+        "sandboxed",
+        "generated",
+        "blocked_metadata_only"
+      ]
+    },
+
+    "export_destination_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "local_log",
+        "support_bundle",
+        "evidence_packet",
+        "admin_export",
+        "cli_trace"
+      ]
+    },
+
+    "sheet_action_role": {
+      "type": "string",
+      "enum": [
+        "primary_approve",
+        "secondary_deny",
+        "safer_alternative",
+        "open_details",
+        "revoke_now",
+        "revoke_later",
+        "request_admin_review"
+      ],
+      "description": "Closed action-role vocabulary for capability sheets. revoke_now is used on stable revocation surfaces; revoke_later is used on request-time sheets to route to a stable revocation surface."
+    },
+
+    "resulting_state_class": {
+      "type": "string",
+      "enum": [
+        "granted_once",
+        "granted_session",
+        "granted_workspace",
+        "granted_profile",
+        "policy_managed_active",
+        "denied_continue_local",
+        "denied_read_only",
+        "blocked_by_policy",
+        "details_opened",
+        "cancelled_no_change",
+        "admin_review_requested",
+        "revoked",
+        "narrowed_scope_applied",
+        "degraded_preview_only",
+        "local_draft_saved",
+        "metadata_exported"
+      ]
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "untrusted_unknown",
+        "restricted",
+        "trusted",
+        "trusted_time_bounded",
+        "trusted_policy_degraded",
+        "restricted_recovery_fallback",
+        "restricted_extension_quarantine",
+        "trust_revoked",
+        "trust_unavailable_identity_gate"
+      ]
+    },
+
+    "requester": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requester_ref",
+        "requester_class",
+        "requester_label",
+        "request_origin_ref"
+      ],
+      "properties": {
+        "requester_ref": { "$ref": "#/$defs/opaque_id" },
+        "requester_class": { "$ref": "#/$defs/requester_class" },
+        "requester_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "request_origin_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "authority_owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_ref",
+        "owner_class",
+        "source_ref",
+        "source_label",
+        "issuer_class"
+      ],
+      "properties": {
+        "owner_ref": { "$ref": "#/$defs/opaque_id" },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "source_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "issuer_class": {
+          "type": "string",
+          "enum": ["shell", "policy_service", "supervisor"],
+          "description": "Issuer seat that may mint authority tickets. Requesters may not mint."
+        }
+      }
+    },
+
+    "policy_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_lock_state",
+        "policy_owner_ref",
+        "policy_source_ref",
+        "user_override_posture",
+        "lock_explanation"
+      ],
+      "properties": {
+        "policy_lock_state": { "$ref": "#/$defs/policy_lock_state" },
+        "policy_owner_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "policy_source_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "user_override_posture": { "$ref": "#/$defs/user_override_posture" },
+        "lock_explanation": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "grant_scope_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["grant_scope", "label", "policy_posture", "selection_allowed", "selected"],
+      "properties": {
+        "grant_scope": { "$ref": "#/$defs/permission_grant_scope" },
+        "label": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_posture": { "$ref": "#/$defs/policy_lock_state" },
+        "selection_allowed": {
+          "type": "boolean",
+          "description": "False when policy locks the sheet to a narrower scope; the option may still render as a disclosed but disabled choice."
+        },
+        "selected": { "type": "boolean" }
+      }
+    },
+
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_ref",
+        "target_label",
+        "scope_filter_class",
+        "grant_scope_selected",
+        "grant_scope_options",
+        "remembered_scope_consequence",
+        "revocation_route_label"
+      ],
+      "properties": {
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "grant_scope_selected": { "$ref": "#/$defs/permission_grant_scope" },
+        "grant_scope_options": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/grant_scope_option" }
+        },
+        "remembered_scope_consequence": { "$ref": "#/$defs/reviewable_sentence" },
+        "revocation_route_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "capability_group_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_group_ref",
+        "capability_group_class",
+        "requested_access_label",
+        "why_needed_label",
+        "purpose_label",
+        "policy_posture",
+        "primary_risk_class",
+        "additional_risk_classes",
+        "reconsent_trigger_label",
+        "denied_by_default_behavior_label"
+      ],
+      "properties": {
+        "capability_group_ref": { "$ref": "#/$defs/opaque_id" },
+        "capability_group_class": { "$ref": "#/$defs/capability_group_class" },
+        "requested_access_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "why_needed_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "purpose_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "policy_posture": { "$ref": "#/$defs/policy_lock_state" },
+        "primary_risk_class": { "$ref": "#/$defs/risk_group_class" },
+        "additional_risk_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/risk_group_class" },
+          "uniqueItems": true
+        },
+        "reconsent_trigger_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Plain-language explanation of what change requires re-consent (scope widening, dependency closure growth, policy epoch roll, trust drift, target drift, etc.)."
+        },
+        "denied_by_default_behavior_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Plain-language explanation of what happens if this capability is denied by default (blocked, downgraded to preview/read-only, metadata-only export, etc.)."
+        }
+      }
+    },
+
+    "reduced_mode_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "option_ref",
+        "degraded_capability_class",
+        "label",
+        "behavior_summary",
+        "allowed_capability_groups",
+        "blocked_capability_groups"
+      ],
+      "properties": {
+        "option_ref": { "$ref": "#/$defs/opaque_id" },
+        "degraded_capability_class": { "$ref": "#/$defs/degraded_capability_class" },
+        "label": { "$ref": "#/$defs/specific_action_label" },
+        "behavior_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "allowed_capability_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_group_class" },
+          "uniqueItems": true
+        },
+        "blocked_capability_groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_group_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "transitive_disclosure_class": {
+      "type": "string",
+      "enum": [
+        "no_transitive_growth",
+        "dependency_closure_growth",
+        "connector_expansion_growth",
+        "helper_or_bridge_growth",
+        "policy_injected_growth",
+        "unknown_growth_blocked"
+      ],
+      "description": "Names why the effective capability set includes transitive/inherited permissions. unknown_growth_blocked is used when disclosure is incomplete and the sheet must fail closed."
+    },
+
+    "closure_member_class": {
+      "type": "string",
+      "enum": [
+        "primary_actor",
+        "extension_dependency",
+        "package_dependency",
+        "remote_helper",
+        "helper_binary",
+        "connected_provider",
+        "policy_pack",
+        "unknown_member_blocked"
+      ],
+      "description": "Closed class vocabulary for transitive closure members. unknown_member_blocked is used when the closure member identity is unknown; the sheet must fail closed."
+    },
+
+    "closure_member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_ref",
+        "member_class",
+        "member_label",
+        "capability_groups_contributed",
+        "risk_classes_contributed"
+      ],
+      "properties": {
+        "member_ref": { "$ref": "#/$defs/opaque_id" },
+        "member_class": { "$ref": "#/$defs/closure_member_class" },
+        "member_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "capability_groups_contributed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_group_class" },
+          "uniqueItems": true
+        },
+        "risk_classes_contributed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/risk_group_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "inheritance_edge_class": {
+      "type": "string",
+      "enum": [
+        "depends_on",
+        "inherits_capability",
+        "bundles_capability",
+        "policy_narrows",
+        "policy_denies",
+        "policy_injects_grant",
+        "unknown_edge_blocked"
+      ],
+      "description": "Closed edge vocabulary for transitive permission growth and narrowing. unknown_edge_blocked is used when the relationship is unknown; the sheet must fail closed."
+    },
+
+    "inheritance_edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_member_ref", "to_member_ref", "edge_class", "explanation"],
+      "properties": {
+        "from_member_ref": { "$ref": "#/$defs/opaque_id" },
+        "to_member_ref": { "$ref": "#/$defs/opaque_id" },
+        "edge_class": { "$ref": "#/$defs/inheritance_edge_class" },
+        "explanation": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "transitive_scope_disclosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disclosure_class",
+        "summary_label",
+        "closure_members",
+        "inheritance_edges"
+      ],
+      "properties": {
+        "disclosure_class": { "$ref": "#/$defs/transitive_disclosure_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "closure_members": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/closure_member" },
+          "minItems": 1
+        },
+        "inheritance_edges": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/inheritance_edge" }
+        }
+      }
+    },
+
+    "remembered_approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_ref",
+        "scope_filter_class",
+        "grant_scope",
+        "capability_groups",
+        "granted_at",
+        "expires_at",
+        "revocation_route_label"
+      ],
+      "properties": {
+        "approval_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "grant_scope": { "$ref": "#/$defs/permission_grant_scope" },
+        "capability_groups": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capability_group_class" }
+        },
+        "granted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "revocation_route_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+
+    "approval_path_class": {
+      "type": "string",
+      "enum": [
+        "product_only",
+        "product_then_platform_host_flow",
+        "product_then_browser_or_device_handoff",
+        "policy_managed_no_user_action",
+        "blocked_missing_host_capability"
+      ],
+      "description": "Names whether the approval path is product-owned only, includes a platform-mandated host flow, includes a browser/device/provider handoff, is policy-managed, or is blocked by missing host capability."
+    },
+
+    "approval_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path_class",
+        "host_flow_required",
+        "host_flow_ref",
+        "host_flow_explanation",
+        "browser_or_device_step_required",
+        "browser_or_device_step_explanation"
+      ],
+      "properties": {
+        "path_class": { "$ref": "#/$defs/approval_path_class" },
+        "host_flow_required": { "type": "boolean" },
+        "host_flow_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "host_flow_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "browser_or_device_step_required": { "type": "boolean" },
+        "browser_or_device_step_explanation": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "sheet_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_role",
+        "label",
+        "resulting_state_class",
+        "platform_mandated_host_flow"
+      ],
+      "properties": {
+        "action_role": { "$ref": "#/$defs/sheet_action_role" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "resulting_state_class": { "$ref": "#/$defs/resulting_state_class" },
+        "platform_mandated_host_flow": { "type": "boolean" },
+        "product_explanatory_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/specific_action_label" }
+          ]
+        },
+        "host_flow_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "authority_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "platform_mandated_host_flow": { "const": false } },
+            "required": ["platform_mandated_host_flow"]
+          },
+          "then": {
+            "properties": {
+              "label": { "$ref": "#/$defs/specific_action_label" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "platform_mandated_host_flow": { "const": true } },
+            "required": ["platform_mandated_host_flow"]
+          },
+          "then": {
+            "required": ["product_explanatory_label", "host_flow_ref"],
+            "properties": {
+              "product_explanatory_label": { "$ref": "#/$defs/specific_action_label" },
+              "host_flow_ref": { "$ref": "#/$defs/opaque_id" }
+            }
+          }
+        }
+      ]
+    },
+
+    "details_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "details_action_ref",
+        "label",
+        "details_surface_class",
+        "opens_target_ref"
+      ],
+      "properties": {
+        "details_action_ref": { "$ref": "#/$defs/opaque_id" },
+        "label": { "$ref": "#/$defs/specific_action_label" },
+        "details_surface_class": { "$ref": "#/$defs/details_surface_class" },
+        "opens_target_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "copy_export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "copy_export_class",
+        "representation_class",
+        "export_destination_class",
+        "copy_label",
+        "export_label",
+        "redaction_class"
+      ],
+      "properties": {
+        "copy_export_class": { "$ref": "#/$defs/copy_export_class" },
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "export_destination_class": { "$ref": "#/$defs/export_destination_class" },
+        "copy_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/specific_action_label" }
+          ]
+        },
+        "export_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/specific_action_label" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "projection_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trace_ref",
+        "scope_filter_class",
+        "grant_scope_selected",
+        "policy_lock_state",
+        "capability_groups",
+        "sheet_mode_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "trace_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "grant_scope_selected": { "$ref": "#/$defs/permission_grant_scope" },
+        "policy_lock_state": { "$ref": "#/$defs/policy_lock_state" },
+        "capability_groups": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capability_group_class" }
+        },
+        "sheet_mode_class": { "$ref": "#/$defs/sheet_mode_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "capability_sheet_opened",
+        "capability_sheet_decision_recorded",
+        "capability_sheet_revoked",
+        "capability_sheet_policy_blocked",
+        "capability_sheet_schema_version_bumped"
+      ],
+      "description": "Closed audit-event ids for capability sheet disclosure events. Raw secret material and raw policy payloads are forbidden."
+    },
+
+    "audit_trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_event_ref",
+        "audit_event_id",
+        "policy_epoch_ref",
+        "trust_state",
+        "linked_authority_ticket_ref",
+        "linked_support_trace_ref"
+      ],
+      "properties": {
+        "audit_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "linked_authority_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "linked_support_trace_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    }
+  }
+}
+

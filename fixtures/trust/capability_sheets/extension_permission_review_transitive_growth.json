@@ -1,0 +1,235 @@
+{
+  "$schema": "../../../schemas/trust/capability_sheet.schema.json",
+  "record_kind": "capability_sheet_record",
+  "capability_sheet_schema_version": 1,
+  "capability_sheet_id": "capability_sheet.extension.install_review.001",
+  "surface_class": "extension_prompt",
+  "sheet_mode_class": "request_review",
+  "sheet_title": "Review extension capabilities before install.",
+  "requester": {
+    "requester_ref": "requester.extension.acme_formatter",
+    "requester_class": "extension",
+    "requester_label": "Extension “Acme Formatter” requests capabilities during install.",
+    "request_origin_ref": "origin.marketplace.install_flow.001"
+  },
+  "authority_owner": {
+    "owner_ref": "owner.shell.local_user",
+    "owner_class": "local_user",
+    "source_ref": "source.extension.install_review",
+    "source_label": "Shell-owned extension install review; extensions cannot grant themselves authority.",
+    "issuer_class": "shell"
+  },
+  "support_class": "community",
+  "policy_lock": {
+    "policy_lock_state": "unlocked_user_editable",
+    "policy_owner_ref": null,
+    "policy_source_ref": null,
+    "user_override_posture": "user_may_choose",
+    "lock_explanation": "No policy lock blocks install; user choice controls scope and whether the extension is installed."
+  },
+  "target_scope": {
+    "target_ref": "target.workspace.current.001",
+    "target_label": "Current workspace only; no profile-wide grant unless selected.",
+    "scope_filter_class": "full_workspace",
+    "grant_scope_selected": "workspace",
+    "grant_scope_options": [
+      {
+        "grant_scope": "once",
+        "label": "Once-only for this install review step.",
+        "policy_posture": "unlocked_user_editable",
+        "selection_allowed": true,
+        "selected": false
+      },
+      {
+        "grant_scope": "session",
+        "label": "This session only; expires on restart or scope drift.",
+        "policy_posture": "unlocked_user_editable",
+        "selection_allowed": true,
+        "selected": false
+      },
+      {
+        "grant_scope": "workspace",
+        "label": "Remember for this workspace.",
+        "policy_posture": "unlocked_user_editable",
+        "selection_allowed": true,
+        "selected": true
+      },
+      {
+        "grant_scope": "profile",
+        "label": "Remember for this user profile (strongest scope).",
+        "policy_posture": "unlocked_user_editable",
+        "selection_allowed": true,
+        "selected": false
+      }
+    ],
+    "remembered_scope_consequence": "If remembered, the extension can request reuse of this grant until revoked, expiry, or policy/trust drift.",
+    "revocation_route_label": "Open Extension Permissions in Settings to narrow or revoke remembered grants."
+  },
+  "capability_groups": [
+    {
+      "capability_group_ref": "capability_group.extension.workspace_read.001",
+      "capability_group_class": "workspace_read",
+      "requested_access_label": "Read files in the workspace.",
+      "why_needed_label": "The formatter reads project files to compute formatting changes.",
+      "purpose_label": "Format source files using project configuration.",
+      "policy_posture": "unlocked_user_editable",
+      "primary_risk_class": "boundary_crossing",
+      "additional_risk_classes": [],
+      "reconsent_trigger_label": "Re-consent is required if the extension widens read scope beyond the current workspace target.",
+      "denied_by_default_behavior_label": "If denied, the extension can still render UI but cannot read workspace content."
+    },
+    {
+      "capability_group_ref": "capability_group.extension.workspace_write.001",
+      "capability_group_class": "workspace_write",
+      "requested_access_label": "Write formatted changes to workspace files.",
+      "why_needed_label": "Formatting applies edits back to files after preview.",
+      "purpose_label": "Apply formatting edits with preview and undo support.",
+      "policy_posture": "unlocked_user_editable",
+      "primary_risk_class": "destructive_local_action",
+      "additional_risk_classes": ["high_blast_radius"],
+      "reconsent_trigger_label": "Re-consent is required if write scope expands to additional roots or protected/generated file classes.",
+      "denied_by_default_behavior_label": "If denied, the extension may offer preview-only formatting without writing files."
+    },
+    {
+      "capability_group_ref": "capability_group.extension.network_egress.001",
+      "capability_group_class": "network_egress",
+      "requested_access_label": "Send requests to declared domains for update checks.",
+      "why_needed_label": "A dependency performs version checks and downloads rule updates.",
+      "purpose_label": "Fetch formatter rule updates from declared hosts.",
+      "policy_posture": "unlocked_user_editable",
+      "primary_risk_class": "external_side_effect",
+      "additional_risk_classes": ["capability_widening"],
+      "reconsent_trigger_label": "Re-consent is required if allowed domains or egress class widens.",
+      "denied_by_default_behavior_label": "If denied, the extension runs with offline rules only."
+    }
+  ],
+  "reduced_mode_options": [
+    {
+      "option_ref": "reduced_mode.read_only.001",
+      "degraded_capability_class": "read_only_inspection_continues",
+      "label": "Install with read-only access",
+      "behavior_summary": "Installs the extension but blocks workspace writes and network egress; preview and inspection remain available.",
+      "allowed_capability_groups": ["workspace_read", "extension_host_capability"],
+      "blocked_capability_groups": ["workspace_write", "network_egress"]
+    }
+  ],
+  "transitive_scope_disclosure": {
+    "disclosure_class": "dependency_closure_growth",
+    "summary_label": "Effective capabilities include transitive scope from extension dependencies; network egress is requested by a dependency, not only the top-level extension.",
+    "closure_members": [
+      {
+        "member_ref": "extension.acme_formatter",
+        "member_class": "primary_actor",
+        "member_label": "Primary extension: Acme Formatter.",
+        "capability_groups_contributed": ["workspace_read", "workspace_write"],
+        "risk_classes_contributed": ["boundary_crossing", "destructive_local_action"]
+      },
+      {
+        "member_ref": "extension.acme_rule_update_sdk",
+        "member_class": "extension_dependency",
+        "member_label": "Dependency: Acme rule update SDK.",
+        "capability_groups_contributed": ["network_egress"],
+        "risk_classes_contributed": ["external_side_effect", "capability_widening"]
+      }
+    ],
+    "inheritance_edges": [
+      {
+        "from_member_ref": "extension.acme_formatter",
+        "to_member_ref": "extension.acme_rule_update_sdk",
+        "edge_class": "depends_on",
+        "explanation": "Acme Formatter depends on the rule update SDK for hosted rule metadata."
+      },
+      {
+        "from_member_ref": "extension.acme_rule_update_sdk",
+        "to_member_ref": "extension.acme_formatter",
+        "edge_class": "inherits_capability",
+        "explanation": "Dependency closure adds network egress capability to the effective permission set."
+      }
+    ]
+  },
+  "remembered_approvals": [],
+  "approval_path": {
+    "path_class": "product_only",
+    "host_flow_required": false,
+    "host_flow_ref": null,
+    "host_flow_explanation": "No platform-mandated host permission sheet is required for this extension install review.",
+    "browser_or_device_step_required": false,
+    "browser_or_device_step_explanation": "No browser/device handoff is required for this install review."
+  },
+  "sheet_actions": [
+    {
+      "action_role": "primary_approve",
+      "label": "Install extension with selected scope",
+      "resulting_state_class": "granted_workspace",
+      "platform_mandated_host_flow": false,
+      "authority_ticket_ref": "authority_ticket.extension.install.001"
+    },
+    {
+      "action_role": "safer_alternative",
+      "label": "Install with read-only access",
+      "resulting_state_class": "degraded_preview_only",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "secondary_deny",
+      "label": "Do not install extension",
+      "resulting_state_class": "cancelled_no_change",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "open_details",
+      "label": "Open capability details",
+      "resulting_state_class": "details_opened",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "revoke_later",
+      "label": "Open Extension Permissions in Settings",
+      "resulting_state_class": "details_opened",
+      "platform_mandated_host_flow": false
+    }
+  ],
+  "details_action": {
+    "details_action_ref": "details.extension.install_review.001",
+    "label": "Open capability details",
+    "details_surface_class": "side_sheet",
+    "opens_target_ref": "inspector.extension.capabilities.001"
+  },
+  "copy_export_posture": {
+    "copy_export_class": "metadata_only",
+    "representation_class": "blocked_metadata_only",
+    "export_destination_class": "support_bundle",
+    "copy_label": "Copy sheet metadata",
+    "export_label": "Export sheet metadata",
+    "redaction_class": "metadata_safe_default"
+  },
+  "support_trace": {
+    "trace_ref": "support.trace.capability_sheet.extension.install.001",
+    "scope_filter_class": "full_workspace",
+    "grant_scope_selected": "workspace",
+    "policy_lock_state": "unlocked_user_editable",
+    "capability_groups": ["workspace_read", "workspace_write", "network_egress"],
+    "sheet_mode_class": "request_review",
+    "redaction_class": "metadata_safe_default"
+  },
+  "cli_trace": {
+    "trace_ref": "cli.trace.capability_sheet.extension.install.001",
+    "scope_filter_class": "full_workspace",
+    "grant_scope_selected": "workspace",
+    "policy_lock_state": "unlocked_user_editable",
+    "capability_groups": ["workspace_read", "workspace_write", "network_egress"],
+    "sheet_mode_class": "request_review",
+    "redaction_class": "metadata_safe_default"
+  },
+  "audit_trace": {
+    "audit_event_ref": "audit.event.capability_sheet.extension.install.001",
+    "audit_event_id": "capability_sheet_opened",
+    "policy_epoch_ref": "policy_epoch.local.2026-05-05.001",
+    "trust_state": "trusted",
+    "linked_authority_ticket_ref": null,
+    "linked_support_trace_ref": "support.trace.capability_sheet.extension.install.001"
+  },
+  "redaction_class": "metadata_safe_default",
+  "created_at": "2026-05-05T18:20:00Z"
+}
+

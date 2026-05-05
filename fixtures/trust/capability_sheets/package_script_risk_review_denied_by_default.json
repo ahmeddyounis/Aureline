@@ -1,0 +1,196 @@
+{
+  "$schema": "../../../schemas/trust/capability_sheet.schema.json",
+  "record_kind": "capability_sheet_record",
+  "capability_sheet_schema_version": 1,
+  "capability_sheet_id": "capability_sheet.package.script_risk_review.001",
+  "surface_class": "package_script_risk_review",
+  "sheet_mode_class": "request_review",
+  "sheet_title": "Review package script risk before install.",
+  "requester": {
+    "requester_ref": "requester.package_adapter.npm",
+    "requester_class": "package_adapter",
+    "requester_label": "Package adapter requests permission to run install scripts.",
+    "request_origin_ref": "origin.package.install_flow.001"
+  },
+  "authority_owner": {
+    "owner_ref": "owner.shell.local_user",
+    "owner_class": "local_user",
+    "source_ref": "source.package.script_risk_review",
+    "source_label": "Shell-owned package/script risk review; script execution is denied by default without explicit consent.",
+    "issuer_class": "shell"
+  },
+  "support_class": "supported",
+  "policy_lock": {
+    "policy_lock_state": "unlocked_user_editable",
+    "policy_owner_ref": null,
+    "policy_source_ref": null,
+    "user_override_posture": "user_may_choose",
+    "lock_explanation": "User choice controls whether package scripts may execute for this install action."
+  },
+  "target_scope": {
+    "target_ref": "target.workspace.current.002",
+    "target_label": "Current workspace install action only; scripts are not remembered by default.",
+    "scope_filter_class": "full_workspace",
+    "grant_scope_selected": "once",
+    "grant_scope_options": [
+      {
+        "grant_scope": "once",
+        "label": "Once-only for this install action.",
+        "policy_posture": "unlocked_user_editable",
+        "selection_allowed": true,
+        "selected": true
+      }
+    ],
+    "remembered_scope_consequence": "This consent is once-only and expires after the install completes or is cancelled.",
+    "revocation_route_label": "No durable grant is remembered; evidence/history retains the review record."
+  },
+  "capability_groups": [
+    {
+      "capability_group_ref": "capability_group.package.script_exec.001",
+      "capability_group_class": "package_or_script_execution",
+      "requested_access_label": "Run package install scripts and native build hooks.",
+      "why_needed_label": "Some dependencies declare lifecycle scripts required to build native modules.",
+      "purpose_label": "Complete installation that requires script/native build steps.",
+      "policy_posture": "unlocked_user_editable",
+      "primary_risk_class": "unsandboxed_script",
+      "additional_risk_classes": ["remote_execution", "high_blast_radius"],
+      "reconsent_trigger_label": "Re-consent is required if additional scripts, new toolchains, or wider network egress is requested.",
+      "denied_by_default_behavior_label": "If denied, installation proceeds in metadata-only mode or is blocked if scripts are required."
+    },
+    {
+      "capability_group_ref": "capability_group.package.subprocess.001",
+      "capability_group_class": "subprocess_or_terminal",
+      "requested_access_label": "Execute subprocesses required by the package manager.",
+      "why_needed_label": "Install scripts invoke local toolchains and build tools.",
+      "purpose_label": "Allow the package adapter to run the required build commands.",
+      "policy_posture": "unlocked_user_editable",
+      "primary_risk_class": "remote_execution",
+      "additional_risk_classes": ["high_blast_radius"],
+      "reconsent_trigger_label": "Re-consent is required if subprocess execution expands beyond the declared install action.",
+      "denied_by_default_behavior_label": "If denied, scripts cannot run and installation is blocked or downgraded to metadata-only."
+    }
+  ],
+  "reduced_mode_options": [
+    {
+      "option_ref": "reduced_mode.metadata_only.001",
+      "degraded_capability_class": "metadata_only_export",
+      "label": "Proceed without running scripts",
+      "behavior_summary": "Installs metadata and lockfile changes only; script/native build steps do not run.",
+      "allowed_capability_groups": ["workspace_write"],
+      "blocked_capability_groups": ["package_or_script_execution", "subprocess_or_terminal"]
+    }
+  ],
+  "transitive_scope_disclosure": {
+    "disclosure_class": "dependency_closure_growth",
+    "summary_label": "Script risk is driven by transitive dependencies; the sheet lists closure members that introduce install scripts.",
+    "closure_members": [
+      {
+        "member_ref": "package.root.dependencies",
+        "member_class": "primary_actor",
+        "member_label": "Primary package set: current workspace dependencies.",
+        "capability_groups_contributed": ["package_or_script_execution", "subprocess_or_terminal"],
+        "risk_classes_contributed": ["unsandboxed_script", "remote_execution"]
+      },
+      {
+        "member_ref": "package.dependency.node_gyp",
+        "member_class": "package_dependency",
+        "member_label": "Transitive dependency: native build helper.",
+        "capability_groups_contributed": ["package_or_script_execution", "subprocess_or_terminal"],
+        "risk_classes_contributed": ["unsandboxed_script", "high_blast_radius"]
+      }
+    ],
+    "inheritance_edges": [
+      {
+        "from_member_ref": "package.root.dependencies",
+        "to_member_ref": "package.dependency.node_gyp",
+        "edge_class": "depends_on",
+        "explanation": "The install plan includes a transitive dependency that declares native build hooks."
+      },
+      {
+        "from_member_ref": "package.dependency.node_gyp",
+        "to_member_ref": "package.root.dependencies",
+        "edge_class": "inherits_capability",
+        "explanation": "Transitive dependency adds script execution and subprocess requirements to the effective install action."
+      }
+    ]
+  },
+  "remembered_approvals": [],
+  "approval_path": {
+    "path_class": "product_only",
+    "host_flow_required": false,
+    "host_flow_ref": null,
+    "host_flow_explanation": "No platform host flow is required; this is a product-owned consent gate for script execution.",
+    "browser_or_device_step_required": false,
+    "browser_or_device_step_explanation": "No browser/device handoff is required."
+  },
+  "sheet_actions": [
+    {
+      "action_role": "primary_approve",
+      "label": "Run install scripts for this action",
+      "resulting_state_class": "granted_once",
+      "platform_mandated_host_flow": false,
+      "authority_ticket_ref": "authority_ticket.package.scripts.once.001"
+    },
+    {
+      "action_role": "safer_alternative",
+      "label": "Proceed without running scripts",
+      "resulting_state_class": "degraded_preview_only",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "secondary_deny",
+      "label": "Cancel package install",
+      "resulting_state_class": "cancelled_no_change",
+      "platform_mandated_host_flow": false
+    },
+    {
+      "action_role": "open_details",
+      "label": "Open script risk details",
+      "resulting_state_class": "details_opened",
+      "platform_mandated_host_flow": false
+    }
+  ],
+  "details_action": {
+    "details_action_ref": "details.package.script_risk.001",
+    "label": "Open script risk details",
+    "details_surface_class": "side_sheet",
+    "opens_target_ref": "inspector.package.script_risk.001"
+  },
+  "copy_export_posture": {
+    "copy_export_class": "metadata_only",
+    "representation_class": "blocked_metadata_only",
+    "export_destination_class": "support_bundle",
+    "copy_label": "Copy risk review metadata",
+    "export_label": "Export risk review metadata",
+    "redaction_class": "metadata_safe_default"
+  },
+  "support_trace": {
+    "trace_ref": "support.trace.capability_sheet.package.script_risk.001",
+    "scope_filter_class": "full_workspace",
+    "grant_scope_selected": "once",
+    "policy_lock_state": "unlocked_user_editable",
+    "capability_groups": ["package_or_script_execution", "subprocess_or_terminal"],
+    "sheet_mode_class": "request_review",
+    "redaction_class": "metadata_safe_default"
+  },
+  "cli_trace": {
+    "trace_ref": "cli.trace.capability_sheet.package.script_risk.001",
+    "scope_filter_class": "full_workspace",
+    "grant_scope_selected": "once",
+    "policy_lock_state": "unlocked_user_editable",
+    "capability_groups": ["package_or_script_execution", "subprocess_or_terminal"],
+    "sheet_mode_class": "request_review",
+    "redaction_class": "metadata_safe_default"
+  },
+  "audit_trace": {
+    "audit_event_ref": "audit.event.capability_sheet.package.script_risk.001",
+    "audit_event_id": "capability_sheet_opened",
+    "policy_epoch_ref": "policy_epoch.local.2026-05-05.001",
+    "trust_state": "trusted",
+    "linked_authority_ticket_ref": null,
+    "linked_support_trace_ref": "support.trace.capability_sheet.package.script_risk.001"
+  },
+  "redaction_class": "metadata_safe_default",
+  "created_at": "2026-05-05T18:35:00Z"
+}
+
