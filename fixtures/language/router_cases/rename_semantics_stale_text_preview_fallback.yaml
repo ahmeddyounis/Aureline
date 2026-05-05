@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=../../../schemas/language/router_decision.schema.json
+record_kind: router_decision_record
+router_decision_schema_version: 1
+router_decision_id: router:decision:rename:stale_semantics:text_preview_fallback:01
+request_context:
+  requested_surface_class: rename
+  requested_capability_class: rename
+  requested_authority_floor_class: authoritative_preferred
+  requested_scope_claim_class: active_workset
+  requested_subject_ref: subject:symbol:webapp:component:01
+  placement_preference_class: match_subject_location
+  coordinate_translation_requirement_class: required_for_mutation
+  policy_epoch: policy:epoch:trusted:2026-05-05:01
+  trust_state: trusted
+  execution_context_id: exec:language:webapp:local_node:01
+routing_context:
+  workspace_id: workspace:web_monorepo:01
+  workset_id: workset:active:web_monorepo:01
+  workspace_root_ref: workspace:root:web_monorepo:01
+  subject_root_ref: workspace:root:webapp:01
+  package_root_ref: package:root:webapp:01
+  config_root_ref: config_root:webapp:tsconfig:01
+  lane_class: local_only
+  target_summary: Local workset scope with a project graph whose semantic epoch is stale after a toolchain change.
+  toolchain_summary: Toolchain identity changed; semantic providers require revalidation before claiming authoritative rename safety.
+provider_stack_rows:
+  - provider_id: provider:graph:ts_project:01
+    provider_display_label: Project graph lane
+    provider_kind: project_graph
+    capability_class: rename
+    support_class: authoritative
+    precedence_band: project_graph_authority
+    locality_class: local_sidecar
+    health_state: degraded
+    freshness_class: stale
+    fault_domain_id: workspace_knowledge_workers
+    restart_strike_count: 0
+    restart_budget_ref: restart_budget:workspace_knowledge_workers:graph:01
+    quarantine_ref: null
+    fallback_class: structured_to_heuristic
+    summary: Semantic rename is blocked because the graph is stale and cannot prove scope-wide correctness for the current toolchain identity.
+  - provider_id: provider:lsp:ts:01
+    provider_display_label: TypeScript language service
+    provider_kind: language_server
+    capability_class: rename
+    support_class: inspect_only
+    precedence_band: protocol_compatibility
+    locality_class: local_sidecar
+    health_state: warming
+    freshness_class: unverified
+    fault_domain_id: session_scoped_execution_hosts
+    restart_strike_count: 1
+    restart_budget_ref: restart_budget:session_scoped_execution_hosts:language:ts:01
+    quarantine_ref: null
+    fallback_class: protocol_to_text
+    summary: Language service is warming and cannot accept a rename mutation request at the requested floor until it rebuilds its project model.
+  - provider_id: provider:heuristic:text_replace:01
+    provider_display_label: File-local text preview fallback
+    provider_kind: syntax_parser
+    capability_class: rename
+    support_class: fallback_only
+    precedence_band: heuristic_fallback
+    locality_class: local_in_process
+    health_state: ready
+    freshness_class: authoritative_live
+    fault_domain_id: shell_interaction_core
+    restart_strike_count: 0
+    restart_budget_ref: restart_budget:shell_interaction_core:parser:01
+    quarantine_ref: null
+    fallback_class: structured_to_heuristic
+    summary: Provides a file-local text replace preview only; it must not claim safe semantic rename across the workset.
+decision_outcome:
+  resolution_mode: ordered_fallback
+  degraded_state_class: degraded_heuristic_fallback
+  fallback_class: structured_to_heuristic
+  selected_provider_id: provider:heuristic:text_replace:01
+  routing_reason: Both semantic lanes were below the required freshness/safety floor (stale graph and warming language service), so the router offered only a file-local text preview fallback.
+  fallback_summary: Safe semantic rename is unavailable; only a file-local text replace preview may be offered, with explicit scope limits and no cross-file guarantees.
+surface_report:
+  origin_label: File-local text preview fallback
+  degraded_state_class: degraded_heuristic_fallback
+  user_visible_summary: Rename is available only as a file-local text preview because semantic providers are stale or warming for the current toolchain/config root.
+  export_safe_explanation: Router refused to claim semantic rename safety under stale/warming semantics, selected a narrow preview fallback, and required explicit downgrade labeling rather than silent substitution.
+redaction_class: metadata_safe_default
+captured_at: "2026-05-05T21:09:00Z"
+export_safe_summary: Rename routing downgraded from stale/warming semantic providers to a file-local text preview fallback with explicit scope and safety limits.
+

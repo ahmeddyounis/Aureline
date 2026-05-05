@@ -1,0 +1,585 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/language/router_decision.schema.json",
+  "title": "Aureline language router decision packet",
+  "description": "Boundary schema for router_decision_record frozen in docs/language/language_router_contract.md. A router decision binds one protected request to its routing context (workspace/workset/root bindings, config root, package/workspace root, target/toolchain execution context), the selected provider stack (including locality and supervision posture), and an export-safe explanation of routing reason and fallback cause. The goal is to prevent silent provider substitution, silent scope widening, and stale-or-cached results rendering like live semantics. Raw source text, raw provider logs, raw hostnames, raw URLs, raw command lines, raw process arguments, raw stack traces, raw provider payloads, and raw secret material never cross this boundary; records carry opaque ids, closed vocabularies, counters, and reviewable summaries only. Adding a new enum value or a new optional field is additive-minor and requires a router_decision_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/router_decision_record"
+    }
+  ],
+  "$defs": {
+    "router_decision_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for router decision packets. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "router_decision_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log, diff, and export."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+    "reviewable_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480,
+      "description": "Short export-safe summary. Raw source text, raw logs, raw paths, raw URLs, raw command lines, and raw secrets never appear here."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "definition",
+        "reference",
+        "hover",
+        "rename",
+        "completion",
+        "formatting",
+        "code_action",
+        "diagnostic",
+        "signature_help",
+        "inline_hint",
+        "test_discovery",
+        "test_run",
+        "debug_launch",
+        "debug_attach",
+        "debug_session_control",
+        "build_target_discovery",
+        "build_diagnostics",
+        "framework_navigation",
+        "framework_run_scaffold",
+        "notebook_context",
+        "ai_assist_context"
+      ],
+      "description": "Protected surface asking for language-derived truth."
+    },
+    "capability_class": {
+      "type": "string",
+      "enum": [
+        "definition",
+        "reference",
+        "hover",
+        "rename",
+        "completion",
+        "formatting",
+        "code_action",
+        "diagnostics",
+        "signature_help",
+        "inline_hint",
+        "test_discovery",
+        "test_run",
+        "debug_launch",
+        "debug_attach",
+        "debug_session_control",
+        "build_target_discovery",
+        "build_diagnostics",
+        "framework_navigation",
+        "framework_run_scaffold",
+        "coordinate_translation",
+        "provenance_explanation"
+      ],
+      "description": "Capability being routed. For some surfaces (e.g. diagnostics) this is plural to match existing language protocol-router vocabularies."
+    },
+    "requested_authority_floor_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_required",
+        "authoritative_preferred",
+        "advisory_allowed",
+        "inspect_only_allowed"
+      ]
+    },
+    "scope_claim_class": {
+      "type": "string",
+      "enum": [
+        "single_file",
+        "notebook_cell",
+        "loaded_slice",
+        "active_workset",
+        "whole_workspace",
+        "target_graph",
+        "test_tree",
+        "debug_session",
+        "unavailable"
+      ]
+    },
+    "locality_class": {
+      "type": "string",
+      "enum": [
+        "local_in_process",
+        "local_sidecar",
+        "workspace_remote_agent",
+        "managed_service",
+        "imported_snapshot"
+      ]
+    },
+    "lane_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "remote_only",
+        "hybrid"
+      ],
+      "description": "High-level posture for whether the routed stack stays local, remote, or mixes lanes."
+    },
+    "placement_preference_class": {
+      "type": "string",
+      "enum": [
+        "prefer_local",
+        "prefer_workspace_remote",
+        "prefer_managed_service",
+        "match_subject_location",
+        "no_preference"
+      ]
+    },
+    "coordinate_translation_requirement_class": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "required_before_request",
+        "required_before_result",
+        "required_for_mutation",
+        "blocked_until_mapping_available"
+      ]
+    },
+    "provider_kind": {
+      "type": "string",
+      "enum": [
+        "syntax_parser",
+        "language_server",
+        "debug_adapter",
+        "formatter_adapter",
+        "linter_adapter",
+        "test_adapter",
+        "build_adapter",
+        "framework_pack",
+        "native_analyzer",
+        "project_graph",
+        "generated_source_bridge",
+        "ai_assist"
+      ]
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "authoritative",
+        "advisory",
+        "fallback_only",
+        "inspect_only",
+        "unsupported"
+      ]
+    },
+    "precedence_band": {
+      "type": "string",
+      "enum": [
+        "first_party_native",
+        "framework_overlay",
+        "project_graph_authority",
+        "protocol_compatibility",
+        "structured_tool_adapter",
+        "imported_snapshot",
+        "heuristic_fallback",
+        "assist_only"
+      ]
+    },
+    "health_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "warming",
+        "degraded",
+        "cached_only",
+        "policy_blocked",
+        "capability_missing",
+        "crash_loop_quarantined",
+        "unavailable"
+      ]
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ]
+    },
+    "fallback_class": {
+      "type": "string",
+      "enum": [
+        "no_fallback",
+        "semantic_to_protocol",
+        "protocol_to_native",
+        "protocol_to_text",
+        "structured_to_heuristic",
+        "live_to_cached",
+        "local_to_remote",
+        "remote_to_local_cached",
+        "unsupported_no_fallback"
+      ]
+    },
+    "degraded_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "degraded_provider_unavailable",
+        "degraded_crash_loop_quarantine",
+        "degraded_cached_fallback",
+        "degraded_heuristic_fallback",
+        "degraded_scope_narrowed",
+        "degraded_remote_unreachable",
+        "degraded_coordinate_mapping_missing",
+        "degraded_policy_narrowed"
+      ]
+    },
+    "resolution_mode": {
+      "type": "string",
+      "enum": [
+        "single_winner",
+        "ordered_fallback",
+        "merged_coexistence",
+        "overlay",
+        "inspect_only_no_winner",
+        "unsupported"
+      ]
+    },
+    "fault_domain_id": {
+      "type": "string",
+      "enum": [
+        "shell_interaction_core",
+        "workspace_knowledge_workers",
+        "session_scoped_execution_hosts",
+        "extension_and_tool_hosts",
+        "ai_and_external_tool_brokers",
+        "remote_connectors",
+        "policy_entitlement_and_verifier_helpers"
+      ],
+      "description": "Frozen fault-domain vocabulary. Mirrors schemas/runtime/forensic_packet.schema.json."
+    },
+    "trust_state": {
+      "type": "string",
+      "enum": [
+        "trusted",
+        "restricted"
+      ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "request_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_surface_class",
+        "requested_capability_class",
+        "requested_authority_floor_class",
+        "requested_scope_claim_class",
+        "requested_subject_ref",
+        "placement_preference_class",
+        "coordinate_translation_requirement_class",
+        "policy_epoch",
+        "trust_state",
+        "execution_context_id"
+      ],
+      "properties": {
+        "requested_surface_class": {
+          "$ref": "#/$defs/surface_class"
+        },
+        "requested_capability_class": {
+          "$ref": "#/$defs/capability_class"
+        },
+        "requested_authority_floor_class": {
+          "$ref": "#/$defs/requested_authority_floor_class"
+        },
+        "requested_scope_claim_class": {
+          "$ref": "#/$defs/scope_claim_class"
+        },
+        "requested_subject_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "placement_preference_class": {
+          "$ref": "#/$defs/placement_preference_class"
+        },
+        "coordinate_translation_requirement_class": {
+          "$ref": "#/$defs/coordinate_translation_requirement_class"
+        },
+        "policy_epoch": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "trust_state": {
+          "$ref": "#/$defs/trust_state"
+        },
+        "execution_context_id": {
+          "$ref": "#/$defs/opaque_id"
+        }
+      }
+    },
+    "routing_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_id",
+        "workset_id",
+        "workspace_root_ref",
+        "subject_root_ref",
+        "package_root_ref",
+        "config_root_ref",
+        "lane_class",
+        "target_summary",
+        "toolchain_summary"
+      ],
+      "properties": {
+        "workspace_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "workset_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "workspace_root_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "subject_root_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "package_root_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "config_root_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lane_class": {
+          "$ref": "#/$defs/lane_class"
+        },
+        "target_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "toolchain_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      },
+      "description": "Cross-root and execution-context binding required to explain routing."
+    },
+    "provider_stack_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id",
+        "provider_display_label",
+        "provider_kind",
+        "capability_class",
+        "support_class",
+        "precedence_band",
+        "locality_class",
+        "health_state",
+        "freshness_class",
+        "fault_domain_id",
+        "restart_strike_count",
+        "restart_budget_ref",
+        "fallback_class",
+        "summary"
+      ],
+      "properties": {
+        "provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "provider_display_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "provider_kind": {
+          "$ref": "#/$defs/provider_kind"
+        },
+        "capability_class": {
+          "$ref": "#/$defs/capability_class"
+        },
+        "support_class": {
+          "$ref": "#/$defs/support_class"
+        },
+        "precedence_band": {
+          "$ref": "#/$defs/precedence_band"
+        },
+        "locality_class": {
+          "$ref": "#/$defs/locality_class"
+        },
+        "health_state": {
+          "$ref": "#/$defs/health_state"
+        },
+        "freshness_class": {
+          "$ref": "#/$defs/freshness_class"
+        },
+        "fault_domain_id": {
+          "$ref": "#/$defs/fault_domain_id"
+        },
+        "restart_strike_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "restart_budget_ref": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "quarantine_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/opaque_id"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "fallback_class": {
+          "$ref": "#/$defs/fallback_class"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "decision_outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resolution_mode",
+        "degraded_state_class",
+        "fallback_class",
+        "selected_provider_id",
+        "routing_reason",
+        "fallback_summary"
+      ],
+      "properties": {
+        "resolution_mode": {
+          "$ref": "#/$defs/resolution_mode"
+        },
+        "degraded_state_class": {
+          "$ref": "#/$defs/degraded_state_class"
+        },
+        "fallback_class": {
+          "$ref": "#/$defs/fallback_class"
+        },
+        "selected_provider_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "routing_reason": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "fallback_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "surface_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "origin_label",
+        "degraded_state_class",
+        "user_visible_summary",
+        "export_safe_explanation"
+      ],
+      "properties": {
+        "origin_label": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "degraded_state_class": {
+          "$ref": "#/$defs/degraded_state_class"
+        },
+        "user_visible_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        },
+        "export_safe_explanation": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    },
+    "router_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "router_decision_schema_version",
+        "router_decision_id",
+        "request_context",
+        "routing_context",
+        "provider_stack_rows",
+        "decision_outcome",
+        "surface_report",
+        "redaction_class",
+        "captured_at",
+        "export_safe_summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "router_decision_schema_version": {
+          "$ref": "#/$defs/router_decision_schema_version"
+        },
+        "router_decision_id": {
+          "$ref": "#/$defs/opaque_id"
+        },
+        "request_context": {
+          "$ref": "#/$defs/request_context"
+        },
+        "routing_context": {
+          "$ref": "#/$defs/routing_context"
+        },
+        "provider_stack_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provider_stack_row"
+          },
+          "description": "Ordered provider stack (primary first, then contributors/overlays/fallbacks)."
+        },
+        "decision_outcome": {
+          "$ref": "#/$defs/decision_outcome"
+        },
+        "surface_report": {
+          "$ref": "#/$defs/surface_report"
+        },
+        "redaction_class": {
+          "$ref": "#/$defs/redaction_class"
+        },
+        "captured_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "export_safe_summary": {
+          "$ref": "#/$defs/reviewable_summary"
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=../../../schemas/language/router_decision.schema.json
+record_kind: router_decision_record
+router_decision_schema_version: 1
+router_decision_id: router:decision:diagnostics:crash_loop:cached_graph_fallback:01
+request_context:
+  requested_surface_class: diagnostic
+  requested_capability_class: diagnostics
+  requested_authority_floor_class: authoritative_preferred
+  requested_scope_claim_class: target_graph
+  requested_subject_ref: subject:file:webapp:src:router:01
+  placement_preference_class: match_subject_location
+  coordinate_translation_requirement_class: required_before_result
+  policy_epoch: policy:epoch:trusted:2026-05-05:01
+  trust_state: trusted
+  execution_context_id: exec:language:webapp:local_node:01
+routing_context:
+  workspace_id: workspace:web_monorepo:01
+  workset_id: workset:active:web_monorepo:01
+  workspace_root_ref: workspace:root:web_monorepo:01
+  subject_root_ref: workspace:root:webapp:01
+  package_root_ref: package:root:webapp:01
+  config_root_ref: config_root:webapp:tsconfig:01
+  lane_class: local_only
+  target_summary: Local target graph selected for the active workset.
+  toolchain_summary: Node toolchain identity anchored by the active execution context.
+provider_stack_rows:
+  - provider_id: provider:lsp:ts:01
+    provider_display_label: TypeScript language service
+    provider_kind: language_server
+    capability_class: diagnostics
+    support_class: authoritative
+    precedence_band: protocol_compatibility
+    locality_class: local_sidecar
+    health_state: crash_loop_quarantined
+    freshness_class: unverified
+    fault_domain_id: session_scoped_execution_hosts
+    restart_strike_count: 3
+    restart_budget_ref: restart_budget:session_scoped_execution_hosts:language:ts:01
+    quarantine_ref: quarantine:language_service:ts:crash_loop:01
+    fallback_class: live_to_cached
+    summary: Language service exceeded its restart budget and is quarantined; it cannot contribute new diagnostics.
+  - provider_id: provider:graph:ts_project:01
+    provider_display_label: Project graph lane
+    provider_kind: project_graph
+    capability_class: diagnostics
+    support_class: fallback_only
+    precedence_band: project_graph_authority
+    locality_class: local_sidecar
+    health_state: cached_only
+    freshness_class: warm_cached
+    fault_domain_id: workspace_knowledge_workers
+    restart_strike_count: 0
+    restart_budget_ref: restart_budget:workspace_knowledge_workers:graph:01
+    quarantine_ref: null
+    fallback_class: no_fallback
+    summary: Cached graph diagnostics remain available for the current config root, but freshness is limited by the last successful semantic epoch.
+  - provider_id: provider:syntax:tree_sitter:01
+    provider_display_label: Syntax / structure engine
+    provider_kind: syntax_parser
+    capability_class: diagnostics
+    support_class: advisory
+    precedence_band: heuristic_fallback
+    locality_class: local_in_process
+    health_state: ready
+    freshness_class: authoritative_live
+    fault_domain_id: shell_interaction_core
+    restart_strike_count: 0
+    restart_budget_ref: restart_budget:shell_interaction_core:parser:01
+    quarantine_ref: null
+    fallback_class: no_fallback
+    summary: Syntax layer can still surface structural parse notes but cannot substitute for semantic diagnostics.
+decision_outcome:
+  resolution_mode: ordered_fallback
+  degraded_state_class: degraded_crash_loop_quarantine
+  fallback_class: live_to_cached
+  selected_provider_id: provider:graph:ts_project:01
+  routing_reason: Semantic diagnostics lane was quarantined after a crash loop, so the router selected a cached graph fallback for the same config root.
+  fallback_summary: Diagnostics are served from cached graph state; they must be labeled as cached and may be stale until the semantic lane exits quarantine and rebuilds.
+surface_report:
+  origin_label: Project graph lane (cached fallback)
+  degraded_state_class: degraded_crash_loop_quarantine
+  user_visible_summary: Diagnostics are temporarily served from cached graph state because the language service is quarantined after repeated crashes.
+  export_safe_explanation: Router bound diagnostics to the selected config root and toolchain context, excluded the crash-loop-quarantined language service, and routed to a cached graph lane with explicit freshness labeling.
+redaction_class: metadata_safe_default
+captured_at: "2026-05-05T21:06:30Z"
+export_safe_summary: Diagnostics routing excluded a crash-loop-quarantined semantic service and fell back to cached project graph diagnostics with explicit downgrade and freshness disclosure.
+

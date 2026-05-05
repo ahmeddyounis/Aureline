@@ -28,6 +28,10 @@ were narrowed.
 This seed freezes the router contract and its companion boundary
 schemas:
 
+- [`/docs/language/language_router_contract.md`](../language/language_router_contract.md)
+  defines the cross-surface router decision packet that binds provider
+  selection to config/package roots and toolchain identity so fallback
+  and supervision never become silent.
 - [`/schemas/language/provider_capability.schema.json`](../../schemas/language/provider_capability.schema.json)
   defines the provider capability descriptor every language, debug,
   formatter, test, build, framework, native analyzer, project-graph,
@@ -35,6 +39,10 @@ schemas:
 - [`/schemas/language/provider_resolution.schema.json`](../../schemas/language/provider_resolution.schema.json)
   defines the resolution record emitted when a surface asks the router
   to pick, merge, overlay, or reject providers for one capability.
+- [`/schemas/language/router_decision.schema.json`](../../schemas/language/router_decision.schema.json)
+  defines the router decision record emitted before protected surfaces
+  treat a route as current truth, including root bindings, toolchain
+  identity, lane placement, and fallback cause.
 - [`/fixtures/language/router_cases/`](../../fixtures/language/router_cases/)
   contains worked cases for completion fallback, diagnostics
   coexistence, formatting precedence, test discovery fallback, debug
