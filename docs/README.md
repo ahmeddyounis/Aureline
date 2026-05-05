@@ -578,6 +578,14 @@ code.
   [`/schemas/copy/late_copy_change.schema.json`](../schemas/copy/late_copy_change.schema.json);
   worked fixtures in
   [`/fixtures/copy/placeholder_and_late_copy_cases/`](../fixtures/copy/placeholder_and_late_copy_cases/).
+- [`copy/ui_copy_contract.md`](./copy/ui_copy_contract.md)
+  — unified UI copy contract for action labels, error messages, and AI
+  copy guardrails. Machine-readable lint rules in
+  [`/artifacts/copy/ui_copy_lint_rules.yaml`](../artifacts/copy/ui_copy_lint_rules.yaml);
+  boundary schema in
+  [`/schemas/copy/error_message.schema.json`](../schemas/copy/error_message.schema.json);
+  worked fixtures in
+  [`/fixtures/copy/ui_copy_cases/`](../fixtures/copy/ui_copy_cases/).
 - [`copy/count_scope_freshness_grammar.md`](./copy/count_scope_freshness_grammar.md)
   — copy grammar and term contract for dense count, scope, freshness,
   and chronology labels. Freezes controlled meanings for visible,

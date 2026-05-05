@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/copy/error_message.schema.json",
+  "title": "Aureline error-message contract",
+  "description": "Boundary schema for user-facing error messages. Records freeze the required four-part structure (what failed, why it likely failed, what still works, next safe action) so UI, CLI summaries, exports, accessibility strings, and support packets do not drift into vague or overclaiming copy.",
+  "type": "object",
+  "oneOf": [{ "$ref": "#/$defs/error_message_record" }],
+  "$defs": {
+    "error_message_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the error_message_record family."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Stable id safe for logs, fixtures, exports, and support packets."
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical command id when the next safe action maps to a command route."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "trust_prompt",
+        "settings_row",
+        "banner_notice",
+        "toast",
+        "dialog_or_sheet",
+        "help_or_support",
+        "cli_summary",
+        "export",
+        "ai_card"
+      ],
+      "description": "Where the error message is rendered."
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": ["info", "warning", "error", "critical"]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900,
+      "description": "Redaction-aware human-facing sentence or short paragraph."
+    },
+    "action_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "not": {
+        "enum": ["Yes", "No", "OK", "Continue", "Apply", "Confirm", "Submit", "Accept"]
+      },
+      "description": "Rendered next-step action label. Generic acknowledgements are forbidden as the entire label."
+    },
+    "scope_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_label"],
+      "properties": {
+        "object_label": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Short name for the affected object (workspace, host, provider, job, setting row, export, run)."
+        },
+        "scope_label": {
+          "oneOf": [{ "$ref": "#/$defs/reviewable_sentence" }, { "type": "null" }],
+          "description": "Optional clarifying scope when the object label is not sufficient."
+        }
+      }
+    },
+    "next_safe_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_label", "summary"],
+      "properties": {
+        "action_label": { "$ref": "#/$defs/action_label" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "command_id_ref": {
+          "oneOf": [{ "$ref": "#/$defs/command_id" }, { "type": "null" }]
+        }
+      }
+    },
+    "error_message_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "error_message_schema_version",
+        "message_id",
+        "surface_family",
+        "severity",
+        "what_failed",
+        "likely_cause",
+        "what_still_works",
+        "next_safe_action"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "error_message_record" },
+        "error_message_schema_version": { "$ref": "#/$defs/error_message_schema_version" },
+        "message_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable error-message identity used across UI, exports, and support packets."
+        },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "severity": { "$ref": "#/$defs/severity_class" },
+        "scope": {
+          "oneOf": [{ "$ref": "#/$defs/scope_identity" }, { "type": "null" }],
+          "description": "Optional explicit scope identity when available."
+        },
+        "what_failed": { "$ref": "#/$defs/reviewable_sentence" },
+        "likely_cause": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Likely cause, or an explicit 'cause unknown' statement when the system cannot establish causality."
+        },
+        "what_still_works": { "$ref": "#/$defs/reviewable_sentence" },
+        "next_safe_action": { "$ref": "#/$defs/next_safe_action_record" }
+      }
+    }
+  }
+}
+

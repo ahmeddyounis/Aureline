@@ -1,0 +1,75 @@
+# UI copy lint rules.
+#
+# Machine-readable contract for rejecting vague action labels, incomplete error
+# messages, and overclaiming AI copy.
+
+record_kind: ui_copy_lint_rules_record
+schema_version: 1
+registry_id: copy.ui.lint_rules.v1
+contract_doc: docs/copy/ui_copy_contract.md
+fixtures_ref: fixtures/copy/ui_copy_cases/
+
+sources:
+  - docs/copy/ui_copy_contract.md
+  - docs/copy/naming_and_state_label_contract.md
+  - artifacts/copy/controlled_glossary.yaml
+  - docs/ai/ai_copy_guardrails_contract.md
+  - artifacts/ai/approved_ai_terms.yaml
+  - artifacts/ai/forbidden_ai_terms.yaml
+  - docs/copy/translation_safe_content_ops_contract.md
+
+rule_sets:
+  action_label:
+    rule_id: ui_copy.action_label.vague_standalone_forbidden
+    forbidden_exact_labels:
+      - "Yes"
+      - "No"
+      - OK
+      - Continue
+      - Apply
+      - Confirm
+      - Submit
+      - Accept
+    allowed_exact_labels_when_no_mutation:
+      - Cancel
+      - Close
+      - Back
+    notes: >
+      These labels are forbidden only when they are the entire action label for a
+      consequential action. Qualified labels such as "Continue read-only" or
+      "Accept terms" are evaluated separately.
+
+  error_message:
+    rule_id: ui_copy.error_message.four_part_required
+    required_sections:
+      - what_failed
+      - likely_cause
+      - what_still_works
+      - next_safe_action
+    forbidden_exact_failure_summaries:
+      - Something went wrong
+      - An error occurred
+      - Error
+      - Failed
+      - Unknown error
+    forbidden_exact_next_actions:
+      - Try again
+      - Try again later
+      - Continue
+      - OK
+    notes: >
+      Error messages must name residual working state and a next safe action.
+      Generic summaries or generic "try again" endings are forbidden when a
+      typed next safe action exists.
+
+  ai_copy:
+    rule_id: ui_copy.ai_copy.overclaiming_forbidden
+    forbidden_terms_registry_ref: artifacts/ai/forbidden_ai_terms.yaml
+    required_softening_terms_for_unvalidated_output:
+      - Suggested
+      - Proposed
+      - Draft
+    notes: >
+      AI copy uses the AI guardrails contract. This lint layer exists to make it
+      easy for non-AI surfaces that quote AI content (cards, exports, help) to
+      apply the same bans and required posture terms.

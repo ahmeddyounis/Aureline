@@ -9,6 +9,10 @@ frozen-surface manifest completeness and same-train obligations,
 protected-path package and module boundary rules, and command-parity tool
 health.
 
+The shared wrapper also validates a small set of contract-adjacent fixture packs
+that serve as mechanical review gates: design token ledgers (geometry and motion)
+and UI copy lint rules and cases.
+
 Companion artifacts:
 
 - [`/tools/ci/validate_contract_artifacts.py`](../../tools/ci/validate_contract_artifacts.py)
@@ -16,6 +20,12 @@ Companion artifacts:
 - [`/ci/contract_validation.sh`](../../ci/contract_validation.sh)
   — local and CI wrapper that writes a JSON report and captures the
   human-readable summary.
+- [`/tools/ci/validate_geometry_cases.py`](../../tools/ci/validate_geometry_cases.py)
+  — validates geometry token ledger and worked cases.
+- [`/tools/ci/validate_motion_cases.py`](../../tools/ci/validate_motion_cases.py)
+  — validates motion token ledger and worked cases.
+- [`/tools/ci/validate_ui_copy_cases.py`](../../tools/ci/validate_ui_copy_cases.py)
+  — validates UI copy lint rules and worked cases.
 - [`/tools/check_frozen_surfaces.py`](../../tools/check_frozen_surfaces.py)
   - direct validator entry point for the frozen-surface manifest and
   changed-surface obligation checks.
