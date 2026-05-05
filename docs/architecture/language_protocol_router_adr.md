@@ -42,6 +42,9 @@ schemas:
 
 This contract composes with:
 
+- [`/docs/language/three_layer_model_contract.md`](../language/three_layer_model_contract.md)
+  for the user-facing “which layer answered?” depth labeling that sits above
+  provider-level arbitration.
 - [`/docs/language/provider_graph_and_arbitration_contract.md`](../language/provider_graph_and_arbitration_contract.md)
   for language-result provenance, scope honesty, alternate-provider
   disclosure, and framework certainty.

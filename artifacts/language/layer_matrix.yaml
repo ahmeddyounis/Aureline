@@ -1,0 +1,487 @@
+# Language three-layer model matrix and downgrade rules.
+#
+# Machine-readable companion to:
+#   docs/language/three_layer_model_contract.md
+#
+# Purpose:
+#   - Freeze the three-layer vocabulary so "language support" claims can be
+#     made precisely (syntax/structure vs compatibility vs Aureline-owned depth)
+#     and audited across UI, docs, review, and AI surfaces.
+#   - Freeze downgrade disclosure rules so fallbacks cannot silently present
+#     weaker truth as deeper semantics.
+#
+# Rules:
+#   - Surfaces MUST NOT invent additional layer ids or feature-family ids.
+#   - If this file and the contract doc disagree, the contract doc wins and
+#     this file updates in the same change.
+#   - Adding a new feature family is additive-minor and must include at least
+#     one new fixture in fixtures/language/layer_cases/.
+
+schema_version: 1
+
+contract_doc_ref: docs/language/three_layer_model_contract.md
+fixtures_ref: fixtures/language/layer_cases
+
+upstream_contracts:
+  - docs/architecture/language_protocol_router_adr.md
+  - docs/language/provider_graph_and_arbitration_contract.md
+  - docs/governance/truth_and_degraded_state_vocabulary.md
+  - docs/search/search_readiness_vocabulary.md
+  - docs/navigation/semantic_navigation_and_rename_contract.md
+  - docs/execution/debug_truth_contract.md
+  - docs/execution/test_truth_contract.md
+
+axes:
+  language_layer:
+    description: >
+      Frozen language intelligence layers. A surface emits exactly one
+      answer_layer_id per protected result, even if multiple providers
+      contribute overlays.
+    values:
+      - layer_1_syntax_structure
+      - layer_2_compatibility_breadth
+      - layer_3_aureline_semantic_depth
+
+  feature_family:
+    description: >
+      Frozen feature families that must remain layer-attributable. The ids
+      are stable across UI, CLI, AI, docs, review, and support exports.
+    values:
+      - hover
+      - completion
+      - diagnostics
+      - rename
+      - references
+      - formatting
+      - inlay_hints
+      - semantic_tokens
+      - debug
+      - tests
+      - graph_overlays
+      - impact_analysis
+      - refactor_assistance
+
+  surface_family:
+    description: >
+      Frozen surface families that must disclose the answering layer or the
+      deeper-layer-unavailable reason when operating below the deepest layer.
+    values:
+      - editor
+      - search
+      - navigation
+      - refactor
+      - docs
+      - review
+      - ai
+      - support_export
+
+layer_definitions:
+  - layer_id: layer_1_syntax_structure
+    label: Syntax and structure
+    canonical_job: Syntax trees and local structural UX
+    typical_sources:
+      - tree_sitter_parse
+      - grammar_queries
+      - tokenization
+    never_imply:
+      - workspace_wide_semantics
+      - project_model_awareness
+      - safe_multi_file_refactor
+
+  - layer_id: layer_2_compatibility_breadth
+    label: Compatibility and breadth
+    canonical_job: Protocol and toolchain compatibility across ecosystems
+    typical_sources:
+      - lsp
+      - dap
+      - formatter_adapter
+      - linter_adapter
+      - test_adapter
+      - build_adapter
+    never_imply:
+      - aureline_owned_semantic_proof
+      - uniform_quality_across_languages
+      - framework_build_aware_correctness
+
+  - layer_id: layer_3_aureline_semantic_depth
+    label: Aureline-owned semantic depth
+    canonical_job: Graph-backed, framework-aware, build-aware semantics
+    typical_sources:
+      - semantic_workspace_graph
+      - framework_packs
+      - native_analyzers
+      - build_target_awareness
+    never_imply:
+      - complete_for_unloaded_or_stale_scope
+      - evidence_free_claims
+
+feature_family_mapping:
+  - feature_family_id: hover
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - token_kind_and_syntax_node_class
+          - doc_comment_extraction_if_grammar_local
+        labels_required:
+          - answer_layer_id
+          - scope_claim_class
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_hover_payload
+          - signature_help_overlay
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - scope_claim_class
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_backed_symbol_identity
+          - framework_aware_facts
+          - build_aware_type_resolution
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+          - degraded_state_token
+
+  - feature_family_id: completion
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - keyword_and_snippet_completion
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_completion_list
+          - signature_help
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_aware_ranking
+          - framework_suggestions
+          - safe_import_insertion_rules
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: diagnostics
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - parse_and_grammar_recovery_diagnostics
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_diagnostics
+          - linter_and_build_adapter_imports
+          - protocol_code_actions
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_normalized_finding_taxonomy
+          - framework_aware_diagnostics
+          - cross_file_causal_linking
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: rename
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - file_local_text_rename_only
+        labels_required:
+          - answer_layer_id
+          - explicit_scope_warning
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_rename_with_provider_claimed_scope
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - scope_claim_class
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_backed_symbol_identity_rename
+          - preview_and_rollback_posture
+          - impact_scope_disclosure
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - downgrade_badge_text_only_or_compatibility_only
+          - preview_required
+
+  - feature_family_id: references
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - lexical_or_file_local_reference_scan
+        labels_required:
+          - answer_layer_id
+          - scope_claim_class
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_references
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_backed_reference_sets
+          - framework_and_build_aware_edges
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: formatting
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - minimal_structural_formatting_only
+        labels_required:
+          - answer_layer_id
+          - mutation_safety_warning
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_formatting
+          - formatter_adapter_runs
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - framework_and_artifact_class_safe_formatting
+          - coordinate_mapping_gated_mutation
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: inlay_hints
+    default_deepest_layer: layer_2_compatibility_breadth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - not_applicable
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_inlay_hints
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_backed_inlay_hints_where_available
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: semantic_tokens
+    default_deepest_layer: layer_2_compatibility_breadth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - syntax_token_classes_only
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - lsp_semantic_tokens
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_tied_symbol_identity_tokens
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: debug
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - not_applicable
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - dap_sessions
+          - adapter_only_launch_attach
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - artifact_and_target_identity_proven
+          - symbol_linked_breakpoints_where_supported
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: tests
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - not_applicable
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - adapter_driven_test_discovery_and_runs
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_linked_test_items_and_impact_scope
+          - ownership_and_docs_linking
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: graph_overlays
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - not_applicable
+        labels_required:
+          - answer_layer_id
+      layer_2_compatibility_breadth:
+        provides:
+          - not_applicable
+        labels_required:
+          - answer_layer_id
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_overlay_views_with_provenance
+        labels_required:
+          - answer_layer_id
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - unsupported_or_policy_blocked
+
+  - feature_family_id: impact_analysis
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - heuristic_only
+        labels_required:
+          - answer_layer_id
+          - advisory_only_badge
+      layer_2_compatibility_breadth:
+        provides:
+          - heuristic_only
+        labels_required:
+          - answer_layer_id
+          - advisory_only_badge
+      layer_3_aureline_semantic_depth:
+        provides:
+          - graph_backed_change_impact
+        labels_required:
+          - answer_layer_id
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - advisory_only_badge
+          - deeper_layer_unavailable_reason
+
+  - feature_family_id: refactor_assistance
+    default_deepest_layer: layer_3_aureline_semantic_depth
+    layer_capabilities:
+      layer_1_syntax_structure:
+        provides:
+          - text_transform_only
+        labels_required:
+          - answer_layer_id
+          - preview_required
+          - explicit_scope_warning
+      layer_2_compatibility_breadth:
+        provides:
+          - provider_suggested_edits_only
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - preview_required
+      layer_3_aureline_semantic_depth:
+        provides:
+          - typed_change_transactions
+          - scope_and_impact_disclosure
+          - rollback_posture
+        labels_required:
+          - answer_layer_id
+          - provider_disclosure
+          - freshness_and_scope_disclosure
+    downgrade_rules:
+      - when_answer_layer_is_below: layer_3_aureline_semantic_depth
+        must_disclose:
+          - downgrade_badge_text_only_or_compatibility_only
+          - preview_required
+

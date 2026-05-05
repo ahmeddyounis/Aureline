@@ -679,6 +679,14 @@ code.
   [`/schemas/language/result_provenance.schema.json`](../schemas/language/result_provenance.schema.json);
   worked fixtures in
   [`/fixtures/language/provider_arbitration_cases/`](../fixtures/language/provider_arbitration_cases/).
+- [`language/three_layer_model_contract.md`](./language/three_layer_model_contract.md)
+  — the canonical three-layer language intelligence model (syntax/structure,
+  compatibility/breadth, Aureline-owned semantic depth) and the cross-surface
+  rule that every answer discloses its layer and downgrade reason. Companion
+  matrix in
+  [`/artifacts/language/layer_matrix.yaml`](../artifacts/language/layer_matrix.yaml);
+  worked fixtures in
+  [`/fixtures/language/layer_cases/`](../fixtures/language/layer_cases/).
 - [`language/completion_and_inline_hint_contract.md`](./language/completion_and_inline_hint_contract.md)
   — shared completion-row, signature-help, snippet-session, code-lens,
   and inline-hint contract for the typing loop, including source

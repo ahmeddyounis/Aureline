@@ -32,6 +32,9 @@ Machine-readable companions:
 
 This contract composes with and does not replace:
 
+- [`/docs/language/three_layer_model_contract.md`](./three_layer_model_contract.md)
+  — shared three-layer language depth model and “which layer answered?” truth
+  contract that this provider graph maps into.
 - [`/docs/governance/truth_and_degraded_state_vocabulary.md`](../governance/truth_and_degraded_state_vocabulary.md)
   — shared truth/degraded-state vocabulary.
 - [`/docs/search/search_readiness_vocabulary.md`](../search/search_readiness_vocabulary.md)
