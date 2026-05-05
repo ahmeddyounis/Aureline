@@ -157,7 +157,9 @@ private renames on protected surfaces are forbidden.
   [`docs/adr/0004-rpc-transport-and-schema-toolchain.md`](../adr/0004-rpc-transport-and-schema-toolchain.md).
 - Subscription envelope and authority-class matrix execution-
   context fields project into:
-  [`docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md).
+  [`docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md)
+  and
+  [`docs/runtime/authority_class_matrix.md`](./authority_class_matrix.md).
 - Filesystem-identity layers target mounts re-export:
   [`docs/adr/0006-vfs-save-cache-identity.md`](../adr/0006-vfs-save-cache-identity.md).
 - Secret broker every projected credential resolves against:

@@ -1,0 +1,91 @@
+fixture_schema_version: 1
+fixture_id: derived_diagnostics_apply_requires_revalidate
+title: Derived diagnostics “apply” actions revalidate against live buffer truth
+
+authority_classes_involved:
+  - derived_knowledge
+  - buffer_editor
+
+frames:
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 401
+      query_family: language.diagnostics
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: derived_knowledge
+      derivation_class: derived
+      snapshot_epoch: 9
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: stale
+      completeness: partial
+      backpressure_mode: realtime
+      view_class: durable_local_materialization
+      invalidation:
+        stale_reason: upstream_input_stale
+        caused_by:
+          upstream_digest: sha256:vfs-file-identity-old
+          note: Diagnostics were computed from a previous file-identity digest.
+      producer_refs:
+        - producer_id: aureline.derived.diagnostics
+          producer_instance: synthetic-host/pid-5120/boot-2026041900/aureline.derived.diagnostics
+          producer_version: language-0.0.1-pre
+          derivation_epoch: 77
+          input_digests:
+            - name: vfs.file_identity@upstream
+              digest: sha256:vfs-file-identity-old
+      payload:
+        buffer_id: buf-77
+        diagnostics:
+          - code: unused_import
+            severity: warning
+            range:
+              start_line: 4
+              start_col: 1
+              end_line: 4
+              end_col: 18
+            quick_fixes:
+              - kind: edit
+                title: Remove unused import
+                edit:
+                  patch_format: range_delete
+                  target_revision: 390
+                  note: >
+                    target_revision is advisory only; apply must revalidate
+                    against the live buffer revision before mutating.
+
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 402
+      query_family: editor.buffer_snapshot
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: buffer_editor
+      derivation_class: authoritative
+      snapshot_epoch: 7
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: authoritative
+      completeness: full
+      backpressure_mode: realtime
+      view_class: ephemeral_projection
+      producer_refs:
+        - producer_id: aureline.editor.buffer
+          producer_instance: synthetic-host/pid-4801/boot-2026041900/aureline.editor.buffer
+          producer_version: editor-0.0.1-pre
+      payload:
+        buffer_id: buf-77
+        revision: 391
+
+expected:
+  must:
+    - derived diagnostics are labeled stale/partial and cannot masquerade as canonical truth
+    - “apply quick fix” either revalidates against the live buffer revision or stays disabled with explanation
+    - mutations flow through buffer_editor commands/journal, not through derived_knowledge producers
+  must_not:
+    - applying edits computed for revision 390 directly onto revision 391 without revalidation
+    - silently dropping stale labeling while keeping apply enabled
+  canonical_writer_for_mutation: buffer_editor

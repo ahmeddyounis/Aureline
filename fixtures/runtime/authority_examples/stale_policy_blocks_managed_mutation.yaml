@@ -1,0 +1,86 @@
+fixture_schema_version: 1
+fixture_id: stale_policy_blocks_managed_mutation
+title: Stale policy is visible before managed/egress mutations remain enabled
+
+authority_classes_involved:
+  - policy_entitlement
+  - execution
+
+frames:
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 301
+      query_family: policy.effective_snapshot
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: policy_entitlement
+      derivation_class: authoritative
+      snapshot_epoch: 12
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: stale
+      completeness: full
+      backpressure_mode: coalesced
+      view_class: durable_local_materialization
+      invalidation:
+        stale_reason: policy_epoch_changed
+        caused_by:
+          policy_epoch: 42
+          note: Cached policy snapshot no longer matches the active policy epoch.
+      producer_refs:
+        - producer_id: aureline.policy.engine
+          producer_instance: synthetic-host/pid-4701/boot-2026041900/aureline.policy.engine
+          producer_version: policy-0.0.1-pre
+      payload:
+        policy_epoch: 41
+        posture: stale_snapshot
+        requires_refresh_before:
+          - managed_network_egress
+          - provider_mutations
+          - remote_execution
+        user_visible_reason: Re-authentication required to refresh policy
+
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 302
+      query_family: execution.remote_session_control
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: execution
+      derivation_class: authoritative
+      snapshot_epoch: 3
+      delta_seq: 0
+      frame_class: terminal
+      freshness: stale
+      completeness: unavailable
+      backpressure_mode: realtime
+      view_class: ephemeral_projection
+      invalidation:
+        stale_reason: policy_epoch_changed
+        caused_by:
+          policy_epoch: 42
+          note: Control channel denied until policy refresh succeeds.
+      producer_refs:
+        - producer_id: aureline.execution.remote_connector
+          producer_instance: synthetic-host/pid-4702/boot-2026041900/aureline.execution.remote_connector
+          producer_version: remote-0.0.1-pre
+      terminal_reason: policy_terminated
+      payload:
+        denied_actions:
+          - attach_remote_shell
+          - run_remote_task
+        required_recovery:
+          - refresh_policy
+          - reauthorize
+
+expected:
+  must:
+    - surfaces label policy_entitlement freshness as stale before offering managed/egress mutations
+    - any action requiring policy approval stays disabled until policy refresh succeeds
+    - execution control channels expire/deny rather than silently continuing under stale policy
+  must_not:
+    - hidden best-effort retries that preserve mutation capability without visible stale/reauth state
+    - treating cached policy as sufficient authority for remote execution or provider writes
+  canonical_writer_for_mutation: policy_entitlement

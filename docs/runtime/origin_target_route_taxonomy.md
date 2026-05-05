@@ -676,7 +676,9 @@ route-changed case.
 - RPC transport (carries route-truth packets between processes):
   [`docs/adr/0004-rpc-transport-and-schema-toolchain.md`](../adr/0004-rpc-transport-and-schema-toolchain.md).
 - Subscription envelope and authority-class matrix:
-  [`docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md).
+  [`docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md)
+  and
+  [`docs/runtime/authority_class_matrix.md`](./authority_class_matrix.md).
 - Save / cache / mutation-journal contract (carries
   `authority_linkage_ref`):
   [`docs/adr/0006-vfs-save-cache-identity.md`](../adr/0006-vfs-save-cache-identity.md).

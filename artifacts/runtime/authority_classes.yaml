@@ -1,0 +1,202 @@
+# Reactive authority-class matrix and canonical writer rules.
+#
+# Machine-readable matrix that binds each frozen `authority_class`
+# to its canonical owner, allowed writers, consumer rules, staleness
+# gates, and projection-versus-mutation boundaries.
+#
+# Companion to docs/runtime/authority_class_matrix.md and the
+# reactive subscription vocabulary frozen by ADR 0005
+# (docs/adr/0005-subscription-envelope-and-invalidation-semantics.md).
+
+schema_version: 1
+artifact_id: aureline.runtime.authority_classes
+title: Reactive authority-class matrix and canonical writer rules
+
+contract_source: docs/runtime/authority_class_matrix.md
+
+related_docs:
+  - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+  - schemas/runtime/subscription_envelope.schema.json
+  - schemas/runtime/execution_context.schema.json
+  - docs/runtime/execution_context_vocabulary.md
+  - docs/support/support_bundle_contract.md
+  - artifacts/governance/ownership_matrix.yaml
+
+companion_refs:
+  subscription_envelope_schema_ref: schemas/runtime/subscription_envelope.schema.json
+  execution_context_schema_ref: schemas/runtime/execution_context.schema.json
+  authority_examples_ref: fixtures/runtime/authority_examples/
+
+# --------------------------------------------------------------------------
+# Closed vocabulary.
+#
+# This vocabulary is frozen by ADR-0005 and re-exported by multiple
+# runtime schemas. Adding a value is breaking and requires updating
+# those schemas and the ADR in the same change.
+# --------------------------------------------------------------------------
+
+authority_class_vocabulary:
+  - workspace_vfs
+  - buffer_editor
+  - derived_knowledge
+  - execution
+  - policy_entitlement
+  - provider_overlay
+
+# --------------------------------------------------------------------------
+# Matrix rows.
+#
+# Each row answers:
+#   - who is the canonical owner?
+#   - who may write?
+#   - how do consumers project state honestly?
+#   - what is the projection boundary vs the mutation boundary?
+#   - what staleness gates apply before mutation-capable affordances stay on?
+# --------------------------------------------------------------------------
+
+classes:
+  - id: workspace_vfs
+    display_name: Workspace / VFS authority
+    canonical_owner: workspace runtime + VFS layer
+    typical_entities:
+      - workspace roots and membership
+      - filesystem identity and alias sets
+      - watcher health and external-change merges
+      - save tokens and coordination state
+    allowed_writers:
+      - vfs adapters (watchers, remote mounts, provider-backed filesystem bridges)
+      - workspace/vfs command handlers (root binding, save/rename, trust-scoped workspace facts)
+      - restore/recovery replay owned by the workspace runtime
+    consumer_rules:
+      - consumers may cache projections but never invent root/path/trust authority
+      - any alias must be represented as an alias of a canonical identity, not as a second mutable object
+      - derived consumers must retain authority/freshness labeling when projecting workspace facts
+    staleness_requirements:
+      - degraded watcher health or identity lineage must be labeled before destructive file mutations are offered
+      - stale workspace identity prohibits “silent best-effort” bulk apply; require refresh or explicit downgrade
+    projection_boundary:
+      - projections may include convenience views (tree nodes, breadcrumbs, quick-open lists) but not new identity
+      - consumers may not treat a provider path, UI label, or cached manifest as canonical identity
+    mutation_boundary:
+      - filesystem mutations route through the canonical workspace/vfs command path and mutation journal
+      - direct ad-hoc file IO from UI surfaces is non-conforming
+
+  - id: buffer_editor
+    display_name: Buffer / editor authority
+    canonical_owner: editor engine (buffer store + undo/redo + dirty journal)
+    typical_entities:
+      - in-memory text buffers and revision lineage
+      - selections, cursors, and view-state handles
+      - dirty state and undo groups
+      - recovery journals and restore checkpoints
+    allowed_writers:
+      - editor command graph and input pipeline
+      - recovery replay that replays the buffer journal into the same buffer engine
+    consumer_rules:
+      - consumers read through subscriptions and render overlays anchored to buffer identity + revision
+      - overlays and AI suggestions remain secondary and cannot overwrite buffer truth out-of-band
+    staleness_requirements:
+      - any apply/quick-fix derived from stale buffer snapshots must re-check against live buffers before mutate
+      - mutation-capable affordances computed from derived truth must degrade to “refresh/revalidate required”
+    projection_boundary:
+      - projections may annotate (highlights, review comments, suggestions) but must not claim buffer ownership
+    mutation_boundary:
+      - every text mutation is an editor command with a journal entry and published buffer delta
+      - no consumer may patch the buffer out-of-band
+
+  - id: derived_knowledge
+    display_name: Derived knowledge authority
+    canonical_owner: search/index/graph/language workers
+    typical_entities:
+      - diagnostics, references, and symbol indexes
+      - graph neighborhoods and dependency edges
+      - search results and doc links
+    allowed_writers:
+      - producing workers that derive from named canonical inputs and publish provenance
+    consumer_rules:
+      - freshness/completeness/provenance labels are mandatory on derived outputs
+      - derived outputs are evidence and navigation aids, not canonical sources for mutation
+    staleness_requirements:
+      - stale or partial derived truth must not keep mutation-capable affordances enabled without revalidation
+      - derived outputs with stale inputs must propagate staleness visibly
+    projection_boundary:
+      - derived projections may be cached as materialized views only under declared view_class semantics
+    mutation_boundary:
+      - derived lanes do not directly mutate workspace, buffers, or policy
+      - apply actions are requests routed to canonical owners through commands
+
+  - id: execution
+    display_name: Execution authority
+    canonical_owner: task/debug/terminal/notebook/pipeline runtimes
+    typical_entities:
+      - session state, run status, and lifecycle events
+      - execution artifacts and checkpoint refs
+      - command zones, streams, and control channels
+    allowed_writers:
+      - execution services only (session hosts, runners, debug adapters, notebook kernel controllers)
+    consumer_rules:
+      - control and status surfaces subscribe declaratively; hidden polling and scraping are forbidden
+      - provider overlays may annotate execution state but not replace local session truth
+    staleness_requirements:
+      - stale execution truth downgrades control affordances to inspect-only with explicit reason
+      - policy revocation forces control channels to expire, not to silently continue
+    projection_boundary:
+      - execution projections must retain identity, timestamp, and freshness labeling
+    mutation_boundary:
+      - control actions route through execution commands that re-check current policy entitlements
+
+  - id: policy_entitlement
+    display_name: Policy / entitlement authority
+    canonical_owner: trust, identity, policy, and network services
+    typical_entities:
+      - trust state and approval tickets
+      - policy epochs and effective capability envelopes
+      - quotas, allowlists, and egress posture
+    allowed_writers:
+      - policy and auth services only (local or managed, per deployment profile)
+    consumer_rules:
+      - policy snapshots must always cite source and epoch; no surface manufactures entitlements
+      - policy overlays never silently widen entitlement scope
+    staleness_requirements:
+      - stale policy is visible before mutation-capable affordances remain enabled
+      - actions requiring policy approval/egress either refresh policy first or stay disabled with clear reason
+    projection_boundary:
+      - consumers may project effective policy state but must never claim it as user-editable truth
+    mutation_boundary:
+      - granting/changing entitlements requires explicit policy actions that advance the policy epoch and audit
+
+  - id: provider_overlay
+    display_name: Provider / overlay authority
+    canonical_owner: provider adapters (code host, CI, companion, managed-service connectors)
+    typical_entities:
+      - review status and comment anchors
+      - CI checks and notifications
+      - companion feeds and managed metadata
+    allowed_writers:
+      - provider adapters within scoped contracts (typed RPC, identity-bound routes, policy-scoped credentials)
+    consumer_rules:
+      - overlays remain visibly secondary and never silently replace local canonical truth
+      - overlays must carry their own freshness and scope boundaries
+    staleness_requirements:
+      - cached/stale provider data downgrades provider control affordances to refresh-required or inspect-only
+      - provider unavailability must not degrade local-safe workflows beyond the declared boundary
+    projection_boundary:
+      - overlays may annotate local truth but must not overwrite workspace/buffer/policy authority
+    mutation_boundary:
+      - provider mutations require the same command governance, approval posture, and evidence capture as local
+
+# --------------------------------------------------------------------------
+# Cross-cutting rules (machine-readable checklist).
+# --------------------------------------------------------------------------
+
+cross_cutting_rules:
+  subscriptions:
+    - every consumer rendering non-owned truth uses typed subscriptions carrying authority + freshness + provenance
+    - consumers may not replace canonical truth with derived/imported/overlay state without a visible downgrade
+  command_mutations:
+    - mutations route to the canonical owner for the relevant authority class via commands and mutation journal
+    - if canonical truth cannot be consulted, fail closed or degrade unless an explicit waiver exists
+  diagnostics:
+    - derived and provider-owned claims carry authority + freshness labels; unlabeled derived truth is forbidden
+  support_bundles_and_evidence:
+    - exports must trace state-bearing surfaces back to authority_class, projection rule, and staleness at capture

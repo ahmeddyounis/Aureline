@@ -1,0 +1,92 @@
+fixture_schema_version: 1
+fixture_id: provider_overlay_patch_suggestion_is_evidence
+title: Provider overlay patch suggestions remain evidence, not buffer authority
+
+authority_classes_involved:
+  - provider_overlay
+  - buffer_editor
+
+frames:
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 101
+      query_family: provider.review_overlay
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: provider_overlay
+      derivation_class: derived
+      snapshot_epoch: 1
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: imported
+      completeness: partial
+      backpressure_mode: coalesced
+      view_class: managed_replicated_view
+      invalidation:
+        stale_reason: imported_from_external
+      producer_refs:
+        - producer_id: aureline.provider.github
+          producer_instance: synthetic-host/pid-5301/boot-2026041900/aureline.provider.github
+          producer_version: provider-github-0.0.1-pre
+          derivation_epoch: 1
+          source: imported:github
+      payload:
+        overlay_kind: patch_suggestion
+        provider_object:
+          kind: pull_request_review_comment
+          provider_ref: github:pr-comment:12345
+        anchor:
+          file_ref:
+            presentation_path: src/lib.rs
+            note: >
+              Presentation paths inside overlays are not canonical identity.
+              Consumers must resolve through workspace/VFS identity.
+          line_hint: 42
+        suggestion:
+          summary: Replace unwrap with error propagation
+          patch_format: unified_diff
+          patch: |
+            --- a/src/lib.rs
+            +++ b/src/lib.rs
+            @@
+            -let x = y.unwrap();
+            +let x = y?;
+
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 202
+      query_family: editor.buffer_snapshot
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: buffer_editor
+      derivation_class: authoritative
+      snapshot_epoch: 7
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: authoritative
+      completeness: full
+      backpressure_mode: realtime
+      view_class: ephemeral_projection
+      producer_refs:
+        - producer_id: aureline.editor.buffer
+          producer_instance: synthetic-host/pid-4801/boot-2026041900/aureline.editor.buffer
+          producer_version: editor-0.0.1-pre
+      payload:
+        buffer_id: buf-77
+        file_ref:
+          canonical_identity_ref: vfs:object:sha256:deadbeef
+        revision: 391
+
+expected:
+  must:
+    - overlay content is labeled as provider_overlay + derived (evidence)
+    - applying the suggestion routes through a buffer_editor command path
+    - any apply affordance re-checks anchor resolution against current buffer revision
+  must_not:
+    - provider overlay writes buffer text directly
+    - consumers treat overlay presentation_path as canonical identity
+  canonical_writer_for_mutation: buffer_editor
+  notes:
+    - A surface may show an "Apply suggestion" button, but only as a request that the editor owns.

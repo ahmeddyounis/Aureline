@@ -1,0 +1,83 @@
+fixture_schema_version: 1
+fixture_id: workspace_identity_aliases_keep_overlay_secondary
+title: Overlay anchors bind to canonical workspace identity, not a second mutable path
+
+authority_classes_involved:
+  - workspace_vfs
+  - provider_overlay
+
+frames:
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 501
+      query_family: vfs.file_identity
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: workspace_vfs
+      derivation_class: authoritative
+      snapshot_epoch: 4
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: authoritative
+      completeness: full
+      backpressure_mode: realtime
+      view_class: durable_local_materialization
+      producer_refs:
+        - producer_id: aureline.vfs.file_identity
+          producer_instance: synthetic-host/pid-4813/boot-2026041900/aureline.vfs.file_identity
+          producer_version: vfs-0.1.0-pre
+      payload:
+        canonical_identity_ref: vfs:object:sha256:deadbeef
+        presentation_paths:
+          - src/lib.rs
+          - SRC/lib.rs
+        alias_set:
+          kind: case_alias
+          note: >
+            Two presentation paths alias-converge on one canonical filesystem
+            object. Consumers must not treat them as two independently mutable
+            files.
+
+  - envelope:
+      subscription_schema_version: 1
+      subscription_id: 502
+      query_family: provider.review_overlay
+      scope_ref:
+        class: workspace
+        id: ws-1
+      authority_class: provider_overlay
+      derivation_class: derived
+      snapshot_epoch: 2
+      delta_seq: 0
+      frame_class: snapshot
+      freshness: cached
+      completeness: partial
+      backpressure_mode: coalesced
+      view_class: managed_replicated_view
+      invalidation:
+        stale_reason: cache_served
+      producer_refs:
+        - producer_id: aureline.provider.github
+          producer_instance: synthetic-host/pid-5301/boot-2026041900/aureline.provider.github
+          producer_version: provider-github-0.0.1-pre
+          derivation_epoch: 2
+      payload:
+        overlay_kind: comment_anchor
+        provider_object:
+          kind: pull_request_review_comment
+          provider_ref: github:pr-comment:999
+        anchor:
+          presentation_path: SRC/lib.rs
+          line_hint: 7
+          note: Anchor resolution must route through vfs.file_identity.
+
+expected:
+  must:
+    - the overlay anchor resolves to the canonical_identity_ref from workspace_vfs
+    - the UI shows alias relationship rather than silently treating the paths as two files
+    - overlay freshness (cached/partial) remains visible and does not overwrite VFS identity truth
+  must_not:
+    - creating a second mutable file entry for the alias path
+    - treating provider overlay paths as authoritative filesystem identity
+  canonical_writer_for_mutation: workspace_vfs

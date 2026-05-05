@@ -590,7 +590,9 @@ This taxonomy spans five required contexts:
 - Identity modes and workspace trust:
   [`docs/adr/0001-identity-modes.md`](../adr/0001-identity-modes.md).
 - Subscription envelope and authority class matrix:
-  [`docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md).
+  [`docs/adr/0005-subscription-envelope-and-invalidation-semantics.md`](../adr/0005-subscription-envelope-and-invalidation-semantics.md)
+  and
+  [`docs/runtime/authority_class_matrix.md`](./authority_class_matrix.md).
 - Secret broker and redaction defaults:
   [`docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md).
 - Settings resolver and policy-epoch semantics:
