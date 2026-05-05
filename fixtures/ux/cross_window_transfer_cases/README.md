@@ -29,6 +29,7 @@ work.
 | Fixture | Coverage | Expected truth |
 |---|---|---|
 | `move_tab_dirty_buffer_continuation.json` | move tab with dirty/recovered state | source loses tab membership; dirty authority remains visible in target |
+| `move_followed_readonly_tab_breakaway.json` | move followed read-only tab | Following/read-only cues remain visible; breakaway never happens implicitly |
 | `copy_editor_secondary_window_continuity.json` | copy editor to secondary window | target gets a new view identity over the same canonical object |
 | `create_window_review_evidence_continuation.json` | create review window with evidence review | new window joins the same family and owns a durable continuation |
 | `reopen_after_crash_secondary_compare.json` | reopen specialized compare window after crash | compare roles and evidence restore without hidden live authority |

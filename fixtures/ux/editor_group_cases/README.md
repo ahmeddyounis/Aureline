@@ -16,6 +16,7 @@ redaction-aware labels.
 | Fixture | Record kind | Main proof |
 | --- | --- | --- |
 | [`dirty_generated_preview_overflow.json`](./dirty_generated_preview_overflow.json) | `editor_group_snapshot_record` | Dirty, generated, live-preview, pinned, read-only, blocked, preview, and overflow states remain visible and attributable without icon-only cues. |
+| [`compare_tabbed_overflow_mixed.json`](./compare_tabbed_overflow_mixed.json) | `editor_group_snapshot_record` | Tabbed compare roles stay legible under overflow alongside dirty, pinned/read-only, followed, and blocked tabs. |
 | [`split_move_restore_identity.json`](./split_move_restore_identity.json) | `editor_group_transition_record` | Split, move, merge, move-to-window, reopen, and restore operations preserve tab, pane, group-lineage, dirty-authority, and focus identity. |
 | [`compare_min_width_fallback.json`](./compare_min_width_fallback.json) | `compare_fallback_decision_record` | A requested split compare falls back to tabbed compare before violating minimum useful widths. |
 | [`restored_missing_dependency_shared_followed.json`](./restored_missing_dependency_shared_followed.json) | `editor_group_snapshot_record` | Restored layout-only and evidence-only tabs keep missing-dependency placeholders, pinned/read-only combinations, and shared/followed state legible in overflow. |
@@ -30,4 +31,3 @@ redaction-aware labels.
   without exporting private content.
 - Compare and diff code can verify tabbed compare, staged peek, and
   explicit-choice fallback before unusable narrow panes are created.
-

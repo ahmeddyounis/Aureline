@@ -11,10 +11,17 @@ Companion artifacts:
 - [`/schemas/ux/editor_group_state.schema.json`](../../schemas/ux/editor_group_state.schema.json)
   defines the cross-tool packet shape for editor-group snapshots,
   identity-preserving transitions, and compare fallback decisions.
+- [`/docs/ux/tab_state_contract.md`](./tab_state_contract.md)
+  freezes per-tab state cues, accessibility naming, close-affordance swaps,
+  and overflow/scroller recoverability for tab strips and overflow rows.
+- [`/schemas/ux/tab_item.schema.json`](../../schemas/ux/tab_item.schema.json)
+  exports the single-tab `tab_state_record` for tab strip and overflow tooling.
 - [`/fixtures/ux/editor_group_cases/`](../../fixtures/ux/editor_group_cases/)
   contains seed cases for overflow, dirty / generated state, restore,
   move / split / merge identity, shared / followed groups, and compare
   width fallback.
+- [`/fixtures/ux/tab_states/`](../../fixtures/ux/tab_states/)
+  contains per-tab state fixtures for quick review of cues and accessible names.
 - [`/docs/ux/editor_document_state_contract.md`](./editor_document_state_contract.md)
   owns the reusable document-state badge vocabulary projected through
   tabs, document headers, breadcrumbs/context rows, status surfaces,
