@@ -37,6 +37,9 @@ This contract composes with, and does not replace:
 - [`/docs/ux/forms_validation_contract.md`](./forms_validation_contract.md)
   for staged review, async probe, mutation-blocking, stale validation,
   and apply timing.
+- [`/docs/ux/input_and_combobox_contract.md`](./input_and_combobox_contract.md)
+  for shared input anatomy, inline-validation timing, clear/reveal
+  semantics, and search/combobox option-list state honesty.
 - [`/docs/ux/field_row_and_value_source_contract.md`](./field_row_and_value_source_contract.md)
   for value-source precedence, source labels, effective-value
   inspection, and exact-row links.

@@ -1,0 +1,583 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/input_control_state.schema.json",
+  "title": "Aureline input, search-field, and combobox contract",
+  "description": "Boundary schema for one input_control_state_record frozen in docs/ux/input_and_combobox_contract.md. The record captures shared input anatomy (label, hint, container, prefix/suffix, message lane), inline-validation timing, search/combobox option-list states (loading/stale/no-match/blocked), clear/reveal semantics, and copy/export posture for masked or derived values. Records and fixtures avoid raw secrets, raw policy bodies, raw provider payloads, raw hostnames, raw URLs, raw filesystem paths, and private tenant identifiers; they carry opaque refs, controlled vocabulary, and short review-safe labels only. Adding enum values or optional fields is additive-minor and bumps input_control_state_schema_version when payload semantics change; repurposing an existing value is breaking and requires a governance decision before any surface consumes it.",
+  "type": "object",
+  "$ref": "#/$defs/input_control_state_record",
+  "$defs": {
+    "input_control_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the input/combobox contract."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "input_control_state_record"
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Repo-relative doc ref, schema ref, fixture ref, or opaque locator."
+    },
+    "nullable_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/ref" }
+      ]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900
+    },
+    "nullable_sentence": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/reviewable_sentence" }
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9]+(?:[a-z0-9_.:/-]*[a-z0-9])?$",
+      "description": "Stable opaque id safe for logs, RPC, fixtures, and support exports."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings_form",
+        "request_runtime_form",
+        "package_action_form",
+        "repair_action_form",
+        "policy_edit_form",
+        "profile_import_form",
+        "generic_high_impact_form"
+      ]
+    },
+    "input_family_class": {
+      "type": "string",
+      "enum": ["text_input", "search_field", "combobox"],
+      "description": "Closed family vocabulary for this contract."
+    },
+    "required_class": {
+      "type": "string",
+      "enum": ["required", "optional", "inherited_when_blank", "computed_only"]
+    },
+    "actionability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_no_valid_action",
+        "read_only_inspectable",
+        "locked_policy_or_managed",
+        "locked_permission_or_trust",
+        "busy_temporarily_blocked",
+        "pending_validation_blocked",
+        "preview_required",
+        "review_required",
+        "destructive_confirmation_required"
+      ]
+    },
+    "lock_state_class": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "policy_locked",
+        "managed_locked",
+        "permission_locked",
+        "trust_locked",
+        "source_locked",
+        "capability_locked"
+      ]
+    },
+    "source_value_state_class": {
+      "type": "string",
+      "enum": [
+        "default_value",
+        "detected_value",
+        "imported_value",
+        "user_value",
+        "policy_value",
+        "staged_value",
+        "live_value"
+      ]
+    },
+    "disabled_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "no_valid_action",
+        "policy_blocked",
+        "dependency_missing",
+        "wrong_target",
+        "read_only",
+        "unsupported_current_mode",
+        "quota_or_budget_exhausted",
+        "preview_only",
+        "stale_context"
+      ]
+    },
+    "validation_state_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "pristine",
+        "valid",
+        "warning",
+        "invalid",
+        "blocking",
+        "pending",
+        "stale",
+        "policy_blocked"
+      ]
+    },
+    "validation_timing_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "after_meaningful_input",
+        "on_blur_or_commit",
+        "on_submit_or_commit"
+      ]
+    },
+    "helper_text_behavior_class": {
+      "type": "string",
+      "enum": [
+        "hint_and_validation_both_supported",
+        "validation_replaces_hint_visually_hint_remains_reachable"
+      ]
+    },
+    "prefix_kind_class": {
+      "type": "string",
+      "enum": ["none", "icon", "text", "unit_label"]
+    },
+    "suffix_kind_class": {
+      "type": "string",
+      "enum": ["none", "icon", "text", "unit_label", "disclosure", "clear", "reveal"]
+    },
+    "clear_affordance_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "available_when_value_present",
+        "disabled_with_reason",
+        "forbidden_by_policy"
+      ]
+    },
+    "reveal_affordance_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "available_with_friction",
+        "hold_to_reveal",
+        "disabled_by_policy",
+        "forbidden_for_secret"
+      ]
+    },
+    "clear_semantics_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "clears_draft_text_only",
+        "clears_query_only",
+        "clears_text_and_committed_selection"
+      ]
+    },
+    "reveal_semantics_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "presentation_only_does_not_change_value",
+        "reveal_local_only_with_friction",
+        "reveal_denied_by_policy"
+      ]
+    },
+    "option_list_state_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "loading",
+        "ready",
+        "stale",
+        "no_matches",
+        "error",
+        "blocked_locked"
+      ]
+    },
+    "stale_handling_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "disclose_stale_and_offer_refresh",
+        "disclose_stale_refresh_unavailable"
+      ]
+    },
+    "search_submit_model_class": {
+      "type": "string",
+      "enum": ["not_applicable", "live_filter", "explicit_submit_on_enter"]
+    },
+    "combobox_selection_commit_class": {
+      "type": "string",
+      "enum": ["explicit_choose_required"],
+      "description": "Highlight/navigation never commits; selection commits only by explicit choose."
+    },
+    "sensitivity_class": {
+      "type": "string",
+      "enum": [
+        "not_sensitive",
+        "secret_bearing",
+        "derived_effective_value",
+        "redacted_external_or_policy_value"
+      ]
+    },
+    "masking_class": {
+      "type": "string",
+      "enum": ["not_masked", "masked_by_default", "redacted_summary_only"]
+    },
+    "copy_payload_class": {
+      "type": "string",
+      "enum": [
+        "copy_disabled",
+        "copies_key_path_only",
+        "copies_redacted_summary",
+        "copies_reference_handle",
+        "copies_literal_value_only_when_revealed"
+      ]
+    },
+    "export_payload_class": {
+      "type": "string",
+      "enum": [
+        "export_disabled",
+        "exports_key_path_only",
+        "exports_redacted_summary",
+        "exports_reference_handle",
+        "exports_literal_value_only_when_revealed"
+      ]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario", "exercised_axes"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "exercised_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actionability_class",
+        "lock_state_class",
+        "source_value_state_class",
+        "disabled_reason_class",
+        "explanation_ref",
+        "source_ref",
+        "state_summary"
+      ],
+      "properties": {
+        "actionability_class": { "$ref": "#/$defs/actionability_class" },
+        "lock_state_class": { "$ref": "#/$defs/lock_state_class" },
+        "source_value_state_class": { "$ref": "#/$defs/source_value_state_class" },
+        "disabled_reason_class": { "$ref": "#/$defs/disabled_reason_class" },
+        "explanation_ref": { "$ref": "#/$defs/nullable_ref" },
+        "source_ref": { "$ref": "#/$defs/nullable_ref" },
+        "state_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "label_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "required_class", "canonical_label_ref"],
+      "properties": {
+        "text": { "$ref": "#/$defs/non_empty_string" },
+        "required_class": { "$ref": "#/$defs/required_class" },
+        "canonical_label_ref": { "$ref": "#/$defs/ref" }
+      }
+    },
+    "prefix_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix_kind_class", "prefix_label"],
+      "properties": {
+        "prefix_kind_class": { "$ref": "#/$defs/prefix_kind_class" },
+        "prefix_label": { "$ref": "#/$defs/nullable_sentence" }
+      }
+    },
+    "suffix_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suffix_kind_class", "suffix_label"],
+      "properties": {
+        "suffix_kind_class": { "$ref": "#/$defs/suffix_kind_class" },
+        "suffix_label": { "$ref": "#/$defs/nullable_sentence" }
+      }
+    },
+    "message_lane_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "helper_text_behavior_class",
+        "hint_text",
+        "validation_state_class",
+        "validation_message",
+        "status_message"
+      ],
+      "properties": {
+        "helper_text_behavior_class": { "$ref": "#/$defs/helper_text_behavior_class" },
+        "hint_text": { "$ref": "#/$defs/nullable_sentence" },
+        "validation_state_class": { "$ref": "#/$defs/validation_state_class" },
+        "validation_message": { "$ref": "#/$defs/nullable_sentence" },
+        "status_message": { "$ref": "#/$defs/nullable_sentence" }
+      }
+    },
+    "anatomy_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "placeholder_text",
+        "prefix",
+        "suffix",
+        "message_lane"
+      ],
+      "properties": {
+        "label": { "$ref": "#/$defs/label_block" },
+        "placeholder_text": { "$ref": "#/$defs/nullable_sentence" },
+        "prefix": { "$ref": "#/$defs/prefix_block" },
+        "suffix": { "$ref": "#/$defs/suffix_block" },
+        "message_lane": { "$ref": "#/$defs/message_lane_block" }
+      }
+    },
+    "validation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validation_timing_class", "meaningful_input_threshold_chars"],
+      "properties": {
+        "validation_timing_class": { "$ref": "#/$defs/validation_timing_class" },
+        "meaningful_input_threshold_chars": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 12,
+          "description": "Minimum typed character count before inline validation may show non-neutral errors. 0 means validation may run immediately after any edit."
+        }
+      }
+    },
+    "affordances_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clear_affordance_class",
+        "clear_semantics_class",
+        "clear_action_ref",
+        "reveal_affordance_class",
+        "reveal_semantics_class",
+        "reveal_action_ref"
+      ],
+      "properties": {
+        "clear_affordance_class": { "$ref": "#/$defs/clear_affordance_class" },
+        "clear_semantics_class": { "$ref": "#/$defs/clear_semantics_class" },
+        "clear_action_ref": { "$ref": "#/$defs/nullable_ref" },
+        "reveal_affordance_class": { "$ref": "#/$defs/reveal_affordance_class" },
+        "reveal_semantics_class": { "$ref": "#/$defs/reveal_semantics_class" },
+        "reveal_action_ref": { "$ref": "#/$defs/nullable_ref" }
+      }
+    },
+    "option_list_state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "option_list_state_class",
+        "stale_handling_class",
+        "result_count",
+        "summary",
+        "refresh_action_ref",
+        "clear_query_action_ref"
+      ],
+      "properties": {
+        "option_list_state_class": { "$ref": "#/$defs/option_list_state_class" },
+        "stale_handling_class": { "$ref": "#/$defs/stale_handling_class" },
+        "result_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0, "maximum": 20000 }
+          ]
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "refresh_action_ref": { "$ref": "#/$defs/nullable_ref" },
+        "clear_query_action_ref": { "$ref": "#/$defs/nullable_ref" }
+      }
+    },
+    "search_behavior_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["search_submit_model_class", "submit_action_ref", "option_list_state"],
+      "properties": {
+        "search_submit_model_class": { "$ref": "#/$defs/search_submit_model_class" },
+        "submit_action_ref": { "$ref": "#/$defs/nullable_ref" },
+        "option_list_state": { "$ref": "#/$defs/option_list_state_block" }
+      }
+    },
+    "combobox_option_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["option_ref", "option_label", "disabled_reason_class"],
+      "properties": {
+        "option_ref": { "$ref": "#/$defs/ref" },
+        "option_label": { "$ref": "#/$defs/non_empty_string" },
+        "disabled_reason_class": { "$ref": "#/$defs/disabled_reason_class" }
+      }
+    },
+    "nullable_combobox_option_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/combobox_option_ref" }
+      ]
+    },
+    "combobox_behavior_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selection_commit_class",
+        "allows_freeform_value",
+        "committed_selection",
+        "highlighted_option",
+        "option_list_state"
+      ],
+      "properties": {
+        "selection_commit_class": { "$ref": "#/$defs/combobox_selection_commit_class" },
+        "allows_freeform_value": { "type": "boolean" },
+        "committed_selection": { "$ref": "#/$defs/nullable_combobox_option_ref" },
+        "highlighted_option": { "$ref": "#/$defs/nullable_combobox_option_ref" },
+        "option_list_state": { "$ref": "#/$defs/option_list_state_block" }
+      }
+    },
+    "copy_export_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["copy_payload_class", "copy_action_ref", "export_payload_class", "export_action_ref"],
+      "properties": {
+        "copy_payload_class": { "$ref": "#/$defs/copy_payload_class" },
+        "copy_action_ref": { "$ref": "#/$defs/nullable_ref" },
+        "export_payload_class": { "$ref": "#/$defs/export_payload_class" },
+        "export_action_ref": { "$ref": "#/$defs/nullable_ref" }
+      }
+    },
+    "sensitive_value_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sensitivity_class", "masking_class", "reveal_warning", "copy_export"],
+      "properties": {
+        "sensitivity_class": { "$ref": "#/$defs/sensitivity_class" },
+        "masking_class": { "$ref": "#/$defs/masking_class" },
+        "reveal_warning": { "$ref": "#/$defs/nullable_sentence" },
+        "copy_export": { "$ref": "#/$defs/copy_export_block" }
+      }
+    },
+    "nullable_sensitive_value_block": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/sensitive_value_block" }
+      ]
+    },
+    "input_control_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input_control_state_schema_version",
+        "record_kind",
+        "input_control_id",
+        "surface_family",
+        "input_family_class",
+        "state",
+        "anatomy",
+        "validation",
+        "affordances",
+        "search_behavior",
+        "combobox_behavior",
+        "sensitive_value",
+        "emitted_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "input_control_state_schema_version": { "$ref": "#/$defs/input_control_state_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "input_control_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "input_family_class": { "$ref": "#/$defs/input_family_class" },
+        "state": { "$ref": "#/$defs/state_block" },
+        "anatomy": { "$ref": "#/$defs/anatomy_block" },
+        "validation": { "$ref": "#/$defs/validation_block" },
+        "affordances": { "$ref": "#/$defs/affordances_block" },
+        "search_behavior": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/search_behavior_block" }
+          ]
+        },
+        "combobox_behavior": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/combobox_behavior_block" }
+          ]
+        },
+        "sensitive_value": { "$ref": "#/$defs/nullable_sensitive_value_block" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ref" },
+          "uniqueItems": true
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "input_family_class": { "const": "combobox" } },
+            "required": ["input_family_class"]
+          },
+          "then": {
+            "properties": {
+              "combobox_behavior": { "not": { "type": "null" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "input_family_class": { "const": "search_field" } },
+            "required": ["input_family_class"]
+          },
+          "then": {
+            "properties": {
+              "search_behavior": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
