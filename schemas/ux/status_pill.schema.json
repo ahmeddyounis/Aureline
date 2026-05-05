@@ -1,0 +1,936 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/status_pill.schema.json",
+  "title": "Aureline badge/chip/pill taxonomy, overflow budget, and text-plus-icon semantics contract",
+  "description": "Boundary schema for the compact status-token contract frozen in docs/ux/badge_pill_contract.md. The schema exports a status_pill_catalog_record and status_pill_case_record so shells, tables, tabs, cards, status items, CLI output, support exports, and screenshots share one vocabulary for status/mode/environment/provider/scope/confidence/permissions/freshness/support-class pills, one inline-density budget, one overflow summary contract, and mechanically-detectable forbidden combinations (for example support claims without freshness/scope, or ready status paired with policy-blocked permissions). Raw paths, raw URLs, raw provider payloads, raw policy bodies, raw secrets, and raw user identifiers never cross this boundary; records carry opaque refs, controlled labels, typed terms, and reviewable sentences only. Adding a new family or repurposing an existing term is breaking and requires a schema-version bump; adding a new term within an existing family is additive-minor.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/status_pill_catalog_record" },
+    { "$ref": "#/$defs/status_pill_case_record" }
+  ],
+  "$defs": {
+    "status_pill_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for status pill payloads. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "record_kinds_exercised": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures. Never part of runtime records."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, and safe in support bundles."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 760,
+      "description": "Short plain-language sentence intended for product surfaces. Generic prose is forbidden when a more precise statement is knowable."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Short display label suitable for compact pills. Should be <= two words when practical."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["status_pill_catalog_record", "status_pill_case_record"],
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "table_row",
+        "list_row",
+        "tab",
+        "card",
+        "badge_list",
+        "status_item",
+        "cli_line",
+        "support_export"
+      ],
+      "description": "Surface family that is projecting the pill stack."
+    },
+    "pill_family": {
+      "type": "string",
+      "enum": [
+        "status",
+        "mode",
+        "environment",
+        "provider",
+        "scope",
+        "confidence",
+        "permissions",
+        "freshness",
+        "support_class"
+      ],
+      "description": "Closed pill family taxonomy."
+    },
+
+    "status_term": {
+      "type": "string",
+      "enum": ["loading", "warm", "partial", "stale", "degraded", "blocked", "ready"],
+      "description": "Top-level readiness/health pill term set aligned with the status-strip readiness_state vocabulary."
+    },
+    "mode_term": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "review",
+        "presentation",
+        "teaching",
+        "debug",
+        "safe_mode"
+      ],
+      "description": "Closed operating-mode pill term set."
+    },
+    "environment_term": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "remote_attach",
+        "devcontainer_or_container",
+        "managed_workspace",
+        "air_gapped",
+        "mixed_local_plus_remote",
+        "notebook_kernel_local",
+        "notebook_kernel_remote",
+        "companion_surface",
+        "cli_or_headless"
+      ],
+      "description": "Closed environment-mode term set aligned with the feature-availability contract."
+    },
+    "provider_term": {
+      "type": "string",
+      "enum": [
+        "syntax",
+        "project_graph",
+        "language_server",
+        "framework_pack",
+        "notebook_adapter",
+        "generated_source_bridge",
+        "ai_assist",
+        "extension",
+        "remote_service",
+        "unknown_provider"
+      ],
+      "description": "Closed provider-family term set for attribution pills."
+    },
+    "scope_term": {
+      "type": "string",
+      "enum": [
+        "current_item",
+        "visible_rows",
+        "loaded_rows",
+        "all_matching",
+        "custom_set",
+        "workspace",
+        "project",
+        "global",
+        "unknown_scope"
+      ],
+      "description": "Closed scope term set for population/claim scope pills."
+    },
+    "confidence_term": {
+      "type": "string",
+      "enum": ["exact", "high", "medium", "low", "unknown", "blocked"],
+      "description": "Closed confidence term set aligned with editor inline-assist confidence_class."
+    },
+    "permission_term": {
+      "type": "string",
+      "enum": [
+        "not_requested",
+        "request_in_flight",
+        "granted",
+        "denied",
+        "restricted",
+        "unavailable",
+        "policy_blocked",
+        "unknown_permission_state"
+      ],
+      "description": "Closed permission-state term set aligned with device-permission permission_state_class."
+    },
+    "freshness_term": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Closed evidence-freshness term set aligned with capability lifecycle freshness_class."
+    },
+    "support_class_term": {
+      "type": "string",
+      "enum": ["certified", "supported", "community", "experimental"],
+      "description": "Closed support-class claim term set aligned with compatibility/support claim taxonomy."
+    },
+
+    "pill_icon_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Optional stable icon key. Icon is reinforcement only; text label remains mandatory."
+    },
+    "details_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route_class", "route_ref"],
+      "properties": {
+        "route_class": {
+          "type": "string",
+          "enum": [
+            "open_details_sheet",
+            "open_hovercard_or_focus_popover",
+            "open_inspector_panel",
+            "open_command_palette_entry",
+            "open_support_export_section",
+            "no_details_route"
+          ]
+        },
+        "route_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque route, command, or panel ref. Null is allowed only when route_class=no_details_route."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "route_class": { "const": "no_details_route" } },
+            "required": ["route_class"]
+          },
+          "then": {
+            "properties": { "route_ref": { "const": null } }
+          }
+        }
+      ]
+    },
+
+    "pill_base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "term",
+        "label_text",
+        "icon_key",
+        "explanation_sentence",
+        "details_route"
+      ],
+      "properties": {
+        "family": { "$ref": "#/$defs/pill_family" },
+        "term": { "type": "string", "minLength": 1 },
+        "label_text": { "$ref": "#/$defs/short_label_text" },
+        "icon_key": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/pill_icon_key" }
+          ]
+        },
+        "explanation_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "details_route": { "$ref": "#/$defs/details_route" }
+      }
+    },
+
+    "status_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "status" },
+            "term": { "$ref": "#/$defs/status_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "loading" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Loading" }, "icon_key": { "const": "pill.loading" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "warm" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Warm" }, "icon_key": { "const": "pill.warm" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "partial" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Partial" }, "icon_key": { "const": "pill.partial" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "stale" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Stale" }, "icon_key": { "const": "pill.stale" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "degraded" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Degraded" }, "icon_key": { "const": "pill.degraded" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "blocked" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Blocked" }, "icon_key": { "const": "pill.blocked" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "ready" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Ready" }, "icon_key": { "const": "pill.ready" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "mode_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "mode" },
+            "term": { "$ref": "#/$defs/mode_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "normal" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Normal" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "review" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Review" }, "icon_key": { "const": "pill.mode.review" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "presentation" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Presentation" }, "icon_key": { "const": "pill.mode.presentation" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "teaching" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Teaching" }, "icon_key": { "const": "pill.mode.teaching" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "debug" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Debug" }, "icon_key": { "const": "pill.mode.debug" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "safe_mode" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Safe mode" }, "icon_key": { "const": "pill.mode.safe" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "environment_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "environment" },
+            "term": { "$ref": "#/$defs/environment_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "local_only" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Local" }, "icon_key": { "const": "pill.env.local" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "remote_attach" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Remote" }, "icon_key": { "const": "pill.env.remote" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "managed_workspace" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Managed" }, "icon_key": { "const": "pill.env.managed" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "devcontainer_or_container" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Container" }, "icon_key": { "const": "pill.env.container" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "air_gapped" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Air-gapped" }, "icon_key": { "const": "pill.env.air_gapped" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "mixed_local_plus_remote" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Mixed" }, "icon_key": { "const": "pill.env.mixed" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "notebook_kernel_local" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Kernel local" }, "icon_key": { "const": "pill.env.kernel_local" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "notebook_kernel_remote" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Kernel remote" }, "icon_key": { "const": "pill.env.kernel_remote" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "companion_surface" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Companion" }, "icon_key": { "const": "pill.env.companion" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "cli_or_headless" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "CLI" }, "icon_key": { "const": "pill.env.cli" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "provider_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "provider" },
+            "term": { "$ref": "#/$defs/provider_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "syntax" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Syntax" }, "icon_key": { "const": "pill.provider.syntax" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "project_graph" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Project graph" }, "icon_key": { "const": "pill.provider.project_graph" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "language_server" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Language server" }, "icon_key": { "const": "pill.provider.language_server" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "framework_pack" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Framework pack" }, "icon_key": { "const": "pill.provider.framework_pack" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "notebook_adapter" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Notebook" }, "icon_key": { "const": "pill.provider.notebook" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "generated_source_bridge" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Generated" }, "icon_key": { "const": "pill.provider.generated" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "ai_assist" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "AI assist" }, "icon_key": { "const": "pill.provider.ai" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "extension" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Extension" }, "icon_key": { "const": "pill.provider.extension" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "remote_service" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Remote service" }, "icon_key": { "const": "pill.provider.remote" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unknown_provider" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unknown" }, "icon_key": { "const": "pill.provider.unknown" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "scope_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "scope" },
+            "term": { "$ref": "#/$defs/scope_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "current_item" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Current" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "visible_rows" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Visible rows" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "loaded_rows" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Loaded rows" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "all_matching" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "All matching" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "custom_set" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Custom set" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "workspace" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Workspace" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "project" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Project" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "global" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Global" }, "icon_key": { "const": null } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unknown_scope" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Scope unknown" }, "icon_key": { "const": null } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "confidence_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "confidence" },
+            "term": { "$ref": "#/$defs/confidence_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "exact" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Exact" }, "icon_key": { "const": "pill.confidence.exact" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "high" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "High" }, "icon_key": { "const": "pill.confidence.high" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "medium" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Medium" }, "icon_key": { "const": "pill.confidence.medium" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "low" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Low" }, "icon_key": { "const": "pill.confidence.low" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unknown" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unknown" }, "icon_key": { "const": "pill.confidence.unknown" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "blocked" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Blocked" }, "icon_key": { "const": "pill.confidence.blocked" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "permissions_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "permissions" },
+            "term": { "$ref": "#/$defs/permission_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "granted" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Granted" }, "icon_key": { "const": "pill.perm.granted" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "denied" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Denied" }, "icon_key": { "const": "pill.perm.denied" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "restricted" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Restricted" }, "icon_key": { "const": "pill.perm.restricted" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "policy_blocked" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Policy blocked" }, "icon_key": { "const": "pill.perm.policy_blocked" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "request_in_flight" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Requesting" }, "icon_key": { "const": "pill.perm.requesting" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "not_requested" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Not requested" }, "icon_key": { "const": "pill.perm.not_requested" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unavailable" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unavailable" }, "icon_key": { "const": "pill.perm.unavailable" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unknown_permission_state" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Permission unknown" }, "icon_key": { "const": "pill.perm.unknown" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "freshness_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "freshness" },
+            "term": { "$ref": "#/$defs/freshness_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "authoritative_live" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Live" }, "icon_key": { "const": "pill.fresh.live" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "warm_cached" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Warm" }, "icon_key": { "const": "pill.fresh.warm" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "degraded_cached" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Degraded" }, "icon_key": { "const": "pill.fresh.degraded" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "stale" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Stale" }, "icon_key": { "const": "pill.fresh.stale" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "unverified" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Unverified" }, "icon_key": { "const": "pill.fresh.unverified" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "support_class_pill": {
+      "allOf": [
+        { "$ref": "#/$defs/pill_base" },
+        {
+          "properties": {
+            "family": { "const": "support_class" },
+            "term": { "$ref": "#/$defs/support_class_term" }
+          }
+        },
+        {
+          "allOf": [
+            {
+              "if": { "properties": { "term": { "const": "certified" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Certified" }, "icon_key": { "const": "pill.support.certified" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "supported" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Supported" }, "icon_key": { "const": "pill.support.supported" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "community" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Community" }, "icon_key": { "const": "pill.support.community" } } }
+            },
+            {
+              "if": { "properties": { "term": { "const": "experimental" } }, "required": ["term"] },
+              "then": { "properties": { "label_text": { "const": "Experimental" }, "icon_key": { "const": "pill.support.experimental" } } }
+            }
+          ]
+        }
+      ]
+    },
+
+    "pills_by_family": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": { "$ref": "#/$defs/status_pill" },
+        "mode": { "$ref": "#/$defs/mode_pill" },
+        "environment": { "$ref": "#/$defs/environment_pill" },
+        "provider": { "$ref": "#/$defs/provider_pill" },
+        "scope": { "$ref": "#/$defs/scope_pill" },
+        "confidence": { "$ref": "#/$defs/confidence_pill" },
+        "permissions": { "$ref": "#/$defs/permissions_pill" },
+        "freshness": { "$ref": "#/$defs/freshness_pill" },
+        "support_class": { "$ref": "#/$defs/support_class_pill" }
+      },
+      "description": "A pill stack keyed by family; the shape enforces at most one pill per family."
+    },
+
+    "inline_budget": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3,
+      "description": "Maximum number of inline pills for interactive surfaces. Support-export surfaces may override this ceiling."
+    },
+    "layout_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["density_class", "inline_budget", "high_contrast", "forced_colors"],
+      "properties": {
+        "density_class": {
+          "type": "string",
+          "enum": ["standard", "compact", "dense"],
+          "description": "Local density posture for the surface."
+        },
+        "inline_budget": { "$ref": "#/$defs/inline_budget" },
+        "high_contrast": { "type": "boolean" },
+        "forced_colors": { "type": "boolean" }
+      }
+    },
+
+    "overflow_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_text", "hidden_family_count", "hidden_families", "must_be_keyboard_reachable"],
+      "properties": {
+        "label_text": { "$ref": "#/$defs/short_label_text" },
+        "hidden_family_count": { "type": "integer", "minimum": 0 },
+        "hidden_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pill_family" },
+          "uniqueItems": true
+        },
+        "must_be_keyboard_reachable": { "type": "boolean" }
+      }
+    },
+
+    "expected_projection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inline_families",
+        "overflow",
+        "accessible_name_must_include",
+        "export_text"
+      ],
+      "properties": {
+        "inline_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pill_family" },
+          "minItems": 0,
+          "maxItems": 3,
+          "uniqueItems": true,
+          "description": "Which families are expected to remain inline, in order."
+        },
+        "overflow": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/overflow_summary" }
+          ]
+        },
+        "accessible_name_must_include": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_label_text" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Minimum set of pill labels that must remain in the accessible name when some pills overflow."
+        },
+        "export_text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "description": "Expected export/CLI text line that preserves the same pill labels and ordering."
+        }
+      }
+    },
+
+    "case_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "no_hue_only_survives_high_contrast",
+        "inline_budget_not_exceeded",
+        "overflow_is_keyboard_reachable",
+        "export_and_ui_share_labels"
+      ],
+      "properties": {
+        "no_hue_only_survives_high_contrast": { "type": "boolean" },
+        "inline_budget_not_exceeded": { "type": "boolean" },
+        "overflow_is_keyboard_reachable": { "type": "boolean" },
+        "export_and_ui_share_labels": { "type": "boolean" }
+      }
+    },
+
+    "status_pill_catalog_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "status_pill_schema_version",
+        "catalog_id",
+        "families",
+        "inline_budget_default",
+        "overflow_summary_required",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "status_pill_catalog_record" },
+        "status_pill_schema_version": { "$ref": "#/$defs/status_pill_schema_version" },
+        "catalog_id": { "$ref": "#/$defs/opaque_id" },
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/pill_family" },
+          "uniqueItems": true
+        },
+        "inline_budget_default": {
+          "type": "integer",
+          "const": 3,
+          "description": "Default inline budget for interactive surfaces."
+        },
+        "overflow_summary_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Overflow summary affordance is mandatory whenever pills exceed the inline budget."
+        },
+        "narrative_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "status_pill_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "status_pill_schema_version",
+        "case_id",
+        "surface_family",
+        "layout",
+        "pills_by_family",
+        "expected_projection",
+        "assertions",
+        "captured_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "status_pill_case_record" },
+        "status_pill_schema_version": { "$ref": "#/$defs/status_pill_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "layout": { "$ref": "#/$defs/layout_context" },
+        "pills_by_family": { "$ref": "#/$defs/pills_by_family" },
+        "expected_projection": { "$ref": "#/$defs/expected_projection" },
+        "assertions": { "$ref": "#/$defs/case_assertions" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "surface_family": { "const": "support_export" } },
+            "required": ["surface_family"]
+          },
+          "then": {
+            "properties": {
+              "layout": {
+                "properties": {
+                  "inline_budget": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 64
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "properties": {
+            "pills_by_family": {
+              "dependentRequired": {
+                "support_class": ["freshness", "scope"]
+              }
+            }
+          },
+          "description": "Support-class claims require freshness and scope disclosure."
+        },
+        {
+          "if": {
+            "properties": {
+              "pills_by_family": {
+                "properties": {
+                  "permissions": {
+                    "properties": { "term": { "enum": ["denied", "policy_blocked"] } },
+                    "required": ["term"]
+                  }
+                },
+                "required": ["permissions"]
+              }
+            },
+            "required": ["pills_by_family"]
+          },
+          "then": {
+            "properties": {
+              "pills_by_family": {
+                "properties": {
+                  "status": {
+                    "not": {
+                      "properties": { "term": { "const": "ready" } },
+                      "required": ["term"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "description": "Permission denial/policy block forbids a simultaneously 'Ready' top-level status pill for the same subject."
+        }
+      ]
+    }
+  }
+}
+
