@@ -20,6 +20,11 @@ Companion artifacts:
 - [`/schemas/security/advisory_record.schema.json`](../../schemas/security/advisory_record.schema.json)
   - canonical advisory identity, severity, disclosure, evidence, and
   affected-install linkage.
+- [`/docs/security/advisory_identity_and_install_assessment_contract.md`](./advisory_identity_and_install_assessment_contract.md)
+  plus [`/schemas/security/advisory_identity.schema.json`](../../schemas/security/advisory_identity.schema.json)
+  and [`/schemas/security/affected_install_assessment.schema.json`](../../schemas/security/affected_install_assessment.schema.json)
+  - shared advisory-ID family, copy-safe reference, and affected-install
+  assessment contract used by cards, exports, and offline bundles.
 - [`/schemas/security/emergency_action_record.schema.json`](../../schemas/security/emergency_action_record.schema.json)
   - canonical emergency-action and revocation records that banners and
   revocation notices project from.

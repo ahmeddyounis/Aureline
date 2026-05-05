@@ -284,6 +284,9 @@ only when a packet is inside one of these scopes.
 Every advisory record carries an `advisory_identity` envelope with
 three alias fields reserved at the schema level:
 
+- The machine boundary for the shared advisory-ID family is
+  [`/schemas/security/advisory_identity.schema.json`](../../schemas/security/advisory_identity.schema.json).
+
 - `aureline_advisory_id` — the stable Aureline advisory id. Required.
   Minted locally and stable for the life of the advisory even when
   the finding is reclassified.
@@ -334,6 +337,12 @@ A record whose subject cannot be typed fails closed on
 The advisory record reserves an `affected_install_linkage` envelope so
 the same vocabulary that install, support, and update surfaces read
 applies to the advisory's "which install lanes are affected?" claim:
+
+- The per-install local assessment record (build/channel/install-mode +
+  mitigation state + mirror freshness) is defined in
+  [`/schemas/security/affected_install_assessment.schema.json`](../../schemas/security/affected_install_assessment.schema.json)
+  and described in
+  [`/docs/security/advisory_identity_and_install_assessment_contract.md`](./advisory_identity_and_install_assessment_contract.md).
 
 - `install_profile_card_refs` — opaque refs into
   [`/artifacts/release/install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml).
