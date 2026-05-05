@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=../../../schemas/security/secret_class_rows.schema.json
+__fixture__:
+  name: policy_denied_raw_reveal
+  scenario: >
+    A managed-mode policy forbids raw material projection for a database
+    credential. The broker denies the request with a typed reason, emits a
+    secret_denial audit event, and the consumer is forced onto a handle-only
+    projection mode (broker_callback or ephemeral_fd). No silent downgrade to a
+    raw value occurs, and exports remain metadata-only.
+  adr_section: "Denial posture"
+  exercised_classes_summary:
+    secret_classes:
+      - database_credential
+    trust_store_classes:
+      - enterprise_vault_adapter
+    unlock_states:
+      - unlocked
+    projection_modes:
+      - broker_callback
+      - ephemeral_fd
+    denial_reasons:
+      - policy_denied_projection
+    audit_event_ids:
+      - secret_denial
+
+record_kind: redaction_example_record
+secret_schema_version: 1
+name: policy_denied_raw_reveal
+scenario: >
+  Managed policy forbids raw reveal for a database credential. The broker denies
+  the request with policy_denied_projection, emits secret_denial, and returns a
+  repair affordance listing permitted handle-only projection modes.
+redaction_class: logs_local
+
+exercised_classes:
+  secret_classes:
+    - database_credential
+  trust_store_classes:
+    - enterprise_vault_adapter
+  unlock_states:
+    - unlocked
+  projection_modes:
+    - broker_callback
+    - ephemeral_fd
+  denial_reasons:
+    - policy_denied_projection
+  audit_event_ids:
+    - secret_denial
+
+input_surface:
+  surface_id: managed_mode_db_query_request
+  raw_input_shape: >
+    If the broker granted raw material, the consumer would receive a raw database
+    password literal. Placeholder: "<redacted: database_credential>".
+
+redacted_output:
+  shape: >
+    The broker emits a secret_denial audit event with denial_reason =
+    policy_denied_projection and returns a repair affordance listing broker_callback
+    and ephemeral_fd as permitted projection modes. No raw material is projected.
+  fields:
+    event_id: secret_denial
+    denial_reason: policy_denied_projection
+    secret_class: database_credential
+    alias: alias/warehouse-prod
+    consumer_identity: cli.db.query@capability:cap-cli-db-0
+    repair_affordance:
+      permitted_projection_modes:
+        - broker_callback
+        - ephemeral_fd
+      note: >
+        Policy forbids raw reveal; the consumer must use handle-only projection
+        modes or continue without the credential.
+
+audit_events:
+  - event_id: secret_denial
+    note: >
+      Fired because policy forbids raw projection for this class/scope. The event
+      carries metadata only (class, alias, consumer identity, denial reason); it
+      never carries raw secret bytes.
+

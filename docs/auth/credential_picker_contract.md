@@ -153,7 +153,7 @@ labels may localize):
 ## Reveal-on-demand, copy, and export behavior (frozen)
 
 Reveal-on-demand rules are governed by the secret broker ADR and the
-secret-class matrix (`artifacts/security/secret_class_rows.yaml`).
+secret-class matrix (`artifacts/security/secret_classes.yaml`).
 
 The picker and row surfaces MUST enforce:
 
@@ -199,4 +199,3 @@ demonstrates:
   handle distinction; and
 - explicit policy-denied and store-unavailable states with safe repair
   actions.
-

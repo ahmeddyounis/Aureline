@@ -39,7 +39,7 @@ This contract composes with, and does not replace:
   rendering, object-reference identity, exact-row links, and search
   highlighting.
 - [`/docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md`](../adr/0007-secret-broker-credential-handle-trust-store-redaction.md)
-  and [`/artifacts/security/secret_class_rows.yaml`](../../artifacts/security/secret_class_rows.yaml)
+  and [`/artifacts/security/secret_classes.yaml`](../../artifacts/security/secret_classes.yaml)
   for secret classes, storage modes, projection modes, and redaction
   defaults.
 - [`/docs/fs/path_truth_packet.md`](../fs/path_truth_packet.md)

@@ -29,7 +29,7 @@ Companion artifacts:
   [`/schemas/support/support_bundle.schema.json`](../../schemas/support/support_bundle.schema.json)
   - support-bundle manifest contract that owns `data_class`,
   `support_export_posture`, `storage_mode`, and `embedding_state`.
-- [`/artifacts/security/secret_class_rows.yaml`](../../artifacts/security/secret_class_rows.yaml)
+- [`/artifacts/security/secret_classes.yaml`](../../artifacts/security/secret_classes.yaml)
   and
   [`/artifacts/security/redaction_posture_matrix.yaml`](../../artifacts/security/redaction_posture_matrix.yaml)
   - secret-class and per-surface redaction vocabulary this matrix

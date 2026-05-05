@@ -6,9 +6,9 @@ __fixture__:
     Linux host). The broker transitions to session_memory_cache with
     unlock_state = degraded_session_only. Affected classes include
     ai_provider_token, code_host_token, package_registry_token,
-    database_credential, and provider_session is explicitly NOT
-    affected (provider_session is forbidden from the session-only
-    fallback and remains unavailable until the store recovers).
+    database_credential, and provider_session. Session-only fallback
+    remains visible, re-prompts on restart, and never writes plaintext
+    secrets to disk.
     signing_key_material is NOT in affected_secret_classes because
     signing-class secrets MUST NOT be served from session-only
     fallback at all. The broker emits secret_trust_store_degraded,
@@ -22,6 +22,7 @@ __fixture__:
       - code_host_token
       - package_registry_token
       - database_credential
+      - provider_session
     trust_store_classes:
       - os_keychain
       - session_memory_cache
@@ -46,6 +47,7 @@ affected_secret_classes:
   - code_host_token
   - package_registry_token
   - database_credential
+  - provider_session
 notes:
   - >
     OS keychain (libsecret) unreachable on the current host. The
@@ -58,10 +60,6 @@ notes:
     signing-class secrets MUST NOT be served from session-only
     fallback; any signing-class request fails closed with
     session_fallback_class_forbidden.
-  - >
-    provider_session is not in affected_secret_classes because the
-    session-only fallback is forbidden for provider_session; refresh
-    flows remain unavailable until the persistent store recovers.
   - >
     On recovery the broker transitions to secret_trust_store_recovered;
     it does not silently upgrade the in-memory cache to persistent

@@ -142,7 +142,7 @@ repurposing a class is breaking.
 (which consumers may see raw material, and under what additional
 gating). A surface that is not named in a class's reveal set MUST NOT
 route raw material through its process, even transiently. The matrix
-lives in `artifacts/security/secret_class_rows.yaml`; the ADR freezes
+lives in `artifacts/security/secret_classes.yaml`; the ADR freezes
 the class set and the posture shape, not per-class acronyms.
 
 ### Trust-store classes (frozen)
@@ -658,7 +658,7 @@ does not apply.
 - Tradeoff register (machine form):
   `artifacts/security/secret_broker_tradeoff_rows.yaml`.
 - Secret-class matrix (machine form):
-  `artifacts/security/secret_class_rows.yaml`.
+  `artifacts/security/secret_classes.yaml`.
 - Redaction posture matrix (machine form):
   `artifacts/security/redaction_posture_matrix.yaml`.
 - Boundary schema (machine form):
