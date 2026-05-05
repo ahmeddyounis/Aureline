@@ -9,6 +9,9 @@ companion to:
 - [`/fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml`](../../fixtures/i18n/pseudoloc_rtl_ime_manifest.yaml)
   — harness-plan manifest naming test modes, seed strings, fixture
   surfaces, expected failure classes, and owners.
+- [`/docs/i18n/locale_surface_matrix.md`](./locale_surface_matrix.md)
+  — cross-surface matrix for what localizes vs. what stays machine-stable
+  on UI/CLI/docs/extension surfaces.
 - [`/artifacts/accessibility/platform_input_matrix.yaml`](../../artifacts/accessibility/platform_input_matrix.yaml)
   — platform-specific assistive-technology, locale, and input-path rows
   that later packets still cite for per-platform evidence.

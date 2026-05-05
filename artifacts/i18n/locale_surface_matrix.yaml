@@ -1,0 +1,328 @@
+# Locale-surface matrix and localization-parity contract (machine-readable).
+#
+# Purpose
+#   Freeze which surface families may localize human prose and which
+#   identifiers must remain machine-stable so localization never forks:
+#     - command routing
+#     - settings / schema compatibility
+#     - citation truth and docs anchors
+#     - CLI / doctor automation and machine output
+#     - extension compatibility and host-id ownership
+#
+# Rules
+#   - Localized prose MUST NOT become a machine-binding key.
+#   - Stable identifiers render from canonical sources and remain
+#     literal/copy-safe across locales.
+#   - Fallback to base locale or source language MUST be disclosed and
+#     inspectable on every surface listed here.
+#   - Extensions MUST NOT override host-owned stable identifiers.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/i18n/locale_surface_matrix.md
+
+companion_contracts:
+  localization_and_locale_pack_contract: docs/ux/localization_and_locale_pack_contract.md
+  translation_safe_content_ops_contract: docs/copy/translation_safe_content_ops_contract.md
+  citation_and_reference_contract: docs/docs_integrity/citation_and_reference_contract.md
+  command_descriptor_contract: docs/commands/command_descriptor_contract.md
+  settings_effective_configuration_adr: docs/adr/0008-settings-definition-and-effective-configuration-resolver.md
+
+normative_source:
+  path: .t2/docs/Aureline_Technical_Architecture_Document.md
+  anchors:
+    - "Appendix DF — Localization, Locale Pack, and Translation Governance Matrix"
+
+related_requirement_ids:
+  - A11Y-I18N-007
+
+surface_id_vocabulary:
+  - shell_commands_and_palette
+  - settings_help_errors
+  - docs_tours_auth
+  - cli_help_doctor
+  - extension_contributed_ui
+
+localization_source_vocabulary:
+  - core_locale_pack
+  - docs_pack_with_locale_overlay
+  - settings_registry_and_schema_docs
+  - extension_locale_pack_or_companion_overlay
+
+stable_element_vocabulary:
+  - command_id
+  - canonical_verb
+  - keybinding_path
+  - cli_subcommand_name
+  - cli_flag_literal
+  - json_key
+  - schema_id
+  - setting_id
+  - policy_id
+  - telemetry_key
+  - error_code_or_finding_id
+  - docs_anchor_id
+  - citation_anchor_id
+  - recovery_url_or_route_id
+  - extension_namespace_id
+  - host_stable_identifier
+
+parity_check_vocabulary:
+  - parity.command_identity_parity
+  - parity.keyboard_path_parity
+  - parity.disabled_state_explain_parity
+  - parity.settings_schema_identity_parity
+  - parity.docs_citation_anchor_parity
+  - parity.cli_machine_output_stability
+  - parity.extension_no_host_override
+  - parity.locale_fallback_disclosure
+
+parity_checks:
+  - parity_check_id: parity.command_identity_parity
+    intent: Ensure translated labels never change command routing.
+    stable_elements:
+      - command_id
+      - canonical_verb
+    requirements:
+      - Command routing binds to command id, never translated label.
+      - Canonical command aliases remain stable across locales.
+      - Localized labels may change, but command identity does not.
+    typical_evidence:
+      - catalog diff that shows identical command_id coverage per locale
+      - palette/menu routing tests keyed by command_id
+
+  - parity_check_id: parity.keyboard_path_parity
+    intent: Keep shortcuts and keyboard paths stable and copy-safe.
+    stable_elements:
+      - keybinding_path
+      - cli_flag_literal
+    requirements:
+      - Keybinding hints render from the canonical binding graph.
+      - Literal shortcut tokens and CLI flags remain unchanged.
+    typical_evidence:
+      - snapshot tests for help/palette rows that include keybinding hints
+
+  - parity_check_id: parity.disabled_state_explain_parity
+    intent: Ensure “why disabled/blocked” explanations remain equivalent.
+    stable_elements:
+      - policy_id
+      - error_code_or_finding_id
+    requirements:
+      - Disabled-state explanations remain present and actionable.
+      - Policy ids and finding ids stay literal and copy-safe.
+    typical_evidence:
+      - golden screenshots under pseudoloc and a base non-English locale
+      - denial-reason inventories keyed by stable ids
+
+  - parity_check_id: parity.settings_schema_identity_parity
+    intent: Localize settings help without changing setting ids or schemas.
+    stable_elements:
+      - setting_id
+      - json_key
+      - schema_id
+    requirements:
+      - Setting ids and JSON keys remain locale-neutral and unchanged.
+      - Schema ids referenced by validation/help remain unchanged.
+      - Localized help retains the same constraints, scopes, and safety cues.
+    typical_evidence:
+      - settings-registry diff keyed by setting_id across locale packs
+      - schema-id reference audits for validation and help surfaces
+
+  - parity_check_id: parity.docs_citation_anchor_parity
+    intent: Keep docs anchors/citations stable across translated surfaces.
+    stable_elements:
+      - docs_anchor_id
+      - citation_anchor_id
+      - recovery_url_or_route_id
+    requirements:
+      - Translated docs/tours/auth retain the same citation anchors.
+      - Anchors resolve to the same docs pack revision refs.
+      - Command ids and recovery route ids in examples remain literal.
+    typical_evidence:
+      - localized docs-pack anchor-resolution suite
+      - citation-anchor diff between source and translated overlays
+
+  - parity_check_id: parity.cli_machine_output_stability
+    intent: Keep CLI/doctor machine output stable while localizing prose.
+    stable_elements:
+      - cli_subcommand_name
+      - cli_flag_literal
+      - json_key
+      - error_code_or_finding_id
+      - schema_id
+    requirements:
+      - Canonical flags/subcommands remain unchanged in all locales.
+      - JSON keys and canonical ids remain locale-neutral.
+      - A deterministic locale-neutral output escape hatch exists.
+    typical_evidence:
+      - snapshot tests for localized --help output
+      - JSON output corpus tests across multiple locales
+
+  - parity_check_id: parity.extension_no_host_override
+    intent: Prevent extension locale overlays from overriding host identity.
+    stable_elements:
+      - extension_namespace_id
+      - host_stable_identifier
+      - command_id
+    requirements:
+      - Extension-localized labels stay within the extension namespace.
+      - Extension overlays do not override host-owned command ids, settings ids,
+        schema ids, telemetry keys, or citations.
+      - Incompatible extension overlays fail closed with explicit disclosure.
+    typical_evidence:
+      - namespace enforcement checks on locale pack ingestion
+      - compatibility-range checks for extension overlays
+
+  - parity_check_id: parity.locale_fallback_disclosure
+    intent: Make fallback visible whenever the requested locale is not authoritative.
+    stable_elements: []
+    requirements:
+      - Effective locale and fallback origin class are disclosed.
+      - Source-language access remains available on the same surface.
+    typical_evidence:
+      - locale_fallback_state record emitted for fallback events
+      - UI review panels showing fallback lineage and pack refs
+
+surface_rows:
+  - surface_id: shell_commands_and_palette
+    title: Shell commands and palette
+    localization_sources:
+      - core_locale_pack
+    covers_message_surface_families:
+      - shell_chrome
+      - command_label
+    machine_stable_elements:
+      - command_id
+      - canonical_verb
+      - keybinding_path
+      - telemetry_key
+      - policy_id
+    localizable_elements:
+      - command labels and synonyms (human-facing)
+      - palette chrome and short help snippets
+      - disabled-state explanations (human prose)
+    fallback_policy: >
+      Walk the declared base-locale fallback chain to source language.
+      Disclose effective locale and fallback origin whenever the
+      requested locale is not authoritative.
+    source_language_access:
+      - inline_source_language_toggle
+      - copy_safe_command_id_affordance
+    required_parity_check_refs:
+      - parity.command_identity_parity
+      - parity.keyboard_path_parity
+      - parity.disabled_state_explain_parity
+      - parity.locale_fallback_disclosure
+
+  - surface_id: settings_help_errors
+    title: Settings, help, and errors
+    localization_sources:
+      - core_locale_pack
+      - settings_registry_and_schema_docs
+    covers_message_surface_families:
+      - settings_help_or_error
+    machine_stable_elements:
+      - setting_id
+      - json_key
+      - schema_id
+      - error_code_or_finding_id
+      - policy_id
+      - telemetry_key
+    localizable_elements:
+      - setting labels, summaries, and descriptions
+      - explain-why and help prose
+      - denial and error explanations
+    fallback_policy: >
+      If localized help is missing/blocked, render source-language help
+      with explicit fallback disclosure. Never “guess” by paraphrasing
+      or silently dropping constraints.
+    source_language_access:
+      - inline_source_language_toggle
+      - copy_safe_setting_id_and_schema_id_affordance
+    required_parity_check_refs:
+      - parity.settings_schema_identity_parity
+      - parity.locale_fallback_disclosure
+
+  - surface_id: docs_tours_auth
+    title: Docs, tours, and auth surfaces
+    localization_sources:
+      - docs_pack_with_locale_overlay
+    covers_message_surface_families:
+      - docs_tour_or_auth_text
+    machine_stable_elements:
+      - docs_anchor_id
+      - citation_anchor_id
+      - command_id
+      - recovery_url_or_route_id
+    localizable_elements:
+      - docs prose and headings
+      - tour steps and instructional copy
+      - auth guidance and recovery instructions
+    fallback_policy: >
+      Partial translation falls back by base locale and/or source
+      language while preserving anchors and citations. The surface
+      discloses missing coverage and keeps “view original” available.
+    source_language_access:
+      - docs_pane_source_language_route
+      - inline_source_language_toggle
+    required_parity_check_refs:
+      - parity.docs_citation_anchor_parity
+      - parity.keyboard_path_parity
+      - parity.locale_fallback_disclosure
+
+  - surface_id: cli_help_doctor
+    title: CLI help and doctor
+    localization_sources:
+      - core_locale_pack
+    covers_message_surface_families:
+      - cli_help_text
+    machine_stable_elements:
+      - cli_subcommand_name
+      - cli_flag_literal
+      - json_key
+      - error_code_or_finding_id
+      - schema_id
+      - command_id
+    localizable_elements:
+      - usage/help prose and examples
+      - human explanations for findings and next actions
+    fallback_policy: >
+      When localization is unavailable, print source-language human
+      prose; machine output remains stable regardless.
+    source_language_access:
+      - cli_locale_neutral_output_flag
+      - inline_source_language_toggle
+    required_parity_check_refs:
+      - parity.cli_machine_output_stability
+      - parity.keyboard_path_parity
+      - parity.locale_fallback_disclosure
+
+  - surface_id: extension_contributed_ui
+    title: Extension-contributed UI
+    localization_sources:
+      - extension_locale_pack_or_companion_overlay
+    covers_message_surface_families:
+      - extension_contributed_ui
+    machine_stable_elements:
+      - extension_namespace_id
+      - host_stable_identifier
+      - command_id
+      - setting_id
+      - schema_id
+      - telemetry_key
+      - citation_anchor_id
+    localizable_elements:
+      - extension-owned labels/help inside the extension namespace
+    fallback_policy: >
+      Missing/incompatible extension overlays fall back to the
+      extension’s source language (or declared base chain) with explicit
+      disclosure. Host surfaces never inherit extension locale
+      assumptions silently.
+    source_language_access:
+      - inline_source_language_toggle
+      - extension_pack_provenance_and_compatibility_panel
+    required_parity_check_refs:
+      - parity.extension_no_host_override
+      - parity.locale_fallback_disclosure
+

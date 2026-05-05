@@ -23,6 +23,13 @@ The companion fixtures live under:
 
 - [`/fixtures/ux/localization_cases/`](../../fixtures/ux/localization_cases/)
 
+The cross-surface locale-surface matrix that summarizes what may
+localize vs. what must remain machine-stable (ids, keys, anchors, flags)
+is published at:
+
+- [`/docs/i18n/locale_surface_matrix.md`](../i18n/locale_surface_matrix.md)
+- [`/artifacts/i18n/locale_surface_matrix.yaml`](../../artifacts/i18n/locale_surface_matrix.yaml)
+
 This contract is normative for the projection, fallback, signature,
 mirrorability, source-language, and translation-governance posture of
 all localized surfaces. Where it disagrees with the PRD, TAD, TDD,
