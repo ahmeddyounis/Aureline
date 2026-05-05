@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/action_visibility_state.schema.json",
+  "title": "Aureline action visibility, keyboard parity, and explainability state",
+  "description": "Boundary schema for action_visibility_case_record fixtures frozen in docs/ux/action_discoverability_equivalence_contract.md. The schema captures how dense-row actions, icon-only buttons, and overflow menus preserve keyboard/screen-reader routes, stable command identity, tooltip/help text, and why-unavailable explanations when compact presentation hides labels or defers actions to hover/overflow. Raw paths, raw URLs, raw policy bodies, raw provider payloads, raw hostnames, secret values, and user-authored content never cross this boundary; fixtures carry opaque ids, controlled vocabulary, and short review-safe labels only. Adding enum values or optional fields is additive-minor and bumps action_visibility_state_schema_version; repurposing an existing value is breaking.",
+  "type": "object",
+  "$ref": "#/$defs/action_visibility_case_record",
+  "$defs": {
+    "action_visibility_state_schema_version": { "type": "integer", "const": 1 },
+    "instance_schema_hint": { "type": "string" },
+    "monotonic_timestamp": { "type": "string", "format": "date-time" },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Stable opaque id safe for logs, fixtures, support exports, and schema-driven UI contracts."
+    },
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Repo-relative document ref, schema ref, fixture ref, or opaque locator."
+    },
+    "reviewable_label": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "reviewable_sentence": { "type": "string", "minLength": 1, "maxLength": 900 },
+    "density_class": { "type": "string", "enum": ["compact", "standard", "comfortable"] },
+    "surface_kind": {
+      "type": "string",
+      "enum": [
+        "dense_list_row",
+        "tree_row",
+        "table_action_cell",
+        "inline_toolbar",
+        "icon_only_button",
+        "overflow_menu"
+      ]
+    },
+    "actionability_class": {
+      "type": "string",
+      "enum": [
+        "enabled",
+        "disabled_no_valid_action",
+        "read_only_inspectable",
+        "locked_policy_or_managed",
+        "locked_permission_or_trust",
+        "busy_temporarily_blocked",
+        "pending_validation_blocked",
+        "preview_required",
+        "review_required",
+        "destructive_confirmation_required"
+      ]
+    },
+    "why_unavailable_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "no_valid_action",
+        "policy_blocked",
+        "dependency_missing",
+        "degraded_index",
+        "wrong_target",
+        "read_only",
+        "host_unavailable",
+        "unsupported_current_mode",
+        "quota_or_budget_exhausted",
+        "preview_only",
+        "stale_context"
+      ]
+    },
+    "why_unavailable_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class_id", "summary", "safe_next_step"],
+      "properties": {
+        "reason_class_id": { "$ref": "#/$defs/why_unavailable_reason_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "safe_next_step": { "$ref": "#/$defs/reviewable_sentence" },
+        "alternate_route_command_id_ref": {
+          "type": ["string", "null"],
+          "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "docs_help_anchor_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "command_id": {
+      "type": "string",
+      "pattern": "^cmd:[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "description": "Canonical command id. Buttons, menus, palettes, and shortcuts resolve to the same command identity."
+    },
+    "keyboard_equivalence_class": { "type": "string", "enum": ["shortcut", "palette_route"] },
+    "keyboard_equivalent_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["equivalence_class"],
+      "properties": {
+        "equivalence_class": { "$ref": "#/$defs/keyboard_equivalence_class" },
+        "shortcut_display": { "type": ["string", "null"], "minLength": 1, "maxLength": 40 },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 220 }
+      }
+    },
+    "tooltip_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tooltip_text"],
+      "properties": {
+        "tooltip_text": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "shortcut_hint": { "type": ["string", "null"], "minLength": 1, "maxLength": 80 },
+        "docs_help_anchor_ref": { "type": ["string", "null"], "minLength": 1 }
+      }
+    },
+    "visual_affordance_class": {
+      "type": "string",
+      "enum": [
+        "inline_text_button",
+        "inline_icon_button",
+        "inline_icon_and_text",
+        "overflow_menu_item",
+        "context_menu_item"
+      ]
+    },
+    "label_visibility_class": { "type": "string", "enum": ["text_label_visible", "icon_only"] },
+    "visibility_trigger_class": {
+      "type": "string",
+      "enum": [
+        "always_visible",
+        "revealed_on_focus",
+        "revealed_on_hover",
+        "revealed_on_focus_or_hover",
+        "persistent_while_selected",
+        "overflow_only"
+      ]
+    },
+    "accessible_role_class": { "type": "string", "enum": ["button", "menuitem", "link"] },
+    "container_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reveals_on_hover",
+        "reveals_on_focus",
+        "persist_while_focused",
+        "persist_while_selected",
+        "overflow_trigger_present",
+        "overflow_keyboard_reachable",
+        "touch_fallback_class",
+        "screen_reader_action_name_required",
+        "screen_reader_disabled_reason_required"
+      ],
+      "properties": {
+        "reveals_on_hover": { "type": "boolean" },
+        "reveals_on_focus": { "type": "boolean" },
+        "persist_while_focused": { "type": "boolean" },
+        "persist_while_selected": { "type": "boolean" },
+        "overflow_trigger_present": { "type": "boolean" },
+        "overflow_keyboard_reachable": { "type": "boolean" },
+        "touch_fallback_class": {
+          "type": "string",
+          "enum": ["explicit_more_button", "long_press_opens_actions", "selection_reveals_actions", "not_applicable"]
+        },
+        "screen_reader_action_name_required": { "type": "boolean" },
+        "screen_reader_disabled_reason_required": { "type": "boolean" },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 280 }
+      }
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "exercised_axes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "action_visibility_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "command_id_ref",
+        "canonical_label",
+        "visual_affordance_class",
+        "label_visibility_class",
+        "visibility_trigger_class",
+        "accessible_role",
+        "accessible_name",
+        "keyboard_equivalent",
+        "actionability_class",
+        "why_unavailable"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "command_id_ref": { "$ref": "#/$defs/command_id" },
+        "canonical_label": { "$ref": "#/$defs/reviewable_label" },
+        "visual_affordance_class": { "$ref": "#/$defs/visual_affordance_class" },
+        "label_visibility_class": { "$ref": "#/$defs/label_visibility_class" },
+        "visibility_trigger_class": { "$ref": "#/$defs/visibility_trigger_class" },
+        "accessible_role": { "$ref": "#/$defs/accessible_role_class" },
+        "accessible_name": { "$ref": "#/$defs/reviewable_label" },
+        "tooltip": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/tooltip_record" }
+          ]
+        },
+        "keyboard_equivalent": { "$ref": "#/$defs/keyboard_equivalent_record" },
+        "actionability_class": { "$ref": "#/$defs/actionability_class" },
+        "why_unavailable": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/why_unavailable_record" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "label_visibility_class": { "const": "icon_only" } },
+            "required": ["label_visibility_class"]
+          },
+          "then": {
+            "required": ["tooltip"],
+            "properties": {
+              "tooltip": { "not": { "type": "null" } }
+            }
+          },
+          "description": "Icon-only actions require a tooltip path."
+        },
+        {
+          "if": {
+            "properties": { "actionability_class": { "const": "enabled" } },
+            "required": ["actionability_class"]
+          },
+          "then": {
+            "properties": { "why_unavailable": { "type": "null" } }
+          },
+          "else": {
+            "required": ["why_unavailable"],
+            "properties": {
+              "why_unavailable": { "not": { "type": "null" } }
+            }
+          },
+          "description": "Non-enabled actions require a why-unavailable explanation."
+        }
+      ]
+    },
+    "action_visibility_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "action_visibility_state_schema_version",
+        "case_id",
+        "surface_kind",
+        "density_class",
+        "container_policy",
+        "actions",
+        "captured_at",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "action_visibility_case_record" },
+        "action_visibility_state_schema_version": { "$ref": "#/$defs/action_visibility_state_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "density_class": { "$ref": "#/$defs/density_class" },
+        "container_policy": { "$ref": "#/$defs/container_policy" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/action_visibility_action_record" }
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/ref" }
+        }
+      }
+    }
+  }
+}
