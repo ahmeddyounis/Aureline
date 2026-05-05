@@ -33,6 +33,13 @@ service, policy backend, or repair runner.
 - [`/fixtures/network/transport_explainability_cases/`](../../fixtures/network/transport_explainability_cases/)
   contains worked projection cases for PAC proxy routing, custom CA trust,
   mirror unavailable, policy blocked, and SSH host-proof mismatch.
+- [`/docs/network/transport_inspector_contract.md`](transport_inspector_contract.md),
+  [`/schemas/network/effective_route_state.schema.json`](../../schemas/network/effective_route_state.schema.json),
+  [`/schemas/network/transport_denial.schema.json`](../../schemas/network/transport_denial.schema.json),
+  and
+  [`/fixtures/network/transport_inspector_cases/`](../../fixtures/network/transport_inspector_cases/)
+  freeze the transport inspector that projects effective-route state and
+  typed denial records on top of the same shared transport vocabulary.
 
 If this document and a schema disagree, the schema wins and this document
 updates in the same change. If this document and the transport governance
