@@ -1,0 +1,234 @@
+# yaml-language-server: $schema=../../../schemas/admin/admin_audit_export.schema.json
+__fixture__:
+  name: self_hosted_enterprise_export
+  scenario: >
+    Self-hosted enterprise export capturing seat/role changes, device
+    rebind, and a deprovision event. The packet is independent with signed
+    evidence (signer continuity and entitlement snapshot refs) but does
+    not require a vendor console.
+  contract_sections:
+    - export_packet_shape
+    - minimum_field_set
+    - vendor_console_independence
+
+record_kind: admin_audit_export_record
+admin_audit_export_schema_version: 1
+export_id_ref: admin-audit-export:self-hosted:0001
+assembled_at_utc: "2026-05-05T07:56:40Z"
+
+tenant_scope:
+  tenant_or_org_ref: tenant-or-org:self-hosted-enterprise:0001
+  tenant_or_org_label: Self-hosted enterprise tenant
+  deployment_profile_scope:
+    - self_hosted
+  install_profile_card_refs:
+    - install-profile-card:self-hosted:0001
+  scope_note: Export is scoped to one self-hosted tenant and one entitlement epoch.
+
+policy_context:
+  identity_mode: self_hosted_org
+  deployment_profile_class: self_hosted
+  trust_state: trusted
+  policy_epoch: policy_epoch.self_hosted.20260501.0003
+  execution_context_id: exec-self-hosted-admin-export
+
+policy_epoch_at_export: policy_epoch.self_hosted.20260501.0003
+entitlement_epoch_at_export: entitlement_epoch.self_hosted.20260501.0007
+
+retention_window:
+  retention_window_class: policy_configured_window
+  retention_period_days: 365
+  retention_note: Enterprise policy configures a one-year retention window for admin audit events; older events are exported before pruning.
+
+vendor_console_independence_class: independent_with_signed_evidence
+origin_class: self_hosted_admin_plane
+
+included_event_rows:
+  - event_id_ref: audit-event:seat-role-change:self-hosted:0001
+    event_class: seat_action
+    origin_class: self_hosted_admin_plane
+    actor_class: authenticated_org_admin
+    actor_ref: actor-org-admin:self-hosted:0001
+    actor_label: Organization admin
+    tenant_or_org_ref: tenant-or-org:self-hosted-enterprise:0001
+    scope_kind: seat
+    scope_label: Seat provisioning (self-hosted)
+    subject:
+      subject_kind: role_binding
+      subject_id: role-binding:seat:0001
+      subject_label: Seat role updated
+      subject_note: Role binding is identified by an opaque ref; no user identifiers are exported.
+    decision_class: mutation_recorded
+    outcome_class: succeeded
+    decision_reason_class: role_changed
+    decision_reason_note: Seat role updated to narrow approval authority for privileged actions.
+    event_at_utc: "2026-05-01T12:20:14Z"
+    mirror_or_offline_posture: authoritative_live
+    policy_epoch_ref: policy_epoch.self_hosted.20260501.0003
+    entitlement_epoch_ref: entitlement_epoch.self_hosted.20260501.0007
+    redaction_summary:
+      redaction_class: metadata_safe_default
+      included_data_classes:
+        - audit.minimum_field_set
+        - seat.lifecycle.metadata
+        - audit.refs
+      omitted_data_classes:
+        - tenant.directory_payload
+        - secret.material
+      redaction_note: Seat lifecycle metadata and refs are exported; directory payloads and secrets are omitted.
+    vendor_console_independence_class: independent_with_signed_evidence
+    browser_handoff:
+      handoff_class: not_required
+      handoff_ref: null
+      handoff_note: Self-hosted admin plane provides full baseline explainability without a vendor console.
+    related_object_refs:
+      - seat-lifecycle-row:self-hosted:0001
+      - admin-audit-packet:seat-action:self-hosted:0001
+    reviewable_summary: An organization admin updated a seat role; the change is recorded as a seat action bound to the current policy and entitlement epochs.
+  - event_id_ref: audit-event:device-rebind:self-hosted:0001
+    event_class: device_action
+    origin_class: self_hosted_admin_plane
+    actor_class: authenticated_org_admin
+    actor_ref: actor-org-admin:self-hosted:0001
+    actor_label: Organization admin
+    tenant_or_org_ref: tenant-or-org:self-hosted-enterprise:0001
+    scope_kind: device
+    scope_label: Device enrollment
+    subject:
+      subject_kind: device_record
+      subject_id: device-record:self-hosted:0042
+      subject_label: Device rebind
+      subject_note: Device record uses an opaque id; hostnames and fingerprints are omitted.
+    decision_class: mutation_recorded
+    outcome_class: succeeded
+    decision_reason_class: device_rebound
+    decision_reason_note: Device binding was re-established after a hardware reset; prior binding is superseded.
+    event_at_utc: "2026-05-02T09:11:03Z"
+    mirror_or_offline_posture: authoritative_live
+    policy_epoch_ref: policy_epoch.self_hosted.20260501.0003
+    entitlement_epoch_ref: entitlement_epoch.self_hosted.20260501.0007
+    redaction_summary:
+      redaction_class: metadata_safe_default
+      included_data_classes:
+        - audit.minimum_field_set
+        - device.lifecycle.metadata
+        - audit.refs
+      omitted_data_classes:
+        - device.fingerprint_bytes
+        - ip.addresses
+        - secret.material
+      redaction_note: Device lifecycle metadata is exported without fingerprints, IPs, or secrets.
+    vendor_console_independence_class: independent_with_signed_evidence
+    browser_handoff:
+      handoff_class: not_required
+      handoff_ref: null
+      handoff_note: No vendor console is required to understand device binding changes in self-hosted mode.
+    related_object_refs:
+      - fleet-status-row:self-hosted:0042
+      - admin-audit-packet:device-action:self-hosted:0001
+    reviewable_summary: A device was rebound under self-hosted admin control; the event is recorded with the current policy and entitlement epochs.
+  - event_id_ref: audit-event:deprovision:self-hosted:0001
+    event_class: entitlement_lifecycle_transition
+    origin_class: self_hosted_admin_plane
+    actor_class: authenticated_org_admin
+    actor_ref: actor-org-admin:self-hosted:0001
+    actor_label: Organization admin
+    tenant_or_org_ref: tenant-or-org:self-hosted-enterprise:0001
+    scope_kind: seat
+    scope_label: Seat deprovision
+    subject:
+      subject_kind: seat_binding
+      subject_id: seat-binding:self-hosted:0009
+      subject_label: Seat deprovisioned
+      subject_note: Seat is deprovisioned while local artifacts remain exportable and editable.
+    decision_class: narrow
+    outcome_class: paused
+    decision_reason_class: deprovisioned_by_admin
+    decision_reason_note: Admin deprovision revoked managed entitlements while preserving local continuity and export-before-delete paths.
+    event_at_utc: "2026-05-03T18:02:44Z"
+    mirror_or_offline_posture: authoritative_live
+    policy_epoch_ref: policy_epoch.self_hosted.20260501.0003
+    entitlement_epoch_ref: entitlement_epoch.self_hosted.20260501.0007
+    redaction_summary:
+      redaction_class: operator_only_restricted
+      included_data_classes:
+        - audit.minimum_field_set
+        - entitlement.metadata
+        - seat.lifecycle.metadata
+        - audit.refs
+      omitted_data_classes:
+        - tenant.directory_payload
+        - secret.material
+      redaction_note: Deprovision events are operator-restricted but remain exportable with opaque refs only.
+    vendor_console_independence_class: independent_with_signed_evidence
+    browser_handoff:
+      handoff_class: not_required
+      handoff_ref: null
+      handoff_note: Deprovision explainability is preserved locally in self-hosted deployments.
+    related_object_refs:
+      - entitlement-snapshot:self-hosted:0007
+      - seat-lifecycle-row:self-hosted:0009
+      - admin-audit-packet:entitlement-transition:self-hosted:0001
+    reviewable_summary: A seat was deprovisioned by an org admin; managed entitlements are revoked while local continuity and export remain available.
+
+human_readable_summary: Self-hosted export includes seat/role change, device rebind, and deprovision events bound to explicit policy and entitlement epochs; the packet is explainable without a vendor console and cites signed evidence refs where needed.
+
+machine_readable_packet:
+  human_summary_ref: human-summary:admin-audit-export:self-hosted:0001
+  machine_packet_ref: machine-packet:admin-audit-export:self-hosted:0001
+  machine_schema_ref: schemas/admin/admin_audit_export.schema.json
+  formats:
+    - json_packet
+    - markdown_summary
+    - support_bundle_reference
+  redaction_summary:
+    redaction_class: metadata_safe_default
+    included_data_classes:
+      - audit.minimum_field_set
+      - entitlement.metadata
+      - seat.lifecycle.metadata
+    omitted_data_classes:
+      - tenant.directory_payload
+      - secret.material
+    redaction_note: Export carries only refs and metadata; directory payloads and secrets remain out of boundary.
+  compatible_consumer_classes:
+    - desktop_policy_center
+    - admin_audit_reader
+    - enterprise_audit_reviewer
+
+redaction_summary:
+  redaction_class: operator_only_restricted
+  included_data_classes:
+    - audit.minimum_field_set
+    - entitlement.metadata
+    - seat.lifecycle.metadata
+  omitted_data_classes:
+    - tenant.directory_payload
+    - secret.material
+  redaction_note: Export is safe for enterprise review without disclosing identities or secrets.
+
+compatible_consumer_classes:
+  - desktop_policy_center
+  - admin_audit_reader
+  - enterprise_audit_reviewer
+
+export_actions:
+  - action_class: open_seat_lifecycle_row
+    label: Open seat lifecycle rows
+    enabled: true
+    route_ref: seat-lifecycle-view:self-hosted:0001
+    command_id: ui.open.seat_lifecycle
+    reason: Seat/device changes are deep-linkable to the seat/fleet contracts.
+  - action_class: export_machine_packet
+    label: Export packet (JSON)
+    enabled: true
+    route_ref: null
+    command_id: cli.export.machine_packet
+    reason: Machine-readable packet is available locally for offline review.
+  - action_class: open_docs
+    label: Open export contract
+    enabled: true
+    route_ref: null
+    command_id: docs.open.admin_audit_export_contract
+    reason: Contract defines the minimum fields and vendor-console-independence classes.
+

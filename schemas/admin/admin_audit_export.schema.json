@@ -1,0 +1,670 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/admin/admin_audit_export.schema.json",
+  "title": "Aureline tenant-scoped admin audit export packet",
+  "description": "Boundary schema for one admin_audit_export_record packet frozen in docs/admin/admin_audit_export_contract.md. The packet is the export-safe, tenant-scoped object admin desktop surfaces, CLI/headless exports, self-hosted admin planes, and enterprise reviewers use to reconstruct material admin decisions without treating a vendor-hosted console as the only source of truth. The export preserves stable action/event class, actor class, tenant scope, affected subject, policy and entitlement epochs, decision reason, local-versus-managed origin truth, redaction posture, and audit retention window truth. Raw policy rule bodies, raw bundle bytes, raw signing material, raw issuer URLs, raw SCIM endpoints, raw mirror hostnames, raw IP addresses, raw device fingerprints, raw user identifiers, raw email or display names, raw subject claims, raw provider payloads, raw paths, raw tokens, raw command lines, and raw secret material never cross this boundary; the packet carries opaque refs, typed vocabulary, and reviewable summaries only. Adding a new event_class, decision_reason_class, actor_class, scope_kind, subject_kind, vendor_console_independence_class, origin_class, export_format_class, or compatible_consumer_class value is additive-minor and bumps admin_audit_export_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "$ref": "#/$defs/admin_audit_export_record",
+  "$defs": {
+    "admin_audit_export_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the admin-audit export packet."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe to log and safe in exports."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "schema_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable schema reference (typically a repo-relative path)."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp captured from a monotonic or bounded-skew source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe for admin export and support surfaces."
+    },
+    "export_safe_label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short export-safe label."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "name", "scenario" ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+
+    "identity_mode": {
+      "type": "string",
+      "enum": [ "account_free_local", "self_hosted_org", "managed_workspace" ]
+    },
+    "deployment_profile_class": {
+      "type": "string",
+      "enum": [ "individual_local", "self_hosted", "enterprise_online", "managed_cloud", "air_gapped" ]
+    },
+    "workspace_trust_state": {
+      "type": "string",
+      "enum": [ "trusted", "restricted" ]
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "policy_epoch_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Opaque policy epoch ref bound to the event or export. Null only when not applicable."
+    },
+    "entitlement_epoch_ref": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Opaque entitlement epoch ref bound to the event or export. Null only when not applicable."
+    },
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_mode",
+        "deployment_profile_class",
+        "trust_state",
+        "policy_epoch",
+        "execution_context_id"
+      ],
+      "properties": {
+        "identity_mode": { "$ref": "#/$defs/identity_mode" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "trust_state": { "$ref": "#/$defs/workspace_trust_state" },
+        "policy_epoch": { "$ref": "#/$defs/policy_epoch_ref" },
+        "execution_context_id": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+    "tenant_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant_or_org_ref",
+        "tenant_or_org_label",
+        "deployment_profile_scope",
+        "install_profile_card_refs",
+        "scope_note"
+      ],
+      "properties": {
+        "tenant_or_org_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "tenant_or_org_label": { "$ref": "#/$defs/export_safe_label" },
+        "deployment_profile_scope": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/deployment_profile_class" }
+        },
+        "install_profile_card_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "scope_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "local_desktop_or_cli",
+        "self_hosted_admin_plane",
+        "managed_admin_plane"
+      ],
+      "description": "Declares where the export or event was assembled. Origin is explicit so admin explainability does not collapse into a vendor-hosted console dependency."
+    },
+
+    "vendor_console_independence_class": {
+      "type": "string",
+      "enum": [
+        "fully_independent_local_packet",
+        "independent_with_signed_evidence",
+        "vendor_console_required_for_full_detail",
+        "vendor_console_only_acknowledged_gap"
+      ]
+    },
+
+    "retention_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_window_class",
+        "retention_period_days",
+        "retention_note"
+      ],
+      "properties": {
+        "retention_window_class": {
+          "type": "string",
+          "enum": [
+            "default_90_days",
+            "policy_configured_window",
+            "legal_hold_indefinite",
+            "unknown_offline"
+          ]
+        },
+        "retention_period_days": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Number of days the audit window retains events. Null only when the window is indefinite (legal hold) or unknown."
+        },
+        "retention_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "anonymous_local_user",
+        "authenticated_end_user",
+        "authenticated_local_admin",
+        "authenticated_org_admin",
+        "service_account_automation",
+        "vendor_managed_automation",
+        "signed_policy_bundle_source",
+        "signed_entitlement_source",
+        "system_scheduled_task",
+        "local_policy_resolver",
+        "support_operator",
+        "unknown_actor_offline"
+      ]
+    },
+    "scope_kind": {
+      "type": "string",
+      "enum": [
+        "tenant_or_org",
+        "deployment_profile",
+        "install_profile",
+        "workspace",
+        "folder_or_module",
+        "group",
+        "seat",
+        "device",
+        "capability_scope",
+        "account_boundary",
+        "session_or_command"
+      ]
+    },
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "policy_bundle",
+        "entitlement_snapshot",
+        "seat_binding",
+        "role_binding",
+        "device_record",
+        "approval_ticket",
+        "emergency_action",
+        "governed_record",
+        "audit_export",
+        "tenant_or_org",
+        "workspace",
+        "capability_scope",
+        "unknown_subject"
+      ]
+    },
+    "subject_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "subject_kind", "subject_id", "subject_label" ],
+      "properties": {
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_id": { "$ref": "#/$defs/opaque_id" },
+        "subject_label": { "$ref": "#/$defs/export_safe_label" },
+        "subject_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "policy_bundle_change",
+        "entitlement_lifecycle_transition",
+        "seat_action",
+        "device_action",
+        "revocation_event",
+        "org_switch",
+        "identity_mode_transition",
+        "trust_state_change",
+        "signer_rotation",
+        "provider_route_change",
+        "network_egress_event",
+        "collaboration_control_grant",
+        "collaboration_control_revoke",
+        "publication_state_change",
+        "remote_mutation_receipt",
+        "record_delete_requested",
+        "record_delete_completed",
+        "record_hold_applied",
+        "record_hold_released",
+        "record_export_ready",
+        "record_export_consumed",
+        "support_hold_event",
+        "failed_privileged_action",
+        "admin_console_explainability_assertion"
+      ]
+    },
+    "decision_class": {
+      "type": "string",
+      "enum": [
+        "allow",
+        "deny",
+        "narrow",
+        "force_disable",
+        "quota_limit",
+        "defer_pending_refresh",
+        "defer_pending_admin",
+        "escalate",
+        "export_only",
+        "local_only_continue",
+        "mutation_recorded",
+        "request_recorded",
+        "rollback_recorded",
+        "unknown_offline"
+      ]
+    },
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "denied",
+        "narrowed",
+        "paused",
+        "deferred",
+        "failed_with_error",
+        "superseded",
+        "requested_pending_completion",
+        "completed",
+        "rolled_back",
+        "unknown_offline"
+      ]
+    },
+    "decision_reason_class": {
+      "type": "string",
+      "enum": [
+        "policy_change_published",
+        "policy_change_rolled_back",
+        "deprovisioned_by_admin",
+        "deprovisioned_by_policy",
+        "seat_assigned_or_reassigned",
+        "seat_revoked_or_paused",
+        "role_changed",
+        "device_rebound",
+        "approval_requirement_narrowed",
+        "emergency_disable_applied",
+        "delete_requested",
+        "delete_completed",
+        "export_ready",
+        "export_consumed",
+        "unknown_reason_offline"
+      ],
+      "description": "Closed decision-reason vocabulary for the admin audit export. Extending is additive-minor."
+    },
+
+    "mirror_or_offline_posture": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "mirrored_current",
+        "mirrored_stale_within_grace",
+        "mirrored_stale_past_grace",
+        "manual_snapshot_current",
+        "manual_snapshot_stale",
+        "offline_snapshot_unexpired",
+        "offline_snapshot_expired",
+        "offline_last_known_good",
+        "unknown"
+      ]
+    },
+
+    "browser_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "handoff_class", "handoff_ref", "handoff_note" ],
+      "properties": {
+        "handoff_class": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "optional_vendor_console_deep_link",
+            "required_vendor_console_deep_link"
+          ]
+        },
+        "handoff_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "handoff_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "redaction_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [ "redaction_class", "included_data_classes", "omitted_data_classes" ],
+      "properties": {
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "included_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "omitted_data_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" }
+        },
+        "redaction_note": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        }
+      }
+    },
+
+    "export_format_class": {
+      "type": "string",
+      "enum": [
+        "markdown_summary",
+        "json_packet",
+        "jsonl_history",
+        "clipboard_text",
+        "support_bundle_reference",
+        "cli_json_stdout"
+      ]
+    },
+    "compatible_consumer_class": {
+      "type": "string",
+      "enum": [
+        "desktop_policy_center",
+        "cli_json_reader",
+        "support_bundle_exporter",
+        "admin_audit_reader",
+        "project_doctor",
+        "enterprise_audit_reviewer"
+      ]
+    },
+    "export_pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "human_summary_ref",
+        "machine_packet_ref",
+        "machine_schema_ref",
+        "formats",
+        "redaction_summary",
+        "compatible_consumer_classes"
+      ],
+      "properties": {
+        "human_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "machine_schema_ref": { "$ref": "#/$defs/schema_ref" },
+        "formats": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/export_format_class" }
+        },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "compatible_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/compatible_consumer_class" }
+        }
+      }
+    },
+
+    "admin_audit_export_event_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id_ref",
+        "event_class",
+        "origin_class",
+        "actor_class",
+        "actor_ref",
+        "actor_label",
+        "tenant_or_org_ref",
+        "scope_kind",
+        "scope_label",
+        "subject",
+        "decision_class",
+        "outcome_class",
+        "decision_reason_class",
+        "decision_reason_note",
+        "event_at_utc",
+        "mirror_or_offline_posture",
+        "policy_epoch_ref",
+        "entitlement_epoch_ref",
+        "redaction_summary",
+        "vendor_console_independence_class",
+        "browser_handoff",
+        "related_object_refs",
+        "reviewable_summary"
+      ],
+      "properties": {
+        "event_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "event_class": { "$ref": "#/$defs/event_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "actor_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "actor_label": { "$ref": "#/$defs/export_safe_label" },
+        "tenant_or_org_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "scope_kind": { "$ref": "#/$defs/scope_kind" },
+        "scope_label": { "$ref": "#/$defs/export_safe_label" },
+        "subject": { "$ref": "#/$defs/subject_ref" },
+        "decision_class": { "$ref": "#/$defs/decision_class" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "decision_reason_class": { "$ref": "#/$defs/decision_reason_class" },
+        "decision_reason_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "event_at_utc": { "$ref": "#/$defs/monotonic_timestamp" },
+        "mirror_or_offline_posture": { "$ref": "#/$defs/mirror_or_offline_posture" },
+        "policy_epoch_ref": { "$ref": "#/$defs/policy_epoch_ref" },
+        "entitlement_epoch_ref": { "$ref": "#/$defs/entitlement_epoch_ref" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "vendor_console_independence_class": { "$ref": "#/$defs/vendor_console_independence_class" },
+        "browser_handoff": { "$ref": "#/$defs/browser_handoff" },
+        "related_object_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "reviewable_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "Vendor-console-required events must not claim handoff not_required.",
+          "if": {
+            "properties": {
+              "vendor_console_independence_class": {
+                "enum": [
+                  "vendor_console_required_for_full_detail",
+                  "vendor_console_only_acknowledged_gap"
+                ]
+              }
+            },
+            "required": [ "vendor_console_independence_class" ]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff": {
+                "properties": {
+                  "handoff_class": { "enum": [ "optional_vendor_console_deep_link", "required_vendor_console_deep_link" ] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Fully independent events must declare browser handoff not_required.",
+          "if": {
+            "properties": {
+              "vendor_console_independence_class": {
+                "enum": [
+                  "fully_independent_local_packet",
+                  "independent_with_signed_evidence"
+                ]
+              }
+            },
+            "required": [ "vendor_console_independence_class" ]
+          },
+          "then": {
+            "properties": {
+              "browser_handoff": {
+                "properties": {
+                  "handoff_class": { "const": "not_required" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+
+    "admin_audit_export_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "admin_audit_export_schema_version",
+        "export_id_ref",
+        "assembled_at_utc",
+        "tenant_scope",
+        "policy_context",
+        "policy_epoch_at_export",
+        "entitlement_epoch_at_export",
+        "retention_window",
+        "vendor_console_independence_class",
+        "origin_class",
+        "included_event_rows",
+        "human_readable_summary",
+        "machine_readable_packet",
+        "redaction_summary",
+        "compatible_consumer_classes",
+        "export_actions"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "admin_audit_export_record" },
+        "admin_audit_export_schema_version": { "$ref": "#/$defs/admin_audit_export_schema_version" },
+        "export_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "assembled_at_utc": { "$ref": "#/$defs/monotonic_timestamp" },
+        "tenant_scope": { "$ref": "#/$defs/tenant_scope" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "policy_epoch_at_export": { "$ref": "#/$defs/policy_epoch_ref" },
+        "entitlement_epoch_at_export": { "$ref": "#/$defs/entitlement_epoch_ref" },
+        "retention_window": { "$ref": "#/$defs/retention_window" },
+        "vendor_console_independence_class": { "$ref": "#/$defs/vendor_console_independence_class" },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "included_event_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/admin_audit_export_event_row" }
+        },
+        "human_readable_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "machine_readable_packet": { "$ref": "#/$defs/export_pair" },
+        "redaction_summary": { "$ref": "#/$defs/redaction_summary" },
+        "compatible_consumer_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/compatible_consumer_class" }
+        },
+        "export_actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "action_class",
+              "label",
+              "enabled",
+              "route_ref",
+              "command_id",
+              "reason"
+            ],
+            "properties": {
+              "action_class": {
+                "type": "string",
+                "enum": [
+                  "open_audit_event_detail",
+                  "open_source_packet",
+                  "open_decision_history_row",
+                  "open_policy_diff",
+                  "open_retention_deletion_matrix",
+                  "open_seat_lifecycle_row",
+                  "open_fleet_ring_dashboard",
+                  "open_collab_control_grant",
+                  "open_remote_mutation_receipt",
+                  "open_publication_state_record",
+                  "open_record_state_event",
+                  "copy_human_summary",
+                  "export_machine_packet",
+                  "open_admin_handoff",
+                  "open_support_packet",
+                  "open_cli_json",
+                  "open_docs"
+                ]
+              },
+              "label": { "$ref": "#/$defs/export_safe_label" },
+              "enabled": { "type": "boolean" },
+              "route_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+              "command_id": {
+                "oneOf": [
+                  { "type": "null" },
+                  { "$ref": "#/$defs/stable_dot_id" }
+                ]
+              },
+              "reason": { "$ref": "#/$defs/reviewable_sentence" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
