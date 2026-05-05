@@ -37,6 +37,9 @@ This contract composes with, and does not replace:
 - [`/docs/ux/forms_validation_contract.md`](./forms_validation_contract.md)
   for staged review, async probe, mutation-blocking, stale validation,
   and apply timing.
+- [`/docs/ux/toggle_and_choice_control_contract.md`](./toggle_and_choice_control_contract.md)
+  for checkbox/radio/switch/segmented-control semantics, mixed state,
+  staged-vs-live disclosure, and keyboard parity.
 - [`/docs/ux/input_and_combobox_contract.md`](./input_and_combobox_contract.md)
   for shared input anatomy, inline-validation timing, clear/reveal
   semantics, and search/combobox option-list state honesty.
@@ -79,7 +82,7 @@ Every conforming control declares exactly one family.
 | `split_button` | Default action plus alternate variants. | A clear default action, menu route, and default-action review posture. |
 | `checkbox` | Independent boolean or batch inclusion. | Checked state, label, staged-vs-live timing, disabled / locked reason. |
 | `radio` | One choice from a mutually exclusive set. | Group label, selected option, roving keyboard path, source label when inherited. |
-| `toggle` | Binary state that can apply immediately or stage. | Live-vs-staged timing is explicit; policy locks render as locked, not disabled. |
+| `toggle` | Binary on/off state that applies immediately. | Switches indicate live state; staged/batch changes use checkboxes plus an apply/revert posture. |
 | `text_input` | Free-form or structured text. | Persistent label, helper text, clear / reveal affordance where relevant, inline validation. |
 | `select` | Choice from a bounded set. | Current option, disabled option reasons, source label, keyboard open / choose behavior. |
 | `combobox` | Searchable or fuzzy choice. | Text input plus option list semantics, async search / validation state, clear behavior. |
