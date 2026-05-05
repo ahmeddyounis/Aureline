@@ -1,0 +1,52 @@
+__fixture__:
+  name: refactor_apply
+  scenario: >
+    A workspace refactor (rename symbol across files) is previewed and
+    applied as one grouped operation touching multiple targets.
+
+record_kind: mutation_class_example
+mutation_class_examples_schema_version: 1
+
+example_id: mutation_class_example.refactor_apply.rename_symbol_workspace
+mutation_class: semantic_tooling
+title: "Refactor apply (multi-file)"
+
+scenario_summary: >
+  Workspace-wide refactors are semantic/tooling mutations. They are
+  grouped, previewable, and typically only-revertible, requiring a
+  pre-apply checkpoint for an honest reversal posture.
+
+expected:
+  reversal_class: restore_from_checkpoint
+  preview:
+    required: true
+    minimum_fields:
+      - target identity and scope summary (files/buffers touched)
+      - structured refactor intent summary (refactor_kind)
+      - diff summary or preview patch set
+      - declared reversal class (restore_from_checkpoint)
+  approval:
+    posture: policy_driven
+    notes:
+      - Policy may require approval when scope is broad or trust is restricted.
+  journal:
+    must_set_fields:
+      - group_id
+      - target_refs (one per touched target)
+      - preview_ref
+      - checkpoint_refs (pre-apply checkpoint)
+      - undo_class=refactor_multi_file
+      - reversal_class=restore_from_checkpoint
+    should_set_fields:
+      - approval_ref when policy gates broad-scope apply
+      - reversibility.downgrade_reason if drift forces a downgrade
+  support_export:
+    must_include:
+      - group record + member ids so support can treat the refactor as one change unit
+
+targets:
+  - target_kind: buffer
+    identity: filesystem_identity_required
+  - target_kind: filesystem_object
+    identity: filesystem_identity_required
+

@@ -1,0 +1,384 @@
+# Mutation-class matrix and reversal-policy contract.
+#
+# A mutation class answers: "what family of authority was mutated?"
+# Producers use this classification so preview, approval, journaling,
+# reversal, and support-export behavior stays coherent across editor,
+# refactor, AI apply, save, build/preview regeneration, and publish
+# flows.
+#
+# Companion to:
+#   - docs/change/mutation_class_matrix.md
+#   - schemas/workspace/mutation_journal.schema.json
+#   - artifacts/architecture/undo_class_rows.yaml
+#
+# This artifact does not define implementation code. It freezes shared
+# vocabulary and per-class expectations so future implementations and
+# contracts can reuse the same semantics without re-inventing them.
+
+schema_version: 1
+artifact_id: aureline.change.mutation_classes
+title: Mutation class matrix and reversal-policy contract
+
+contract_source: docs/change/mutation_class_matrix.md
+
+related_docs:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - docs/workspace/mutation_lineage_model.md
+  - schemas/workspace/mutation_journal.schema.json
+  - artifacts/architecture/undo_class_rows.yaml
+  - docs/ux/shell_interaction_safety_contract.md
+  - schemas/commands/command_descriptor.schema.json
+
+companion_refs:
+  mutation_journal_schema_ref: schemas/workspace/mutation_journal.schema.json
+  undo_class_rows_ref: artifacts/architecture/undo_class_rows.yaml
+  mutation_class_examples_ref: fixtures/change/mutation_class_examples/
+
+# ---------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is breaking and requires updating this artifact, the
+# companion doc, and the example fixtures in the same change.
+# ---------------------------------------------------------------------------
+
+mutation_class_vocabulary:
+  - buffer_text
+  - filesystem
+  - semantic_tooling
+  - generated_state
+  - external_effect
+
+reversal_class_vocabulary:
+  - exact_undo
+  - compensating_undo
+  - regenerate_or_recompute
+  - restore_from_checkpoint
+  - audit_only
+
+# ---------------------------------------------------------------------------
+# Matrix rows.
+#
+# Each class row freezes:
+#   - how the target identity must be expressed in the mutation journal;
+#   - minimum preview and approval posture expectations;
+#   - default reversal posture and downgrade rules; and
+#   - support-export requirements that preserve auditability under redaction.
+# ---------------------------------------------------------------------------
+
+classes:
+  - id: buffer_text
+    display_name: Buffer/text mutation
+    summary: >
+      In-memory text mutations inside a buffer authority. These are
+      the highest-frequency, interactive writes and remain local and
+      reversible by default.
+    typical_examples:
+      - typing, delete, paste, IME commit
+      - multi-cursor edit
+      - format selection within one buffer
+    target_identity_contract:
+      must_include:
+        - target_refs[] includes at least one target_kind=buffer with filesystem_identity
+      should_include:
+        - target_refs[].affected_range when the producer can name it
+    preview_minimum:
+      default_expectation: no_preview_required_for_interactive_input
+      must_always_surface:
+        - reversal_class (exact vs compensating vs checkpoint vs regenerate vs audit-only)
+      notes:
+        - Bulk buffer mutations (replace-all, organize selection, etc.) follow command preview policy.
+    approval_expectations:
+      default_posture: not_required
+      required_when:
+        - mutation targets a policy-controlled buffer surface (policy_document, restricted workspace scope)
+        - the mutation originates from an AI/apply or automation path that policy gates
+    journal_field_requirements:
+      must_set:
+        - durable_vs_disposable=durable_user_authored
+      should_set:
+        - checkpoint_refs[] when the producer is not interactive input (formatter, refactor, AI apply)
+        - preview_ref when the mutation is the result of a preview-accepted apply flow
+    reversal_policy:
+      default_reversal_class: exact_undo
+      allowed_reversal_classes:
+        - exact_undo
+        - compensating_undo
+        - restore_from_checkpoint
+      downgrade_triggers:
+        - authority_state_drift_detected_before_reversal
+        - target_identity_mismatch_or_alias_conflict
+        - redaction_policy_blocks_required_payload_for_inverse
+    support_export_requirements:
+      must_include:
+        - mutation_id, command_id, actor_class, source_class, actor_ref, scope_ref
+        - target_refs with filesystem_identity
+        - undo_class and reversal_class and reversibility flags
+      body_capture_notes:
+        - redaction may omit inserted/removed bytes, but the entry still exports identity and reversal posture
+
+  - id: filesystem
+    display_name: Filesystem mutation
+    summary: >
+      Durable writes that create, delete, rename, move, or otherwise
+      mutate filesystem objects and their identities. These writes
+      must remain identity-correct under alias hazards and external drift.
+    typical_examples:
+      - save-as, create file, delete file
+      - rename/move file or directory
+      - atomic replace save through VFS coordination
+    target_identity_contract:
+      must_include:
+        - target_refs[] includes at least one target_kind=filesystem_object with filesystem_identity
+      should_include:
+        - affected path set encoded as multiple target_refs when many objects are touched
+        - save_manifest_ref when the mutation reached the save pipeline
+    preview_minimum:
+      default_expectation: preview_required_for_destructive_or_broad_scope
+      must_always_surface:
+        - canonical identity (filesystem_identity) and any aliases in scope
+        - affected object count and path presentation labels
+        - reversal_class and whether drift was detected
+      should_surface:
+        - conflict/drift state (compare-before-write outcome) when applicable
+    approval_expectations:
+      default_posture: policy_driven
+      required_when:
+        - workspace trust state is restricted or pending evaluation
+        - write targets fall outside the trusted workspace boundary
+        - action is destructive or broad-scope under the command descriptor policy
+    journal_field_requirements:
+      must_set:
+        - durable_vs_disposable=durable_user_authored or durable_workspace_authored (depending on target)
+      should_set:
+        - checkpoint_refs[] for destructive operations (delete, move/rename across roots, save-as overwrite)
+        - preview_ref for any preview-accepted delete/rename/apply flow
+        - policy_context when policy gating was in effect
+    reversal_policy:
+      default_reversal_class: exact_undo
+      allowed_reversal_classes:
+        - exact_undo
+        - compensating_undo
+        - restore_from_checkpoint
+      downgrade_triggers:
+        - external_change_detected (identity generation token changed)
+        - rename_alias_collision_or_canonical_identity_uncertain
+        - checkpoint_unavailable_for_only_revertible_subpaths
+    support_export_requirements:
+      must_include:
+        - filesystem_identity and save_manifest_ref when present
+        - reversibility.downgrade_reason when reversal posture changed after commit
+      body_capture_notes:
+        - support exports may redact raw file bytes; identity and save manifests remain exportable
+
+  - id: semantic_tooling
+    display_name: Semantic/tooling mutation
+    summary: >
+      Mutations that apply an interpreted plan to code or structured
+      workspace state (refactors, format-on-save participants, code
+      actions, scaffolding steps, AI patch apply). These are typically
+      grouped, previewable, and attributable.
+    typical_examples:
+      - AI patch apply across one or more files
+      - refactor apply (rename symbol, organize imports)
+      - scaffolding step that edits templates and manifests
+      - review apply of a proposed patch set
+    target_identity_contract:
+      must_include:
+        - target_refs[] for every touched buffer/filesystem object (buffer and/or filesystem_object)
+      should_include:
+        - preview_ref for preview-accepted apply paths
+        - checkpoint_refs[] including a pre-apply checkpoint for any only_revertible undo class
+    preview_minimum:
+      default_expectation: preview_required
+      must_always_surface:
+        - target identity and scope summary (files touched, buffers touched)
+        - diff or structured change summary
+        - producer attribution (actor_class/source_class/actor_ref)
+        - reversal_class and whether redo is safe under current drift
+      should_surface:
+        - validation or semantic_readiness disclosures when not fully exact
+        - generated-artifact boundary markers when generated outputs are touched
+    approval_expectations:
+      default_posture: policy_driven
+      required_when:
+        - actor_class=ai_apply and policy requires explicit approval before durable mutation
+        - apply touches privileged files (policy documents, admin-managed config) or crosses trust boundaries
+        - apply includes any external_effect member mutation (group posture inherits the most restrictive)
+    journal_field_requirements:
+      must_set:
+        - preview_ref when a preview exists and policy requires preview before apply
+      should_set:
+        - group_id for multi-target operations so history can reason about one attributable change unit
+        - semantic_readiness when the producer is not fully exact at commit time
+        - checkpoint_refs[] (pre and post) for AI/refactor/scaffolding/migration-style grouped writes
+    reversal_policy:
+      default_reversal_class: restore_from_checkpoint
+      allowed_reversal_classes:
+        - exact_undo
+        - compensating_undo
+        - restore_from_checkpoint
+        - regenerate_or_recompute
+      downgrade_triggers:
+        - authority_state_drift_detected_before_reversal
+        - generator_boundary_crossed_without_lineage_ref
+        - validation_state_stale_or_policy_epoch_changed (requires revalidation before compensating)
+    support_export_requirements:
+      must_include:
+        - preview_ref (or explicit note that preview was not available and why)
+        - group_id when the operation is multi-target
+        - actor_ref stable_id when available (agent id, tool id, invocation id)
+
+  - id: generated_state
+    display_name: Generated-state mutation
+    summary: >
+      Mutations to derived artifacts whose canonical authority is a
+      generator and its input digest set (lockfiles, codegen outputs,
+      notebook outputs, preview bundles, build outputs). These should
+      default to regeneration semantics, not "undo".
+    typical_examples:
+      - lockfile refresh / resolver output update
+      - code generation output refresh
+      - notebook cell output recompute
+      - preview/render snapshot refresh
+    target_identity_contract:
+      must_include:
+        - target_refs[] includes at least one target_kind=generated_artifact with filesystem_identity
+        - generated_artifact_lineage_ref for any durable mutation to a generated artifact
+      should_include:
+        - checkpoint_refs[] when a user-visible restore checkpoint exists
+    preview_minimum:
+      default_expectation: preview_required_when_user_visible_or_durable
+      must_always_surface:
+        - generator identity and version (by reference) and input digest set
+        - drift_state (in sync vs stale inputs vs generator changed vs unknown lineage)
+        - reversal_class (regenerate or checkpoint), never implied exact undo
+    approval_expectations:
+      default_posture: not_required_for_local_regeneration
+      required_when:
+        - generated mutation crosses a trust boundary (remote generator, provider-supplied output)
+        - regeneration would overwrite user-authored overrides (manually diverged outputs)
+    journal_field_requirements:
+      must_set:
+        - durable_vs_disposable=disposable_derived or durable_workspace_authored (depending on artifact class)
+        - generated_artifact_lineage_ref
+        - reversal_class=regenerate_or_recompute unless a checkpoint-based restore is the declared posture
+      should_set:
+        - preview_ref when regeneration is surfaced as a user-approved operation
+    reversal_policy:
+      default_reversal_class: regenerate_or_recompute
+      allowed_reversal_classes:
+        - regenerate_or_recompute
+        - restore_from_checkpoint
+        - audit_only
+      downgrade_triggers:
+        - lineage_missing_or_unknown (forces audit-only or view-only posture)
+        - generator_changed_without_replayable_inputs (forces audit-only)
+    support_export_requirements:
+      must_include:
+        - generated_artifact_lineage_ref and any declared drift/generator change reasons
+      body_capture_notes:
+        - exports prefer lineage metadata and digests over raw generated bytes
+
+  - id: external_effect
+    display_name: External-effect mutation
+    summary: >
+      Mutations whose primary consequence lands outside the local,
+      reversible authority (network writes, remote applies, publish
+      actions, payments/quota actions). These default to audit-only
+      unless an explicit compensating flow exists and is declared.
+    typical_examples:
+      - Git push, remote apply, registry publish
+      - external API write (issue/comment publish, advisory publish)
+      - paid job submission or quota-consuming operation
+    target_identity_contract:
+      must_include:
+        - target_refs[] includes at least one target_kind=external_service with logical_ref
+        - side_effect_summary.external_targets is non-empty and matches the declared target identity
+      should_include:
+        - approval_ref when policy requires it (common default)
+        - policy_context with policy_epoch
+    preview_minimum:
+      default_expectation: preview_and_explicit_target_confirmation_required
+      must_always_surface:
+        - explicit target identity (service/endpoint/account/remote) and route/boundary labels
+        - side-effect scope summary (what will be changed externally)
+        - approval posture (ticket id or explicit not-required policy basis)
+        - reversal_class (audit-only or compensating) with no misleading "Undo" affordance
+    approval_expectations:
+      default_posture: required
+      required_when:
+        - always, unless the command descriptor explicitly marks the operation as inert_metadata_only
+    journal_field_requirements:
+      must_set:
+        - reversal_class=audit_only unless an explicit compensating flow exists
+        - policy_context (policy_epoch at commit)
+        - approval_ref when the operation is approval-gated
+      should_set:
+        - checkpoint_refs[] when local state changed as part of the external action (e.g., publish receipt)
+    reversal_policy:
+      default_reversal_class: audit_only
+      allowed_reversal_classes:
+        - audit_only
+        - compensating_undo
+      downgrade_triggers:
+        - compensating_flow_unavailable_or_target_changed
+        - partial_external_effect_detected (forces audit-only + correction disclosure)
+    support_export_requirements:
+      must_include:
+        - target identity and external_targets list
+        - approval_ref and policy_epoch
+        - side_effect_summary (redaction-aware) suitable for audit logs and support bundles
+
+# ---------------------------------------------------------------------------
+# Cross-cutting rules.
+# ---------------------------------------------------------------------------
+
+cross_cutting_rules:
+  classification:
+    - classify by the authority that changed, not by which UI surface initiated the action
+    - a single user command may emit multiple mutation-journal entries (one per class) grouped under one group_id
+    - group-level reversal_class is the most restrictive of member reversal_class values
+  honesty:
+    - surfaces must render reversal_class explicitly; a plain "Undo" label is forbidden for non-exact reversals
+    - if an exact reversal becomes inexact due to drift, downgrade visibly before executing any reversal
+  external_effects:
+    - external_effect class entries always carry explicit target identity and an approval posture
+    - audit-only is the default; compensating reversals require an explicit declared compensating flow
+
+# ---------------------------------------------------------------------------
+# Reversal-policy contract (selection rules).
+#
+# These rules describe when a producer may claim each reversal class.
+# ---------------------------------------------------------------------------
+
+reversal_policy_contract:
+  exact_undo:
+    may_claim_when:
+      - the mutation targets a stable, local authority (buffer/filesystem identity is exact)
+      - the inverse is deterministic against the same authority state and target identity
+      - no generator boundary is crossed without lineage metadata
+    must_not_claim_when:
+      - the action has an external side effect outside local authority
+      - the operation depends on non-replayable semantic context (only_revertible posture without checkpoint)
+  compensating_undo:
+    may_claim_when:
+      - a bounded compensating command exists and is declared
+      - the producer can detect and disclose drift or partial effect before running the compensation
+    must_not_auto_run_when:
+      - target identity changed, policy epoch changed, or required validation is stale
+  regenerate_or_recompute:
+    may_claim_when:
+      - the artifact is derived and canonical authority is generator + inputs, not the current bytes
+      - generator lineage and input digest set are available by reference
+    must_surface:
+      - generator identity and input set disclosure in the preview
+  restore_from_checkpoint:
+    may_claim_when:
+      - the operation is only_revertible or otherwise requires snapshot-based restore to be honest
+      - a durable checkpoint exists and is referenced
+    must_surface:
+      - which checkpoint will be restored and what scope it covers
+  audit_only:
+    must_use_when:
+      - the primary effect is external and no compensating flow is declared
+      - the mutation record exists to preserve an audit trail under redaction or policy restrictions

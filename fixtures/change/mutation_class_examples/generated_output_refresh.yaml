@@ -1,0 +1,44 @@
+__fixture__:
+  name: generated_output_refresh
+  scenario: >
+    A generated artifact (for example, a lockfile or codegen output) is
+    refreshed because its canonical inputs changed.
+
+record_kind: mutation_class_example
+mutation_class_examples_schema_version: 1
+
+example_id: mutation_class_example.generated_output_refresh.lockfile
+mutation_class: generated_state
+title: "Generated output refresh (lock/codegen/notebook/preview)"
+
+scenario_summary: >
+  Generated-state mutations must default to regeneration semantics. The
+  authoritative truth is the generator + inputs, not the current bytes.
+
+expected:
+  reversal_class: regenerate_or_recompute
+  preview:
+    required: true
+    minimum_fields:
+      - generator identity/version (by reference) and input digest set
+      - drift state (stale inputs vs generator changed vs unknown lineage)
+      - declared reversal class (regenerate_or_recompute)
+  approval:
+    posture: not_required_by_default
+    notes:
+      - Approval may be required when regeneration crosses trust boundaries or overwrites user overrides.
+  journal:
+    must_set_fields:
+      - target_refs includes generated_artifact with filesystem_identity
+      - generated_artifact_lineage_ref
+      - reversal_class=regenerate_or_recompute
+    should_set_fields:
+      - preview_ref when surfaced as a user-approved operation
+  support_export:
+    must_include:
+      - generated_artifact_lineage_ref and drift/generator-change reasons
+
+targets:
+  - target_kind: generated_artifact
+    identity: filesystem_identity_required
+

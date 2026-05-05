@@ -1,0 +1,54 @@
+__fixture__:
+  name: ai_patch_apply
+  scenario: >
+    An AI tool proposes a multi-file patch. The user reviews a preview,
+    approves the apply, and the system mutates one or more buffers/files.
+
+record_kind: mutation_class_example
+mutation_class_examples_schema_version: 1
+
+example_id: mutation_class_example.ai_patch_apply.multi_file
+mutation_class: semantic_tooling
+title: "AI patch apply (multi-file)"
+
+scenario_summary: >
+  AI apply is a semantic/tooling mutation because it applies an
+  interpreted plan onto one or more targets and must remain previewable
+  and attributable. The default reversal posture is checkpoint-based.
+
+expected:
+  reversal_class: restore_from_checkpoint
+  preview:
+    required: true
+    minimum_fields:
+      - target identity and scope summary (files touched)
+      - diff or structured change summary
+      - producer attribution (AI + invocation identity)
+      - declared reversal class (restore_from_checkpoint)
+  approval:
+    posture: policy_driven
+    notes:
+      - Commonly gated by an AI evidence / review-before-write policy.
+  journal:
+    must_set_fields:
+      - group_id
+      - target_refs (one per touched target)
+      - preview_ref
+      - checkpoint_refs (pre-apply checkpoint)
+      - undo_class=machine_generated_change
+      - reversal_class=restore_from_checkpoint
+      - durable_vs_disposable=durable_user_authored
+    should_set_fields:
+      - approval_ref when policy requires explicit approval
+      - semantic_readiness when the AI output is less than exact
+  support_export:
+    must_include:
+      - group_id and member mutation ids (for multi-file apply)
+      - actor_ref stable_id (agent id) and invocation identity
+
+targets:
+  - target_kind: buffer
+    identity: filesystem_identity_required
+  - target_kind: filesystem_object
+    identity: filesystem_identity_required
+

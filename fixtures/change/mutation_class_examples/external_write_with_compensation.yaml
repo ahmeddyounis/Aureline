@@ -1,0 +1,47 @@
+__fixture__:
+  name: external_write_with_compensation
+  scenario: >
+    A remote API write has a declared, bounded compensating flow (for
+    example, create then delete within the same external system). The
+    reversal posture is compensating, not exact.
+
+record_kind: mutation_class_example
+mutation_class_examples_schema_version: 1
+
+example_id: mutation_class_example.external_write.compensating
+mutation_class: external_effect
+title: "External write with compensating flow"
+
+scenario_summary: >
+  Some external effects can be compensated (delete/unpublish/revoke) but
+  are never exact inverses. Compensation must be explicit, attributable,
+  and must not auto-run under drift or target change.
+
+expected:
+  reversal_class: compensating_undo
+  preview:
+    required: true
+    minimum_fields:
+      - explicit target identity (service/endpoint/account)
+      - side-effect scope summary (what will be created/updated remotely)
+      - declared compensating flow identity (what "compensate" will do)
+      - declared reversal class (compensating_undo)
+  approval:
+    posture: required
+  journal:
+    must_set_fields:
+      - target_refs includes external_service with logical_ref
+      - side_effect_summary.external_targets non-empty
+      - policy_context.policy_epoch
+      - approval_ref (when approval-gated)
+      - reversal_class=compensating_undo
+    should_set_fields:
+      - checkpoint_refs when a local receipt or state update accompanies the external write
+  support_export:
+    must_include:
+      - downgrade_reason if compensation becomes unavailable or the target changes
+
+targets:
+  - target_kind: external_service
+    identity: logical_ref_required
+

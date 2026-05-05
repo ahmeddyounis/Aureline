@@ -1,0 +1,47 @@
+__fixture__:
+  name: save_as
+  scenario: >
+    The user performs Save As to a new path inside the workspace. The
+    system writes a new filesystem object and updates the buffer’s save
+    target identity.
+
+record_kind: mutation_class_example
+mutation_class_examples_schema_version: 1
+
+example_id: mutation_class_example.save_as.new_target
+mutation_class: filesystem
+title: "Save As (new target)"
+
+scenario_summary: >
+  Save As is a filesystem mutation because it creates a durable write
+  and a new canonical save target identity. It is reversible by default
+  when it creates a new object without overwriting an existing target.
+
+expected:
+  reversal_class: exact_undo
+  preview:
+    required: false
+    notes:
+      - Overwrite variants (Save As onto existing target) become destructive and require preview + checkpoint.
+  approval:
+    posture: policy_driven
+    notes:
+      - Trust boundary crossings or restricted workspaces may require approval.
+  journal:
+    must_set_fields:
+      - target_refs includes filesystem_object with filesystem_identity
+      - save_manifest_ref (write reached the save pipeline)
+      - reversal_class=exact_undo
+    should_set_fields:
+      - checkpoint_refs when Save As overwrote an existing target
+      - preview_ref when Save As was destructive (overwrite) and previewed
+  support_export:
+    must_include:
+      - filesystem identity and save manifest ref
+
+targets:
+  - target_kind: filesystem_object
+    identity: filesystem_identity_required
+  - target_kind: buffer
+    identity: filesystem_identity_required
+
