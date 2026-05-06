@@ -1,0 +1,1020 @@
+# Records-governance indicator scoreboard.
+#
+# Companion to docs/governance/records_indicator_contract.md.
+# Each row below conforms to schemas/governance/indicator_row.schema.json
+# as an indicator_row_record.
+#
+# Scope: seeded, pre-implementation indicator register. This file does not
+# implement telemetry ingestion or managed-service automation; it freezes the
+# row identities, evidence sources, cadence, waiver/escalation routes, and
+# failure-response mapping so monthly governance review is concrete and
+# repeatable.
+
+schema_version: 1
+schema_ref: schemas/governance/indicator_row.schema.json
+overview_page: docs/governance/records_indicator_contract.md
+
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+waiver_register_ref: docs/governance/waiver_register_contract.md
+
+claim_manifest_ref: artifacts/governance/claim_manifest_seed.yaml
+record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+retention_deletion_contract_ref: docs/governance/retention_deletion_matrix_contract.md
+boundary_manifest_ref: docs/product/boundary_manifest_strawman.md
+public_proof_scoreboards_ref: docs/qe/public_proof_scoreboards.md
+public_proof_workflow_bundle_ref: artifacts/qe/workflow_bundle_ids.yaml
+
+rows:
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: stable_claim_families_have_public_boundary_manifest_coverage
+    title: Stable claim families are pinned to public boundary-manifest rows
+    description: Stable-facing claim families must not widen while any record-bearing surface lacks an explicit public boundary-manifest row.
+    indicator_family_id: records_governance
+    indicator_kind: public_boundary_manifest_coverage
+    collection_cadence: monthly
+    automation: manual_only
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: ratio
+      unit_label: Percent of stable claim families (0.0..1.0)
+      pass_condition: Every stable claim family has at least one public boundary-manifest row that covers its record-bearing surfaces and their portability/delete posture.
+    subject:
+      record_class_refs: []
+      claim_row_refs:
+        - claim_row:boundary.open_local_vs_managed
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/product/boundary_manifest.schema.json
+      artifact_refs:
+        - artifacts/milestones/cut_classes.yaml
+        - artifacts/governance/claim_manifest_seed.yaml
+      docs_refs:
+        - docs/product/boundary_manifest_strawman.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/milestones/cut_classes.yaml
+        notes: Claim-family registry used to scope which claim families are treated as stable-facing.
+      - source_kind: repo_doc
+        ref: docs/product/boundary_manifest_strawman.md
+        notes: Public boundary-manifest rows that govern open/local versus managed boundaries and portability disclosures.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/claim_manifest_seed.yaml
+        notes: Claim-row posture that must be capped when boundary-manifest coverage is missing.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Any waiver is time-bounded and may not be used to widen stable-facing copy into claim_bearing without a public boundary-manifest row.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Convert any missing coverage into an owned narrowing (claim-manifest cap) plus a published boundary-manifest row within the SLA.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: limited
+      followthrough_actions:
+        - update_or_publish_boundary_manifest_rows
+        - update_claim_manifest_effective_posture
+        - add_known_limit_or_hold_disclosure
+      response_summary: Hold promotion and narrow affected claim rows until a public boundary-manifest row exists and is cited by the claim family.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: stable_claim_families_dependency_marker_debt_is_zero
+    title: Stable claim families have no unresolved dependency-marker debt
+    description: Stable-facing claim families must not depend on hidden Preview/Labs or managed-only capabilities without explicit dependency markers and narrowing.
+    indicator_family_id: records_governance
+    indicator_kind: dependency_marker_debt
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: ratio
+      unit_label: Percent of stable claim families (0.0..1.0)
+      pass_condition: Every stable claim family has zero unresolved dependency-marker debt; any non-stable dependency is explicitly marked and paired with an approved narrowing/disclosure.
+    subject:
+      record_class_refs: []
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/capability_lifecycle.schema.json
+      artifact_refs:
+        - artifacts/milestones/cut_classes.yaml
+        - artifacts/governance/dependency_register.yaml
+        - artifacts/governance/dependency_marker_examples.yaml
+      docs_refs:
+        - docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+        - docs/governance/capability_lifecycle_projection_matrix.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/dependency_register.yaml
+        notes: Dependency register used to enumerate unresolved dependencies and their current risk posture.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/dependency_marker_examples.yaml
+        notes: Dependency-marker shape examples used to ensure hidden dependencies become explicit markers on persisted/exported artifacts.
+      - source_kind: repo_doc
+        ref: docs/adr/0011-capability-lifecycle-and-dependency-markers.md
+        notes: Normative dependency-marker vocabulary and rules; indicator failures must trigger explicit markers rather than implicit drift.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers name the affected claim family and the explicit narrowing plan; they may not permit hidden dependencies on stable-facing publication.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:product_scope_review
+      escalation_sla: P30D
+      escalation_notes: Convert unresolved dependency-marker debt into either explicit dependency markers plus narrowing, or a re-scope decision with recorded follow-through.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - add_or_update_dependency_markers
+        - update_claim_manifest_effective_posture
+        - add_known_limit_or_hold_disclosure
+      response_summary: Narrow stable-facing claims and require explicit dependency markers before any widening that would hide Preview/Labs or managed-only dependencies.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: managed_record_classes_have_export_delete_and_offboarding_contracts
+    title: Contractual managed record classes have export/delete/offboarding coverage
+    description: Every contractual managed record class must declare export, delete, hold, and offboarding posture in the canonical contracts before any enterprise or managed claim can widen.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: ratio
+      unit_label: Percent of contractual managed record classes (0.0..1.0)
+      pass_condition: Every contractual managed record class has documented export and delete/offboarding posture, plus schema coverage for delete-request state and portability summaries.
+    subject:
+      record_class_refs:
+        - collaboration_evidence_packet
+        - ai_retained_evidence_packet
+        - support_bundle_archive
+        - entitlement_usage_export_packet
+        - offboarding_exit_packet
+        - destruction_receipt_record
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/record_class.schema.json
+        - schemas/governance/retention_matrix_row.schema.json
+        - schemas/governance/delete_request_state.schema.json
+        - schemas/governance/export_delete_request_summary.schema.json
+        - schemas/governance/portability_row.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+        - artifacts/governance/portability_artifact_matrix.yaml
+      docs_refs:
+        - docs/governance/record_class_governance.md
+        - docs/governance/retention_deletion_matrix_contract.md
+        - docs/governance/data_portability_and_exit_matrix.md
+        - docs/governance/records_governance_packet_contract.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: Record-class registry rows that define retention/export/delete/hold/offboarding posture.
+      - source_kind: repo_doc
+        ref: docs/governance/retention_deletion_matrix_contract.md
+        notes: Deletion honesty and hold visibility vocabulary; required for any record class that supports delete or export/delete requests.
+      - source_kind: repo_doc
+        ref: docs/governance/data_portability_and_exit_matrix.md
+        notes: Offboarding and portability contract that binds export/delete to named artifact domains and open-format expectations.
+      - source_kind: repo_schema
+        ref: schemas/governance/delete_request_state.schema.json
+        notes: Delete-request state schema that every delete/offboarding surface must project verbatim.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers may defer a specific class by name, but they must cap any dependent claim rows and include an explicit follow-up schedule to close the gap.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P14D
+      escalation_notes: Treat missing export/delete/offboarding coverage as a release-blocking governance gap for any enterprise or managed claim surface.
+    failure_response:
+      shiproom_status_floor: no_go
+      release_readiness_cap: blocked
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - update_contract_or_schema_for_parity
+        - open_decision_register_entry
+        - update_claim_manifest_effective_posture
+      response_summary: Block promotion and cap dependent claim rows until export/delete/offboarding posture is fully documented for every contractual managed record class.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: record_class_registry_is_current_and_linked
+    title: Record-class registry links are complete and reviewed
+    description: Record-class rows must stay linked to redaction, retention, boundary, and supportability artifacts so later surfaces do not invent private lifecycle labels.
+    indicator_family_id: records_governance
+    indicator_kind: record_class_freshness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Every record-class row cites at least one redaction artifact ref and one retention artifact ref, and no consumer contract references a record class that is missing from the registry.
+    subject:
+      record_class_refs:
+        - telemetry_contract_schema
+        - crash_diagnostic_payload
+        - performance_capture_evidence
+        - support_bundle_archive
+        - collaboration_evidence_packet
+        - ai_retained_evidence_packet
+        - entitlement_usage_export_packet
+        - offboarding_exit_packet
+        - destruction_receipt_record
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/record_class.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/record_class_governance.md
+        - docs/governance/record_state_and_policy_simulation_models.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: Canonical record-class register; missing links or missing class rows are treated as freshness failures.
+      - source_kind: repo_schema
+        ref: schemas/governance/record_class.schema.json
+        notes: Row schema that freezes required posture fields and forbids collapsing lifecycle axes into one label.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers may exist only for newly introduced class families and must expire; long-lived missing links are treated as drift.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:architecture_council
+      escalation_sla: P30D
+      escalation_notes: Any long-lived missing links or missing class registrations escalate as an architecture governance drift issue.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: limited
+      followthrough_actions:
+        - update_contract_or_schema_for_parity
+        - open_decision_register_entry
+      response_summary: Narrow claim-bearing surfaces that depend on unmanaged record classes until the registry is corrected and linked.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: collaboration_records_delete_and_hold_visibility
+    title: Collaboration records expose delete and hold visibility truth
+    description: Collaboration evidence must distinguish requested/queued/blocked/completed/evidence-retained states and keep hold/policy blockers visible in support/admin exports.
+    indicator_family_id: records_governance
+    indicator_kind: deletion_and_hold_visibility
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: support_export
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Collaboration record deletion/offboarding flows use the retention/deletion vocabulary verbatim and never imply completion while holds or policy floors still apply.
+    subject:
+      record_class_refs:
+        - collaboration_evidence_packet
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/delete_request_state.schema.json
+        - schemas/governance/retention_matrix_row.schema.json
+        - schemas/governance/record_state.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/retention_deletion_matrix_contract.md
+        - docs/governance/record_state_and_policy_simulation_models.md
+        - docs/support/support_center_concept.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/governance/retention_deletion_matrix_contract.md
+        notes: Canonical deletion/hold visibility vocabulary that collaboration delete/offboarding copy must project.
+      - source_kind: repo_schema
+        ref: schemas/governance/delete_request_state.schema.json
+        notes: Delete-request-state record used to render requested/queued/blocked/completed/evidence-retained states without inventing a new lifecycle label.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: support_export
+      waiver_notes: Waivers require an explicit disclosure plan for any held or policy-retained collaboration evidence; silent “deleted” wording is forbidden.
+    escalation_policy:
+      escalation_owner_lane: support_export
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:security_trust_review
+      escalation_sla: P14D
+      escalation_notes: Deletion honesty or hold visibility defects escalate as trust issues; they must be corrected or narrowed quickly once surfaced.
+    failure_response:
+      shiproom_status_floor: no_go
+      release_readiness_cap: blocked
+      claim_posture_cap: limited
+      followthrough_actions:
+        - update_contract_or_schema_for_parity
+        - add_known_limit_or_hold_disclosure
+        - publish_or_refresh_export_delete_offboarding_evidence
+      response_summary: Block promotion and require explicit narrowing/disclosure until collaboration delete/hold visibility is honest and exportable.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: collaboration_records_export_completeness
+    title: Collaboration records export and offboarding posture is complete
+    description: Collaboration evidence exports must be time-range filterable, redaction-aware, and open-format, with omissions and partial results typed.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: support_export
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Collaboration evidence exports are documented, scriptable, and disclose omissions/holds via the canonical portability and delete-request contracts.
+    subject:
+      record_class_refs:
+        - collaboration_evidence_packet
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/portability_row.schema.json
+        - schemas/governance/export_delete_request_summary.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+        - artifacts/governance/portability_artifact_matrix.yaml
+      docs_refs:
+        - docs/governance/data_portability_and_exit_matrix.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/governance/data_portability_and_exit_matrix.md
+        notes: Canonical portability/offboarding contract; collaboration evidence exports must be described here rather than in ticket-only runbooks.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/portability_artifact_matrix.yaml
+        notes: Machine-readable portability artifact inventory used to ensure collaboration exports remain open-format and enumerated by domain.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: support_export
+      waiver_notes: Waivers must preserve partial-result disclosure and may not claim export completeness when holds or redaction omissions apply.
+    escalation_policy:
+      escalation_owner_lane: support_export
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Export completeness gaps escalate to release governance when a claim-bearing surface depends on collaboration export/offboarding truth.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - add_known_limit_or_hold_disclosure
+        - update_contract_or_schema_for_parity
+      response_summary: Narrow claim-bearing language and publish the missing export/offboarding evidence or known-limit disclosures before widening.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: ai_retained_evidence_delete_and_hold_visibility
+    title: AI retained evidence exposes delete and hold visibility truth
+    description: AI evidence retention, deletion, and hold state must stay inspectable and exportable so deletion honesty is preserved across product, CLI/headless, and support exports.
+    indicator_family_id: records_governance
+    indicator_kind: deletion_and_hold_visibility
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: AI evidence delete/offboarding paths distinguish requested/queued/blocked/completed/evidence-retained and preserve hold/policy blockers without implying deletion completion prematurely.
+    subject:
+      record_class_refs:
+        - ai_retained_evidence_packet
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/delete_request_state.schema.json
+        - schemas/governance/retention_matrix_row.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/retention_deletion_matrix_contract.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: AI retained evidence class posture (hold eligibility, delete completion evidence, export posture) that deletion truth must match.
+      - source_kind: repo_doc
+        ref: docs/governance/retention_deletion_matrix_contract.md
+        notes: Shared delete/hold honesty vocabulary; AI evidence workflows must reuse it verbatim across all surfaces.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers require an explicit disclosure plan for retained AI evidence and may not permit ambiguous “deleted” wording on held or policy-retained records.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:security_trust_review
+      escalation_sla: P14D
+      escalation_notes: AI evidence retention/deletion truth defects are treated as trust regressions and must be corrected or narrowed quickly once visible.
+    failure_response:
+      shiproom_status_floor: no_go
+      release_readiness_cap: blocked
+      claim_posture_cap: limited
+      followthrough_actions:
+        - update_contract_or_schema_for_parity
+        - add_known_limit_or_hold_disclosure
+        - publish_or_refresh_export_delete_offboarding_evidence
+      response_summary: Block promotion and cap any dependent claim rows until AI evidence delete/hold truth is inspectable and export-safe.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: ai_retained_evidence_export_completeness
+    title: AI retained evidence export and offboarding posture is complete
+    description: AI retained evidence exports must be open-format, redactable, and scriptable without requiring a support-ticket-only path.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: AI evidence exports are documented with explicit redaction and omission disclosure and are available on every deployment profile that claims AI retention.
+    subject:
+      record_class_refs:
+        - ai_retained_evidence_packet
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/portability_row.schema.json
+        - schemas/governance/export_delete_request_summary.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/data_portability_and_exit_matrix.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/governance/data_portability_and_exit_matrix.md
+        notes: Portability/offboarding contract that AI retained evidence export must satisfy before any managed claim can widen.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: AI retained evidence record-class row that constrains export formats, manifest requirement, and partial-result disclosures.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers must keep the export path honest (inventory-only, partial, held) and cap claim-bearing copy accordingly.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Export completeness gaps escalate as release governance blockers when AI retention is advertised or relied upon for support/audit.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - add_known_limit_or_hold_disclosure
+      response_summary: Cap claim-bearing language and publish missing export/offboarding evidence before widening AI retained evidence posture.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: support_bundles_deletion_and_hold_visibility
+    title: Support bundles preserve deletion honesty and retention visibility
+    description: Support bundles must remain previewable and purgeable, and any retained copies or holds must be disclosed using the shared retention/deletion vocabulary.
+    indicator_family_id: records_governance
+    indicator_kind: deletion_and_hold_visibility
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: support_export
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Support bundle flows disclose whether bytes are local-only, exported, uploaded, or retained under policy/hold; deletion requests never imply completion prematurely.
+    subject:
+      record_class_refs:
+        - support_bundle_archive
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/delete_request_state.schema.json
+        - schemas/governance/export_delete_request_summary.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/support/support_center_concept.md
+        - docs/governance/retention_deletion_matrix_contract.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/support/support_center_concept.md
+        notes: Support bundle preview/upload/purge expectations and the record-class references support surfaces must quote.
+      - source_kind: repo_doc
+        ref: docs/governance/retention_deletion_matrix_contract.md
+        notes: Shared deletion/hold vocabulary required on support export and support bundle summaries.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: support_export
+      waiver_notes: Waivers may defer non-critical bundle enhancements, but they must not permit misleading deletion or retention messaging on exported bundles.
+    escalation_policy:
+      escalation_owner_lane: support_export
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Treat support bundle retention/deletion honesty defects as release governance items once support exports become claim-bearing.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: limited
+      followthrough_actions:
+        - add_known_limit_or_hold_disclosure
+        - update_contract_or_schema_for_parity
+      response_summary: Narrow support-facing claim language and require explicit retention/deletion disclosures until bundle purge and hold visibility are coherent.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: support_bundles_export_completeness
+    title: Support bundles are open-format and manifest-backed
+    description: Support bundles must carry manifests, redaction disclosure, and stable record-class labeling so they remain inspectable without vendor tooling.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: support_export
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Support bundles have a declared open-format export shape, per-class inclusion/exclusion disclosure, and a redaction report contract.
+    subject:
+      record_class_refs:
+        - support_bundle_archive
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/record_class.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/support/support_center_concept.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: Support bundle record-class row defining export posture, manifest requirement, and partial-result disclosure causes.
+      - source_kind: repo_doc
+        ref: docs/support/support_center_concept.md
+        notes: Support bundle preview and export rules used by support and enterprise handoff surfaces.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: support_export
+      waiver_notes: Waivers may defer optional bundle contents, but they must preserve manifest completeness and redaction disclosure.
+    escalation_policy:
+      escalation_owner_lane: support_export
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Escalate any export-format regressions as release blockers once support bundles are cited by claim rows or support windows.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - update_contract_or_schema_for_parity
+      response_summary: Hold claim-bearing widening and publish or repair the support bundle export contract before widening support/export promises.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: admin_audit_exports_delete_and_hold_visibility
+    title: Admin audit exports expose retention, hold, and history completeness
+    description: Tenant-scoped audit exports must label partial history, mirror/offline posture, and retention/hold blockers so auditors do not infer missing data as “no events”.
+    indicator_family_id: records_governance
+    indicator_kind: deletion_and_hold_visibility
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Audit export surfaces disclose history completeness and retention/hold posture using the typed admin-audit contracts; partial or offline views never masquerade as full history.
+    subject:
+      record_class_refs: []
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/admin/audit_event_record.schema.json
+        - schemas/admin/audit_event_filter.schema.json
+        - schemas/admin/admin_audit_export.schema.json
+      artifact_refs:
+        - artifacts/admin/admin_export_minimum_fields.yaml
+      docs_refs:
+        - docs/admin/audit_event_explorer_contract.md
+        - docs/admin/admin_audit_export_contract.md
+        - docs/governance/retention_deletion_matrix_contract.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/admin/admin_audit_export_contract.md
+        notes: Admin audit export contract governing completeness, redaction, retention visibility, and export-safe field discipline.
+      - source_kind: repo_schema
+        ref: schemas/admin/admin_audit_export.schema.json
+        notes: Tenant-scoped audit export packet schema that freezes completeness and export-safe vocabulary.
+      - source_kind: repo_artifact
+        ref: artifacts/admin/admin_export_minimum_fields.yaml
+        notes: Minimum required fields for audit exports; prevents silent field loss across export formats.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers must preserve completeness disclosure and may not allow “empty export implies no audit events” misinterpretation.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:security_trust_review
+      escalation_sla: P14D
+      escalation_notes: Audit export completeness/retention visibility defects escalate as trust and compliance risks and must be corrected or narrowed promptly.
+    failure_response:
+      shiproom_status_floor: no_go
+      release_readiness_cap: blocked
+      claim_posture_cap: limited
+      followthrough_actions:
+        - update_contract_or_schema_for_parity
+        - add_known_limit_or_hold_disclosure
+      response_summary: Block claim-bearing widening and require explicit audit-export completeness disclosures until the admin audit export contracts are satisfied.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: admin_audit_exports_export_completeness
+    title: Admin audit exports are open-format and contract-complete
+    description: Tenant-scoped audit exports must remain available in documented formats with stable minimum fields and redaction rules.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Admin audit export schemas and minimum-field sets are published, versioned, and referenced by admin/support/governance packets without requiring vendor-console-only tooling.
+    subject:
+      record_class_refs: []
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/admin/admin_audit_export.schema.json
+      artifact_refs:
+        - artifacts/admin/admin_export_minimum_fields.yaml
+      docs_refs:
+        - docs/admin/admin_audit_export_contract.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/admin/admin_audit_export_contract.md
+        notes: Narrative contract for audit export formats, vendor-console independence, and export-safe behavior.
+      - source_kind: repo_schema
+        ref: schemas/admin/admin_audit_export.schema.json
+        notes: Schema enforcing export format vocabulary, minimum field sets, and audit export posture.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers may only defer non-critical export variants; they must not remove minimum-field or redaction guarantees.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Export completeness regressions that touch enterprise trust escalate to release governance before claim-bearing publication.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - update_contract_or_schema_for_parity
+      response_summary: Cap claim-bearing language and publish the missing audit export evidence or schema corrections before widening enterprise-facing audit claims.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: offboarding_and_delete_requests_hold_visibility
+    title: Offboarding and delete requests preserve hold/policy visibility
+    description: Offboarding, delete requests, and destruction receipts must preserve typed partial outcomes and hold/policy blockers so “deleted” never means “trust us”.
+    indicator_family_id: records_governance
+    indicator_kind: deletion_and_hold_visibility
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Offboarding and delete-request surfaces preserve the shared delete-request-state vocabulary and disclose holds/policy floors and outside-platform-scope copies explicitly.
+    subject:
+      record_class_refs:
+        - offboarding_exit_packet
+        - destruction_receipt_record
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/delete_request_state.schema.json
+        - schemas/governance/export_delete_request_summary.schema.json
+        - schemas/governance/record_state.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/retention_deletion_matrix_contract.md
+        - docs/governance/data_portability_and_exit_matrix.md
+        - docs/governance/records_governance_packet_contract.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/governance/retention_deletion_matrix_contract.md
+        notes: Canonical delete-request and hold honesty contract; offboarding and destruction receipts must reuse its vocabulary.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: Offboarding and destruction receipt record-class rows that bind completion evidence and partial-result cause disclosure.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers must preserve explicit partial-outcome and hold/policy disclosure; they may never permit ambiguous “delete completed” messaging.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:security_trust_review
+      escalation_sla: P14D
+      escalation_notes: Offboarding and destruction honesty defects are trust-critical; they escalate quickly once visible.
+    failure_response:
+      shiproom_status_floor: no_go
+      release_readiness_cap: blocked
+      claim_posture_cap: limited
+      followthrough_actions:
+        - update_contract_or_schema_for_parity
+        - add_known_limit_or_hold_disclosure
+        - publish_or_refresh_export_delete_offboarding_evidence
+      response_summary: Block promotion and cap dependent enterprise/managed claims until offboarding/delete request honesty is exportable and consistent.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: offboarding_and_delete_requests_export_completeness
+    title: Offboarding and exit packets are complete and open-format
+    description: Exit packets and destruction receipts must be inspectable, diffable, and open-format, with omissions and retained references explicitly listed.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Exit and offboarding packets are documented, include manifests and omission reasons, and remain usable without vendor-console-only tooling.
+    subject:
+      record_class_refs:
+        - offboarding_exit_packet
+        - destruction_receipt_record
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/portability_row.schema.json
+      artifact_refs:
+        - artifacts/governance/portability_artifact_matrix.yaml
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/data_portability_and_exit_matrix.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/governance/data_portability_and_exit_matrix.md
+        notes: Canonical portability/offboarding matrix; exit packet and destruction receipt posture must be spelled out here before any managed claim widens.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/portability_artifact_matrix.yaml
+        notes: Inventory of portability artifacts used to keep exit packets and receipts open-format and enumerated.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers may defer optional domains, but they must preserve manifest completeness and honest omission disclosure for offboarding.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Exit/offboarding export gaps escalate as release governance blockers before any enterprise or managed claim widens.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - add_known_limit_or_hold_disclosure
+      response_summary: Cap claim-bearing language and publish missing exit/offboarding evidence or known-limit notes before widening portability promises.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: policy_owned_retention_classes_visibility
+    title: Policy-owned retention classes remain visible and explainable
+    description: Policy-owned retention classes (usage, entitlement, and admin-controlled exports) must remain inspectable, with retention owner and hold/policy blockers visible.
+    indicator_family_id: records_governance
+    indicator_kind: deletion_and_hold_visibility
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Policy-owned record classes disclose retention owner, hold eligibility, and delete limitations; user-facing surfaces do not imply user-owned delete authority where policy controls apply.
+    subject:
+      record_class_refs:
+        - entitlement_usage_export_packet
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/retention_matrix_row.schema.json
+        - schemas/governance/delete_request_state.schema.json
+      artifact_refs:
+        - artifacts/governance/record_class_registry.yaml
+      docs_refs:
+        - docs/governance/retention_deletion_matrix_contract.md
+        - docs/governance/record_class_governance.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/record_class_registry.yaml
+        notes: Usage/export record-class row defining policy-owned retention and delete posture that surfaces must reflect honestly.
+      - source_kind: repo_doc
+        ref: docs/governance/retention_deletion_matrix_contract.md
+        notes: Canonical policy/hold visibility rules used to prevent user-owned delete implications on policy-owned classes.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers must preserve explicit retention-owner disclosure and may not allow ambiguous ownership or delete authority language.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:security_trust_review
+      escalation_sla: P30D
+      escalation_notes: Policy-owned retention visibility defects escalate as trust issues once any enterprise or managed claim depends on them.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: limited
+      followthrough_actions:
+        - add_known_limit_or_hold_disclosure
+        - update_contract_or_schema_for_parity
+      response_summary: Narrow claim-bearing language and require explicit retention-owner disclosure until policy-owned retention semantics are clear on every governed surface.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: policy_owned_retention_classes_export_completeness
+    title: Policy-owned retention classes have export completeness coverage
+    description: Policy-owned record classes must have documented export paths that are scriptable, inspectable, and do not require opaque support-only workflows.
+    indicator_family_id: records_governance
+    indicator_kind: export_completeness
+    collection_cadence: monthly
+    automation: scriptable_with_manual_review
+    owner_lane: governance_packets
+    measurement:
+      measurement_kind: boolean
+      unit_label: Pass/fail
+      pass_condition: Policy-owned record classes have documented export formats, manifests, and offboarding inclusion rules that remain open-format and auditable.
+    subject:
+      record_class_refs:
+        - entitlement_usage_export_packet
+      claim_row_refs: []
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/governance/portability_row.schema.json
+      artifact_refs:
+        - artifacts/governance/portability_artifact_matrix.yaml
+      docs_refs:
+        - docs/governance/data_portability_and_exit_matrix.md
+      public_proof_scoreboard_family_refs: []
+    evidence_sources:
+      - source_kind: repo_doc
+        ref: docs/governance/data_portability_and_exit_matrix.md
+        notes: Portability/offboarding matrix describing the export obligations for policy-owned usage and entitlement packets.
+      - source_kind: repo_artifact
+        ref: artifacts/governance/portability_artifact_matrix.yaml
+        notes: Artifact inventory used to ensure policy-owned exports remain open-format and enumerated rather than ticket-only.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: governance_packets
+      waiver_notes: Waivers may defer non-critical export variants but must preserve minimum export availability and open-format expectations.
+    escalation_policy:
+      escalation_owner_lane: governance_packets
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P30D
+      escalation_notes: Export gaps escalate before enterprise/managed claims widen or billing/usage exports become contractual.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: experimental
+      followthrough_actions:
+        - publish_or_refresh_export_delete_offboarding_evidence
+        - add_known_limit_or_hold_disclosure
+      response_summary: Cap claim-bearing language and publish missing export evidence or known-limit notes before widening policy-owned export promises.
+    contract_doc_ref: docs/governance/records_indicator_contract.md
+
+  - record_kind: indicator_row_record
+    indicator_row_schema_version: 1
+    indicator_id: claim_rows_have_public_proof_link_coverage
+    title: Claim rows have public-proof link coverage
+    description: Claim-bearing rows must cite public-proof packets or scoreboards so missing proof forces narrowing rather than silent drift.
+    indicator_family_id: records_governance
+    indicator_kind: public_proof_link_coverage
+    collection_cadence: monthly
+    automation: scriptable
+    owner_lane: release_evidence
+    measurement:
+      measurement_kind: ratio
+      unit_label: Percent of claim rows requiring public proof (0.0..1.0)
+      pass_condition: Every claim-bearing row has at least one resolvable public-proof packet or scoreboard-family binding; missing links cap effective claim posture.
+    subject:
+      record_class_refs: []
+      claim_row_refs:
+        - claim_row:boundary.open_local_vs_managed
+        - claim_row:build.exact_build_identity
+        - claim_row:benchmark.publication_truth
+        - claim_row:docs.freshness_truth
+        - claim_row:compat.version_skew_truth
+        - claim_row:certification.launch_wedge_typescript_web
+      boundary_manifest_row_ids: []
+      schema_refs:
+        - schemas/qe/public_proof_packet.schema.json
+        - schemas/governance/claim_manifest.schema.json
+      artifact_refs:
+        - artifacts/qe/workflow_bundle_ids.yaml
+        - artifacts/governance/public_proof_coverage_report.md
+        - artifacts/governance/claim_manifest_seed.yaml
+      docs_refs:
+        - docs/qe/public_proof_scoreboards.md
+      public_proof_scoreboard_family_refs:
+        - benchmark_and_public_proof_packet_scoreboard
+        - docs_known_limits_support_copy_alignment_scoreboard
+    evidence_sources:
+      - source_kind: repo_artifact
+        ref: artifacts/governance/public_proof_coverage_report.md
+        notes: Coverage report that identifies missing or unresolved public-proof packet ↔ scoreboard-family bindings.
+      - source_kind: repo_artifact
+        ref: artifacts/qe/workflow_bundle_ids.yaml
+        notes: Scoreboard-family and packet-shape register used to resolve public-proof families and required linkages.
+      - source_kind: repo_doc
+        ref: docs/qe/public_proof_scoreboards.md
+        notes: Normative narrative for the public-proof scoreboard families and their packet-shape contracts.
+      - source_kind: repo_artifact
+        ref: ci/check_public_proof_coverage.sh
+        notes: Scripted check that flags missing public-proof coverage and unresolved scoreboard-family bindings.
+    waiver_policy:
+      waiver_allowed: true
+      waiver_register_ref: docs/governance/waiver_register_contract.md
+      waiver_authority_lane: release_evidence
+      waiver_notes: Waivers must be time-bounded and must cap effective claim posture until the missing public-proof packet or link is published.
+    escalation_policy:
+      escalation_owner_lane: release_evidence
+      escalation_forum_ref: artifacts/governance/forum_matrix.yaml#forum_id:release_council
+      escalation_sla: P14D
+      escalation_notes: Public-proof gaps that touch claim-bearing copy escalate as release blockers; shiproom must keep the narrowing visible until proof is restored.
+    failure_response:
+      shiproom_status_floor: hold_for_refresh
+      release_readiness_cap: narrow_claims
+      claim_posture_cap: limited
+      followthrough_actions:
+        - publish_public_proof_packet_or_link
+        - update_claim_manifest_effective_posture
+        - add_known_limit_or_hold_disclosure
+      response_summary: Narrow claim rows and hold promotion until public-proof packets/scoreboards are linked and current for every claim-bearing family.
+    contract_doc_ref: docs/governance/records_indicator_contract.md

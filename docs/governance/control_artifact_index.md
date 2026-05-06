@@ -455,6 +455,14 @@ and scopes.
   retention, export, hold, delete, and offboarding posture that
   support bundles, issue handoff packets, and later managed support
   claims must quote instead of re-labelling privately.
+- The records-governance indicator scoreboard contract now lives at
+  [`/docs/governance/records_indicator_contract.md`](./records_indicator_contract.md)
+  with the seeded register at
+  [`/artifacts/governance/records_governance_indicator_scoreboard.yaml`](../../artifacts/governance/records_governance_indicator_scoreboard.yaml).
+  It pins monthly boundary-manifest coverage, deletion/hold visibility,
+  export/offboarding completeness, record-class freshness, dependency-marker
+  debt, and public-proof link coverage to named record classes and claim rows
+  so shiproom and release reviews do not treat records governance as anecdotal.
 - Hidden compatibility aliases and retired schema families remain
   support-visible through the interface-lifecycle metadata rows even
   when general docs/help discovery hides them. Support/export surfaces

@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/indicator_row.schema.json",
+  "title": "Aureline records-governance indicator row contract",
+  "description": "Boundary schema for one indicator_row_record frozen in docs/governance/records_indicator_contract.md and seeded in artifacts/governance/records_governance_indicator_scoreboard.yaml. Indicator rows make records-governance health steerable by freezing one reusable row shape for monthly scoreboarding: each row pins the governed record-bearing surfaces (record classes, claim rows, boundary-manifest rows, export/delete/offboarding flows), the indicator kind (boundary-manifest coverage, deletion/hold visibility, export completeness, record-class freshness, dependency-marker debt, missing public-proof links), the evidence sources and collection cadence, and the typed failure response that narrows shiproom posture, claim publication, and docs/help language without changing the underlying retention/deletion/hold vocabulary. Rows carry stable ids, typed class fields, and bounded reviewable summaries only; they do not carry raw user identifiers, raw payload bodies, raw policy bundles, or implementation-private state. Adding a new indicator_kind, evidence_source_kind, cadence class, followthrough action, or failure-response token is additive-minor and bumps indicator_row_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "type": "object",
+  "$ref": "#/$defs/indicator_row_record",
+  "$defs": {
+    "indicator_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the indicator-row payload shape. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "minLength": 1,
+      "description": "Stable lower_snake identifier safe for governance packets, scoreboards, shiproom summaries, and release notes. MUST NOT contain milestone slugs, raw URLs, or personal handles."
+    },
+    "lane_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "minLength": 1,
+      "description": "Stable lane id resolving through artifacts/governance/ownership_matrix.yaml scorecard_lane_index."
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path_ref" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Bounded, reviewable sentence used as human-readable guidance. Tooling MUST NOT parse this field."
+    },
+    "indicator_kind": {
+      "type": "string",
+      "enum": [
+        "public_boundary_manifest_coverage",
+        "deletion_and_hold_visibility",
+        "export_completeness",
+        "record_class_freshness",
+        "dependency_marker_debt",
+        "public_proof_link_coverage"
+      ],
+      "description": "Closed indicator-kind vocabulary for records-governance scoreboarding."
+    },
+    "collection_cadence_class": {
+      "type": "string",
+      "enum": ["monthly"],
+      "description": "Closed cadence vocabulary. This scoreboard is reviewed monthly."
+    },
+    "measurement_kind": {
+      "type": "string",
+      "enum": ["ratio", "count", "duration", "boolean", "inventory"],
+      "description": "Measurement-kind vocabulary describing how the indicator is summarized in the scoreboard."
+    },
+    "shiproom_status": {
+      "type": "string",
+      "enum": ["go_with_narrowing", "hold_for_refresh", "no_go"],
+      "description": "Shiproom go/no-go status floor from docs/release/shiproom_runbook.md. Indicators set floors; shiproom MAY still call stricter status."
+    },
+    "release_readiness": {
+      "type": "string",
+      "enum": ["releasable", "preview_only", "narrow_claims", "blocked"],
+      "description": "Release-evidence packet readiness cap vocabulary (docs/release/release_evidence_packet_template.md)."
+    },
+    "claim_posture": {
+      "type": "string",
+      "enum": [
+        "claim_bearing",
+        "experimental",
+        "limited",
+        "policy_disabled",
+        "replacement_grade",
+        "seed_only",
+        "withdrawn"
+      ],
+      "description": "Claim-manifest posture cap vocabulary (schemas/governance/claim_manifest.schema.json)."
+    },
+    "claim_row_ref": {
+      "type": "string",
+      "pattern": "^claim_row:[a-z0-9_.-]+$",
+      "minLength": 1,
+      "description": "Claim-row reference string quoted verbatim by governance packets and shiproom dashboards (e.g. claim_row:boundary.open_local_vs_managed)."
+    },
+    "claim_row_ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/claim_row_ref" },
+      "uniqueItems": true
+    },
+    "evidence_source_kind": {
+      "type": "string",
+      "enum": ["repo_artifact", "repo_schema", "repo_doc", "generated_report", "manual_review"],
+      "description": "Closed evidence-source-kind vocabulary for indicator collection."
+    },
+    "evidence_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "ref", "notes"],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/evidence_source_kind" },
+        "ref": { "$ref": "#/$defs/path_ref" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "evidence_source_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence_source" },
+      "minItems": 1
+    },
+    "automation_class": {
+      "type": "string",
+      "enum": ["scriptable", "scriptable_with_manual_review", "manual_only"],
+      "description": "How automatable the indicator is today. Rows may start manual-only and upgrade to scriptable as source artifacts become machine-readable."
+    },
+    "waiver_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["waiver_allowed", "waiver_register_ref", "waiver_authority_lane", "waiver_notes"],
+      "properties": {
+        "waiver_allowed": { "type": "boolean" },
+        "waiver_register_ref": { "$ref": "#/$defs/path_ref" },
+        "waiver_authority_lane": { "$ref": "#/$defs/lane_id" },
+        "waiver_notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration (e.g. P30D)."
+    },
+    "escalation_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["escalation_owner_lane", "escalation_forum_ref", "escalation_sla", "escalation_notes"],
+      "properties": {
+        "escalation_owner_lane": { "$ref": "#/$defs/lane_id" },
+        "escalation_forum_ref": { "$ref": "#/$defs/path_ref" },
+        "escalation_sla": { "$ref": "#/$defs/iso_duration" },
+        "escalation_notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "followthrough_action_class": {
+      "type": "string",
+      "enum": [
+        "update_or_publish_boundary_manifest_rows",
+        "add_or_update_dependency_markers",
+        "update_claim_manifest_effective_posture",
+        "add_known_limit_or_hold_disclosure",
+        "publish_public_proof_packet_or_link",
+        "publish_or_refresh_export_delete_offboarding_evidence",
+        "open_waiver_register_entry",
+        "open_decision_register_entry",
+        "update_contract_or_schema_for_parity"
+      ],
+      "description": "Closed follow-through action vocabulary. The action list is a typed plan for what must happen when an indicator fails."
+    },
+    "followthrough_action_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/followthrough_action_class" },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "failure_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shiproom_status_floor",
+        "release_readiness_cap",
+        "claim_posture_cap",
+        "followthrough_actions",
+        "response_summary"
+      ],
+      "properties": {
+        "shiproom_status_floor": { "$ref": "#/$defs/shiproom_status" },
+        "release_readiness_cap": { "$ref": "#/$defs/release_readiness" },
+        "claim_posture_cap": { "$ref": "#/$defs/claim_posture" },
+        "followthrough_actions": { "$ref": "#/$defs/followthrough_action_array" },
+        "response_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "measurement_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["measurement_kind", "unit_label", "pass_condition"],
+      "properties": {
+        "measurement_kind": { "$ref": "#/$defs/measurement_kind" },
+        "unit_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "pass_condition": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "subject_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_refs",
+        "claim_row_refs",
+        "boundary_manifest_row_ids",
+        "schema_refs",
+        "artifact_refs",
+        "docs_refs",
+        "public_proof_scoreboard_family_refs"
+      ],
+      "properties": {
+        "record_class_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snake_id" },
+          "uniqueItems": true
+        },
+        "claim_row_refs": { "$ref": "#/$defs/claim_row_ref_array" },
+        "boundary_manifest_row_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snake_id" },
+          "uniqueItems": true
+        },
+        "schema_refs": { "$ref": "#/$defs/ref_array" },
+        "artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "docs_refs": { "$ref": "#/$defs/ref_array" },
+        "public_proof_scoreboard_family_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/snake_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "indicator_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "indicator_row_schema_version",
+        "indicator_id",
+        "title",
+        "description",
+        "indicator_family_id",
+        "indicator_kind",
+        "collection_cadence",
+        "automation",
+        "owner_lane",
+        "measurement",
+        "subject",
+        "evidence_sources",
+        "waiver_policy",
+        "escalation_policy",
+        "failure_response",
+        "contract_doc_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "indicator_row_record"
+        },
+        "indicator_row_schema_version": { "$ref": "#/$defs/indicator_row_schema_version" },
+        "indicator_id": { "$ref": "#/$defs/snake_id" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "description": { "$ref": "#/$defs/reviewable_sentence" },
+        "indicator_family_id": { "$ref": "#/$defs/snake_id" },
+        "indicator_kind": { "$ref": "#/$defs/indicator_kind" },
+        "collection_cadence": { "$ref": "#/$defs/collection_cadence_class" },
+        "automation": { "$ref": "#/$defs/automation_class" },
+        "owner_lane": { "$ref": "#/$defs/lane_id" },
+        "measurement": { "$ref": "#/$defs/measurement_contract" },
+        "subject": { "$ref": "#/$defs/subject_refs" },
+        "evidence_sources": { "$ref": "#/$defs/evidence_source_array" },
+        "waiver_policy": { "$ref": "#/$defs/waiver_policy" },
+        "escalation_policy": { "$ref": "#/$defs/escalation_policy" },
+        "failure_response": { "$ref": "#/$defs/failure_response" },
+        "contract_doc_ref": { "$ref": "#/$defs/path_ref" }
+      }
+    }
+  }
+}
