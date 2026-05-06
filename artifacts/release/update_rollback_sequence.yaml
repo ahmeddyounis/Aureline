@@ -1,0 +1,409 @@
+# Update verification, rollback, and post-rollback evidence sequence packet.
+#
+# Machine-readable companion to docs/release/update_verification_and_rollback_sequence.md.
+# This packet names a stable checkpoint catalog plus ordered variant paths so
+# update center, restart/rollback banners, support bundles, and release evidence
+# can all cite the same checkpoint ids.
+#
+# Rules:
+#   - Checkpoint ids MUST be stable, opaque, and safe to log/export.
+#   - Destructive or non-reversible steps MUST be preceded by an explicit
+#     user/admin review checkpoint.
+#   - Helper/sidecar/remote-agent negotiation MUST occur before mutation.
+#   - Rollback MAY be triggered automatically or by the user/admin, but the
+#     trigger MUST be recorded and the post-rollback validation MUST run.
+#   - Planning or milestone slugs MUST NOT appear in any id, title, or note.
+
+schema_version: 1
+record_kind: update_rollback_sequence_packet
+packet_id: aureline.update_rollback_sequence
+status: seeded
+
+contract_ref: docs/release/update_verification_and_rollback_sequence.md
+update_ready_review_contract_ref: docs/release/update_ready_review_contract.md
+update_manifest_contract_ref: docs/release/update_and_rollback_contract.md
+mirror_integrity_contract_ref: docs/release/mirror_integrity_and_offline_verification_contract.md
+install_truth_packet_ref: artifacts/release/install_update_about_truth_packet.md
+post_install_disclosure_contract_ref: docs/governance/post_install_notice_and_provenance_contract.md
+fixtures_ref: fixtures/release/update_rollback_cases
+
+owner_role_vocabulary:
+  - user
+  - admin
+  - update_engine
+  - policy_engine
+  - mirror_or_import_resolver
+  - verification_engine
+  - extension_forecast_engine
+  - helper_negotiation_engine
+  - checkpoint_and_backup_engine
+  - restart_and_boot_monitor
+  - support_evidence_capture
+
+checkpoint_kind_vocabulary:
+  - latency_checkpoint
+  - decision_checkpoint
+  - mutation_checkpoint
+  - evidence_checkpoint
+
+checkpoint_catalog:
+  - checkpoint_id: checkpoint.update.offer_discovered
+    title: Update offer discovered
+    sequence_stage: discovery
+    owner_role: update_engine
+    checkpoint_kinds:
+      - latency_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Update surface identifies the channel/install posture and whether the
+      updater is user-owned, package-manager-owned, or managed-fleet-owned.
+    evidence_expectations:
+      - update manifest ref (offer)
+      - install truth record ref
+
+  - checkpoint_id: checkpoint.update.policy_evaluated
+    title: Policy gates evaluated
+    sequence_stage: review
+    owner_role: policy_engine
+    checkpoint_kinds:
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      If policy blocks, pins, or requires approval, the controlling authority is
+      shown before download/apply.
+    evidence_expectations:
+      - policy decision ref(s) or explicit none
+
+  - checkpoint_id: checkpoint.update.review_emitted
+    title: Update-ready review emitted
+    sequence_stage: review
+    owner_role: update_engine
+    checkpoint_kinds:
+      - latency_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Review includes verification posture, restart impact, rollback visibility,
+      and extension impact rollup before apply.
+    evidence_expectations:
+      - update-ready review ref
+      - extension impact forecast ref(s)
+
+  - checkpoint_id: checkpoint.update.user_review_completed
+    title: User/admin review completed
+    sequence_stage: review
+    owner_role: user
+    checkpoint_kinds:
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Any step that can narrow rollback eligibility, overwrite state, or require
+      restart must be acknowledged explicitly.
+    evidence_expectations:
+      - review acknowledgment ref or audit-event ref
+
+  - checkpoint_id: checkpoint.update.source_resolved
+    title: Artifact source resolved
+    sequence_stage: acquire
+    owner_role: mirror_or_import_resolver
+    checkpoint_kinds:
+      - latency_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Source class is explicit: official feed, approved mirror, customer mirror,
+      or offline bundle import.
+    evidence_expectations:
+      - mirror integrity packet ref when mirrored
+      - manual import receipt ref when imported
+
+  - checkpoint_id: checkpoint.update.payload_acquired
+    title: Update payload acquired
+    sequence_stage: acquire
+    owner_role: update_engine
+    checkpoint_kinds:
+      - latency_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Download/import completion is explicit; partial acquisition is never
+      labeled as ready-to-restart.
+    evidence_expectations:
+      - content-address refs for payload artifacts
+
+  - checkpoint_id: checkpoint.update.verification_completed
+    title: Signature, digest, trust, and provenance verified
+    sequence_stage: verify
+    owner_role: verification_engine
+    checkpoint_kinds:
+      - latency_checkpoint
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Verification posture is layered (digest, signature, platform trust,
+      provenance, freshness, revocation) and never collapsed into one “verified”.
+    evidence_expectations:
+      - verification row refs or disclosure record refs
+
+  - checkpoint_id: checkpoint.update.extension_impact_reviewed
+    title: Extension impact reviewed
+    sequence_stage: verify
+    owner_role: extension_forecast_engine
+    checkpoint_kinds:
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Extension/package compatibility and migration risk is disclosed before
+      restart; admin override requirements are explicit.
+    evidence_expectations:
+      - extension impact forecast ref(s)
+      - migration task ref(s) or explicit none
+
+  - checkpoint_id: checkpoint.update.helper_negotiation_completed
+    title: Helper/sidecar/agent negotiation completed
+    sequence_stage: prepare
+    owner_role: helper_negotiation_engine
+    checkpoint_kinds:
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Any helper/version skew that blocks apply or requires a separate upgrade is
+      explicit before mutation.
+    evidence_expectations:
+      - helper negotiation packet ref(s)
+
+  - checkpoint_id: checkpoint.update.pre_restart_checkpoint_created
+    title: Pre-restart checkpoint and backup created
+    sequence_stage: prepare
+    owner_role: checkpoint_and_backup_engine
+    checkpoint_kinds:
+      - latency_checkpoint
+      - mutation_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      The rollback window, retention, and what is NOT reverted are stated before
+      restart.
+    evidence_expectations:
+      - checkpoint ref(s)
+      - backup/restore eligibility note
+
+  - checkpoint_id: checkpoint.update.apply_staged
+    title: Update staged up to restart boundary
+    sequence_stage: apply
+    owner_role: update_engine
+    checkpoint_kinds:
+      - mutation_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Restart-required class is explicit; a staged update that is not yet active
+      is never presented as “updated”.
+    evidence_expectations:
+      - staged apply event ref(s)
+
+  - checkpoint_id: checkpoint.update.restart_initiated
+    title: Restart initiated
+    sequence_stage: restart
+    owner_role: restart_and_boot_monitor
+    checkpoint_kinds:
+      - latency_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Restart banner offers explicit actions (restart now, review, roll back
+      instead) when rollback is available.
+    evidence_expectations:
+      - restart event ref(s)
+
+  - checkpoint_id: checkpoint.update.post_restart_health_validated
+    title: Post-restart health validated
+    sequence_stage: validate
+    owner_role: restart_and_boot_monitor
+    checkpoint_kinds:
+      - latency_checkpoint
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Health validation result is explicit; failure routes to rollback rather
+      than silently retrying.
+    evidence_expectations:
+      - health validation ref(s)
+      - crash loop or failure classification ref(s) when applicable
+
+  - checkpoint_id: checkpoint.update.commit_or_rollback_decided
+    title: Commit or rollback decision recorded
+    sequence_stage: finalize
+    owner_role: update_engine
+    checkpoint_kinds:
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      The decision to keep the update or roll back is attributable (user, admin,
+      or automatic safety trigger).
+    evidence_expectations:
+      - commit decision ref or rollback trigger ref
+
+  - checkpoint_id: checkpoint.update.post_success_evidence_captured
+    title: Post-update evidence captured (success)
+    sequence_stage: evidence
+    owner_role: support_evidence_capture
+    checkpoint_kinds:
+      - evidence_checkpoint
+    required_disclosure: >
+      Support/export surfaces can reconstruct the verified update path without
+      reading installer code.
+    evidence_expectations:
+      - support bundle ref (or export-ready evidence packet ref)
+
+  - checkpoint_id: checkpoint.update.rollback_triggered
+    title: Rollback triggered
+    sequence_stage: rollback
+    owner_role: update_engine
+    checkpoint_kinds:
+      - decision_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Rollback trigger class is explicit (automatic safety trigger vs user/admin
+      action) and links to the failing checkpoint where applicable.
+    evidence_expectations:
+      - rollback trigger ref
+
+  - checkpoint_id: checkpoint.update.rollback_completed
+    title: Rollback completed
+    sequence_stage: rollback
+    owner_role: update_engine
+    checkpoint_kinds:
+      - mutation_checkpoint
+      - evidence_checkpoint
+    required_disclosure: >
+      Rollback target is explicit (checkpoint restore vs last-known-good build)
+      and names what was restored vs retained.
+    evidence_expectations:
+      - restore event ref(s)
+      - restored checkpoint ref(s) or rollback target refs
+
+  - checkpoint_id: checkpoint.update.post_rollback_evidence_captured
+    title: Post-rollback evidence captured
+    sequence_stage: evidence
+    owner_role: support_evidence_capture
+    checkpoint_kinds:
+      - evidence_checkpoint
+    required_disclosure: >
+      Post-rollback evidence is exportable and includes the rollback trigger,
+      validation outcome, and restored target identity.
+    evidence_expectations:
+      - support bundle ref (or export-ready evidence packet ref)
+
+variant_class_vocabulary:
+  - online_official_feed
+  - offline_or_mirror
+  - helper_or_version_skew
+  - side_by_side_channel
+  - enterprise_policy_constrained
+
+outcome_class_vocabulary:
+  - update_committed_success
+  - update_failed_rolled_back
+  - update_blocked_by_policy
+  - update_blocked_by_helper_negotiation
+
+variant_paths:
+  - path_id: update_sequence.online.success
+    variant_class: online_official_feed
+    outcome_class: update_committed_success
+    checkpoints:
+      - checkpoint.update.offer_discovered
+      - checkpoint.update.policy_evaluated
+      - checkpoint.update.review_emitted
+      - checkpoint.update.user_review_completed
+      - checkpoint.update.source_resolved
+      - checkpoint.update.payload_acquired
+      - checkpoint.update.verification_completed
+      - checkpoint.update.extension_impact_reviewed
+      - checkpoint.update.helper_negotiation_completed
+      - checkpoint.update.pre_restart_checkpoint_created
+      - checkpoint.update.apply_staged
+      - checkpoint.update.restart_initiated
+      - checkpoint.update.post_restart_health_validated
+      - checkpoint.update.commit_or_rollback_decided
+      - checkpoint.update.post_success_evidence_captured
+
+  - path_id: update_sequence.online.rollback
+    variant_class: online_official_feed
+    outcome_class: update_failed_rolled_back
+    checkpoints:
+      - checkpoint.update.offer_discovered
+      - checkpoint.update.policy_evaluated
+      - checkpoint.update.review_emitted
+      - checkpoint.update.user_review_completed
+      - checkpoint.update.source_resolved
+      - checkpoint.update.payload_acquired
+      - checkpoint.update.verification_completed
+      - checkpoint.update.extension_impact_reviewed
+      - checkpoint.update.helper_negotiation_completed
+      - checkpoint.update.pre_restart_checkpoint_created
+      - checkpoint.update.apply_staged
+      - checkpoint.update.restart_initiated
+      - checkpoint.update.post_restart_health_validated
+      - checkpoint.update.commit_or_rollback_decided
+      - checkpoint.update.rollback_triggered
+      - checkpoint.update.rollback_completed
+      - checkpoint.update.post_rollback_evidence_captured
+
+  - path_id: update_sequence.offline_or_mirror.success
+    variant_class: offline_or_mirror
+    outcome_class: update_committed_success
+    checkpoints:
+      - checkpoint.update.offer_discovered
+      - checkpoint.update.policy_evaluated
+      - checkpoint.update.review_emitted
+      - checkpoint.update.user_review_completed
+      - checkpoint.update.source_resolved
+      - checkpoint.update.payload_acquired
+      - checkpoint.update.verification_completed
+      - checkpoint.update.extension_impact_reviewed
+      - checkpoint.update.helper_negotiation_completed
+      - checkpoint.update.pre_restart_checkpoint_created
+      - checkpoint.update.apply_staged
+      - checkpoint.update.restart_initiated
+      - checkpoint.update.post_restart_health_validated
+      - checkpoint.update.commit_or_rollback_decided
+      - checkpoint.update.post_success_evidence_captured
+
+  - path_id: update_sequence.helper_skew.blocked
+    variant_class: helper_or_version_skew
+    outcome_class: update_blocked_by_helper_negotiation
+    checkpoints:
+      - checkpoint.update.offer_discovered
+      - checkpoint.update.policy_evaluated
+      - checkpoint.update.review_emitted
+      - checkpoint.update.user_review_completed
+      - checkpoint.update.source_resolved
+      - checkpoint.update.payload_acquired
+      - checkpoint.update.verification_completed
+      - checkpoint.update.extension_impact_reviewed
+      - checkpoint.update.helper_negotiation_completed
+
+  - path_id: update_sequence.side_by_side.success
+    variant_class: side_by_side_channel
+    outcome_class: update_committed_success
+    checkpoints:
+      - checkpoint.update.offer_discovered
+      - checkpoint.update.policy_evaluated
+      - checkpoint.update.review_emitted
+      - checkpoint.update.user_review_completed
+      - checkpoint.update.source_resolved
+      - checkpoint.update.payload_acquired
+      - checkpoint.update.verification_completed
+      - checkpoint.update.extension_impact_reviewed
+      - checkpoint.update.helper_negotiation_completed
+      - checkpoint.update.pre_restart_checkpoint_created
+      - checkpoint.update.apply_staged
+      - checkpoint.update.restart_initiated
+      - checkpoint.update.post_restart_health_validated
+      - checkpoint.update.commit_or_rollback_decided
+      - checkpoint.update.post_success_evidence_captured
+
+  - path_id: update_sequence.enterprise_policy.blocked
+    variant_class: enterprise_policy_constrained
+    outcome_class: update_blocked_by_policy
+    checkpoints:
+      - checkpoint.update.offer_discovered
+      - checkpoint.update.policy_evaluated
+      - checkpoint.update.review_emitted
+      - checkpoint.update.user_review_completed

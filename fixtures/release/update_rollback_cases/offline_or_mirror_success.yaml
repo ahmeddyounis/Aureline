@@ -1,0 +1,118 @@
+schema_version: 1
+record_kind: update_rollback_case_record
+case_id: release.update_rollback_sequence.offline_or_mirror_success
+case_class: offline_or_mirror_success
+scenario_summary: >
+  An enterprise-managed install acquires an update via an approved mirror.
+  Mirror integrity and revocation freshness are verified and disclosed before
+  staging apply. The update proceeds with a pre-restart checkpoint and commits
+  successfully with evidence captured.
+
+sequence_packet_ref: artifacts/release/update_rollback_sequence.yaml
+variant_path_id: update_sequence.offline_or_mirror.success
+variant_class: offline_or_mirror
+outcome_class: update_committed_success
+
+evidence_refs:
+  update_manifest_ref: update_manifest:stable.public.2_5_0
+  update_ready_review_ref: update_ready_review:stable.2_5_0.normal_signed
+  mirror_integrity_packet_ref: mirror_integrity_packet:acme.mirror.ide.2_5_0
+  install_truth_ref: install_truth:macos.managed_fleet.stable
+  checkpoint_refs:
+    - checkpoint:profile.before_2_5_0
+  support_bundle_ref: support_bundle:stable.2_5_0.mirror_success
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.update.offer_discovered
+    emitted_at: "2026-05-04T20:00:00Z"
+    owner_role: update_engine
+    evidence_refs:
+      - update_manifest:stable.public.2_5_0
+      - install_truth:macos.managed_fleet.stable
+
+  - checkpoint_id: checkpoint.update.policy_evaluated
+    emitted_at: "2026-05-04T20:00:03Z"
+    owner_role: policy_engine
+    evidence_refs:
+      - policy_decision:update.allowed_via_approved_mirror
+
+  - checkpoint_id: checkpoint.update.review_emitted
+    emitted_at: "2026-05-04T20:00:08Z"
+    owner_role: update_engine
+    evidence_refs:
+      - update_ready_review:stable.2_5_0.normal_signed
+
+  - checkpoint_id: checkpoint.update.user_review_completed
+    emitted_at: "2026-05-04T20:02:00Z"
+    owner_role: admin
+    evidence_refs:
+      - audit_event:update.admin_approval
+
+  - checkpoint_id: checkpoint.update.source_resolved
+    emitted_at: "2026-05-04T20:02:04Z"
+    owner_role: mirror_or_import_resolver
+    evidence_refs:
+      - mirror_integrity_packet:acme.mirror.ide.2_5_0
+
+  - checkpoint_id: checkpoint.update.payload_acquired
+    emitted_at: "2026-05-04T20:03:02Z"
+    owner_role: update_engine
+    evidence_refs:
+      - content_address:ide.macos.universal.2_5_0.sha256
+      - content_address:docs_pack.2_5_0.sha256
+
+  - checkpoint_id: checkpoint.update.verification_completed
+    emitted_at: "2026-05-04T20:03:20Z"
+    owner_role: verification_engine
+    evidence_refs:
+      - mirror_integrity_packet:acme.mirror.ide.2_5_0
+      - verification_row:ide_binary.2_5_0.verified
+
+  - checkpoint_id: checkpoint.update.extension_impact_reviewed
+    emitted_at: "2026-05-04T20:03:30Z"
+    owner_role: extension_forecast_engine
+    evidence_refs:
+      - extension_impact_forecast:stable.2_5_0.compatible_with_warning
+
+  - checkpoint_id: checkpoint.update.helper_negotiation_completed
+    emitted_at: "2026-05-04T20:03:36Z"
+    owner_role: helper_negotiation_engine
+    evidence_refs:
+      - helper_negotiation:stable.2_5_0.ok
+
+  - checkpoint_id: checkpoint.update.pre_restart_checkpoint_created
+    emitted_at: "2026-05-04T20:04:18Z"
+    owner_role: checkpoint_and_backup_engine
+    evidence_refs:
+      - checkpoint:profile.before_2_5_0
+
+  - checkpoint_id: checkpoint.update.apply_staged
+    emitted_at: "2026-05-04T20:04:25Z"
+    owner_role: update_engine
+    evidence_refs:
+      - apply_event:update.staged
+
+  - checkpoint_id: checkpoint.update.restart_initiated
+    emitted_at: "2026-05-04T20:05:00Z"
+    owner_role: restart_and_boot_monitor
+    evidence_refs:
+      - restart_event:update.restart_now
+
+  - checkpoint_id: checkpoint.update.post_restart_health_validated
+    emitted_at: "2026-05-04T20:05:52Z"
+    owner_role: restart_and_boot_monitor
+    evidence_refs:
+      - health_validation:desktop_boot_ok
+
+  - checkpoint_id: checkpoint.update.commit_or_rollback_decided
+    emitted_at: "2026-05-04T20:06:00Z"
+    owner_role: update_engine
+    evidence_refs:
+      - commit_decision:update_committed
+
+  - checkpoint_id: checkpoint.update.post_success_evidence_captured
+    emitted_at: "2026-05-04T20:06:10Z"
+    owner_role: support_evidence_capture
+    evidence_refs:
+      - support_bundle:stable.2_5_0.mirror_success
+

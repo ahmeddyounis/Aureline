@@ -1,0 +1,127 @@
+schema_version: 1
+record_kind: update_rollback_case_record
+case_id: release.update_rollback_sequence.online_failed_rollback
+case_class: online_failed_rollback
+scenario_summary: >
+  A stable user stages and restarts into a verified update, but post-restart
+  health validation fails (crash loop). The update engine triggers rollback to
+  the pre-restart checkpoint, validates the restored build, and captures
+  post-rollback evidence for support.
+
+sequence_packet_ref: artifacts/release/update_rollback_sequence.yaml
+variant_path_id: update_sequence.online.rollback
+variant_class: online_official_feed
+outcome_class: update_failed_rolled_back
+
+evidence_refs:
+  update_manifest_ref: update_manifest:stable.public.2_4_1
+  update_ready_review_ref: update_ready_review:stable.2_4_1.normal_signed
+  install_truth_ref: install_truth:windows.per_user.stable
+  checkpoint_refs:
+    - checkpoint:profile.before_2_4_1
+  support_bundle_ref: support_bundle:stable.2_4_1.rollback
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.update.offer_discovered
+    emitted_at: "2026-05-03T09:10:00Z"
+    owner_role: update_engine
+    evidence_refs:
+      - update_manifest:stable.public.2_4_1
+      - install_truth:windows.per_user.stable
+
+  - checkpoint_id: checkpoint.update.policy_evaluated
+    emitted_at: "2026-05-03T09:10:03Z"
+    owner_role: policy_engine
+    evidence_refs: []
+
+  - checkpoint_id: checkpoint.update.review_emitted
+    emitted_at: "2026-05-03T09:10:09Z"
+    owner_role: update_engine
+    evidence_refs:
+      - update_ready_review:stable.2_4_1.normal_signed
+
+  - checkpoint_id: checkpoint.update.user_review_completed
+    emitted_at: "2026-05-03T09:12:40Z"
+    owner_role: user
+    evidence_refs:
+      - audit_event:update.review_acknowledged
+
+  - checkpoint_id: checkpoint.update.source_resolved
+    emitted_at: "2026-05-03T09:12:43Z"
+    owner_role: mirror_or_import_resolver
+    evidence_refs:
+      - source:official_update_feed
+
+  - checkpoint_id: checkpoint.update.payload_acquired
+    emitted_at: "2026-05-03T09:14:10Z"
+    owner_role: update_engine
+    evidence_refs:
+      - content_address:ide.windows.x64.2_4_1.sha256
+
+  - checkpoint_id: checkpoint.update.verification_completed
+    emitted_at: "2026-05-03T09:14:20Z"
+    owner_role: verification_engine
+    evidence_refs:
+      - verification_row:ide_binary.2_4_1.verified
+
+  - checkpoint_id: checkpoint.update.extension_impact_reviewed
+    emitted_at: "2026-05-03T09:14:29Z"
+    owner_role: extension_forecast_engine
+    evidence_refs:
+      - extension_impact_forecast:stable.2_4_1.no_known
+
+  - checkpoint_id: checkpoint.update.helper_negotiation_completed
+    emitted_at: "2026-05-03T09:14:33Z"
+    owner_role: helper_negotiation_engine
+    evidence_refs:
+      - helper_negotiation:stable.2_4_1.ok
+
+  - checkpoint_id: checkpoint.update.pre_restart_checkpoint_created
+    emitted_at: "2026-05-03T09:15:12Z"
+    owner_role: checkpoint_and_backup_engine
+    evidence_refs:
+      - checkpoint:profile.before_2_4_1
+
+  - checkpoint_id: checkpoint.update.apply_staged
+    emitted_at: "2026-05-03T09:15:20Z"
+    owner_role: update_engine
+    evidence_refs:
+      - apply_event:update.staged
+
+  - checkpoint_id: checkpoint.update.restart_initiated
+    emitted_at: "2026-05-03T09:16:00Z"
+    owner_role: restart_and_boot_monitor
+    evidence_refs:
+      - restart_event:update.restart_now
+
+  - checkpoint_id: checkpoint.update.post_restart_health_validated
+    emitted_at: "2026-05-03T09:16:45Z"
+    owner_role: restart_and_boot_monitor
+    evidence_refs:
+      - health_validation:crash_loop_detected
+
+  - checkpoint_id: checkpoint.update.commit_or_rollback_decided
+    emitted_at: "2026-05-03T09:16:47Z"
+    owner_role: update_engine
+    evidence_refs:
+      - rollback_trigger:automatic.health_validation_failed
+
+  - checkpoint_id: checkpoint.update.rollback_triggered
+    emitted_at: "2026-05-03T09:16:49Z"
+    owner_role: update_engine
+    evidence_refs:
+      - rollback_trigger:automatic.health_validation_failed
+
+  - checkpoint_id: checkpoint.update.rollback_completed
+    emitted_at: "2026-05-03T09:17:33Z"
+    owner_role: update_engine
+    evidence_refs:
+      - restore_event:checkpoint_restore
+      - checkpoint:profile.before_2_4_1
+
+  - checkpoint_id: checkpoint.update.post_rollback_evidence_captured
+    emitted_at: "2026-05-03T09:18:10Z"
+    owner_role: support_evidence_capture
+    evidence_refs:
+      - support_bundle:stable.2_4_1.rollback
+

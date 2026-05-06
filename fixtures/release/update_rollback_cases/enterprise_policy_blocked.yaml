@@ -1,0 +1,48 @@
+schema_version: 1
+record_kind: update_rollback_case_record
+case_id: release.update_rollback_sequence.enterprise_policy_blocked
+case_class: enterprise_policy_blocked
+scenario_summary: >
+  An enterprise-managed install discovers an update, but policy blocks applying
+  it (pinned version / approval required / offline-only). The update-ready
+  review is still emitted so the user/admin can see what was blocked and why,
+  but the journey stops before acquisition or mutation.
+
+sequence_packet_ref: artifacts/release/update_rollback_sequence.yaml
+variant_path_id: update_sequence.enterprise_policy.blocked
+variant_class: enterprise_policy_constrained
+outcome_class: update_blocked_by_policy
+
+evidence_refs:
+  update_manifest_ref: update_manifest:stable.public.2_5_1
+  update_ready_review_ref: update_ready_review:stable.2_5_1.policy_blocked
+  install_truth_ref: install_truth:windows.managed_fleet.stable
+  policy_decision_ref: policy_decision:update.pinned_version
+  support_bundle_ref: support_bundle:stable.2_5_1.policy_blocked
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.update.offer_discovered
+    emitted_at: "2026-05-05T06:00:00Z"
+    owner_role: update_engine
+    evidence_refs:
+      - update_manifest:stable.public.2_5_1
+      - install_truth:windows.managed_fleet.stable
+
+  - checkpoint_id: checkpoint.update.policy_evaluated
+    emitted_at: "2026-05-05T06:00:02Z"
+    owner_role: policy_engine
+    evidence_refs:
+      - policy_decision:update.pinned_version
+
+  - checkpoint_id: checkpoint.update.review_emitted
+    emitted_at: "2026-05-05T06:00:05Z"
+    owner_role: update_engine
+    evidence_refs:
+      - update_ready_review:stable.2_5_1.policy_blocked
+
+  - checkpoint_id: checkpoint.update.user_review_completed
+    emitted_at: "2026-05-05T06:02:00Z"
+    owner_role: admin
+    evidence_refs:
+      - audit_event:update.policy_block_acknowledged
+
