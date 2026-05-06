@@ -53,6 +53,12 @@ instead of re-minting it:
   [`/schemas/ux/theme_package_manifest.schema.json`](../../schemas/ux/theme_package_manifest.schema.json)
   own theme-package shape; this contract references theme-package and
   theme-revision refs as opaque handles only.
+- [`/docs/design/os_appearance_change_matrix.md`](./os_appearance_change_matrix.md)
+  and
+  [`/artifacts/design/appearance_live_change_matrix.yaml`](../../artifacts/design/appearance_live_change_matrix.yaml)
+  own the per-profile OS appearance live-change matrix and the restart/reload
+  disclosure posture for surfaces that cannot apply OS-triggered changes fully
+  live.
 
 ## Why freeze this now
 

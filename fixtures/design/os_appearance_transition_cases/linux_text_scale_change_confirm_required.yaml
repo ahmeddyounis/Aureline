@@ -1,0 +1,59 @@
+# OS text-scale change held behind explicit confirm.
+__fixture__:
+  name: linux_text_scale_change_confirm_required
+  scenario: >
+    The OS text scale changes on a claimed GNOME profile. Aureline holds the
+    change pending an explicit confirm step to avoid untracked global reflow.
+  exercised_axes:
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    os_signal_class: os_text_scale_signal
+    axis: text_scale
+    follow_system_posture: follow_system
+  contract_sections:
+    - "§4 Follow-system vs override transitions"
+    - "§5 Disclosure rules (reload/restart)"
+
+record_kind: os_appearance_transition_case_record
+os_appearance_transition_case_schema_version: 1
+case_id: os_appearance_transition_case:linux_ubuntu_24_04_gnome_wayland_x86_64:text_scale_pending_confirm:01
+desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+
+prior_posture:
+  follow_system_posture: follow_system
+  preview_state: not_previewing
+
+os_signal_event:
+  os_signal_class: os_text_scale_signal
+  changed_axes:
+    - text_scale
+  new_value_summary: scale_percent_changed
+
+expected_resolution:
+  session_revision_event:
+    cause_class: os_signal_change
+    changed_axes:
+      - text_scale
+    applied_under_live_class: confirm_review_required
+    checkpoint_required: true
+    confirm_required: true
+  disclosure_expectations:
+    - disclosure_class: confirm_required
+      disclosure_scope: global_shell
+      disclosure_summary: System text size changed; apply to Aureline requires confirm.
+  surface_expectations:
+    - surface_family_class: shell_and_first_party_dialogs
+      axis: text_scale
+      expected_apply_path_class: hold_pending_confirm
+      expected_atomicity_class: single_checkpoint_atomic
+      disclosure_required: true
+    - surface_family_class: embedded_or_extension_surface
+      axis: text_scale
+      expected_apply_path_class: surface_reload_required
+      expected_atomicity_class: surface_reload_from_single_checkpoint
+      disclosure_required: true
+    - surface_family_class: native_platform_dialog
+      axis: text_scale
+      expected_apply_path_class: apply_live
+      expected_atomicity_class: single_checkpoint_atomic
+      disclosure_required: false
+

@@ -1,0 +1,56 @@
+# OS forced-colors/high-contrast flip with embedded surface reload disclosure.
+__fixture__:
+  name: windows_forced_colors_flip_embedded_reload
+  scenario: >
+    The OS enters forced-colors/high-contrast posture. The shell applies the
+    change checkpointed; embedded/extension surfaces that cannot live-inherit
+    must disclose reload required.
+  exercised_axes:
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    os_signal_class: os_forced_colors_signal
+    axis: contrast_mode
+    follow_system_posture: follow_system
+  contract_sections:
+    - "§2 Non-negotiable invariants"
+    - "§5 Disclosure rules (reload/restart)"
+
+record_kind: os_appearance_transition_case_record
+os_appearance_transition_case_schema_version: 1
+case_id: os_appearance_transition_case:windows_11_23h2_plus_x86_64:forced_colors_follow_system:01
+desktop_profile_id: windows_11_23h2_plus_x86_64
+
+prior_posture:
+  follow_system_posture: follow_system
+  preview_state: not_previewing
+
+os_signal_event:
+  os_signal_class: os_forced_colors_signal
+  changed_axes:
+    - contrast_mode
+  new_value_summary: forced_colors_enabled
+
+expected_resolution:
+  session_revision_event:
+    cause_class: os_signal_change
+    changed_axes:
+      - contrast_mode
+    applied_under_live_class: live_apply_with_revertable_checkpoint
+    checkpoint_required: true
+  surface_expectations:
+    - surface_family_class: shell_and_first_party_dialogs
+      axis: contrast_mode
+      expected_apply_path_class: apply_live_checkpointed
+      expected_atomicity_class: single_checkpoint_atomic
+      disclosure_required: false
+    - surface_family_class: embedded_or_extension_surface
+      axis: contrast_mode
+      expected_apply_path_class: surface_reload_required
+      expected_atomicity_class: surface_reload_from_single_checkpoint
+      disclosure_required: true
+      disclosure_summary: Reload required before the embedded surface may claim forced-colors parity.
+    - surface_family_class: native_platform_dialog
+      axis: contrast_mode
+      expected_apply_path_class: apply_live
+      expected_atomicity_class: single_checkpoint_atomic
+      disclosure_required: false
+

@@ -1,0 +1,53 @@
+# Reduced-motion OS signal applied live with a revertable checkpoint.
+__fixture__:
+  name: reduced_motion_flip_checkpointed
+  scenario: >
+    The OS reduce-motion preference flips on. Aureline applies the change
+    checkpointed so a false-positive OS signal can be rolled back.
+  exercised_axes:
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    os_signal_class: os_reduced_motion_signal
+    axis: reduced_motion_posture
+    follow_system_posture: follow_system
+  contract_sections:
+    - "§3 How OS-triggered changes are processed (pipeline)"
+
+record_kind: os_appearance_transition_case_record
+os_appearance_transition_case_schema_version: 1
+case_id: os_appearance_transition_case:windows_11_23h2_plus_x86_64:reduced_motion_checkpointed:01
+desktop_profile_id: windows_11_23h2_plus_x86_64
+
+prior_posture:
+  follow_system_posture: follow_system
+  preview_state: not_previewing
+
+os_signal_event:
+  os_signal_class: os_reduced_motion_signal
+  changed_axes:
+    - reduced_motion_posture
+  new_value_summary: reduce_motion_enabled
+
+expected_resolution:
+  session_revision_event:
+    cause_class: os_signal_change
+    changed_axes:
+      - reduced_motion_posture
+    applied_under_live_class: live_apply_with_revertable_checkpoint
+    checkpoint_required: true
+  surface_expectations:
+    - surface_family_class: shell_and_first_party_dialogs
+      axis: reduced_motion_posture
+      expected_apply_path_class: apply_live_checkpointed
+      expected_atomicity_class: single_checkpoint_atomic
+      disclosure_required: false
+    - surface_family_class: embedded_or_extension_surface
+      axis: reduced_motion_posture
+      expected_apply_path_class: surface_reload_required
+      expected_atomicity_class: surface_reload_from_single_checkpoint
+      disclosure_required: true
+    - surface_family_class: native_platform_dialog
+      axis: reduced_motion_posture
+      expected_apply_path_class: apply_live
+      expected_atomicity_class: single_checkpoint_atomic
+      disclosure_required: false
+

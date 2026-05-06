@@ -1,0 +1,913 @@
+# OS appearance live-change matrix.
+#
+# Companion to:
+# - docs/design/os_appearance_change_matrix.md
+# - docs/design/appearance_session_contract.md
+# - docs/ux/appearance_import_and_checkpoint_contract.md
+#
+# This artifact is a compact, machine-readable summary of how Aureline
+# responds to OS appearance signals (theme, contrast/forced colors, accent,
+# text scale, reduced motion) on each *claimed desktop profile* and for each
+# surface family.
+#
+# Rules:
+# - This matrix only claims behavior for desktop_profile_id values listed in
+#   artifacts/platform/claimed_desktop_profiles.yaml.
+# - Rows MUST use axis values from the appearance-session contract.
+# - Rows MUST use atomicity_class values from schemas/ux/appearance_checkpoint.schema.json.
+# - Embedded/extension-hosted surfaces that cannot participate in a live apply
+#   MUST be disclosed as reload-required; leaving stale pixels unmarked is
+#   non-conforming.
+
+appearance_live_change_matrix_schema_version: 1
+
+source_doc_ref: docs/design/os_appearance_change_matrix.md
+claimed_profile_roster_ref: artifacts/platform/claimed_desktop_profiles.yaml
+appearance_session_contract_ref: docs/design/appearance_session_contract.md
+appearance_checkpoint_contract_ref: docs/ux/appearance_import_and_checkpoint_contract.md
+appearance_checkpoint_schema_ref: schemas/ux/appearance_checkpoint.schema.json
+fixture_dir_ref: fixtures/design/os_appearance_transition_cases/
+
+surface_family_class_vocabulary:
+  - shell_and_first_party_dialogs
+  - embedded_or_extension_surface
+  - native_platform_dialog
+
+axis_vocabulary:
+  - axis: mode_theme_class
+    primary_os_signal_class: os_theme_signal
+    notes: OS light/dark preference mapped to the resolved theme class.
+  - axis: contrast_mode
+    primary_os_signal_class: os_contrast_signal
+    secondary_os_signal_classes:
+      - os_forced_colors_signal
+    notes: High-contrast / forced-colors posture mapped to contrast_mode.
+  - axis: accent_source
+    primary_os_signal_class: os_accent_signal
+    notes: System accent / highlight color mapped to accent_source.
+  - axis: text_scale
+    primary_os_signal_class: os_text_scale_signal
+    notes: System text-scale / accessibility text size mapped to text_scale.
+  - axis: reduced_motion_posture
+    primary_os_signal_class: os_reduced_motion_signal
+    notes: OS reduce-motion preference mapped to reduced_motion_posture.
+
+apply_path_class_vocabulary:
+  - apply_live
+  - apply_live_checkpointed
+  - hold_pending_confirm
+  - surface_reload_required
+  - full_restart_required
+  - platform_signal_unavailable
+
+rows:
+  # -------------------------------------------------------------------------
+  # macOS claimed desktop profile (Cocoa/Quartz). Shell surfaces are expected
+  # to apply live. Embedded/extension-hosted surfaces may require reload to
+  # guarantee atomicity and protected-cue coherence.
+  # -------------------------------------------------------------------------
+  - row_id: os_appearance_live_change:macos_15_plus_universal:mode_theme_class:shell:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: shell_and_first_party_dialogs
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:contrast_mode:shell:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: shell_and_first_party_dialogs
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: Contrast posture changes mint a revertable checkpoint before applying.
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:accent_source:shell:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: shell_and_first_party_dialogs
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:text_scale:shell:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: shell_and_first_party_dialogs
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: hold_pending_confirm
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: true
+    notes: OS text-scale changes require an explicit confirm step before apply.
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:reduced_motion_posture:shell:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: shell_and_first_party_dialogs
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:mode_theme_class:embedded:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: embedded_or_extension_surface
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+    notes: >
+      Embedded/extension surfaces are required to either live-inherit host
+      appearance or disclose reload required. These rows encode the default
+      disclosure posture for OS-triggered appearance changes.
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:contrast_mode:embedded:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: embedded_or_extension_surface
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:accent_source:embedded:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: embedded_or_extension_surface
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:text_scale:embedded:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: embedded_or_extension_surface
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:reduced_motion_posture:embedded:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: embedded_or_extension_surface
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:mode_theme_class:native_dialog:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: native_platform_dialog
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: OS owns dialog appearance; Aureline owns the surrounding framing.
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:contrast_mode:native_dialog:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: native_platform_dialog
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:accent_source:native_dialog:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: native_platform_dialog
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:text_scale:native_dialog:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: native_platform_dialog
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:macos_15_plus_universal:reduced_motion_posture:native_dialog:01
+    desktop_profile_id: macos_15_plus_universal
+    surface_family_class: native_platform_dialog
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  # -------------------------------------------------------------------------
+  # Windows claimed desktop profile. Forced-colors/high-contrast is treated as
+  # a first-class OS posture; embedded surfaces still require explicit reload
+  # disclosure when they cannot live-inherit.
+  # -------------------------------------------------------------------------
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:mode_theme_class:shell:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:contrast_mode:shell:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: contrast_mode
+    os_signal_class: os_forced_colors_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: Forced-colors posture mints a revertable checkpoint before applying.
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:accent_source:shell:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:text_scale:shell:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: hold_pending_confirm
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:reduced_motion_posture:shell:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:mode_theme_class:embedded:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+    notes: Embedded/extension surfaces must disclose reload-required when they cannot live-inherit.
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:contrast_mode:embedded:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: contrast_mode
+    os_signal_class: os_forced_colors_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:accent_source:embedded:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:text_scale:embedded:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:reduced_motion_posture:embedded:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:mode_theme_class:native_dialog:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: native_platform_dialog
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: OS owns dialog appearance; Aureline owns the surrounding framing.
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:contrast_mode:native_dialog:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: native_platform_dialog
+    axis: contrast_mode
+    os_signal_class: os_forced_colors_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:accent_source:native_dialog:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: native_platform_dialog
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:text_scale:native_dialog:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: native_platform_dialog
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:windows_11_23h2_plus_x86_64:reduced_motion_posture:native_dialog:01
+    desktop_profile_id: windows_11_23h2_plus_x86_64
+    surface_family_class: native_platform_dialog
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  # -------------------------------------------------------------------------
+  # Linux claimed desktop profiles (GNOME). The claim is limited to the named
+  # GNOME profiles; other desktop environments are not claim-bearing.
+  # -------------------------------------------------------------------------
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:mode_theme_class:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: GNOME theme preference applies live where the desktop session exposes it.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:contrast_mode:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:accent_source:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: Accent following is not claimed on GNOME rows unless a platform-owned primitive is added.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:text_scale:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: hold_pending_confirm
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:reduced_motion_posture:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:mode_theme_class:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+    notes: Embedded/extension surfaces must disclose reload-required when they cannot live-inherit.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:contrast_mode:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:accent_source:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:text_scale:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:reduced_motion_posture:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:mode_theme_class:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: OS owns dialog appearance; Aureline owns the surrounding framing.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:contrast_mode:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:accent_source:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:text_scale:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_wayland_x86_64:reduced_motion_posture:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  # -------------------------------------------------------------------------
+  # Additional claimed GNOME profiles. These rows repeat the Ubuntu 24.04
+  # GNOME appearance posture explicitly so tooling can join by profile id.
+  # -------------------------------------------------------------------------
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:mode_theme_class:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: GNOME theme preference applies live where the desktop session exposes it.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:contrast_mode:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:accent_source:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:text_scale:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: hold_pending_confirm
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:reduced_motion_posture:shell:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:mode_theme_class:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+    notes: Embedded/extension surfaces must disclose reload-required when they cannot live-inherit.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:contrast_mode:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:accent_source:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:text_scale:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:reduced_motion_posture:embedded:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:mode_theme_class:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: OS owns dialog appearance; Aureline owns the surrounding framing.
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:contrast_mode:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:accent_source:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:text_scale:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_ubuntu_24_04_gnome_x11_x86_64:reduced_motion_posture:native_dialog:01
+    desktop_profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:mode_theme_class:shell:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: GNOME theme preference applies live where the desktop session exposes it.
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:contrast_mode:shell:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:accent_source:shell:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:text_scale:shell:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: hold_pending_confirm
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:reduced_motion_posture:shell:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:mode_theme_class:embedded:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+    notes: Embedded/extension surfaces must disclose reload-required when they cannot live-inherit.
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:contrast_mode:embedded:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:accent_source:embedded:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:text_scale:embedded:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:reduced_motion_posture:embedded:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:mode_theme_class:native_dialog:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: OS owns dialog appearance; Aureline owns the surrounding framing.
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:contrast_mode:native_dialog:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:accent_source:native_dialog:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:text_scale:native_dialog:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_fedora_current_gnome_wayland_x86_64:reduced_motion_posture:native_dialog:01
+    desktop_profile_id: linux_fedora_current_gnome_wayland_x86_64
+    surface_family_class: native_platform_dialog
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:mode_theme_class:shell:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: GNOME theme preference applies live where the desktop session exposes it.
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:contrast_mode:shell:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:accent_source:shell:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:text_scale:shell:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: hold_pending_confirm
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:reduced_motion_posture:shell:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: shell_and_first_party_dialogs
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live_checkpointed
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:mode_theme_class:embedded:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+    notes: Embedded/extension surfaces must disclose reload-required when they cannot live-inherit.
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:contrast_mode:embedded:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:accent_source:embedded:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:text_scale:embedded:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:reduced_motion_posture:embedded:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: embedded_or_extension_surface
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: surface_reload_required
+    atomicity_class: surface_reload_from_single_checkpoint
+    disclosure_required: true
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:mode_theme_class:native_dialog:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: mode_theme_class
+    os_signal_class: os_theme_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+    notes: OS owns dialog appearance; Aureline owns the surrounding framing.
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:contrast_mode:native_dialog:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: contrast_mode
+    os_signal_class: os_contrast_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:accent_source:native_dialog:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: accent_source
+    os_signal_class: os_accent_signal
+    apply_path_class: platform_signal_unavailable
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:text_scale:native_dialog:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: text_scale
+    os_signal_class: os_text_scale_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false
+
+  - row_id: os_appearance_live_change:linux_debian_stable_gnome_x11_x86_64:reduced_motion_posture:native_dialog:01
+    desktop_profile_id: linux_debian_stable_gnome_x11_x86_64
+    surface_family_class: native_platform_dialog
+    axis: reduced_motion_posture
+    os_signal_class: os_reduced_motion_signal
+    apply_path_class: apply_live
+    atomicity_class: single_checkpoint_atomic
+    disclosure_required: false

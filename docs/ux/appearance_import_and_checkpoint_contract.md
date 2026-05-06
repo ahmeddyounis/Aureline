@@ -161,7 +161,10 @@ or blocked rows. Dropping an unknown token silently is non-conforming.
 4. **Platform limits are explicit.** If OS theme, contrast, accent, text
    scale, or reduced-motion changes require a surface reload or full
    restart, the record names that posture rather than implying live
-   support.
+   support. The per-profile source of truth is
+   [`/docs/design/os_appearance_change_matrix.md`](../design/os_appearance_change_matrix.md)
+   and its companion artifact
+   [`/artifacts/design/appearance_live_change_matrix.yaml`](../../artifacts/design/appearance_live_change_matrix.yaml).
 5. **Density is layout density only.** Density changes row height,
    padding, pane chrome, and spacing-like tokens. It may not change
    information architecture, focus visibility, or command semantics.
