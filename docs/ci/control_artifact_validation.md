@@ -31,6 +31,11 @@ Companion artifacts:
   — validates geometry token ledger and worked cases.
 - [`/tools/ci/validate_motion_cases.py`](../../tools/ci/validate_motion_cases.py)
   — validates motion token ledger and worked cases.
+- [`/tools/ci/validate_palette_examples.py`](../../tools/ci/validate_palette_examples.py)
+  — validates semantic token-domain palette mapping examples.
+- [`/tools/ci/check_semantic_token_conformance.py`](../../tools/ci/check_semantic_token_conformance.py)
+  — checks first-party semantic-token conformance (raw-color ban + exception
+  registry) and validates worked violation fixtures.
 - [`/tools/ci/validate_component_metric_cases.py`](../../tools/ci/validate_component_metric_cases.py)
   — validates component metrics ledger and worked cases.
 - [`/tools/ci/check_component_conformance.py`](../../tools/ci/check_component_conformance.py)

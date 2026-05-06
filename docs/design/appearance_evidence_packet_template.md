@@ -36,6 +36,11 @@ in:
   — closed `audit_finding_class`, `severity_class`, `gate_state_class`,
   and `allowed_inheritance_gap_class` vocabularies the packet
   verdict resolves through.
+- [`/docs/design/token_conformance_gate.md`](./token_conformance_gate.md)
+  and
+  [`/artifacts/design/raw_color_exception_registry.yaml`](../../artifacts/design/raw_color_exception_registry.yaml)
+  — first-party raw-color ban enforcement and the time-bounded exception
+  registry used when consuming surfaces cannot comply immediately.
 - [`/schemas/design/theme_support_row.schema.json`](../../schemas/design/theme_support_row.schema.json)
   and
   [`/schemas/design/token_export_manifest.schema.json`](../../schemas/design/token_export_manifest.schema.json)
@@ -65,8 +70,10 @@ evidence that ties each appearance axis back to:
    settings rows, permission sheets, status items, banners, dialog
    action rows) so reviewers see component-level appearance parity
    instead of shell-level screenshots;
-3. the existing token-conformance and raw-color exception rules in
-   `artifacts/design/token_drift_rules.yaml`, so an appearance gap
+3. the existing token-conformance rules in
+   `artifacts/design/token_drift_rules.yaml` (and, for first-party raw-color
+   usage outside the semantic-token contract, the exception registry at
+   `artifacts/design/raw_color_exception_registry.yaml`), so an appearance gap
    routes to one of the closed `audit_finding_class` values rather
    than a parallel denial reason;
 4. the closed `claim_narrowing_posture_class` vocabulary, so a
