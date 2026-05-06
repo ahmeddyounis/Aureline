@@ -1,0 +1,143 @@
+schema_version: 1
+artifact_id: workspace.archetype_confidence_rows
+status: seeded
+
+narrative_source: docs/ux/archetype_detection_contract.md
+schema_source: schemas/workspace/archetype_detection.schema.json
+related_contracts:
+  - docs/ux/workspace_admission_contract.md
+  - docs/workspace/recommendation_source_ledger.md
+  - schemas/workspace/recommendation_source_row.schema.json
+
+rules:
+  - Every archetype-detection result MUST declare detection.confidence_class; surfaces render the declared class and MUST NOT invent a parallel label.
+  - Confidence never widens support claims; support_claim_class is still the support-language governor.
+  - Confidence rows are used to keep partiality honest (detecting/partial/stale/retest-needed) and to keep heuristic inference visibly distinct from detected facts and bundle metadata.
+  - Evidence hooks are stable machine tokens that later first-useful-work instrumentation can attach without changing the recommendation-source row shape.
+
+evidence_hook_vocabulary:
+  - hook: basis_signal_manifest
+    maps_to_detection_signal_source_class: manifest
+    summary: Basis includes a project/tool manifest signal.
+  - hook: basis_signal_bundle_marker
+    maps_to_detection_signal_source_class: bundle_marker
+    summary: Basis includes a workflow-bundle marker signal.
+  - hook: basis_signal_workspace_file
+    maps_to_detection_signal_source_class: workspace_file
+    summary: Basis includes a workspace/workset file signal.
+  - hook: basis_signal_import_packet
+    maps_to_detection_signal_source_class: import_packet
+    summary: Basis includes a portable state / handoff / support packet signal.
+  - hook: basis_signal_admin_policy
+    maps_to_detection_signal_source_class: admin_policy
+    summary: Basis includes a signed policy / fleet policy signal.
+  - hook: basis_signal_extension_contribution
+    maps_to_detection_signal_source_class: extension_contribution
+    summary: Basis includes an installed extension contribution.
+  - hook: basis_signal_previous_user_choice
+    maps_to_detection_signal_source_class: previous_user_choice
+    summary: Basis includes a prior explicit user-choice signal.
+  - hook: basis_signal_filesystem_layout
+    maps_to_detection_signal_source_class: filesystem_layout
+    summary: Basis includes filesystem layout signals (nested roots, monorepo topology hints).
+  - hook: basis_signal_lockfile
+    maps_to_detection_signal_source_class: lockfile
+    summary: Basis includes lockfile signals.
+  - hook: basis_signal_runtime_probe
+    maps_to_detection_signal_source_class: runtime_probe
+    summary: Basis includes runtime probe signals (missing runtime, missing remote agent, toolchain presence).
+  - hook: basis_signal_vcs_metadata
+    maps_to_detection_signal_source_class: vcs_metadata
+    summary: Basis includes VCS metadata signals.
+  - hook: basis_template_or_prebuild
+    maps_to_detection_signal_source_class: null
+    summary: Basis includes a template or prebuild identity / manifest.
+  - hook: heuristic_inference_applied
+    maps_to_detection_signal_source_class: null
+    summary: Basis includes a heuristic inference that must remain visibly labeled as inference.
+
+confidence_rows:
+  - confidence_class: certified_exact
+    row_id: archetype_confidence_row.certified_exact
+    summary: Signals match a certified workflow strongly enough to make a scoped support claim.
+    required_disclosures:
+      - show_archetype_ref_and_support_claim_class
+      - show_evidence_age_and_retest_posture_when_claim_bearing
+      - show_source_labeled_signals_and_detected_fact_summaries
+      - keep_plain_open_and_same_weight_bypass_actions
+    forbidden_posture:
+      - auto_apply_bundle_extensions_or_dependency_installs
+      - replace_scoped_claims_with_broad_support_language
+    typical_evidence_hooks:
+      - basis_signal_manifest
+      - basis_signal_bundle_marker
+
+  - confidence_class: high_probable
+    row_id: archetype_confidence_row.high_probable
+    summary: Strong signals exist, but certification evidence, freshness, or scope is incomplete.
+    required_disclosures:
+      - show_confidence_and_detecting_or_partial_state_when_present
+      - show_source_labeled_signals_and_basis_for_any_recommendation
+      - keep_plain_open_and_same_weight_bypass_actions
+    forbidden_posture:
+      - present_as_certified_or_auto_apply_setup
+    typical_evidence_hooks:
+      - basis_signal_manifest
+      - basis_signal_lockfile
+
+  - confidence_class: medium_probable
+    row_id: archetype_confidence_row.medium_probable
+    summary: Some signals exist, but gaps or partiality are material; recommendations must stay conservative.
+    required_disclosures:
+      - show_confidence_and_unknowns
+      - keep_plain_open_as_primary_safe_path
+    forbidden_posture:
+      - imply_setup_is_required_for_basic_editing
+    typical_evidence_hooks:
+      - basis_signal_manifest
+
+  - confidence_class: mixed_conflicting
+    row_id: archetype_confidence_row.mixed_conflicting
+    summary: Multiple stacks or roots conflict; the user must be offered boundary choices.
+    required_disclosures:
+      - offer_boundary_choice_actions_and_explain_why
+      - keep_plain_open_and_inspect_only_paths_available
+    forbidden_posture:
+      - force_one_framework_view_without_disclosure
+    typical_evidence_hooks:
+      - basis_signal_filesystem_layout
+      - basis_signal_manifest
+
+  - confidence_class: generic_unknown
+    row_id: archetype_confidence_row.generic_unknown
+    summary: No strong claim is available; the workspace remains honest and generic.
+    required_disclosures:
+      - avoid_unsupported_or_broken_language
+      - keep_editing_and_basic_navigation_available
+    forbidden_posture:
+      - gate_basic_editing_behind_setup_wizard
+    typical_evidence_hooks:
+      - basis_signal_workspace_file
+
+  - confidence_class: restricted_by_policy
+    row_id: archetype_confidence_row.restricted_by_policy
+    summary: Policy or trust narrowing materially changes what setup is allowed; blocked setup remains distinct from optional guidance.
+    required_disclosures:
+      - show_policy_block_and_continue_without_path
+      - keep_blocked_setup_distinct_from_optional_guidance
+    forbidden_posture:
+      - hide_policy_cause_behind_generic_setup_failure
+    typical_evidence_hooks:
+      - basis_signal_admin_policy
+
+  - confidence_class: prerequisite_missing
+    row_id: archetype_confidence_row.prerequisite_missing
+    summary: A typed prerequisite is missing; ordinary reading/editing remains available where safe.
+    required_disclosures:
+      - name_missing_prerequisite_and_execution_boundary
+      - keep_basic_editing_available_where_safe
+    forbidden_posture:
+      - mark_workspace_as_unsupported_or_broken_due_to_missing_prerequisite
+    typical_evidence_hooks:
+      - basis_signal_runtime_probe
+

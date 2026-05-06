@@ -27,7 +27,7 @@ The companion artifacts are:
   — worked YAML cases that exercise the closed admission-class set,
   the four blocked-reason classes (trust, policy, missing prerequisite,
   deployment profile), the four optional-reason classes, the three
-  readiness buckets, the seven setup-location classes, the eight
+  readiness buckets, the seven setup-location classes, the nine
   archetype-recommendation-source classes, the admission-card and
   admission-banner families, and the `Continue without` fallback.
 
@@ -177,7 +177,7 @@ admission class is non-`admitted` is non-conforming.
 ### 3.1 Required fields
 
 - `record_kind = workspace_admission_checkpoint_record`.
-- `admission_checkpoint_schema_version = 1`.
+- `admission_checkpoint_schema_version = 2`.
 - `admission_checkpoint_id` — opaque, stable, safe to log and export.
 - `entry_action_ref` — re-export of
   `project_entry_action_record.action_id` from the entry-restore
@@ -282,6 +282,10 @@ upstream.
 
 - `detected_facts` — derived from manifest, lockfile, filesystem
   layout, runtime probe, or VCS metadata signals.
+- `heuristic_inference` — derived from Aureline heuristics that are not
+  strong enough to present as a fact or as bundle metadata. The surface
+  MUST keep the inference label visible and MUST cite the basis signals
+  or facts that made the heuristic relevant.
 - `bundle_metadata` — derived from a workflow-bundle marker or
   certified-bundle metadata.
 - `admin_policy` — narrowed or expanded by signed policy or fleet
@@ -295,7 +299,7 @@ upstream.
 - `import_packet` — declared by a portable / handoff / support /
   archive packet's manifest.
 - `mixed_recommendation_source` — the recommendation set is fed by
-  more than one of the seven classes above. The checkpoint MUST also
+  more than one of the eight classes above. The checkpoint MUST also
   list the contributing classes individually.
 
 ### 3.5 `setup_location_class` (closed)
@@ -520,7 +524,7 @@ empty state ("No setup is required at this root").
 ### 5.2 `admission_card_record` required fields
 
 - `record_kind = admission_card_record`.
-- `admission_card_schema_version = 1`.
+- `admission_card_schema_version = 2`.
 - `admission_card_id` — opaque, stable.
 - `admission_checkpoint_ref` — opaque ref to the checkpoint.
 - `admission_card_class` — closed set (§5.1).
@@ -733,8 +737,8 @@ Required scenarios:
 ## 8. Versioning and change control
 
 The schema declares
-`admission_checkpoint_schema_version = 1`,
-`admission_card_schema_version = 1`, and
+`admission_checkpoint_schema_version = 2`,
+`admission_card_schema_version = 2`, and
 `admission_banner_schema_version = 1`. Adding a new
 `root_identity_class`, `trust_review_class`,
 `archetype_recommendation_source_class`, `setup_location_class`,

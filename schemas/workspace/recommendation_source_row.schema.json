@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/recommendation_source_row.schema.json",
+  "title": "Aureline recommendation-source row record",
+  "description": "Boundary schema for one recommendation_source_row_record frozen in docs/workspace/recommendation_source_ledger.md. A recommendation-source row explains why Aureline suggested a workflow bundle, workspace archetype, or readiness task, using the same source-class vocabulary across readiness cards, Start Center recommendation rows, bundle suggestion chips, CLI/headless projections, and support exports. Rows cite basis refs (signals, facts, policy, user choice, templates, imports, or heuristics) and reserve a stable evidence-hook vocabulary that later first-useful-work instrumentation can attach without changing row shape. Raw absolute paths, raw URLs with credentials, raw manifest bodies, raw command lines, raw package-lock contents, and secret material never cross this boundary; rows carry opaque refs, closed vocabulary, and redaction-aware summaries only. Adding a new subject_kind, basis_kind, evidence_hook_class, or required invariant is additive-minor and requires a schema-version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recommendation_source_row_record" }
+  ],
+  "$defs": {
+    "recommendation_source_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this boundary. Current value is 1."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "recommendation_source_row_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, and safe in support bundles. Raw absolute paths, raw credentials, raw URLs, raw manifest bodies, and raw package-lock contents never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Reviewer-facing text already scrubbed by the producer. Raw paths, URLs, secrets, command lines, and manifest bodies never appear here."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+    "subject_kind": {
+      "type": "string",
+      "enum": [
+        "workflow_bundle",
+        "workspace_archetype",
+        "readiness_task"
+      ],
+      "description": "Which kind of suggested subject this row explains."
+    },
+    "basis_kind": {
+      "type": "string",
+      "enum": [
+        "detection_signal_ref",
+        "detected_fact_ref",
+        "bundle_metadata_ref",
+        "policy_ref",
+        "user_choice_ref",
+        "template_or_prebuild_ref",
+        "import_packet_ref",
+        "extension_ref",
+        "heuristic_rule_ref"
+      ],
+      "description": "What kind of upstream object the basis_ref points to."
+    },
+    "evidence_hook_class": {
+      "type": "string",
+      "enum": [
+        "basis_signal_manifest",
+        "basis_signal_bundle_marker",
+        "basis_signal_workspace_file",
+        "basis_signal_import_packet",
+        "basis_signal_admin_policy",
+        "basis_signal_extension_contribution",
+        "basis_signal_previous_user_choice",
+        "basis_signal_filesystem_layout",
+        "basis_signal_lockfile",
+        "basis_signal_runtime_probe",
+        "basis_signal_vcs_metadata",
+        "basis_template_or_prebuild",
+        "heuristic_inference_applied"
+      ],
+      "description": "Reserved evidence-hook vocabulary for first-useful-work instrumentation and support export correlation. Hooks supplement (not replace) recommendation source classes."
+    },
+    "recommendation_source_class": {
+      "$ref": "./admission_checkpoint.schema.json#/$defs/archetype_recommendation_source_class"
+    },
+    "confidence_class": {
+      "$ref": "./archetype_detection.schema.json#/$defs/detection_confidence_class"
+    },
+    "support_claim_class": {
+      "$ref": "./archetype_detection.schema.json#/$defs/support_claim_class"
+    },
+    "detector_state": {
+      "$ref": "./archetype_detection.schema.json#/$defs/detector_state"
+    },
+    "basis_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis_kind",
+        "basis_ref",
+        "source_class",
+        "summary"
+      ],
+      "properties": {
+        "basis_kind": { "$ref": "#/$defs/basis_kind" },
+        "basis_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": { "$ref": "#/$defs/recommendation_source_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One upstream basis binding tagged with a recommendation source class."
+    },
+    "recommendation_source_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "$schema",
+        "record_kind",
+        "recommendation_source_row_schema_version",
+        "row_id",
+        "minted_at",
+        "admission_checkpoint_ref",
+        "subject_kind",
+        "subject_ref",
+        "recommendation_source_classes",
+        "evidence_hooks_reserved",
+        "basis",
+        "summary"
+      ],
+      "properties": {
+        "$schema": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/workspace/recommendation_source_row.schema.json"
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "recommendation_source_row_schema_version": { "$ref": "#/$defs/recommendation_source_row_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "admission_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "workspace_scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "root_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "subject_kind": { "$ref": "#/$defs/subject_kind" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "recommendation_ref": { "$ref": "#/$defs/opaque_id" },
+        "readiness_task_ref": { "$ref": "#/$defs/opaque_id" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "support_claim_class": { "$ref": "#/$defs/support_claim_class" },
+        "detector_state": { "$ref": "#/$defs/detector_state" },
+        "recommendation_source_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recommendation_source_class" },
+          "uniqueItems": true
+        },
+        "evidence_hooks_reserved": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/evidence_hook_class" },
+          "uniqueItems": true
+        },
+        "basis": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/basis_entry" }
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "allOf": [
+        {
+          "description": "When more than one source class applies, the mixed_recommendation_source marker is required (and contributing classes are listed individually).",
+          "if": {
+            "properties": {
+              "recommendation_source_classes": { "type": "array", "minItems": 2 }
+            },
+            "required": ["recommendation_source_classes"]
+          },
+          "then": {
+            "properties": {
+              "recommendation_source_classes": {
+                "contains": { "const": "mixed_recommendation_source" }
+              }
+            }
+          }
+        },
+        {
+          "description": "mixed_recommendation_source requires at least two contributing classes in the array.",
+          "if": {
+            "properties": {
+              "recommendation_source_classes": {
+                "type": "array",
+                "contains": { "const": "mixed_recommendation_source" }
+              }
+            },
+            "required": ["recommendation_source_classes"]
+          },
+          "then": {
+            "properties": {
+              "recommendation_source_classes": { "type": "array", "minItems": 3 }
+            }
+          }
+        }
+      ],
+      "description": "One cross-surface provenance row explaining why a suggestion was shown."
+    }
+  }
+}
+
