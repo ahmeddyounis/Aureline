@@ -1,0 +1,43 @@
+capacity_guardrail_case_schema_version: 1
+case_id: service.capacity_guardrail.sync_state_size_ceiling_breach
+case_title: Sync state-size ceiling breach pauses sync without blocking local settings
+expected_decision: downgrade_and_disclose
+
+scenario: >
+  A sync-like managed surface exceeds its declared default per-user state
+  ceiling. The correct response is to pause managed sync and keep local
+  settings authoritative, with a clear disclosure and a local export
+  option.
+
+inputs:
+  family_row_ref:
+    file: artifacts/service/capacity_assumption_rows.yaml
+    family_id: sync_family
+  observed_state:
+    metric: per_user_state_size
+    observed_value: 180_MiB
+    declared_default_ceiling: 50_MiB
+    breach_summary: >
+      Observed stored or transferred state exceeds the declared default.
+      The managed path must pause/downgrade while local state remains
+      usable and exportable.
+
+required_behavior:
+  must_not_break_local_workflow:
+    - Local settings remain authoritative.
+    - Local editing and local Git remain available.
+  downgrade_posture:
+    - Managed sync pauses until state is reduced or the user/admin opts into a higher ceiling with disclosure.
+    - Local export remains available.
+  disclosures_required:
+    - Explain what is paused (managed sync) and what remains (local settings).
+    - Provide a recovery cue (reduce scope, wait, admin adjustment) without implying whole-product failure.
+
+assertions:
+  blocks_local_settings: false
+  managed_only_path_paused: true
+  export_paths_remain_available: true
+
+narrative_refs:
+  - docs/service/managed_service_capacity_and_cost_guardrails.md
+  - docs/service/managed_service_seed.md

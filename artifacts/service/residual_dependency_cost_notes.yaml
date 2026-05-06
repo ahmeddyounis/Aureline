@@ -1,0 +1,423 @@
+# Residual-dependency and cost disclosure notes for managed surfaces.
+#
+# This packet binds user/admin-visible surfaces to:
+#   - residual-dependency classes (artifacts/governance/residual_dependencies.yaml)
+#   - service ids (artifacts/service/slo_rows.yaml) where defined
+#   - API capability surfaces (artifacts/service/api_surface_rows.yaml) where defined
+#   - metering families (docs/service/metering_and_chargeback_contract.md) where applicable
+#
+# The goal is reviewability: optional services may not become invisible
+# prerequisites, and cost/quota posture must be disclosed at the same
+# surface where the managed dependency is claimed.
+#
+# Machine-readable companion to
+# docs/service/managed_service_capacity_and_cost_guardrails.md.
+#
+# Rules:
+#   - Every row MUST name surface_id, title, summary, family_id,
+#     dependency_classes (non-empty), and degradation_and_fallback.
+#   - Each row MUST describe how quota/cost ownership is disclosed (even
+#     if the disclosure is “not metered at seed time”).
+#   - Rows SHOULD link to service ids / api surfaces / meter families when
+#     those vocabularies include the relevant id.
+#   - Milestone slugs MUST NOT appear in any id, path, description, or
+#     note field.
+
+schema_version: 1
+status: seeded
+
+seed_doc: docs/service/managed_service_capacity_and_cost_guardrails.md
+capacity_assumption_rows_ref: artifacts/service/capacity_assumption_rows.yaml
+residual_dependency_ledger_ref: artifacts/governance/residual_dependencies.yaml
+slo_rows_ref: artifacts/service/slo_rows.yaml
+api_surface_rows_ref: artifacts/service/api_surface_rows.yaml
+operating_mode_capacity_contract_ref: docs/service/operating_mode_and_capacity_contract.md
+metering_contract_ref: docs/service/metering_and_chargeback_contract.md
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies (packet-local).
+# Adding a value is additive-minor; repurposing a value is breaking.
+# -----------------------------------------------------------------------------
+
+surface_id_vocabulary:
+  - surface.identity.sign_in_and_session_refresh
+  - surface.policy.bundle_fetch_and_explainability
+  - surface.sync.profile_and_settings_sync
+  - surface.registry.extension_discovery_and_install
+  - surface.registry.extension_publish
+  - surface.collaboration.session_join_and_transport
+  - surface.preview.share_link_issue_and_revoke
+  - surface.ai.managed_gateway_inference
+  - surface.metering.usage_and_forecast_views
+  - surface.support.bundle_export_and_upload
+  - surface.release.mirror_refresh_and_revocation
+
+quota_disclosure_class_vocabulary:
+  - disclosed_via_operating_mode_capacity_row
+  - disclosed_via_meter_row
+  - disclosed_via_both_capacity_and_meter_rows
+  - not_metered_at_seed_time
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per user/admin-visible managed surface.
+# -----------------------------------------------------------------------------
+
+rows:
+  - surface_id: surface.identity.sign_in_and_session_refresh
+    title: Sign-in and session refresh (managed identity)
+    summary: >
+      Surfaces that initiate a managed sign-in flow, refresh a managed
+      session, or gate managed actions on current identity truth.
+    family_id: identity_and_policy_family
+    dependency_classes:
+      - sign_in
+    linked_service_ids:
+      - managed_auth_identity
+    linked_api_surface_ids:
+      - managed_auth_identity.oidc_session_front_door
+      - managed_auth_identity.scim_provisioning
+    linked_meter_family_classes: []
+    quota_and_cost_disclosure:
+      disclosure_class: not_metered_at_seed_time
+      disclosure_summary: >
+        Identity session reachability is disclosed via operating-mode and
+        region/key-state surfaces. Cost is not disclosed as a user-facing
+        meter at seed time; chargeback honesty applies to any future
+        customer-visible identity meter.
+    degradation_and_fallback:
+      degrades:
+        - Managed sign-in flows pause when identity is unreachable or policy blocks the route.
+        - Managed surfaces that require a current session fail closed with an explicit recovery cue.
+      continues_locally:
+        - Local-only workflows continue without sign-in (where the deployment profile permits).
+        - Local export, local logs, and local Git remain available.
+      fallback_or_export_paths:
+        - Use a local-only or offline trust-root profile where permitted.
+        - Use cached last-known-good policy bundle for reads when declared admissible.
+
+  - surface_id: surface.policy.bundle_fetch_and_explainability
+    title: Policy bundle fetch and explainability (managed policy distribution)
+    summary: >
+      Surfaces that fetch signed admin policy bundles, display effective
+      policy decisions, or gate privileged actions on policy truth.
+    family_id: identity_and_policy_family
+    dependency_classes:
+      - policy_bundle
+    linked_service_ids:
+      - managed_policy_distribution
+    linked_api_surface_ids:
+      - managed_policy_distribution.policy_bundle_fetch
+    linked_meter_family_classes: []
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_operating_mode_capacity_row
+      disclosure_summary: >
+        Policy distribution posture is disclosed as a named affected
+        action family (policy distribution) and as boundary-recheck
+        posture when freshness cannot be maintained.
+    degradation_and_fallback:
+      degrades:
+        - Privileged managed mutations pause when policy is stale beyond its freshness floor.
+        - Policy publish/rollout surfaces fail closed when the signing/provenance path is ambiguous.
+      continues_locally:
+        - Local editing and local work remain available under last-known-good policy for non-privileged actions.
+      fallback_or_export_paths:
+        - Inspect cached signed policy bundle with stale labeling.
+        - Export policy bundle and evaluation traces where the policy contract requires it.
+
+  - surface_id: surface.sync.profile_and_settings_sync
+    title: Profile and settings sync across devices
+    summary: >
+      Optional settings/profile sync surfaces used to replicate user-scope
+      settings across devices for signed-in users. Sync is additive; it
+      cannot become a prerequisite for settings resolution.
+    family_id: sync_family
+    dependency_classes:
+      - sign_in
+      - hosted_control_plane_reachability
+    linked_service_ids:
+      - managed_settings_sync
+    linked_api_surface_ids:
+      - managed_settings_sync.user_settings_sync
+    linked_meter_family_classes:
+      - profile_or_settings_sync_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_both_capacity_and_meter_rows
+      disclosure_summary: >
+        Sync capacity posture is disclosed per family on the operating-mode
+        card. Sync transfer/state usage (where customer-visible) is
+        disclosed via the profile/settings sync meter family with export
+        parity.
+    degradation_and_fallback:
+      degrades:
+        - Sync pauses or narrows under overload/quota; no startup spinner or whole-product gating is allowed.
+        - Conflict resolution requires explicit reconcile UX; no silent overwrite of local state.
+      continues_locally:
+        - Local defaults, user settings, and workspace settings remain authoritative.
+        - Local editing, local Git, and local export remain available.
+      fallback_or_export_paths:
+        - Export local settings state for backup/offboarding workflows.
+        - Use last-known-good synced snapshot for reads only when freshness-labeled and policy-admissible.
+
+  - surface_id: surface.registry.extension_discovery_and_install
+    title: Extension discovery and install (registry / mirror metadata)
+    summary: >
+      User-visible extension discovery, install, and docs-pack fetch
+      surfaces backed by registry/mirror metadata.
+    family_id: registry_and_metadata_family
+    dependency_classes:
+      - package_registry
+      - remote_mirror
+      - docs_pack
+    linked_service_ids:
+      - managed_marketplace
+      - managed_catalog
+      - managed_docs_pack
+    linked_api_surface_ids:
+      - managed_marketplace.extension_catalog_read
+      - managed_marketplace.extension_install_request
+      - managed_catalog.runtime_catalog_fetch
+      - managed_docs_pack.docs_pack_manifest_fetch
+    linked_meter_family_classes:
+      - registry_or_mirror_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_both_capacity_and_meter_rows
+      disclosure_summary: >
+        Capacity posture is disclosed per service family on the
+        operating-mode card. Download/egress usage is disclosed via the
+        registry/mirror meter family where customer-visible usage is
+        shown.
+    degradation_and_fallback:
+      degrades:
+        - Discovery narrows to cached or mirror-backed metadata with freshness labels.
+        - New installs may pause or fail closed when signing/scanning/policy checks cannot run.
+      continues_locally:
+        - Existing installed extensions keep working.
+        - Local extension inventory remains inspectable and exportable.
+      fallback_or_export_paths:
+        - Install from a signed mirror snapshot or offline bundle where supported.
+        - Export the installed extension inventory and lockfiles for support/offboarding flows.
+
+  - surface_id: surface.registry.extension_publish
+    title: Extension publish (managed registry publish path)
+    summary: >
+      Managed publish path for extensions or artifacts where a registry
+      service performs signing, scanning, policy checks, or publication.
+    family_id: registry_and_metadata_family
+    dependency_classes:
+      - package_registry
+      - policy_bundle
+    linked_service_ids:
+      - managed_marketplace
+    linked_api_surface_ids: []
+    linked_meter_family_classes:
+      - registry_or_mirror_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_meter_row
+      disclosure_summary: >
+        Publish uses the same chargeback honesty rules as other managed
+        actions. Where publish is metered, the meter row must keep export
+        and continue-local prompts ahead of upgrade/billing prompts.
+    degradation_and_fallback:
+      degrades:
+        - Publish fails closed when the managed signing/scanning/policy path is unavailable.
+      continues_locally:
+        - Local build and local packaging remain available.
+      fallback_or_export_paths:
+        - Publish to a customer-operated mirror path where supported.
+        - Export the artifact for manual distribution; do not claim a managed publish succeeded under uncertainty.
+
+  - surface_id: surface.collaboration.session_join_and_transport
+    title: Collaboration session join and transport
+    summary: >
+      Join/create collaboration sessions, transport deltas, presence, and
+      optional review archive upload.
+    family_id: collaboration_relay_family
+    dependency_classes:
+      - hosted_control_plane_reachability
+      - sign_in
+    linked_service_ids:
+      - managed_relay
+      - managed_collaboration_review
+    linked_api_surface_ids:
+      - managed_relay.collaboration_session_transport
+      - managed_collaboration_review.review_evidence_archive
+    linked_meter_family_classes:
+      - collaboration_relay_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_both_capacity_and_meter_rows
+      disclosure_summary: >
+        Capacity posture is disclosed on the operating-mode card.
+        Collaboration usage/ownership is disclosed via the collaboration
+        meter family without collapsing personal/workspace/org scopes.
+    degradation_and_fallback:
+      degrades:
+        - New sessions may fail closed under overload or partition.
+        - Existing sessions degrade to local-only or read-only follow mode with explicit disclosure.
+        - Archive/evidence upload pauses; replay/reconcile guidance is shown.
+      continues_locally:
+        - Local editing remains authoritative.
+        - Local review artifacts remain available and exportable.
+      fallback_or_export_paths:
+        - Export a local transcript/audit bundle where claimed.
+        - Continue local-only collaboration artifacts (notes, patches) without relay.
+
+  - surface_id: surface.preview.share_link_issue_and_revoke
+    title: Preview/share link issue and revoke
+    summary: >
+      Issue time-bounded preview/share links, enforce TTL, revoke access,
+      and emit audit events.
+    family_id: preview_and_share_family
+    dependency_classes:
+      - hosted_control_plane_reachability
+      - sign_in
+      - policy_bundle
+    linked_service_ids: []
+    linked_api_surface_ids: []
+    linked_meter_family_classes: []
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_operating_mode_capacity_row
+      disclosure_summary: >
+        Share issuance/revocation posture is disclosed as a managed-only
+        action that fails closed under boundary recheck. No silent “share
+        succeeded” under unknown state.
+    degradation_and_fallback:
+      degrades:
+        - New share issuance fails closed when reachability/policy truth is ambiguous.
+        - Revocation uncertainty triggers boundary-recheck disclosure.
+      continues_locally:
+        - Local work and local export remain available.
+      fallback_or_export_paths:
+        - Manual export paths remain available; they do not require share-link services.
+
+  - surface_id: surface.ai.managed_gateway_inference
+    title: Managed AI gateway inference
+    summary: >
+      AI inference routed through the managed AI gateway / broker.
+    family_id: ai_gateway_family
+    dependency_classes:
+      - ai_provider
+      - hosted_control_plane_reachability
+    linked_service_ids:
+      - managed_ai_broker
+    linked_api_surface_ids:
+      - managed_ai_broker.ai_turn_route
+    linked_meter_family_classes:
+      - ai_gateway_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_meter_row
+      disclosure_summary: >
+        AI spend/quota is disclosed via the AI meter family and must be
+        budget-visible and exportable. Exhausted quota narrows only
+        managed inference, not editing.
+    degradation_and_fallback:
+      degrades:
+        - Managed inference fails closed when quota is exhausted or spend cannot be bounded safely.
+      continues_locally:
+        - Non-AI editing flows remain unaffected.
+        - Local and BYOK AI providers remain available without the managed gateway.
+      fallback_or_export_paths:
+        - Switch to BYOK or local AI providers.
+        - Export usage summaries and evidence where required by the metering contract.
+
+  - surface_id: surface.metering.usage_and_forecast_views
+    title: Usage and forecast views (meter rows)
+    summary: >
+      Usage, forecast, chargeback scope, and export parity surfaces used
+      to disclose quota/cost state.
+    family_id: metering_and_chargeback_family
+    dependency_classes:
+      - hosted_control_plane_reachability
+    linked_service_ids:
+      - managed_entitlement_usage
+      - managed_support_export
+      - managed_offboarding_export
+    linked_api_surface_ids:
+      - managed_entitlement_usage.entitlement_snapshot_fetch
+      - managed_entitlement_usage.usage_export_fetch
+      - managed_support_export.support_bundle_attach
+      - managed_offboarding_export.offboarding_exit_packet_assemble
+      - managed_offboarding_export.destruction_receipt_ledger_append
+    linked_meter_family_classes:
+      - profile_or_settings_sync_meter_family
+      - collaboration_relay_meter_family
+      - remote_workspace_control_plane_meter_family
+      - ai_gateway_meter_family
+      - registry_or_mirror_meter_family
+      - support_ingest_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_meter_row
+      disclosure_summary: >
+        Meter rows disclose quota ownership, chargeback scope, export
+        parity, and prompt ordering. Metering failure must not block
+        local-core work.
+    degradation_and_fallback:
+      degrades:
+        - Stale/unreachable metering fails open for local-core work and fails closed only for the bounded managed action.
+      continues_locally:
+        - Local export and support bundle creation remain available.
+      fallback_or_export_paths:
+        - Export usage summaries (CSV/JSON) wherever a number is shown.
+        - Export support bundles locally even when upload is unavailable.
+
+  - surface_id: surface.support.bundle_export_and_upload
+    title: Support bundle export and upload
+    summary: >
+      Create/export support bundles and optionally upload them to a managed
+      support ingest surface when authorized.
+    family_id: telemetry_and_support_family
+    dependency_classes:
+      - hosted_control_plane_reachability
+      - policy_bundle
+    linked_service_ids:
+      - managed_support_export
+      - managed_telemetry_sink
+    linked_api_surface_ids:
+      - managed_support_export.support_bundle_attach
+      - managed_telemetry_sink.telemetry_event_ingest
+    linked_meter_family_classes:
+      - support_ingest_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_both_capacity_and_meter_rows
+      disclosure_summary: >
+        Upload posture is disclosed via the operating-mode card and, when
+        metered, via the support ingest meter family. Local export remains
+        available regardless of upload reachability.
+    degradation_and_fallback:
+      degrades:
+        - Upload pauses or fails under outage; redaction and privacy posture remain enforced.
+      continues_locally:
+        - Local export of support bundles remains available.
+      fallback_or_export_paths:
+        - Provide the bundle through a customer-approved channel; do not require live ingest for export.
+
+  - surface_id: surface.release.mirror_refresh_and_revocation
+    title: Mirror refresh and revocation posture
+    summary: >
+      Mirror refresh, update channel checks, and revocation surfaces used
+      by enterprise/offline deployments.
+    family_id: release_and_distribution_mirror_family
+    dependency_classes:
+      - remote_mirror
+      - policy_bundle
+    linked_service_ids:
+      - managed_marketplace
+      - managed_catalog
+      - managed_docs_pack
+    linked_api_surface_ids: []
+    linked_meter_family_classes:
+      - registry_or_mirror_meter_family
+    quota_and_cost_disclosure:
+      disclosure_class: disclosed_via_operating_mode_capacity_row
+      disclosure_summary: >
+        Mirror freshness and revocation lag are disclosed explicitly; no
+        update “apply” path claims success when provenance is ambiguous.
+    degradation_and_fallback:
+      degrades:
+        - Refresh may lag; staleness is labeled and revocation lag is disclosed.
+        - Update apply fails closed when signature/provenance cannot be verified.
+      continues_locally:
+        - Already-installed artifacts continue working.
+      fallback_or_export_paths:
+        - Use signed offline bundles or customer-operated mirrors.
+        - Export update manifests for offline review.

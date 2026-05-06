@@ -1,0 +1,576 @@
+# Managed-service capacity assumption rows.
+#
+# Planning rows that publish demand assumptions, burst posture, and
+# downgrade expectations for optional managed-service families so they do
+# not become invisible budget or availability prerequisites.
+#
+# Machine-readable companion to
+# docs/service/managed_service_capacity_and_cost_guardrails.md.
+#
+# This file is intentionally *not* a live telemetry feed. It is a review
+# packet: release, ops, support, and docs work cite these rows instead of
+# inventing ad hoc service-limit language.
+#
+# Rules:
+#   - Every row MUST name family_id, title, description,
+#     primary_scaling_axis, default_tenancy, demand_assumptions,
+#     burst_posture, degradation_contract, cost_guardrails, and
+#     local_core_continuity_expectations.
+#   - Rows SHOULD cite linked_service_ids when the family has a current
+#     binding in artifacts/service/slo_rows.yaml. Families that are not
+#     yet represented keep linked_service_ids empty and explain the
+#     missing binding under planned_service_surfaces.
+#   - Milestone slugs MUST NOT appear in any id, path, description, or
+#     note field.
+
+schema_version: 1
+status: seeded
+
+seed_doc: docs/service/managed_service_capacity_and_cost_guardrails.md
+managed_service_seed_ref: docs/service/managed_service_seed.md
+operating_mode_capacity_contract_ref: docs/service/operating_mode_and_capacity_contract.md
+metering_contract_ref: docs/service/metering_and_chargeback_contract.md
+residual_dependency_ledger_ref: artifacts/governance/residual_dependencies.yaml
+slo_rows_ref: artifacts/service/slo_rows.yaml
+api_surface_rows_ref: artifacts/service/api_surface_rows.yaml
+
+# -----------------------------------------------------------------------------
+# Frozen vocabularies.
+# Adding a value is additive-minor; repurposing a value is breaking.
+# -----------------------------------------------------------------------------
+
+family_id_vocabulary:
+  - identity_and_policy_family
+  - sync_family
+  - collaboration_relay_family
+  - provider_overlay_family
+  - metering_and_chargeback_family
+  - registry_and_metadata_family
+  - preview_and_share_family
+  - release_and_distribution_mirror_family
+  - ai_gateway_family
+  - telemetry_and_support_family
+
+default_tenancy_class_vocabulary:
+  - shared_multi_tenant
+  - enterprise_tenant_dedicated
+  - customer_operated_self_hosted
+  - customer_operated_mirror_or_offline_bundle
+  - byok_customer_operated
+  - not_applicable
+
+burst_posture_class_vocabulary:
+  - queue_bounded_then_reject
+  - shed_managed_only_actions_first
+  - degrade_to_cached_or_mirror_with_label
+  - downgrade_to_local_only
+  - hard_reject_unbounded_spend_actions
+
+guardrail_severity_class_vocabulary:
+  - informational_review_required
+  - blocks_launch_claim_until_reviewed
+  - requires_governance_waiver_or_decision
+
+# -----------------------------------------------------------------------------
+# Rows.
+# One row per managed-service family.
+# -----------------------------------------------------------------------------
+
+rows:
+  - family_id: identity_and_policy_family
+    title: Identity session + policy distribution
+    description: >
+      Managed identity and policy distribution surfaces used to gate
+      privileged managed actions (enterprise / self-hosted) while keeping
+      local-safe work available. This family covers session refresh,
+      signed policy bundle fetch, and policy explainability surfaces; it
+      does not grant authority to rewrite local buffers or override local
+      editing.
+    linked_service_ids:
+      - managed_auth_identity
+      - managed_policy_distribution
+    primary_scaling_axis: tenants × active sessions × policy bundle size
+    default_tenancy: enterprise_tenant_dedicated
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Policy bundles are fetched as signed snapshots with bounded
+          size and versioned schema. Session refresh and policy fetch are
+          bursty around startup, but should amortize over steady state.
+        default_policy_bundle_size_ceiling: 5_MiB
+        default_refresh_min_interval: 15_minutes
+      burst:
+        burst_summary: >
+          Expect coordinated refresh bursts after admin policy publish,
+          endpoint restart storms, and region/tenant rechecks.
+        burst_multiplier_guidance: 10x
+    burst_posture:
+      posture_class: queue_bounded_then_reject
+      posture_summary: >
+        Policy/identity refresh MAY queue briefly, but queue growth is
+        bounded. When freshness cannot be maintained, the client routes
+        privileged managed mutations through boundary-recheck posture
+        while preserving local-safe work with last-known-good policy
+        labeling.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Local editing, save, undo, search, and navigation.
+        - Local Git workflows and local export.
+      degradation_and_fallback:
+        - Policy reads may resolve through last-known-good signed cache with stale labeling.
+        - Privileged managed mutations pause under boundary-recheck rather than silently widening permissions.
+        - Identity refresh failure blocks only managed surfaces that require a current session.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Never meter or bill per keystroke, save, or local command.
+          severity: blocks_launch_claim_until_reviewed
+        - guardrail_summary: >
+            Policy and entitlement planes remain separable from metering
+            and rating; delayed billing pipelines may not gate local
+            productivity.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - Local-only operation remains available when sign-in is absent or unreachable.
+      - Policy gating narrows only the specific privileged managed action, never local editing.
+
+  - family_id: sync_family
+    title: Profile and settings sync
+    description: >
+      Optional managed settings/profile sync surface that synchronizes
+      user-scope settings across devices for signed-in users. Sync never
+      becomes a prerequisite for settings resolution: local defaults,
+      user settings, and workspace settings remain authoritative when the
+      managed sync surface is unreachable or quota-bounded.
+    linked_service_ids:
+      - managed_settings_sync
+    primary_scaling_axis: active users × sync frequency × object size
+    default_tenancy: shared_multi_tenant
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Stored sync state stays small by default. Large payloads
+          require explicit admin opt-in with disclosure rather than
+          silently widening the default envelope.
+        default_stored_state_ceiling_per_active_user: 50_MiB
+      burst:
+        burst_summary: >
+          Bursts align with multi-device sign-in, mass onboarding, and
+          first-run after a settings schema bump.
+        burst_multiplier_guidance: 6x
+    burst_posture:
+      posture_class: degrade_to_cached_or_mirror_with_label
+      posture_summary: >
+        Sync pauses or narrows under overload/quota, while local settings
+        remain authoritative. Cached last-known-good synced state may be
+        used for reads only when it is freshness-labeled; no startup
+        spinner or whole-product gating is allowed.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Settings resolution from local defaults, user settings, and workspace settings.
+        - Local editing, local Git, and local export.
+      degradation_and_fallback:
+        - Sync pauses; local settings remain authoritative.
+        - Sync conflicts require explicit reconcile UX; no silent overwrite of local state.
+        - Export and backup paths remain available for local settings state.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Profile sync defaults stay within 50 MB per active user
+            unless an admin explicitly expands quotas with disclosure.
+          severity: blocks_launch_claim_until_reviewed
+        - guardrail_summary: >
+            Non-AI managed-service COGS targets ≤ US$3 per monthly active
+            seat at meaningful scale; sync must not silently push the
+            envelope above the declared posture.
+          severity: informational_review_required
+    local_core_continuity_expectations:
+      - Sync narrows to local settings; local settings remain authoritative.
+      - The user can keep working with local settings even when sync is paused.
+
+  - family_id: collaboration_relay_family
+    title: Collaboration relay + presence
+    description: >
+      Managed collaboration session transport, presence fan-out, and
+      optional archive/evidence relay. This family must preserve local
+      authority over buffers and degrade to local-only or read-only
+      follow modes without silent authority drift.
+    linked_service_ids:
+      - managed_relay
+      - managed_collaboration_review
+    primary_scaling_axis: concurrent sessions × participants × regions
+    default_tenancy: shared_multi_tenant
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Presence and text collaboration are the baseline workload; any
+          future media/screen-share features are explicitly separate
+          capacity domains and must not ride the same guardrail without a
+          row update.
+        default_region_count: 1
+      burst:
+        burst_summary: >
+          Session-start storms (classroom events, incident bridges) are
+          the dominant burst case; fan-out amplifies hot shards.
+        burst_multiplier_guidance: 5x
+    burst_posture:
+      posture_class: shed_managed_only_actions_first
+      posture_summary: >
+        Under overload, the relay sheds non-critical managed-only flows
+        (presence richness, archive upload, optional external fan-out)
+        before it narrows local editing or local review. New sessions may
+        fail closed while existing sessions degrade to local-only with
+        explicit disclosure.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Local editing and local review remain authoritative.
+        - Local export of review artifacts remains available.
+      degradation_and_fallback:
+        - Session degrades to local-only mode with explicit “not synced” labeling.
+        - Read-only follow mode is allowed when authority cannot be maintained.
+        - Archive/evidence upload pauses; local export remains available.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Collaboration relay plus presence targets ≤ US$0.75 per
+            monthly active collaborating seat for text/presence flows.
+          severity: blocks_launch_claim_until_reviewed
+        - guardrail_summary: >
+            Session metadata and audit retention remain bounded by
+            declared classes; relay may not expand retention implicitly.
+          severity: informational_review_required
+    local_core_continuity_expectations:
+      - Collaboration loss narrows collaboration, not editing.
+      - Recovery provides reconcile guidance; it does not silently merge conflicting authority.
+
+  - family_id: provider_overlay_family
+    title: Provider overlays (code host / CI / companion adapters)
+    description: >
+      Optional adapters that enrich local work with provider-backed
+      overlays (review status, comment anchors, CI checks, notifications,
+      usage state). Overlays remain distinct from local truth and cannot
+      overwrite local state silently.
+    linked_service_ids: []
+    planned_service_surfaces:
+      - surface_summary: >
+          Provider overlay fetch and notification fan-out surfaces are
+          expected to bind to their own SLO rows once the service-id
+          vocabulary expands.
+        expected_binding: artifacts/service/slo_rows.yaml (new service ids)
+    primary_scaling_axis: active users × provider requests × webhook volume
+    default_tenancy: not_applicable
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Overlay reads are opportunistic and cacheable. Provider rate
+          limits and user consent boundaries dominate throughput more
+          than raw compute.
+        default_cache_ttl: 60_seconds
+      burst:
+        burst_summary: >
+          Bursts align with CI completion storms, repo-wide ref changes,
+          and notification floods.
+        burst_multiplier_guidance: 10x
+    burst_posture:
+      posture_class: degrade_to_cached_or_mirror_with_label
+      posture_summary: >
+        Overlays degrade to cached last-known-good state with freshness
+        labeling. Provider-overlay impairment must never block local edit,
+        local Git, or local build/run flows.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Local editing, local Git, and local build/run.
+      degradation_and_fallback:
+        - Overlay state becomes stale-labeled or unavailable without implying local truth changed.
+        - Any “apply suggestion” action requires local validation and never routes through silent remote authority.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Provider overlay traffic remains bounded by explicit rate
+            limits and consent; no background poll loop without a visible
+            control and clear disable path.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - Local truth remains authoritative; overlays never become required for navigation or editing.
+
+  - family_id: metering_and_chargeback_family
+    title: Metering, usage export, and chargeback honesty
+    description: >
+      Managed metering/usage export surfaces that make spend inspectable
+      and reversible. Metering may fail open for already-authorized
+      local-safe work and fail closed only for the specific managed
+      action whose spend cannot be bounded safely.
+    linked_service_ids:
+      - managed_entitlement_usage
+      - managed_support_export
+      - managed_offboarding_export
+    primary_scaling_axis: events × aggregation windows × export volume
+    default_tenancy: shared_multi_tenant
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Meter units and windows are customer-visible contracts once
+          exposed; export parity (CSV/JSON) is required wherever a number
+          is shown.
+        default_export_formats:
+          - csv
+          - json
+      burst:
+        burst_summary: >
+          Bursts align with reset windows, offboarding windows, and
+          enterprise billing cycles.
+        burst_multiplier_guidance: 4x
+    burst_posture:
+      posture_class: queue_bounded_then_reject
+      posture_summary: >
+        Usage exports may queue and resume; local-safe workflows remain
+        available. Managed actions that require bounded spend may fail
+        closed under unavailable metering.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Local editing, local search, local Git, and existing automation.
+      degradation_and_fallback:
+        - Metering failure cannot block sign-in or local work.
+        - Export paths remain reachable wherever the metering contract requires them.
+        - Prompt ordering preserves continue-local and export before upgrade/billing prompts.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            No customer-visible metric may exist without an export and
+            explainability path.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - Metering is a disclosure plane; it cannot become a hidden prerequisite for productivity.
+
+  - family_id: registry_and_metadata_family
+    title: Registry, catalog, and docs-pack metadata
+    description: >
+      Managed registry and catalog metadata surfaces used for extension
+      discovery, install, docs packs, and mirrorable distribution.
+      Existing installed artifacts must keep working under outage; new
+      installs degrade to mirror/offline bundles where supported.
+    linked_service_ids:
+      - managed_marketplace
+      - managed_catalog
+      - managed_docs_pack
+    primary_scaling_axis: package count × download volume × scan workload
+    default_tenancy: shared_multi_tenant
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Metadata is cacheable and mirrorable. Install and update paths
+          must separate “discover metadata” from “execute local install”
+          so cached metadata can continue to serve read-only flows.
+        default_metadata_cache_max_age: 24_hours
+      burst:
+        burst_summary: >
+          Bursts align with release drops, popular extension updates, and
+          incident-driven mass installs.
+        burst_multiplier_guidance: 8x
+    burst_posture:
+      posture_class: degrade_to_cached_or_mirror_with_label
+      posture_summary: >
+        Reads degrade to cached or mirror-backed metadata with freshness
+        labels. Writes (publish) fail closed when signing, scanning, or
+        policy checks cannot run.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Existing installed extensions keep working.
+        - Local extension inventory remains inspectable and exportable.
+      degradation_and_fallback:
+        - Installs fall back to mirror/offline bundles where supported.
+        - Publish requires explicit managed reachability; it does not pretend to succeed.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Storage/egress budgets are tracked per release train and
+            mirror path; mirrorability is not optional for claimed
+            offline/sovereign profiles.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - Marketplace discovery may narrow; local work and already-installed artifacts remain usable.
+
+  - family_id: preview_and_share_family
+    title: Preview / share routes and revocation
+    description: >
+      Managed preview/share issuance, TTL enforcement, revocation, and
+      audit for “share a view” and external preview workflows. Outage
+      blocks new shares but must not corrupt local-only work or widen data
+      exposure.
+    linked_service_ids: []
+    planned_service_surfaces:
+      - surface_summary: >
+          Preview/share route broker and revocation services are expected
+          to bind to their own service ids when implemented.
+        expected_binding: artifacts/service/slo_rows.yaml (new service ids)
+    primary_scaling_axis: share links × revocations × audit volume
+    default_tenancy: shared_multi_tenant
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Share links are time-bounded and policy-gated; route issuance is
+          explicit user action, not background traffic.
+        default_link_ttl: 7_days
+      burst:
+        burst_summary: >
+          Bursts align with release demos, incident bridges, and
+          classroom sessions.
+        burst_multiplier_guidance: 6x
+    burst_posture:
+      posture_class: downgrade_to_local_only
+      posture_summary: >
+        If issuance/revocation capacity is impaired, the product blocks
+        new external shares and downgrades to local-only or manual export
+        paths. No silent “share succeeded” under uncertainty.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Local editing and local export.
+      degradation_and_fallback:
+        - New share issuance fails closed with a recovery cue.
+        - Manual export remains available; existing local work is unchanged.
+        - Revocation uncertainty triggers boundary-recheck disclosure.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            External share features must have a hard cap on link issuance
+            and audit retention per declared class; no unbounded link or
+            audit growth.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - Preview/share is additive; when unavailable, the user retains local export alternatives.
+
+  - family_id: release_and_distribution_mirror_family
+    title: Release, update, and distribution mirrors
+    description: >
+      Managed update distribution, mirror publication, revocation, and
+      provenance surfaces used by enterprise, sovereign, and offline
+      deployments. Installed artifacts continue working; mirror freshness
+      and revocation lag are visible.
+    linked_service_ids:
+      - managed_marketplace
+      - managed_docs_pack
+      - managed_catalog
+    primary_scaling_axis: artifacts × channels × mirror refresh cadence
+    default_tenancy: customer_operated_mirror_or_offline_bundle
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Mirrors are content-addressed where possible; publication uses
+          the same signer/provenance vocabulary as vendor distribution.
+        default_mirror_refresh_cadence: 24_hours
+      burst:
+        burst_summary: >
+          Bursts align with releases, emergency revocations, and
+          fleet-wide update windows.
+        burst_multiplier_guidance: 12x
+    burst_posture:
+      posture_class: degrade_to_cached_or_mirror_with_label
+      posture_summary: >
+        Mirror refresh may lag under pressure but must disclose staleness
+        and revocation lag. Update “apply” actions fail closed if the
+        provenance path is ambiguous.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Already-installed artifacts continue working.
+        - Local rollback and local export remain available.
+      degradation_and_fallback:
+        - Freshness labels are mandatory when mirror lag exceeds the declared floor.
+        - Update apply blocks when signature/provenance is not verifiable.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Mirrorability is a hard requirement for claimed offline and
+            sovereign profiles; no managed-only distribution path without
+            an export/mirror alternative.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - Update distribution cannot become a single point of failure for local productivity.
+
+  - family_id: ai_gateway_family
+    title: AI gateway and model routing
+    description: >
+      Managed AI broker / gateway used for hosted inference routing. AI
+      is quota-bound, budget-visible, and optional; local and BYOK
+      providers remain reachable without the managed gateway.
+    linked_service_ids:
+      - managed_ai_broker
+    primary_scaling_axis: tokens × model mix × tool calls
+    default_tenancy: byok_customer_operated
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Hosted AI is optional and quota-bound. Spend must be visible
+          and controllable at the org scope.
+        default_request_max_tokens: 8192
+      burst:
+        burst_summary: >
+          Bursts align with batch refactors, large-context operations,
+          and multi-agent workflows.
+        burst_multiplier_guidance: 20x
+    burst_posture:
+      posture_class: hard_reject_unbounded_spend_actions
+      posture_summary: >
+        The gateway denies or queues the specific managed inference
+        request rather than degrading the shell. Exhausted budget blocks
+        only managed inference; local/BYOK AI remain available.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - All non-AI editing flows.
+      degradation_and_fallback:
+        - Managed inference disables or pauses with a clear quota/cost reason.
+        - Fallback routes to local/BYOK providers without affecting editing.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Hosted AI must be quota-bound, budget-visible, and optional;
+            no “unlimited token burn” posture.
+          severity: blocks_launch_claim_until_reviewed
+    local_core_continuity_expectations:
+      - AI impairment never blocks editing; it narrows only AI features.
+
+  - family_id: telemetry_and_support_family
+    title: Telemetry, support export, and diagnostics ingest
+    description: >
+      Managed telemetry and support ingest surfaces used to upload events
+      and support bundles when authorized. Telemetry loss is acceptable
+      during incidents if it preserves privacy and local-core operation;
+      local logs and export bundles remain available.
+    linked_service_ids:
+      - managed_telemetry_sink
+      - managed_support_export
+      - managed_offboarding_export
+      - managed_entitlement_usage
+    primary_scaling_axis: event volume × retention × attachment size
+    default_tenancy: shared_multi_tenant
+    demand_assumptions:
+      baseline:
+        assumption_summary: >
+          Telemetry is opt-in per policy/privacy posture; support bundles
+          are explicit user/admin actions and are redaction-aware.
+        default_attachment_size_ceiling: 200_MiB
+      burst:
+        burst_summary: >
+          Bursts align with crash storms, incident response, and fleet
+          rollouts.
+        burst_multiplier_guidance: 6x
+    burst_posture:
+      posture_class: queue_bounded_then_reject
+      posture_summary: >
+        Uploads may queue and resume; the client never blocks local work
+        waiting for ingest. When retention/region policy is ambiguous,
+        uploads fail closed with a policy/region disclosure.
+    degradation_contract:
+      must_not_break_local_workflow:
+        - Local logs remain accessible and exportable.
+        - Local editing and local Git.
+      degradation_and_fallback:
+        - Upload pauses or fails; local export remains available.
+        - Privacy posture prevents silent widening of what is collected.
+    cost_guardrails:
+      guardrails:
+        - guardrail_summary: >
+            Retention is bounded by declared privacy class only; no
+            implicit retention expansion under outage.
+          severity: informational_review_required
+    local_core_continuity_expectations:
+      - Supportability remains available via local export even when managed ingest is unreachable.

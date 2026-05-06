@@ -1,0 +1,46 @@
+capacity_guardrail_case_schema_version: 1
+case_id: service.capacity_guardrail.collaboration_cost_guardrail_breach
+case_title: Collaboration relay cost guardrail breach triggers downgrade behavior
+expected_decision: downgrade_and_disclose
+
+scenario: >
+  The collaboration relay’s observed cost per monthly active collaborating
+  seat exceeds the declared guardrail for text/presence flows. The product
+  must not treat collaboration availability as a prerequisite for local
+  editing; instead it narrows collaboration-only capabilities and
+  discloses the downgrade posture with recovery guidance.
+
+inputs:
+  family_row_ref:
+    file: artifacts/service/capacity_assumption_rows.yaml
+    family_id: collaboration_relay_family
+  observed_state:
+    metric: cost_per_monthly_active_collaborating_seat
+    observed_value: "US$1.20"
+    window: calendar_month_utc
+    breach_summary: >
+      Observed cost exceeds the declared target; this is a guardrail
+      breach requiring review and a downgrade posture until resolved.
+
+required_behavior:
+  must_not_break_local_workflow:
+    - Local editing remains authoritative and available.
+    - Local export of review artifacts remains available.
+  downgrade_posture:
+    - New sessions may fail closed under overload/cost guardrail breach.
+    - Existing sessions degrade to local-only with explicit “not synced” labeling.
+    - Archive/evidence upload pauses; local export remains available.
+  disclosures_required:
+    - Cite the collaboration family row and the collaboration meter family (when usage is shown).
+    - Provide a recovery cue that is mechanical (wait, retry, switch mode), not “contact support”.
+
+assertions:
+  blocks_local_editing: false
+  collaboration_only_narrowing: true
+  export_paths_remain_available: true
+
+narrative_refs:
+  - docs/service/managed_service_capacity_and_cost_guardrails.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/service/metering_and_chargeback_contract.md
+
