@@ -1,0 +1,103 @@
+# Wake reconnect + expired managed-session seed.
+#
+# The key assertion: restore preserves layout truth but does not pretend a
+# remote/managed surface is live when authority expired; it inserts a
+# placeholder with an explicit reauth/restricted-open path and records the
+# authority rebind requirement.
+__fixture__:
+  name: wake_reconnect_managed_session_expired
+  scenario: >
+    A managed workspace is reopened after wake. Monitor topology changed
+    modestly (safe bounds recomputed) and the managed session ticket
+    expired while asleep. Restore preserves the pane slot/role, replaces
+    the remote pane with a placeholder that names the expired authority,
+    and offers explicit reauthentication or restricted-open actions. No
+    hidden reauth, no silent remote reconnect with stale grants. Restore
+    history and provenance record the authority rebind requirement and
+    the topology adjustment.
+  contract_refs:
+    - docs/ux/restore_placeholder_and_recenter_matrix.md
+    - docs/ux/window_display_contract.md#4
+    - docs/state/restore_provenance_and_placeholder_contract.md
+    - docs/workspace/entry_restore_object_model.md#3.2
+  exercised_axes:
+    topology_change_classes: [wake_display_reconnect, safe_bounds_changed]
+    restore_fidelity_floor: layout_only
+    owner_dialog_recenter: false
+    live_surface_no_rerun: true
+    dependency_placeholders: true
+
+record_kind: restore_topology_case_record
+restore_topology_case_schema_version: 1
+case_id: restore-topology:wake-reconnect-managed-session-expired
+
+topology_change:
+  topology_change_classes:
+    - wake_display_reconnect
+    - safe_bounds_changed
+  wake_or_reopen_class: wake_display_reconnect
+
+expected_restore_fidelity:
+  restore_level: layout_only
+  must_not_claim: [exact_restore, compatible_restore]
+
+expected_window_restore_history:
+  restore_history_event_classes:
+    - display_topology_changed
+    - authority_rebind_required
+    - missing_surface_placeholder_inserted
+  restore_adjustment_classes:
+    - authority_rebind_deferred
+    - snapped_to_safe_bounds
+  user_visible_layout_adjusted_note_required: true
+
+expected_layout_restore_provenance:
+  display_adjustments:
+    - adjustment_class: snapped_to_safe_bounds
+      note: >
+        Safe bounds recomputed on wake; unreachable geometry clamped before
+        focus restore.
+  placeholder_results:
+    - pane_id: pane-managed-remote-0001
+      surface_role: explorer
+      surface_class: extension_view
+      placeholder_reason: missing_remote_authority
+      safe_actions: [reauthenticate, export_evidence, open_without]
+      evidence_retained: true
+      last_known_provenance_label: Managed workspace remote attach (cached)
+      note: >
+        Placeholder occupies the same pane slot; remote capability is not
+        live until reauthentication succeeds.
+  live_surface_outcomes:
+    - pane_id: pane-managed-remote-0001
+      live_surface_class: remote_tunnel
+      restore_posture: placeholder_until_manual_rebind
+      authority_posture: reauth_required
+      no_rerun_guardrails:
+        - no_hidden_authority_reacquire
+        - explicit_user_action_required
+        - placeholder_preserved
+      evidence_retained: true
+      note: >
+        Remote tunnel does not reattach automatically; placeholder keeps
+        context visible.
+
+expected_state_placeholder_cards:
+  missing_dependency_classes: [revoked_permission]
+  placeholder_cards:
+    - placeholder_card_id: placeholder-card-managed-remote-0001
+      missing_dependency_class: revoked_permission
+      missing_dependency_ref: null
+      preserved_pane_id: pane-managed-remote-0001
+      preserved_pane_role: explorer
+      preserved_surface_class: extension_view
+      evidence_retained: true
+      recovery_actions: [reauthenticate, open_restricted, export_evidence]
+      last_known_provenance_label: Managed workspace session ticket (expired)
+
+related_fixtures:
+  - fixtures/ux/entry_restore_states/partial_startup.yaml
+
+running_build_identity_ref: build-identity-seed-restore-topology
+minted_at: "mono:7000:00:00:00.0000"
+

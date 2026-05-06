@@ -1,0 +1,84 @@
+# Display-detach safe-bounds remap seed.
+#
+# Companion to docs/ux/restore_placeholder_and_recenter_matrix.md and
+# docs/ux/window_display_contract.md.
+__fixture__:
+  name: display_detach_safe_bounds_remap
+  scenario: >
+    A secondary window was last known on an external display that is not
+    connected on reopen. Restore remaps the window into reachable bounds
+    on the remaining display, recenters an owned dialog with its owner,
+    and records the adjustment in restore history and per-window
+    provenance. A terminal pane inside the window restores as
+    transcript/evidence-only (no PTY rerun) with explicit no-rerun
+    guardrails.
+  contract_refs:
+    - docs/ux/restore_placeholder_and_recenter_matrix.md
+    - docs/ux/window_display_contract.md#4
+    - docs/workspace/layout_serialization_contract.md#4
+    - docs/workspace/layout_serialization_contract.md#5
+  exercised_axes:
+    topology_change_classes: [display_removed, safe_bounds_changed]
+    restore_fidelity_floor: compatible_restore
+    owner_dialog_recenter: true
+    live_surface_no_rerun: true
+    dependency_placeholders: false
+
+record_kind: restore_topology_case_record
+restore_topology_case_schema_version: 1
+case_id: restore-topology:display-detach-safe-bounds-remap
+
+topology_change:
+  topology_change_classes:
+    - display_removed
+    - safe_bounds_changed
+  last_known_display_ref: display-external-0001
+  current_display_refs: [display-primary-0001]
+  wake_or_reopen_class: app_reopen
+
+expected_restore_fidelity:
+  restore_level: compatible_restore
+  must_not_claim: [exact_restore]
+
+expected_window_restore_history:
+  restore_history_event_classes:
+    - display_topology_changed
+    - window_moved_to_safe_bounds
+    - dialog_owner_recentered
+  restore_adjustment_classes:
+    - moved_to_primary_display
+    - snapped_to_safe_bounds
+    - dialog_recentered_to_owner
+  user_visible_layout_adjusted_note_required: true
+
+expected_layout_restore_provenance:
+  display_adjustments:
+    - adjustment_class: moved_to_primary_display
+      note: >
+        Last-known bounds referenced an unavailable display; window moved
+        to the primary display before focus restore.
+    - adjustment_class: snapped_to_safe_bounds
+      note: >
+        Bounds clamped to current safe visible region after display detach.
+  placeholder_results: []
+  live_surface_outcomes:
+    - pane_id: pane-terminal-0001
+      live_surface_class: terminal
+      restore_posture: evidence_only_placeholder
+      authority_posture: manual_rebind_required
+      no_rerun_guardrails:
+        - no_command_rerun
+        - no_hidden_authority_reacquire
+        - transcript_or_snapshot_only
+        - explicit_user_action_required
+      evidence_retained: true
+      note: >
+        Terminal transcript is restored; rerun requires explicit user action.
+
+related_fixtures:
+  - fixtures/platform/window_display_cases/display_detach_dock_safe_bounds.json
+  - fixtures/ux/shell_layout_classes/offscreen_restore_recentre.json
+
+running_build_identity_ref: build-identity-seed-restore-topology
+minted_at: "mono:7000:00:00:00.0000"
+

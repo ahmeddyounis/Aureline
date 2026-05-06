@@ -1,0 +1,184 @@
+# Restore placeholder matrix (dependency-loss classes + required actions).
+#
+# Machine-readable companion to:
+#   docs/ux/restore_placeholder_and_recenter_matrix.md
+#
+# This artifact pins the closed placeholder-class set used by restore
+# summaries, provenance inspectors, support export, and docs/help so
+# restore never silently collapses layout or overclaims capability.
+#
+# Conformance:
+# - Each placeholder_class_row binds three already-frozen vocabularies:
+#   (1) entry/restore missing_target_state tokens (pre-commit disclosure),
+#   (2) per-pane placeholder-reason classes on window-topology restore, and
+#   (3) state-level missing_dependency_class rows used by placeholder cards.
+# - Adding a row or adding new example fixtures is additive-minor and must
+#   land with updates to the companion doc and at least one fixture.
+# - Repurposing an existing class_id, missing_dependency_class, or action
+#   semantics is breaking and requires a new governance decision row.
+#
+# If this file and the companion doc disagree, the doc wins and this file
+# updates in the same change.
+
+restore_placeholder_matrix_schema_version: 1
+
+sources:
+  matrix_doc_ref: docs/ux/restore_placeholder_and_recenter_matrix.md
+  entry_restore_object_model_ref: docs/workspace/entry_restore_object_model.md
+  workspace_layout_serialization_contract_ref: docs/workspace/layout_serialization_contract.md
+  window_display_contract_ref: docs/ux/window_display_contract.md
+  restore_provenance_and_placeholder_contract_ref: docs/state/restore_provenance_and_placeholder_contract.md
+  placeholder_honesty_contract_ref: docs/ux/empty_loading_placeholder_contract.md
+  state_schema_ref: schemas/state/restore_provenance_record.schema.json
+  workspace_schema_ref: schemas/workspace/pane_tree.schema.json
+  fixture_corpora:
+    - fixtures/state/restore_placeholder_cases/
+    - fixtures/workspace/layout_serialization_examples/
+    - fixtures/ux/entry_restore_states/
+    - fixtures/ux/shell_slot_cases/
+    - fixtures/ux/restore_topology_cases/
+
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.6
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.10
+
+placeholder_class_rows:
+  - class_id: placeholder.absent_extension
+    missing_dependency_class: absent_extension
+    entry_missing_target_states:
+      - missing_extension_host
+      - quarantined_extension
+    pane_tree_placeholder_reason_classes:
+      - missing_extension
+    required_recovery_actions:
+      - locate_extension
+      - install_extension
+      - open_without
+      - export_evidence
+      - remove_pane
+    fidelity_ceiling: layout_only
+    required_disclosures:
+      - preserves_pane_id_and_role
+      - names_missing_owner_or_pack
+      - does_not_claim_live_capability
+    forbidden_outcomes:
+      - silent_pane_deletion
+      - silent_layout_collapse
+      - placeholder_rendered_as_ready
+    example_fixtures:
+      - fixtures/state/restore_placeholder_cases/layout_only_missing_extension_remote_and_revoked_permission.yaml
+      - fixtures/workspace/layout_serialization_examples/layout_restore_provenance_missing_dependencies.json
+      - fixtures/ux/shell_slot_cases/inspector_extension_missing_placeholder.json
+
+  - class_id: placeholder.absent_remote_target
+    missing_dependency_class: absent_remote_target
+    entry_missing_target_states:
+      - missing_remote_target
+      - missing_managed_workspace
+    pane_tree_placeholder_reason_classes:
+      - missing_remote
+    required_recovery_actions:
+      - reconnect_remote
+      - reauthenticate
+      - export_evidence
+      - remove_pane
+    fidelity_ceiling: layout_only
+    required_disclosures:
+      - preserves_pane_id_and_role
+      - remote_identity_is_redaction_aware
+      - no_stale_route_grant_reuse
+    forbidden_outcomes:
+      - silent_remote_reconnect
+      - empty_live_surface_simulation
+      - placeholder_rendered_as_ready
+    example_fixtures:
+      - fixtures/state/restore_placeholder_cases/layout_only_missing_extension_remote_and_revoked_permission.yaml
+      - fixtures/ux/cross_window_transfer_cases/degraded_missing_remote_target_placeholder.json
+
+  - class_id: placeholder.revoked_permission
+    missing_dependency_class: revoked_permission
+    entry_missing_target_states:
+      - authority_expired_for_remote
+      - policy_blocked_restore
+    pane_tree_placeholder_reason_classes:
+      - missing_remote_authority
+      - revoked_permission
+    required_recovery_actions:
+      - reauthenticate
+      - open_restricted
+      - export_evidence
+    fidelity_ceiling: layout_only
+    required_disclosures:
+      - authority_boundary_is_visible
+      - no_hidden_authority_reacquisition
+    forbidden_outcomes:
+      - silent_token_refresh
+      - restored_surface_claims_write_authority
+    example_fixtures:
+      - fixtures/state/restore_placeholder_cases/layout_only_missing_extension_remote_and_revoked_permission.yaml
+      - fixtures/ux/entry_restore_states/offline_startup.yaml
+
+  - class_id: placeholder.stale_service_dependency
+    missing_dependency_class: stale_service_dependency
+    entry_missing_target_states:
+      - missing_managed_workspace
+      - missing_remote_target
+    pane_tree_placeholder_reason_classes:
+      - missing_remote
+      - manual_recovery_required
+    required_recovery_actions:
+      - retry_hydrate
+      - open_repair_instructions
+      - export_evidence
+      - remove_pane
+    fidelity_ceiling: layout_only
+    required_disclosures:
+      - dependency_marked_stale_or_invalid
+      - does_not_claim_live_capability
+    forbidden_outcomes:
+      - repeated_hidden_retry_loop
+      - placeholder_rendered_as_ready
+    example_fixtures:
+      - fixtures/state/restore_placeholder_cases/evidence_only_stale_service_dependency.yaml
+
+  - class_id: placeholder.missing_workspace_authority
+    missing_dependency_class: missing_workspace_authority
+    entry_missing_target_states:
+      - missing_profile
+      - corrupt_restorable_state
+    pane_tree_placeholder_reason_classes:
+      - manual_recovery_required
+    required_recovery_actions:
+      - compare_with_preserved_artifact
+      - escalate_to_manual_repair
+      - export_evidence
+    fidelity_ceiling: evidence_only
+    required_disclosures:
+      - layout_preserved_as_evidence
+      - manual_repair_required
+    forbidden_outcomes:
+      - silent_discard_of_authority_checkpoint
+    example_fixtures:
+      - fixtures/state/restore_placeholder_cases/recovered_drafts_dirty_buffers.yaml
+
+  - class_id: placeholder.missing_schema_equivalence_map
+    missing_dependency_class: missing_schema_equivalence_map
+    entry_missing_target_states:
+      - schema_migrated
+      - binary_or_extension_version_changed
+    pane_tree_placeholder_reason_classes:
+      - schema_migration_review_required
+    required_recovery_actions:
+      - compare_with_preserved_artifact
+      - open_repair_instructions
+      - escalate_to_manual_repair
+      - export_evidence
+    fidelity_ceiling: compatible_restore
+    required_disclosures:
+      - schema_shift_visible
+      - prior_artifact_retained_for_compare
+    forbidden_outcomes:
+      - meaning_change_hidden_behind_success_badge
+    example_fixtures:
+      - fixtures/state/restore_placeholder_cases/compatible_restore_schema_translation.yaml
+

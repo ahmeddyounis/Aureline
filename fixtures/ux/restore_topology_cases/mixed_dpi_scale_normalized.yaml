@@ -1,0 +1,68 @@
+# Mixed-DPI drift scale-normalize seed.
+#
+# Companion to docs/ux/window_display_contract.md and the restore
+# provenance + topology-adjustment rules.
+__fixture__:
+  name: mixed_dpi_scale_normalized
+  scenario: >
+    A window is restored after docking/undocking into a mixed-DPI change
+    (e.g. prior 2x external monitor → current 1x internal display). The
+    shell updates scale/hit testing before routing commands, then clamps
+    bounds into safe visible region and records the scale normalization
+    as a reviewable adjustment. Focus and the recovery actions remain
+    keyboard reachable.
+  contract_refs:
+    - docs/ux/restore_placeholder_and_recenter_matrix.md
+    - docs/ux/window_display_contract.md#4
+    - docs/workspace/layout_serialization_contract.md#4
+  exercised_axes:
+    topology_change_classes: [scale_changed, safe_bounds_changed]
+    restore_fidelity_floor: compatible_restore
+    owner_dialog_recenter: false
+    live_surface_no_rerun: false
+    dependency_placeholders: false
+
+record_kind: restore_topology_case_record
+restore_topology_case_schema_version: 1
+case_id: restore-topology:mixed-dpi-scale-normalized
+
+topology_change:
+  topology_change_classes:
+    - scale_changed
+    - safe_bounds_changed
+  last_known_scale_bucket: 2x
+  current_scale_bucket: 1x
+  wake_or_reopen_class: wake_display_reconnect
+
+expected_restore_fidelity:
+  restore_level: compatible_restore
+  must_not_claim: [exact_restore]
+
+expected_window_restore_history:
+  restore_history_event_classes:
+    - display_topology_changed
+    - scale_bucket_changed
+    - window_moved_to_safe_bounds
+  restore_adjustment_classes:
+    - scale_normalized
+    - snapped_to_safe_bounds
+  user_visible_layout_adjusted_note_required: true
+
+expected_layout_restore_provenance:
+  display_adjustments:
+    - adjustment_class: scale_normalized
+      note: >
+        Scale bucket drifted; normalized bounds before restoring focus and
+        keyboard routing.
+    - adjustment_class: snapped_to_safe_bounds
+      note: >
+        Bounds clamped to current safe visible region after DPI drift.
+  placeholder_results: []
+  live_surface_outcomes: []
+
+related_fixtures:
+  - fixtures/platform/window_display_cases/mixed_dpi_cross_monitor_reflow.json
+
+running_build_identity_ref: build-identity-seed-restore-topology
+minted_at: "mono:7000:00:00:00.0000"
+

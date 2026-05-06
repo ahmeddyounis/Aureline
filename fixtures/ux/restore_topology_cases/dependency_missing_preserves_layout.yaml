@@ -1,0 +1,81 @@
+# Dependency-missing preserve-layout seed.
+#
+# The key assertion: missing dependencies replace only the affected pane
+# with a placeholder and preserve the original pane role + surrounding
+# layout; they do not silently delete or relocate panes.
+__fixture__:
+  name: dependency_missing_preserves_layout
+  scenario: >
+    On reopen, a required extension/feature pack for one pane is not
+    available. Restore preserves the overall pane tree and replaces only
+    the contributed surface with a placeholder in the same slot, keeping
+    the pane role and stable pane id. Restore surfaces clearly disclose
+    that fidelity is layout-only and provide install/locate and
+    open-without actions rather than collapsing the layout.
+  contract_refs:
+    - docs/ux/restore_placeholder_and_recenter_matrix.md
+    - docs/workspace/layout_serialization_contract.md#5
+    - docs/state/restore_provenance_and_placeholder_contract.md
+  exercised_axes:
+    topology_change_classes: [dependency_missing, app_reopen]
+    restore_fidelity_floor: layout_only
+    owner_dialog_recenter: false
+    live_surface_no_rerun: false
+    dependency_placeholders: true
+
+record_kind: restore_topology_case_record
+restore_topology_case_schema_version: 1
+case_id: restore-topology:dependency-missing-preserves-layout
+
+topology_change:
+  topology_change_classes:
+    - app_reopen
+    - dependency_missing
+  wake_or_reopen_class: app_reopen
+
+expected_restore_fidelity:
+  restore_level: layout_only
+  must_not_claim: [exact_restore, compatible_restore]
+
+expected_window_restore_history:
+  restore_history_event_classes:
+    - missing_surface_placeholder_inserted
+    - live_surface_no_rerun_enforced
+  restore_adjustment_classes:
+    - placeholder_inserted
+  user_visible_layout_adjusted_note_required: false
+
+expected_layout_restore_provenance:
+  display_adjustments: []
+  placeholder_results:
+    - pane_id: pane-extension-view-0001
+      surface_role: docs
+      surface_class: extension_view
+      placeholder_reason: missing_extension
+      safe_actions: [locate_extension, install_extension, open_without, export_evidence, remove_pane]
+      evidence_retained: true
+      last_known_provenance_label: Extension-provided docs view (cached)
+      note: >
+        Placeholder occupies the same pane slot; surrounding layout is
+        unchanged.
+  live_surface_outcomes: []
+
+expected_state_placeholder_cards:
+  missing_dependency_classes: [absent_extension]
+  placeholder_cards:
+    - placeholder_card_id: placeholder-card-extension-view-0001
+      missing_dependency_class: absent_extension
+      missing_dependency_ref: null
+      preserved_pane_id: pane-extension-view-0001
+      preserved_pane_role: docs
+      preserved_surface_class: extension_view
+      evidence_retained: true
+      recovery_actions: [locate_extension, install_extension, open_without, export_evidence, remove_pane]
+      last_known_provenance_label: Extension/feature pack missing
+
+related_fixtures:
+  - fixtures/state/restore_placeholder_cases/layout_only_missing_extension_remote_and_revoked_permission.yaml
+
+running_build_identity_ref: build-identity-seed-restore-topology
+minted_at: "mono:7000:00:00:00.0000"
+
