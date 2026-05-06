@@ -1,0 +1,123 @@
+# Resource-relationship case: CI run to artifact relationships.
+#
+# Exercises:
+#   - Source class: ci_and_environment_descriptors
+#   - Derived edges: source_to_run, run_to_artifact, env_to_resource_slice
+#   - Generated-object provenance: source_set, tool_identity, invalidation_epoch
+
+schema_version: 1
+
+__fixture__:
+  name: ci_run_to_artifact_relationships
+  scenario: >
+    A workflow definition produces an observed CI run, which produces a build
+    artifact. Provider overlays may enrich navigation, but the run and artifact
+    remain linked back to their authored definition when knowable.
+  exercised_source_classes:
+    - ci_and_environment_descriptors
+  exercised_derived_edges:
+    - source_to_run
+    - run_to_artifact
+    - env_to_resource_slice
+
+matrix_ref: artifacts/devops/resource_relationship_matrix.yaml
+
+generated_objects:
+  - object_ref: overlay:ci:run:gha:987654321
+    source_set:
+      - path: .github/workflows/build_and_deploy.yaml
+        digest: sha256:src-workflow-build-v6
+      - path: ci/env/staging.yaml
+        digest: sha256:src-env-staging-v2
+    tool_identity:
+      tool_name: github_actions
+      tool_version: 2026.04
+      tool_digest: sha256:tool-gha-2026.04
+    invalidation_epoch: epoch:ci:gha:staging:run:987654321
+
+objects:
+  - object_id: src:ci:workflow:build_and_deploy
+    source_class_id: ci_and_environment_descriptors
+    truth_label: authored
+    identity:
+      pipeline_id: build_and_deploy
+    source_path: .github/workflows/build_and_deploy.yaml
+    digest_or_generation: sha256:src-workflow-build-v6
+
+  - object_id: src:env:staging
+    source_class_id: ci_and_environment_descriptors
+    truth_label: authored
+    identity:
+      environment_name: staging
+      rollout_target: cluster:staging
+    source_path: ci/env/staging.yaml
+    digest_or_generation: sha256:src-env-staging-v2
+
+  - object_id: overlay:ci:run:gha:987654321
+    source_class_id: ci_and_environment_descriptors
+    truth_label: observed
+    identity:
+      pipeline_id: build_and_deploy
+      run_id: 987654321
+      environment_name: staging
+    source_path: null
+    digest_or_generation: run_attempt:1
+
+  - object_id: overlay:ci:artifact:gha:987654321:aureline_cli_linux_x64
+    source_class_id: ci_and_environment_descriptors
+    truth_label: observed
+    identity:
+      run_id: 987654321
+      artifact_name: aureline_cli_linux_x64
+    source_path: null
+    digest_or_generation: sha256:artifact-digest-v1
+
+  - object_id: overlay:env_slice:staging:services
+    source_class_id: ci_and_environment_descriptors
+    truth_label: provider_overlay
+    identity:
+      environment_name: staging
+      slice_id: services
+    source_path: null
+    digest_or_generation: overlay:refreshed_at:2026-05-01T14:32:09Z
+
+edges:
+  - edge_class: source_to_run
+    from_object_id: src:ci:workflow:build_and_deploy
+    to_object_id: overlay:ci:run:gha:987654321
+    required: true
+
+  - edge_class: run_to_artifact
+    from_object_id: overlay:ci:run:gha:987654321
+    to_object_id: overlay:ci:artifact:gha:987654321:aureline_cli_linux_x64
+    required: true
+
+  - edge_class: env_to_resource_slice
+    from_object_id: src:env:staging
+    to_object_id: overlay:env_slice:staging:services
+    required: true
+
+resource_relationships:
+  - relationship_state: authored_to_live
+    source_resource:
+      truth_class: authored
+      resource_ref: src:ci:workflow:build_and_deploy
+      group_version_kind: ci/workflow
+      name: build_and_deploy
+      namespace_or_scope: github_actions
+      source_path: .github/workflows/build_and_deploy.yaml
+      digest_or_generation: sha256:src-workflow-build-v6
+    rendered_resource: null
+    planned_resource: null
+    observed_resource:
+      truth_class: observed
+      resource_ref: overlay:ci:run:gha:987654321
+      group_version_kind: ci/run
+      name: "987654321"
+      namespace_or_scope: staging
+      source_path: null
+      digest_or_generation: run_attempt:1
+    match_confidence: exact
+    no_source_match_reason: not_applicable
+    relationship_provenance_ref: edge:ci:workflow_to_run:987654321
+

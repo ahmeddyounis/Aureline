@@ -1,0 +1,137 @@
+# Resource-relationship case: policy enforcement overlays.
+#
+# Exercises:
+#   - Source class: policy_and_access_configs
+#   - Derived edges: policy_to_target_resource, policy_to_enforcement_result
+#   - Explicit no_source_match when the enforcement signal cannot be mapped
+#     back to a known source policy.
+
+schema_version: 1
+
+__fixture__:
+  name: policy_enforcement_overlay
+  scenario: >
+    A repo-owned admission policy targets a Kubernetes Deployment and a live
+    enforcement signal is observed. When an enforcement event cannot be mapped
+    back to a known policy source, the relationship is explicitly recorded as
+    no_source_match rather than implied.
+  exercised_source_classes:
+    - policy_and_access_configs
+    - kubernetes_manifests
+  exercised_derived_edges:
+    - policy_to_target_resource
+    - policy_to_enforcement_result
+    - object_to_live_resource
+
+matrix_ref: artifacts/devops/resource_relationship_matrix.yaml
+
+generated_objects:
+  - object_ref: plan:policy:compile:admission:2026-05-01T13:05:00Z
+    source_set:
+      - path: policy/admission/deny-privileged.rego
+        digest: sha256:src-policy-rego-v2
+      - path: policy/admission/policy.yaml
+        digest: sha256:src-policy-yaml-v1
+    tool_identity:
+      tool_name: opa
+      tool_version: 0.65.0
+      tool_digest: sha256:tool-opa-0.65.0
+    invalidation_epoch: epoch:policy:admission:2026-05-01T13:05:00Z
+
+objects:
+  - object_id: src:policy:admission:deny_privileged
+    source_class_id: policy_and_access_configs
+    truth_label: authored
+    identity:
+      policy_id: deny_privileged_containers
+      scope_selector: cluster:staging
+    source_path: policy/admission/deny-privileged.rego
+    digest_or_generation: sha256:src-policy-rego-v2
+
+  - object_id: plan:policy:compile:admission:2026-05-01T13:05:00Z
+    source_class_id: policy_and_access_configs
+    truth_label: planned
+    identity:
+      policy_id: deny_privileged_containers
+      scope_selector: cluster:staging
+    source_path: artifacts/policy/compiled/admission/deny-privileged.wasm
+    digest_or_generation: sha256:compiled-policy-wasm-v2
+
+  - object_id: live:k8s:deployment:api:staging
+    source_class_id: kubernetes_manifests
+    truth_label: observed
+    identity:
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+    source_path: null
+    digest_or_generation: generation:133
+
+  - object_id: overlay:k8s:audit:admission_denied:api:staging:2026-05-01T13:06:10Z
+    source_class_id: policy_and_access_configs
+    truth_label: provider_overlay
+    identity:
+      event_class: admission_denied
+      target: deployment/api
+      namespace_or_scope: staging
+    source_path: null
+    digest_or_generation: event_id:9b38
+
+edges:
+  - edge_class: policy_to_target_resource
+    from_object_id: src:policy:admission:deny_privileged
+    to_object_id: live:k8s:deployment:api:staging
+    required: true
+
+  - edge_class: policy_to_enforcement_result
+    from_object_id: src:policy:admission:deny_privileged
+    to_object_id: overlay:k8s:audit:admission_denied:api:staging:2026-05-01T13:06:10Z
+    required: true
+
+resource_relationships:
+  - relationship_state: authored_to_live
+    source_resource:
+      truth_class: authored
+      resource_ref: src:policy:admission:deny_privileged
+      group_version_kind: policy/admission
+      name: deny_privileged_containers
+      namespace_or_scope: cluster:staging
+      source_path: policy/admission/deny-privileged.rego
+      digest_or_generation: sha256:src-policy-rego-v2
+    rendered_resource: null
+    planned_resource:
+      truth_class: planned
+      resource_ref: plan:policy:compile:admission:2026-05-01T13:05:00Z
+      group_version_kind: policy/compiled
+      name: deny_privileged_containers
+      namespace_or_scope: cluster:staging
+      source_path: artifacts/policy/compiled/admission/deny-privileged.wasm
+      digest_or_generation: sha256:compiled-policy-wasm-v2
+    observed_resource:
+      truth_class: observed
+      resource_ref: live:k8s:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: null
+      digest_or_generation: generation:133
+    match_confidence: high
+    no_source_match_reason: not_applicable
+    relationship_provenance_ref: edge:policy:targets:deployment/api:staging
+
+  - relationship_state: no_source_match
+    source_resource: null
+    rendered_resource: null
+    planned_resource: null
+    observed_resource:
+      truth_class: provider_overlay
+      resource_ref: overlay:k8s:audit:admission_denied:api:staging:2026-05-01T13:06:10Z
+      group_version_kind: k8s/audit_event
+      name: admission_denied
+      namespace_or_scope: staging
+      source_path: null
+      digest_or_generation: event_id:9b38
+    match_confidence: none
+    no_source_match_reason: ambiguous_multiple_sources
+    relationship_provenance_ref: edge:k8s:audit:no_source_match:policy
+

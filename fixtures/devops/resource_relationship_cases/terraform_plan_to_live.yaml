@@ -1,0 +1,112 @@
+# Resource-relationship case: Terraform plan to live resources.
+#
+# Exercises:
+#   - Source class: terraform_hcl
+#   - Derived edges: plan_to_resource, resource_to_provider
+#   - Generated-object provenance: source_set, tool_identity, invalidation_epoch
+
+schema_version: 1
+
+__fixture__:
+  name: terraform_plan_to_live
+  scenario: >
+    Authored Terraform configuration produces a plan that maps to observed
+    provider resources. Navigation keeps authored, planned, observed, and
+    provider overlay truth distinct.
+  exercised_source_classes:
+    - terraform_hcl
+  exercised_derived_edges:
+    - plan_to_resource
+    - resource_to_provider
+
+matrix_ref: artifacts/devops/resource_relationship_matrix.yaml
+
+generated_objects:
+  - object_ref: plan:tf:aws:prod:2026-05-01T12:30:00Z
+    source_set:
+      - path: infra/terraform/prod/main.tf
+        digest: sha256:src-tf-main-v3
+      - path: infra/terraform/prod/variables.tf
+        digest: sha256:src-tf-vars-v2
+      - path: infra/terraform/prod/providers.tf
+        digest: sha256:src-tf-providers-v1
+    tool_identity:
+      tool_name: terraform
+      tool_version: 1.10.0
+      tool_digest: sha256:tool-terraform-1.10.0
+    invalidation_epoch: epoch:terraform:prod:2026-05-01T12:30:00Z
+
+objects:
+  - object_id: src:tf:module:prod
+    source_class_id: terraform_hcl
+    truth_label: authored
+    identity:
+      module_path: infra/terraform/prod
+      workspace_or_env: prod
+    source_path: infra/terraform/prod/main.tf
+    digest_or_generation: sha256:src-tf-main-v3
+
+  - object_id: plan:tf:aws:prod:2026-05-01T12:30:00Z
+    source_class_id: terraform_hcl
+    truth_label: planned
+    identity:
+      workspace_or_env: prod
+      plan_id: plan:tf:aws:prod:2026-05-01T12:30:00Z
+    source_path: artifacts/plans/terraform/prod/plan-20260501T123000Z.bin
+    digest_or_generation: sha256:tfplan-prod-v3
+
+  - object_id: live:aws:iam_role:api_exec:prod
+    source_class_id: terraform_hcl
+    truth_label: observed
+    identity:
+      provider: aws
+      resource_address: aws_iam_role.api_exec
+      workspace_or_env: prod
+    source_path: null
+    digest_or_generation: observed:etag:9c1d
+
+  - object_id: overlay:aws:console:iam_role:api_exec
+    source_class_id: terraform_hcl
+    truth_label: provider_overlay
+    identity:
+      provider: aws
+      console_object: iam_role/api_exec
+      workspace_or_env: prod
+    source_path: null
+    digest_or_generation: overlay:observed:2026-05-01T12:32:10Z
+
+edges:
+  - edge_class: plan_to_resource
+    from_object_id: plan:tf:aws:prod:2026-05-01T12:30:00Z
+    to_object_id: live:aws:iam_role:api_exec:prod
+    required: true
+
+  - edge_class: resource_to_provider
+    from_object_id: live:aws:iam_role:api_exec:prod
+    to_object_id: overlay:aws:console:iam_role:api_exec
+    required: true
+
+resource_relationships:
+  - relationship_state: planned_to_live
+    source_resource: null
+    rendered_resource: null
+    planned_resource:
+      truth_class: planned
+      resource_ref: plan:tf:aws:prod:2026-05-01T12:30:00Z
+      group_version_kind: terraform/plan
+      name: prod
+      namespace_or_scope: aws
+      source_path: artifacts/plans/terraform/prod/plan-20260501T123000Z.bin
+      digest_or_generation: sha256:tfplan-prod-v3
+    observed_resource:
+      truth_class: observed
+      resource_ref: live:aws:iam_role:api_exec:prod
+      group_version_kind: aws/iam_role
+      name: api_exec
+      namespace_or_scope: prod
+      source_path: null
+      digest_or_generation: observed:etag:9c1d
+    match_confidence: exact
+    no_source_match_reason: not_applicable
+    relationship_provenance_ref: edge:terraform:plan_to_live:aws_iam_role.api_exec
+

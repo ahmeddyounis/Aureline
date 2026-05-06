@@ -1,0 +1,298 @@
+# Infrastructure-as-Code, manifest, and resource-relationship matrix.
+#
+# Machine-readable matrix defining:
+#   - which infrastructure-oriented source classes Aureline recognizes,
+#   - the identity tokens each class must expose,
+#   - the minimum derived edges required for explainable navigation, and
+#   - the cache metadata required for rendered/generated objects.
+#
+# Companion to docs/devops/resource_relationship_matrix.md. Derived from the
+# architecture appendix that seeds the same matrix so downstream tooling can
+# cite one canonical machine form.
+
+schema_version: 1
+artifact_id: aureline.devops.resource_relationship_matrix
+title: Infrastructure source-class and resource-relationship matrix
+
+contract_source: docs/devops/resource_relationship_matrix.md
+
+normative_sources:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-cl-infrastructure-as-code-manifest-and-resource-relationship-matrix
+  - docs/runtime/environment_connector_action_safety_contract.md
+  - docs/runtime/resource_drift_and_live_action_contract.md
+  - schemas/runtime/target_context.schema.json
+
+companion_refs:
+  cases_dir: fixtures/devops/resource_relationship_cases/
+  runtime_resource_relationship_schema_ref: schemas/runtime/target_context.schema.json#/$defs/resource_relationship
+  runtime_source_truth_class_ref: schemas/runtime/target_context.schema.json#/$defs/source_truth_class
+  runtime_resource_relationship_state_ref: schemas/runtime/target_context.schema.json#/$defs/resource_relationship_state
+
+# ---------------------------------------------------------------------------
+# Vocabulary
+# ---------------------------------------------------------------------------
+
+truth_label_vocabulary:
+  - authored
+  - rendered
+  - planned
+  - observed
+  - provider_overlay
+  - imported_evidence
+  - no_source_match
+
+generated_object_cache_metadata_requirements:
+  required_fields:
+    - source_set
+    - tool_identity
+    - invalidation_epoch
+  field_notes:
+    source_set: >-
+      Canonical set of authored input refs (paths plus digests or other stable
+      revision tokens) used to produce the output.
+    tool_identity: >-
+      Tool name and version (plus optional digest) used to produce the output.
+    invalidation_epoch: >-
+      Opaque epoch token that changes whenever any input that could alter the
+      output changes (inputs, tool version, render flags, selectors).
+
+derived_edge_vocabulary:
+  - id: module_to_module
+    description: Terraform module to module dependency edge.
+  - id: variable_or_output
+    description: Terraform variable/output linkage edge.
+  - id: resource_to_provider
+    description: Infrastructure resource to provider/account/subscription edge.
+  - id: plan_to_resource
+    description: Plan/dry-run output to resource identity edge.
+  - id: resource_to_runbook
+    description: Resource identity to runbook/operational guide edge.
+  - id: source_to_rendered_object
+    description: Source artifact to rendered object edge (templates/expansion).
+  - id: object_to_live_resource
+    description: Rendered or authored object to observed live resource edge.
+  - id: object_to_log_or_event_stream
+    description: Object to log/event stream navigation edge.
+  - id: source_to_built_image
+    description: Container build source to built image edge.
+  - id: service_to_port
+    description: Service to exposed port/endpoint edge.
+  - id: service_to_log_stream
+    description: Service/workload to log stream edge.
+  - id: service_to_attach_target
+    description: Service/workload to attach/debug target edge.
+  - id: source_to_run
+    description: CI source definition to a concrete run/execution edge.
+  - id: run_to_artifact
+    description: CI run to produced artifact edge.
+  - id: env_to_resource_slice
+    description: Environment descriptor to service/resource-slice edge.
+  - id: policy_to_target_resource
+    description: Policy rule to target resource edge.
+  - id: policy_to_enforcement_result
+    description: Policy rule to enforcement/audit result edge.
+
+source_class_vocabulary:
+  - terraform_hcl
+  - kubernetes_manifests
+  - container_and_devcontainer_descriptors
+  - ci_and_environment_descriptors
+  - policy_and_access_configs
+
+# ---------------------------------------------------------------------------
+# Source classes
+# ---------------------------------------------------------------------------
+
+source_classes:
+
+  - id: terraform_hcl
+    display_name: Terraform / HCL
+    example_artifacts:
+      - module files
+      - variables and outputs
+      - state references
+      - plan files
+    primary_identities:
+      - module path
+      - resource address
+      - workspace/environment selector
+    required_derived_edges:
+      - module_to_module
+      - variable_or_output
+      - resource_to_provider
+      - plan_to_resource
+      - resource_to_runbook
+    live_overlay_support:
+      supported: true
+      modes:
+        - cli
+        - agent
+        - provider_overlay
+    minimum_truth_labels:
+      - authored
+      - planned
+      - observed
+      - provider_overlay
+    cache_metadata_requirements:
+      applies_to:
+        - plan outputs and summaries
+        - cached planned resource graph views
+      required_fields:
+        - source_set
+        - tool_identity
+        - invalidation_epoch
+
+  - id: kubernetes_manifests
+    display_name: Kubernetes manifests
+    example_artifacts:
+      - YAML objects
+      - Kustomize layers
+      - Helm values/templates
+      - admission-policy outputs
+    primary_identities:
+      - group/version/kind/name/namespace
+      - source path
+    required_derived_edges:
+      - source_to_rendered_object
+      - object_to_live_resource
+      - object_to_log_or_event_stream
+      - resource_to_runbook
+    live_overlay_support:
+      supported: true
+      modes:
+        - cluster_connector
+        - provider_overlay
+    minimum_truth_labels:
+      - authored
+      - rendered
+      - planned
+      - observed
+    cache_metadata_requirements:
+      applies_to:
+        - rendered manifests and render summaries
+        - validation snapshots and diffs
+      required_fields:
+        - source_set
+        - tool_identity
+        - invalidation_epoch
+
+  - id: container_and_devcontainer_descriptors
+    display_name: Container and devcontainer descriptors
+    example_artifacts:
+      - Dockerfile
+      - compose files
+      - devcontainer configs
+      - OCI metadata
+    primary_identities:
+      - image ref
+      - service name
+      - container/workspace identity
+    required_derived_edges:
+      - source_to_built_image
+      - service_to_port
+      - service_to_log_stream
+      - service_to_attach_target
+    live_overlay_support:
+      supported: true
+      modes:
+        - container_runtime
+        - provider_overlay
+    minimum_truth_labels:
+      - authored
+      - rendered
+      - observed
+    cache_metadata_requirements:
+      applies_to:
+        - image build outputs
+        - devcontainer resolved/expanded configs
+        - cached service expansion summaries
+      required_fields:
+        - source_set
+        - tool_identity
+        - invalidation_epoch
+
+  - id: ci_and_environment_descriptors
+    display_name: CI / environment descriptors
+    example_artifacts:
+      - workflow files
+      - environment templates
+      - deployment descriptors
+      - preview environment configs
+    primary_identities:
+      - pipeline id
+      - environment name
+      - rollout target
+    required_derived_edges:
+      - source_to_run
+      - run_to_artifact
+      - env_to_resource_slice
+    live_overlay_support:
+      supported: true
+      modes:
+        - provider_overlay
+    minimum_truth_labels:
+      - authored
+      - observed
+      - provider_overlay
+    cache_metadata_requirements:
+      applies_to:
+        - cached run summaries and artifact indexes
+      required_fields:
+        - source_set
+        - tool_identity
+        - invalidation_epoch
+
+  - id: policy_and_access_configs
+    display_name: Policy and access configs
+    example_artifacts:
+      - admission policies
+      - RBAC-like files
+      - network policy
+      - secret/identity binding descriptors
+    primary_identities:
+      - policy id
+      - scope selector
+      - principal/resource class
+    required_derived_edges:
+      - policy_to_target_resource
+      - policy_to_enforcement_result
+      - resource_to_runbook
+    live_overlay_support:
+      supported: true
+      modes:
+        - enforcement_feed
+        - provider_overlay
+    minimum_truth_labels:
+      - authored
+      - planned
+      - observed
+      - provider_overlay
+    cache_metadata_requirements:
+      applies_to:
+        - compiled policies
+        - validation results and enforcement summaries
+      required_fields:
+        - source_set
+        - tool_identity
+        - invalidation_epoch
+
+# ---------------------------------------------------------------------------
+# Cross-cutting rules (machine-readable checklist)
+# ---------------------------------------------------------------------------
+
+rules:
+  - id: stable_identities_under_formatting
+    rule: primary identities should remain stable under formatting-only changes
+  - id: overlays_link_back_or_no_source_match
+    rule: >-
+      live overlays must point back to source or plan objects when knowable,
+      and must state `no_source_match` explicitly when they cannot
+  - id: generated_objects_retain_provenance
+    rule: >-
+      rendered/generated objects may be cached, but must retain source_set,
+      tool_identity/version, and invalidation_epoch metadata
+  - id: overlays_may_enrich_not_replace
+    rule: >-
+      provider overlays may enrich navigation but may never silently replace
+      repo-owned truth or local diff state
+

@@ -1,0 +1,144 @@
+# Resource-relationship case: container service to ports, logs, and attach targets.
+#
+# Exercises:
+#   - Source class: container_and_devcontainer_descriptors
+#   - Derived edges: source_to_built_image, service_to_port, service_to_log_stream,
+#     service_to_attach_target
+#   - Generated-object provenance: source_set, tool_identity, invalidation_epoch
+
+schema_version: 1
+
+__fixture__:
+  name: container_service_log_relationships
+  scenario: >
+    A compose service is derived from authored Dockerfile/compose sources,
+    builds an image, and is observed as a running container. Navigation links
+    the service to its ports, log stream, and attach target while keeping
+    authored vs rendered vs observed layers explicit.
+  exercised_source_classes:
+    - container_and_devcontainer_descriptors
+  exercised_derived_edges:
+    - source_to_built_image
+    - service_to_port
+    - service_to_log_stream
+    - service_to_attach_target
+
+matrix_ref: artifacts/devops/resource_relationship_matrix.yaml
+
+generated_objects:
+  - object_ref: rend:container:compose:services:staging
+    source_set:
+      - path: services/api/Dockerfile
+        digest: sha256:src-dockerfile-api-v5
+      - path: services/api/docker-compose.yaml
+        digest: sha256:src-compose-api-v3
+    tool_identity:
+      tool_name: docker_compose
+      tool_version: 2.30.0
+      tool_digest: sha256:tool-compose-2.30.0
+    invalidation_epoch: epoch:compose:staging:2026-05-01T14:00:00Z
+
+  - object_ref: rend:image:api:staging@sha256:2d2f
+    source_set:
+      - path: services/api/Dockerfile
+        digest: sha256:src-dockerfile-api-v5
+      - path: services/api/.dockerignore
+        digest: sha256:src-dockerignore-api-v1
+    tool_identity:
+      tool_name: docker_buildkit
+      tool_version: 0.13.0
+      tool_digest: sha256:tool-buildkit-0.13.0
+    invalidation_epoch: epoch:docker_build:api:staging:2026-05-01T14:03:12Z
+
+objects:
+  - object_id: src:dockerfile:api
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: authored
+    identity:
+      image_ref: api
+    source_path: services/api/Dockerfile
+    digest_or_generation: sha256:src-dockerfile-api-v5
+
+  - object_id: src:compose:api:staging
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: authored
+    identity:
+      service_name: api
+      environment: staging
+    source_path: services/api/docker-compose.yaml
+    digest_or_generation: sha256:src-compose-api-v3
+
+  - object_id: rend:image:api:staging@sha256:2d2f
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: rendered
+    identity:
+      image_ref: api:staging
+    source_path: null
+    digest_or_generation: sha256:2d2f
+
+  - object_id: live:container:api:staging:8f3c
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: observed
+    identity:
+      container_id: 8f3c
+      service_name: api
+      environment: staging
+    source_path: null
+    digest_or_generation: observed:started_at:2026-05-01T14:04:02Z
+
+  - object_id: live:container_port:api:staging:8080
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: provider_overlay
+    identity:
+      service_name: api
+      environment: staging
+      port: 8080
+      protocol: tcp
+    source_path: null
+    digest_or_generation: port_binding:0.0.0.0:8080->8080
+
+  - object_id: live:container_logstream:api:staging
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: provider_overlay
+    identity:
+      service_name: api
+      environment: staging
+    source_path: null
+    digest_or_generation: stream:tail
+
+  - object_id: live:container_attach:api:staging
+    source_class_id: container_and_devcontainer_descriptors
+    truth_label: provider_overlay
+    identity:
+      service_name: api
+      environment: staging
+      attach_class: exec_shell
+    source_path: null
+    digest_or_generation: attach:docker_exec
+
+edges:
+  - edge_class: source_to_built_image
+    from_object_id: src:dockerfile:api
+    to_object_id: rend:image:api:staging@sha256:2d2f
+    required: true
+
+  - edge_class: object_to_live_resource
+    from_object_id: rend:image:api:staging@sha256:2d2f
+    to_object_id: live:container:api:staging:8f3c
+    required: true
+
+  - edge_class: service_to_port
+    from_object_id: live:container:api:staging:8f3c
+    to_object_id: live:container_port:api:staging:8080
+    required: true
+
+  - edge_class: service_to_log_stream
+    from_object_id: live:container:api:staging:8f3c
+    to_object_id: live:container_logstream:api:staging
+    required: true
+
+  - edge_class: service_to_attach_target
+    from_object_id: live:container:api:staging:8f3c
+    to_object_id: live:container_attach:api:staging
+    required: true
+

@@ -1,0 +1,189 @@
+# Resource-relationship case: rendered Kubernetes manifest to live resource.
+#
+# Exercises:
+#   - Source class: kubernetes_manifests
+#   - Derived edges: source_to_rendered_object, object_to_live_resource,
+#     object_to_log_or_event_stream
+#   - Generated-object provenance: source_set, tool_identity, invalidation_epoch
+
+schema_version: 1
+
+__fixture__:
+  name: kubernetes_rendered_manifest_to_live
+  scenario: >
+    A kustomize overlay renders an authored Deployment. A server-side diff
+    produces a planned snapshot. The observed Deployment and its log stream
+    link back through rendered and authored identities.
+  exercised_source_classes:
+    - kubernetes_manifests
+  exercised_derived_edges:
+    - source_to_rendered_object
+    - object_to_live_resource
+    - object_to_log_or_event_stream
+
+matrix_ref: artifacts/devops/resource_relationship_matrix.yaml
+
+generated_objects:
+  - object_ref: rend:k8s:deployment:api:staging
+    source_set:
+      - path: infra/k8s/base/deployment.yaml
+        digest: sha256:src-deployment-v1
+      - path: infra/k8s/overlays/staging/kustomization.yaml
+        digest: sha256:src-kustomization-staging-v1
+    tool_identity:
+      tool_name: kustomize
+      tool_version: 5.4.2
+      tool_digest: sha256:tool-kustomize-5.4.2
+    invalidation_epoch: epoch:kustomize:staging:2026-05-01T12:00:00Z
+
+  - object_ref: plan:k8s:server_side_diff:deployment:api:staging
+    source_set:
+      - path: infra/k8s/base/deployment.yaml
+        digest: sha256:src-deployment-v1
+      - path: infra/k8s/overlays/staging/kustomization.yaml
+        digest: sha256:src-kustomization-staging-v1
+      - path: artifacts/rendered/k8s/staging/deployment-api.yaml
+        digest: sha256:rend-deployment-staging-v1
+    tool_identity:
+      tool_name: kubectl
+      tool_version: 1.31.0
+      tool_digest: sha256:tool-kubectl-1.31.0
+    invalidation_epoch: epoch:k8s:staging:server_side_diff:2026-05-01T12:02:10Z
+
+objects:
+  - object_id: src:k8s:deployment:api:staging
+    source_class_id: kubernetes_manifests
+    truth_label: authored
+    identity:
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+    source_path: infra/k8s/base/deployment.yaml
+    digest_or_generation: sha256:src-deployment-v1
+
+  - object_id: rend:k8s:deployment:api:staging
+    source_class_id: kubernetes_manifests
+    truth_label: rendered
+    identity:
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+    source_path: artifacts/rendered/k8s/staging/deployment-api.yaml
+    digest_or_generation: sha256:rend-deployment-staging-v1
+
+  - object_id: plan:k8s:server_side_diff:deployment:api:staging
+    source_class_id: kubernetes_manifests
+    truth_label: planned
+    identity:
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+    source_path: null
+    digest_or_generation: sha256:plan-diff-staging-api-v1
+
+  - object_id: live:k8s:deployment:api:staging
+    source_class_id: kubernetes_manifests
+    truth_label: observed
+    identity:
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+    source_path: null
+    digest_or_generation: generation:132
+
+  - object_id: live:k8s:logstream:deployment:api:staging
+    source_class_id: kubernetes_manifests
+    truth_label: provider_overlay
+    identity:
+      group_version_kind: k8s/log_stream
+      name: deployment/api
+      namespace_or_scope: staging
+    source_path: null
+    digest_or_generation: stream:tail
+
+edges:
+  - edge_class: source_to_rendered_object
+    from_object_id: src:k8s:deployment:api:staging
+    to_object_id: rend:k8s:deployment:api:staging
+    required: true
+
+  - edge_class: object_to_live_resource
+    from_object_id: rend:k8s:deployment:api:staging
+    to_object_id: live:k8s:deployment:api:staging
+    required: true
+
+  - edge_class: object_to_log_or_event_stream
+    from_object_id: live:k8s:deployment:api:staging
+    to_object_id: live:k8s:logstream:deployment:api:staging
+    required: true
+
+resource_relationships:
+  - relationship_state: authored_to_rendered
+    source_resource:
+      truth_class: authored
+      resource_ref: src:k8s:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: infra/k8s/base/deployment.yaml
+      digest_or_generation: sha256:src-deployment-v1
+    rendered_resource:
+      truth_class: rendered
+      resource_ref: rend:k8s:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: artifacts/rendered/k8s/staging/deployment-api.yaml
+      digest_or_generation: sha256:rend-deployment-staging-v1
+    planned_resource: null
+    observed_resource: null
+    match_confidence: exact
+    no_source_match_reason: not_applicable
+    relationship_provenance_ref: edge:kustomize:deployment:api:staging
+
+  - relationship_state: rendered_to_planned
+    source_resource: null
+    rendered_resource:
+      truth_class: rendered
+      resource_ref: rend:k8s:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: artifacts/rendered/k8s/staging/deployment-api.yaml
+      digest_or_generation: sha256:rend-deployment-staging-v1
+    planned_resource:
+      truth_class: planned
+      resource_ref: plan:k8s:server_side_diff:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: null
+      digest_or_generation: sha256:plan-diff-staging-api-v1
+    observed_resource: null
+    match_confidence: high
+    no_source_match_reason: not_applicable
+    relationship_provenance_ref: edge:kubectl:diff:deployment:api:staging
+
+  - relationship_state: planned_to_live
+    source_resource: null
+    rendered_resource: null
+    planned_resource:
+      truth_class: planned
+      resource_ref: plan:k8s:server_side_diff:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: null
+      digest_or_generation: sha256:plan-diff-staging-api-v1
+    observed_resource:
+      truth_class: observed
+      resource_ref: live:k8s:deployment:api:staging
+      group_version_kind: apps/v1 Deployment
+      name: api
+      namespace_or_scope: staging
+      source_path: null
+      digest_or_generation: generation:132
+    match_confidence: high
+    no_source_match_reason: not_applicable
+    relationship_provenance_ref: edge:k8s:observed:deployment:api:staging
+
