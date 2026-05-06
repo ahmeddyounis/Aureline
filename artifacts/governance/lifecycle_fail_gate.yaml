@@ -1,0 +1,179 @@
+# Capability lifecycle projection fail-gate rules.
+#
+# This file freezes the closed rule set that rejects stable / certified
+# wording when capability lifecycle axes, freshness posture, certification
+# posture, or dependency markers narrow the capability below the implied
+# claim. The normative narrative is
+# docs/governance/capability_lifecycle_projection_matrix.md. If the two
+# disagree, the narrative wins and this file updates in the same change.
+#
+# Scope.
+#   - Enforce stable/certified wording is never broader than the
+#     effective axis posture.
+#   - Enforce dependency markers remain first-class: projections must
+#     carry marker summaries or the no_live_markers sentinel.
+#   - Provide cross-surface drift rules for launch-bearing surfaces so
+#     one surface cannot claim stable while another claims preview,
+#     retest-pending, policy-blocked, or sunset for the same capability.
+#
+# Notes.
+#   - This file defines rules only; it does not implement evaluation.
+#   - Rule ids MUST NOT include planning slugs.
+
+schema_version: 1
+lifecycle_fail_gate_schema_version: 1
+catalog_id: aureline.governance.capability_lifecycle_fail_gate
+status: seeded
+
+projection_matrix_doc_ref: docs/governance/capability_lifecycle_projection_matrix.md
+projection_row_schema_ref: schemas/governance/capability_projection_row.schema.json
+capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+axis_matrix_doc_ref: docs/governance/capability_axis_matrix.md
+truth_and_degraded_vocab_ref: docs/governance/truth_and_degraded_state_vocabulary.md
+drift_rules_doc_ref: docs/governance/drift_blocking_rules.md
+
+severity_vocabulary:
+  - release_blocking_overclaim
+  - same_change_blocker
+  - time_boxed_truth_defect
+  - seed_gap_review_required
+
+verdict_vocabulary:
+  - pass
+  - fail_closed
+
+rule_domains:
+  - row_level
+  - cross_surface
+
+rules:
+  # -------------------------------------------------------------------------
+  # Row-level: stable wording cannot survive non-stable effective posture.
+  # -------------------------------------------------------------------------
+  - rule_id: capability_fail_gate:stable_wording_requires_stable_effective_state
+    rule_domain: row_level
+    severity: release_blocking_overclaim
+    verdict: fail_closed
+    applies_when:
+      wording_claims:
+        lifecycle_wording_in:
+          - stable
+          - lts
+    fails_when:
+      effective_lifecycle_state_in:
+        - labs
+        - preview
+        - beta
+        - deprecated
+        - disabled_by_policy
+        - retired
+    guidance: >
+      Replace stable-by-omission or stable wording with the effective
+      lifecycle posture, and ensure the narrowing marker is projected.
+
+  # -------------------------------------------------------------------------
+  # Row-level: stable/certified wording cannot survive stale/unverified
+  # freshness posture.
+  # -------------------------------------------------------------------------
+  - rule_id: capability_fail_gate:stable_or_certified_wording_blocked_when_stale
+    rule_domain: row_level
+    severity: release_blocking_overclaim
+    verdict: fail_closed
+    applies_when:
+      wording_claims:
+        any_of:
+          - lifecycle_wording_in: [stable, lts]
+          - certification_wording_in: [certified]
+    fails_when:
+      freshness_class_in:
+        - degraded_cached
+        - stale
+        - unverified
+    guidance: >
+      Project the degraded token (Cached/Stale/Offline/etc) and deny any
+      stable/certified copy until freshness is restored.
+
+  # -------------------------------------------------------------------------
+  # Row-level: certified wording cannot survive retest-pending/stale/unknown
+  # certification freshness posture.
+  # -------------------------------------------------------------------------
+  - rule_id: capability_fail_gate:certified_wording_requires_current_certification_proof
+    rule_domain: row_level
+    severity: release_blocking_overclaim
+    verdict: fail_closed
+    applies_when:
+      wording_claims:
+        certification_wording_in: [certified]
+    fails_when:
+      certification_freshness_state_in:
+        - retest_pending
+        - stale
+        - unknown
+    guidance: >
+      Replace certified wording with a retest-pending disclosure (or a
+      narrower certification posture) and link the re-verification path.
+
+  # -------------------------------------------------------------------------
+  # Row-level: stable/certified wording cannot survive narrowing dependency
+  # markers that advertise preview/managed-only/policy-blocked posture.
+  # -------------------------------------------------------------------------
+  - rule_id: capability_fail_gate:stable_or_certified_wording_blocked_by_narrowing_markers
+    rule_domain: row_level
+    severity: release_blocking_overclaim
+    verdict: fail_closed
+    applies_when:
+      wording_claims:
+        any_of:
+          - lifecycle_wording_in: [stable, lts]
+          - certification_wording_in: [certified]
+    fails_when:
+      dependency_marker_kinds_any_of:
+        - non_stable_capability_dependency
+        - managed_only_dependency
+        - disabled_by_policy_dependency
+        - kill_switch_dependency
+        - freshness_floor_dependency
+    guidance: >
+      Carry the marker list as an inspectable dependency section and
+      narrow wording to match the effective axis posture the markers
+      impose.
+
+  # -------------------------------------------------------------------------
+  # Row-level: marker list must be explicit (no silent omission).
+  # -------------------------------------------------------------------------
+  - rule_id: capability_fail_gate:dependency_marker_list_must_be_explicit
+    rule_domain: row_level
+    severity: same_change_blocker
+    verdict: fail_closed
+    applies_when:
+      always: true
+    fails_when:
+      dependency_marker_list_missing: true
+    guidance: >
+      Emit dependency markers or the explicit no_live_markers sentinel.
+
+  # -------------------------------------------------------------------------
+  # Cross-surface: a capability cannot be stable on one launch-bearing
+  # surface and preview/retest-pending/policy-blocked/sunset on another.
+  # -------------------------------------------------------------------------
+  - rule_id: capability_fail_gate:cross_surface_launch_bearing_drift
+    rule_domain: cross_surface
+    severity: release_blocking_overclaim
+    verdict: fail_closed
+    grouping_key: capability_lifecycle_row_id
+    applicable_surface_filter:
+      is_launch_bearing_surface: true
+    conflict_sets:
+      - stable_set:
+          lifecycle_wording_in: [stable, lts]
+        conflicting_set:
+          lifecycle_wording_in: [preview, beta, deprecated, retired, policy_blocked]
+      - stable_set:
+          certification_wording_in: [certified]
+        conflicting_set:
+          certification_wording_in: [retest_pending, degraded, not_certified]
+    guidance: >
+      Resolve drift by narrowing the broader surface (or updating the
+      canonical owner row / markers) so all launch-bearing projections
+      agree on the conservative effective posture.
+

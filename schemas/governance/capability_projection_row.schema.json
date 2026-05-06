@@ -1,0 +1,438 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/capability_projection_row.schema.json",
+  "title": "Aureline capability lifecycle projection row (cross-surface)",
+  "description": "Boundary schema for capability_projection_row_record entries. A projection row is a machine-usable snapshot emitted by a consumer surface (settings, bundle card, command palette, install review, docs/help/about, diagnostics, support export, policy explainer) when it renders a capability-bearing claim. The row re-exports the capability lifecycle axes and dependency markers (ADR 0011) without collapsing them into generic availability copy, and it records the surface's own wording claims so fail-gates can flag stable/certified overclaims. This schema does not evaluate dependencies at runtime; it freezes a cross-surface projection envelope so later tooling can lint and gate publication consistently.",
+  "$ref": "#/$defs/capability_projection_row_record",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for capability projection rows. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9]+(?:[A-Za-z0-9_.:/-]*[A-Za-z0-9])?$",
+      "description": "Stable opaque id safe for logs, RPC, review surfaces, support exports, fixtures, and docs references. Raw absolute paths, raw URLs, raw policy bodies, raw secrets, and raw provider tokens never appear here."
+    },
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_id" },
+        { "type": "null" }
+      ]
+    },
+    "projection_surface_class": {
+      "type": "string",
+      "enum": [
+        "settings_row",
+        "bundle_card",
+        "command_palette_entry",
+        "install_review_step",
+        "docs_page",
+        "help_or_about",
+        "diagnostics_panel",
+        "support_export_row",
+        "policy_explainer_row"
+      ],
+      "description": "Which consumer surface this projection row is emitted for."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Frozen lifecycle-state vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "support_class": {
+      "type": "string",
+      "enum": [
+        "best_effort",
+        "community_supported",
+        "standard_support",
+        "extended_support",
+        "operator_only_support",
+        "no_support"
+      ],
+      "description": "Frozen support-class vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "release_channel": {
+      "type": "string",
+      "enum": [
+        "nightly_channel",
+        "experimental_channel",
+        "preview_channel",
+        "stable_channel",
+        "lts_channel",
+        "managed_only_channel"
+      ],
+      "description": "Frozen release-channel vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Frozen freshness-class vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Frozen client-scope vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "client_scope_set": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/client_scope" },
+      "uniqueItems": true,
+      "minItems": 0
+    },
+    "declared_client_scope_set": {
+      "allOf": [
+        { "$ref": "#/$defs/client_scope_set" },
+        { "minItems": 1 }
+      ],
+      "description": "Declared client-scope set. Must be non-empty."
+    },
+    "certified_archetype_state": {
+      "type": "string",
+      "enum": [
+        "supported",
+        "best_effort",
+        "untested",
+        "degraded",
+        "unsupported",
+        "not_applicable"
+      ],
+      "description": "Certified-archetype axis snapshot used by launch-bearing surfaces. This is a projection of compatibility/certification evidence; it does not replace lifecycle_state."
+    },
+    "certification_freshness_state": {
+      "type": "string",
+      "enum": [
+        "current",
+        "known_issues",
+        "retest_pending",
+        "stale",
+        "community_reported",
+        "unknown"
+      ],
+      "description": "Certification / compatibility freshness posture mirrored from schemas/release/compatibility_row.schema.json."
+    },
+    "marker_kind": {
+      "type": "string",
+      "enum": [
+        "no_live_markers",
+        "non_stable_capability_dependency",
+        "disabled_by_policy_dependency",
+        "deprecated_dependency",
+        "retired_dependency",
+        "provider_linked_dependency",
+        "client_scope_restricted_dependency",
+        "freshness_floor_dependency",
+        "kill_switch_dependency",
+        "managed_only_dependency"
+      ],
+      "description": "Dependency-marker kind vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json, plus the no_live_markers sentinel for explicit empty sets."
+    },
+    "effect_on_parent": {
+      "type": "string",
+      "enum": [
+        "no_effect",
+        "narrows_effective_lifecycle_state",
+        "narrows_effective_support_class",
+        "narrows_effective_release_channel",
+        "narrows_effective_freshness_class",
+        "narrows_effective_client_scope",
+        "gates_entire_capability"
+      ],
+      "description": "Effect-on-parent vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json, plus no_effect for the no_live_markers sentinel."
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": [
+        "dependency_state_below_parent_declared_state",
+        "dependency_disabled_by_policy",
+        "dependency_kill_switch_tripped",
+        "dependency_deprecated_within_window",
+        "dependency_retired",
+        "provider_grant_narrowed",
+        "provider_connection_unhealthy",
+        "client_scope_excludes_surface",
+        "freshness_floor_unmet",
+        "managed_only_channel_required"
+      ],
+      "description": "Dependency-marker reason-code vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "dependency_marker_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "marker_kind",
+        "effect_on_parent",
+        "reason_code"
+      ],
+      "properties": {
+        "dependency_marker_id": { "$ref": "#/$defs/nullable_opaque_id" },
+        "marker_kind": { "$ref": "#/$defs/marker_kind" },
+        "effect_on_parent": { "$ref": "#/$defs/effect_on_parent" },
+        "reason_code": {
+          "oneOf": [
+            { "$ref": "#/$defs/reason_code" },
+            { "type": "null" }
+          ]
+        },
+        "dependency_lifecycle_state": {
+          "oneOf": [
+            { "$ref": "#/$defs/lifecycle_state" },
+            { "type": "null" }
+          ]
+        },
+        "dependency_release_channel": {
+          "oneOf": [
+            { "$ref": "#/$defs/release_channel" },
+            { "type": "null" }
+          ]
+        },
+        "dependency_freshness_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/freshness_class" },
+            { "type": "null" }
+          ]
+        },
+        "dependency_client_scopes": {
+          "oneOf": [
+            { "$ref": "#/$defs/client_scope_set" },
+            { "type": "null" }
+          ]
+        },
+        "repair_hook_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "disclosure_summary": {
+          "oneOf": [
+            { "$ref": "#/$defs/non_empty_string" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "marker_kind": { "const": "no_live_markers" } }, "required": ["marker_kind"] },
+          "then": {
+            "properties": {
+              "effect_on_parent": { "const": "no_effect" },
+              "reason_code": { "type": "null" },
+              "dependency_lifecycle_state": { "type": "null" },
+              "dependency_release_channel": { "type": "null" },
+              "dependency_freshness_class": { "type": "null" },
+              "dependency_client_scopes": { "type": "null" },
+              "repair_hook_ref": { "type": "null" },
+              "disclosure_summary": { "type": "null" }
+            }
+          },
+          "else": {
+            "properties": {
+              "reason_code": { "$ref": "#/$defs/reason_code" }
+            }
+          }
+        }
+      ]
+    },
+    "dependency_marker_list": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency_marker_summary" },
+      "minItems": 1,
+      "uniqueItems": false,
+      "description": "Explicit dependency-marker summary list. When no markers are live, the list contains exactly one no_live_markers sentinel entry."
+    },
+    "lifecycle_wording_class": {
+      "type": "string",
+      "enum": [
+        "stable",
+        "lts",
+        "beta",
+        "preview",
+        "deprecated",
+        "retired",
+        "policy_blocked",
+        "unresolved_or_missing"
+      ],
+      "description": "What the surface's copy implies about lifecycle posture (including stable-by-omission projections)."
+    },
+    "certification_wording_class": {
+      "type": "string",
+      "enum": [
+        "certified",
+        "not_certified",
+        "retest_pending",
+        "degraded",
+        "not_applicable",
+        "unresolved_or_missing"
+      ],
+      "description": "What the surface's copy implies about certification posture. Certified wording must be blocked under retest_pending/stale conditions."
+    },
+    "surface_wording_claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lifecycle_wording",
+        "certification_wording"
+      ],
+      "properties": {
+        "lifecycle_wording": { "$ref": "#/$defs/lifecycle_wording_class" },
+        "certification_wording": { "$ref": "#/$defs/certification_wording_class" },
+        "notes": {
+          "oneOf": [
+            { "$ref": "#/$defs/non_empty_string" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "capability_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability_kind", "capability_id"],
+      "properties": {
+        "capability_kind": {
+          "type": "string",
+          "enum": [
+            "setting",
+            "bundle",
+            "command",
+            "provider_linked_feature",
+            "workspace_capability",
+            "extension_capability",
+            "sdk_or_api_surface",
+            "docs_capability",
+            "support_capability"
+          ]
+        },
+        "capability_id": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "capability_projection_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "capability_projection_row_schema_version",
+        "projection_row_id",
+        "projection_surface_class",
+        "is_launch_bearing_surface",
+        "surface_ref",
+        "capability_lifecycle_row_id",
+        "capability_ref",
+        "declared_lifecycle_state",
+        "effective_lifecycle_state",
+        "support_class",
+        "release_channel",
+        "freshness_class",
+        "client_scopes",
+        "effective_client_scopes",
+        "certified_archetype_state",
+        "certification_freshness_state",
+        "dependency_markers",
+        "wording_claims"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional fixture metadata for examples. Tooling MAY ignore this field."
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "capability_projection_row_record"
+        },
+        "capability_projection_row_schema_version": { "$ref": "#/$defs/schema_version" },
+        "projection_row_id": { "$ref": "#/$defs/opaque_id" },
+        "projection_surface_class": { "$ref": "#/$defs/projection_surface_class" },
+        "is_launch_bearing_surface": { "type": "boolean" },
+        "surface_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque surface reference (repo path, surface id, or canonical route id)."
+        },
+        "capability_lifecycle_row_id": { "$ref": "#/$defs/opaque_id" },
+        "capability_ref": { "$ref": "#/$defs/capability_ref" },
+        "declared_lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "effective_lifecycle_state": { "$ref": "#/$defs/lifecycle_state" },
+        "support_class": { "$ref": "#/$defs/support_class" },
+        "effective_support_class": {
+          "oneOf": [
+            { "$ref": "#/$defs/support_class" },
+            { "type": "null" }
+          ],
+          "description": "Optional narrowed support class after dependency-marker narrowing. Null when no marker narrows support_class."
+        },
+        "release_channel": { "$ref": "#/$defs/release_channel" },
+        "effective_release_channel": {
+          "oneOf": [
+            { "$ref": "#/$defs/release_channel" },
+            { "type": "null" }
+          ]
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": { "$ref": "#/$defs/declared_client_scope_set" },
+        "effective_client_scopes": { "$ref": "#/$defs/client_scope_set" },
+        "certified_archetype_state": { "$ref": "#/$defs/certified_archetype_state" },
+        "certification_freshness_state": { "$ref": "#/$defs/certification_freshness_state" },
+        "archetype_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "compatibility_row_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "dependency_markers": { "$ref": "#/$defs/dependency_marker_list" },
+        "wording_claims": { "$ref": "#/$defs/surface_wording_claims" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "certified_archetype_state": { "const": "supported" }
+            },
+            "required": ["certified_archetype_state"]
+          },
+          "then": {
+            "properties": {
+              "certification_freshness_state": {
+                "enum": ["current", "known_issues"]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "dependency_markers": { "type": "array", "minItems": 1, "maxItems": 1 } }, "required": ["dependency_markers"] },
+          "then": {
+            "properties": {
+              "dependency_markers": {
+                "items": {
+                  "if": { "properties": { "marker_kind": { "const": "no_live_markers" } }, "required": ["marker_kind"] },
+                  "then": true
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

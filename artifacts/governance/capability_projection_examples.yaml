@@ -1,0 +1,338 @@
+# Capability lifecycle projection worked examples.
+#
+# Companion to:
+#   - docs/governance/capability_lifecycle_projection_matrix.md
+#   - schemas/governance/capability_projection_row.schema.json
+#
+# Each example is a small, surface-oriented corpus intended for badge
+# linting and publication gating. The examples focus on stable/preview,
+# retest-pending certification, policy-blocked and managed-only posture,
+# and sunset/successor guidance. Dependency markers remain first-class:
+# every projection row carries either explicit marker summaries or the
+# no_live_markers sentinel.
+
+schema_version: 1
+
+projection_matrix_doc_ref: docs/governance/capability_lifecycle_projection_matrix.md
+projection_row_schema_ref: schemas/governance/capability_projection_row.schema.json
+capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+axis_matrix_doc_ref: docs/governance/capability_axis_matrix.md
+truth_and_degraded_vocab_ref: docs/governance/truth_and_degraded_state_vocabulary.md
+
+examples:
+
+  - id: preview_dependency_blocks_stable_wording
+    scenario: >
+      A settings capability is declared stable, but a live
+      non_stable_capability_dependency marker narrows the effective
+      lifecycle state to preview. Every launch-bearing surface MUST
+      project preview posture (and MUST NOT claim stable-by-omission).
+    projection_rows:
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:editor.inline_diagnostics:settings
+        projection_surface_class: settings_row
+        is_launch_bearing_surface: true
+        surface_ref: schemas/settings/settings_row_state.schema.json
+        capability_lifecycle_row_id: cap:lifecycle:row:editor.inline_diagnostics
+        capability_ref:
+          capability_kind: setting
+          capability_id: editor.inline_diagnostics
+        declared_lifecycle_state: stable
+        effective_lifecycle_state: preview
+        support_class: standard_support
+        release_channel: stable_channel
+        effective_release_channel: null
+        freshness_class: authoritative_live
+        client_scopes: [desktop_product, cli]
+        effective_client_scopes: [desktop_product, cli]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - dependency_marker_id: cap:lifecycle:marker:structured_diagnostics_preview
+            marker_kind: non_stable_capability_dependency
+            effect_on_parent: narrows_effective_lifecycle_state
+            reason_code: dependency_state_below_parent_declared_state
+            dependency_lifecycle_state: preview
+            dependency_release_channel: preview_channel
+            dependency_freshness_class: authoritative_live
+            dependency_client_scopes: [desktop_product, cli]
+            repair_hook_ref: hook:enable_feature_flag:structured_diagnostics.preview
+            disclosure_summary: >
+              Inline diagnostics depends on structured diagnostics, which
+              is still in preview.
+        wording_claims:
+          lifecycle_wording: preview
+          certification_wording: not_applicable
+
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:editor.inline_diagnostics:docs
+        projection_surface_class: docs_page
+        is_launch_bearing_surface: true
+        surface_ref: docs/settings/settings_vocabulary.md
+        capability_lifecycle_row_id: cap:lifecycle:row:editor.inline_diagnostics
+        capability_ref:
+          capability_kind: setting
+          capability_id: editor.inline_diagnostics
+        declared_lifecycle_state: stable
+        effective_lifecycle_state: preview
+        support_class: standard_support
+        release_channel: stable_channel
+        effective_release_channel: null
+        freshness_class: warm_cached
+        client_scopes: [desktop_product, cli]
+        effective_client_scopes: [desktop_product, cli]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - dependency_marker_id: cap:lifecycle:marker:structured_diagnostics_preview
+            marker_kind: non_stable_capability_dependency
+            effect_on_parent: narrows_effective_lifecycle_state
+            reason_code: dependency_state_below_parent_declared_state
+            dependency_lifecycle_state: preview
+            dependency_release_channel: preview_channel
+            dependency_freshness_class: warm_cached
+            dependency_client_scopes: [desktop_product, cli]
+            repair_hook_ref: hook:enable_feature_flag:structured_diagnostics.preview
+            disclosure_summary: >
+              Docs must reflect the preview narrowing while the
+              dependency remains in preview.
+        wording_claims:
+          lifecycle_wording: preview
+          certification_wording: not_applicable
+
+  - id: managed_only_dependency_projects_policy_blocked
+    scenario: >
+      A bundle is shipped on the stable channel but requires a managed-
+      only sub-capability. On non-managed surfaces, the projection must
+      render policy-blocked (not generic unavailable) and must carry the
+      managed_only_dependency marker.
+    projection_rows:
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:bundle.enterprise_sso:bundle_card
+        projection_surface_class: bundle_card
+        is_launch_bearing_surface: true
+        surface_ref: schemas/ux/bundle_card.schema.json
+        capability_lifecycle_row_id: cap:lifecycle:row:bundle.enterprise_sso
+        capability_ref:
+          capability_kind: bundle
+          capability_id: bundle.enterprise_sso
+        declared_lifecycle_state: stable
+        effective_lifecycle_state: disabled_by_policy
+        support_class: extended_support
+        release_channel: stable_channel
+        effective_release_channel: managed_only_channel
+        freshness_class: authoritative_live
+        client_scopes: [desktop_product, managed_admin_surface]
+        effective_client_scopes: [managed_admin_surface]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - dependency_marker_id: cap:lifecycle:marker:managed_control_plane_required
+            marker_kind: managed_only_dependency
+            effect_on_parent: gates_entire_capability
+            reason_code: managed_only_channel_required
+            dependency_lifecycle_state: stable
+            dependency_release_channel: managed_only_channel
+            dependency_freshness_class: authoritative_live
+            dependency_client_scopes: [managed_admin_surface]
+            repair_hook_ref: hook:request_managed_access:enterprise_sso
+            disclosure_summary: >
+              This bundle is available only for managed deployments.
+        wording_claims:
+          lifecycle_wording: policy_blocked
+          certification_wording: not_applicable
+
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:bundle.enterprise_sso:policy_explainer
+        projection_surface_class: policy_explainer_row
+        is_launch_bearing_surface: true
+        surface_ref: docs/policy/admin_policy_and_bundle_cache_contract.md
+        capability_lifecycle_row_id: cap:lifecycle:row:bundle.enterprise_sso
+        capability_ref:
+          capability_kind: bundle
+          capability_id: bundle.enterprise_sso
+        declared_lifecycle_state: stable
+        effective_lifecycle_state: disabled_by_policy
+        support_class: extended_support
+        release_channel: stable_channel
+        effective_release_channel: managed_only_channel
+        freshness_class: authoritative_live
+        client_scopes: [desktop_product, managed_admin_surface]
+        effective_client_scopes: [managed_admin_surface]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - dependency_marker_id: cap:lifecycle:marker:managed_control_plane_required
+            marker_kind: managed_only_dependency
+            effect_on_parent: gates_entire_capability
+            reason_code: managed_only_channel_required
+            dependency_lifecycle_state: stable
+            dependency_release_channel: managed_only_channel
+            dependency_freshness_class: authoritative_live
+            dependency_client_scopes: [managed_admin_surface]
+            repair_hook_ref: hook:request_managed_access:enterprise_sso
+            disclosure_summary: >
+              The policy explainer maps this marker into a typed
+              managed-only explanation plus a request access path.
+        wording_claims:
+          lifecycle_wording: policy_blocked
+          certification_wording: not_applicable
+
+  - id: sunset_requires_successor_guidance
+    scenario: >
+      A capability is deprecated with a successor. Projections must not
+      present stable wording and must carry successor guidance.
+    projection_rows:
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:command.legacy_index_rebuild:command_palette
+        projection_surface_class: command_palette_entry
+        is_launch_bearing_surface: true
+        surface_ref: docs/commands/command_descriptor_contract.md
+        capability_lifecycle_row_id: cap:lifecycle:row:command.legacy_index_rebuild
+        capability_ref:
+          capability_kind: command
+          capability_id: command.legacy_index_rebuild
+        declared_lifecycle_state: deprecated
+        effective_lifecycle_state: deprecated
+        support_class: standard_support
+        release_channel: stable_channel
+        effective_release_channel: null
+        freshness_class: authoritative_live
+        client_scopes: [desktop_product, cli]
+        effective_client_scopes: [desktop_product, cli]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - marker_kind: no_live_markers
+            effect_on_parent: no_effect
+            reason_code: null
+            dependency_lifecycle_state: null
+            dependency_release_channel: null
+            dependency_freshness_class: null
+            dependency_client_scopes: null
+            repair_hook_ref: null
+            disclosure_summary: null
+        wording_claims:
+          lifecycle_wording: deprecated
+          certification_wording: not_applicable
+
+  - id: certification_retest_pending_blocks_certified_wording
+    scenario: >
+      A capability is otherwise stable, but the certification / archetype
+      proof is retest-pending. Surfaces MUST NOT project certified
+      wording; they project retest-pending posture instead.
+    projection_rows:
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:workspace.symbol_index:diagnostics
+        projection_surface_class: diagnostics_panel
+        is_launch_bearing_surface: true
+        surface_ref: docs/support/project_doctor_packet.md
+        capability_lifecycle_row_id: cap:lifecycle:row:workspace.symbol_index
+        capability_ref:
+          capability_kind: workspace_capability
+          capability_id: workspace.symbol_index
+        declared_lifecycle_state: stable
+        effective_lifecycle_state: stable
+        support_class: standard_support
+        release_channel: stable_channel
+        effective_release_channel: null
+        freshness_class: authoritative_live
+        client_scopes: [desktop_product]
+        effective_client_scopes: [desktop_product]
+        certified_archetype_state: best_effort
+        certification_freshness_state: retest_pending
+        compatibility_row_ref: compat:row:workspace.symbol_index:default
+        dependency_markers:
+          - marker_kind: no_live_markers
+            effect_on_parent: no_effect
+            reason_code: null
+            dependency_lifecycle_state: null
+            dependency_release_channel: null
+            dependency_freshness_class: null
+            dependency_client_scopes: null
+            repair_hook_ref: null
+            disclosure_summary: null
+        wording_claims:
+          lifecycle_wording: stable
+          certification_wording: retest_pending
+
+  - id: mixed_bundle_projects_multiple_rows
+    scenario: >
+      A bundle card can carry both stable and preview capabilities, but
+      the projection MUST be per-capability rather than collapsing into
+      one ambiguous chip. This example uses two rows: one stable base
+      bundle and one preview add-on.
+    projection_rows:
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:bundle.dev_basics:bundle_card
+        projection_surface_class: bundle_card
+        is_launch_bearing_surface: true
+        surface_ref: schemas/ux/bundle_card.schema.json
+        capability_lifecycle_row_id: cap:lifecycle:row:bundle.dev_basics
+        capability_ref:
+          capability_kind: bundle
+          capability_id: bundle.dev_basics
+        declared_lifecycle_state: stable
+        effective_lifecycle_state: stable
+        support_class: standard_support
+        release_channel: stable_channel
+        effective_release_channel: null
+        freshness_class: warm_cached
+        client_scopes: [desktop_product, cli]
+        effective_client_scopes: [desktop_product, cli]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - marker_kind: no_live_markers
+            effect_on_parent: no_effect
+            reason_code: null
+            dependency_lifecycle_state: null
+            dependency_release_channel: null
+            dependency_freshness_class: null
+            dependency_client_scopes: null
+            repair_hook_ref: null
+            disclosure_summary: null
+        wording_claims:
+          lifecycle_wording: stable
+          certification_wording: not_applicable
+
+      - record_kind: capability_projection_row_record
+        capability_projection_row_schema_version: 1
+        projection_row_id: proj:cap:bundle.dev_basics:addon_preview
+        projection_surface_class: bundle_card
+        is_launch_bearing_surface: true
+        surface_ref: schemas/ux/bundle_card.schema.json
+        capability_lifecycle_row_id: cap:lifecycle:row:bundle.dev_basics.addon.ai_assist_preview
+        capability_ref:
+          capability_kind: bundle
+          capability_id: bundle.dev_basics.addon.ai_assist_preview
+        declared_lifecycle_state: preview
+        effective_lifecycle_state: preview
+        support_class: best_effort
+        release_channel: preview_channel
+        effective_release_channel: null
+        freshness_class: authoritative_live
+        client_scopes: [desktop_product]
+        effective_client_scopes: [desktop_product]
+        certified_archetype_state: not_applicable
+        certification_freshness_state: unknown
+        dependency_markers:
+          - marker_kind: no_live_markers
+            effect_on_parent: no_effect
+            reason_code: null
+            dependency_lifecycle_state: null
+            dependency_release_channel: null
+            dependency_freshness_class: null
+            dependency_client_scopes: null
+            repair_hook_ref: null
+            disclosure_summary: null
+        wording_claims:
+          lifecycle_wording: preview
+          certification_wording: not_applicable
