@@ -1,0 +1,443 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/embedded_surface_state.schema.json",
+  "title": "Aureline embedded-surface state vocabulary and fallback matrix record",
+  "description": "Boundary schema for embedded_surface_state_record instances frozen in docs/ux/embedded_surface_state_matrix.md. The record gives embedded docs/help, marketplace/account, service dashboards, and extension-owned webviews one shared, export-safe vocabulary for embedded-surface state (fresh/live, cached/mirrored, policy-limited, certificate/trust blocked, cross-origin limited, offline snapshot) plus the required cues and fallback posture for each state. The record maps mechanically onto the upstream embedded boundary-state grammar frozen in docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md, and it composes with (and does not replace) the render-side boundary card contract at docs/ux/embedded_surface_boundary_cards.md. Browser handoff is represented only as an opaque browser_handoff_packet ref (ADR-0010); raw URLs never cross this boundary. Adding a new state_class, cue_id, fallback posture, fallback target, or export rule is additive-minor and bumps embedded_surface_state_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/embedded_surface_state_record",
+  "$defs": {
+    "embedded_surface_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this embedded-surface state vocabulary export. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "embedded_surface_state_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on YAML/JSON fixtures under __fixture__."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Opaque, stable id safe to log and safe to export. Raw URLs, raw hostnames, raw cookies, raw secrets, and raw credential material never appear here."
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque reference to an upstream record, packet, or object identity. Raw URLs and raw provider identifiers are forbidden."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 280,
+      "description": "Short, export-safe label. MUST NOT embed raw URLs, raw hostnames, raw secrets, or raw provider payload."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class re-exported from the shared UX and support vocabulary."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "embedded_docs_help",
+        "embedded_marketplace_or_account",
+        "embedded_service_dashboard",
+        "extension_hosted_surface"
+      ],
+      "description": "Closed embedded-surface family vocabulary. Narrower than ADR-0015 because auth-confirmation surfaces carry additional flow-state semantics."
+    },
+
+    "state_class": {
+      "type": "string",
+      "enum": [
+        "fresh_live",
+        "cached_mirrored",
+        "policy_limited",
+        "certificate_trust_blocked",
+        "cross_origin_limited",
+        "offline_snapshot"
+      ],
+      "description": "Closed embedded-surface state vocabulary. Each value maps to one upstream embedded boundary_state token."
+    },
+
+    "mapped_boundary_state": {
+      "type": "string",
+      "enum": [
+        "live_verified",
+        "stale_snapshot",
+        "policy_blocked",
+        "certificate_failed",
+        "cross_origin_limited",
+        "offline_snapshot",
+        "external_open_only"
+      ],
+      "description": "Upstream embedded boundary_state token (ADR-0015) this record maps onto. The schema enforces the 1:1 mapping for the six state_class values."
+    },
+
+    "liveness_claim": {
+      "type": "string",
+      "enum": ["live", "non_live"],
+      "description": "Whether the surface may claim live/liveness in UI and export. non_live states MUST keep non-live cues visible and export-safe."
+    },
+
+    "degraded_state_token": {
+      "type": "string",
+      "enum": [
+        "Warming",
+        "Cached",
+        "Partial",
+        "Stale",
+        "Offline",
+        "PolicyBlocked",
+        "Limited",
+        "Unsupported",
+        "Experimental",
+        "RetestPending"
+      ],
+      "description": "Product-wide degraded-state token vocabulary from docs/governance/truth_and_degraded_state_vocabulary.md."
+    },
+
+    "cue_id": {
+      "type": "string",
+      "enum": [
+        "owner_origin_data_boundary_chrome_visible",
+        "state_label_visible",
+        "non_live_disclosure_visible",
+        "snapshot_age_visible",
+        "export_disclaimer_visible",
+        "policy_reason_visible",
+        "certificate_or_trust_reason_visible",
+        "cross_origin_limitation_visible",
+        "capability_limitations_visible",
+        "offline_notice_visible",
+        "browser_handoff_disclosure_visible"
+      ],
+      "description": "Closed cue vocabulary naming the minimum visible disclosures the host chrome must carry for the state."
+    },
+
+    "browser_fallback_posture_class": {
+      "type": "string",
+      "enum": [
+        "system_browser_first",
+        "device_code_fallback_offered",
+        "external_open_blocked_by_policy",
+        "external_open_unavailable_offline",
+        "browser_fallback_not_applicable"
+      ],
+      "description": "Re-exported browser-fallback posture vocabulary from the embedded boundary-card contract."
+    },
+
+    "fallback_target_class": {
+      "type": "string",
+      "enum": [
+        "system_browser_handoff_packet",
+        "device_code_companion_card",
+        "platform_authenticator_native",
+        "host_native_review_or_approval",
+        "local_inspect_or_export",
+        "no_fallback_available"
+      ],
+      "description": "Re-exported fallback-target vocabulary from the embedded boundary-card contract."
+    },
+
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "posture_class",
+        "fallback_target_class",
+        "summary_label",
+        "handoff_preserves_object_identity",
+        "handoff_preserves_return_path"
+      ],
+      "properties": {
+        "posture_class": { "$ref": "#/$defs/browser_fallback_posture_class" },
+        "fallback_target_class": { "$ref": "#/$defs/fallback_target_class" },
+        "summary_label": { "$ref": "#/$defs/short_label_text" },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to a browser_handoff_packet when fallback_target_class is system_browser_handoff_packet."
+        },
+        "return_target_label": {
+          "$ref": "#/$defs/short_label_text",
+          "description": "Human-facing label naming where the user returns after a handoff (e.g. \"Docs pane\" or \"Account panel\")."
+        },
+        "handoff_preserves_object_identity": {
+          "type": "boolean",
+          "description": "True when the fallback preserves current object identity rather than dumping to a generic landing page."
+        },
+        "handoff_preserves_return_path": {
+          "type": "boolean",
+          "description": "True when the fallback preserves a stable return anchor back to the originating Aureline object."
+        }
+      }
+    },
+
+    "state_label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visible_label", "accessible_name", "summary_label"],
+      "properties": {
+        "visible_label": { "$ref": "#/$defs/short_label_text" },
+        "accessible_name": { "$ref": "#/$defs/short_label_text" },
+        "summary_label": { "$ref": "#/$defs/short_label_text" }
+      },
+      "description": "Visible and accessible state label. Surfaces may style it as a badge/chip, but the record must keep the label explicit."
+    },
+
+    "export_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_must_preserve_state_class",
+        "export_must_preserve_object_identity",
+        "export_must_remain_non_live_when_non_live"
+      ],
+      "properties": {
+        "export_must_preserve_state_class": {
+          "type": "boolean",
+          "description": "If true, exported evidence must preserve the same state_class rather than flattening to \"ok\" or \"error\"."
+        },
+        "export_must_preserve_object_identity": {
+          "type": "boolean",
+          "description": "If true, exported evidence must preserve current object identity, scope, and attribution alongside the state label."
+        },
+        "export_must_remain_non_live_when_non_live": {
+          "type": "boolean",
+          "description": "If true, any non_live state must remain visibly non-live in exported evidence (no live-looking badge or wording)."
+        }
+      },
+      "description": "Export-safe truth rules for this state."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_mode", "policy_epoch", "trust_state", "execution_context_id"],
+      "properties": {
+        "identity_mode": {
+          "type": "string",
+          "enum": ["account_free_local", "self_hosted_org", "managed_workspace"]
+        },
+        "policy_epoch": { "$ref": "#/$defs/opaque_ref" },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "$ref": "#/$defs/opaque_ref" }
+      },
+      "description": "Policy and trust context projected onto the state record so export and support reconstruction can attribute why the state applies."
+    },
+
+    "embedded_surface_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "embedded_surface_state_schema_version",
+        "case_id",
+        "surface_family",
+        "state_class",
+        "mapped_boundary_state",
+        "liveness_claim",
+        "state_label",
+        "degraded_state_tokens",
+        "required_cues",
+        "fallback",
+        "export_posture",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "embedded_surface_state_schema_version": { "$ref": "#/$defs/embedded_surface_state_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_family": { "$ref": "#/$defs/surface_family" },
+        "state_class": { "$ref": "#/$defs/state_class" },
+        "mapped_boundary_state": { "$ref": "#/$defs/mapped_boundary_state" },
+        "liveness_claim": { "$ref": "#/$defs/liveness_claim" },
+        "state_label": { "$ref": "#/$defs/state_label" },
+        "degraded_state_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/degraded_state_token" },
+          "uniqueItems": true
+        },
+        "required_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cue_id" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "fallback": { "$ref": "#/$defs/fallback" },
+        "export_posture": { "$ref": "#/$defs/export_posture" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state_class": { "const": "fresh_live" } }, "required": ["state_class"] },
+          "then": {
+            "properties": {
+              "mapped_boundary_state": { "const": "live_verified" },
+              "liveness_claim": { "const": "live" },
+              "degraded_state_tokens": { "maxItems": 0 },
+              "fallback": {
+                "properties": {
+                  "posture_class": { "const": "browser_fallback_not_applicable" },
+                  "fallback_target_class": { "enum": ["no_fallback_available", "system_browser_handoff_packet"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state_class": { "const": "cached_mirrored" } }, "required": ["state_class"] },
+          "then": {
+            "properties": {
+              "mapped_boundary_state": { "const": "stale_snapshot" },
+              "liveness_claim": { "const": "non_live" },
+              "degraded_state_tokens": {
+                "minItems": 1,
+                "contains": { "enum": ["Cached", "Stale"] }
+              },
+              "fallback": {
+                "properties": {
+                  "posture_class": { "const": "system_browser_first" },
+                  "fallback_target_class": { "const": "system_browser_handoff_packet" },
+                  "handoff_preserves_object_identity": { "const": true },
+                  "handoff_preserves_return_path": { "const": true }
+                },
+                "required": ["browser_handoff_packet_ref"]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state_class": { "const": "policy_limited" } }, "required": ["state_class"] },
+          "then": {
+            "properties": {
+              "mapped_boundary_state": { "const": "policy_blocked" },
+              "liveness_claim": { "const": "non_live" },
+              "degraded_state_tokens": { "contains": { "const": "PolicyBlocked" } },
+              "fallback": {
+                "properties": {
+                  "posture_class": { "enum": ["system_browser_first", "external_open_blocked_by_policy"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state_class": { "const": "certificate_trust_blocked" } }, "required": ["state_class"] },
+          "then": {
+            "properties": {
+              "mapped_boundary_state": { "const": "certificate_failed" },
+              "liveness_claim": { "const": "non_live" },
+              "degraded_state_tokens": { "contains": { "const": "Limited" } },
+              "fallback": {
+                "properties": {
+                  "posture_class": { "const": "external_open_blocked_by_policy" },
+                  "fallback_target_class": {
+                    "enum": ["host_native_review_or_approval", "local_inspect_or_export", "no_fallback_available"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state_class": { "const": "cross_origin_limited" } }, "required": ["state_class"] },
+          "then": {
+            "properties": {
+              "mapped_boundary_state": { "const": "cross_origin_limited" },
+              "liveness_claim": { "const": "non_live" },
+              "degraded_state_tokens": { "contains": { "const": "Limited" } },
+              "fallback": {
+                "properties": {
+                  "posture_class": { "const": "system_browser_first" },
+                  "fallback_target_class": { "const": "system_browser_handoff_packet" },
+                  "handoff_preserves_object_identity": { "const": true },
+                  "handoff_preserves_return_path": { "const": true }
+                },
+                "required": ["browser_handoff_packet_ref"]
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "state_class": { "const": "offline_snapshot" } }, "required": ["state_class"] },
+          "then": {
+            "properties": {
+              "mapped_boundary_state": { "const": "offline_snapshot" },
+              "liveness_claim": { "const": "non_live" },
+              "degraded_state_tokens": { "contains": { "const": "Offline" } },
+              "fallback": {
+                "properties": {
+                  "posture_class": { "const": "external_open_unavailable_offline" },
+                  "fallback_target_class": { "enum": ["local_inspect_or_export", "no_fallback_available"] }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fallback": {
+                "properties": { "fallback_target_class": { "const": "system_browser_handoff_packet" } },
+                "required": ["fallback_target_class"]
+              }
+            },
+            "required": ["fallback"]
+          },
+          "then": {
+            "properties": {
+              "fallback": { "required": ["browser_handoff_packet_ref", "return_target_label"] }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
