@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/roundtrip_repair_packet.schema.json",
+  "title": "Aureline structured round-trip repair packet (notebooks + structured artifacts)",
+  "description": "Boundary schema for structured_round_trip_repair_packet_record, the compare-before-apply + raw-preservation repair truth record frozen in docs/notebooks/structured_roundtrip_repair_contract.md. The record exists so repair surfaces (notebook repair, structured manifest repair, compatibility downgrade helpers, and partial-open recovery helpers) never perform lossy structured rewrites on user-owned artifacts without: (1) preserving an exact raw copy, (2) requiring an explicit compare-before-apply step, and (3) enumerating dropped, normalized, regenerated, or reinterpreted fields in an export-safe packet. The record is safe to quote in docs/help, support exports, and future repair automation: it carries opaque refs, hashes, typed vocabulary, and bounded reviewer-facing labels only. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw widget state, raw kernel-protocol frames, raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material MUST NOT appear. Adding a new enumerated member or additive field is additive-minor and bumps roundtrip_repair_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/structured_round_trip_repair_packet_record",
+  "$defs": {
+    "roundtrip_repair_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the structured round-trip repair packet record."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "exercised_classes": { "type": "object", "additionalProperties": true },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref safe to log, safe on RPC, and safe in support exports. Raw paths, URLs, bodies, and secrets are forbidden."
+    },
+
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "structured_round_trip_repair_packet_record"
+    },
+
+    "workspace_open_posture": {
+      "type": "string",
+      "enum": [
+        "workspace_open",
+        "workspace_open_partial",
+        "workspace_open_read_only",
+        "workspace_open_blocked"
+      ],
+      "description": "Workspace-level open posture; re-exports schemas/state/migration_failure_state.schema.json vocabulary."
+    },
+
+    "artifact_open_posture": {
+      "type": "string",
+      "enum": [
+        "open_normal",
+        "open_with_warning",
+        "open_read_only",
+        "open_compare_only",
+        "blocked"
+      ],
+      "description": "Per-artifact open posture; re-exports schemas/state/migration_failure_state.schema.json vocabulary."
+    },
+
+    "subject_class": {
+      "type": "string",
+      "enum": [
+        "notebook_document",
+        "notebook_cell",
+        "notebook_output",
+        "structured_manifest",
+        "structured_env_file",
+        "structured_lockfile",
+        "structured_artifact_other"
+      ],
+      "description": "Coarse subject family for the repair packet."
+    },
+
+    "source_format_class": {
+      "type": "string",
+      "enum": [
+        "notebook_ipynb_json",
+        "notebook_cell_source_text",
+        "json_manifest",
+        "yaml_manifest",
+        "dotenv_env_file",
+        "structured_lockfile_text",
+        "structured_text_other"
+      ],
+      "description": "Authored-source format class. Raw bytes never cross; only refs and summaries do."
+    },
+
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "build_output",
+        "codegen_source_sibling",
+        "structured_lockfile",
+        "notebook_output",
+        "preview_render_snapshot",
+        "mirrored_pack_artifact"
+      ],
+      "description": "Artifact-class vocabulary; aligns with docs/architecture/generated_artifact_safe_edit_policy.md."
+    },
+
+    "nullable_artifact_class": {
+      "oneOf": [
+        { "$ref": "#/$defs/artifact_class" },
+        { "type": "null" }
+      ]
+    },
+
+    "unknown_field_posture": {
+      "type": "string",
+      "enum": [
+        "preserve_verbatim",
+        "preserve_under_namespaced_key",
+        "drop_with_disclosure",
+        "refuse_read"
+      ],
+      "description": "Unknown-field posture vocabulary (docs/state/feature_scoped_migration_failure_contract.md)."
+    },
+
+    "repair_flow_class": {
+      "type": "string",
+      "enum": [
+        "unknown_fields",
+        "decoder_fallback",
+        "widget_downgrade",
+        "manifest_normalization",
+        "notebook_output_stripping",
+        "partial_open_recovery",
+        "downgrade_compatibility",
+        "other_structured_repair"
+      ],
+      "description": "Coarse repair flow family used to route compare-before-apply, raw-preservation, and refusal behavior."
+    },
+
+    "suspect_reason_class": {
+      "type": "string",
+      "enum": [
+        "unknown_fields_observed",
+        "unsupported_schema_version",
+        "schema_validation_failed",
+        "parse_failed",
+        "decode_recovery_required",
+        "missing_adapter_or_runtime",
+        "widget_trust_or_runtime_block",
+        "output_payload_unrenderable_or_corrupt",
+        "compatibility_downgrade_requested",
+        "partial_open_context",
+        "other"
+      ],
+      "description": "Typed reason the artifact is considered suspect for safe structured rewrite."
+    },
+
+    "structured_round_trip_risk_class": {
+      "type": "string",
+      "enum": [
+        "lossless_roundtrip",
+        "lossy_metadata_only",
+        "lossy_output_representation",
+        "lossy_structural",
+        "lossy_irreversible",
+        "round_trip_unavailable",
+        "round_trip_policy_blocked"
+      ],
+      "description": "Re-export of structured round-trip risk class vocabulary (docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md)."
+    },
+
+    "apply_gate_class": {
+      "type": "string",
+      "enum": [
+        "allow_apply",
+        "warn_allow_apply",
+        "require_compare_first_review",
+        "require_typed_confirmation",
+        "refuse_rewrite"
+      ],
+      "description": "Apply-gating vocabulary re-exported from the preview contract. Repair candidates MUST use refuse_rewrite rather than guessing when impact cannot be enumerated."
+    },
+
+    "affected_field_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Typed field path for impact disclosure (JSON Pointer, schema path, or structured editor path)."
+    },
+
+    "raw_bytes_posture": {
+      "type": "string",
+      "enum": [
+        "not_needed_lossless_roundtrip",
+        "preserved_in_open_buffer",
+        "preserved_in_recovery_journal",
+        "preserved_until_apply_resolves",
+        "unavailable_source_missing",
+        "policy_redacted_metadata_only"
+      ],
+      "description": "Raw preservation posture. Mirrors decode-recovery raw-byte semantics without carrying raw bytes."
+    },
+
+    "raw_preservation_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_bytes_posture", "preserved_raw_artifact_ref", "preservation_summary_label"],
+      "properties": {
+        "raw_bytes_posture": { "$ref": "#/$defs/raw_bytes_posture" },
+        "preserved_raw_artifact_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "preserved_raw_fingerprint_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "preservation_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "rebuild_intent_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "regenerate_recommended",
+        "regenerate_required_before_authoritative_claims",
+        "rebuild_required_before_authoritative_claims",
+        "reexecute_required_for_fresh_output",
+        "mirror_refresh_required",
+        "manual_recovery_required"
+      ],
+      "description": "What makes the repaired result authoritative again?"
+    },
+
+    "rebuild_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent_class", "summary_label"],
+      "properties": {
+        "intent_class": { "$ref": "#/$defs/rebuild_intent_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "transaction_reversal_class": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "compensating",
+        "regenerate",
+        "manual",
+        "audit_only"
+      ],
+      "description": "How a repair can be backed out (aligns with schemas/support/repair_transaction.schema.json)."
+    },
+
+    "checkpoint_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint_required", "checkpoint_ref", "summary_label"],
+      "properties": {
+        "checkpoint_required": { "type": "boolean" },
+        "checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "compare_view_class": {
+      "type": "string",
+      "enum": [
+        "byte_diff",
+        "structured_diff",
+        "summary_only",
+        "unavailable"
+      ],
+      "description": "What compare-before-apply view exists for this candidate."
+    },
+
+    "compare_view_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compare_view_class", "compare_view_ref", "compare_summary_label"],
+      "properties": {
+        "compare_view_class": { "$ref": "#/$defs/compare_view_class" },
+        "compare_view_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "compare_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "change_summary_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dropped_field_paths",
+        "normalized_field_paths",
+        "regenerated_field_paths",
+        "preserved_unknown_field_paths",
+        "summary_label"
+      ],
+      "properties": {
+        "dropped_field_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_field_path" },
+          "description": "Field paths dropped by the candidate repair (must be explicit, not implied)."
+        },
+        "normalized_field_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_field_path" },
+          "description": "Field paths whose serialization/representation was normalized."
+        },
+        "regenerated_field_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_field_path" },
+          "description": "Field paths replaced by regenerated content (outputs, derived caches, canonical re-emit)."
+        },
+        "preserved_unknown_field_paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_field_path" },
+          "description": "Unknown-field paths explicitly preserved (verbatim or under a declared namespace)."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "subject_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_class", "subject_ref", "display_label", "artifact_class"],
+      "properties": {
+        "subject_class": { "$ref": "#/$defs/subject_class" },
+        "subject_ref": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/reviewable_label" },
+        "artifact_class": { "$ref": "#/$defs/nullable_artifact_class" },
+        "notebook_document_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "authored_source_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_format_class", "source_artifact_ref", "source_fingerprint_ref", "authored_summary_label"],
+      "properties": {
+        "source_format_class": { "$ref": "#/$defs/source_format_class" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "authored_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "availability_context_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_open_posture", "artifact_open_posture", "summary_label"],
+      "properties": {
+        "workspace_open_posture": { "$ref": "#/$defs/workspace_open_posture" },
+        "artifact_open_posture": { "$ref": "#/$defs/artifact_open_posture" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "linked_migration_failure_state_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "suspect_state_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suspect_reasons",
+        "unknown_field_posture",
+        "linked_decode_recovery_review_ref",
+        "summary_label"
+      ],
+      "properties": {
+        "suspect_reasons": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/suspect_reason_class" },
+          "uniqueItems": true
+        },
+        "unknown_field_posture": { "$ref": "#/$defs/unknown_field_posture" },
+        "linked_decode_recovery_review_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "repair_candidate_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "flow_class",
+        "risk_class",
+        "candidate_artifact_ref",
+        "candidate_fingerprint_ref",
+        "candidate_summary_label",
+        "compare_before_apply",
+        "change_summary",
+        "rerun_requirement",
+        "checkpoint",
+        "claimed_reversal_class",
+        "apply_gate_class"
+      ],
+      "properties": {
+        "candidate_id": { "$ref": "#/$defs/opaque_ref" },
+        "flow_class": { "$ref": "#/$defs/repair_flow_class" },
+        "risk_class": { "$ref": "#/$defs/structured_round_trip_risk_class" },
+        "candidate_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "candidate_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "candidate_summary_label": { "$ref": "#/$defs/reviewable_label" },
+        "compare_before_apply": { "$ref": "#/$defs/compare_view_block" },
+        "change_summary": { "$ref": "#/$defs/change_summary_block" },
+        "rerun_requirement": { "$ref": "#/$defs/rebuild_intent" },
+        "checkpoint": { "$ref": "#/$defs/checkpoint_block" },
+        "claimed_reversal_class": { "$ref": "#/$defs/transaction_reversal_class" },
+        "apply_gate_class": { "$ref": "#/$defs/apply_gate_class" },
+        "linked_roundtrip_preview_sheet_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "structured_round_trip_repair_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roundtrip_repair_schema_version",
+        "record_kind",
+        "repair_packet_id",
+        "subject",
+        "authored_source",
+        "availability_context",
+        "suspect_state",
+        "raw_preservation",
+        "repair_candidates",
+        "emitted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "roundtrip_repair_schema_version": { "$ref": "#/$defs/roundtrip_repair_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "repair_packet_id": { "$ref": "#/$defs/opaque_ref" },
+        "subject": { "$ref": "#/$defs/subject_block" },
+        "authored_source": { "$ref": "#/$defs/authored_source_block" },
+        "availability_context": { "$ref": "#/$defs/availability_context_block" },
+        "suspect_state": { "$ref": "#/$defs/suspect_state_block" },
+        "raw_preservation": { "$ref": "#/$defs/raw_preservation_block" },
+        "repair_candidates": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/repair_candidate_block" }
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+

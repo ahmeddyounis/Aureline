@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../../../schemas/notebooks/roundtrip_repair_packet.schema.json
+__fixture__:
+  name: notebook_output_stripping_compare_first_rerun_required
+  scenario: >-
+    A notebook is oversized or contains suspect outputs that cannot be
+    safely rendered in the current context. A repair candidate strips
+    saved outputs to recover editability and reduce size. This is a lossy
+    structured rewrite and therefore requires raw preservation, explicit
+    compare-before-apply, and a declared rerun requirement.
+  seed_section: Output stripping; preserve raw; compare-first; rerun required
+  exercised_classes:
+    flow_class: notebook_output_stripping
+    risk_class: lossy_output_representation
+    apply_gate_class: require_compare_first_review
+    raw_bytes_posture: preserved_in_recovery_journal
+  linked_docs:
+    - docs/notebooks/structured_roundtrip_repair_contract.md
+    - docs/notebooks/output_viewer_truth_contract.md
+    - docs/ux/preview_apply_revert_contract.md
+
+roundtrip_repair_schema_version: 1
+record_kind: structured_round_trip_repair_packet_record
+repair_packet_id: rtrepair.notebook.output_strip.compare_first.v1
+
+subject:
+  subject_class: notebook_document
+  subject_ref: ws.file.notebook_ipynb
+  display_label: Structured repair (notebook; strip saved outputs)
+  artifact_class: null
+  notebook_document_ref: ws.notebook.doc_ref.v3
+  cell_id_ref: null
+  output_id_ref: null
+
+authored_source:
+  source_format_class: notebook_ipynb_json
+  source_artifact_ref: ws.source.notebook_ipynb.v9
+  source_fingerprint_ref: hash.ws.notebook_ipynb.bytes.v9
+  authored_summary_label: Notebook contains saved outputs that are heavy or suspect in this context; stripping outputs is offered as an explicit repair candidate.
+
+availability_context:
+  workspace_open_posture: workspace_open_partial
+  artifact_open_posture: open_with_warning
+  summary_label: Workspace is partial-open; output renderers and runtime context are degraded, so output stripping is offered with review gating.
+  linked_migration_failure_state_ref: null
+
+suspect_state:
+  suspect_reasons:
+    - output_payload_unrenderable_or_corrupt
+    - partial_open_context
+  unknown_field_posture: preserve_verbatim
+  linked_decode_recovery_review_ref: null
+  summary_label: Saved outputs are suspect/unrenderable; repair offers explicit output stripping with preserved raw bytes and compare-first review.
+
+raw_preservation:
+  raw_bytes_posture: preserved_in_recovery_journal
+  preserved_raw_artifact_ref: ws.preserve.raw.notebook_ipynb.before_output_strip.v1
+  preserved_raw_fingerprint_ref: hash.ws.notebook_ipynb.bytes.v9
+  preservation_summary_label: Raw notebook bytes are preserved so stripped outputs can be restored exactly if needed.
+
+repair_candidates:
+  - candidate_id: rtrepair.candidate.notebook.output_strip.v1
+    flow_class: notebook_output_stripping
+    risk_class: lossy_output_representation
+    candidate_artifact_ref: ws.repair.candidate.notebook_ipynb.outputs_stripped.v1
+    candidate_fingerprint_ref: hash.ws.repair.notebook_ipynb.outputs_stripped.v1
+    candidate_summary_label: Strip saved outputs and derived execution artifacts; keep cell inputs and metadata intact.
+    compare_before_apply:
+      compare_view_class: structured_diff
+      compare_view_ref: ws.diff.notebook_ipynb.outputs_stripped.v1
+      compare_summary_label: Compare notebook before/after output stripping; removed outputs are enumerated by cell/output paths.
+    change_summary:
+      dropped_field_paths:
+        - /cells/*/outputs
+        - /cells/*/execution_count
+      normalized_field_paths: []
+      regenerated_field_paths: []
+      preserved_unknown_field_paths: []
+      summary_label: Saved outputs and execution counters are removed; rerun is required to regenerate authoritative outputs.
+    rerun_requirement:
+      intent_class: reexecute_required_for_fresh_output
+      action_ref: null
+      summary_label: Re-execution is required to regenerate outputs; stripped outputs are not claimed as refreshed.
+    checkpoint:
+      checkpoint_required: true
+      checkpoint_ref: ws.checkpoint.notebook_ipynb.before_output_strip.v1
+      summary_label: A checkpoint is created so the exact notebook-with-outputs can be restored.
+    claimed_reversal_class: exact
+    apply_gate_class: require_compare_first_review
+    linked_roundtrip_preview_sheet_ref: ws.preview_sheet.notebook_ipynb.output_strip.v1
+
+emitted_at: "2026-05-06T22:18:00Z"
+

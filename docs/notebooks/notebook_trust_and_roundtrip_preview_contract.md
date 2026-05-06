@@ -39,6 +39,9 @@ This contract composes with:
   honesty (no overclaiming reversibility).
 - [`/docs/editor/decode_recovery_and_save_consequence_contract.md`](../editor/decode_recovery_and_save_consequence_contract.md)
   — raw-byte preservation postures and “block until reviewed” semantics.
+- [`/docs/notebooks/structured_roundtrip_repair_contract.md`](./structured_roundtrip_repair_contract.md)
+  — structured repair packet, raw-preservation, and compare-before-apply
+  obligations when fidelity threats require guided repair or refusal.
 - [`/docs/runtime/target_discovery_and_install_review_taxonomy.md`](../runtime/target_discovery_and_install_review_taxonomy.md)
   — taxonomy slots that quote `notebook_trust_rung` and
   `structured_round_trip_risk_packet_ref` on install-review and other
@@ -203,4 +206,3 @@ Raw preservation rule:
 - lockfile structured-edit refusal vs regenerate-first posture;
 - rich outputs, widgets, and downgraded widget trust states;
 - mixed local/remote kernels with kernel-unavailable execution trust.
-

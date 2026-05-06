@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../../../schemas/notebooks/roundtrip_repair_packet.schema.json
+__fixture__:
+  name: widget_downgrade_strip_widget_state_compare_first
+  scenario: >-
+    A notebook contains widget state and rich widget outputs, but the
+    widget runtime is unavailable (or widget trust blocks binding). A
+    compatibility repair candidate strips widget state so the notebook is
+    writable in a reduced environment. This is lossy and requires raw
+    preservation + compare-first + checkpoint.
+  seed_section: Widget downgrade; strip widget state; compare-first
+  exercised_classes:
+    flow_class: widget_downgrade
+    risk_class: lossy_structural
+    apply_gate_class: require_compare_first_review
+    raw_bytes_posture: preserved_in_recovery_journal
+  linked_docs:
+    - docs/notebooks/structured_roundtrip_repair_contract.md
+    - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+    - docs/notebooks/output_viewer_truth_contract.md
+    - docs/ux/preview_apply_revert_contract.md
+
+roundtrip_repair_schema_version: 1
+record_kind: structured_round_trip_repair_packet_record
+repair_packet_id: rtrepair.notebook.widget_downgrade.strip_state.v1
+
+subject:
+  subject_class: notebook_document
+  subject_ref: ws.file.notebook_ipynb
+  display_label: Structured repair (notebook; strip widget state for reduced runtime)
+  artifact_class: null
+  notebook_document_ref: ws.notebook.doc_ref.v2
+  cell_id_ref: null
+  output_id_ref: null
+
+authored_source:
+  source_format_class: notebook_ipynb_json
+  source_artifact_ref: ws.source.notebook_ipynb.v8
+  source_fingerprint_ref: hash.ws.notebook_ipynb.bytes.v8
+  authored_summary_label: Notebook includes widget state and widget-backed outputs that cannot be safely bound in the current runtime/trust posture.
+
+availability_context:
+  workspace_open_posture: workspace_open_partial
+  artifact_open_posture: open_with_warning
+  summary_label: Workspace is partial-open; widget runtime is unavailable and the notebook is not fully interactive.
+  linked_migration_failure_state_ref: null
+
+suspect_state:
+  suspect_reasons:
+    - widget_trust_or_runtime_block
+    - missing_adapter_or_runtime
+  unknown_field_posture: preserve_verbatim
+  linked_decode_recovery_review_ref: null
+  summary_label: Widget runtime/trust blocks live binding; stripping widget state is a lossy compatibility repair and must be review-gated.
+
+raw_preservation:
+  raw_bytes_posture: preserved_in_recovery_journal
+  preserved_raw_artifact_ref: ws.preserve.raw.notebook_ipynb.before_repair.v1
+  preserved_raw_fingerprint_ref: hash.ws.notebook_ipynb.bytes.v8
+  preservation_summary_label: Raw notebook bytes are preserved so widget stripping is reversible by restore.
+
+repair_candidates:
+  - candidate_id: rtrepair.candidate.notebook.widget_downgrade.strip_widget_state.v1
+    flow_class: widget_downgrade
+    risk_class: lossy_structural
+    candidate_artifact_ref: ws.repair.candidate.notebook_ipynb.widget_stripped.v1
+    candidate_fingerprint_ref: hash.ws.repair.notebook_ipynb.widget_stripped.v1
+    candidate_summary_label: Strip widget state and widget-backed output bindings; keep cell inputs intact for source-first recovery.
+    compare_before_apply:
+      compare_view_class: structured_diff
+      compare_view_ref: ws.diff.notebook_ipynb.widget_stripped.v1
+      compare_summary_label: Compare raw notebook vs widget-stripped candidate; widget state and widget output bindings are highlighted as removals.
+    change_summary:
+      dropped_field_paths:
+        - /metadata/widgets
+        - /cells/*/outputs/*/data/application/vnd.jupyter.widget-view+json
+      normalized_field_paths: []
+      regenerated_field_paths: []
+      preserved_unknown_field_paths: []
+      summary_label: Widget state and widget-view payloads are removed; this is a lossy compatibility downgrade.
+    rerun_requirement:
+      intent_class: reexecute_required_for_fresh_output
+      action_ref: null
+      summary_label: Outputs are no longer authoritative; re-execution is required to regenerate interactive outputs in a supported runtime.
+    checkpoint:
+      checkpoint_required: true
+      checkpoint_ref: ws.checkpoint.notebook_ipynb.before_widget_strip.v1
+      summary_label: A checkpoint is created so the original notebook (including widget state) can be restored exactly.
+    claimed_reversal_class: exact
+    apply_gate_class: require_compare_first_review
+    linked_roundtrip_preview_sheet_ref: ws.preview_sheet.notebook_ipynb.widget_strip.v1
+
+emitted_at: "2026-05-06T22:14:00Z"
+
