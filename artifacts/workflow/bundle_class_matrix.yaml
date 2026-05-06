@@ -1,0 +1,264 @@
+# Workflow bundle-class matrix, signer/support-boundary disclosure rules, and stable-claim threshold gates.
+#
+# Machine-readable matrix that binds each `bundle_class` to:
+#   - allowed source/status linkages (re-exported from the bundle manifest contract),
+#   - required signer/source constraints,
+#   - minimum disclosure obligations (support posture, policy notices, mirror/offline posture),
+#   - stable-claim ceilings and gates so bundles cannot over-claim launch-wedge coverage,
+#     benchmark-backed compatibility, or managed support readiness.
+#
+# Tooling reads this file. The normative narrative is
+# docs/workflow/bundle_class_matrix.md. If the two disagree, this file is
+# authoritative for tooling and the narrative is updated in the same change.
+#
+# Rules.
+#   - Milestone slugs and task ids MUST NOT appear in any row id, label,
+#     trigger, or gate value.
+#   - Adding a row, adding a required disclosure, or adding a gate reason is
+#     additive-minor and bumps bundle_class_matrix_schema_version.
+#   - Repurposing an existing gate (turning an allow into a deny or changing a
+#     class’s stable-claim ceiling) is breaking and requires a governance
+#     decision row.
+
+schema_version: 1
+bundle_class_matrix_schema_version: 1
+catalog_id: aureline.workflow.bundle_class_matrix
+status: seeded
+contract_doc_ref: docs/workflow/bundle_class_matrix.md
+
+upstream_refs:
+  workflow_bundle_object_model_contract_ref: docs/workflow/workflow_bundle_object_model.md
+  bundle_manifest_schema_ref: schemas/workflow/bundle_manifest.schema.json
+  start_center_bundle_surfaces_contract_ref: docs/ux/start_center_bundle_surfaces.md
+  bundle_evidence_freshness_contract_ref: docs/workflow/bundle_evidence_freshness_contract.md
+  bundle_badge_freshness_rows_ref: artifacts/workflow/bundle_badge_freshness_rows.yaml
+  launch_wedge_contract_ref: docs/product/launch_wedge_contract.md
+  template_and_prebuild_contract_ref: docs/ux/template_and_prebuild_contract.md
+  bundle_claim_threshold_schema_ref: schemas/workflow/bundle_claim_threshold.schema.json
+
+# -----------------------------------------------------------------------------
+# Closed vocabulary minted by this matrix (scoped to disclosure/gate evaluation).
+# -----------------------------------------------------------------------------
+
+stable_claim_kind_vocabulary:
+  - launch_wedge_coverage
+  - benchmark_backed_compatibility
+  - managed_support_readiness
+
+stable_claim_gate_verdict_vocabulary:
+  - allowed
+  - allowed_with_narrowing
+  - blocked
+
+stable_claim_gate_reason_vocabulary:
+  - bundle_class_not_eligible
+  - source_not_certified
+  - status_not_current
+  - signer_boundary_not_eligible
+  - signer_continuity_or_signature_review_required
+  - evidence_missing_required_link
+  - evidence_stale_or_unknown
+  - missing_cutline_or_scoreboard_coverage
+  - support_class_not_official
+  - identity_or_entitlement_dependency_not_disclosed
+
+# -----------------------------------------------------------------------------
+# Required disclosure slots (field-level checklist).
+# -----------------------------------------------------------------------------
+
+required_disclosure_slots:
+  identity_axes:
+    - bundle_class
+    - bundle_source_class
+    - bundle_status_class
+    - support_class
+  signer_axes:
+    - bundle_signer_source_class
+    - signer_continuity_class
+    - signature_class
+  packaging_axes:
+    - mirror_or_offline_packaging_posture
+    - mirror_freshness_ref
+    - offline_bundle_freshness_ref
+  narrowing_axes:
+    - policy_notice_ref
+
+# -----------------------------------------------------------------------------
+# Bundle-class matrix rows.
+# -----------------------------------------------------------------------------
+
+bundle_classes:
+  - bundle_class: launch_bundle
+    display_name: Launch bundle
+    primary_intent: First-party launch-wedge entry bundle.
+    allowed_bundle_source_classes:
+      - certified
+    allowed_bundle_status_classes:
+      - certified_current
+      - certified_retest_pending
+      - retest_needed
+      - deprecated_or_archived
+      - status_unknown
+    required_signer_source_classes:
+      - core_signing_root
+      - core_signing_root_via_mirror
+    required_disclosure_slots_ref: required_disclosure_slots
+    stable_claim_gates:
+      - claim_kind: launch_wedge_coverage
+        stable_claim_ceiling: allowed
+        required_when_allowed:
+          bundle_source_class: certified
+          bundle_status_class: certified_current
+          required_identity_extras:
+            workflow_bundle_id_register_ref:
+              required: true
+            archetype_bindings:
+              min_items: 1
+            cutline_refs:
+              min_items: 1
+          required_evidence_link_kinds:
+            - scoreboard_packet
+        notes: >
+          Launch-wedge coverage implication is allowed only when the bundle is
+          certified_current and carries scoreboard-backed evidence links for the
+          cutline(s) it cites.
+      - claim_kind: benchmark_backed_compatibility
+        stable_claim_ceiling: allowed_with_narrowing
+        required_when_allowed:
+          bundle_source_class: certified
+          bundle_status_class: certified_current
+          required_evidence_link_kinds:
+            - compatibility_report
+            - benchmark_packet
+        notes: >
+          Compatibility implication is allowed only when certified_current and
+          the compatibility + benchmark evidence links resolve and are fresh.
+      - claim_kind: managed_support_readiness
+        stable_claim_ceiling: blocked
+        notes: >
+          Managed support readiness is an org-managed concept and does not apply
+          to first-party launch bundles.
+
+  - bundle_class: imported_user_bundle
+    display_name: Imported-user handoff bundle
+    primary_intent: Migration handoff artifact preserving imported context.
+    allowed_bundle_source_classes:
+      - imported
+    allowed_bundle_status_classes:
+      - imported_pending_review
+      - community_unreviewed
+      - community_reviewed
+      - retest_needed
+      - deprecated_or_archived
+      - status_unknown
+    required_signer_source_classes:
+      - trust_source_unknown_review_required
+      - unsigned_user_review_required
+      - local_user_trust_only
+      - repo_local_workspace_trust
+      - community_channel_signature
+    required_disclosure_slots_ref: required_disclosure_slots
+    stable_claim_gates:
+      - claim_kind: launch_wedge_coverage
+        stable_claim_ceiling: blocked
+      - claim_kind: benchmark_backed_compatibility
+        stable_claim_ceiling: blocked
+      - claim_kind: managed_support_readiness
+        stable_claim_ceiling: blocked
+    notes: >
+      Imported-user bundles may carry evidence links and migration notes, but
+      they never imply launch-wedge coverage, certified compatibility, or
+      managed support readiness without explicit promotion into another bundle
+      class and a new manifest revision.
+
+  - bundle_class: org_approved_bundle
+    display_name: Org-approved stack bundle
+    primary_intent: Org-curated baseline for a managed team rollout.
+    allowed_bundle_source_classes:
+      - managed_approved
+      - certified
+    allowed_bundle_status_classes:
+      - managed_approved_current
+      - certified_current
+      - certified_retest_pending
+      - retest_needed
+      - deprecated_or_archived
+      - status_unknown
+    required_signer_source_classes:
+      - org_policy_signing_root
+      - org_mirror_signing_root
+    required_disclosure_slots_ref: required_disclosure_slots
+    stable_claim_gates:
+      - claim_kind: launch_wedge_coverage
+        stable_claim_ceiling: blocked
+      - claim_kind: benchmark_backed_compatibility
+        stable_claim_ceiling: blocked
+        notes: >
+          Org bundles may cite compatibility reports for review, but certified
+          compatibility implication remains reserved for certified bundles.
+      - claim_kind: managed_support_readiness
+        stable_claim_ceiling: allowed
+        required_when_allowed:
+          bundle_source_class: managed_approved
+          bundle_status_class: managed_approved_current
+          support_class: officially_supported
+          required_policy_notice_classes:
+            - fleet_policy_notice
+            - admin_policy_notice
+            - connected_provider_policy_notice
+            - managed_workspace_policy_notice
+        notes: >
+          Managed support readiness implication is allowed only for current,
+          org-signed, managed-approved bundles that disclose identity and policy
+          dependencies via policy notices.
+
+  - bundle_class: design_partner_bundle
+    display_name: Design-partner bundle
+    primary_intent: Time-bounded pilot bundle used for partner validation.
+    allowed_bundle_source_classes:
+      - managed_approved
+      - community
+    allowed_bundle_status_classes:
+      - managed_approved_current
+      - community_reviewed
+      - community_unreviewed
+      - retest_needed
+      - deprecated_or_archived
+      - status_unknown
+    required_signer_source_classes:
+      - org_policy_signing_root
+      - org_mirror_signing_root
+      - community_channel_signature
+    required_disclosure_slots_ref: required_disclosure_slots
+    stable_claim_gates:
+      - claim_kind: launch_wedge_coverage
+        stable_claim_ceiling: blocked
+      - claim_kind: benchmark_backed_compatibility
+        stable_claim_ceiling: blocked
+      - claim_kind: managed_support_readiness
+        stable_claim_ceiling: blocked
+    notes: >
+      Design-partner bundles are pilot-class by default. They may surface proof
+      links, but stable claims remain blocked until promotion into a certified
+      class per the workflow-bundle object model.
+
+  - bundle_class: local_draft_bundle
+    display_name: Local-draft bundle
+    primary_intent: Local-only user-authored draft bundle.
+    allowed_bundle_source_classes:
+      - local_draft
+    allowed_bundle_status_classes:
+      - local_draft
+      - deprecated_or_archived
+    required_signer_source_classes:
+      - local_user_trust_only
+      - unsigned_user_review_required
+      - repo_local_workspace_trust
+    required_disclosure_slots_ref: required_disclosure_slots
+    stable_claim_gates:
+      - claim_kind: launch_wedge_coverage
+        stable_claim_ceiling: blocked
+      - claim_kind: benchmark_backed_compatibility
+        stable_claim_ceiling: blocked
+      - claim_kind: managed_support_readiness
+        stable_claim_ceiling: blocked
