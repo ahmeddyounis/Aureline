@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/equivalence_map_row.schema.json",
+  "title": "Aureline migration equivalence-map row contract",
+  "description": "Boundary schema for migration equivalence-map rows. Equivalence rows classify how a source object maps into the destination model with a reusable closed equivalence_outcome vocabulary (exact/translated/approximated/shimmed/unsupported/skipped_by_policy/needs_manual_review) so onboarding, migration center, docs/help, support exports, and design-partner review can cite the same row without reclassification. Equivalence rows are export-safe by design: they carry opaque ids, controlled labels, redaction-aware summaries, and evidence refs, but MUST NOT contain raw source bodies, raw absolute paths, raw credentials, raw extension storage, raw workspace file contents, or raw policy payloads. This schema is frozen by docs/migration/migration_equivalence_and_parity_scorecard.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/equivalence_map_row_record" },
+    { "$ref": "#/$defs/equivalence_map_packet_record" }
+  ],
+  "$defs": {
+    "equivalence_map_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the equivalence-map row contract. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to persist and export."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 timestamp. Producers use a monotonic source where possible."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware summary safe for UI, docs/help, and support export. Exporters apply active redaction policy before crossing boundaries."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "equivalence_map_row_id": {
+      "type": "string",
+      "pattern": "^equivalence-map-row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable equivalence-map row id cited by importer outcomes, preview rows, docs/help, and support exports."
+    },
+    "equivalence_map_packet_id": {
+      "type": "string",
+      "pattern": "^equivalence-map-packet:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "source_ecosystem_id": {
+      "type": "string",
+      "enum": [
+        "vs_code_code_oss",
+        "jetbrains_family",
+        "vim_neovim",
+        "emacs",
+        "sublime_textmate",
+        "native_aureline",
+        "mixed_imported_sources",
+        "generic_import"
+      ],
+      "description": "Governed source ecosystem identity aligned with artifacts/migration/source_ecosystem_rows.yaml."
+    },
+    "migration_domain": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "shortcuts",
+        "themes_and_visuals",
+        "snippets_and_templates",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "workspace_metadata",
+        "profiles_and_layout",
+        "docs_and_tours",
+        "bridge_metadata",
+        "workflow_bundles",
+        "other"
+      ],
+      "description": "Equivalence-map domain. This is aligned with the migration-domain set and adds workflow_bundles for bundle handoff rows."
+    },
+    "interop_result_state": {
+      "type": "string",
+      "enum": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported"
+      ],
+      "description": "Importer-outcome projection for this equivalence row. Surfaces must still render outcome_state using this closed set."
+    },
+    "outcome_reason_class": {
+      "type": "string",
+      "enum": [
+        "exact_equivalent_available",
+        "semantic_equivalent_available",
+        "capability_mapping_available",
+        "user_declined_import",
+        "policy_excludes_import",
+        "existing_state_retained",
+        "conflict_requires_review",
+        "bridge_needed_for_parity",
+        "target_feature_not_supported",
+        "source_artifact_unreadable",
+        "source_version_not_qualified",
+        "insufficient_evidence"
+      ],
+      "description": "Typed reason why the row landed in its outcome state."
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "insufficient_evidence"]
+    },
+    "mapping_basis": {
+      "type": "string",
+      "enum": [
+        "exact_identity",
+        "semantic_equivalent",
+        "capability_based",
+        "bridge_adapter",
+        "name_heuristic",
+        "user_override",
+        "not_applicable"
+      ],
+      "description": "How the mapping was derived. name_heuristic is allowed only when no stronger basis exists and the row remains reviewable."
+    },
+    "equivalence_outcome": {
+      "type": "string",
+      "enum": [
+        "exact",
+        "translated",
+        "approximated",
+        "shimmed",
+        "unsupported",
+        "skipped_by_policy",
+        "needs_manual_review"
+      ],
+      "description": "Closed equivalence outcome vocabulary frozen by docs/migration/migration_equivalence_and_parity_scorecard.md."
+    },
+    "shim_surface_class": {
+      "type": "string",
+      "enum": [
+        "extension_compat_layer",
+        "keymap_bridge",
+        "theme_token_bridge",
+        "task_launch_translator",
+        "provider_connector",
+        "workflow_bundle_handoff",
+        "other"
+      ],
+      "description": "Which shim/bridge family the row depends on when native parity is not available."
+    },
+    "shim_installation_posture": {
+      "type": "string",
+      "enum": [
+        "already_present",
+        "required_before_use",
+        "recommended",
+        "policy_blocked",
+        "unavailable"
+      ]
+    },
+    "shim_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shim_ref", "shim_surface_class", "installation_posture"],
+      "properties": {
+        "shim_ref": { "$ref": "#/$defs/non_empty_string" },
+        "shim_surface_class": { "$ref": "#/$defs/shim_surface_class" },
+        "installation_posture": { "$ref": "#/$defs/shim_installation_posture" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "note": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Shim requirement details for shimmed rows. Native parity is not claimed while the shim is required."
+    },
+    "equivalence_map_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "equivalence_map_schema_version",
+        "row_id",
+        "source_ecosystem_id",
+        "domain",
+        "source_object_ref",
+        "source_label",
+        "equivalence_outcome",
+        "outcome_state",
+        "reason_class",
+        "confidence_class",
+        "mapping_basis",
+        "evidence_refs"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "equivalence_map_row_record"
+        },
+        "equivalence_map_schema_version": { "$ref": "#/$defs/equivalence_map_schema_version" },
+        "row_id": { "$ref": "#/$defs/equivalence_map_row_id" },
+        "source_ecosystem_id": { "$ref": "#/$defs/source_ecosystem_id" },
+        "domain": { "$ref": "#/$defs/migration_domain" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "target_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "equivalence_outcome": { "$ref": "#/$defs/equivalence_outcome" },
+        "outcome_state": { "$ref": "#/$defs/interop_result_state" },
+        "reason_class": { "$ref": "#/$defs/outcome_reason_class" },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "mapping_basis": { "$ref": "#/$defs/mapping_basis" },
+        "caveat": { "$ref": "#/$defs/redaction_aware_text" },
+        "shim_requirement": { "$ref": "#/$defs/shim_requirement" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "known_gap_refs": { "$ref": "#/$defs/ref_array" },
+        "bundle_suggestion_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Reserved slot for later governed bundle recommendations."
+        },
+        "docs_help_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Reserved slot for later stable docs/help references."
+        },
+        "migration_guide_anchor_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Reserved slot for later migration-guide anchors."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "equivalence_outcome": {
+                "enum": ["exact", "translated", "approximated", "shimmed"]
+              }
+            },
+            "required": ["equivalence_outcome"]
+          },
+          "then": {
+            "required": ["target_object_ref", "target_label"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "equivalence_outcome": { "const": "shimmed" }
+            },
+            "required": ["equivalence_outcome"]
+          },
+          "then": {
+            "required": ["shim_requirement"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "equivalence_outcome": { "const": "skipped_by_policy" }
+            },
+            "required": ["equivalence_outcome"]
+          },
+          "then": {
+            "properties": {
+              "reason_class": { "const": "policy_excludes_import" }
+            },
+            "required": ["reason_class"]
+          }
+        }
+      ],
+      "description": "One export-safe equivalence-map row reused across migration surfaces."
+    },
+    "equivalence_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exact",
+        "translated",
+        "approximated",
+        "shimmed",
+        "unsupported",
+        "skipped_by_policy",
+        "needs_manual_review",
+        "total_rows"
+      ],
+      "properties": {
+        "exact": { "type": "integer", "minimum": 0 },
+        "translated": { "type": "integer", "minimum": 0 },
+        "approximated": { "type": "integer", "minimum": 0 },
+        "shimmed": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 },
+        "skipped_by_policy": { "type": "integer", "minimum": 0 },
+        "needs_manual_review": { "type": "integer", "minimum": 0 },
+        "total_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "equivalence_map_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "equivalence_map_schema_version",
+        "equivalence_map_packet_id",
+        "title",
+        "generated_at",
+        "contract_ref",
+        "schema_ref",
+        "source_ecosystem_id",
+        "rows",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "equivalence_map_packet_record"
+        },
+        "equivalence_map_schema_version": { "$ref": "#/$defs/equivalence_map_schema_version" },
+        "equivalence_map_packet_id": { "$ref": "#/$defs/equivalence_map_packet_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "source_ecosystem_id": { "$ref": "#/$defs/source_ecosystem_id" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/equivalence_map_row_record" }
+        },
+        "summary": { "$ref": "#/$defs/equivalence_summary" },
+        "publication_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" }
+        },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "description": "Grouped equivalence-map packet used for migration reports and support exports."
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "equivalence_map_row_record",
+      "equivalence_map_schema_version": 1,
+      "row_id": "equivalence-map-row:vscode-setting-tabsize-exact-0001",
+      "source_ecosystem_id": "vs_code_code_oss",
+      "domain": "settings",
+      "source_object_ref": "vscode:setting:editor.tabSize",
+      "source_label": "editor.tabSize",
+      "target_object_ref": "aureline:setting:editor.tabSize",
+      "target_label": "editor.tabSize",
+      "equivalence_outcome": "exact",
+      "outcome_state": "imported",
+      "reason_class": "exact_equivalent_available",
+      "confidence_class": "high",
+      "mapping_basis": "exact_identity",
+      "evidence_refs": [
+        "fixtures/migration/source_profile_examples/vscode_code_oss_profile.yaml"
+      ],
+      "known_gap_refs": []
+    },
+    {
+      "record_kind": "equivalence_map_row_record",
+      "equivalence_map_schema_version": 1,
+      "row_id": "equivalence-map-row:vscode-extension-eslint-shimmed-0002",
+      "source_ecosystem_id": "vs_code_code_oss",
+      "domain": "extensions_and_providers",
+      "source_object_ref": "vscode:extension:dbaeumer.vscode-eslint",
+      "source_label": "ESLint",
+      "target_object_ref": "bridge:eslint-capability-layer",
+      "target_label": "ESLint capability bridge",
+      "equivalence_outcome": "shimmed",
+      "outcome_state": "bridge_required",
+      "reason_class": "bridge_needed_for_parity",
+      "confidence_class": "medium",
+      "mapping_basis": "bridge_adapter",
+      "caveat": "Bridge-backed continuity remains explicit; native parity is not claimed.",
+      "shim_requirement": {
+        "shim_ref": "bridge:eslint-capability-layer",
+        "shim_surface_class": "extension_compat_layer",
+        "installation_posture": "required_before_use",
+        "docs_help_refs": [
+          "docs/migration/migration_center_object_model.md#bridge-required"
+        ],
+        "note": "Bridge requirement must remain visible in preview, report, and support export."
+      },
+      "evidence_refs": [
+        "artifacts/migration/top_imported_workflow_rows.yaml"
+      ],
+      "known_gap_refs": []
+    }
+  ]
+}
+

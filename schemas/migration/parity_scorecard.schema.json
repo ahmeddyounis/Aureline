@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/parity_scorecard.schema.json",
+  "title": "Aureline migration category parity scorecard contract",
+  "description": "Boundary schema for migration category parity scorecards. A parity scorecard is a category-specific, evidence-backed summary emitted by import preview, importer outcome packets, and machine-readable migration reports. It exists to prevent a single aggregate 'success' result from hiding weak categories (for example strong shortcut parity masking weak launch/debug or extension-equivalence truth). Scorecards are export-safe by design: they carry opaque ids, controlled label classes, redaction-aware label summaries, evidence refs, and known-gap refs, but MUST NOT include raw source bodies, raw absolute paths, raw credentials, raw extension storage, raw workspace file contents, or raw policy payloads. This schema is frozen by docs/migration/migration_equivalence_and_parity_scorecard.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/parity_scorecard_row_record" },
+    { "$ref": "#/$defs/parity_scorecard_packet_record" }
+  ],
+  "$defs": {
+    "parity_scorecard_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the parity scorecard contract. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to persist and export."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 timestamp. Producers use a monotonic source where possible."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900,
+      "description": "Redaction-aware free text safe for UI, docs/help, and support export. Exporters apply active redaction policy before crossing boundaries."
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "source_ecosystem_id": {
+      "type": "string",
+      "enum": [
+        "vs_code_code_oss",
+        "jetbrains_family",
+        "vim_neovim",
+        "emacs",
+        "sublime_textmate",
+        "native_aureline",
+        "mixed_imported_sources",
+        "generic_import"
+      ]
+    },
+    "parity_category": {
+      "type": "string",
+      "enum": [
+        "keymap",
+        "theme_and_visuals",
+        "settings",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "snippets_and_templates",
+        "other"
+      ],
+      "description": "Closed category set used by parity scorecards. Category parity MUST remain separate; producers MUST NOT collapse these into a single overall score field."
+    },
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "insufficient_evidence"]
+    },
+    "label_class": {
+      "type": "string",
+      "enum": [
+        "strong",
+        "medium",
+        "weak",
+        "blocked_or_missing",
+        "insufficient_evidence"
+      ],
+      "description": "Export-safe label class for score presentation. This is not a replacement for the numeric score; it is the copy-safe posture surfaces may quote."
+    },
+    "parity_scorecard_row_id": {
+      "type": "string",
+      "pattern": "^parity-score-row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "parity_scorecard_packet_id": {
+      "type": "string",
+      "pattern": "^parity-scorecard:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+    },
+    "label_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label_class", "label_summary"],
+      "properties": {
+        "label_class": { "$ref": "#/$defs/label_class" },
+        "label_summary": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+    "parity_scorecard_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "parity_scorecard_schema_version",
+        "score_row_id",
+        "migration_session_ref",
+        "source_ecosystem_id",
+        "category",
+        "score",
+        "confidence_class",
+        "label",
+        "evidence_refs"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "parity_scorecard_row_record"
+        },
+        "parity_scorecard_schema_version": { "$ref": "#/$defs/parity_scorecard_schema_version" },
+        "score_row_id": { "$ref": "#/$defs/parity_scorecard_row_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_ecosystem_id": { "$ref": "#/$defs/source_ecosystem_id" },
+        "category": { "$ref": "#/$defs/parity_category" },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Category-specific parity score. Producers MUST NOT emit an overall score field that hides category weakness."
+        },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "label": { "$ref": "#/$defs/label_record" },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "known_gap_refs": { "$ref": "#/$defs/ref_array" },
+        "known_gap_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "bundle_suggestion_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Reserved slot for later governed bundle recommendations."
+        },
+        "docs_help_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Reserved slot for later stable docs/help references."
+        },
+        "migration_guide_anchor_refs": {
+          "$ref": "#/$defs/ref_array",
+          "description": "Reserved slot for later migration-guide anchors."
+        }
+      }
+    },
+    "parity_scorecard_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "keymap",
+        "theme_and_visuals",
+        "settings",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "snippets_and_templates",
+        "other"
+      ],
+      "properties": {
+        "keymap": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "theme_and_visuals": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "settings": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "tasks_and_run_configs": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "launch_debug": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "extensions_and_providers": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "snippets_and_templates": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "other": { "type": "integer", "minimum": 0, "maximum": 100 }
+      },
+      "description": "Convenience summary map. This is still category-specific; it is not an overall score."
+    },
+    "parity_scorecard_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "parity_scorecard_schema_version",
+        "parity_scorecard_id",
+        "migration_session_ref",
+        "source_ecosystem_id",
+        "title",
+        "generated_at",
+        "contract_ref",
+        "schema_ref",
+        "rows",
+        "summary"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "parity_scorecard_packet_record"
+        },
+        "parity_scorecard_schema_version": { "$ref": "#/$defs/parity_scorecard_schema_version" },
+        "parity_scorecard_id": { "$ref": "#/$defs/parity_scorecard_packet_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_ecosystem_id": { "$ref": "#/$defs/source_ecosystem_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "contract_ref": { "$ref": "#/$defs/non_empty_string" },
+        "schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/parity_scorecard_row_record" }
+        },
+        "summary": { "$ref": "#/$defs/parity_scorecard_summary" },
+        "publication_rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/redaction_aware_text" }
+        },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "description": "Grouped category parity scorecard packet used by migration reports and support exports."
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "parity_scorecard_packet_record",
+      "parity_scorecard_schema_version": 1,
+      "parity_scorecard_id": "parity-scorecard:vscode-first-run-0001",
+      "migration_session_ref": "migration-session:vs-code-first-run-0001",
+      "source_ecosystem_id": "vs_code_code_oss",
+      "title": "Category parity scorecard for a VS Code profile import",
+      "generated_at": "2026-05-06T19:30:00Z",
+      "contract_ref": "docs/migration/migration_equivalence_and_parity_scorecard.md",
+      "schema_ref": "schemas/migration/parity_scorecard.schema.json",
+      "rows": [
+        {
+          "record_kind": "parity_scorecard_row_record",
+          "parity_scorecard_schema_version": 1,
+          "score_row_id": "parity-score-row:vscode-keymap-0001",
+          "migration_session_ref": "migration-session:vs-code-first-run-0001",
+          "source_ecosystem_id": "vs_code_code_oss",
+          "category": "keymap",
+          "score": 92,
+          "confidence_class": "high",
+          "label": {
+            "label_class": "strong",
+            "label_summary": "High-fidelity keymap import; remaining deltas are visible as conflicts or remaps."
+          },
+          "evidence_refs": [
+            "schemas/commands/keybinding_resolver.schema.json",
+            "docs/migration/migration_restore_and_shortcut_delta_packet.md"
+          ],
+          "known_gap_refs": []
+        },
+        {
+          "record_kind": "parity_scorecard_row_record",
+          "parity_scorecard_schema_version": 1,
+          "score_row_id": "parity-score-row:vscode-launch-debug-0001",
+          "migration_session_ref": "migration-session:vs-code-first-run-0001",
+          "source_ecosystem_id": "vs_code_code_oss",
+          "category": "launch_debug",
+          "score": 65,
+          "confidence_class": "medium",
+          "label": {
+            "label_class": "medium",
+            "label_summary": "Launch/debug translation is partial; some rows require manual review before runnable parity can be claimed."
+          },
+          "evidence_refs": [
+            "docs/migration/source_ecosystem_coverage_matrix.md",
+            "artifacts/migration/quality_bar_rubric.yaml"
+          ],
+          "known_gap_refs": [
+            "docs/migration/compatibility_scorecard_contract.md"
+          ]
+        }
+      ],
+      "summary": {
+        "keymap": 92,
+        "theme_and_visuals": 74,
+        "settings": 88,
+        "tasks_and_run_configs": 70,
+        "launch_debug": 65,
+        "extensions_and_providers": 58,
+        "snippets_and_templates": 80,
+        "other": 0
+      },
+      "publication_rules": [
+        "Category parity scores remain separate; exports must not collapse them into one overall success number.",
+        "Known-gap refs remain attached to the relevant category so support and docs can reconstruct why the score is not higher."
+      ],
+      "docs_help_refs": [
+        "docs/migration/migration_equivalence_and_parity_scorecard.md"
+      ]
+    }
+  ]
+}

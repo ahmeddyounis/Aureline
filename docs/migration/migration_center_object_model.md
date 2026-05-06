@@ -15,6 +15,13 @@ longer open.
 
 Companion artifacts:
 
+- [`/docs/migration/migration_equivalence_and_parity_scorecard.md`](./migration_equivalence_and_parity_scorecard.md)
+  — equivalence-map and category parity scorecard contract that
+  `equivalence_map_row_refs` and `parity_score_refs` are expected to cite.
+- [`/schemas/migration/equivalence_map_row.schema.json`](../../schemas/migration/equivalence_map_row.schema.json)
+  — machine-readable equivalence-map row contract.
+- [`/schemas/migration/parity_scorecard.schema.json`](../../schemas/migration/parity_scorecard.schema.json)
+  — machine-readable category parity scorecard contract.
 - [`/schemas/migration/migration_session.schema.json`](../../schemas/migration/migration_session.schema.json)
   — machine-readable schema for `migration_session_record`,
   `migration_shortcut_digest_record`, and `migration_restore_record`.
