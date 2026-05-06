@@ -50,6 +50,12 @@ This contract composes with, and does not replace:
   `auth_mode_class`, `acquisition_posture`,
   `declared_freshness_class`, `signer_continuity_class`, or any
   bootstrap-item class.
+- [`/docs/workspace/materialization_and_staging_policy.md`](../workspace/materialization_and_staging_policy.md)
+  and [`/schemas/workspace/materialization_class.schema.json`](../../schemas/workspace/materialization_class.schema.json)
+  for the workspace-level target-materialization vocabulary and
+  temp-location disclosure rules that keep non-durable staging distinct
+  from durable workspace state across UI, support/export, and recovery
+  flows.
 - [`/docs/ux/host_identity_contract.md`](./host_identity_contract.md)
   and [`/schemas/contexts/host_identity_chip.schema.json`](../../schemas/contexts/host_identity_chip.schema.json)
   for the host-identity chip the clone review reads when it discloses

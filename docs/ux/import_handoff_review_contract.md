@@ -66,6 +66,11 @@ This contract composes with, and does not replace:
   activation and *before* any side effect; it never grants trust,
   installs dependencies, recommends extensions, or executes hooks
   / tasks.
+- [`/docs/workspace/materialization_and_staging_policy.md`](../workspace/materialization_and_staging_policy.md)
+  and [`/schemas/workspace/materialization_class.schema.json`](../../schemas/workspace/materialization_class.schema.json)
+  for the workspace-level target-materialization vocabulary and
+  temp-location disclosure rules that keep inspection, staging, and
+  durable promotion distinct across import/archive/handoff flows.
 - [`/docs/ux/trust_prompt_contract.md`](./trust_prompt_contract.md)
   and [`/docs/adr/0001-identity-mode-trust.md`](../adr/0001-identity-mode-trust.md)
   / [`/docs/adr/0018-workspace-trust-and-restricted-mode.md`](../adr/0018-workspace-trust-and-restricted-mode.md)

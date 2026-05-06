@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/workspace/materialization_class.schema.json",
+  "title": "Aureline workspace target-materialization class and staging disclosure",
+  "description": "Boundary schema for the target-materialization class, non-durable staging policy, and temp-location disclosure contract frozen in docs/workspace/materialization_and_staging_policy.md. This schema exports (1) one definition record per target_materialization_class value so shell, Start Center, CLI/headless entry, support/export, recovery, and migration surfaces can share the same durability/promotion/cleanup invariants, and (2) disclosure records that name where bytes live right now without carrying raw absolute paths, raw archive bytes, raw repo pack bytes, or raw credentials. Adding a new target_materialization_class, durability_class, write_posture_class, cleanup_posture_class, export_posture_class, recovery_posture_class, or promotion_action_class is additive-minor and bumps materialization_class_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/materialization_class_definition_record" },
+    { "$ref": "#/$defs/target_materialization_disclosure_record" }
+  ],
+  "$defs": {
+    "materialization_class_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the target-materialization and staging disclosure vocabulary export. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, support bundles, and claim manifests. Raw absolute paths, raw credentials, raw remote URLs with embedded credentials, and raw bytes never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "short_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 640,
+      "description": "Reviewable summary safe for UI, CLI, support, and release exports. Raw absolute paths, raw URLs with embedded credentials, raw bytes, and secrets are forbidden."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Redaction-aware free text (<= 1024 graphemes). The exporter is responsible for applying the redaction policy before the value crosses the boundary."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__."
+    },
+
+    "target_materialization_class": {
+      "type": "string",
+      "enum": [
+        "local_durable_workspace",
+        "local_destination_pending_admission",
+        "labelled_non_durable_staging",
+        "temporary_inspection",
+        "staged_import_extraction",
+        "remote_backed_workspace",
+        "generated_only",
+        "cached_evidence_only",
+        "materialization_failed_partial"
+      ],
+      "description": "Closed target-materialization class vocabulary. Names where bytes live and whether the location is durable or only staging/temporary. See docs/workspace/materialization_and_staging_policy.md."
+    },
+
+    "durability_class": {
+      "type": "string",
+      "enum": [
+        "durable_local",
+        "durable_remote",
+        "non_durable_on_disk",
+        "ephemeral_process_scoped",
+        "no_bytes_present"
+      ],
+      "description": "Closed durability class naming whether the materialization location is intended to persist across sessions and whether it is a byte-bearing root."
+    },
+
+    "write_posture_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only_no_write",
+        "inspect_only_read_only",
+        "writes_non_durable_staging",
+        "writes_uncommitted_destination",
+        "writes_durable_workspace",
+        "writes_remote_backed_workspace",
+        "no_write_bytes_missing"
+      ],
+      "description": "Closed write-posture vocabulary. Distinguishes inspect-only paths from non-durable staging writes, uncommitted destination writes, and admitted durable workspace writes."
+    },
+
+    "cleanup_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_cleanup_required",
+        "cleanup_on_cancel",
+        "cleanup_on_failure",
+        "retain_for_review",
+        "retain_until_durable_promotion",
+        "manual_cleanup_required"
+      ],
+      "description": "Closed cleanup-posture vocabulary for temporary and staged materializations."
+    },
+
+    "promotion_action_class": {
+      "type": "string",
+      "enum": [
+        "promote_to_durable_workspace",
+        "admit_destination_as_workspace_root",
+        "discard_staging",
+        "reveal_location_in_filesystem",
+        "none"
+      ],
+      "description": "Closed promotion / cleanup / disclosure action vocabulary. These are typed action ids, not user-facing strings."
+    },
+
+    "export_posture_class": {
+      "type": "string",
+      "enum": [
+        "durable_workspace_export_allowed",
+        "export_metadata_only",
+        "export_reference_only_requires_review",
+        "export_denied_by_policy"
+      ],
+      "description": "Closed support/export posture for the current materialization. Non-durable and uncommitted locations must not export as if they were durable workspace state."
+    },
+
+    "recovery_posture_class": {
+      "type": "string",
+      "enum": [
+        "eligible_for_restore_last_session",
+        "inspect_only_reopen",
+        "discard_only",
+        "not_restorable"
+      ],
+      "description": "Closed recovery posture vocabulary. Targets that were never admitted as durable workspaces do not offer restore-last-session semantics."
+    },
+
+    "required_disclosure_field": {
+      "type": "string",
+      "enum": [
+        "location_label",
+        "non_durable_label_visible",
+        "durable_promotion_requires_review",
+        "cleanup_posture_class",
+        "promotion_action_class",
+        "export_posture_class",
+        "recovery_posture_class"
+      ],
+      "description": "Closed disclosure-field ids used by class definition records."
+    },
+
+    "materialization_class_definition_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "materialization_class_schema_version",
+        "target_materialization_class",
+        "class_label",
+        "durability_class",
+        "write_posture_ceiling_class",
+        "treat_as_durable_workspace_state",
+        "support_export_as_durable_workspace_state",
+        "eligible_for_restore_last_session",
+        "default_cleanup_posture_class",
+        "required_disclosure_fields",
+        "reviewer_summary"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "materialization_class_definition_record" },
+        "materialization_class_schema_version": { "$ref": "#/$defs/materialization_class_schema_version" },
+        "target_materialization_class": { "$ref": "#/$defs/target_materialization_class" },
+        "class_label": { "$ref": "#/$defs/non_empty_string" },
+        "durability_class": { "$ref": "#/$defs/durability_class" },
+        "write_posture_ceiling_class": { "$ref": "#/$defs/write_posture_class" },
+        "treat_as_durable_workspace_state": {
+          "type": "boolean",
+          "description": "When true, UI/recents/recovery may treat the location as the workspace root. Temporary/staged/uncommitted classes set this to false."
+        },
+        "support_export_as_durable_workspace_state": {
+          "type": "boolean",
+          "description": "When true, support exports may describe the target as durable workspace state. Temporary/staged/uncommitted classes set this to false."
+        },
+        "eligible_for_restore_last_session": {
+          "type": "boolean",
+          "description": "When true, recovery flows may offer restore-last-session semantics for this materialization class."
+        },
+        "default_cleanup_posture_class": { "$ref": "#/$defs/cleanup_posture_class" },
+        "required_disclosure_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/required_disclosure_field" },
+          "uniqueItems": true
+        },
+        "reviewer_summary": { "$ref": "#/$defs/short_sentence" }
+      }
+    },
+
+    "target_materialization_disclosure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "materialization_class_schema_version",
+        "disclosure_id",
+        "target_materialization_class",
+        "durability_class",
+        "write_posture_class",
+        "location_label",
+        "non_durable_label_visible",
+        "durable_promotion_requires_review",
+        "cleanup_posture_class",
+        "export_posture_class",
+        "recovery_posture_class",
+        "treat_as_durable_workspace_state",
+        "summary",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "target_materialization_disclosure_record" },
+        "materialization_class_schema_version": { "$ref": "#/$defs/materialization_class_schema_version" },
+        "disclosure_id": { "$ref": "#/$defs/opaque_id" },
+        "target_materialization_class": { "$ref": "#/$defs/target_materialization_class" },
+        "durability_class": { "$ref": "#/$defs/durability_class" },
+        "write_posture_class": { "$ref": "#/$defs/write_posture_class" },
+        "location_label": {
+          "$ref": "#/$defs/redaction_aware_text",
+          "description": "Redaction-safe label that discloses where bytes live (never a raw absolute path by default)."
+        },
+        "location_ref": {
+          "oneOf": [
+            { "$ref": "#/$defs/opaque_id" },
+            { "type": "null" }
+          ],
+          "description": "Optional opaque ref to a location descriptor that a reveal action may target. Raw paths remain out of band."
+        },
+        "non_durable_label_visible": { "type": "boolean" },
+        "durable_promotion_requires_review": { "type": "boolean" },
+        "cleanup_posture_class": { "$ref": "#/$defs/cleanup_posture_class" },
+        "promotion_actions_offered": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/promotion_action_class" },
+          "uniqueItems": true,
+          "description": "Optional set of typed promotion/cleanup actions offered by the surface."
+        },
+        "export_posture_class": { "$ref": "#/$defs/export_posture_class" },
+        "recovery_posture_class": { "$ref": "#/$defs/recovery_posture_class" },
+        "treat_as_durable_workspace_state": {
+          "type": "boolean",
+          "description": "Must be false for temporary/staged/uncommitted classes so they cannot masquerade as durable workspace state."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "target_materialization_class": {
+                "enum": [
+                  "labelled_non_durable_staging",
+                  "staged_import_extraction",
+                  "local_destination_pending_admission",
+                  "temporary_inspection",
+                  "generated_only",
+                  "cached_evidence_only",
+                  "materialization_failed_partial"
+                ]
+              }
+            },
+            "required": ["target_materialization_class"]
+          },
+          "then": { "properties": { "treat_as_durable_workspace_state": { "const": false } } }
+        },
+        {
+          "if": {
+            "properties": { "target_materialization_class": { "const": "local_durable_workspace" } },
+            "required": ["target_materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "treat_as_durable_workspace_state": { "const": true },
+              "non_durable_label_visible": { "const": false },
+              "durable_promotion_requires_review": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "target_materialization_class": { "const": "remote_backed_workspace" } },
+            "required": ["target_materialization_class"]
+          },
+          "then": { "properties": { "treat_as_durable_workspace_state": { "const": true } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "target_materialization_class": {
+                "enum": [
+                  "labelled_non_durable_staging",
+                  "staged_import_extraction",
+                  "local_destination_pending_admission",
+                  "materialization_failed_partial"
+                ]
+              }
+            },
+            "required": ["target_materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "non_durable_label_visible": { "const": true },
+              "durable_promotion_requires_review": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "target_materialization_class": { "const": "temporary_inspection" } },
+            "required": ["target_materialization_class"]
+          },
+          "then": {
+            "properties": {
+              "durable_promotion_requires_review": { "const": true }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
