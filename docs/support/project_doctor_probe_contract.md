@@ -19,6 +19,10 @@ systems must emit once implemented.
 
 ## Companion Artifacts
 
+- [`/docs/support/probe_family_matrix.md`](./probe_family_matrix.md) and
+  [`/artifacts/support/probe_families.yaml`](../../artifacts/support/probe_families.yaml)
+  publish the probe-family matrix and non-destructive diagnosis rules
+  Doctor must follow before any probe is reviewed.
 - [`/schemas/support/probe_catalog_entry.schema.json`](../../schemas/support/probe_catalog_entry.schema.json)
   defines one catalog row with mutability class, prerequisites,
   expected latency, evidence produced, local or remote support class,
@@ -39,9 +43,10 @@ systems must emit once implemented.
 - [`/schemas/support/doctor_explanation.schema.json`](../../schemas/support/doctor_explanation.schema.json)
   defines one finding explanation and repair-handoff packet.
 - [`/fixtures/support/doctor_probe_cases/`](../../fixtures/support/doctor_probe_cases/)
-  contains six paired probe-descriptor and finding-card seeds covering
-  missing toolchain, proxy or CA failure, extension regression, schema
-  drift, local-history corruption, and remote-target mismatch.
+  contains eight paired probe-descriptor and finding-card seeds covering
+  missing toolchain, trust/policy block, watcher health, proxy or CA
+  failure, extension regression, schema drift, local-history corruption,
+  and remote-target mismatch.
 - [`/fixtures/support/project_doctor_cases/`](../../fixtures/support/project_doctor_cases/)
   contains seed packets proving read-only probe admission, mutating
   probe promotion, and finding-to-repair handoff.

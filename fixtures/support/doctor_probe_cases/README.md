@@ -8,14 +8,16 @@ contracts. Each scenario carries one `doctor_probe_descriptor_record`
 read-only-by-default rule, the closed probe-class taxonomy, and the
 desktop-versus-headless parity contract concrete.
 
-| Scenario | Probe class | Invocation policy | Card posture |
-|---|---|---|---|
-| Missing toolchain | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
-| Proxy or CA failure | `environment_check` | `with_user_consent` | `read_only_diagnosis` |
-| Extension regression | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
-| Schema drift (cache rebuild preview) | `repair_preview` | `with_user_consent` | `preview_only_no_apply` |
-| Local-history corruption | `unsafe_or_unsupported` | `never_without_explicit_invocation` | `refusing_unsupported` |
-| Remote-target mismatch (simulation) | `simulation` | `automatic_inferring_only` | `read_only_diagnosis` |
+| Scenario | Probe family | Probe class | Invocation policy | Card posture |
+|---|---|---|---|---|
+| Missing toolchain | `execution_context_toolchains` | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
+| Trust/policy block (approval expired) | `trust_identity_policy` | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
+| Filesystem watcher stalled | `filesystem_watchers` | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
+| Proxy or CA failure | `network_proxy_ca_transport` | `environment_check` | `with_user_consent` | `read_only_diagnosis` |
+| Extension regression | `extension_runtime_health` | `read_only_inspection` | `automatic` | `read_only_diagnosis` |
+| Schema drift (cache rebuild preview) | `caches_schema_local_state` | `repair_preview` | `with_user_consent` | `preview_only_no_apply` |
+| Local-history corruption | `caches_schema_local_state` | `unsafe_or_unsupported` | `never_without_explicit_invocation` | `refusing_unsupported` |
+| Remote-target mismatch (simulation) | `remote_routes_collaboration` | `simulation` | `automatic_inferring_only` | `read_only_diagnosis` |
 
 The manifest pins the closed enums each row must use and lists the
 reviewer-facing assertions every case must satisfy.
@@ -32,12 +34,17 @@ The card's `probe_descriptor_ref` points back at the descriptor file
 verbatim so a reviewer can audit both halves of the contract from one
 case.
 
-## Why these six scenarios
+## Why these scenarios
 
-The cases cover the six examples named by the contract spec:
+The cases cover the probe families published in
+`docs/support/probe_family_matrix.md`:
 
 - missing toolchain (proves a read-only probe stays inside metadata
   and environment-adjacent data classes);
+- trust/policy block (proves Doctor can diagnose restricted mode or
+  expired approvals without widening trust or prompting silent sign-in);
+- filesystem watcher stall (proves watcher health diagnosis never
+  restarts watchers or touches user files without a repair preview);
 - proxy or CA failure (proves an environment-check probe requires
   single-step user consent and is unavailable offline);
 - extension regression (proves Doctor diagnoses a crash loop without

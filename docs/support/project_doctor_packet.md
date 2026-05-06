@@ -22,6 +22,11 @@ change.
 
 Companion artifacts:
 
+- [`/docs/support/probe_family_matrix.md`](./probe_family_matrix.md) and
+  [`/artifacts/support/probe_families.yaml`](../../artifacts/support/probe_families.yaml)
+  — published probe-family matrix and non-destructive diagnosis rules
+  that bound what Doctor may inspect and what it must never do during
+  diagnosis.
 - [`/docs/support/project_doctor_probe_contract.md`](./project_doctor_probe_contract.md),
   [`/schemas/support/probe_catalog_entry.schema.json`](../../schemas/support/probe_catalog_entry.schema.json),
   [`/schemas/support/doctor_probe.schema.json`](../../schemas/support/doctor_probe.schema.json),

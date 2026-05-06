@@ -1,0 +1,359 @@
+# Project Doctor probe-family matrix.
+#
+# This artifact freezes what each probe family may inspect, what it must
+# never do during diagnosis, the evidence classes it is expected to
+# produce, and the default redaction posture.
+#
+# The probe-family vocabulary is owned by
+# schemas/support/probe_catalog_entry.schema.json ($defs.probe_family_class).
+
+schema_version: 1
+record_kind: probe_family_matrix
+matrix_id: support.project_doctor.probe_family_matrix.v1
+title: Project Doctor probe-family matrix
+
+governing_refs:
+  - docs/support/probe_family_matrix.md
+  - docs/support/project_doctor_probe_contract.md
+  - docs/architecture/supportability_adr.md
+
+vocabulary_bindings:
+  probe_family_class: schemas/support/probe_catalog_entry.schema.json#/$defs/probe_family_class
+  evidence_source_class: schemas/support/probe_catalog_entry.schema.json#/$defs/evidence_source_class
+  signal_class: schemas/support/probe_catalog_entry.schema.json#/$defs/signal_class
+  probe_side_effect_class: schemas/support/probe_catalog_entry.schema.json#/$defs/probe_side_effect_class
+  diagnostic_data_class: schemas/support/probe_catalog_entry.schema.json#/$defs/diagnostic_data_class
+  support_redaction_class: schemas/support/probe_catalog_entry.schema.json#/$defs/support_redaction_class
+
+non_destructive_diagnosis_rules:
+  - rule_id: doctor.diagnosis.no_repo_hook_execution
+    rule: execute_repo_owned_code
+    notes: >
+      Diagnosis must not run repo-owned hooks or activators merely to
+      gather evidence.
+  - rule_id: doctor.diagnosis.no_trust_widening
+    rule: mutate_trust_policy_or_credentials
+    notes: >
+      Diagnosis must not widen trust, refresh entitlements, or change
+      credential scope without an explicit governed flow.
+  - rule_id: doctor.diagnosis.no_state_mutation
+    rule: mutate_cache_or_index
+    notes: >
+      Diagnosis is read-only by default; state mutation occurs only in
+      a governed repair or export flow.
+  - rule_id: doctor.diagnosis.no_target_or_route_mutation
+    rule: mutate_target_or_route
+    notes: >
+      Diagnosis must not retarget, reapprove, reattach, republish, or
+      join sessions as part of evidence collection.
+  - rule_id: doctor.diagnosis.no_file_mutation
+    rule: mutate_user_files
+    notes: >
+      Diagnosis must not create, delete, or rewrite user files or
+      durable user state.
+  - rule_id: doctor.diagnosis.no_external_mutation
+    rule: external_service_mutation
+    notes: >
+      Diagnosis must not write to external services; it may create
+      local evidence rows or local preview manifests only.
+  - rule_id: doctor.diagnosis.no_untrusted_activation
+    rule: activate_third_party_extension
+    notes: >
+      Diagnosis must not activate untrusted third-party code outside an
+      explicitly declared safe inspection profile.
+  - rule_id: doctor.diagnosis.no_high_risk_payload_collection
+    rule: collect_high_risk_payload
+    notes: >
+      Diagnosis must not collect or export high-risk payload bodies
+      (code, secrets, full traces) without a governed opt-in flow.
+
+family_rows:
+  - probe_family_class: execution_context_toolchains
+    title: Execution context and toolchains
+    primary_inputs:
+      - workspace manifests and resolved execution-context records
+      - capsule and prebuild metadata (ids, versions, fingerprints)
+      - activator disposition records and blocked-reason codes
+      - target fingerprints and compatibility summaries
+    expected_evidence_source_classes:
+      - existing_manifest
+      - policy_decision
+      - health_event
+      - metric_counter
+      - structured_log
+      - probe_observation
+    expected_signal_classes:
+      - manifest
+      - policy_decision
+      - health_event
+      - metric
+      - log
+      - probe_observation
+    redaction_posture:
+      max_data_class: environment_adjacent
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Defaults to metadata, hashes, version refs, and disposition
+        codes. Raw environment bodies, raw command lines, and secret
+        values are excluded by default.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - mutate_cache_or_index
+      - mutate_target_or_route
+      - mutate_user_files
+      - mutate_trust_policy_or_credentials
+      - external_service_mutation
+      - activate_third_party_extension
+      - collect_high_risk_payload
+    typical_findings:
+      - wrong interpreter or toolchain selected for the declared target
+      - required toolchain component missing or not readable
+      - activator blocked by trust or policy posture
+      - stale capsule or prebuild fingerprint mismatch
+      - target identity mismatch between declared and observed context
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_missing_toolchain.yaml
+
+  - probe_family_class: trust_identity_policy
+    title: Trust, identity, and policy
+    primary_inputs:
+      - workspace trust state and approval ticket snapshots
+      - signed policy bundle metadata and freshness epochs
+      - entitlement and session metadata summaries
+      - denial codes and approval-rule inventory
+    expected_evidence_source_classes:
+      - existing_manifest
+      - policy_decision
+      - health_event
+      - probe_observation
+    expected_signal_classes:
+      - manifest
+      - policy_decision
+      - health_event
+      - probe_observation
+    redaction_posture:
+      max_data_class: metadata_only
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Trust and identity evidence exports only stable class labels and
+        opaque refs, never raw principals, raw paths, or secret material.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - mutate_trust_policy_or_credentials
+      - external_service_mutation
+      - collect_high_risk_payload
+    typical_findings:
+      - restricted-mode block due to untrusted workspace state
+      - policy bundle stale or signature continuity break
+      - entitlement expired or approval missing for a gated capability
+      - policy denial with a stable denial code and next action
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_trust_policy_block.yaml
+
+  - probe_family_class: filesystem_watchers
+    title: Filesystem and watcher health
+    primary_inputs:
+      - root capability map and mount identity summaries
+      - alias and canonical identity graph (hashes/ids, not raw paths)
+      - watcher stats (backlog, liveness, reseed state)
+      - low-disk and quota pressure signals
+    expected_evidence_source_classes:
+      - existing_manifest
+      - health_event
+      - metric_counter
+      - structured_log
+      - probe_observation
+    expected_signal_classes:
+      - manifest
+      - health_event
+      - metric
+      - log
+      - probe_observation
+    redaction_posture:
+      max_data_class: environment_adjacent
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Avoids exporting raw path lists or file bodies. Uses hashes,
+        root ids, and typed capability flags.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - mutate_cache_or_index
+      - mutate_user_files
+      - external_service_mutation
+      - collect_high_risk_payload
+    typical_findings:
+      - watcher exhaustion, backlog overflow, or reseed required
+      - wrong-root or alias mismatch hazard
+      - permission error preventing watch or write operations
+      - low-disk or quota pressure impacting stability
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_filesystem_watcher_exhaustion.yaml
+
+  - probe_family_class: network_proxy_ca_transport
+    title: Network, proxy, CA, and transport
+    primary_inputs:
+      - proxy configuration summaries and endpoint-class rules
+      - CA chain summaries and trust-anchor fingerprints
+      - transport inventory and route-class metadata
+      - reachability probe results (read-only) when consented
+    expected_evidence_source_classes:
+      - existing_manifest
+      - policy_decision
+      - route_decision
+      - probe_observation
+      - structured_log
+      - health_event
+    expected_signal_classes:
+      - manifest
+      - policy_decision
+      - route_decision
+      - probe_observation
+      - log
+      - health_event
+    redaction_posture:
+      max_data_class: environment_adjacent
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Network diagnostics must preserve endpoint classes and denial
+        codes while omitting raw hostnames, raw URLs, headers, or
+        credential material.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - mutate_trust_policy_or_credentials
+      - external_service_mutation
+      - collect_high_risk_payload
+    typical_findings:
+      - proxy mismatch or proxy required but not configured
+      - CA failure or trust-anchor mismatch
+      - blocked egress class or endpoint-class denial
+      - offline route or transport availability mismatch
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_proxy_or_ca_failure.yaml
+
+  - probe_family_class: extension_runtime_health
+    title: Extension and runtime host health
+    primary_inputs:
+      - extension inventories and manifest compatibility summaries
+      - host health events and crash-loop counters
+      - quarantine records and activation budget history
+      - runtime-host version and capability flags
+    expected_evidence_source_classes:
+      - existing_manifest
+      - health_event
+      - structured_log
+      - metric_counter
+      - crash_envelope
+      - probe_observation
+    expected_signal_classes:
+      - manifest
+      - health_event
+      - log
+      - metric
+      - crash_envelope
+      - probe_observation
+    redaction_posture:
+      max_data_class: environment_adjacent
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Diagnosis reads host health summaries and crash metadata, not raw
+        extension private storage, raw dumps, or full log bodies.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - activate_third_party_extension
+      - mutate_cache_or_index
+      - mutate_user_files
+      - mutate_trust_policy_or_credentials
+      - external_service_mutation
+      - collect_high_risk_payload
+    typical_findings:
+      - extension host crash loop or repeated activation failure
+      - activation budget violation or quarantine posture
+      - compatibility mismatch between host and extension set
+      - runtime-host degraded or unsupported state
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_extension_regression.yaml
+
+  - probe_family_class: caches_schema_local_state
+    title: Caches, schema, and local state
+    primary_inputs:
+      - storage-class inventory and durability classification
+      - schema versions and migration state summaries
+      - integrity markers and corruption suspicion signals
+      - low-disk/GC state and quota pressure summaries
+    expected_evidence_source_classes:
+      - existing_manifest
+      - health_event
+      - structured_log
+      - metric_counter
+      - probe_observation
+    expected_signal_classes:
+      - manifest
+      - health_event
+      - log
+      - metric
+      - probe_observation
+    redaction_posture:
+      max_data_class: environment_adjacent
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Diagnosis reports schema versions, integrity markers, and classed
+        storage ids. Repair flows own any resets or rebuilds.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - mutate_cache_or_index
+      - mutate_user_files
+      - mutate_trust_policy_or_credentials
+      - external_service_mutation
+      - collect_high_risk_payload
+    typical_findings:
+      - cache incompatibility or schema drift detected
+      - failed migration or partial migration state
+      - suspected corruption requiring repair preview
+      - low-disk pressure impacting local stores
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_schema_drift_repair_preview.yaml
+
+  - probe_family_class: remote_routes_collaboration
+    title: Remote, routes, and collaboration
+    primary_inputs:
+      - agent envelopes and target fingerprints
+      - route/session objects and policy summaries
+      - drift records and relay health signals
+      - collaboration consent, retention, and authority summaries
+    expected_evidence_source_classes:
+      - existing_manifest
+      - route_decision
+      - policy_decision
+      - health_event
+      - structured_log
+      - metric_counter
+      - probe_observation
+    expected_signal_classes:
+      - manifest
+      - route_decision
+      - policy_decision
+      - health_event
+      - log
+      - metric
+      - probe_observation
+    redaction_posture:
+      max_data_class: environment_adjacent
+      default_redaction_class: metadata_safe_default
+      notes: >
+        Remote diagnosis must not export raw hostnames, raw route URLs, or
+        collaboration payloads by default; it uses route/session ids,
+        class labels, and drift codes.
+    forbidden_during_diagnosis:
+      - execute_repo_owned_code
+      - mutate_target_or_route
+      - mutate_trust_policy_or_credentials
+      - external_service_mutation
+      - collect_high_risk_payload
+    typical_findings:
+      - agent skew or drift from the expected runtime envelope
+      - route expiry or route class mismatch
+      - helper attach required or reapproval required
+      - session-policy mismatch or reconnect mismatch
+    seed_cases:
+      - fixtures/support/doctor_probe_cases/finding_card_remote_target_mismatch.yaml
+
