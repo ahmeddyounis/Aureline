@@ -1,0 +1,502 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/notification_envelope.schema.json",
+  "title": "Aureline notification envelope and privacy-class contract",
+  "description": "Boundary schema for notification_envelope_record and privacy_class_rule_record frozen in docs/ux/notification_envelope_contract.md. The notification envelope is the joinable, machine-readable object model that routers and surfaces use to derive toasts, banners, status items, durable activity rows, OS notifications, lock-screen summaries, and companion fanout without minting per-surface ids or per-surface routing vocabulary. Stable ids and stable enums are the contract; localized message copy is carried only as privacy-safe labels. Fanout receipts preserve suppressed/held/deduped/no-route outcomes as visible truth. Raw bodies, raw paths, raw URLs, raw provider payloads, raw prompt or completion text, raw command bodies, secret material, and customer-owned identifiers never cross this boundary. Adding a new privacy_class, severity_class, source_subsystem, dedupe_key_scheme, surface class, or suppression reason is additive-minor and requires a notification_envelope_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/notification_envelope_record" },
+    { "$ref": "#/$defs/privacy_class_rule_record" }
+  ],
+  "$defs": {
+    "notification_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this notification-envelope vocabulary export. Current value is 1."
+    },
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for RPC, manifests, journals, and support bundles."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "description": "Short privacy-safe label text. Must not contain raw paths, raw URLs, raw provider payloads, raw secret material, raw customer-owned identifiers, or raw prompt / completion text."
+    },
+    "record_kind": {
+      "type": "string",
+      "enum": ["notification_envelope_record", "privacy_class_rule_record"]
+    },
+    "source_subsystem": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "terminal",
+        "review_and_diff",
+        "palette_and_search",
+        "install_update_attach",
+        "ai_apply",
+        "collaboration",
+        "provider_bearing",
+        "docs_help_service_health",
+        "support_export",
+        "build_system",
+        "test_runner",
+        "debug_session",
+        "task_runner",
+        "indexer",
+        "vfs_save",
+        "sync_mirror",
+        "notebook_kernel",
+        "remote_agent",
+        "extension_host",
+        "workspace_trust",
+        "policy_resolver",
+        "admin_policy",
+        "secret_broker",
+        "runtime_power_manager",
+        "shell"
+      ]
+    },
+    "severity_class": {
+      "type": "string",
+      "enum": [
+        "info",
+        "success",
+        "warning",
+        "degraded",
+        "error",
+        "blocking",
+        "critical"
+      ]
+    },
+    "privacy_class": {
+      "type": "string",
+      "enum": [
+        "summary_safe",
+        "workspace_sensitive",
+        "security_critical",
+        "managed_sensitive"
+      ],
+      "description": "Coarse privacy gate for OS payloads, companion summaries, and export posture."
+    },
+    "privacy_payload_class": {
+      "type": "string",
+      "enum": [
+        "lock_screen_safe_generic",
+        "lock_screen_safe_scoped",
+        "in_product_only",
+        "redacted_metadata_only",
+        "policy_forbidden_on_lock_screen"
+      ],
+      "description": "Concrete payload redaction posture for OS/lock-screen/companion surfaces."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Export / retention redaction posture applied to durable sinks."
+    },
+    "dedupe_key_scheme": {
+      "type": "string",
+      "enum": [
+        "canonical_event_id",
+        "canonical_object_target_plus_event_class",
+        "grouped_burst_id",
+        "subsystem_plus_object_plus_phase",
+        "cross_client_canonical_event_id"
+      ]
+    },
+    "fanout_surface_class": {
+      "type": "string",
+      "enum": [
+        "durable_job_row",
+        "status_strip",
+        "status_item",
+        "activity_center_digest_card",
+        "toast",
+        "contextual_banner",
+        "os_notification",
+        "lock_screen_summary",
+        "companion_push",
+        "digest_group_row",
+        "not_delivered_held"
+      ]
+    },
+    "quiet_hours_mode": {
+      "type": "string",
+      "enum": [
+        "mode_none",
+        "mode_quiet_hours_user",
+        "mode_do_not_disturb_user",
+        "mode_focus_mode_user",
+        "mode_presentation",
+        "mode_screen_share",
+        "mode_privacy_mode",
+        "mode_reduced_attention_policy",
+        "mode_power_saver_runtime",
+        "mode_admin_suppression"
+      ]
+    },
+    "suppression_reason": {
+      "type": "string",
+      "enum": [
+        "quiet_hours_user_policy",
+        "do_not_disturb_user_policy",
+        "focus_mode_user_policy",
+        "presentation_mode_active",
+        "screen_share_active",
+        "privacy_mode_active",
+        "admin_policy_suppression",
+        "reduced_attention_posture",
+        "power_saver_background_pause",
+        "dedupe_same_canonical_event",
+        "dedupe_same_grouped_burst",
+        "class_muted_by_user",
+        "class_snoozed_by_user",
+        "release_pending_next_unsuppressed_surface"
+      ]
+    },
+    "command_id": {
+      "$ref": "#/$defs/opaque_id",
+      "description": "Stable opaque command id resolved by the command registry. Labels are localized; behavior binds to this id."
+    },
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ]
+    },
+    "reopen_target_kind": {
+      "type": "string",
+      "enum": [
+        "canonical_object",
+        "canonical_route",
+        "review_context",
+        "durable_activity_row",
+        "digest_group",
+        "placeholder_announced",
+        "denied_requires_revalidation"
+      ],
+      "description": "High-level exact reopen target kind. Generic home-screen reopen is intentionally not a value."
+    },
+    "reopen_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reopen_target_ref", "reopen_target_kind", "exact_target_identity_ref"],
+      "properties": {
+        "reopen_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "exact_target_identity_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque reference to the narrowest truthful reopen destination. Null only when reopen_target_kind announces a placeholder or requires revalidation."
+        },
+        "placeholder_announcement_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        },
+        "revalidation_required_reason_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ]
+        }
+      }
+    },
+    "stable_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_id", "label", "command_id", "target_identity_ref", "reopen_target_kind"],
+      "properties": {
+        "action_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable action id. Surfaces must bind behavior to action_id + command_id, not to label text."
+        },
+        "label": { "$ref": "#/$defs/short_label_text" },
+        "command_id": { "$ref": "#/$defs/command_id" },
+        "target_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_kind": { "$ref": "#/$defs/reopen_target_kind" },
+        "is_destructive": { "type": "boolean", "default": false }
+      }
+    },
+    "suppression_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_modes_at_mint", "suppression_reasons"],
+      "properties": {
+        "active_modes_at_mint": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/quiet_hours_mode" }
+        },
+        "suppression_reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/suppression_reason" }
+        },
+        "suppressed": { "type": "boolean" }
+      }
+    },
+    "fanout_receipt_state": {
+      "type": "string",
+      "enum": [
+        "delivered",
+        "held_quiet_hours",
+        "suppressed_policy",
+        "deduped_canonical_event",
+        "deduped_grouped_burst",
+        "released_from_hold",
+        "not_attempted_no_route"
+      ]
+    },
+    "fanout_receipt_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the embedded fanout receipt record. Kept in lockstep with schemas/ux/fanout_receipt.schema.json."
+    },
+    "stale_or_undelivered_reason_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "held_by_quiet_hours",
+        "suppressed_by_policy",
+        "deduped_on_canonical_event",
+        "deduped_on_grouped_burst",
+        "no_route_for_surface_or_tier",
+        "stale_before_delivery",
+        "expired_before_delivery",
+        "transport_failed",
+        "unknown"
+      ],
+      "description": "Typed reason class for stale or undelivered fanout. receipt_state is the primary outcome; this field captures the reviewable reason when the outcome is not delivered or when a delivery is stale."
+    },
+    "fanout_receipt_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "fanout_receipt_schema_version",
+        "fanout_receipt_id",
+        "source_notification_envelope_id_ref",
+        "canonical_event_id",
+        "event_lineage_id_ref",
+        "fanout_surface_class",
+        "client_scope",
+        "receipt_state",
+        "stale_or_undelivered_reason",
+        "dedupe_key_scheme",
+        "delivery_envelope_ref",
+        "reopen_target_ref",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "fanout_receipt_record" },
+        "fanout_receipt_schema_version": { "$ref": "#/$defs/fanout_receipt_schema_version" },
+        "fanout_receipt_id": { "$ref": "#/$defs/opaque_id" },
+        "source_notification_envelope_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "fanout_surface_class": { "$ref": "#/$defs/fanout_surface_class" },
+        "client_scope": { "$ref": "#/$defs/client_scope" },
+        "receipt_state": { "$ref": "#/$defs/fanout_receipt_state" },
+        "stale_or_undelivered_reason": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reason_class", "reason_label"],
+          "properties": {
+            "reason_class": { "$ref": "#/$defs/stale_or_undelivered_reason_class" },
+            "reason_label": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/short_label_text" }
+              ]
+            }
+          }
+        },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "delivery_envelope_ref": { "$ref": "#/$defs/opaque_id" },
+        "reopen_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "suppression_reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suppression_reason" },
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Delivered receipts MUST declare reason_class = none.",
+          "if": {
+            "properties": { "receipt_state": { "const": "delivered" } },
+            "required": ["receipt_state"]
+          },
+          "then": {
+            "properties": {
+              "stale_or_undelivered_reason": {
+                "properties": { "reason_class": { "const": "none" } },
+                "required": ["reason_class"]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "notification_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notification_envelope_schema_version",
+        "notification_envelope_id",
+        "canonical_event_id",
+        "event_lineage_id_ref",
+        "source_subsystem",
+        "source_event_ref",
+        "actor_identity_ref",
+        "canonical_object_target_ref",
+        "severity_class",
+        "privacy_class",
+        "privacy_payload_class",
+        "redaction_class",
+        "dedupe_key_scheme",
+        "dedupe_key_ref",
+        "grouped_burst_id_ref",
+        "recommended_surfaces",
+        "summary_label",
+        "reopen_target",
+        "actions",
+        "suppression_state",
+        "fanout_receipts",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "notification_envelope_record" },
+        "notification_envelope_schema_version": { "$ref": "#/$defs/notification_envelope_schema_version" },
+        "notification_envelope_id": { "$ref": "#/$defs/opaque_id" },
+        "canonical_event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_lineage_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_subsystem": { "$ref": "#/$defs/source_subsystem" },
+        "source_event_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "canonical_object_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "severity_class": { "$ref": "#/$defs/severity_class" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "privacy_payload_class": { "$ref": "#/$defs/privacy_payload_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "dedupe_key_scheme": { "$ref": "#/$defs/dedupe_key_scheme" },
+        "dedupe_key_ref": { "$ref": "#/$defs/opaque_id" },
+        "grouped_burst_id_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "recommended_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/fanout_surface_class" }
+        },
+        "summary_label": { "$ref": "#/$defs/short_label_text" },
+        "reopen_target": { "$ref": "#/$defs/reopen_target" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_action" },
+          "uniqueItems": true
+        },
+        "suppression_state": { "$ref": "#/$defs/suppression_state" },
+        "fanout_receipts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fanout_receipt_record" },
+          "uniqueItems": true
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+    "privacy_class_rule_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "notification_envelope_schema_version",
+        "privacy_rule_id",
+        "privacy_class",
+        "lock_screen_payload_policy",
+        "companion_summary_policy",
+        "support_export_policy",
+        "notes_label"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "privacy_class_rule_record" },
+        "notification_envelope_schema_version": { "$ref": "#/$defs/notification_envelope_schema_version" },
+        "privacy_rule_id": { "$ref": "#/$defs/opaque_id" },
+        "privacy_class": { "$ref": "#/$defs/privacy_class" },
+        "lock_screen_payload_policy": {
+          "type": "string",
+          "enum": ["allow_scoped_or_generic", "allow_generic_only", "redacted_metadata_only", "deny"]
+        },
+        "companion_summary_policy": {
+          "type": "string",
+          "enum": ["allow_scoped_or_generic", "allow_generic_only", "redacted_metadata_only", "deny"]
+        },
+        "support_export_policy": {
+          "type": "string",
+          "enum": ["metadata_safe_default", "operator_only_restricted", "internal_support_restricted", "signing_evidence_only"]
+        },
+        "notes_label": { "$ref": "#/$defs/short_label_text" }
+      }
+    }
+  }
+}
