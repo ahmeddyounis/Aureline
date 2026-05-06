@@ -28,12 +28,15 @@ Authoritative machine sources this matrix composes with:
 - `artifacts/perf/evidence_linkage_seed.yaml` — joins from a protected path to traces, corpora, packets.
 - `artifacts/bench/fitness_function_catalog.yaml` — protected fitness rows + driver/principle/journey tags.
 - `artifacts/qe/quality_scenario_hooks.yaml` — QE scenario ids (rows this matrix must cite verbatim).
+- `artifacts/architecture/quality_scenario_rows.yaml` — quality-attribute scenarios (journey + cross-cutting).
+- `artifacts/qe/quality_scenario_to_lane_map.yaml` — scenario → benchmark/QE/review lane linkage.
 
 New control artifacts introduced by this change:
 
 - `artifacts/architecture/quality_attribute_slos.yaml` — machine SLO row register (derived from TAD/UX).
 - `artifacts/architecture/protected_journey_map.yaml` — per-journey join rows (drivers ↔ SLO ↔ evidence).
 - `artifacts/architecture/driver_to_rejected_pattern_refs.yaml` — rejected patterns / prohibited shortcuts.
+- `docs/architecture/quality_attribute_scenarios.md` — scenario library narrative companion.
 
 ## How to use this matrix
 

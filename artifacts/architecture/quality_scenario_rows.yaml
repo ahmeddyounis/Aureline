@@ -1,0 +1,561 @@
+# Quality-attribute scenario row register.
+#
+# Turns journey-level SLO bars + UX degradation posture into named,
+# mechanically consumable scenario rows. Scenario IDs from this file
+# are the stable handles that benchmark, QE, and design-review lanes
+# cite in evidence packets, waiver packets, and claim manifests.
+#
+# Rules:
+#   - `scenario_id` values are stable identifiers. Renaming is breaking.
+#   - Every scenario MUST cite at least one protected journey row ref
+#     (artifacts/architecture/protected_journey_map.yaml) and/or one
+#     critical-sequence ref (artifacts/perf/critical_sequence_latencies.yaml).
+#   - Every scenario MUST cite a primary evidence lane and a waiver authority.
+#   - Planning identifiers MUST NOT appear in any id, title, or notes.
+
+schema_version: 1
+artifact_id: aureline.quality_scenario_rows
+title: Quality-attribute scenario library (machine-readable)
+overview_document: docs/architecture/quality_attribute_scenarios.md
+
+source_documents:
+  - ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    sections:
+      - "§3.4 Quality-attribute scenarios and measurable SLOs"
+      - "Appendix T Critical Sequence Diagrams"
+  - ref: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    sections:
+      - "§3.3 Success-critical journeys"
+      - "§3.4 Protected journey latency and responsiveness budgets"
+      - "§5.4 Safe preview and content-integrity trust classes"
+  - ref: .t2/docs/Aureline_PRD.md
+    sections:
+      - "5.52 Lifecycle state machines and recovery rules"
+      - "5.53 Critical sequence diagrams and latency allocation"
+      - "Appendix K Success-critical user journeys and latency budgets"
+
+companion_refs:
+  protected_journey_map_ref: artifacts/architecture/protected_journey_map.yaml
+  quality_attribute_slos_ref: artifacts/architecture/quality_attribute_slos.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  evidence_linkage_seed_ref: artifacts/perf/evidence_linkage_seed.yaml
+  critical_sequence_latencies_ref: artifacts/perf/critical_sequence_latencies.yaml
+  protected_metrics_ref: artifacts/bench/protected_metrics.yaml
+  test_lane_registry_ref: artifacts/qe/test_lane_registry.yaml
+  scenario_lane_map_ref: artifacts/qe/quality_scenario_to_lane_map.yaml
+  scenario_case_fixtures_dir: fixtures/qe/quality_scenario_cases/
+
+bar_posture_vocabulary:
+  - release_blocking
+  - advisory
+  - investigative
+
+scenario_rows:
+  - scenario_id: qas:startup.warm_first_paint
+    title: Warm startup to first paint
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Launch Aureline and open an existing workspace.
+    environment: Warm start on reference hardware; typical project; no mandatory network.
+    protected_journey_row_refs:
+      - journey_row:path.shell.launch
+    protected_path_refs:
+      - path.shell.launch
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.warm_start.first_edit
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+    target_response:
+      primary_sli: first_paint_warm_ms
+      release_bar_ms: 150
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.launch
+    measure_window:
+      window_description: launch intent to first non-blank frame
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.launch
+    degradation_posture:
+      required: Shell paint wins over indexing, tree hydration, and cache warm-up.
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.launch
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:startup.warm_first_useful_chrome
+    title: Warm startup to first useful chrome / palette-ready surface
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Launch Aureline; reach a palette-ready surface before background work completes.
+    environment: Warm start; caches may be stale; indexing may be incomplete.
+    protected_journey_row_refs:
+      - journey_row:path.shell.first_useful_chrome
+    protected_path_refs:
+      - path.shell.first_useful_chrome
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.warm_start.first_edit
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+      - slo.quick_open_file_symbol_command
+    target_response:
+      primary_sli: palette_available_warm_ms
+      release_bar_ms: 400
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.first_useful_chrome
+    measure_window:
+      window_description: launch intent to command palette available
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.shell.first_useful_chrome
+    degradation_posture:
+      required: Search and editing remain usable before full indexing completes.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.open_repo_to_first_useful_navigation_or_edit
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:command_palette.open_first_ranked_results
+    title: Command palette open to first ranked results
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Invoke the command palette (keyboard) and begin typing.
+    environment: Warm session; large repo allowed; indexing may still be partial.
+    protected_journey_row_refs:
+      - journey_row:path.command_palette.open
+    protected_path_refs:
+      - path.command_palette.open
+    slo_row_refs:
+      - slo.quick_open_file_symbol_command
+    target_response:
+      primary_sli: interactive result latency
+      palette_open_warm_ms: 50
+      quick_open_p50_ms: 30
+      quick_open_p95_ms: 75
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.command_palette.open
+    measure_window:
+      window_description: palette invocation to first ranked results (streaming admissible)
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.command_palette.open
+    degradation_posture:
+      required: Ranking may refine, but an answer must appear without vanishing or full reset.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.quick_open_file_symbol_command
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:editor.placeholder_open_to_editable_buffer
+    title: Placeholder file open to editable buffer
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Open a file from recent files, search, or file tree.
+    environment: Warm session; small/typical/large repos; file is local and trusted.
+    protected_journey_row_refs:
+      - journey_row:path.editor.placeholder_open
+    protected_path_refs:
+      - path.editor.placeholder_open
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+    target_response:
+      primary_sli: file open latency
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.placeholder_open
+      thresholds_note: Small/typical/large repo thresholds are held in the budget ledger.
+    measure_window:
+      window_description: open intent to editable placeholder buffer
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.placeholder_open
+    degradation_posture:
+      required: Placeholder buffer opens without waiting for semantic warm-up; deep work streams later.
+      source_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.warm_start.first_edit
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:editor.first_accepted_edit_reflected
+    title: First accepted edit reflected on screen
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Type or paste into the active editor buffer.
+    environment: Warm session; indexing/providers may be stale; background work must yield.
+    protected_journey_row_refs:
+      - journey_row:path.editor.first_useful_edit
+    protected_path_refs:
+      - path.editor.first_useful_edit
+    slo_row_refs:
+      - slo.keystroke_to_screen_active_editor
+    target_response:
+      primary_sli: key_to_paint latency
+      p50_ms: 4
+      p95_ms: 8
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.keystroke_to_screen_active_editor
+    measure_window:
+      window_description: input boundary to frame that reflects the input
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.first_useful_edit
+    degradation_posture:
+      required: Background work yields before typing stalls; no blocking I/O on the hot path.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.keystroke_to_screen_active_editor
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:editor.save_to_durable_completion
+    title: Save request to durable completion (contract + latency)
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Save a modified buffer.
+    environment: Local filesystem; external change detection admissible; disk-full and permission failures are handled explicitly.
+    protected_journey_row_refs:
+      - journey_row:path.editor.save
+    protected_path_refs:
+      - path.editor.save
+    slo_row_refs:
+      - slo.save_pipeline_durable_completion
+    target_response:
+      primary_sli: save pipeline contract + latency (pending calibration)
+      contract_gate_refs:
+        - compare_before_write_floor
+        - save_mode_downgrade_without_envelope_permission
+        - conflict_outcome_taxonomy_completeness
+        - recovery_journal_written_before_target_write
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.save
+    measure_window:
+      window_description: save intent to durable completion (fsync + rename where applicable)
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.editor.save
+    degradation_posture:
+      required: Atomic replace preferred; any downgrade is explicit and reviewable.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.save_pipeline_durable_completion
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:workspace.restore_to_delivered_level
+    title: Restore prompt to delivered restore level (contract + latency)
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Restore the last session or a named restore checkpoint.
+    environment: Crash restart or normal reopen; missing targets and partial restore levels are admissible if disclosed.
+    protected_journey_row_refs:
+      - journey_row:path.workspace.restore
+    protected_path_refs:
+      - path.workspace.restore
+    slo_row_refs:
+      - slo.restore_prompt_to_delivered_restore_level
+    target_response:
+      primary_sli: restore-to-usable-session latency + restore-fidelity gates
+      workspace_snapshot_restore_ms: 120
+      contract_gate_refs:
+        - restore_level_must_not_exceed_advertised
+        - no_silent_mutating_command_replay
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.workspace.restore
+    measure_window:
+      window_description: restore prompt to delivered restore level
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.workspace.restore
+    degradation_posture:
+      required: Compatible restore or evidence-only downgrade stays visible; journal replay is never hidden.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.restore_prompt_to_delivered_restore_level
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:onboarding.start_center_first_useful_edit
+    title: Start Center first run to first useful edit
+    bar_posture: release_blocking
+    actor: user
+    stimulus: First run via Start Center → open local folder → first useful edit.
+    environment: Warm or cold; account-free local-first path remains available.
+    protected_journey_row_refs:
+      - journey_row:path.onboarding.start_center_first_useful_edit
+    protected_path_refs:
+      - path.onboarding.start_center_first_useful_edit
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+      - slo.keystroke_to_screen_active_editor
+    target_response:
+      primary_sli: time to first useful edit
+      warm_p50_s: 30
+      warm_p95_s: 60
+      cold_p50_s: 90
+      cold_p95_s: 120
+      contract_gate_refs:
+        - forced_sign_in_before_useful_local_work (must_not_occur)
+      source_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.onboarding.start_center_first_useful_edit
+    measure_window:
+      window_description: first-run intent to first accepted edit reflected on screen
+      measurement_ref: artifacts/perf/latency_budget_ledger.yaml#budget.path.onboarding.start_center_first_useful_edit
+    degradation_posture:
+      required: Local work remains available when optional services are unavailable; any drop is visible.
+      source_ref: artifacts/architecture/protected_journey_map.yaml#journey_row:path.onboarding.start_center_first_useful_edit
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:remote.attach_or_reconnect_usable_session
+    title: Attach/reconnect to remote workspace (to usable session)
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Attach to a remote workspace (SSH/container/managed) or reconnect after drop.
+    environment: Enterprise LAN/VPN; remote policies and approval tickets may be required.
+    protected_journey_row_refs:
+      - journey_row:remote_reconnect_to_usable_session
+    protected_path_refs: []
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+    slo_row_refs:
+      - slo.remote_reconnect_to_usable_session
+    target_response:
+      primary_sli: reconnect-to-usable-session latency
+      p50_s: 3
+      p95_s: 10
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.remote_reconnect_to_usable_session
+    measure_window:
+      window_description: attach/reconnect intent to usable shell session
+      measurement_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+    degradation_posture:
+      required: Reconnect state is visible and the local shell remains controllable.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.remote_reconnect_to_usable_session
+    primary_evidence_lane_ref: lane:protected_sequence_packet_validation
+    waiver_authority_ref: release_council
+
+  - scenario_id: qas:tooling.rerun_last_task_or_test_dispatch
+    title: Rerun last task/test dispatch to first lifecycle event
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Invoke rerun-last-task/test from keyboard/command palette.
+    environment: Local or remote execution contexts; streaming output may lag.
+    protected_journey_row_refs:
+      - journey_row:rerun_last_task_or_test_dispatch
+    protected_path_refs: []
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+    slo_row_refs:
+      - slo.rerun_last_task_or_test
+    target_response:
+      primary_sli: dispatch latency to first visible lifecycle event
+      p50_ms: 150
+      p95_ms: 400
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.rerun_last_task_or_test
+    measure_window:
+      window_description: command invoke to first lifecycle event (queued/started/progress)
+      measurement_ref: artifacts/architecture/protected_journey_map.yaml#journey_row:rerun_last_task_or_test_dispatch
+    degradation_posture:
+      required: Routing and cancellation stay responsive; no hidden replay.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.rerun_last_task_or_test
+    primary_evidence_lane_ref: lane:protected_sequence_packet_validation
+    waiver_authority_ref: release_council
+
+  - scenario_id: qas:ai.explain_selected_failure_useful_answer
+    title: AI explain selected failure to useful answer
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Request AI explanation for a selected failing test/service.
+    environment: Provider may be unavailable; local evidence remains available.
+    protected_journey_row_refs:
+      - journey_row:ai_explain_selected_failure
+    protected_path_refs: []
+    slo_row_refs:
+      - slo.ai_explain_selected_failure
+    target_response:
+      primary_sli: time to first useful response
+      first_tokens_p50_s: 2
+      useful_answer_p95_s: 8
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.ai_explain_selected_failure
+    measure_window:
+      window_description: user request to first tokens, then useful answer
+      measurement_ref: artifacts/architecture/protected_journey_map.yaml#journey_row:ai_explain_selected_failure
+    degradation_posture:
+      required: AI may degrade independently; local diagnostics and task evidence remain available.
+      source_ref: artifacts/architecture/quality_attribute_slos.yaml#slo.ai_explain_selected_failure
+    primary_evidence_lane_ref: lane:performance_ci
+    waiver_authority_ref: release_council
+
+  - scenario_id: qas:repo_open.large_repo_first_navigation
+    title: Open large repository to first useful navigation (search before full index)
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Open a large repository; perform a first search and navigate to a symbol.
+    environment: Warm machine; large repo; indexing and graph warm-up in progress.
+    protected_journey_row_refs:
+      - journey_row:path.shell.first_useful_chrome
+      - journey_row:path.command_palette.open
+      - journey_row:path.editor.placeholder_open
+    protected_path_refs:
+      - path.shell.first_useful_chrome
+      - path.command_palette.open
+      - path.editor.placeholder_open
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.large_repo.first_navigation
+    slo_row_refs:
+      - slo.open_repo_to_first_useful_navigation_or_edit
+      - slo.quick_open_file_symbol_command
+    target_response:
+      primary_sli: partial tree + first search result + first symbol jump
+      source_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.large_repo.first_navigation
+      budgets_note: Aggregate budgets are held on the critical-sequence latency pack.
+    measure_window:
+      window_description: open intent to partial tree; search intent to first result; navigation intent to first symbol jump
+      measurement_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.large_repo.first_navigation
+    degradation_posture:
+      required: Partial results are better than empty waiting; results label freshness, cache, and fallback truth.
+      source_ref: .t2/docs/Aureline_UI_UX_Spec_Document.md §4.3 Responsiveness tactics
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:preview.safe_preview_trust_classes
+    title: Safe preview trust classes and content-integrity posture
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Open a rich or suspicious artifact (HTML report, minified bundle, oversized file) from a workspace.
+    environment: Untrusted or mixed-trust workspace; safe preview is the default for rich/active content.
+    protected_journey_row_refs:
+      - journey_row:path.editor.placeholder_open
+    protected_path_refs: []
+    critical_sequence_refs: []
+    slo_row_refs: []
+    target_response:
+      primary_sli: trust-class correctness (not a latency bar)
+      source_ref: .t2/docs/Aureline_UI_UX_Spec_Document.md §5.4
+      contract_note: Raw vs rendered truth remains explicit; no ambient active execution by default.
+    measure_window:
+      window_description: open intent to rendered surface with disclosed trust class
+      measurement_ref: fixtures/preview/
+    degradation_posture:
+      required: If a surface changes rendering mode or affordances, the trust class remains visible in-place and in exports.
+      source_ref: .t2/docs/Aureline_UI_UX_Spec_Document.md §5.4
+    primary_evidence_lane_ref: lane:rendering_layout_goldens
+    waiver_authority_ref: security_trust_review
+
+  - scenario_id: qas:editor.save_conflict_resolution
+    title: Save conflict resolution without silent overwrite
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Save while on-disk state changed externally (or remote revision drift is detected).
+    environment: Local filesystem and remote workflows; conflict detection occurs before destructive overwrite.
+    protected_journey_row_refs:
+      - journey_row:path.editor.save
+    protected_path_refs:
+      - path.editor.save
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+    slo_row_refs:
+      - slo.save_pipeline_durable_completion
+    target_response:
+      primary_sli: conflict-aware save correctness
+      protected_metric_ref: ff.vfs_save_conflict_handling
+      source_ref: artifacts/bench/protected_metrics.yaml#rows
+    measure_window:
+      window_description: compare-before-write then save commit (or conflict review) before mutation is admitted
+      measurement_ref: artifacts/bench/protected_metrics.yaml
+    degradation_posture:
+      required: Conflict event is explicit; user chooses resolution; silent overwrite is forbidden.
+      source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §B Conflict-aware save with source fidelity
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
+
+  - scenario_id: qas:ai.multi_file_patch_approval
+    title: AI multi-file patch with explicit approval
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Request an AI-assisted fix/refactor that proposes a multi-file patch.
+    environment: Trust/egress/policy evaluated; validation results attached before approval.
+    protected_journey_row_refs: []
+    protected_path_refs:
+      - path.editor.save
+      - path.editor.first_useful_edit
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+    slo_row_refs: []
+    target_response:
+      primary_sli: context resolution + first token + diff render within published budgets
+      source_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+    measure_window:
+      window_description: user request to reviewable patch + validation summary + approval gate
+      measurement_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+    degradation_posture:
+      required: No AI write bypasses review and undo; missing provider is labeled and blocks apply.
+      source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md §C AI multi-file patch with explicit approval
+    primary_evidence_lane_ref: lane:protected_sequence_packet_validation
+    waiver_authority_ref: security_trust_review
+
+  - scenario_id: qas:collab.join_follow_shared_debug
+    title: Collaboration join and follow a shared debug moment
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Join a collaboration session; follow a shared cursor/stack/file during a debug moment.
+    environment: Same-region session preferred; relay loss degrades to local mode immediately.
+    protected_journey_row_refs: []
+    protected_path_refs: []
+    critical_sequence_refs:
+      - artifacts/perf/critical_sequence_latencies.yaml#seq.collab.shared_debug_follow
+    slo_row_refs: []
+    target_response:
+      primary_sli: presence join + follow update latency with local-mode degradation invariant
+      source_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.collab.shared_debug_follow
+    measure_window:
+      window_description: join intent to presence ready; follow updates to p95 budget; degrade-to-local must hold
+      measurement_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.collab.shared_debug_follow
+    degradation_posture:
+      required: Presence loss never freezes local editing; follow/control/retention truths remain distinct and visible.
+      source_ref: .t2/docs/Aureline_UI_UX_Spec_Document.md §5.1 + §23.29
+    primary_evidence_lane_ref: lane:protected_sequence_packet_validation
+    waiver_authority_ref: release_council
+
+  - scenario_id: qas:release.update_rollback_path
+    title: Update/rollback preserves a working build and user-authored state
+    bar_posture: release_blocking
+    actor: user_or_admin
+    stimulus: Apply an update; on failure (or explicit request) roll back to a known-good build.
+    environment: Stable or enterprise-managed channels; signatures verified; offline/mirror postures supported.
+    protected_journey_row_refs:
+      - journey_row:path.shell.launch
+      - journey_row:path.workspace.restore
+    protected_path_refs: []
+    critical_sequence_refs: []
+    slo_row_refs: []
+    target_response:
+      primary_sli: lifecycle correctness (not a latency bar)
+      source_ref: .t2/docs/Aureline_PRD.md "Update / rollback"
+      contract_note: Failed updates preserve rollback and must not strand the user without a working binary.
+    measure_window:
+      window_description: update state machine transitions (Available→...→Confirmed/RolledBack)
+      measurement_ref: fixtures/release/upgrade_downgrade_cases/
+    degradation_posture:
+      required: Rollback remains available and explicit; user-authored durable state is preserved via backup/journal/repair.
+      source_ref: .t2/docs/Aureline_PRD.md §5.52
+    primary_evidence_lane_ref: lane:release_evidence
+    waiver_authority_ref: release_council
+
+  - scenario_id: qas:extensions.quarantine_after_crash_or_revocation
+    title: Extension quarantine after crash loops, budget violations, or revocation
+    bar_posture: release_blocking
+    actor: system
+    stimulus: Extension host crash loop, runaway resource usage, publisher revocation, or quarantine signal.
+    environment: Extensions run isolated; quarantine does not destabilize the shell; quarantine reason is exportable.
+    protected_journey_row_refs:
+      - journey_row:path.shell.launch
+      - journey_row:path.shell.first_useful_chrome
+    protected_path_refs: []
+    critical_sequence_refs: []
+    slo_row_refs: []
+    target_response:
+      primary_sli: quarantine correctness (not a latency bar)
+      source_ref: .t2/docs/Aureline_Technical_Architecture_Document.md "Extension runtime performance, budget, and quarantine architecture"
+      contract_note: Quarantined extensions do not inherit trust and do not keep flapping invisibly.
+    measure_window:
+      window_description: crash/revocation signal to quarantined state with visible reason and recovery ladder
+      measurement_ref: fixtures/extensions/
+    degradation_posture:
+      required: Shell stays responsive; extension state becomes Degraded/Disabled/Quarantined with strike reason and rollback guidance.
+      source_ref: .t2/docs/Aureline_PRD.md §5.52 (Extension lifecycle)
+    primary_evidence_lane_ref: lane:chaos_fault_injection
+    waiver_authority_ref: security_trust_review
+
+  - scenario_id: qas:recovery.restore_after_failure
+    title: Restore-after-failure preserves truth and avoids silent replay
+    bar_posture: release_blocking
+    actor: user
+    stimulus: Relaunch after a crash loop or interrupted session; attempt restore at the highest admissible fidelity.
+    environment: Crash evidence preserved; recovery ladder offers safe mode → quarantine → cache rebuild → restricted mode.
+    protected_journey_row_refs:
+      - journey_row:path.workspace.restore
+    protected_path_refs:
+      - path.workspace.restore
+    critical_sequence_refs: []
+    slo_row_refs:
+      - slo.restore_prompt_to_delivered_restore_level
+    target_response:
+      primary_sli: restore correctness + disclosure
+      source_ref: artifacts/architecture/protected_journey_map.yaml#journey_row:path.workspace.restore
+      contract_gate_refs:
+        - restore_level_must_not_exceed_advertised
+        - no_silent_mutating_command_replay
+    measure_window:
+      window_description: crash restart to restore banner + delivered restore level + replay disclosure
+      measurement_ref: fixtures/support/recovery_ladder_cases/
+    degradation_posture:
+      required: Restore level is visible; any journal replay is explicit; local editing is preserved where possible.
+      source_ref: .t2/docs/Aureline_PRD.md §5.52 + .t2/docs/Aureline_Technical_Architecture_Document.md §B
+    primary_evidence_lane_ref: lane:benchmark_lab
+    waiver_authority_ref: performance_council
