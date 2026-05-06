@@ -1,0 +1,464 @@
+# Extension lifecycle states and quarantine recovery sequence packet.
+#
+# Machine-readable companion to docs/extensions/extension_lifecycle_and_quarantine_sequence.md.
+#
+# Publishes:
+# - a closed extension lifecycle state catalog (what a surface may say);
+# - a stable checkpoint catalog (what happened, with shared ids); and
+# - ordered variant paths that compose activation, crash-loop quarantine,
+#   safe reopen, bisect, recovery, and removal.
+#
+# Rules:
+# - State ids and checkpoint ids MUST be stable, opaque, and safe to log/export.
+# - Surfaces MUST NOT mint per-surface lifecycle enums or ad-hoc checkpoint ids.
+# - Any non-`active` lifecycle projection MUST cite typed upstream evidence:
+#   - runtime quarantine/disable MUST cite trigger_rule_id from
+#     artifacts/extensions/quarantine_rules.yaml;
+#   - publisher/policy blocks MUST cite install-review denial reasons and the
+#     relevant publisher-lifecycle or policy refs; and
+#   - crash-loop escalation MUST cite fault_domain_id plus a forensic packet ref.
+# - Planning or milestone slugs MUST NOT appear in any id, title, or note.
+
+schema_version: 1
+extension_lifecycle_states_schema_version: 1
+record_kind: extension_lifecycle_sequence_packet
+packet_id: aureline.extension_lifecycle_sequence
+status: seeded
+
+contract_ref: docs/extensions/extension_lifecycle_and_quarantine_sequence.md
+fixtures_ref: fixtures/extensions/quarantine_sequence_cases
+
+related_refs:
+  runtime_budget_packet_ref: docs/extensions/runtime_budget_packet.md
+  runtime_budget_rows_ref: artifacts/extensions/runtime_budget_rows.yaml
+  quarantine_rules_ref: artifacts/extensions/quarantine_rules.yaml
+  fault_domains_contract_ref: docs/runtime/fault_domains_and_restart_policy.md
+  crash_loop_ux_contract_ref: docs/ux/crash_loop_and_restore_fidelity_contract.md
+  recovery_rung_matrix_ref: docs/recovery/recovery_rung_matrix.md
+  recovery_rungs_ref: artifacts/recovery/recovery_rungs.yaml
+  registry_seed_ref: docs/extensions/registry_and_offline_bundle_seed.md
+  publisher_lifecycle_contract_ref: docs/extensions/publisher_lifecycle_and_registry_parity_contract.md
+  install_review_contract_ref: docs/verification/install_review_packet.md
+
+adr_refs:
+  - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+
+# -----------------------------------------------------------------------------
+# Lifecycle states
+# -----------------------------------------------------------------------------
+
+extension_lifecycle_state_vocabulary:
+  - discovered
+  - installed
+  - disabled
+  - pending_activation
+  - active
+  - degraded
+  - quarantined
+  - recovered
+  - removed
+  - publisher_blocked
+
+extension_lifecycle_states:
+  - state_id: discovered
+    display_name: Discovered
+    checkpoint_id: checkpoint.extension.lifecycle.discovered
+    intended_content: >
+      Extension is visible to the user (catalog, mirror, offline-bundle manifest,
+      or local index) but no local installed copy is admitted for activation.
+      The registry/mirror/offline provenance remains separate; this state does
+      not claim trust.
+    admissible_next_states:
+      - installed
+      - publisher_blocked
+      - removed
+
+  - state_id: installed
+    display_name: Installed
+    checkpoint_id: checkpoint.extension.lifecycle.installed
+    intended_content: >
+      A local installed copy exists and is eligible for activation under current
+      policy and trust posture. This state is about local presence; it does not
+      assert the extension is currently running.
+    admissible_next_states:
+      - pending_activation
+      - disabled
+      - publisher_blocked
+      - removed
+
+  - state_id: disabled
+    display_name: Disabled
+    checkpoint_id: checkpoint.extension.lifecycle.disabled
+    intended_content: >
+      A local installed copy exists but activation is blocked by an explicit
+      user/admin decision or by a declared disable posture (including
+      disable-until-next-session). This is distinct from `quarantined` (crash
+      loop / quarantine trigger) and `publisher_blocked` (publisher-level or
+      artifact-level denial).
+    admissible_next_states:
+      - installed
+      - pending_activation
+      - quarantined
+      - publisher_blocked
+      - removed
+
+  - state_id: pending_activation
+    display_name: Pending activation
+    checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    intended_content: >
+      Activation was requested and is pending admission (policy/trust gates,
+      resource governor gates, capability-world negotiation). This state exists
+      so surfaces can distinguish "installed but idle" from "activation in
+      progress".
+    admissible_next_states:
+      - active
+      - degraded
+      - disabled
+      - quarantined
+      - publisher_blocked
+
+  - state_id: active
+    display_name: Active
+    checkpoint_id: checkpoint.extension.lifecycle.active
+    intended_content: >
+      Extension is running and admitted for its negotiated capability worlds.
+      Resource usage and activation evidence are reported via the runtime-budget
+      packet contracts.
+    admissible_next_states:
+      - degraded
+      - disabled
+      - quarantined
+      - publisher_blocked
+      - removed
+
+  - state_id: degraded
+    display_name: Degraded
+    checkpoint_id: checkpoint.extension.lifecycle.degraded
+    intended_content: >
+      Extension remains present but capability is narrowed (for example explicit
+      commands only) due to repeated failures, budget pressure, or restart
+      activity inside the strike window. This state name is intentionally shared
+      with the fault-domain escalation vocabulary.
+    admissible_next_states:
+      - active
+      - disabled
+      - quarantined
+      - publisher_blocked
+      - removed
+
+  - state_id: quarantined
+    display_name: Quarantined
+    checkpoint_id: checkpoint.extension.lifecycle.quarantined
+    intended_content: >
+      Activation is blocked because a crash-loop budget or a quarantine trigger
+      fired, or because a governed recovery rung has isolated the extension.
+      Quarantine cannot silently lift; recovery requires an explicit clear and
+      re-enable decision.
+    admissible_next_states:
+      - recovered
+      - disabled
+      - removed
+
+  - state_id: recovered
+    display_name: Recovered
+    checkpoint_id: checkpoint.extension.lifecycle.recovered
+    intended_content: >
+      A prior quarantine was cleared and a recovery attempt has been recorded.
+      Surfaces may still disclose the prior quarantine and may require re-verify
+      before returning to full `active` posture.
+    admissible_next_states:
+      - installed
+      - pending_activation
+      - active
+      - quarantined
+      - removed
+
+  - state_id: removed
+    display_name: Removed
+    checkpoint_id: checkpoint.extension.lifecycle.removed
+    intended_content: >
+      Local installed copy was removed. Evidence, audit events, and prior
+      lifecycle history remain available for support export; removal is not an
+      evidence deletion mechanism.
+    admissible_next_states:
+      - discovered
+      - installed
+      - publisher_blocked
+
+  - state_id: publisher_blocked
+    display_name: Publisher blocked
+    checkpoint_id: checkpoint.extension.lifecycle.publisher_blocked
+    intended_content: >
+      Activation/install/update is blocked due to publisher-level or
+      artifact-level denial (publisher quarantine/revocation, policy-pack
+      emergency disable, kill switch). This state reuses install-review denial
+      reasons and publisher lifecycle events rather than minting new taxonomy.
+    admissible_next_states:
+      - disabled
+      - removed
+      - recovered
+
+# -----------------------------------------------------------------------------
+# Checkpoints
+#
+# Checkpoint ids represent journey points that UI and support surfaces cite.
+# Per-machine concrete ids (support bundle ids, forensic packets, install-review
+# receipts) attach as evidence to these checkpoints.
+# -----------------------------------------------------------------------------
+
+owner_role_vocabulary:
+  - user
+  - admin
+  - extension_installer
+  - policy_engine
+  - registry_or_bundle_resolver
+  - verification_engine
+  - extension_host
+  - runtime_supervisor
+  - recovery_ladder
+  - support_evidence_capture
+
+checkpoint_kind_vocabulary:
+  - latency_checkpoint
+  - decision_checkpoint
+  - mutation_checkpoint
+  - evidence_checkpoint
+
+checkpoint_catalog:
+  - checkpoint_id: checkpoint.extension.lifecycle.discovered
+    title: Extension discovered
+    sequence_stage: discovery
+    owner_role: registry_or_bundle_resolver
+    checkpoint_kinds: [latency_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - registry manifest row ref, mirror snapshot ref, offline bundle manifest ref, or local index ref
+
+  - checkpoint_id: checkpoint.extension.lifecycle.installed
+    title: Extension installed
+    sequence_stage: install
+    owner_role: extension_installer
+    checkpoint_kinds: [mutation_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - install-review admission ref (or explicit not_applicable)
+      - local install receipt ref
+
+  - checkpoint_id: checkpoint.extension.lifecycle.disabled
+    title: Extension disabled
+    sequence_stage: supervise
+    owner_role: runtime_supervisor
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - user/admin disable decision ref, policy ref, or runtime trigger_rule_id
+
+  - checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    title: Activation pending
+    sequence_stage: activate
+    owner_role: extension_host
+    checkpoint_kinds: [latency_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - activation-evidence packet ref (cold/warm activation)
+      - host-negotiation packet ref
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    title: Activated and running
+    sequence_stage: activate
+    owner_role: extension_host
+    checkpoint_kinds: [latency_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - activation-evidence packet ref
+      - audit event ref(s)
+
+  - checkpoint_id: checkpoint.extension.lifecycle.degraded
+    title: Degraded by budget or failure
+    sequence_stage: supervise
+    owner_role: runtime_supervisor
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - fault-domain escalation state ref and forensic packet ref, or runtime trigger_rule_id
+
+  - checkpoint_id: checkpoint.extension.lifecycle.quarantined
+    title: Quarantined after crash-loop or trigger
+    sequence_stage: supervise
+    owner_role: runtime_supervisor
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - trigger_rule_id (runtime quarantine) or denial_reason_class (publisher/policy)
+      - forensic packet ref when crash-loop driven
+
+  - checkpoint_id: checkpoint.extension.recovery.safe_mode_entered
+    title: Safe mode entered
+    sequence_stage: recover
+    owner_role: recovery_ladder
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - recovery rung transition ref (safe_mode)
+      - checkpoint ref(s) when checkpoint_restore applies
+
+  - checkpoint_id: checkpoint.extension.recovery.reopen_without_extension
+    title: Reopen without extension (isolated)
+    sequence_stage: recover
+    owner_role: recovery_ladder
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - recovery rung transition ref (extension_quarantine or safe_mode)
+      - isolated extension identity ref
+
+  - checkpoint_id: checkpoint.extension.recovery.bisect_started
+    title: Extension bisect started
+    sequence_stage: recover
+    owner_role: recovery_ladder
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - recovery rung transition ref (extension_bisect)
+      - bisect cohort selection ref
+
+  - checkpoint_id: checkpoint.extension.recovery.bisect_verdict_recorded
+    title: Bisect verdict recorded
+    sequence_stage: recover
+    owner_role: recovery_ladder
+    checkpoint_kinds: [evidence_checkpoint]
+    evidence_expectations:
+      - bisect step record ref
+      - verdict (suspect extension set) ref
+
+  - checkpoint_id: checkpoint.extension.recovery.quarantine_cleared
+    title: Quarantine cleared
+    sequence_stage: recover
+    owner_role: admin
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - quarantine clear decision ref (policy or user/admin)
+      - any required re-verify note ref
+
+  - checkpoint_id: checkpoint.extension.lifecycle.recovered
+    title: Recovery attempt recorded
+    sequence_stage: recover
+    owner_role: recovery_ladder
+    checkpoint_kinds: [evidence_checkpoint]
+    evidence_expectations:
+      - recovery action record ref
+
+  - checkpoint_id: checkpoint.extension.removal.user_confirmed
+    title: Removal confirmed
+    sequence_stage: remove
+    owner_role: user
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - uninstall confirmation event ref
+
+  - checkpoint_id: checkpoint.extension.lifecycle.removed
+    title: Extension removed
+    sequence_stage: remove
+    owner_role: extension_installer
+    checkpoint_kinds: [mutation_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - uninstall receipt ref
+
+  - checkpoint_id: checkpoint.extension.lifecycle.publisher_blocked
+    title: Publisher/policy block applied
+    sequence_stage: supervise
+    owner_role: policy_engine
+    checkpoint_kinds: [decision_checkpoint, evidence_checkpoint]
+    evidence_expectations:
+      - denial_reason_class
+      - publisher lifecycle event ref or policy-pack ref
+
+  - checkpoint_id: checkpoint.extension.support.evidence_captured
+    title: Support evidence captured
+    sequence_stage: support
+    owner_role: support_evidence_capture
+    checkpoint_kinds: [evidence_checkpoint]
+    evidence_expectations:
+      - support bundle ref (or support export ref)
+
+sequence_stage_vocabulary:
+  - discovery
+  - install
+  - activate
+  - supervise
+  - recover
+  - remove
+  - support
+
+variant_class_vocabulary:
+  - first_party_online
+  - third_party_online
+  - third_party_offline_or_mirror
+
+outcome_class_vocabulary:
+  - activated_successfully
+  - degraded_then_recovered
+  - quarantined_then_recovered
+  - quarantined_then_removed
+  - publisher_blocked_activation_denied
+
+variant_paths:
+  - path_id: extension_sequence.first_party.online.crash_loop_quarantine_recovered
+    variant_class: first_party_online
+    outcome_class: quarantined_then_recovered
+    checkpoints:
+      - checkpoint.extension.lifecycle.discovered
+      - checkpoint.extension.lifecycle.installed
+      - checkpoint.extension.lifecycle.pending_activation
+      - checkpoint.extension.lifecycle.active
+      - checkpoint.extension.lifecycle.degraded
+      - checkpoint.extension.lifecycle.quarantined
+      - checkpoint.extension.recovery.safe_mode_entered
+      - checkpoint.extension.recovery.quarantine_cleared
+      - checkpoint.extension.lifecycle.recovered
+      - checkpoint.extension.lifecycle.pending_activation
+      - checkpoint.extension.lifecycle.active
+      - checkpoint.extension.support.evidence_captured
+
+  - path_id: extension_sequence.third_party.online.runtime_budget_degraded_then_recovered
+    variant_class: third_party_online
+    outcome_class: degraded_then_recovered
+    checkpoints:
+      - checkpoint.extension.lifecycle.discovered
+      - checkpoint.extension.lifecycle.installed
+      - checkpoint.extension.lifecycle.pending_activation
+      - checkpoint.extension.lifecycle.active
+      - checkpoint.extension.lifecycle.degraded
+      - checkpoint.extension.lifecycle.active
+      - checkpoint.extension.support.evidence_captured
+
+  - path_id: extension_sequence.third_party.online.crash_loop_quarantine_removed
+    variant_class: third_party_online
+    outcome_class: quarantined_then_removed
+    checkpoints:
+      - checkpoint.extension.lifecycle.discovered
+      - checkpoint.extension.lifecycle.installed
+      - checkpoint.extension.lifecycle.pending_activation
+      - checkpoint.extension.lifecycle.active
+      - checkpoint.extension.lifecycle.degraded
+      - checkpoint.extension.lifecycle.quarantined
+      - checkpoint.extension.recovery.safe_mode_entered
+      - checkpoint.extension.recovery.bisect_started
+      - checkpoint.extension.recovery.bisect_verdict_recorded
+      - checkpoint.extension.removal.user_confirmed
+      - checkpoint.extension.lifecycle.removed
+      - checkpoint.extension.support.evidence_captured
+
+  - path_id: extension_sequence.third_party.offline_bundle.crash_loop_quarantine_removed
+    variant_class: third_party_offline_or_mirror
+    outcome_class: quarantined_then_removed
+    checkpoints:
+      - checkpoint.extension.lifecycle.discovered
+      - checkpoint.extension.lifecycle.installed
+      - checkpoint.extension.lifecycle.pending_activation
+      - checkpoint.extension.lifecycle.active
+      - checkpoint.extension.lifecycle.quarantined
+      - checkpoint.extension.recovery.reopen_without_extension
+      - checkpoint.extension.removal.user_confirmed
+      - checkpoint.extension.lifecycle.removed
+      - checkpoint.extension.support.evidence_captured
+
+  - path_id: extension_sequence.third_party.mirror.publisher_blocked
+    variant_class: third_party_offline_or_mirror
+    outcome_class: publisher_blocked_activation_denied
+    checkpoints:
+      - checkpoint.extension.lifecycle.discovered
+      - checkpoint.extension.lifecycle.publisher_blocked
+      - checkpoint.extension.support.evidence_captured
+

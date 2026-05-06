@@ -1,0 +1,88 @@
+schema_version: 1
+record_kind: extension_lifecycle_sequence_case_record
+case_id: extension.lifecycle_sequence.third_party.offline_bundle.crash_loop_quarantine_removed
+case_class: third_party_offline_bundle_crash_loop_quarantine_removed
+scenario_summary: >
+  An extension is restored from an offline bundle in an air-gapped profile. The
+  extension later enters a crash loop and is quarantined. The user reopens with
+  the extension isolated (without widening trust or contacting external
+  registries), confirms removal, and captures a support bundle that preserves the
+  offline-bundle provenance and the quarantine trigger evidence.
+
+sequence_packet_ref: artifacts/extensions/extension_lifecycle_states.yaml
+variant_path_id: extension_sequence.third_party.offline_bundle.crash_loop_quarantine_removed
+variant_class: third_party_offline_or_mirror
+outcome_class: quarantined_then_removed
+
+evidence_refs:
+  extension_identity_ref: tools/cohort-mapper
+  extension_version_ref: 2.1.0
+  install_source_class: offline_bundle
+  offline_bundle_manifest_ref: offline_bundle_manifest:airgap.tools.pack.20260501
+  install_review_ref: install_review:offline_bundle.admitted
+  quarantine_trigger_rule_ids:
+    - crash_loop_window_breach_trips_quarantine
+  recovery_rung_transition_refs:
+    - recovery_rung_transition:extension_quarantine.isolate_single_extension.0002
+  uninstall_receipt_ref: uninstall_receipt:tools.cohort-mapper.2_1_0
+  support_bundle_ref: support_bundle:extensions.tools.cohort-mapper.offline_bundle.quarantine_removed
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.extension.lifecycle.discovered
+    emitted_at: "2026-05-01T08:00:00Z"
+    owner_role: registry_or_bundle_resolver
+    evidence_refs:
+      - offline_bundle_manifest:airgap.tools.pack.20260501
+
+  - checkpoint_id: checkpoint.extension.lifecycle.installed
+    emitted_at: "2026-05-01T08:01:30Z"
+    owner_role: extension_installer
+    evidence_refs:
+      - install_review:offline_bundle.admitted
+      - install_receipt:tools.cohort-mapper.2_1_0.offline_bundle
+
+  - checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    emitted_at: "2026-05-01T08:10:00Z"
+    owner_role: extension_host
+    evidence_refs:
+      - activation_packet:tools.cohort-mapper.20260501T081000Z.0001
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    emitted_at: "2026-05-01T08:10:03Z"
+    owner_role: extension_host
+    evidence_refs:
+      - audit_event:extension_activated_cold
+
+  - checkpoint_id: checkpoint.extension.lifecycle.quarantined
+    emitted_at: "2026-05-01T08:22:10Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - trigger_rule_id:crash_loop_window_breach_trips_quarantine
+      - forensic_packet:extension_and_tool_hosts.tools.cohort-mapper.0004
+
+  - checkpoint_id: checkpoint.extension.recovery.reopen_without_extension
+    emitted_at: "2026-05-01T08:25:00Z"
+    owner_role: recovery_ladder
+    evidence_refs:
+      - recovery_rung_transition:extension_quarantine.isolate_single_extension.0002
+      - isolated_extension:tools/cohort-mapper
+
+  - checkpoint_id: checkpoint.extension.removal.user_confirmed
+    emitted_at: "2026-05-01T08:26:40Z"
+    owner_role: user
+    evidence_refs:
+      - uninstall_confirmation:event.0003
+
+  - checkpoint_id: checkpoint.extension.lifecycle.removed
+    emitted_at: "2026-05-01T08:27:00Z"
+    owner_role: extension_installer
+    evidence_refs:
+      - uninstall_receipt:tools.cohort-mapper.2_1_0
+
+  - checkpoint_id: checkpoint.extension.support.evidence_captured
+    emitted_at: "2026-05-01T08:28:10Z"
+    owner_role: support_evidence_capture
+    evidence_refs:
+      - support_bundle:extensions.tools.cohort-mapper.offline_bundle.quarantine_removed
+      - offline_bundle_manifest:airgap.tools.pack.20260501
+

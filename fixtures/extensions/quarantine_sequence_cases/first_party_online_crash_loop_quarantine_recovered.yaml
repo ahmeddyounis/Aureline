@@ -1,0 +1,111 @@
+schema_version: 1
+record_kind: extension_lifecycle_sequence_case_record
+case_id: extension.lifecycle_sequence.first_party.online.crash_loop_quarantine_recovered
+case_class: first_party_online_crash_loop_quarantine_recovered
+scenario_summary: >
+  A first-party extension activates normally, then enters a crash loop that
+  exhausts the bounded restart budget and trips runtime quarantine. The crash-loop
+  surface enters safe mode, preserves evidence, and the user/admin clears the
+  quarantine after a patched extension build is available. The extension is
+  re-enabled via a queued recovery replay and returns to active.
+
+sequence_packet_ref: artifacts/extensions/extension_lifecycle_states.yaml
+variant_path_id: extension_sequence.first_party.online.crash_loop_quarantine_recovered
+variant_class: first_party_online
+outcome_class: quarantined_then_recovered
+
+evidence_refs:
+  extension_identity_ref: aureline/core-vcs
+  extension_version_ref: 1.3.2
+  install_source_class: first_party_bundled
+  activation_evidence_packet_refs:
+    - activation_packet:aureline.core-vcs.20260504T091500Z.0001
+    - activation_packet:aureline.core-vcs.20260504T092000Z.0002
+  quarantine_trigger_rule_ids:
+    - crash_loop_window_breach_trips_quarantine
+  forensic_packet_ref: forensic_packet:extension_and_tool_hosts.aureline.core-vcs.0007
+  recovery_rung_transition_refs:
+    - recovery_rung_transition:safe_mode.0003
+    - recovery_rung_transition:extension_quarantine.clear_and_reenable.0004
+  quarantine_clear_ref: quarantine_clear:user_or_admin.0002
+  support_bundle_ref: support_bundle:extensions.aureline.core-vcs.quarantine_recovered
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.extension.lifecycle.discovered
+    emitted_at: "2026-05-04T09:10:00Z"
+    owner_role: registry_or_bundle_resolver
+    evidence_refs:
+      - catalog_index:first_party_bundle.v1
+
+  - checkpoint_id: checkpoint.extension.lifecycle.installed
+    emitted_at: "2026-05-04T09:10:05Z"
+    owner_role: extension_installer
+    evidence_refs:
+      - install_receipt:first_party_bundle.v1.aureline.core-vcs
+
+  - checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    emitted_at: "2026-05-04T09:15:00Z"
+    owner_role: extension_host
+    evidence_refs:
+      - activation_packet:aureline.core-vcs.20260504T091500Z.0001
+      - negotiation_packet:aureline.core-vcs.0001
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    emitted_at: "2026-05-04T09:15:02Z"
+    owner_role: extension_host
+    evidence_refs:
+      - audit_event:extension_activated_cold
+
+  - checkpoint_id: checkpoint.extension.lifecycle.degraded
+    emitted_at: "2026-05-04T09:20:40Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - forensic_packet:extension_and_tool_hosts.aureline.core-vcs.0007
+      - audit_event:extension_crash_detected
+
+  - checkpoint_id: checkpoint.extension.lifecycle.quarantined
+    emitted_at: "2026-05-04T09:21:10Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - trigger_rule_id:crash_loop_window_breach_trips_quarantine
+      - forensic_packet:extension_and_tool_hosts.aureline.core-vcs.0007
+
+  - checkpoint_id: checkpoint.extension.recovery.safe_mode_entered
+    emitted_at: "2026-05-04T09:22:00Z"
+    owner_role: recovery_ladder
+    evidence_refs:
+      - recovery_rung_transition:safe_mode.0003
+      - checkpoint:pre_safe_mode.session.0009
+
+  - checkpoint_id: checkpoint.extension.recovery.quarantine_cleared
+    emitted_at: "2026-05-04T10:05:00Z"
+    owner_role: admin
+    evidence_refs:
+      - quarantine_clear:user_or_admin.0002
+      - patched_extension_receipt:first_party_bundle.v2.aureline.core-vcs
+
+  - checkpoint_id: checkpoint.extension.lifecycle.recovered
+    emitted_at: "2026-05-04T10:05:05Z"
+    owner_role: recovery_ladder
+    evidence_refs:
+      - recovery_action_record:extension_quarantine.reenable_after_patch.0004
+
+  - checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    emitted_at: "2026-05-04T10:05:30Z"
+    owner_role: extension_host
+    evidence_refs:
+      - activation_packet:aureline.core-vcs.20260504T100530Z.0003
+      - activation_reason:queued_replay_after_recovery
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    emitted_at: "2026-05-04T10:05:35Z"
+    owner_role: extension_host
+    evidence_refs:
+      - audit_event:extension_activated_warm
+
+  - checkpoint_id: checkpoint.extension.support.evidence_captured
+    emitted_at: "2026-05-04T10:06:10Z"
+    owner_role: support_evidence_capture
+    evidence_refs:
+      - support_bundle:extensions.aureline.core-vcs.quarantine_recovered
+

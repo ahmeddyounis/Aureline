@@ -1,0 +1,114 @@
+schema_version: 1
+record_kind: extension_lifecycle_sequence_case_record
+case_id: extension.lifecycle_sequence.third_party.online.crash_loop_quarantine_removed
+case_class: third_party_online_crash_loop_quarantine_removed
+scenario_summary: >
+  A third-party extension is installed from the public registry, activates, and
+  then crashes repeatedly inside the crash-loop window. The runtime quarantine
+  trigger fires, the crash-loop surface enters safe mode, and the user runs an
+  extension bisect pass to attribute the regression. The user then removes the
+  offending extension; evidence remains available for support export.
+
+sequence_packet_ref: artifacts/extensions/extension_lifecycle_states.yaml
+variant_path_id: extension_sequence.third_party.online.crash_loop_quarantine_removed
+variant_class: third_party_online
+outcome_class: quarantined_then_removed
+
+evidence_refs:
+  extension_identity_ref: baddy/broken-serializer
+  extension_version_ref: 0.2.0
+  install_source_class: public_registry
+  activation_evidence_fixture_ref: fixtures/extensions/activation_cases/crash_loop_window_quarantines.json
+  quarantine_trigger_rule_ids:
+    - crash_loop_window_breach_trips_quarantine
+  recovery_rung_transition_refs:
+    - recovery_rung_transition:safe_mode.0011
+    - recovery_rung_transition:extension_bisect.0006
+  bisect_step_record_refs:
+    - bisect_step:001
+    - bisect_step:002
+    - bisect_step:003
+  uninstall_receipt_ref: uninstall_receipt:baddy.broken-serializer.0_2_0
+  support_bundle_ref: support_bundle:extensions.baddy.broken-serializer.quarantine_removed
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.extension.lifecycle.discovered
+    emitted_at: "2026-04-24T11:20:00Z"
+    owner_role: registry_or_bundle_resolver
+    evidence_refs:
+      - registry_manifest_row:baddy.broken-serializer.0_2_0
+
+  - checkpoint_id: checkpoint.extension.lifecycle.installed
+    emitted_at: "2026-04-24T11:20:40Z"
+    owner_role: extension_installer
+    evidence_refs:
+      - install_review:admitted.user_acknowledged
+      - install_receipt:baddy.broken-serializer.0_2_0
+
+  - checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    emitted_at: "2026-04-24T11:40:00Z"
+    owner_role: extension_host
+    evidence_refs:
+      - fixtures/extensions/activation_cases/crash_loop_window_quarantines.json
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    emitted_at: "2026-04-24T11:40:03Z"
+    owner_role: extension_host
+    evidence_refs:
+      - audit_event:extension_activated_cold
+
+  - checkpoint_id: checkpoint.extension.lifecycle.degraded
+    emitted_at: "2026-04-24T11:42:25Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - forensic_packet:extension_and_tool_hosts.baddy.broken-serializer.0009
+      - audit_event:extension_crash_detected
+
+  - checkpoint_id: checkpoint.extension.lifecycle.quarantined
+    emitted_at: "2026-04-24T11:42:30Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - trigger_rule_id:crash_loop_window_breach_trips_quarantine
+      - fixtures/extensions/activation_cases/crash_loop_window_quarantines.json
+
+  - checkpoint_id: checkpoint.extension.recovery.safe_mode_entered
+    emitted_at: "2026-04-24T11:45:00Z"
+    owner_role: recovery_ladder
+    evidence_refs:
+      - recovery_rung_transition:safe_mode.0011
+      - checkpoint:pre_safe_mode.session.0042
+
+  - checkpoint_id: checkpoint.extension.recovery.bisect_started
+    emitted_at: "2026-04-24T11:46:10Z"
+    owner_role: recovery_ladder
+    evidence_refs:
+      - recovery_rung_transition:extension_bisect.0006
+      - bisect_cohort_selection:initial_half_split
+
+  - checkpoint_id: checkpoint.extension.recovery.bisect_verdict_recorded
+    emitted_at: "2026-04-24T11:58:45Z"
+    owner_role: recovery_ladder
+    evidence_refs:
+      - bisect_step:001
+      - bisect_step:002
+      - bisect_step:003
+      - bisect_verdict:suspect_set.baddy.broken-serializer
+
+  - checkpoint_id: checkpoint.extension.removal.user_confirmed
+    emitted_at: "2026-04-24T12:00:00Z"
+    owner_role: user
+    evidence_refs:
+      - uninstall_confirmation:event.001
+
+  - checkpoint_id: checkpoint.extension.lifecycle.removed
+    emitted_at: "2026-04-24T12:00:10Z"
+    owner_role: extension_installer
+    evidence_refs:
+      - uninstall_receipt:baddy.broken-serializer.0_2_0
+
+  - checkpoint_id: checkpoint.extension.support.evidence_captured
+    emitted_at: "2026-04-24T12:02:00Z"
+    owner_role: support_evidence_capture
+    evidence_refs:
+      - support_bundle:extensions.baddy.broken-serializer.quarantine_removed
+

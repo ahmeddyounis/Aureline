@@ -54,6 +54,35 @@ extension runtime work begins.
 | `extension_quarantine_rule_row`          | One rule per quarantine trigger. Names trip condition, response class, restart posture, visibility posture, and discovery-ranking posture. | `/artifacts/extensions/quarantine_rules.yaml`                                                              |
 | `extension_recovery_rule_row`            | One rule per recovery condition. Names how a throttled / disabled / quarantined extension returns to service. | `/artifacts/extensions/quarantine_rules.yaml`                                                              |
 
+## Lifecycle checkpoint linkage (shared ids across surfaces)
+
+The runtime-budget packet provides the **evidence** (axes, counters, audit
+events, trigger rules) for extension activation and quarantine decisions. The
+shell, crash-loop surfaces, runtime status, and support exports additionally
+need a stable “what happened” sequence that does not vary by surface.
+
+The shared lifecycle state and checkpoint catalog lives in:
+
+- [`/artifacts/extensions/extension_lifecycle_states.yaml`](../../artifacts/extensions/extension_lifecycle_states.yaml)
+- [`/docs/extensions/extension_lifecycle_and_quarantine_sequence.md`](./extension_lifecycle_and_quarantine_sequence.md)
+
+Mapping guidance (non-exhaustive):
+
+- Any cold/warm activation attempt SHOULD record
+  `checkpoint.extension.lifecycle.pending_activation`, then either
+  `checkpoint.extension.lifecycle.active` or a deny/disable/quarantine checkpoint.
+- Any applied response with `response_class = disable_until_next_session` or
+  `disable_until_user_explicit_reenable` SHOULD record
+  `checkpoint.extension.lifecycle.disabled` and cite the firing
+  `trigger_rule_id`.
+- Any applied response with `response_class = quarantine` SHOULD record
+  `checkpoint.extension.lifecycle.quarantined` and cite the firing
+  `trigger_rule_id` (and a forensic packet ref when crash-loop driven).
+- Recovery-triggered re-enablement SHOULD pair
+  `checkpoint.extension.lifecycle.recovered` with
+  `activation_reason_class = queued_replay_after_recovery` so the next activation
+  attempt is attributable as a recovery replay.
+
 ## Budget axes
 
 Every `extension_runtime_budget_row` binds one axis to:

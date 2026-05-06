@@ -1,0 +1,74 @@
+schema_version: 1
+record_kind: extension_lifecycle_sequence_case_record
+case_id: extension.lifecycle_sequence.third_party.online.runtime_budget_degraded_then_recovered
+case_class: third_party_online_runtime_budget_degraded_then_recovered
+scenario_summary: >
+  A third-party extension is installed from the public registry and activates,
+  but sustained budget pressure and restart activity projects a visible degraded
+  posture. After the pressure window clears and the next activation stays within
+  the declared thresholds, the extension returns to active without quarantine.
+
+sequence_packet_ref: artifacts/extensions/extension_lifecycle_states.yaml
+variant_path_id: extension_sequence.third_party.online.runtime_budget_degraded_then_recovered
+variant_class: third_party_online
+outcome_class: degraded_then_recovered
+
+evidence_refs:
+  extension_identity_ref: acme/idle-watcher
+  extension_version_ref: 0.9.1
+  install_source_class: public_registry
+  activation_evidence_packet_refs:
+    - activation_packet:acme.idle-watcher.20260502T104000Z.0001
+    - activation_packet:acme.idle-watcher.20260502T105500Z.0002
+  trigger_rule_ids:
+    - idle_polling_sustained_hard_breach_disables_session
+  forensic_packet_ref: forensic_packet:extension_and_tool_hosts.acme.idle-watcher.0003
+  support_bundle_ref: support_bundle:extensions.acme.idle-watcher.degraded_then_active
+
+checkpoint_hits:
+  - checkpoint_id: checkpoint.extension.lifecycle.discovered
+    emitted_at: "2026-05-02T10:30:00Z"
+    owner_role: registry_or_bundle_resolver
+    evidence_refs:
+      - registry_manifest_row:acme.idle-watcher.0_9_1
+
+  - checkpoint_id: checkpoint.extension.lifecycle.installed
+    emitted_at: "2026-05-02T10:31:10Z"
+    owner_role: extension_installer
+    evidence_refs:
+      - install_review:admitted.standard_permissions
+      - install_receipt:acme.idle-watcher.0_9_1
+
+  - checkpoint_id: checkpoint.extension.lifecycle.pending_activation
+    emitted_at: "2026-05-02T10:40:00Z"
+    owner_role: extension_host
+    evidence_refs:
+      - activation_packet:acme.idle-watcher.20260502T104000Z.0001
+      - negotiation_packet:acme.idle-watcher.0001
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    emitted_at: "2026-05-02T10:40:04Z"
+    owner_role: extension_host
+    evidence_refs:
+      - audit_event:extension_activated_cold
+
+  - checkpoint_id: checkpoint.extension.lifecycle.degraded
+    emitted_at: "2026-05-02T10:52:20Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - trigger_rule_id:idle_polling_sustained_hard_breach_disables_session
+      - forensic_packet:extension_and_tool_hosts.acme.idle-watcher.0003
+
+  - checkpoint_id: checkpoint.extension.lifecycle.active
+    emitted_at: "2026-05-02T10:55:10Z"
+    owner_role: runtime_supervisor
+    evidence_refs:
+      - budget_window_cleared:idle_polling
+      - audit_event:extension_quarantined_recovery_attempted
+
+  - checkpoint_id: checkpoint.extension.support.evidence_captured
+    emitted_at: "2026-05-02T10:56:00Z"
+    owner_role: support_evidence_capture
+    evidence_refs:
+      - support_bundle:extensions.acme.idle-watcher.degraded_then_active
+

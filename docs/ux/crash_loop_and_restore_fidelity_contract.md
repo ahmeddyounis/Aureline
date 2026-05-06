@@ -185,6 +185,25 @@ whether evidence remains after the action.
 disabled when it would consume another automatic restart behind the same
 failing path.
 
+### Shared checkpoint ids (sequence alignment)
+
+Crash-loop and restore surfaces SHOULD also record the stable checkpoint ids
+published by the extension lifecycle + quarantine sequence packet so UI, runtime
+status, and support exports cite the same identifiers:
+
+- Packet: [`/artifacts/extensions/extension_lifecycle_states.yaml`](../../artifacts/extensions/extension_lifecycle_states.yaml)
+- Narrative: [`/docs/extensions/extension_lifecycle_and_quarantine_sequence.md`](../extensions/extension_lifecycle_and_quarantine_sequence.md)
+
+Minimum expectations:
+
+- Entering safe mode records `checkpoint.extension.recovery.safe_mode_entered`.
+- “Disable suspect extension” / reopen-with-extension-isolated records
+  `checkpoint.extension.recovery.reopen_without_extension` and transitions the
+  named subject toward `checkpoint.extension.lifecycle.disabled` or
+  `checkpoint.extension.lifecycle.quarantined` with cited upstream evidence.
+- Any crash-loop-driven quarantine records `checkpoint.extension.lifecycle.quarantined`
+  with the fault-domain and forensic packet refs retained for export.
+
 ## 8. Live-Readiness Rule
 
 No restored pane or session can claim live readiness unless the backing
