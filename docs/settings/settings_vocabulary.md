@@ -82,6 +82,13 @@ must be updated in the same change.
   review packets, including blocked scopes, policy and emergency
   ceilings, stale reads, mixed-version downgrades, alias-only imports,
   and fan-out reviews.
+- [`/docs/settings/effective_control_stack_contract.md`](./effective_control_stack_contract.md)
+  — cross-surface contract for the effective control-stack matrix that
+  settings, policy, experiments, and kill switches project into UI, CLI,
+  diagnostics, and support exports.
+- [`/fixtures/settings/control_stack_cases/`](../../fixtures/settings/control_stack_cases/)
+  — worked control-stack matrix packets covering offline last-known-good
+  continuity, expiry, ceilings, mismatch, and emergency narrowing.
 - [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
   — class-level registry the schema-registry and support-bundle
   exporter quote when a settings-related export, sync packet, or
@@ -125,6 +132,9 @@ renames on protected surfaces are forbidden.
   `explain_why_ref`, `control_authority`, `narrowing_ceiling_active`.
   Reserved for the feature-flag / experiment / schema-governance /
   admin-policy surfaces.
+
+  The row-level and matrix-level projection contract is frozen in
+  [`docs/settings/effective_control_stack_contract.md`](./effective_control_stack_contract.md).
 - `last_written` — monotonic stamp plus `actor_class`. Drives
   "last changed ..." affordances and audit records.
 - `redaction_class` — ADR-0007 redaction class applied on export.

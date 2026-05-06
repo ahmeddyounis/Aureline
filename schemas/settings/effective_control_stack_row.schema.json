@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/settings/effective_control_stack_row.schema.json",
+  "title": "Aureline effective control-stack row and matrix packet",
+  "description": "Boundary schema for the effective control-stack matrix packet used to explain settings, policies, experiments/flags, and emergency kill switches. The packet is the local-offline proof: a reviewer can reconstruct the effective value / allow / deny decision from the packet alone, without reading implementation code or logs. Every surface (settings UI, CLI inspect, diagnostics, support export) projects the same rows rather than recomputing a narrative. Rows are export-safe: they carry typed vocabulary, timestamps, schema refs, and opaque evidence refs; raw policy bodies, raw signatures, raw URLs/hostnames/paths, raw tenant identities, tokens, and secret material never cross this boundary. Adding a new enum value or optional field is additive-minor and bumps the document const schema version; repurposing an existing value is breaking and requires a new decision row.",
+  "oneOf": [
+    { "$ref": "#/$defs/effective_control_stack_row" },
+    { "$ref": "#/$defs/effective_control_stack_matrix" }
+  ],
+  "$defs": {
+    "effective_control_stack_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this control-stack vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Dot-separated stable identifier used for control ids and matrix ids."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "nullable_timestamp": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short, export-safe sentence suitable for UI banners, CLI output, diagnostics, and support exports. Raw secrets, raw policy bodies, raw signatures, raw URLs/hostnames, raw paths, and tenant identities MUST NOT appear."
+    },
+
+    "control_surface": {
+      "type": "string",
+      "enum": [
+        "setting",
+        "feature_flag",
+        "experiment",
+        "kill_switch",
+        "policy_decision"
+      ],
+      "description": "Which control surface the matrix is explaining."
+    },
+
+    "control_authority": {
+      "type": "string",
+      "enum": [
+        "embedded_default",
+        "signed_admin_bundle",
+        "user_profile_workspace",
+        "managed_override",
+        "experiment_rollout",
+        "kill_switch"
+      ],
+      "description": "Frozen control-authority class. Names which control layer or emergency authority produced this row."
+    },
+
+    "lifecycle_label": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "experimental",
+        "beta",
+        "stable",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Cross-surface lifecycle label. Settings rows typically use experimental/beta/stable/deprecated/retired; experiments/flags may additionally use labs/preview/disabled_by_policy."
+    },
+
+    "offline_fallback": {
+      "type": "string",
+      "enum": [
+        "authoritative_local",
+        "last_known_good_signed",
+        "cache_only",
+        "unavailable_offline"
+      ],
+      "description": "Local-offline fallback posture for this row at the moment of evaluation."
+    },
+
+    "schema_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "URI or repo-relative reference to the schema contract backing this row (for example, schemas/settings/effective_setting.schema.json)."
+    },
+
+    "opaque_evidence_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, export-safe evidence reference. Raw payload bytes, raw secrets, and raw policy bodies never appear here."
+    },
+
+    "row_relation": {
+      "type": "string",
+      "enum": [
+        "winner",
+        "shadowed",
+        "capped",
+        "blocked",
+        "unavailable",
+        "expired",
+        "degraded"
+      ],
+      "description": "How this row relates to the effective decision. winner identifies the effective row; capped identifies a row that requested a broader value but was narrowed by a ceiling; blocked identifies a row refused due to mismatch/invalidity; expired identifies a time-bounded row outside its validity window."
+    },
+
+    "effective_control_stack_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_control_stack_schema_version",
+        "control_id",
+        "control_surface",
+        "rank_low_to_high",
+        "control_authority",
+        "source_label",
+        "current_value",
+        "lifecycle_label",
+        "last_refresh_at",
+        "expires_at",
+        "offline_fallback",
+        "explain_why_ref",
+        "schema_ref",
+        "evidence_refs",
+        "relation",
+        "relation_reason"
+      ],
+      "properties": {
+        "$schema": { "type": "string", "format": "uri-reference" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "effective_control_stack_row" },
+        "effective_control_stack_schema_version": { "$ref": "#/$defs/effective_control_stack_schema_version" },
+        "control_id": { "$ref": "#/$defs/stable_dot_id" },
+        "control_surface": { "$ref": "#/$defs/control_surface" },
+        "rank_low_to_high": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rank in the precedence ladder. Higher rank overrides lower rank unless capped by a safety ceiling."
+        },
+        "control_authority": { "$ref": "#/$defs/control_authority" },
+        "source_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Export-safe source tag for this row (for example, 'Aureline default', 'Admin policy bundle v3', 'User settings')."
+        },
+        "current_value": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Export-safe projection of the current branch/value for this layer."
+        },
+        "lifecycle_label": { "$ref": "#/$defs/lifecycle_label" },
+        "last_refresh_at": {
+          "anyOf": [
+            { "$ref": "#/$defs/nullable_timestamp" }
+          ],
+          "description": "Monotonic stamp of the last time this row's source was refreshed/evaluated; null if not applicable."
+        },
+        "expires_at": {
+          "anyOf": [
+            { "$ref": "#/$defs/nullable_timestamp" }
+          ],
+          "description": "When this row's binding expires; null if unbounded."
+        },
+        "offline_fallback": { "$ref": "#/$defs/offline_fallback" },
+        "explain_why_ref": {
+          "type": ["string", "null"],
+          "description": "Opaque handle the 'Explain why' affordance resolves against. Null is admissible only when the row is purely informational and no explainer is available."
+        },
+        "schema_ref": { "$ref": "#/$defs/schema_ref" },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_evidence_ref" },
+          "description": "Export-safe evidence references backing this row (policy cache entry ids, decision explain record ids, signed bundle ids, audit event ids)."
+        },
+        "relation": { "$ref": "#/$defs/row_relation" },
+        "relation_reason": { "$ref": "#/$defs/reviewable_sentence" },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "effective_outcome_class": {
+      "type": "string",
+      "enum": [
+        "value_resolved",
+        "allowed",
+        "denied",
+        "disabled",
+        "narrowed",
+        "degraded_to_fallback",
+        "unavailable_with_reason"
+      ],
+      "description": "Outcome class for the matrix packet. value_resolved is used when the decision is a value; allowed/denied for gates; disabled/narrowed for ceilings and kill-switch outcomes; degraded_to_fallback when last-known-good or safe default behavior is in effect."
+    },
+
+    "effective_control_stack_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_control_stack_schema_version",
+        "matrix_id",
+        "control_id",
+        "control_surface",
+        "effective_outcome",
+        "effective_value",
+        "rows"
+      ],
+      "properties": {
+        "$schema": { "type": "string", "format": "uri-reference" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "effective_control_stack_matrix" },
+        "effective_control_stack_schema_version": { "$ref": "#/$defs/effective_control_stack_schema_version" },
+        "matrix_id": {
+          "$ref": "#/$defs/stable_dot_id",
+          "description": "Stable id for this explain packet instance (used for support exports and local caching)."
+        },
+        "control_id": { "$ref": "#/$defs/stable_dot_id" },
+        "control_surface": { "$ref": "#/$defs/control_surface" },
+        "effective_outcome": { "$ref": "#/$defs/effective_outcome_class" },
+        "effective_value": {
+          "type": ["string", "null"],
+          "description": "Export-safe projection of the final effective value or outcome detail; null is admissible only when effective_outcome is unavailable_with_reason."
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/effective_control_stack_row" },
+          "description": "Ordered rows describing the ladder and any ceilings. At least one row is present for embedded_default."
+        },
+        "unavailable_reason": {
+          "type": ["string", "null"],
+          "description": "Reviewable reason for unavailable_with_reason outcomes."
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}
