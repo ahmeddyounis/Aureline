@@ -21,6 +21,12 @@ Companion artifacts:
 - [`/ci/contract_validation.sh`](../../ci/contract_validation.sh)
   — local and CI wrapper that writes a JSON report and captures the
   human-readable summary.
+- [`/ci/check_source_seed_completion.py`](../../ci/check_source_seed_completion.py)
+  and
+  [`/artifacts/governance/source_seed_completion_matrix.yaml`](../../artifacts/governance/source_seed_completion_matrix.yaml)
+  - validates the source-appendix seed completion matrix (required seed
+    families must have at least one checked-in artifact ref or an active
+    waiver).
 - [`/tools/ci/validate_geometry_cases.py`](../../tools/ci/validate_geometry_cases.py)
   — validates geometry token ledger and worked cases.
 - [`/tools/ci/validate_motion_cases.py`](../../tools/ci/validate_motion_cases.py)

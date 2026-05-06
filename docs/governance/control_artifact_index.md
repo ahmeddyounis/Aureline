@@ -11,6 +11,13 @@ Companion artifacts:
 - [`/artifacts/governance/control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml)
   — machine-readable register. Tooling reads this file; the narrative
   below describes the same rows.
+- [`./source_appendix_completion_audit.md`](./source_appendix_completion_audit.md)
+  and
+  [`/artifacts/governance/source_seed_completion_matrix.yaml`](../../artifacts/governance/source_seed_completion_matrix.yaml)
+  — appendix-seed completion audit and machine-readable crosswalk that
+  keeps source-document appendix promises traceable to concrete repo
+  artifacts (or explicit waivers), plus a merge gate at
+  [`/ci/check_source_seed_completion.py`](../../ci/check_source_seed_completion.py).
 - [`/docs/network/transport_permission_matrix.md`](../network/transport_permission_matrix.md),
   [`/artifacts/network/permission_classes.yaml`](../../artifacts/network/permission_classes.yaml),
   and

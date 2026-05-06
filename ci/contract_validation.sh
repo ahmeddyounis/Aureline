@@ -94,3 +94,6 @@ python3 "${REPO_ROOT}/tools/ci/validate_ui_copy_cases.py" | tee -a "${SUMMARY_PA
 
 printf '\n[contract-validation] validating component conformance packets\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/ci/check_component_conformance.py" | tee -a "${SUMMARY_PATH}"
+
+printf '\n[contract-validation] validating source seed completion matrix\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/ci/check_source_seed_completion.py" --repo-root "${REPO_ROOT}" | tee -a "${SUMMARY_PATH}"
