@@ -36,6 +36,9 @@ this document wins and the surface is non-conforming.
 
 This contract composes with existing owners and does not replace them:
 
+- [`/docs/ux/native_approval_surface_inventory.md`](./native_approval_surface_inventory.md)
+  inventories the host-native approval surfaces that remain product-owned
+  even when surrounding content is embedded or externally hosted.
 - [`/docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md`](../adr/0015-embedded-surface-boundary-and-auth-handoff.md)
   freezes the host-owned `embedded_surface_boundary_record`,
   `embedded_auth_exception_record`, and

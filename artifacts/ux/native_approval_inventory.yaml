@@ -1,0 +1,290 @@
+# Native-approval surface inventory and boundary separation rules.
+#
+# Companion to:
+#   - docs/ux/native_approval_surface_inventory.md
+#   - ADR 0015 (embedded-surface boundary and auth handoff)
+#     (docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md)
+#   - boundary-card render contract
+#     (docs/ux/embedded_surface_boundary_cards.md)
+#   - scoped browser / web surface matrix
+#     (docs/web/scoped_browser_surface_matrix.md)
+#
+# Purpose:
+#   Provide a reviewer-traceable inventory of the approval and
+#   security-sensitive surfaces that MUST remain product-owned/native,
+#   even when surrounding content is embedded or externally hosted.
+#
+# Rules:
+#   - If this file and ADR 0015 disagree, ADR 0015 wins and this file
+#     MUST be updated in the same change.
+#   - This file is inventory and review guidance. It MUST NOT be
+#     interpreted as minting new runtime or schema vocabularies.
+#   - Per-task and per-milestone identifiers stay out of this file.
+
+schema_version: 1
+inventory_id: aureline.native_approval_surface_inventory
+status: seeded
+
+overview_doc: docs/ux/native_approval_surface_inventory.md
+
+upstream_contract_refs:
+  embedded_surface_boundary_adr: docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+  browser_handoff_adr: docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+  boundary_card_contract: docs/ux/embedded_surface_boundary_cards.md
+  owner_origin_chrome_review: artifacts/ux/owner_origin_chrome_review.yaml
+  owner_origin_chrome_seed: artifacts/ux/owner_origin_chrome_seed.yaml
+  scoped_browser_surface_matrix: docs/web/scoped_browser_surface_matrix.md
+  interaction_safety_contract: docs/ux/shell_interaction_safety_contract.md
+  trust_prompt_contract: docs/ux/trust_prompt_contract.md
+  prompt_grammar_contract: docs/ux/prompt_grammar_contract.md
+  capability_sheet_contract: docs/trust/capability_sheet_contract.md
+  workspace_trust_adr: docs/adr/0018-workspace-trust-and-restricted-mode.md
+  extension_permission_adr: docs/adr/0012-extension-manifest-permission-publisher-policy.md
+  auth_handoff_interstitial_contract: docs/auth/auth_handoff_interstitial_contract.md
+  auth_native_boundary_review: artifacts/auth/native_approval_boundary_review.yaml
+  device_permission_and_capture_contract: docs/auth/device_permission_and_capture_boundary_contract.md
+
+axes:
+  native_reserved_surface:
+    description: >
+      Closed set of native-reserved surfaces frozen by ADR 0015 and
+      re-exported by embedded-surface boundary records and cards.
+    values:
+      - product_security_messaging
+      - update_verification
+      - workspace_trust_elevation
+      - rollback_or_restore_confirmation
+      - ai_apply_review
+      - high_risk_approval_sheet
+
+  embedded_surface_family:
+    description: >
+      Embedded surface families that must always disclose owner/origin,
+      data boundary, action partition, and browser fallback posture via
+      the boundary card contract.
+    values:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - embedded_auth_confirmation
+      - extension_hosted_surface
+
+  boundary_state:
+    description: >
+      Closed boundary-state vocabulary (ADR 0015). Below live_verified,
+      surfaces narrow capability and must not keep high-risk approval
+      affordances visible as if trust were intact.
+    values:
+      - live_verified
+      - stale_snapshot
+      - policy_blocked
+      - certificate_failed
+      - cross_origin_limited
+      - offline_snapshot
+      - external_open_only
+
+  browser_fallback_posture_class:
+    description: >
+      Reused browser-fallback posture vocabulary quoted by boundary
+      cards and owner/origin chrome review rows.
+    source: artifacts/ux/owner_origin_chrome_review.yaml#axes.browser_fallback_posture_class
+    values:
+      - system_browser_first
+      - device_code_fallback_offered
+      - external_open_blocked_by_policy
+      - external_open_unavailable_offline
+      - browser_fallback_not_applicable
+
+native_approval_surface_rows:
+  - surface_id: native_reserved_surface.product_security_messaging
+    kind: native_reserved_surface
+    native_reserved_surface: product_security_messaging
+    summary: >
+      Product-owned security and trust messaging that must remain
+      attributable to the host shell (not embedded bytes).
+    relevant_surface_families:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - embedded_auth_confirmation
+      - extension_hosted_surface
+    primary_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+      - docs/ux/shell_interaction_safety_contract.md
+
+  - surface_id: native_reserved_surface.update_verification
+    kind: native_reserved_surface
+    native_reserved_surface: update_verification
+    summary: >
+      Product-owned update integrity and provenance truth. Embedded and
+      externally hosted surfaces may link to detail, but they do not
+      render the verification state or final claims.
+    relevant_surface_families:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - extension_hosted_surface
+    primary_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+
+  - surface_id: native_reserved_surface.workspace_trust_elevation
+    kind: native_reserved_surface
+    native_reserved_surface: workspace_trust_elevation
+    summary: >
+      Host-native workspace trust elevation and restricted-mode exit.
+      The decision remains product-owned even when prompted from docs,
+      webviews, or external surfaces.
+    relevant_surface_families:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - extension_hosted_surface
+    primary_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+      - docs/adr/0018-workspace-trust-and-restricted-mode.md
+      - docs/ux/trust_prompt_contract.md
+
+  - surface_id: native_reserved_surface.rollback_or_restore_confirmation
+    kind: native_reserved_surface
+    native_reserved_surface: rollback_or_restore_confirmation
+    summary: >
+      Host-native rollback/restore confirmation for durable state
+      changes (recovery rollback, migration rollback, export-before-reset).
+    relevant_surface_families:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+    primary_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+      - docs/ux/shell_interaction_safety_contract.md
+      - docs/ux/prompt_grammar_contract.md
+
+  - surface_id: native_reserved_surface.ai_apply_review
+    kind: native_reserved_surface
+    native_reserved_surface: ai_apply_review
+    summary: >
+      Host-native AI apply review and confirmation surface (preview,
+      apply, validate, keep-or-revert) including citation/rollback
+      obligations and drift invalidation.
+    relevant_surface_families:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - extension_hosted_surface
+    primary_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+      - docs/ux/shell_interaction_safety_contract.md
+      - docs/ux/trust_prompt_contract.md
+
+  - surface_id: native_reserved_surface.high_risk_approval_sheet
+    kind: native_reserved_surface
+    native_reserved_surface: high_risk_approval_sheet
+    summary: >
+      Host-native “final approval” sheet for high-risk authority changes
+      that must not be completed inside embedded bodies, OS notifications,
+      companion quick actions, or external dashboards without a product-
+      owned review boundary.
+    relevant_surface_families:
+      - embedded_docs_help
+      - embedded_marketplace_or_account
+      - embedded_service_dashboard
+      - embedded_auth_confirmation
+      - extension_hosted_surface
+    primary_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+      - docs/ux/trust_prompt_contract.md
+      - docs/trust/capability_sheet_contract.md
+      - artifacts/auth/native_approval_boundary_review.yaml
+
+  - surface_id: host_native.extension_permission_grant_review
+    kind: host_native_review_surface
+    summary: >
+      Product-owned extension permission and capability-grant review,
+      including transitive closure disclosure and stable revocation routes.
+    related_native_reserved_surfaces:
+      - high_risk_approval_sheet
+      - workspace_trust_elevation
+    primary_refs:
+      - docs/trust/capability_sheet_contract.md
+      - docs/ux/trust_prompt_contract.md
+      - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+
+  - surface_id: host_native.destructive_confirmation
+    kind: host_native_confirmation_surface
+    summary: >
+      Product-owned destructive confirmations (delete/purge/detach/
+      overwrite) with explicit consequence/recovery truth and safe
+      default focus; no embedded surrogate approvals.
+    related_native_reserved_surfaces:
+      - high_risk_approval_sheet
+      - rollback_or_restore_confirmation
+    primary_refs:
+      - docs/ux/shell_interaction_safety_contract.md
+      - docs/ux/prompt_grammar_contract.md
+
+  - surface_id: host_native.identity_and_consent_steps
+    kind: host_native_identity_consent_surface
+    summary: >
+      Product-owned identity and consent steps including auth handoff
+      interstitial review, step-up authority, consent renewal prompts,
+      and device permission disclosure rows. External provider or OS
+      steps are permitted only with explicit product-owned framing and
+      typed return anchors.
+    related_native_reserved_surfaces:
+      - high_risk_approval_sheet
+      - product_security_messaging
+    primary_refs:
+      - docs/auth/auth_handoff_interstitial_contract.md
+      - artifacts/auth/native_approval_boundary_review.yaml
+      - docs/auth/device_permission_and_capture_boundary_contract.md
+      - docs/ux/trust_prompt_contract.md
+
+browser_fallback_matrix:
+  description: >
+    High-level mapping between boundary state and the minimum admissible
+    browser fallback posture. This is a reviewer aid; the authoritative
+    per-surface-family requirements live in the boundary-card contract
+    and owner/origin chrome review rows.
+  rows:
+    - boundary_state: live_verified
+      minimum_browser_fallback_posture: browser_fallback_not_applicable
+      note: >
+        Live in-product render is admitted. Open-in-browser MAY still be
+        offered for inspection when the surface claims it, but it must
+        remain a typed handoff and must not replace host-native approval.
+    - boundary_state: stale_snapshot
+      minimum_browser_fallback_posture: system_browser_first
+      note: >
+        Snapshot disclosure is required; open-in-browser is typically
+        the primary way to reach the upstream live view while keeping
+        object identity attributable.
+    - boundary_state: policy_blocked
+      minimum_browser_fallback_posture: external_open_blocked_by_policy
+      note: >
+        Policy may block the embedded body and/or external open. The
+        host must offer policy inspection and support evidence, not a
+        dead open-in-browser affordance.
+    - boundary_state: certificate_failed
+      minimum_browser_fallback_posture: external_open_blocked_by_policy
+      note: >
+        Certificate/trust failures withhold the embedded body. External
+        open is allowed only when policy explicitly permits it; otherwise
+        the host stays metadata-only with inspection and evidence routes.
+    - boundary_state: cross_origin_limited
+      minimum_browser_fallback_posture: system_browser_first
+      note: >
+        Narrow to the honest subset; name the missing capability and
+        prefer browser handoff for the full-fidelity view when permitted.
+    - boundary_state: offline_snapshot
+      minimum_browser_fallback_posture: external_open_unavailable_offline
+      note: >
+        Offline means external open may be unavailable. Preserve local
+        continuity (inspect/export/continue-local) without mis-claiming
+        a live browser escape hatch.
+    - boundary_state: external_open_only
+      minimum_browser_fallback_posture: system_browser_first
+      note: >
+        The embedded body is withheld; the host preserves identity and
+        offers typed handoff (system browser/device-code/native review)
+        depending on the surface family and policy.
+
