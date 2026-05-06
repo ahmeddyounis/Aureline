@@ -1,0 +1,87 @@
+__fixture__:
+  name: bad_update_or_agent_skew_rollback_candidate
+  scenario: >
+    After an update, the running build fails helper/remote-agent
+    negotiation (or reports a build-identity mismatch). A prior
+    last-known-good install is available as a rollback candidate. The
+    rung preserves user work and evidence, previews the rollback target,
+    and records exact-build identity before/after so support can
+    reconstruct what bytes were running.
+  doc_sections:
+    - "Recovery-rung matrix"
+    - "Rung transition rules"
+
+record_kind: recovery_rung_example_record
+recovery_rung_example_schema_version: 1
+example_id: rrx-rollback-candidate-0001
+generated_at: "mono:6100:01:00:00.0005"
+
+starting_context:
+  policy_context:
+    policy_epoch: 42
+    trust_state: trusted
+  build_and_install_context:
+    primary_exact_build_identity_ref: exact_build:ide_binary:preview:example
+    related_exact_build_identity_refs:
+      - exact_build:cli_binary:preview:example
+  observed_conditions:
+    - manual_review_required
+    - route_recovery_required
+  update_context:
+    update_manifest_ref: update_manifest:preview:example
+    helper_negotiation_ref: helper_negotiation:attach_failed:example
+    last_known_good_exact_build_identity_ref: exact_build:ide_binary:preview:lkg_example
+
+recovery_plan:
+  - rung_class: rollback_reinstall_candidate
+    entry_reason_class: manual_review_required
+    intent: >
+      Preview and, if eligible, apply a rollback to a last-known-good
+      build/helper set without silently downgrading unrelated assets.
+      Always preserve evidence and record before/after build identity.
+    disabled_or_narrowed_capabilities:
+      - remote_helper_attach
+      - managed_control_plane_writes
+      - telemetry_upload
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts_expected:
+      - rollback_manifest
+      - recovery_rung_transition_record
+    recorded_evidence:
+      rollback_manifest_fields:
+        - prior_primary_exact_build_identity_ref
+        - target_primary_exact_build_identity_ref
+        - update_manifest_ref
+        - helper_negotiation_ref
+        - downgrade_eligibility_and_manual_review_reasons
+        - verification_checks_required_before_exit
+    next_options_after_entry:
+      - exit_to_full_mode_after_verification
+      - escalate_to_restricted_reopen
+      - export_escalation_packet
+
+carry_over_expectations:
+  evidence:
+    - update_and_helper_negotiation_refs_are_retained
+    - rollback_does_not_delete_prior_crash_or_update_evidence
+  trust_and_policy:
+    - trust_state_is_not_widened_by_rollback
+    - policy_may_block_rollback_and_requires_exit_artifact_denial_reason
+  exact_build_identity:
+    - rollback_records_before_and_after_exact_build_identity_refs
+    - support_exports_reference_the_prior_identity_even_after_rollback
+

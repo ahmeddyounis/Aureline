@@ -1,0 +1,294 @@
+# Recovery rung matrix for safe reopen and attributable recovery.
+#
+# Companion to:
+# - docs/recovery/recovery_rung_matrix.md
+# - .t2/docs/Aureline_Technical_Architecture_Document.md (Appendix DL)
+# - docs/support/recovery_ladder_packet.md (support/export vocabulary)
+#
+# This artifact is intentionally small and reviewable. It publishes the
+# six rungs used to keep crash loops and suspect environments bounded,
+# and it captures the transition rules that preserve evidence, trust
+# posture, and exact-build identity across rung changes.
+
+schema_version: 1
+artifact_id: aureline.recovery.recovery_rungs
+title: Recovery rung matrix and transition rules
+
+contract_source: docs/recovery/recovery_rung_matrix.md
+
+related_docs:
+  - docs/support/recovery_ladder_packet.md
+  - docs/support/support_bundle_contract.md
+  - docs/support/repair_transaction_contract.md
+  - docs/build/exact_build_identity_model.md
+  - docs/release/update_and_rollback_contract.md
+
+companion_refs:
+  recovery_rung_class_schema_ref: schemas/support/support_bundle.schema.json
+  recovery_action_schema_ref: schemas/support/recovery_action.schema.json
+  recovery_rung_examples_ref: fixtures/recovery/recovery_rung_examples
+
+# --------------------------------------------------------------------------
+# Rungs
+#
+# Tokens under entry_reason_classes, preserved_state_classes, and
+# lost_capability_classes are re-exported from the support recovery
+# vocabularies; this artifact does not mint a parallel closed set.
+# --------------------------------------------------------------------------
+
+rungs:
+  - rung_class: safe_mode
+    display_name: Safe mode
+    entry_reason_classes:
+      - repeated_startup_failure
+      - crash_loop_detected
+      - explicit_user_choice
+    disabled_or_narrowed_capabilities:
+      - extension_auto_activation
+      - extension_host_launch
+      - session_restore_auto_reopen
+      - remote_helper_attach
+      - ai_runtime_access
+      - background_rebuild
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: false
+      trust_widening_forbidden_without_review: true
+    exit_artifacts:
+      - safe_mode_session_manifest
+      - recovery_rung_transition_record
+    escalation_or_exit_paths:
+      - exit_to_full_mode_with_review
+      - escalate_to_extension_bisect
+      - escalate_to_extension_quarantine
+      - escalate_to_cache_reset_candidate
+      - escalate_to_restricted_reopen
+
+  - rung_class: extension_bisect
+    display_name: Extension bisect pass
+    entry_reason_classes:
+      - extension_regression_suspected
+      - explicit_user_choice
+      - manual_review_required
+    disabled_or_narrowed_capabilities:
+      - extension_auto_activation
+      - extension_host_launch
+      - session_restore_auto_reopen
+      - remote_helper_attach
+      - ai_runtime_access
+      - background_rebuild
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: false
+      trust_widening_forbidden_without_review: true
+    exit_artifacts:
+      - bisect_step_record
+      - recovery_rung_transition_record
+    escalation_or_exit_paths:
+      - exit_to_safe_mode_with_review
+      - escalate_to_extension_quarantine
+      - escalate_to_rollback_reinstall_candidate
+      - export_escalation_packet
+
+  - rung_class: extension_quarantine
+    display_name: Extension quarantine
+    entry_reason_classes:
+      - extension_regression_suspected
+      - crash_loop_detected
+      - manual_review_required
+      - policy_blocked
+    disabled_or_narrowed_capabilities:
+      - extension_auto_activation
+      - extension_host_launch
+      - ai_runtime_access
+      - background_rebuild
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: false
+      trust_widening_forbidden_without_review: true
+    exit_artifacts:
+      - quarantine_record
+      - recovery_rung_transition_record
+    escalation_or_exit_paths:
+      - exit_to_extension_bisect_with_review
+      - exit_to_safe_mode_with_review
+      - export_escalation_packet
+      - escalate_to_rollback_reinstall_candidate
+
+  - rung_class: cache_reset_candidate
+    display_name: Cache reset candidate
+    entry_reason_classes:
+      - cache_integrity_failure
+      - manual_review_required
+    disabled_or_narrowed_capabilities:
+      - background_rebuild
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts:
+      - reset_transaction_manifest
+      - recovery_rung_transition_record
+    escalation_or_exit_paths:
+      - exit_to_safe_mode_with_review
+      - exit_to_full_mode_with_review
+      - escalate_to_restricted_reopen
+      - export_escalation_packet
+
+  - rung_class: restricted_reopen
+    display_name: Restricted reopen
+    entry_reason_classes:
+      - policy_blocked
+      - route_recovery_required
+      - manual_review_required
+    disabled_or_narrowed_capabilities:
+      - remote_helper_attach
+      - managed_control_plane_writes
+      - workspace_trust_widening
+      - telemetry_upload
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - remote_helper_authorization
+      - managed_policy_overrides
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: false
+      state_mutation_preview_required: false
+      trust_widening_forbidden_without_review: true
+    exit_artifacts:
+      - restricted_reopen_manifest
+      - recovery_rung_transition_record
+    escalation_or_exit_paths:
+      - exit_to_full_mode_after_trust_review
+      - export_escalation_packet
+      - escalate_to_rollback_reinstall_candidate
+
+  - rung_class: rollback_reinstall_candidate
+    display_name: Rollback / reinstall candidate
+    entry_reason_classes:
+      - manual_review_required
+      - policy_blocked
+    disabled_or_narrowed_capabilities:
+      - remote_helper_attach
+      - managed_control_plane_writes
+      - telemetry_upload
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts:
+      - rollback_manifest
+      - recovery_rung_transition_record
+    escalation_or_exit_paths:
+      - exit_to_full_mode_after_verification
+      - export_escalation_packet
+      - escalate_to_restricted_reopen
+
+# --------------------------------------------------------------------------
+# Transition policy (shared rules)
+# --------------------------------------------------------------------------
+
+transition_policy:
+  selection_principles:
+    - prefer_narrowest_effective_rung
+    - no_silent_trust_widening
+    - no_hidden_rerun_or_reattach
+    - preserve_evidence_and_exit_artifacts
+    - preserve_exact_build_identity_refs
+
+  carry_across_rungs:
+    evidence:
+      - rung_history_recorded
+      - exit_artifacts_exportable
+      - no_evidence_deletion_as_fix
+    trust_and_policy:
+      - trust_state_carries_unchanged_without_explicit_review
+      - policy_epoch_carries_for_audit
+      - policy_forced_narrowness_blocks_downward_moves
+    exact_build_identity:
+      - primary_exact_build_identity_ref_always_recorded
+      - rollback_records_before_and_after_identity_refs
+      - helper_or_remote_agent_negotiation_refs_required_on_rollback
+
+  allowed_moves:
+    # This is a routing scaffold, not an automation chain. A surface MAY
+    # suggest these moves, but must still pass the required_review gates.
+    safe_mode:
+      - extension_bisect
+      - extension_quarantine
+      - cache_reset_candidate
+      - restricted_reopen
+      - rollback_reinstall_candidate
+    extension_bisect:
+      - extension_quarantine
+      - safe_mode
+      - rollback_reinstall_candidate
+    extension_quarantine:
+      - extension_bisect
+      - safe_mode
+      - rollback_reinstall_candidate
+    cache_reset_candidate:
+      - safe_mode
+      - restricted_reopen
+      - rollback_reinstall_candidate
+    restricted_reopen:
+      - rollback_reinstall_candidate
+    rollback_reinstall_candidate:
+      - restricted_reopen

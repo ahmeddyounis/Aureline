@@ -1,0 +1,79 @@
+__fixture__:
+  name: cache_corruption_cache_reset_candidate
+  scenario: >
+    A derived index or cache fails integrity checks (or drifts off the
+    running build's schema version). The user needs a repair that is
+    honest about blast radius: rebuild only declared disposable storage
+    classes and preserve durable profile/history state.
+  doc_sections:
+    - "Recovery-rung matrix"
+    - "Rung transition rules"
+
+record_kind: recovery_rung_example_record
+recovery_rung_example_schema_version: 1
+example_id: rrx-cache-corruption-0001
+generated_at: "mono:6100:01:00:00.0003"
+
+starting_context:
+  policy_context:
+    policy_epoch: 42
+    trust_state: trusted
+  build_and_install_context:
+    primary_exact_build_identity_ref: exact_build:ide_binary:stable:example
+    related_exact_build_identity_refs:
+      - exact_build:schema_export:stable:example
+  observed_conditions:
+    - cache_integrity_failure
+    - manual_review_required
+  affected_storage_class_ids:
+    - storage:workspace_index:derived
+    - storage:semantic_cache:derived
+
+recovery_plan:
+  - rung_class: cache_reset_candidate
+    entry_reason_class: cache_integrity_failure
+    intent: >
+      Rebuild only disposable derived caches from authoritative sources
+      after a reviewed preview; do not reset durable user-owned state.
+    disabled_or_narrowed_capabilities:
+      - background_rebuild
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      state_mutation_preview_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts_expected:
+      - reset_transaction_manifest
+      - recovery_rung_transition_record
+    recorded_evidence:
+      reset_manifest_fields:
+        - affected_storage_class_ids
+        - preview_of_deleted_and_preserved_paths
+        - regeneration_source_summary
+        - postcondition_checks_required
+        - primary_exact_build_identity_ref
+    next_options_after_entry:
+      - exit_to_full_mode_with_review
+      - exit_to_safe_mode_with_review
+      - export_escalation_packet
+
+carry_over_expectations:
+  evidence:
+    - changed_storage_class_ids_are_recorded_in_rung_transition
+    - preview_artifact_is_retained_even_on_cancellation
+  trust_and_policy:
+    - trust_state_and_policy_epoch_are_recorded_and_unchanged
+  exact_build_identity:
+    - reset_manifest_binds_to_primary_exact_build_identity_ref
+    - schema_drift_findings_do_not_trigger_silent_upgrade_or_downgrade
+

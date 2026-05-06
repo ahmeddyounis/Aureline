@@ -1,0 +1,122 @@
+__fixture__:
+  name: extension_regression_bisect_then_quarantine
+  scenario: >
+    After an update to one extension, the extension host crashes when
+    it launches. The user can open the workspace in a narrowed posture
+    and then bisect the candidate extensions to isolate the offender.
+    The identified extension is quarantined until the user (or managed
+    policy) explicitly changes that state.
+  doc_sections:
+    - "Recovery-rung matrix"
+    - "Rung transition rules"
+
+record_kind: recovery_rung_example_record
+recovery_rung_example_schema_version: 1
+example_id: rrx-extension-regression-bisect-0001
+generated_at: "mono:6100:01:00:00.0002"
+
+starting_context:
+  policy_context:
+    policy_epoch: 42
+    trust_state: trusted
+  build_and_install_context:
+    primary_exact_build_identity_ref: exact_build:ide_binary:preview:example
+    related_exact_build_identity_refs:
+      - exact_build:cli_binary:preview:example
+  prior_recovery_context:
+    current_rung_class: safe_mode
+    note: >
+      The workspace opened in safe mode after a crash loop, then the
+      user chose to isolate extensions with an attributable bisect pass.
+  observed_conditions:
+    - extension_regression_suspected
+    - crash_loop_detected
+
+recovery_plan:
+  - rung_class: extension_bisect
+    entry_reason_class: extension_regression_suspected
+    intent: >
+      Activate only an explicit extension cohort under inspection and
+      record each cohort verdict so support can reproduce the outcome.
+    disabled_or_narrowed_capabilities:
+      - extension_auto_activation
+      - extension_host_launch
+      - session_restore_auto_reopen
+      - remote_helper_attach
+      - ai_runtime_access
+      - background_rebuild
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts_expected:
+      - bisect_step_record
+      - recovery_rung_transition_record
+    recorded_evidence:
+      bisect_manifest_fields:
+        - cohort_id_and_member_extension_ids
+        - cohort_activation_result
+        - reproduction_steps
+        - verdict_and_confidence
+        - primary_exact_build_identity_ref
+    next_options_after_entry:
+      - escalate_to_extension_quarantine
+      - exit_to_safe_mode_with_review
+      - export_escalation_packet
+
+  - rung_class: extension_quarantine
+    entry_reason_class: manual_review_required
+    intent: >
+      Prevent the identified extension/host from reactivating while the
+      user continues work and reviews re-enable/rollback options.
+    disabled_or_narrowed_capabilities:
+      - extension_auto_activation
+      - extension_host_launch
+      - ai_runtime_access
+      - background_rebuild
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts_expected:
+      - quarantine_record
+      - recovery_rung_transition_record
+    recorded_evidence:
+      quarantine_record_fields:
+        - quarantined_extension_id
+        - host_class
+        - entry_reason_and_trigger_evidence_refs
+        - bisect_step_record_refs
+        - primary_exact_build_identity_ref
+    next_options_after_entry:
+      - export_escalation_packet
+      - exit_to_extension_bisect_with_review
+      - exit_to_safe_mode_with_review
+
+carry_over_expectations:
+  evidence:
+    - bisect_history_is_local_first_and_exportable
+    - quarantine_state_is_attributable_and_not_silently_removed
+  trust_and_policy:
+    - trust_state_is_not_widened_by_bisect_or_quarantine
+    - managed_policy_may_force_quarantine_and_blocks_downward_exit
+  exact_build_identity:
+    - primary_exact_build_identity_ref_is_recorded_in_bisect_and_quarantine_artifacts
+    - extension_identity_and_version_are_recorded_without_requerying_registries
+

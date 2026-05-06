@@ -1,0 +1,75 @@
+__fixture__:
+  name: startup_crash_loop_safe_mode
+  scenario: >
+    The shell crashes during startup repeatedly within the supervisor
+    strike budget. The user needs a minimal reopen that preserves work
+    and evidence without rerunning extension activation, session
+    restore, or remote attach.
+  doc_sections:
+    - "Recovery-rung matrix"
+    - "Rung transition rules"
+
+record_kind: recovery_rung_example_record
+recovery_rung_example_schema_version: 1
+example_id: rrx-startup-crash-loop-0001
+generated_at: "mono:6100:01:00:00.0001"
+
+starting_context:
+  policy_context:
+    policy_epoch: 42
+    trust_state: restricted
+  build_and_install_context:
+    primary_exact_build_identity_ref: exact_build:ide_binary:stable:example
+    related_exact_build_identity_refs:
+      - exact_build:cli_binary:stable:example
+  observed_conditions:
+    - crash_loop_detected
+    - repeated_startup_failure
+
+recovery_plan:
+  - rung_class: safe_mode
+    entry_reason_class: crash_loop_detected
+    intent: >
+      Reopen the product with the narrowest blast radius and without
+      deleting state, rerunning tasks, or widening trust.
+    disabled_or_narrowed_capabilities:
+      - extension_auto_activation
+      - extension_host_launch
+      - session_restore_auto_reopen
+      - remote_helper_attach
+      - ai_runtime_access
+      - background_rebuild
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - managed_policy_overrides
+      - session_restore_store
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: true
+      trust_widening_forbidden_without_review: true
+    exit_artifacts_expected:
+      - safe_mode_session_manifest
+      - recovery_rung_transition_record
+    next_options_after_entry:
+      - widen_to_full_mode_with_review
+      - escalate_to_extension_bisect
+      - escalate_to_cache_reset_candidate
+      - export_escalation_packet
+
+carry_over_expectations:
+  evidence:
+    - rung_entry_and_exit_are_logged
+    - crash_evidence_is_preserved_and_exportable
+    - no_state_deletion_as_recovery_action
+  trust_and_policy:
+    - trust_state_remains_restricted_until_explicit_review
+    - policy_epoch_is_recorded_in_exit_artifacts
+  exact_build_identity:
+    - primary_exact_build_identity_ref_is_recorded_on_entry_and_exit
+    - identity_ref_is_reused_in_support_exports_and_handoff_packets
+

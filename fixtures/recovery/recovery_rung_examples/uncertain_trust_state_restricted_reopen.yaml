@@ -1,0 +1,87 @@
+__fixture__:
+  name: uncertain_trust_state_restricted_reopen
+  scenario: >
+    The workspace cannot be widened safely because trust posture or
+    policy/entitlement state is uncertain (for example: approval ticket
+    missing, wrong-target detected, or a policy epoch is stale). The
+    user can still inspect local files and diagnostics, but privileged
+    execution surfaces and remote/control-plane writes are suspended
+    until explicit review or escalation.
+  doc_sections:
+    - "Recovery-rung matrix"
+    - "Rung transition rules"
+
+record_kind: recovery_rung_example_record
+recovery_rung_example_schema_version: 1
+example_id: rrx-uncertain-trust-0001
+generated_at: "mono:6100:01:00:00.0004"
+
+starting_context:
+  policy_context:
+    policy_epoch: 108
+    trust_state: restricted
+  build_and_install_context:
+    primary_exact_build_identity_ref: exact_build:ide_binary:managed:example
+    related_exact_build_identity_refs:
+      - exact_build:docs_pack:managed:example
+  observed_conditions:
+    - policy_blocked
+    - route_recovery_required
+    - manual_review_required
+  notes: >
+    The recovery posture is constrained by policy; any attempt to widen
+    trust without explicit review is non-conforming.
+
+recovery_plan:
+  - rung_class: restricted_reopen
+    entry_reason_class: policy_blocked
+    intent: >
+      Keep the workspace usable for safe inspection while blocking
+      privileged execution and remote writes until a reviewed reapproval
+      or escalation resolves the trust boundary.
+    disabled_or_narrowed_capabilities:
+      - remote_helper_attach
+      - managed_control_plane_writes
+      - workspace_trust_widening
+      - telemetry_upload
+      - docs_pack_live_fetch
+      - ai_runtime_access
+    preserved_state_classes:
+      - user_authored_files
+      - open_buffer_selection
+      - durable_workspace_indexes
+      - workspace_trust_store
+      - credential_store
+      - remote_helper_authorization
+      - managed_policy_overrides
+      - support_export_store
+    required_review:
+      entry_visible_and_logged: true
+      entry_confirmation_required: false
+      state_mutation_preview_required: false
+      trust_widening_forbidden_without_review: true
+    exit_artifacts_expected:
+      - restricted_reopen_manifest
+      - recovery_rung_transition_record
+    recorded_evidence:
+      restricted_reopen_manifest_fields:
+        - policy_epoch_and_trust_state
+        - denied_or_blocked_capability_summary
+        - required_reapproval_or_ticket_refs
+        - primary_exact_build_identity_ref
+    next_options_after_entry:
+      - exit_to_full_mode_after_trust_review
+      - export_escalation_packet
+      - escalate_to_rollback_reinstall_candidate
+
+carry_over_expectations:
+  evidence:
+    - policy_block_and_denial_reasons_are_recorded
+    - escalation_packets_reference_support_bundle_and_manifest_refs
+  trust_and_policy:
+    - trust_state_does_not_change_inside_restricted_reopen
+    - policy_epoch_is_carried_and_labeled_if_stale
+  exact_build_identity:
+    - exact_build_identity_refs_are_preserved_for_support_reconstruction
+    - docs_pack_version_match_is_not_faked_by_live_fetch
+
