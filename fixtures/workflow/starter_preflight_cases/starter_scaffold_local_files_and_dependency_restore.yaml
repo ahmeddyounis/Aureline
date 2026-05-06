@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../../schemas/workflow/starter_preflight_action.schema.json
+record_kind: starter_preflight_action_record
+starter_preflight_action_schema_version: 1
+preflight_id: starter_preflight:scaffold_local:starter_delta:001
+minted_at: "2026-05-06T12:03:00Z"
+starter_lane_claim_class: starter_assisted_open
+plain_open_baseline:
+  bypass_path_id: bypass.open_folder_without_starter
+  summary_sentence: Open the target folder without any starter-assisted setup actions.
+  partition:
+    actions_run_now: []
+    actions_deferred: []
+starter_added_delta:
+  summary_sentence: Starter lane adds file generation and an initial dependency restore before the workspace opens.
+  partition:
+    actions_run_now:
+      - action_id: starter_action:file_generation:001
+        action_class: file_generation
+        action_sentence: Generate the starter file tree (new files only; no overwrite without a separate review step).
+        side_effect_scope_class: workspace_scope
+        execution_commitment_class: aureline_will_execute
+        timing_class: immediate_action_runs_on_apply
+        reapproval_posture_class: commit_covers_execution
+        keyboard_reachable: true
+      - action_id: starter_action:dependency_restore:001
+        action_class: dependency_restore
+        action_sentence: Restore language dependencies from the declared lockfile (network required).
+        side_effect_scope_class: workspace_scope
+        execution_commitment_class: aureline_will_execute
+        timing_class: immediate_action_blocks_apply_until_done
+        reapproval_posture_class: commit_covers_execution
+        keyboard_reachable: true
+    actions_deferred:
+      - action_id: starter_action:extension_install:001
+        action_class: extension_install
+        action_sentence: Offer to install required extensions after open (user reviews extension ids before install).
+        side_effect_scope_class: profile_scope
+        execution_commitment_class: aureline_will_offer_user_initiated
+        timing_class: deferred_action_user_must_invoke
+        reapproval_posture_class: requires_later_user_reapproval
+        keyboard_reachable: true
+      - action_id: starter_action:script_or_task_execution:001
+        action_class: script_or_task_execution
+        action_sentence: Offer to run starter setup tasks after open (tasks are reviewable and require explicit invocation).
+        side_effect_scope_class: workspace_scope
+        execution_commitment_class: aureline_will_offer_user_initiated
+        timing_class: deferred_action_user_must_invoke
+        reapproval_posture_class: requires_later_user_reapproval
+        keyboard_reachable: true
+bypass_path_ids:
+  - bypass.open_folder_without_starter
+  - bypass.create_empty_workspace
+  - bypass.set_up_later
+recovery_path_sentence: If setup is deferred or interrupted, the user can open without starter or continue after reviewing pending actions.
+keyboard_reachable: true
+__fixture__:
+  name: starter_scaffold_local_files_and_dependency_restore
+  scenario: >
+    Starter-assisted local scaffold that adds explicit file generation and
+    dependency restore actions, plus deferred extension install and task
+    execution that require later reapproval.
+  exercises:
+    - file_generation
+    - dependency_restore
+    - extension_install_deferred_reapproval
+    - task_execution_deferred_reapproval
+    - bypass.create_empty_workspace_present
+  contract_sections:
+    - "docs/workflow/starter_side_effect_envelope.md §3"
+    - "docs/workflow/starter_side_effect_envelope.md §4"
+    - "docs/workflow/starter_side_effect_envelope.md §5"
+

@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../../schemas/workflow/starter_preflight_action.schema.json
+record_kind: starter_preflight_action_record
+starter_preflight_action_schema_version: 1
+preflight_id: starter_preflight:managed_remote:starter_delta:001
+minted_at: "2026-05-06T12:04:00Z"
+starter_lane_claim_class: starter_assisted_open
+plain_open_baseline:
+  bypass_path_id: bypass.open_workspace_without_starter
+  summary_sentence: Open the workspace without remote provisioning, trust grants, or secret/auth requests.
+  partition:
+    actions_run_now: []
+    actions_deferred: []
+starter_added_delta:
+  summary_sentence: Starter lane provisions a managed environment and defers trust/secret-gated steps until the user reapproves them.
+  partition:
+    actions_run_now:
+      - action_id: starter_action:remote_provisioning:001
+        action_class: remote_provisioning
+        action_sentence: Provision or attach the managed workspace environment required by the starter (remote/managed state).
+        side_effect_scope_class: external_provider_scope
+        execution_commitment_class: aureline_will_execute
+        timing_class: immediate_action_blocks_apply_until_done
+        reapproval_posture_class: commit_covers_execution
+        keyboard_reachable: true
+    actions_deferred:
+      - action_id: starter_action:secret_or_auth_request:001
+        action_class: secret_or_auth_request
+        action_sentence: Request a secret/auth handle required for remote access (user reviews scope before granting).
+        side_effect_scope_class: external_provider_scope
+        execution_commitment_class: aureline_will_offer_user_initiated
+        timing_class: deferred_action_user_must_invoke
+        reapproval_posture_class: requires_later_user_reapproval
+        keyboard_reachable: true
+      - action_id: starter_action:trust_grant:001
+        action_class: trust_grant
+        action_sentence: Offer to grant workspace trust required for remote-attached execution (trust is not granted automatically).
+        side_effect_scope_class: workspace_scope
+        execution_commitment_class: aureline_will_offer_user_initiated
+        timing_class: deferred_action_user_must_invoke
+        reapproval_posture_class: requires_later_user_reapproval
+        keyboard_reachable: true
+      - action_id: starter_action:package_install:001
+        action_class: package_install
+        action_sentence: Recommend installing a platform toolchain pack if missing (manual step; not executed automatically).
+        side_effect_scope_class: device_scope
+        execution_commitment_class: aureline_will_only_recommend
+        timing_class: deferred_action_user_must_invoke
+        reapproval_posture_class: commit_covers_execution
+        keyboard_reachable: true
+bypass_path_ids:
+  - bypass.open_workspace_without_starter
+  - bypass.open_prebuild_minimal
+  - bypass.set_up_later
+  - bypass.continue_without_starter
+recovery_path_sentence: If remote provisioning or setup is blocked, the user can set up later or continue without starter and review pending actions.
+keyboard_reachable: true
+__fixture__:
+  name: starter_managed_remote_with_deferred_reapproval
+  scenario: >
+    Starter-assisted open that provisions remote/managed state immediately,
+    but defers secret/auth and trust steps until the user explicitly
+    reapproves them. Includes continue-without-starter as a recovery lane.
+  exercises:
+    - remote_provisioning
+    - secret_or_auth_request_deferred_reapproval
+    - trust_grant_deferred_reapproval
+    - bypass.continue_without_starter_present
+  contract_sections:
+    - "docs/workflow/starter_side_effect_envelope.md §3"
+    - "docs/workflow/starter_side_effect_envelope.md §4"
+    - "artifacts/workflow/open_without_starter_parity_audit.md §2.4"
+
