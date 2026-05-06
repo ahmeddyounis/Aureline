@@ -1,0 +1,62 @@
+schema_version: 1
+record_kind: desktop_summary_surface_case_record
+case_id: desktop_summary_surface_case:macos_dock_summary_surfaces
+case_class: macos_dock
+
+scenario_summary: >
+  On macOS, the Dock tile mirrors durable progress and badge counts,
+  and the Dock menu provides recent-item reopen and bounded quick
+  actions. Progress and badges are read-only mirrors derived from
+  durable objects; Dock recent entries reopen the authoritative target
+  (or fail closed with locate/review) and never widen trust or switch
+  target kind without an in-product review surface.
+
+platform_profile_refs:
+  - macos_15_plus_universal
+
+matrix_row_ids:
+  - desktop-summary-surface:macos:dock:progress:01
+  - desktop-summary-surface:macos:dock:badge:01
+  - desktop-summary-surface:macos:dock:recent:01
+  - desktop-summary-surface:macos:dock:jump-action:01
+
+upstream_fixture_refs:
+  progress_mirror_record: fixtures/ux/os_notification_cases/dock_taskbar_progress_read_only_mirror.json
+  badge_mirror_record: fixtures/ux/os_notification_cases/dock_taskbar_badge_read_only_mirror.json
+  dock_recent_replay_denied_case: fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+  recent_work_missing_target_example: fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+  route_audit: artifacts/platform/system_affordance_route_audit.md
+
+expected_disclosures:
+  must_show_handler_owner_on_reopen: true
+  must_label_stale_or_unavailable_targets: true
+  must_not_imply_mutating_actions_from_dock_menu: true
+  must_not_imply_cross_platform_parity_when_degraded: true
+
+reviewer_checks:
+  - id: mirrors_derive_from_durable_objects
+    description: >
+      Dock progress/badge mirrors are derived from durable jobs and
+      durable attention (never surface-local counters) and resolve back
+      to canonical objects via exact reopen linkage.
+    pass: true
+  - id: dock_recents_are_exact_target_or_fail_closed
+    description: >
+      Dock recent entries reopen the authoritative recent-work entry or
+      degrade to locate/review while preserving user intent; generic
+      reopen is forbidden.
+    pass: true
+  - id: dock_menu_actions_inspect_only
+    description: >
+      Dock menu quick actions are limited to safe reopen/inspect
+      command families; privileged or mutating flows route through
+      in-product review/approval surfaces.
+    pass: true
+  - id: ownership_change_requires_review
+    description: >
+      Ownership changes across side-by-side channels surface
+      preview_required_before_change and route through an in-product
+      review sheet before taking effect.
+    pass: true
+
+status: proposed

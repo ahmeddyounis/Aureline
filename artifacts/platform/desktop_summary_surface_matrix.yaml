@@ -1,0 +1,487 @@
+# Desktop summary-surface matrix (dock / taskbar progress, badges, recents, jump actions).
+#
+# Machine-readable companion to docs/platform/desktop_summary_surface_matrix.md.
+#
+# Purpose:
+#   - Freeze which desktop summary surfaces exist per claimed desktop profile.
+#   - Freeze which affordances are supported, degraded, or intentionally unclaimed.
+#   - Freeze the object fields and reopen/ownership rules that prevent last-writer-wins
+#     behavior across side-by-side channels and portable installs.
+#
+# Vocabulary policy:
+#   - This file does not mint new enums for the underlying OS entry contracts.
+#     Rows use values re-exported from:
+#       - schemas/ux/notification_suppression_record.schema.json
+#       - schemas/platform/deep_link_intent.schema.json
+#       - schemas/workspace/entry_and_restore_result.schema.json
+#       - artifacts/platform/file_association_ownership_matrix.yaml
+#       - artifacts/release/channel_ownership_audit.yaml
+#
+# If this file and docs/platform/desktop_summary_surface_matrix.md disagree, this
+# file is the tooling source and the doc must be updated in the same change.
+
+schema_version: 1
+matrix_id: aureline.platform.desktop_summary_surface_matrix.v1
+status: seeded
+
+source_doc: docs/platform/desktop_summary_surface_matrix.md
+fixtures_ref: fixtures/platform/desktop_summary_surface_cases/
+
+companion_contract_refs:
+  claimed_desktop_profiles: artifacts/platform/claimed_desktop_profiles.yaml
+  desktop_platform_conformance_matrix: docs/platform/desktop_platform_conformance_matrix.md
+  desktop_affordance_contract: docs/ux/desktop_affordance_contract.md
+  system_affordance_route_audit: artifacts/platform/system_affordance_route_audit.md
+  file_association_ownership_matrix: artifacts/platform/file_association_ownership_matrix.yaml
+  deep_link_intent_schema: schemas/platform/deep_link_intent.schema.json
+  recent_work_schema: schemas/workspace/entry_and_restore_result.schema.json
+  recent_work_object_model: docs/workspace/entry_restore_object_model.md
+  durable_job_envelope_contract: docs/ux/durable_job_envelope_contract.md
+  badge_class_review: artifacts/ux/badge_class_review.yaml
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  notification_suppression_schema: schemas/ux/notification_suppression_record.schema.json
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Native desktop integration, deep-link, and system-affordance contract"
+      - "Recent items, dock/taskbar, and jump-list surfaces"
+      - "taskbar, dock, or app-icon progress indicators"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Notification, attention, and activity-center architecture"
+      - "Badge / companion summary"
+
+# -----------------------------------------------------------------------------
+# Re-exported vocabularies (subset).
+# Tooling may validate rows against these enumerations without re-parsing every
+# upstream file.
+# -----------------------------------------------------------------------------
+
+# File-local surface-kind labels for reviewer readability. These are not
+# cross-tool contract enums; they are identifiers for platform primitives.
+surface_kind_vocabulary:
+  - dock_tile
+  - dock_menu_recent
+  - dock_menu_action
+  - taskbar_button
+  - jump_list_recent
+  - jump_list_task
+  - launcher_recent
+  - launcher_action
+  - launcher_progress
+  - launcher_badge
+
+# File-local discriminator for which upstream contract owns the row payload.
+surface_contract_kind_vocabulary:
+  - desktop_summary_affordance
+  - deep_link_intent_entry
+
+# Re-exported from artifacts/platform/claimed_desktop_profiles.yaml.
+claimed_desktop_profile_id_vocabulary:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+# Re-exported from artifacts/platform/claimed_desktop_profiles.yaml.
+claim_status_vocabulary:
+  - claimed
+  - claimed_narrow
+  - best_effort
+  - unclaimed
+
+# Re-exported from schemas/ux/notification_suppression_record.schema.json
+# `#/$defs/desktop_affordance_class`.
+desktop_affordance_class_vocabulary:
+  - os_notification_action
+  - dock_taskbar_progress
+  - dock_taskbar_badge
+  - system_tray_summary
+  - lock_screen_quick_action
+  - companion_push_action
+  - desktop_widget_summary
+
+# Re-exported from schemas/ux/notification_suppression_record.schema.json
+# `#/$defs/desktop_affordance_effect_class`.
+desktop_affordance_effect_class_vocabulary:
+  - read_only_reopen_canonical_object
+  - read_only_reopen_review_context
+  - read_only_reopen_durable_row
+  - read_only_reopen_digest_group
+  - read_only_reopen_attention_item
+  - read_only_reopen_placeholder
+  - read_only_progress_mirror
+  - read_only_badge_mirror
+  - read_only_summary_count_mirror
+  - mutation_via_review_path_only
+  - mutation_via_in_product_only
+  - forbidden_mutation_shortcut
+
+# Re-exported from schemas/ux/notification_suppression_record.schema.json
+# `#/$defs/progress_value_basis_class`.
+progress_value_basis_class_vocabulary:
+  - derived_from_durable_job_phase
+  - derived_from_envelope_progress
+  - derived_from_grouped_burst_member_count
+  - derived_from_canonical_object_state
+  - not_a_progress_source
+
+# Re-exported from schemas/platform/deep_link_intent.schema.json
+# `#/$defs/source_surface_class` (subset audited here).
+source_surface_class_vocabulary:
+  - dock_taskbar_recent
+  - dock_taskbar_jump_action
+
+# Re-exported from artifacts/platform/file_association_ownership_matrix.yaml.
+exact_target_reopen_rule_vocabulary:
+  - resolve_to_durable_object_via_canonical_command
+  - resolve_to_recent_work_entry_via_canonical_command
+  - resolve_to_review_object_via_event_lineage
+  - resolve_to_workspace_manifest_via_canonical_command
+  - resolve_to_placeholder_with_locate_or_reconnect
+  - resolve_to_open_intent_review_sheet
+
+# Re-exported from schemas/ux/notification_suppression_record.schema.json
+# `#/$defs/forbidden_shortcut_action_class`.
+forbidden_shortcut_action_class_vocabulary:
+  - destructive_publish_or_apply
+  - secret_or_credential_reveal
+  - irreversible_high_blast
+  - bypass_review_sheet
+  - bypass_approval_workflow
+  - cross_workspace_mutation
+  - direct_mutation_from_lock_screen
+  - direct_mutation_from_companion_push
+  - direct_mutation_from_dock_or_taskbar
+  - direct_mutation_from_system_tray
+  - policy_override_from_os_shortcut
+  - trust_state_change_from_os_shortcut
+  - provider_grant_change_from_os_shortcut
+
+# -----------------------------------------------------------------------------
+# Frozen field requirements for recent-item summary surfaces.
+# These fields are schema-owned by schemas/workspace/entry_and_restore_result.schema.json
+# and schemas/platform/deep_link_intent.schema.json; this matrix only declares the
+# minimum subset required for OS recents / jump-list surfaces.
+# -----------------------------------------------------------------------------
+
+recent_item_required_recent_work_fields:
+  - recent_work_id
+  - presentation_label
+  - presentation_subtitle
+  - target_kind
+  - target_state
+  - portability_class
+  - trust_state
+  - restore_availability
+  - safe_recovery_actions
+  - pinned
+  - last_opened_at
+
+recent_item_required_deep_link_fields:
+  - handler_ownership.owning_channel_ref
+  - handler_ownership.owner_build_ref
+  - handler_ownership.ownership_review_state
+  - target_identity.object_identity_ref
+  - target_identity.availability_class
+  - target_identity.freshness_class
+  - requested_action_class
+  - authority_delta_class
+  - replay_posture
+  - fallback.fallback_class
+  - fallback.preserves_user_intent
+
+# -----------------------------------------------------------------------------
+# Matrix rows.
+# -----------------------------------------------------------------------------
+
+summary_surface_rows:
+
+  # --- macOS Dock tile and Dock menu ---
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:macos:dock:progress:01
+    platform_profile_ids:
+      - macos_15_plus_universal
+    surface_kind: dock_tile
+    surface_disposition: claimed
+    surface_contract_kind: desktop_summary_affordance
+    affordance_class: dock_taskbar_progress
+    allowed_effect_classes:
+      - read_only_progress_mirror
+      - read_only_reopen_durable_row
+      - forbidden_mutation_shortcut
+    allowed_progress_value_basis_classes:
+      - derived_from_envelope_progress
+      - derived_from_durable_job_phase
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: &forbidden_summary_only_shortcuts
+      - destructive_publish_or_apply
+      - secret_or_credential_reveal
+      - irreversible_high_blast
+      - bypass_review_sheet
+      - bypass_approval_workflow
+      - cross_workspace_mutation
+      - direct_mutation_from_dock_or_taskbar
+      - direct_mutation_from_system_tray
+      - policy_override_from_os_shortcut
+      - trust_state_change_from_os_shortcut
+      - provider_grant_change_from_os_shortcut
+    parity_gap_disclosure_required: false
+    upstream_fixture_refs:
+      desktop_summary_affordance_record_ref: fixtures/ux/os_notification_cases/dock_taskbar_progress_read_only_mirror.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:macos:dock:badge:01
+    platform_profile_ids:
+      - macos_15_plus_universal
+    surface_kind: dock_tile
+    surface_disposition: claimed
+    surface_contract_kind: desktop_summary_affordance
+    affordance_class: dock_taskbar_badge
+    allowed_effect_classes:
+      - read_only_badge_mirror
+      - read_only_reopen_attention_item
+      - read_only_reopen_durable_row
+      - forbidden_mutation_shortcut
+    allowed_progress_value_basis_classes:
+      - not_a_progress_source
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    parity_gap_disclosure_required: false
+    upstream_fixture_refs:
+      desktop_summary_affordance_record_ref: fixtures/ux/os_notification_cases/dock_taskbar_badge_read_only_mirror.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:macos:dock:recent:01
+    platform_profile_ids:
+      - macos_15_plus_universal
+    surface_kind: dock_menu_recent
+    surface_disposition: claimed
+    surface_contract_kind: deep_link_intent_entry
+    source_surface_class: dock_taskbar_recent
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    required_recent_work_fields_ref: recent_item_required_recent_work_fields
+    required_deep_link_fields_ref: recent_item_required_deep_link_fields
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - OS-managed recents can persist across restarts; stale/moved targets must fail closed.
+      - Ownership changes across side-by-side channels must route through an in-product review sheet.
+    upstream_fixture_refs:
+      deep_link_intent_record_ref: fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+      recent_work_entry_record_ref: fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:macos:dock:jump-action:01
+    platform_profile_ids:
+      - macos_15_plus_universal
+    surface_kind: dock_menu_action
+    surface_disposition: claimed
+    surface_contract_kind: deep_link_intent_entry
+    source_surface_class: dock_taskbar_jump_action
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    allowed_command_families:
+      - cmd:start_center.open
+      - cmd:start_center.open_recent
+      - cmd:start_center.new_workspace
+      - cmd:activity.open_event
+      - cmd:settings.open
+    parity_gap_disclosure_required: false
+    upstream_fixture_refs:
+      system_affordance_route_audit_ref: artifacts/platform/system_affordance_route_audit.md
+
+  # --- Windows taskbar and jump list ---
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:windows:taskbar:progress:01
+    platform_profile_ids:
+      - windows_11_23h2_plus_x86_64
+    surface_kind: taskbar_button
+    surface_disposition: claimed
+    surface_contract_kind: desktop_summary_affordance
+    affordance_class: dock_taskbar_progress
+    allowed_effect_classes:
+      - read_only_progress_mirror
+      - read_only_reopen_durable_row
+      - forbidden_mutation_shortcut
+    allowed_progress_value_basis_classes:
+      - derived_from_envelope_progress
+      - derived_from_durable_job_phase
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    parity_gap_disclosure_required: false
+    upstream_fixture_refs:
+      desktop_summary_affordance_record_ref: fixtures/ux/os_notification_cases/dock_taskbar_progress_read_only_mirror.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:windows:taskbar:badge:01
+    platform_profile_ids:
+      - windows_11_23h2_plus_x86_64
+    surface_kind: taskbar_button
+    surface_disposition: claimed
+    surface_contract_kind: desktop_summary_affordance
+    affordance_class: dock_taskbar_badge
+    allowed_effect_classes:
+      - read_only_badge_mirror
+      - read_only_reopen_attention_item
+      - read_only_reopen_durable_row
+      - forbidden_mutation_shortcut
+    allowed_progress_value_basis_classes:
+      - not_a_progress_source
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Some Windows packaging / shell modes present a badge-style indicator as an overlay rather than a numeric bubble.
+      - Surfaces must not imply numeric parity if the platform primitive cannot present it reliably.
+    upstream_fixture_refs:
+      desktop_summary_affordance_record_ref: fixtures/ux/os_notification_cases/dock_taskbar_badge_read_only_mirror.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:windows:jump-list:recent:01
+    platform_profile_ids:
+      - windows_11_23h2_plus_x86_64
+    surface_kind: jump_list_recent
+    surface_disposition: claimed
+    surface_contract_kind: deep_link_intent_entry
+    source_surface_class: dock_taskbar_recent
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    required_recent_work_fields_ref: recent_item_required_recent_work_fields
+    required_deep_link_fields_ref: recent_item_required_deep_link_fields
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Jump-list recents can outlive the running process; stale entries must fail closed.
+      - Ownership changes must be disclosed before reopen so pinned or cached entries do not become wrong-channel opens.
+    upstream_fixture_refs:
+      deep_link_intent_record_ref: fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+      recent_work_entry_record_ref: fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:windows:jump-list:task:01
+    platform_profile_ids:
+      - windows_11_23h2_plus_x86_64
+    surface_kind: jump_list_task
+    surface_disposition: claimed
+    surface_contract_kind: deep_link_intent_entry
+    source_surface_class: dock_taskbar_jump_action
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    allowed_command_families:
+      - cmd:start_center.open
+      - cmd:start_center.open_recent
+      - cmd:start_center.new_workspace
+      - cmd:activity.open_event
+      - cmd:settings.open
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Jump-list tasks can be shown while the app is not running; tasks must be safe and never complete a mutation.
+      - If a task would widen authority, it must route to an in-product review sheet.
+    upstream_fixture_refs:
+      system_affordance_route_audit_ref: artifacts/platform/system_affordance_route_audit.md
+
+  # --- Linux claimed GNOME profiles (launcher / notification equivalents) ---
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:linux:launcher:recent:01
+    platform_profile_ids:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_kind: launcher_recent
+    surface_disposition: best_effort
+    surface_contract_kind: deep_link_intent_entry
+    source_surface_class: dock_taskbar_recent
+    exact_target_reopen_rule: resolve_to_recent_work_entry_via_canonical_command
+    required_recent_work_fields_ref: recent_item_required_recent_work_fields
+    required_deep_link_fields_ref: recent_item_required_deep_link_fields
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Desktop-environment launchers vary; the product must disclose when OS recents are unavailable or disabled.
+      - When unavailable, Aureline relies on in-product recents and OS notifications; no dock/taskbar parity may be implied.
+    upstream_fixture_refs:
+      deep_link_intent_record_ref: fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:linux:launcher:jump-action:01
+    platform_profile_ids:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_kind: launcher_action
+    surface_disposition: best_effort
+    surface_contract_kind: deep_link_intent_entry
+    source_surface_class: dock_taskbar_jump_action
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    allowed_command_families:
+      - cmd:start_center.open
+      - cmd:start_center.open_recent
+      - cmd:start_center.new_workspace
+      - cmd:activity.open_event
+      - cmd:settings.open
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Desktop-environment launchers vary; quick actions may be unavailable or disabled and must be disclosed.
+      - When unavailable, Aureline relies on in-product surfaces; no jump-list parity may be implied.
+    upstream_fixture_refs:
+      system_affordance_route_audit_ref: artifacts/platform/system_affordance_route_audit.md
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:linux:launcher:progress:01
+    platform_profile_ids:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_kind: launcher_progress
+    surface_disposition: unclaimed
+    surface_contract_kind: desktop_summary_affordance
+    affordance_class: dock_taskbar_progress
+    allowed_effect_classes:
+      - read_only_progress_mirror
+      - read_only_reopen_durable_row
+      - forbidden_mutation_shortcut
+    allowed_progress_value_basis_classes:
+      - derived_from_envelope_progress
+      - derived_from_durable_job_phase
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Dock/launcher progress bars are not a stable primitive across the claimed GNOME profiles; treating them as claim-bearing is forbidden.
+      - If a progress mirror is implemented as best-effort, the product must label it as such and degrade without implying parity.
+    upstream_fixture_refs:
+      desktop_summary_affordance_record_ref: fixtures/ux/os_notification_cases/dock_taskbar_progress_read_only_mirror.json
+
+  - record_kind: desktop_summary_surface_row_record
+    row_id: desktop-summary-surface:linux:launcher:badge:01
+    platform_profile_ids:
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+      - linux_debian_stable_gnome_x11_x86_64
+    surface_kind: launcher_badge
+    surface_disposition: unclaimed
+    surface_contract_kind: desktop_summary_affordance
+    affordance_class: dock_taskbar_badge
+    allowed_effect_classes:
+      - read_only_badge_mirror
+      - read_only_reopen_attention_item
+      - read_only_reopen_durable_row
+      - forbidden_mutation_shortcut
+    allowed_progress_value_basis_classes:
+      - not_a_progress_source
+    exact_target_reopen_rule: resolve_to_durable_object_via_canonical_command
+    forbidden_shortcut_action_classes_enforced: *forbidden_summary_only_shortcuts
+    parity_gap_disclosure_required: true
+    parity_gap_notes:
+      - Dock/launcher badges are not a stable primitive across the claimed GNOME profiles; treating them as claim-bearing is forbidden.
+      - If a badge mirror is implemented as best-effort, it must derive from durable objects and never inflate counts beyond the badge-class review.
+    upstream_fixture_refs:
+      desktop_summary_affordance_record_ref: fixtures/ux/os_notification_cases/dock_taskbar_badge_read_only_mirror.json

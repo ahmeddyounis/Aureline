@@ -41,6 +41,10 @@ affordances:
   progress affordance mirroring a durable build job;
   `effect_class = read_only_progress_mirror`, progress derived from
   the durable-job envelope, mutation classes forbidden.
+- `dock_taskbar_badge_read_only_mirror.json` — dock / taskbar badge
+  affordance mirroring a deduped durable-attention count;
+  `effect_class = read_only_badge_mirror`, derived from durable
+  objects, mutation classes forbidden.
 - `lock_screen_quick_action_read_only_reopen.json` — lock-screen quick
   action for a collaboration mention; `effect_class =
   read_only_reopen_attention_item`, scoped privacy payload, mutation

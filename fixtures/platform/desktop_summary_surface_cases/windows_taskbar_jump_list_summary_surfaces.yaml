@@ -1,0 +1,63 @@
+schema_version: 1
+record_kind: desktop_summary_surface_case_record
+case_id: desktop_summary_surface_case:windows_taskbar_jump_list_summary_surfaces
+case_class: windows_taskbar_and_jump_list
+
+scenario_summary: >
+  On Windows, the taskbar button mirrors durable progress and badge
+  counts, and the jump list provides recent-item reopen and bounded
+  quick actions ("tasks"). These OS surfaces can be visible while the
+  app is not running; entries must therefore be safe, stable, and exact
+  target. Any stale, moved, or ownership-changed recent entry routes
+  through an in-product review or locate flow that preserves user
+  intent.
+
+platform_profile_refs:
+  - windows_11_23h2_plus_x86_64
+
+matrix_row_ids:
+  - desktop-summary-surface:windows:taskbar:progress:01
+  - desktop-summary-surface:windows:taskbar:badge:01
+  - desktop-summary-surface:windows:jump-list:recent:01
+  - desktop-summary-surface:windows:jump-list:task:01
+
+upstream_fixture_refs:
+  progress_mirror_record: fixtures/ux/os_notification_cases/dock_taskbar_progress_read_only_mirror.json
+  badge_mirror_record: fixtures/ux/os_notification_cases/dock_taskbar_badge_read_only_mirror.json
+  jump_list_recent_replay_denied_case: fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+  recent_work_missing_target_example: fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+  route_audit: artifacts/platform/system_affordance_route_audit.md
+
+expected_disclosures:
+  must_show_handler_owner_on_reopen: true
+  must_label_stale_or_unavailable_targets: true
+  must_not_imply_mutating_actions_from_jump_list: true
+  must_disclose_badge_parity_gaps_when_overlay_only: true
+
+reviewer_checks:
+  - id: taskbar_mirrors_are_read_only
+    description: >
+      Taskbar progress and badge indicators are read-only mirrors
+      derived from durable objects and reopen the canonical in-product
+      surface; they never complete a mutation.
+    pass: true
+  - id: jump_list_recents_exact_target_or_fail_closed
+    description: >
+      Jump-list recent entries resolve to the intended recent-work
+      entry via canonical open commands or fail closed with locate/review
+      while preserving user intent.
+    pass: true
+  - id: jump_list_tasks_are_safe_and_stable
+    description: >
+      Jump-list tasks are limited to safe reopen/inspect command
+      families and remain safe even when invoked while the app is not
+      running.
+    pass: true
+  - id: badge_parity_gap_disclosed
+    description: >
+      If the platform primitive provides an overlay-style badge rather
+      than a numeric bubble, the product discloses the gap and avoids
+      implying numeric parity.
+    pass: true
+
+status: proposed

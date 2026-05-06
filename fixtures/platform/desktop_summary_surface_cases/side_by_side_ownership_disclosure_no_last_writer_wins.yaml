@@ -1,0 +1,62 @@
+schema_version: 1
+record_kind: desktop_summary_surface_case_record
+case_id: desktop_summary_surface_case:side_by_side_ownership_disclosure_no_last_writer_wins
+case_class: cross_channel_ownership_disclosure
+
+scenario_summary: >
+  Stable and Preview channels coexist on the same host. Desktop summary
+  surfaces (recents and quick actions) must not degrade into
+  last-writer-wins ownership. When a summary-surface entry would change
+  owning channel/build, the entry path discloses the ownership change
+  and routes through an in-product review sheet before any open occurs.
+  Portable installs must not register machine-global recents or shell
+  actions.
+
+platform_profile_refs:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+
+matrix_row_ids:
+  - desktop-summary-surface:macos:dock:recent:01
+  - desktop-summary-surface:macos:dock:jump-action:01
+  - desktop-summary-surface:windows:jump-list:recent:01
+  - desktop-summary-surface:windows:jump-list:task:01
+
+upstream_fixture_refs:
+  ownership_matrix: artifacts/platform/file_association_ownership_matrix.yaml
+  channel_ownership_audit: artifacts/release/channel_ownership_audit.yaml
+  portable_mode_limitations: artifacts/release/portable_mode_limitations.yaml
+  route_audit: artifacts/platform/system_affordance_route_audit.md
+  dock_recent_replay_denied_case: fixtures/platform/deep_link_replay_cases/dock_recent_replay_denied_target_drifted.yaml
+
+expected_disclosures:
+  ownership_change_must_be_reviewable: true
+  owning_channel_and_build_must_be_visible: true
+  cross_channel_recent_open_requires_review: true
+  portable_must_not_write_machine_global_recents: true
+
+reviewer_checks:
+  - id: ownership_change_sets_preview_required_before_change
+    description: >
+      When a recent-item or jump action would change owning channel/build,
+      the OS-entry record advertises preview_required_before_change (or
+      blocked_by_policy under managed policy) and routes through an
+      in-product review sheet.
+    pass: true
+  - id: cross_channel_recents_fail_closed
+    description: >
+      A recent entry advertised by one channel does not silently reopen
+      under a different channel; it fails closed and preserves intent.
+    pass: true
+  - id: portable_host_mutation_suppressed
+    description: >
+      Portable installs do not register machine-global shell handlers,
+      recents, or jump actions; any attempt is treated as non-conforming.
+    pass: true
+  - id: jump_actions_inspect_only
+    description: >
+      Jump actions remain inspect-only; privileged or mutating command
+      classes route through in-product review/approval surfaces.
+    pass: true
+
+status: proposed
