@@ -1,0 +1,415 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/trust/approval_event.schema.json",
+  "title": "Aureline approval-ticket export-safe event vocabulary",
+  "description": "Boundary schema for approval_event_record instances frozen in docs/trust/approval_ticket_lifecycle_contract.md. These events are the export-safe lifecycle trail for approval tickets: preview shown, approved, denied, used, widened, revoked, expired, replay-blocked, and scope-loss downgrade outcomes. Events are copy-safe and redaction-aware: they carry stable ids, typed vocabulary, and optional digests/refs; raw secret bytes, raw token bodies, raw provider payloads, raw URLs, raw file bodies, raw policy payloads, and raw preview bodies MUST NOT appear. Adding a new audit_event_id, denial_dimension, denial_reason, scope_downgrade_reason, revoke_reason, issuer_class, actor_class, action_class, or redaction_class value is additive-minor and bumps approval_event_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/approval_event_record" }
+  ],
+  "$defs": {
+    "approval_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the approval-event vocabulary boundary."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, traces, support bundles, CLI output, evidence packets, and exports. Raw secret material, raw URLs, raw file paths, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$",
+      "description": "Hash-algorithm-prefixed digest (for example 'sha256:7b9f0b2d...') computed over structured fields (intent descriptor, preview packet, etc). Raw bodies never cross the boundary."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800,
+      "description": "Reviewable sentence safe for UI, CLI, docs/help, support export, and audit evidence. Do not include raw secrets, raw URLs, raw policy payloads, raw file bodies, or raw provider payloads."
+    },
+
+    "issuer_class": {
+      "type": "string",
+      "enum": ["shell", "policy_service", "supervisor"],
+      "description": "Only the shell, the policy service, and the supervisor MAY mint approval tickets. Any other issuer is forged and denied."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ]
+    },
+
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "read_only_local_analysis",
+        "local_workspace_mutation",
+        "external_side_effect",
+        "credential_projection",
+        "debug_or_privileged_inspection",
+        "trust_or_policy_admin_change",
+        "browser_handoff",
+        "deferred_publish_drain",
+        "release_publish",
+        "high_risk_paste_or_injection"
+      ]
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"]
+    },
+
+    "denial_dimension": {
+      "type": "string",
+      "enum": [
+        "trust",
+        "policy",
+        "network_scope",
+        "credential_scope",
+        "profile_enforcement",
+        "runtime_health"
+      ],
+      "description": "Ticket denials, replay blocks, and expiry MUST explain which dimension failed. Silent 'please try again' is forbidden."
+    },
+
+    "denial_reason": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_missing",
+        "approval_ticket_expired",
+        "approval_ticket_revoked",
+        "approval_ticket_step_up_required",
+        "ticket_widening_forbidden",
+        "ticket_lineage_broken",
+        "high_risk_gating_missing",
+        "browser_handoff_replay_invalid",
+        "browser_handoff_origin_mismatch",
+        "browser_handoff_revoked",
+        "origin_signature_invalid",
+        "ai_initiated_mutation_without_ticket",
+        "remote_helper_mutation_without_ticket",
+        "unknown_actor_class",
+        "deferred_publish_drain_unsafe",
+        "denied_scope_missing",
+        "denied_policy_bundle",
+        "denied_workspace_trust",
+        "denied_actor_class_forbidden",
+        "denied_target_conflict",
+        "denied_freshness_floor",
+        "denied_revoked",
+        "denied_suspended",
+        "denied_host_mismatch",
+        "denied_step_up_required",
+        "denied_unreachable"
+      ],
+      "description": "Frozen denial-reason set for the approval-ticket plane. Denials fail closed; they MUST NOT silently retry and MUST NOT downgrade a mutation without an explicit downgrade event."
+    },
+
+    "revoke_reason": {
+      "type": "string",
+      "enum": [
+        "rotation",
+        "admin_revoke",
+        "policy_change",
+        "user_revoke",
+        "trust_downgrade",
+        "actor_class_changed"
+      ]
+    },
+
+    "scope_downgrade_reason": {
+      "type": "string",
+      "enum": [
+        "provider_unreachable",
+        "scope_narrowed_by_policy",
+        "trust_state_narrowed",
+        "policy_epoch_rolled",
+        "target_identity_drifted",
+        "actor_class_changed",
+        "host_or_org_mismatch",
+        "browser_return_mismatch",
+        "user_chose_local_draft"
+      ],
+      "description": "Frozen downgrade-reason vocabulary for scope-loss outcomes where the admitted action continues in a narrower or local-only mode."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_preview_shown",
+        "approval_ticket_approved",
+        "approval_ticket_denied",
+        "approval_ticket_used",
+        "approval_ticket_widened",
+        "approval_ticket_revoked",
+        "approval_ticket_expired",
+        "approval_ticket_replay_blocked",
+        "approval_ticket_scope_downgraded"
+      ],
+      "description": "Frozen approval-ticket lifecycle event vocabulary. Additive events are allowed; repurposing is forbidden."
+    },
+
+    "approval_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_event_schema_version",
+        "event_id",
+        "audit_event_id",
+        "event_time",
+        "ticket_id",
+        "issuer_class",
+        "actor_subject",
+        "actor_class",
+        "action_class",
+        "command_family_or_action_ref",
+        "workspace_or_workset_scope_ref",
+        "target_identity_ref",
+        "execution_context_id",
+        "policy_epoch",
+        "trust_state",
+        "intent_digest",
+        "preview_hash",
+        "use_count_observed",
+        "related_ticket_refs",
+        "denial_dimension",
+        "denial_reason",
+        "revoke_reason",
+        "scope_downgrade_reason",
+        "event_note",
+        "redaction_class",
+        "export_safe",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "approval_event_record" },
+        "approval_event_schema_version": {
+          "$ref": "#/$defs/approval_event_schema_version"
+        },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "event_time": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ticket_id": { "$ref": "#/$defs/opaque_id" },
+        "issuer_class": { "$ref": "#/$defs/issuer_class" },
+        "actor_subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Acting identity (user id, install id, delegated binding id, project-scoped grant id, or policy-injected service id)."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "command_family_or_action_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable reference to the command family or provider action the ticket admitted."
+        },
+        "workspace_or_workset_scope_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque target identity ref. Raw paths and URLs are forbidden."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "intent_digest": { "$ref": "#/$defs/hex_hash" },
+        "preview_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hex_hash" }
+          ],
+          "description": "Preview hash over structured preview fields (not raw bodies). Present when the event is tied to a previewed intent."
+        },
+        "use_count_observed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Observed use count after this event is applied. For single-use tickets this is 0 or 1."
+        },
+        "related_ticket_refs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "prior_ticket_ref",
+            "widened_to_ticket_ref"
+          ],
+          "properties": {
+            "prior_ticket_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "Prior ticket id when this event is derived from or supersedes another ticket."
+            },
+            "widened_to_ticket_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ],
+              "description": "New ticket id minted to widen scope. Non-null only for approval_ticket_widened."
+            }
+          }
+        },
+        "denial_dimension": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_dimension" }
+          ]
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/denial_reason" }
+          ]
+        },
+        "revoke_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/revoke_reason" }
+          ]
+        },
+        "scope_downgrade_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/scope_downgrade_reason" }
+          ]
+        },
+        "event_note": { "$ref": "#/$defs/reviewable_sentence" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean", "default": true },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Stable narrative refs pointing to the contract sections or public docs that explain the semantics of this event."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Denied, expired, and replay-blocked events MUST carry denial_dimension and denial_reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "approval_ticket_denied",
+                  "approval_ticket_expired",
+                  "approval_ticket_replay_blocked"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": {
+              "denial_dimension": { "not": { "type": "null" } },
+              "denial_reason": { "not": { "type": "null" } }
+            },
+            "required": ["denial_dimension", "denial_reason"]
+          }
+        },
+        {
+          "description": "Revoked events MUST carry revoke_reason.",
+          "if": {
+            "properties": { "audit_event_id": { "const": "approval_ticket_revoked" } },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": { "revoke_reason": { "not": { "type": "null" } } },
+            "required": ["revoke_reason"]
+          }
+        },
+        {
+          "description": "Scope downgrade events MUST carry scope_downgrade_reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "approval_ticket_scope_downgraded" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": {
+              "scope_downgrade_reason": { "not": { "type": "null" } }
+            },
+            "required": ["scope_downgrade_reason"]
+          }
+        },
+        {
+          "description": "Widened events MUST cite widened_to_ticket_ref and prior_ticket_ref.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "const": "approval_ticket_widened" }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": {
+              "related_ticket_refs": {
+                "properties": {
+                  "prior_ticket_ref": { "not": { "type": "null" } },
+                  "widened_to_ticket_ref": { "not": { "type": "null" } }
+                },
+                "required": ["prior_ticket_ref", "widened_to_ticket_ref"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Non-widened events MUST keep widened_to_ticket_ref null.",
+          "if": {
+            "properties": {
+              "audit_event_id": { "not": { "const": "approval_ticket_widened" } }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": {
+              "related_ticket_refs": {
+                "properties": { "widened_to_ticket_ref": { "type": "null" } }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

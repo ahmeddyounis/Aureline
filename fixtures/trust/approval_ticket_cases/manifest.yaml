@@ -1,0 +1,61 @@
+schema_version: 1
+manifest_id: trust.approval_ticket_cases.v1
+status: seeded
+
+contract_source: docs/trust/approval_ticket_lifecycle_contract.md
+approval_ticket_schema: schemas/trust/approval_ticket.schema.json
+approval_event_schema: schemas/trust/approval_event.schema.json
+
+rules:
+  - Every case is export-safe by default: no raw secret bytes, raw provider tokens, raw delegated-token bodies, raw URLs, raw file bodies, or raw policy payloads.
+  - Tickets bind actor identity, action class, target identity, sandbox/capability envelope, policy epoch, trust state, and expiry.
+  - Events carry stable reason codes for deny/revoke/expire/replay-block/scope-downgrade outcomes; silent retries are non-conforming.
+  - Copy/export packets preserve lineage via opaque ids, intent_digest, and preview_hash without requiring raw bodies.
+
+case_files:
+  - file: local_destructive_workspace_mutation.yaml
+    scenario_class: local_workspace_mutation
+    coverage:
+      - destructive_local_action
+      - preview_hash_required
+      - rollback_checkpoint_bound
+      - preview_shown_approved_used_events
+  - file: provider_publish_later_drain_downgrade_on_drift.yaml
+    scenario_class: provider_publish_later
+    coverage:
+      - deferred_publish_queue_admission
+      - scope_downgrade_on_target_drift
+      - supportable_lineage_via_intent_digest
+  - file: delegated_credential_use_widened_scope.yaml
+    scenario_class: delegated_credential_use
+    coverage:
+      - credential_projection_ticket
+      - widen_mints_new_ticket
+      - widened_event_links_prior_and_new
+  - file: remote_attach_ticket_used_successfully.yaml
+    scenario_class: remote_attach
+    coverage:
+      - privileged_attach_requires_ticket
+      - preview_shown_approved_used_events
+  - file: stale_target_requires_reissue.yaml
+    scenario_class: stale_target
+    coverage:
+      - replay_blocked_on_target_conflict
+      - denial_dimension_and_reason_visible
+  - file: org_switch_host_mismatch_replay_blocked.yaml
+    scenario_class: org_switch
+    coverage:
+      - replay_blocked_host_mismatch
+      - credential_scope_dimension_named
+  - file: browser_return_revoked_then_replay_blocked.yaml
+    scenario_class: browser_return
+    coverage:
+      - browser_handoff_ticket_binding
+      - revoked_then_replay_blocked
+      - revoke_reason_and_denial_reason_visible
+  - file: expired_then_denied_reapproval.yaml
+    scenario_class: denied_reapproval
+    coverage:
+      - expiry_event_carries_reason
+      - reapproval_denied_with_stable_reason
+      - repeat_denial_preserves_reason_code

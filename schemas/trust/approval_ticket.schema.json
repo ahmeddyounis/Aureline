@@ -1,0 +1,442 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/trust/approval_ticket.schema.json",
+  "title": "Aureline approval-ticket lifecycle contract",
+  "description": "Boundary schema for one approval_ticket_record frozen in docs/trust/approval_ticket_lifecycle_contract.md. Approval tickets are inspectable authority objects that bind actor identity, user-confirmed intent, action family, target identity, sandbox or capability envelope, policy epoch, and expiry to high-risk local mutations, remote attach operations, credential projections, provider mutations, and policy/admin changes. Tickets are designed to be export-safe by default: raw secret bytes, raw provider tokens, raw delegated-token bodies, raw URLs, raw file bodies, and raw policy payloads MUST NOT appear on the ticket; export surfaces rely on stable opaque ids plus an intent_digest and optional preview_hash to preserve lineage without leaking raw bodies. Only the shell, the policy service, and the supervisor MAY mint tickets; AI flows, extensions, recipes, CLI scripts, browser companions, and remote helpers MAY request approval but MAY NOT grant themselves authority. Adding a new action_class, issuer_class, actor_class, use_posture, high_risk_flag, revoke_reason, or redaction_class value is additive-minor and bumps approval_ticket_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/approval_ticket_record" }
+  ],
+  "$defs": {
+    "approval_ticket_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the approval-ticket lifecycle boundary."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, traces, support bundles, CLI output, evidence packets, and exports. Raw secret material, raw URLs, raw file paths, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "hex_hash": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+:[0-9a-f]+$",
+      "description": "Hash-algorithm-prefixed digest (for example 'sha256:7b9f0b2d...') computed over structured fields (intent descriptor, preview packet, etc). Raw bodies never cross the boundary."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 800,
+      "description": "Reviewable sentence safe for UI, CLI, docs/help, support export, and audit evidence. Do not include raw secrets, raw URLs, raw policy payloads, raw file bodies, or raw provider payloads."
+    },
+
+    "issuer_class": {
+      "type": "string",
+      "enum": ["shell", "policy_service", "supervisor"],
+      "description": "Only the shell, the policy service, and the supervisor MAY mint approval tickets. Any other issuer is forged and denied."
+    },
+
+    "provider_actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Actor class the ticket is spent as. unknown_actor_class is non-spendable; a surface that cannot resolve the actor routes to a repair hook rather than issuing a ticket under an ambiguous connected state."
+    },
+
+    "action_class": {
+      "type": "string",
+      "enum": [
+        "read_only_local_analysis",
+        "local_workspace_mutation",
+        "external_side_effect",
+        "credential_projection",
+        "debug_or_privileged_inspection",
+        "trust_or_policy_admin_change",
+        "browser_handoff",
+        "deferred_publish_drain",
+        "release_publish",
+        "high_risk_paste_or_injection"
+      ],
+      "description": "Frozen action-class vocabulary. Every ticket names exactly one action class. A ticket admits the named class and nothing broader; widening mints a new ticket with fresh lineage."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "Workspace trust posture at ticket issue."
+    },
+
+    "use_posture": {
+      "type": "string",
+      "enum": ["single_use", "bounded_reuse", "session_scoped"],
+      "description": "Frozen use-posture vocabulary. single_use is the default; bounded_reuse requires an explicit counter; session_scoped is forbidden for release_publish and trust_or_policy_admin_change."
+    },
+
+    "bounded_reuse_counter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["used_count", "max_uses", "window_expires_at"],
+      "properties": {
+        "used_count": { "type": "integer", "minimum": 0 },
+        "max_uses": { "type": "integer", "minimum": 1 },
+        "window_expires_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Bounded-reuse counter. Present only when use_posture is bounded_reuse."
+    },
+
+    "high_risk_flag": {
+      "type": "string",
+      "enum": [
+        "irreversible_external_effect",
+        "publishes_release_artifact",
+        "grants_admin_authority",
+        "widens_egress_posture",
+        "reveals_secret_material",
+        "mutates_shared_infrastructure",
+        "destructive_local_action",
+        "cross_tenant_effect"
+      ],
+      "description": "Frozen high-risk flag vocabulary. Every flag has approval-time and spend-time gating rules; a flag without its rule is denied at issue."
+    },
+
+    "revoke_reason": {
+      "type": "string",
+      "enum": [
+        "rotation",
+        "admin_revoke",
+        "policy_change",
+        "user_revoke",
+        "trust_downgrade",
+        "actor_class_changed"
+      ],
+      "description": "Typed revocation reason. Revocation is immediate and denies further use."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Declared redaction class shared across authority, approval, evidence, support, and audit packets."
+    },
+
+    "original_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["human_summary", "machine_descriptor"],
+      "properties": {
+        "human_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Human-legible summary the user confirmed at approval time."
+        },
+        "machine_descriptor": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Machine-readable command/mutation/projection descriptor. Shape is action-class-specific. MUST NOT contain raw secret bytes, raw URLs, raw delegated-token bodies, raw file bodies, or raw policy payloads; those cross boundaries as opaque refs only."
+        }
+      }
+    },
+
+    "evidence_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to approval_event_record instances that describe lifecycle transitions."
+        },
+        "support_export_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to support/export packets that include this ticket's lineage."
+        },
+        "evidence_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to evidence packets (for example, release publish, signing evidence, incident evidence)."
+        },
+        "mutation_journal_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to mutation-journal entries that cite this ticket."
+        },
+        "incident_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to incident workspaces or repair transactions that reference this ticket."
+        }
+      },
+      "description": "Export-safe evidence and reconstruction refs. The refs are the truth; consumers MUST NOT infer lineage from freeform prose alone."
+    },
+
+    "approval_ticket_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "approval_ticket_schema_version",
+        "ticket_id",
+        "ticket_schema_version",
+        "issuer_class",
+        "actor_subject",
+        "actor_class",
+        "issuing_surface",
+        "original_intent",
+        "intent_digest",
+        "action_class",
+        "command_family_or_action_ref",
+        "workspace_or_workset_scope_ref",
+        "target_identity_ref",
+        "sandbox_profile_or_capability_hash",
+        "execution_context_id",
+        "policy_epoch",
+        "trust_state",
+        "issued_at",
+        "expires_at",
+        "use_posture",
+        "use_count",
+        "ticket_lineage",
+        "revoke_epoch",
+        "redaction_class"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "const": "approval_ticket_record" },
+        "approval_ticket_schema_version": {
+          "$ref": "#/$defs/approval_ticket_schema_version"
+        },
+        "ticket_id": { "$ref": "#/$defs/opaque_id" },
+        "ticket_schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Pinned schema version embedded into the ticket so a replayed ticket is validated against the exact shape it was minted under."
+        },
+        "issuer_class": { "$ref": "#/$defs/issuer_class" },
+        "actor_subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Acting identity (user id, install id, delegated binding id, project-scoped grant id, or policy-injected service id)."
+        },
+        "actor_class": { "$ref": "#/$defs/provider_actor_class" },
+        "issuing_surface": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Where the ticket was issued from (shell prompt id, policy-decision id, supervisor path)."
+        },
+        "original_intent": { "$ref": "#/$defs/original_intent" },
+        "intent_digest": {
+          "$ref": "#/$defs/hex_hash",
+          "description": "Export-safe digest of the canonicalized intent descriptor the user approved. Consumers join on intent_digest (not raw machine_descriptor) across support exports, audit packets, and replay checks."
+        },
+        "action_class": { "$ref": "#/$defs/action_class" },
+        "command_family_or_action_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable reference to the command family or provider action the ticket admits."
+        },
+        "workspace_or_workset_scope_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace/workset scope ref the ticket applies inside."
+        },
+        "target_identity_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Execution target / provider target / credential handle / policy subject the ticket is bound to. Export-safe opaque ref (no raw paths or URLs)."
+        },
+        "sandbox_profile_or_capability_hash": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Capability envelope the admitted action runs under."
+        },
+        "projection_mode_ref": {
+          "type": "string",
+          "description": "Projection-mode ref when action_class is credential_projection; empty string otherwise."
+        },
+        "browser_handoff_packet_ref": {
+          "type": "string",
+          "description": "Browser-handoff packet ref when action_class is browser_handoff; empty string otherwise."
+        },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Execution-context id the ticket runs inside."
+        },
+        "policy_epoch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Policy epoch at issue. Presenting a ticket at a later policy epoch is re-evaluated; silent continued-use is forbidden."
+        },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "issued_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "expires_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "use_posture": { "$ref": "#/$defs/use_posture" },
+        "use_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Observed number of successful spends of this ticket id. For bounded_reuse, equals bounded_reuse_counter.used_count. For single_use, must be 0 or 1."
+        },
+        "bounded_reuse_counter": { "$ref": "#/$defs/bounded_reuse_counter" },
+        "high_risk_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/high_risk_flag" },
+          "description": "Set of high-risk flags carried by this ticket."
+        },
+        "step_up_required_flag": {
+          "type": "boolean",
+          "description": "When true, the ticket is not spendable until a fresh authenticator event clears it."
+        },
+        "rollback_checkpoint_ref": {
+          "type": "string",
+          "description": "Optional rollback-checkpoint ref the ticket commits to restoring on denial or failure. Required when high_risk_flags contains destructive_local_action."
+        },
+        "preview_hash": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/hex_hash" }
+          ],
+          "description": "Export-safe preview hash over structured preview fields (not raw bodies). Required for destructive_local_action and for action classes with irreversible effect."
+        },
+        "preview_ref": {
+          "type": "string",
+          "description": "Optional local preview-record ref the user approved against. Local-only pointer; exports prefer preview_hash."
+        },
+        "ticket_lineage": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of predecessor ticket ids when this ticket derives authority from another ticket (deferred publish drain, delegated credential spend, etc)."
+        },
+        "revoke_epoch": {
+          "type": ["string", "null"],
+          "description": "Null until revoked; populated on revocation. Paired with revoke_reason."
+        },
+        "revoke_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/revoke_reason" }
+          ],
+          "description": "Typed revoke reason. Non-null when revoke_epoch is non-null."
+        },
+        "evidence_refs": { "$ref": "#/$defs/evidence_refs" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "projection_mode_ref is required when action_class is credential_projection.",
+          "if": {
+            "properties": { "action_class": { "const": "credential_projection" } },
+            "required": ["action_class"]
+          },
+          "then": { "required": ["projection_mode_ref"] }
+        },
+        {
+          "description": "browser_handoff_packet_ref is required when action_class is browser_handoff.",
+          "if": {
+            "properties": { "action_class": { "const": "browser_handoff" } },
+            "required": ["action_class"]
+          },
+          "then": { "required": ["browser_handoff_packet_ref"] }
+        },
+        {
+          "description": "bounded_reuse_counter MUST be present when use_posture is bounded_reuse, and MUST be absent otherwise.",
+          "if": {
+            "properties": { "use_posture": { "const": "bounded_reuse" } },
+            "required": ["use_posture"]
+          },
+          "then": { "required": ["bounded_reuse_counter"] },
+          "else": {
+            "not": { "required": ["bounded_reuse_counter"] }
+          }
+        },
+        {
+          "description": "Single-use tickets have use_count <= 1.",
+          "if": {
+            "properties": { "use_posture": { "const": "single_use" } },
+            "required": ["use_posture"]
+          },
+          "then": {
+            "properties": { "use_count": { "maximum": 1 } }
+          }
+        },
+        {
+          "description": "session_scoped use_posture is forbidden for release_publish and trust_or_policy_admin_change.",
+          "if": {
+            "properties": { "use_posture": { "const": "session_scoped" } },
+            "required": ["use_posture"]
+          },
+          "then": {
+            "properties": {
+              "action_class": {
+                "not": { "enum": ["release_publish", "trust_or_policy_admin_change"] }
+              }
+            }
+          }
+        },
+        {
+          "description": "revoke_reason MUST be present when revoke_epoch is non-null.",
+          "if": {
+            "properties": {
+              "revoke_epoch": { "type": "string" }
+            },
+            "required": ["revoke_epoch"]
+          },
+          "then": { "required": ["revoke_reason"] }
+        },
+        {
+          "description": "rollback_checkpoint_ref is required when high_risk_flags contains destructive_local_action.",
+          "if": {
+            "properties": {
+              "high_risk_flags": {
+                "type": "array",
+                "contains": { "const": "destructive_local_action" }
+              }
+            },
+            "required": ["high_risk_flags"]
+          },
+          "then": { "required": ["rollback_checkpoint_ref", "preview_hash"] }
+        },
+        {
+          "description": "preview_hash is required for action classes with irreversible effect.",
+          "if": {
+            "properties": {
+              "action_class": {
+                "enum": [
+                  "release_publish",
+                  "trust_or_policy_admin_change",
+                  "high_risk_paste_or_injection"
+                ]
+              }
+            },
+            "required": ["action_class"]
+          },
+          "then": { "required": ["preview_hash"] }
+        }
+      ]
+    }
+  }
+}
