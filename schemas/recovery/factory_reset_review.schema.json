@@ -1,0 +1,415 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/factory_reset_review.schema.json",
+  "title": "Aureline factory-reset review sheet",
+  "description": "Boundary schema for factory-reset review sheets frozen in docs/reliability/recovery_route_and_factory_reset_review_contract.md. Each record names the scenario family the reset belongs to and enumerates deleted, retained, externally recoverable, not exported, policy-blocked, and unsupported artifact classes before the user commits to a broad destructive factory reset. External recoverability and export-before-reset semantics must stay consistent with docs/reliability/export_before_reset_contract.md. Raw file bodies, raw diff hunks, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/factory_reset_review_record" }
+  ],
+  "$defs": {
+    "factory_reset_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for factory-reset review records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "factory_reset_review_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in review sheets, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "scenario_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_corruption",
+        "workspace_index_corruption",
+        "failed_update",
+        "control_plane_outage",
+        "device_replacement",
+        "seat_loss",
+        "credential_store_unreadable",
+        "mirror_or_offline_bundle_unavailable"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_scenario_card.schema.json#recovery_scenario_family_class."
+    },
+    "deployment_profile_scope_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "air_gapped",
+        "managed_tenant",
+        "cross_plane_failover_pending"
+      ]
+    },
+    "reset_kind_class": {
+      "type": "string",
+      "const": "factory_reset",
+      "description": "Factory-reset review records always bind to reset kind factory_reset."
+    },
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_state",
+        "profile_defaults",
+        "layout_topology",
+        "evidence_packets",
+        "local_history_lane",
+        "autosave_journal",
+        "credentials",
+        "seat_or_license_token",
+        "machine_local_assets",
+        "caches",
+        "install_chain_metadata"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/export_before_reset_checklist.schema.json#artifact_class."
+    },
+    "external_recoverability_class": {
+      "type": "string",
+      "enum": [
+        "externally_recoverable_authoritative_backup",
+        "externally_recoverable_sync_replica",
+        "externally_recoverable_managed_admin_seat",
+        "externally_recoverable_offline_bundle",
+        "locally_recoverable_only_no_external_source",
+        "not_recoverable_after_reset"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/export_before_reset_checklist.schema.json#external_recoverability_class."
+    },
+    "verification_result_class": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "partial",
+        "blocked_by_policy",
+        "unsupported_class",
+        "user_declined"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/export_before_reset_checklist.schema.json#verification_result_class."
+    },
+    "externally_recoverable_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_class",
+        "external_recoverability_class",
+        "external_source_ref",
+        "summary"
+      ],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "external_recoverability_class": {
+          "type": "string",
+          "enum": [
+            "externally_recoverable_authoritative_backup",
+            "externally_recoverable_sync_replica",
+            "externally_recoverable_managed_admin_seat",
+            "externally_recoverable_offline_bundle"
+          ],
+          "description": "Only the four externally_recoverable_* values are admitted here."
+        },
+        "external_source_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the named external recovery source (backup, replica, admin-seat recovery, offline bundle)."
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "policy_blocked_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "policy_ref", "summary"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "policy_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "unsupported_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "unsupported_reason_class", "summary"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/artifact_class" },
+        "unsupported_reason_class": {
+          "type": "string",
+          "enum": [
+            "export_not_implemented",
+            "export_prohibited_high_risk",
+            "artifact_is_os_managed_only",
+            "artifact_is_provider_managed_only",
+            "unknown_reason_requires_review"
+          ]
+        },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "review_buckets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deleted_classes",
+        "retained_classes",
+        "externally_recoverable_classes",
+        "not_exported_classes",
+        "policy_blocked_classes",
+        "unsupported_classes"
+      ],
+      "properties": {
+        "deleted_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true,
+          "description": "Artifact classes the factory reset will delete locally."
+        },
+        "retained_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true,
+          "description": "Artifact classes explicitly out of scope for this factory reset."
+        },
+        "externally_recoverable_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/externally_recoverable_row" },
+          "uniqueItems": true,
+          "description": "Externally recoverable classes after the reset (authoritative backup, sync replica, managed admin seat, offline bundle)."
+        },
+        "not_exported_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true,
+          "description": "Artifact classes that did not produce a convenience export as part of the export-before-reset gate (user decline, deliberate omission, size cap, or other acknowledged skip)."
+        },
+        "policy_blocked_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/policy_blocked_row" },
+          "uniqueItems": true,
+          "description": "Every artifact class whose export was refused by active policy."
+        },
+        "unsupported_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/unsupported_row" },
+          "uniqueItems": true,
+          "description": "Every artifact class whose export is unsupported by the product."
+        }
+      }
+    },
+    "export_verification_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["overall_result_class"],
+      "properties": {
+        "overall_result_class": { "$ref": "#/$defs/verification_result_class" },
+        "verified_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true
+        },
+        "partial_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true
+        },
+        "policy_blocked_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true
+        },
+        "unsupported_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true
+        },
+        "declined_by_user_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/artifact_class" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "verification_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_before_reset_checklist_ref",
+        "export_verification_result_ref"
+      ],
+      "properties": {
+        "export_before_reset_checklist_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the matching export_before_reset_checklist_record."
+        },
+        "export_verification_result_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the matching export_verification_result_record."
+        },
+        "checkpoint_inventory_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque ref to the checkpoint inventory or capture record used to justify proceeding."
+        },
+        "support_bundle_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque ref to a support bundle exported alongside the review."
+        }
+      }
+    },
+    "glossary_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_backup_definition_const",
+        "local_checkpoint_definition_const",
+        "sync_replica_definition_const",
+        "mirror_cache_definition_const",
+        "convenience_export_definition_const",
+        "externally_recoverable_artifact_definition_const"
+      ],
+      "properties": {
+        "authoritative_backup_definition_const": {
+          "type": "boolean",
+          "const": true
+        },
+        "local_checkpoint_definition_const": {
+          "type": "boolean",
+          "const": true
+        },
+        "sync_replica_definition_const": {
+          "type": "boolean",
+          "const": true
+        },
+        "mirror_cache_definition_const": {
+          "type": "boolean",
+          "const": true
+        },
+        "convenience_export_definition_const": {
+          "type": "boolean",
+          "const": true
+        },
+        "externally_recoverable_artifact_definition_const": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recovery_scenario_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "continuity_status_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_family_is_closed",
+        "reset_kind_is_factory_reset",
+        "review_buckets_present",
+        "external_recoverability_is_named",
+        "verification_refs_present",
+        "glossary_terms_frozen"
+      ],
+      "properties": {
+        "scenario_family_is_closed": { "type": "boolean", "const": true },
+        "reset_kind_is_factory_reset": { "type": "boolean", "const": true },
+        "review_buckets_present": { "type": "boolean", "const": true },
+        "external_recoverability_is_named": { "type": "boolean", "const": true },
+        "verification_refs_present": { "type": "boolean", "const": true },
+        "glossary_terms_frozen": { "type": "boolean", "const": true }
+      }
+    },
+    "factory_reset_review_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "factory_reset_review_schema_version",
+        "review_id",
+        "generated_at",
+        "scenario_family_class",
+        "reset_kind_class",
+        "title",
+        "summary",
+        "deployment_profile_scope_class",
+        "review_buckets",
+        "export_verification_summary",
+        "verification_refs",
+        "glossary",
+        "linkage",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "factory_reset_review_schema_version": { "$ref": "#/$defs/factory_reset_review_schema_version" },
+        "review_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scenario_family_class": { "$ref": "#/$defs/scenario_family_class" },
+        "deployment_profile_scope_class": { "$ref": "#/$defs/deployment_profile_scope_class" },
+        "reset_kind_class": { "$ref": "#/$defs/reset_kind_class" },
+        "title": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "review_buckets": { "$ref": "#/$defs/review_buckets" },
+        "export_verification_summary": { "$ref": "#/$defs/export_verification_summary" },
+        "verification_refs": { "$ref": "#/$defs/verification_refs" },
+        "glossary": { "$ref": "#/$defs/glossary_block" },
+        "linkage": { "$ref": "#/$defs/linkage_block" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "workspace_index_corruption forbids factory reset. Routing a derived-index failure to factory reset is non-conforming.",
+          "not": {
+            "properties": {
+              "scenario_family_class": { "const": "workspace_index_corruption" }
+            },
+            "required": ["scenario_family_class"]
+          }
+        },
+        {
+          "description": "control_plane_outage forbids factory reset while outage is active. Outage posture is a local-safe route, not destructive reset.",
+          "not": {
+            "properties": {
+              "scenario_family_class": { "const": "control_plane_outage" }
+            },
+            "required": ["scenario_family_class"]
+          }
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/recovery/recovery_route_decision.schema.json",
+  "title": "Aureline recovery-route decision",
+  "description": "Boundary schema for recovery-route decisions frozen in docs/reliability/recovery_route_and_factory_reset_review_contract.md. Each record routes one named large-failure scenario family to the narrowest reviewed recovery path (corruption rescue, update rollback, entitlement recovery, outage posture, restore chooser, export-before-reset, factory-reset review, or support export) so recovery copy does not collapse into one generic reset narrative. Scenario-family vocabulary is re-exported from schemas/recovery/recovery_scenario_card.schema.json. Reset-kind vocabulary is re-exported from schemas/recovery/export_before_reset_checklist.schema.json. Raw file bodies, raw diff hunks, raw credentials, raw absolute paths, and raw provider payloads never cross this boundary.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/recovery_route_decision_record" }
+  ],
+  "$defs": {
+    "recovery_route_decision_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for recovery-route decision records."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "recovery_route_decision_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for status surfaces, support bundles, evidence packets, CLI output, and logs. Raw paths, raw URLs, raw credentials, and raw provider payloads never appear here."
+    },
+    "short_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware text safe to render in recovery routing surfaces, support exports, evidence packets, and CLI output."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Producer-local monotonic timestamp string. Opaque to the contract; the surface never re-reads system wall-clock time from this field."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "scenario_family_class": {
+      "type": "string",
+      "enum": [
+        "profile_corruption",
+        "workspace_index_corruption",
+        "failed_update",
+        "control_plane_outage",
+        "device_replacement",
+        "seat_loss",
+        "credential_store_unreadable",
+        "mirror_or_offline_bundle_unavailable"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/recovery_scenario_card.schema.json#recovery_scenario_family_class."
+    },
+    "deployment_profile_scope_class": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "air_gapped",
+        "managed_tenant",
+        "cross_plane_failover_pending"
+      ]
+    },
+    "reset_kind_class": {
+      "type": "string",
+      "enum": [
+        "factory_reset",
+        "profile_reset",
+        "workspace_reset",
+        "layout_reset",
+        "evidence_index_reset",
+        "credential_store_reset",
+        "mirror_or_offline_bundle_reset",
+        "sync_replica_reset"
+      ],
+      "description": "Re-exported verbatim from schemas/recovery/export_before_reset_checklist.schema.json#reset_kind_class."
+    },
+    "recovery_route_class": {
+      "type": "string",
+      "enum": [
+        "corruption_rescue_compare_route",
+        "update_and_rollback_route",
+        "entitlement_or_account_recovery_route",
+        "control_plane_outage_route",
+        "restore_chooser_route",
+        "export_before_reset_checklist_route",
+        "factory_reset_review_route",
+        "support_bundle_export_route"
+      ],
+      "description": "Closed recovery-route vocabulary. Each record resolves to exactly one recommended route; surfaces never substitute a generic reset narrative."
+    },
+    "glossary_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authoritative_backup_definition_const",
+        "local_checkpoint_definition_const",
+        "sync_replica_definition_const",
+        "mirror_cache_definition_const",
+        "convenience_export_definition_const",
+        "externally_recoverable_artifact_definition_const"
+      ],
+      "properties": {
+        "authoritative_backup_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that authoritative_backup is interpreted per docs/reliability/continuity_status_card_contract.md and artifacts/recovery/backup_checkpoint_classes.yaml."
+        },
+        "local_checkpoint_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that local_checkpoint is interpreted per docs/reliability/continuity_status_card_contract.md and artifacts/recovery/backup_checkpoint_classes.yaml."
+        },
+        "sync_replica_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that sync_replica is interpreted per docs/reliability/continuity_status_card_contract.md and artifacts/recovery/backup_checkpoint_classes.yaml."
+        },
+        "mirror_cache_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that mirror_cache is interpreted per docs/reliability/continuity_status_card_contract.md and artifacts/recovery/backup_checkpoint_classes.yaml."
+        },
+        "convenience_export_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that convenience_export is interpreted per docs/reliability/continuity_status_card_contract.md and artifacts/recovery/backup_checkpoint_classes.yaml."
+        },
+        "externally_recoverable_artifact_definition_const": {
+          "type": "boolean",
+          "const": true,
+          "description": "Const guarantee that externally recoverable artifacts are defined per docs/reliability/export_before_reset_contract.md glossary (authoritative backup, sync replica for profile-shaped state, managed admin-seat re-issuance for seat/license tokens, or signed offline bundle)."
+        }
+      }
+    },
+    "linkage_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recovery_scenario_card_ref": { "$ref": "#/$defs/opaque_id" },
+        "corruption_rescue_sheet_ref": { "$ref": "#/$defs/opaque_id" },
+        "update_and_rollback_ref": { "$ref": "#/$defs/opaque_id" },
+        "admin_seat_recovery_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_chooser_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_before_reset_checklist_ref": { "$ref": "#/$defs/opaque_id" },
+        "factory_reset_review_ref": { "$ref": "#/$defs/opaque_id" },
+        "support_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "summary": { "$ref": "#/$defs/short_text" }
+      }
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario_family_is_closed",
+        "recommended_route_is_closed",
+        "narrowest_safe_path_preferred",
+        "factory_reset_is_not_first_candidate",
+        "glossary_terms_frozen"
+      ],
+      "properties": {
+        "scenario_family_is_closed": { "type": "boolean", "const": true },
+        "recommended_route_is_closed": { "type": "boolean", "const": true },
+        "narrowest_safe_path_preferred": { "type": "boolean", "const": true },
+        "factory_reset_is_not_first_candidate": { "type": "boolean", "const": true },
+        "glossary_terms_frozen": { "type": "boolean", "const": true }
+      }
+    },
+    "recovery_route_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recovery_route_decision_schema_version",
+        "decision_id",
+        "generated_at",
+        "scenario_family_class",
+        "deployment_profile_scope_class",
+        "recommended_route_class",
+        "title",
+        "summary",
+        "glossary",
+        "linkage",
+        "honesty_invariants"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "recovery_route_decision_schema_version": { "$ref": "#/$defs/recovery_route_decision_schema_version" },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "scenario_family_class": { "$ref": "#/$defs/scenario_family_class" },
+        "deployment_profile_scope_class": { "$ref": "#/$defs/deployment_profile_scope_class" },
+        "requested_route_class": { "$ref": "#/$defs/recovery_route_class" },
+        "requested_reset_kind_class": { "$ref": "#/$defs/reset_kind_class" },
+        "recommended_route_class": { "$ref": "#/$defs/recovery_route_class" },
+        "recommended_reset_kind_class": { "$ref": "#/$defs/reset_kind_class" },
+        "title": { "$ref": "#/$defs/short_text" },
+        "summary": { "$ref": "#/$defs/short_text" },
+        "glossary": { "$ref": "#/$defs/glossary_block" },
+        "linkage": { "$ref": "#/$defs/linkage_block" },
+        "honesty_invariants": { "$ref": "#/$defs/honesty_invariants" }
+      },
+      "allOf": [
+        {
+          "description": "Reset-gated routes require an explicit recommended_reset_kind_class.",
+          "if": {
+            "properties": {
+              "recommended_route_class": {
+                "enum": [
+                  "export_before_reset_checklist_route",
+                  "factory_reset_review_route"
+                ]
+              }
+            },
+            "required": ["recommended_route_class"]
+          },
+          "then": {
+            "required": ["recommended_reset_kind_class"]
+          }
+        },
+        {
+          "description": "factory_reset_review_route always binds to reset_kind_class = factory_reset.",
+          "if": {
+            "properties": {
+              "recommended_route_class": { "const": "factory_reset_review_route" }
+            },
+            "required": ["recommended_route_class"]
+          },
+          "then": {
+            "properties": {
+              "recommended_reset_kind_class": { "const": "factory_reset" }
+            },
+            "required": ["recommended_reset_kind_class"]
+          }
+        },
+        {
+          "description": "workspace_index_corruption and control_plane_outage forbid destructive reset-gated routing.",
+          "if": {
+            "properties": {
+              "scenario_family_class": {
+                "enum": [
+                  "workspace_index_corruption",
+                  "control_plane_outage"
+                ]
+              }
+            },
+            "required": ["scenario_family_class"]
+          },
+          "then": {
+            "not": {
+              "properties": {
+                "recommended_route_class": {
+                  "enum": [
+                    "export_before_reset_checklist_route",
+                    "factory_reset_review_route"
+                  ]
+                }
+              },
+              "required": ["recommended_route_class"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
