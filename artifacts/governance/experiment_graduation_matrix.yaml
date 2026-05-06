@@ -1,0 +1,173 @@
+# Experiment expiry, graduation/demotion, and schema-governance review matrix.
+#
+# Machine-readable companion to:
+#   docs/governance/experiment_expiry_and_schema_review_contract.md
+#
+# This matrix does not implement runtime flag evaluation. It freezes the
+# review contract for lifecycle actions and for stale/expired experiment
+# handling across import, sync, downgrade/open, restore, and support export.
+#
+# Rules:
+#   - Milestone slugs and task ids MUST NOT appear in any id, path, or
+#     description field. Describe what the row covers, not which planning
+#     item it came from.
+#   - Any action that changes lifecycle_state, cohort/ring scope, expiry,
+#     or schema impact MUST update the canonical register row, the review
+#     row projection, and at least one edge-case fixture when the change
+#     introduces a new downgrade/mismatch behavior.
+#   - Schema or policy mismatch may block enable/apply or may narrow scope,
+#     but MUST NOT silently rewrite user-owned durable truth.
+
+schema_version: 1
+overview_page: docs/governance/experiment_expiry_and_schema_review_contract.md
+review_row_schema_ref: schemas/governance/experiment_review_row.schema.json
+canonical_register_ref: artifacts/governance/experiments_register.yaml
+policy_doc_ref: docs/governance/feature_flag_policy.md
+schema_family_registry_ref: artifacts/governance/schema_families.yaml
+ux_spec_ref: .t2/docs/Aureline_UI_UX_Spec_Document.md#18.25-feature-flags-experiment-kill-switches-and-schema-governance-ux
+
+vocabulary:
+  lifecycle_states:
+    - labs
+    - preview
+    - beta
+    - stable
+    - deprecated
+    - disabled_by_policy
+    - retired
+  lifecycle_actions:
+    - graduate
+    - demote
+    - retire
+    - force_disable
+  mismatch_severities:
+    - info
+    - warning
+    - error
+  preserve_drop_behaviors:
+    - preserve_as_unknown
+    - drop_on_read
+    - block_apply
+    - defer_until_supported
+
+# -----------------------------------------------------------------------------
+# Lifecycle action packets.
+# Each row is the minimum packet required to make the action reviewable.
+# -----------------------------------------------------------------------------
+
+lifecycle_action_packets:
+  - action_id: graduate_control_row
+    action_kind: graduate
+    summary: Widen lifecycle_state or cohort/ring on a control row.
+    required_updates:
+      - artifacts/governance/experiments_register.yaml
+      - schemas/governance/experiment_review_row.schema.json (projection contract)
+      - docs/governance/experiment_expiry_and_schema_review_contract.md (if new cues/vocabulary are introduced)
+      - fixtures/governance/experiment_edge_cases/ (when behavior changes)
+    required_review_row_fields:
+      - owner_dri
+      - public_label
+      - lifecycle_state
+      - expiry
+      - kill_switch_source
+      - consequences
+      - migration_note
+      - schema_impacts
+    mismatch_gates:
+      - gate_id: policy_mismatch_blocks_widen
+        mismatch_source: policy
+        severity: error
+        required_behavior: block_apply
+        summary: A policy ceiling mismatch blocks widening (enable/apply fails closed).
+      - gate_id: schema_mismatch_blocks_durable_write
+        mismatch_source: schema
+        severity: error
+        required_behavior: block_apply
+        summary: Any schema mismatch that would rewrite durable truth blocks enable/apply until reviewed.
+      - gate_id: schema_mismatch_allows_preserve_unknown
+        mismatch_source: schema
+        severity: warning
+        required_behavior: preserve_as_unknown
+        summary: Warning-level mismatch may preserve unknown fields as unknown with explicit cues.
+
+  - action_id: demote_control_row
+    action_kind: demote
+    summary: Narrow lifecycle_state or cohort/ring on a control row.
+    required_updates:
+      - artifacts/governance/experiments_register.yaml
+      - fixtures/governance/experiment_edge_cases/ (when downgrade behavior changes)
+    required_disclosures:
+      - disable_or_narrow_reason_is_copy_safe
+      - fallback_behavior_is_named
+      - support_export_preserves_reason
+
+  - action_id: retire_control_row
+    action_kind: retire
+    summary: Retire a control row while preserving tombstone and exportable reasons.
+    required_updates:
+      - artifacts/governance/experiments_register.yaml
+      - fixtures/governance/experiment_edge_cases/
+    retirement_rules:
+      - rule_id: preserve_identity_and_reason
+        summary: Do not delete the row; preserve identity and the last-known reason so older artifacts can still reference it.
+      - rule_id: deny_enablement_on_reference
+        summary: Referencing a retired row in an import/sync artifact denies enablement and produces mismatch cues.
+
+  - action_id: force_disable_control_row
+    action_kind: force_disable
+    summary: Force-disable (or narrow) a control row due to safety, policy, or kill-switch trigger.
+    required_updates:
+      - artifacts/governance/experiments_register.yaml
+      - fixtures/governance/experiment_edge_cases/
+    forced_disable_rules:
+      - rule_id: preserve_user_authored_data
+        summary: Force-disable preserves durable user-authored data where possible and records the disable source.
+      - rule_id: downgrade_is_visible_everywhere
+        summary: Disabled state is visible in settings, docs/help truth, support export, and any structured inspect output.
+
+# -----------------------------------------------------------------------------
+# Stale/expired behavior across flows.
+# These are cross-cutting rules; individual review rows may narrow but not
+# weaken them.
+# -----------------------------------------------------------------------------
+
+stale_behavior_matrix:
+  - surface: profile_import
+    when: imported_artifact_references_expired_or_unsupported_control_row
+    required:
+      - preserve_exportable_reason
+      - emit_schema_mismatch_cue_when_schema_version_skews
+      - block_or_narrow_when_enablement_would_widen_authority
+    preserve_drop_default: preserve_as_unknown
+
+  - surface: sync_conflict_review
+    when: sync_packet_contains_missing_capability_or_stale_remote_value
+    required:
+      - surface_conflict_class_missing_capability
+      - keep_local_and_keep_remote_preserve_reason
+      - do_not_overwrite_local_durable_truth_on_session_failure
+    preserve_drop_default: preserve_as_unknown
+
+  - surface: downgrade_open
+    when: older_build_opens_state_written_by_newer_build_with_control_row_dependencies
+    required:
+      - preserve_tombstones_for_unknown_control_rows
+      - emit_mismatch_cues_for_unknown_fields
+      - avoid_silent_rewrite_during_repair
+    preserve_drop_default: defer_until_supported
+
+  - surface: restore
+    when: restore_checkpoint_includes_expired_or_unknown_control_row_dependencies
+    required:
+      - restore_preserves_dependency_markers
+      - restore_preserves_mismatch_cues
+    preserve_drop_default: preserve_as_unknown
+
+  - surface: support_export
+    when: support_bundle_is_emitted_from_state_with_stale_or_unknown_control_rows
+    required:
+      - include_copy_safe_ids_versions_paths
+      - include_disable_or_expiry_reasons
+      - avoid_collapsing_into_generic_defaults
+    preserve_drop_default: preserve_as_unknown
+

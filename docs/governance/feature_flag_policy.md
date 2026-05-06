@@ -21,6 +21,9 @@ Companion sources:
   every settings-facing experiment must respect.
 - [`/docs/adr/0011-capability-lifecycle-and-dependency-markers.md`](../adr/0011-capability-lifecycle-and-dependency-markers.md)
   — lifecycle-state vocabulary and dependency-marker rules.
+- [`/docs/governance/experiment_expiry_and_schema_review_contract.md`](./experiment_expiry_and_schema_review_contract.md)
+  — expiry/graduation packet requirements and schema-mismatch cue
+  contract used by import/sync/downgrade/restore/support-export flows.
 - [`.t2/docs/Aureline_Technical_Design_Document.md`](../../.t2/docs/Aureline_Technical_Design_Document.md)
   Appendix CH — lifecycle expectations for Labs / Preview / Beta /
   Stable / Deprecated / DisabledByPolicy.

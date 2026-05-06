@@ -40,6 +40,10 @@ Companion artifacts:
 - [`./feature_flag_policy.md`](./feature_flag_policy.md)
   — normative policy for experiments, feature flags, Labs inventory,
   rollouts, policy disables, and kill switches.
+- [`./experiment_expiry_and_schema_review_contract.md`](./experiment_expiry_and_schema_review_contract.md)
+  — contract for experiment expiry/graduation and schema-governance
+  mismatch cues across import, sync, downgrade/open, restore, and
+  support export.
 - [`../policy/admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md)
   — local admin-policy artifact and signed bundle-cache contract,
   including precedence, safe-default, last-known-good, emergency-disable,
@@ -50,6 +54,10 @@ Companion artifacts:
 - [`/artifacts/governance/labs_register.yaml`](../../artifacts/governance/labs_register.yaml)
   — contributor-visible Labs / prototype / preview inventory
   projected from the canonical register.
+- [`/artifacts/governance/experiment_graduation_matrix.yaml`](../../artifacts/governance/experiment_graduation_matrix.yaml)
+  and [`/fixtures/governance/experiment_edge_cases/`](../../fixtures/governance/experiment_edge_cases/)
+  — lifecycle action packet requirements plus worked edge cases for
+  stale/expired experiment handling and copy-safe schema mismatch cues.
 - [`/artifacts/governance/requirement_register_seed.yaml`](../../artifacts/governance/requirement_register_seed.yaml)
   — machine-readable canonical requirement register consumed by
   scorecards, packets, waivers, and release evidence.

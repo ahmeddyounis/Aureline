@@ -1,0 +1,45 @@
+# Experiment edge case: sync conflict surfaces missing capability and preserves reason.
+schema_version: 1
+case_id: experiment_edge.sync_conflict.missing_capability
+title: Sync conflict review records missing capability and never erases downgrade reason
+contract_refs:
+  - docs/governance/experiment_expiry_and_schema_review_contract.md
+  - artifacts/governance/experiment_graduation_matrix.yaml
+  - schemas/profile/sync_conflict_record.schema.json
+
+scenario:
+  as_of_date: "2026-05-06"
+  sync_packet:
+    scope_kind: settings
+    schema_version_observed: 1
+    referenced_control_rows:
+      - control_row_id: exp.settings.policy_narrowing_preview
+        declared_enabled: true
+        observed_state_source: remote_device
+  local_capabilities:
+    supported_control_row_ids:
+      - exp.buffer.prototype_harness
+    policy_ceiling_active: true
+
+expected:
+  conflict_class: missing_capability
+  reviewer_actions:
+    - keep_local
+    - keep_remote_value_as_tombstone
+  preserved_reason_records:
+    - control_row_id: exp.settings.policy_narrowing_preview
+      downgrade_class: unsupported
+      reason_class: missing_capability_on_target
+      preserve_drop_behavior: preserve_as_unknown
+      copy_safe_summary: >
+        Remote value references exp.settings.policy_narrowing_preview which is not supported by this build.
+        The reference remains inspectable; conflict resolution does not erase the reason.
+  mismatch_cues:
+    - artifact_type: sync_scope_bundle
+      schema_ref: schemas/profile/sync_conflict_record.schema.json
+      schema_version_observed: 1
+      field_path: "$.conflict_packet.missing_capability_notes[]"
+      severity: warning
+      preserve_drop_behavior: preserve_as_unknown
+      docs_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+

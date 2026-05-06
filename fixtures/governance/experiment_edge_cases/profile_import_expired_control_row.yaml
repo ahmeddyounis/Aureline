@@ -1,0 +1,82 @@
+# Experiment edge case: profile import preserves expired control-row truth.
+schema_version: 1
+case_id: experiment_edge.profile_import.expired_control_row
+title: Profile import preserves expired control-row reason and blocks silent enablement
+contract_refs:
+  - docs/governance/experiment_expiry_and_schema_review_contract.md
+  - schemas/governance/experiment_review_row.schema.json
+  - artifacts/governance/experiment_graduation_matrix.yaml
+
+scenario:
+  as_of_date: "2026-05-06"
+  imported_artifact:
+    artifact_type: portable_profile
+    schema_ref: schemas/profile/portable_profile.schema.json
+    schema_version_observed: 1
+    referenced_control_rows:
+      - control_row_id: exp.profile.sync_preview
+        declared_enabled: true
+        observed_state_source: imported_profile
+
+  review_row_snapshot:
+    record_kind: experiment_review_row
+    experiment_review_row_schema_version: 1
+    control_row_id: exp.profile.sync_preview
+    row_kind: experiment
+    public_label: Profile sync preview
+    owner_dri: "@aureline-profile"
+    cohort_or_ring: preview_ring_small
+    lifecycle_state: preview
+    expiry:
+      review_by: null
+      expires_on: "2026-01-01"
+    kill_switch_source:
+      source_kind: signed_local_admin_bundle
+      source_ref: docs/policy/admin_policy_and_bundle_cache_contract.md
+      fallback_behavior_summary: Sync remains local-only; the imported profile stays readable and exportable.
+      docs_disclosure_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+    consequences:
+      - consequence_class: write_scope
+        impact_severity: medium
+        summary: Enables writing a sync scope bundle; must not overwrite local durable truth on conflict.
+      - consequence_class: retention
+        impact_severity: medium
+        summary: Creates reconciliation state whose retention posture must remain inspectable.
+    migration_note: No migration: when expired, the row downgrades to local-only behavior and records the reason.
+    schema_impacts:
+      - artifact_type: portable_profile
+        schema_ref: schemas/profile/portable_profile.schema.json
+        schema_version_introduced: 1
+        field_paths:
+          - "$.portable_profile_artifact_record.control_row_dependencies[]"
+        default_mismatch_behavior: preserve_as_unknown
+        cue_templates:
+          - artifact_type: portable_profile
+            schema_ref: schemas/profile/portable_profile.schema.json
+            schema_version_observed: 1
+            field_path: "$.portable_profile_artifact_record.control_row_dependencies[]"
+            severity: warning
+            preserve_drop_behavior: preserve_as_unknown
+            docs_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+    contract_docs_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+    related_register_row_ref: null
+
+expected:
+  import_apply_decision: blocked_requires_review
+  preserved_reason_records:
+    - control_row_id: exp.profile.sync_preview
+      downgrade_class: expired
+      reason_class: expires_on_passed
+      preserve_drop_behavior: preserve_as_unknown
+      copy_safe_summary: >
+        Imported artifact references exp.profile.sync_preview, but it expired on 2026-01-01.
+        The dependency is preserved for export and review; enable/apply is blocked until reviewed.
+  mismatch_cues:
+    - artifact_type: portable_profile
+      schema_ref: schemas/profile/portable_profile.schema.json
+      schema_version_observed: 1
+      field_path: "$.portable_profile_artifact_record.control_row_dependencies[]"
+      severity: warning
+      preserve_drop_behavior: preserve_as_unknown
+      docs_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+

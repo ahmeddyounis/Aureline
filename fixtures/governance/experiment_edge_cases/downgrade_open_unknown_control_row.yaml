@@ -1,0 +1,42 @@
+# Experiment edge case: downgrade/open preserves unknown control-row references.
+schema_version: 1
+case_id: experiment_edge.downgrade_open.unknown_control_row
+title: Older build preserves unknown control-row references and emits defer cues instead of rewriting
+contract_refs:
+  - docs/governance/experiment_expiry_and_schema_review_contract.md
+  - artifacts/governance/experiment_graduation_matrix.yaml
+
+scenario:
+  as_of_date: "2026-05-06"
+  reader_build:
+    build_label: older_build
+    supported_control_row_ids:
+      - exp.buffer.prototype_harness
+  opened_state:
+    artifact_type: portable_profile
+    schema_ref: schemas/profile/portable_profile.schema.json
+    schema_version_observed: 2
+    referenced_control_rows:
+      - control_row_id: exp.future.schema_widening_preview
+        declared_enabled: true
+        observed_state_source: durable_state
+
+expected:
+  open_outcome: opened_with_degraded_state
+  preserved_reason_records:
+    - control_row_id: exp.future.schema_widening_preview
+      downgrade_class: unknown
+      reason_class: control_row_id_not_recognized
+      preserve_drop_behavior: defer_until_supported
+      copy_safe_summary: >
+        State references exp.future.schema_widening_preview which this build does not recognize.
+        The reference is preserved as a tombstone and deferred; the reader does not rewrite durable state.
+  mismatch_cues:
+    - artifact_type: portable_profile
+      schema_ref: schemas/profile/portable_profile.schema.json
+      schema_version_observed: 2
+      field_path: "$.portable_profile_artifact_record.control_row_dependencies[]"
+      severity: warning
+      preserve_drop_behavior: defer_until_supported
+      docs_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+

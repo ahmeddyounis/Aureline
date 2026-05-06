@@ -1,0 +1,41 @@
+# Experiment edge case: support export includes expiry/disable reasons and mismatch cues.
+schema_version: 1
+case_id: experiment_edge.support_export.includes_expiry_reasons
+title: Support export includes copy-safe control-row tombstones and schema mismatch cues
+contract_refs:
+  - docs/governance/experiment_expiry_and_schema_review_contract.md
+  - artifacts/governance/experiment_graduation_matrix.yaml
+
+scenario:
+  as_of_date: "2026-05-06"
+  support_bundle:
+    bundle_schema_ref: schemas/support/support_bundle.schema.json
+    include_classes:
+      - control_stack_snapshot
+      - portability_export_record
+    observed_control_rows:
+      - control_row_id: exp.profile.sync_preview
+        effective_state: disabled
+        downgrade_class: expired
+        reason_class: expires_on_passed
+      - control_row_id: exp.future.schema_widening_preview
+        effective_state: unresolved
+        downgrade_class: unknown
+        reason_class: control_row_id_not_recognized
+    observed_mismatch_cues:
+      - artifact_type: portable_profile
+        schema_ref: schemas/profile/portable_profile.schema.json
+        schema_version_observed: 2
+        field_path: "$.portable_profile_artifact_record.control_row_dependencies[]"
+        severity: warning
+        preserve_drop_behavior: preserve_as_unknown
+        docs_ref: docs/governance/experiment_expiry_and_schema_review_contract.md
+
+expected:
+  export_is_copy_safe: true
+  includes_reason_records: true
+  includes_mismatch_cues: true
+  forbidden_behavior_checks:
+    - does_not_collapse_into_generic_defaults
+    - does_not_embed_secret_bearing_values
+

@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/experiment_review_row.schema.json",
+  "title": "Aureline experiment expiry and schema-governance review row",
+  "description": "Boundary schema for an experiment_review_row record. A review row is the reusable, projection-friendly contract for one control row (experiment, feature flag, rollout, or benchmark mode) that can affect schema-governed surfaces. The record is intended for release packets, docs/help truth, settings explainability, support exports, migration/import/sync previews, and claim publication. Fields are copy-safe: they name ids, versions, paths, and typed consequences without embedding secret-bearing payload values. This schema does not implement runtime evaluation; it freezes the review surface so later tooling can generate and consume the same row without local extensions.",
+  "$ref": "#/$defs/experiment_review_row",
+  "$defs": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for experiment review rows. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence intended for reviewer surfaces, docs, manifests, or support exports."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$",
+      "description": "Stable lowercase token identifier."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Dot-separated stable identifier."
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+    "owner_dri": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Owner DRI handle or stable role id (for example @name, ownership role id, or a governed team token)."
+    },
+    "row_kind": {
+      "type": "string",
+      "enum": ["experiment", "feature_flag", "benchmark_mode", "rollout"],
+      "description": "Control-row kind aligned with artifacts/governance/experiments_register.yaml."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": ["labs", "preview", "beta", "stable", "deprecated", "disabled_by_policy", "retired"],
+      "description": "Lifecycle state vocabulary for control rows. Adjacent surfaces must not invent parallel marketing synonyms."
+    },
+    "kill_switch_source_kind": {
+      "type": "string",
+      "enum": [
+        "embedded_default_off",
+        "local_cli_argument",
+        "ci_workflow_input",
+        "signed_local_admin_bundle",
+        "optional_managed_override"
+      ],
+      "description": "Which source layer can force-disable (or narrow) the row."
+    },
+    "consequence_class": {
+      "type": "string",
+      "enum": ["telemetry", "route", "cost", "write_scope", "retention"],
+      "description": "Consequence-class vocabulary required by the experiment review row contract."
+    },
+    "impact_severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Reviewer-facing impact severity. Used for gating and disclosure, not for runtime evaluation."
+    },
+    "schema_mismatch_severity": {
+      "type": "string",
+      "enum": ["info", "warning", "error"],
+      "description": "Schema-mismatch cue severity. error implies a fail-closed block for any mutation of durable user-owned truth."
+    },
+    "preserve_drop_behavior": {
+      "type": "string",
+      "enum": ["preserve_as_unknown", "drop_on_read", "block_apply", "defer_until_supported"],
+      "description": "Typed preserve/drop behavior surfaced on schema mismatch or unknown-field handling."
+    },
+    "review_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "ISO 8601 calendar date (YYYY-MM-DD). Null when the field is intentionally unset."
+    },
+    "expiry_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "review_by": {
+          "$ref": "#/$defs/review_date"
+        },
+        "expires_on": {
+          "$ref": "#/$defs/review_date"
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["review_by"],
+          "properties": { "review_by": { "type": "string", "format": "date" } }
+        },
+        {
+          "required": ["expires_on"],
+          "properties": { "expires_on": { "type": "string", "format": "date" } }
+        }
+      ],
+      "description": "Expiry window for the control row. At least one of review_by or expires_on is set (non-null)."
+    },
+    "kill_switch_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "source_ref", "fallback_behavior_summary"],
+      "properties": {
+        "source_kind": {
+          "$ref": "#/$defs/kill_switch_source_kind"
+        },
+        "source_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Path or anchor to the controlling artifact (policy bundle ref, CLI flag entry point, CI workflow, etc.)."
+        },
+        "fallback_behavior_summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Copy-safe description of what happens when the row is force-disabled or narrowed."
+        },
+        "docs_disclosure_ref": {
+          "anyOf": [{ "$ref": "#/$defs/path_ref" }, { "type": "null" }],
+          "description": "Optional docs reference that explains the disable/narrowing posture to users or reviewers."
+        }
+      }
+    },
+    "consequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["consequence_class", "impact_severity", "summary"],
+      "properties": {
+        "consequence_class": {
+          "$ref": "#/$defs/consequence_class"
+        },
+        "impact_severity": {
+          "$ref": "#/$defs/impact_severity"
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence"
+        }
+      }
+    },
+    "schema_mismatch_cue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_type",
+        "schema_ref",
+        "schema_version_observed",
+        "field_path",
+        "severity",
+        "preserve_drop_behavior",
+        "docs_ref"
+      ],
+      "properties": {
+        "artifact_type": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Schema-governed surface / artifact type."
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Schema reference (repo-relative path or canonical id)."
+        },
+        "schema_version_observed": {
+          "type": ["integer", "string"],
+          "description": "Observed schema version token from the artifact being read."
+        },
+        "field_path": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Exact field path that triggered the mismatch cue (no values; paths only)."
+        },
+        "severity": {
+          "$ref": "#/$defs/schema_mismatch_severity"
+        },
+        "preserve_drop_behavior": {
+          "$ref": "#/$defs/preserve_drop_behavior"
+        },
+        "docs_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Docs link that explains the contract and remediation path."
+        }
+      }
+    },
+    "schema_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_type", "schema_ref", "schema_version_introduced", "field_paths", "default_mismatch_behavior"],
+      "properties": {
+        "artifact_type": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Artifact type whose schema-governance posture this control row can affect."
+        },
+        "schema_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Repo-relative schema reference for the impacted surface."
+        },
+        "schema_version_introduced": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Schema version at which the impacted field paths are introduced (or changed) under this control row."
+        },
+        "field_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Exact field paths added/removed/repurposed under the control row."
+        },
+        "default_mismatch_behavior": {
+          "$ref": "#/$defs/preserve_drop_behavior",
+          "description": "Default preserve/drop behavior when an older/newer reader encounters the impacted fields."
+        },
+        "cue_templates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/schema_mismatch_cue" },
+          "description": "Optional copy-safe mismatch cue templates for projections (CLI, support export, import preview)."
+        }
+      }
+    },
+    "experiment_review_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "experiment_review_row_schema_version",
+        "control_row_id",
+        "row_kind",
+        "public_label",
+        "owner_dri",
+        "cohort_or_ring",
+        "lifecycle_state",
+        "expiry",
+        "kill_switch_source",
+        "consequences",
+        "migration_note",
+        "schema_impacts",
+        "contract_docs_ref"
+      ],
+      "properties": {
+        "record_kind": {
+          "type": "string",
+          "const": "experiment_review_row",
+          "description": "Discriminator for the review-row record."
+        },
+        "experiment_review_row_schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "control_row_id": {
+          "$ref": "#/$defs/stable_dot_id",
+          "description": "Stable id of the control row (typically prefixed exp., flag., rollout., or bench.)."
+        },
+        "row_kind": {
+          "$ref": "#/$defs/row_kind"
+        },
+        "public_label": {
+          "$ref": "#/$defs/reviewable_sentence"
+        },
+        "owner_dri": {
+          "$ref": "#/$defs/owner_dri"
+        },
+        "cohort_or_ring": {
+          "$ref": "#/$defs/stable_token",
+          "description": "Cohort/ring token for the default rollout scope (review surfaces render it; runtime evaluation is out of scope here)."
+        },
+        "lifecycle_state": {
+          "$ref": "#/$defs/lifecycle_state"
+        },
+        "expiry": {
+          "$ref": "#/$defs/expiry_window"
+        },
+        "kill_switch_source": {
+          "$ref": "#/$defs/kill_switch_source"
+        },
+        "consequences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consequence" },
+          "description": "Declared consequence classes for enabling the control row. Empty array is valid when the row is purely cosmetic and does not alter telemetry, routing, cost posture, write-scope, or retention semantics."
+        },
+        "migration_note": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Copy-safe migration note. Use an explicit 'no migration' note rather than omitting the field."
+        },
+        "schema_impacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/schema_impact" },
+          "description": "Schema-governed surfaces whose shape or compatibility posture this control row can affect."
+        },
+        "contract_docs_ref": {
+          "$ref": "#/$defs/path_ref",
+          "description": "Docs reference that defines the expiry and mismatch contract for this review row."
+        },
+        "related_register_row_ref": {
+          "anyOf": [{ "$ref": "#/$defs/path_ref" }, { "type": "null" }],
+          "description": "Optional reference to the canonical register row (file path plus anchor) this review row projects from."
+        }
+      }
+    }
+  }
+}
+
