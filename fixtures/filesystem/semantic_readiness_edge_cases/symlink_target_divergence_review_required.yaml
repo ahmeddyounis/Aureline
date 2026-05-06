@@ -1,0 +1,115 @@
+# yaml-language-server: $schema=../../../schemas/filesystem/semantic_readiness_view.schema.json
+__fixture__:
+  name: symlink_target_divergence_review_required
+  scenario: >
+    The user opened a stable presentation path that is a symlink/junction. The
+    resolved canonical target changed mid-session. Readiness must fail safely:
+    do not allow a blind save; require review and preserve the same safe action
+    list across exports.
+  doc_section: Semantic-readiness conformance — canonical target diverged
+  exercises:
+    semantic_readiness.state: stale
+    not_ready_reason: review_required
+    safe_next_action: review_and_approve
+record_kind: semantic_readiness_view_record
+semantic_readiness_view_schema_version: 1
+view_id: readiness.edge.symlink_target_divergence.0001
+readiness_record:
+  record_kind: semantic_readiness_record
+  filesystem_identity_schema_version: 1
+  subject:
+    kind: object
+    identity:
+      record_kind: filesystem_identity_record
+      filesystem_identity_schema_version: 1
+      presentation_path:
+        uri: file:///ws/docs/current.md
+        display_label: current.md
+        root_badge: local
+      logical_workspace_identity:
+        workspace_id: ws-aureline-primary
+        root_id: root-1
+        logical_uri: aureline-ws://ws-aureline-primary/root-1/releases/v2/current.md
+        trust_state: trusted
+      canonical_filesystem_object:
+        canonical_uri: file:///ws/releases/v2/current.md
+        normalization_form: nfc
+        strongest_identity_token:
+          kind: device_inode_generation
+          value: dev:1/ino:919/gen:1
+        fallback_identity_tokens: []
+      alias_set:
+        aliases:
+          - alias_uri: file:///ws/docs/current.md
+            alias_kind: symlink
+            resolution_chain:
+              - opened: file:///ws/docs/current.md
+              - symlink target at open: file:///ws/releases/v1/current.md
+              - sibling writer repointed the symlink
+              - symlink target now: file:///ws/releases/v2/current.md
+          - alias_uri: file:///ws/releases/v2/current.md
+            alias_kind: symlink
+            resolution_chain:
+              - file:///ws/releases/v2/current.md
+              - -> canonical
+  semantic_readiness:
+    state: stale
+    not_ready_reason: review_required
+    safe_next_action: review_and_approve
+    producer_id: workspace_vfs
+    producer_version: vfs-proto-0.0.0
+    observed_at: "mono:readiness:symlink_target_divergence:0001"
+    explainer: Presentation path resolves to a different canonical target than at open.
+    readiness_chip:
+      state: stale
+      detail_target: aureline.vfs.openSaveTargetReview
+    not_ready_explainer:
+      title: Path resolves to a different file
+      body: >
+        The path you opened no longer resolves to the same underlying file.
+        Review the canonical target before saving to avoid writing to the wrong
+        file.
+      what_still_works:
+        - Opening and reading the file
+        - Saving via Save As
+        - Reviewing alias details
+    safe_next_actions:
+      - action: review_and_approve
+        command_id: aureline.vfs.openSaveTargetReview
+        consequence: Opens a save-target review sheet before writing.
+      - action: open_alias_details
+        command_id: aureline.vfs.openAliasDetails
+        consequence: Opens the alias inspector for this file.
+      - action: save_as
+        command_id: aureline.io.saveAs
+        consequence: Saves to a new target path after review.
+      - action: cancel
+        command_id: aureline.vfs.noop
+        consequence: Cancels the pending save.
+    support_export:
+      packet_family: semantic_readiness
+      redaction_policy: default_filesystem_redaction_v1
+      parity_signature: parity:filesystem:readiness:symlink_target_divergence:0001
+why_not_ready:
+  blocking_subsystem: workspace_identity
+  freshness_source: root_identity_remap
+  confidence_class: high
+  not_ready_explainer_copy_id: filesystem.readiness.explainer.canonical_target_mismatch
+  safe_next_actions:
+    - action: review_and_approve
+      command_id: aureline.vfs.openSaveTargetReview
+      consequence: Opens a save-target review sheet before writing.
+    - action: open_alias_details
+      command_id: aureline.vfs.openAliasDetails
+      consequence: Opens the alias inspector for this file.
+    - action: save_as
+      command_id: aureline.io.saveAs
+      consequence: Saves to a new target path after review.
+    - action: cancel
+      command_id: aureline.vfs.noop
+      consequence: Cancels the pending save.
+  escalation_target:
+    kind: docs_reference
+    ref: docs/fs/path_truth_packet.md
+    label: Path truth packet
+recorded_at: "mono:readiness:symlink_target_divergence:view:0001"

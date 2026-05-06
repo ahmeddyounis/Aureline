@@ -1,0 +1,144 @@
+# Semantic-readiness cross-surface parity matrix.
+#
+# This matrix defines the field-by-field parity contract used to compare
+# semantic-readiness projections across:
+# - desktop UI (live surfaces),
+# - headless / CLI output,
+# - migration reports,
+# - recovery packets, and
+# - support exports.
+#
+# It is a companion to:
+# - docs/filesystem/semantic_readiness_projection.md (projection contract)
+# - docs/verification/semantic_readiness_conformance_packet.md (audit packet)
+# - schemas/filesystem/semantic_readiness_failure.schema.json (failure codes)
+
+record_kind: semantic_readiness_parity_matrix_record
+semantic_readiness_parity_matrix_version: 1
+matrix_id: filesystem.semantic_readiness.parity_matrix.seed.01
+title: Semantic-readiness parity matrix (filesystem identity + exports)
+
+sources:
+  packet_source: docs/verification/semantic_readiness_conformance_packet.md
+  projection_contract: docs/filesystem/semantic_readiness_projection.md
+  vocabulary: docs/filesystem/filesystem_identity_vocabulary.md
+  path_truth_packet: docs/fs/path_truth_packet.md
+  identity_schema_ref: schemas/filesystem/save_target_token.schema.json
+  readiness_view_schema_ref: schemas/filesystem/semantic_readiness_view.schema.json
+  failure_schema_ref: schemas/filesystem/semantic_readiness_failure.schema.json
+
+surfaces:
+  - surface_id: desktop_ui
+    description: Live UI surfaces (chips, detail/inspector surfaces, diagnostics).
+    parity_requirement: byte_for_byte
+    required_fields:
+      - subject
+      - semantic_readiness.state
+      - semantic_readiness.not_ready_reason
+      - semantic_readiness.safe_next_action
+      - semantic_readiness.safe_next_actions
+      - semantic_readiness.producer_id
+      - semantic_readiness.producer_version
+      - semantic_readiness.observed_at
+      - semantic_readiness.not_ready_explainer
+      - semantic_readiness.support_export.packet_family
+      - semantic_readiness.support_export.redaction_policy
+      - semantic_readiness.support_export.parity_signature
+  - surface_id: cli_or_headless
+    description: Headless / CLI output (machine + human forms).
+    parity_requirement: byte_for_byte_for_machine_output
+    required_fields:
+      - subject
+      - semantic_readiness.state
+      - semantic_readiness.not_ready_reason
+      - semantic_readiness.safe_next_action
+      - semantic_readiness.safe_next_actions
+      - semantic_readiness.producer_id
+      - semantic_readiness.producer_version
+      - semantic_readiness.observed_at
+      - semantic_readiness.not_ready_explainer
+  - surface_id: migration_report
+    description: Migration reports and dry-run exports.
+    parity_requirement: byte_for_byte
+    required_fields:
+      - subject
+      - semantic_readiness.state
+      - semantic_readiness.not_ready_reason
+      - semantic_readiness.safe_next_action
+      - semantic_readiness.safe_next_actions
+      - semantic_readiness.producer_id
+      - semantic_readiness.producer_version
+      - semantic_readiness.observed_at
+      - semantic_readiness.not_ready_explainer
+  - surface_id: recovery_packet
+    description: Recovery packet surfaces (replay, repair ladder, restore manifests).
+    parity_requirement: byte_for_byte
+    required_fields:
+      - subject
+      - semantic_readiness.state
+      - semantic_readiness.not_ready_reason
+      - semantic_readiness.safe_next_action
+      - semantic_readiness.safe_next_actions
+      - semantic_readiness.producer_id
+      - semantic_readiness.producer_version
+      - semantic_readiness.observed_at
+      - semantic_readiness.not_ready_explainer
+  - surface_id: support_export
+    description: Support bundle / evidence export.
+    parity_requirement: byte_for_byte_plus_signature
+    required_fields:
+      - subject
+      - semantic_readiness
+    required_support_fields:
+      - semantic_readiness.support_export.packet_family
+      - semantic_readiness.support_export.redaction_policy
+      - semantic_readiness.support_export.parity_signature
+
+path_identity_evidence:
+  # When presentation path and canonical URI differ, these fields must be
+  # preserved on any surface that claims to represent an object-level subject.
+  applies_when: presentation_path_differs_from_canonical
+  required_identity_fields:
+    - subject.identity.presentation_path
+    - subject.identity.canonical_filesystem_object
+    - subject.identity.alias_set
+    - subject.identity.logical_workspace_identity
+
+failure_codes:
+  schema_ref: schemas/filesystem/semantic_readiness_failure.schema.json
+  stable_codes:
+    - wrong_state_projection
+    - missing_explainer
+    - canonical_target_mismatch
+    - dropped_safe_action
+    - export_time_narrowing
+
+edge_case_corpus:
+  fixture_root: fixtures/filesystem/semantic_readiness_edge_cases
+  fixtures:
+    - fixtures/filesystem/semantic_readiness_edge_cases/alias_set_drift.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/case_only_rename_exact.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/symlink_target_divergence_review_required.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/moved_target_identity_preserved.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/stale_watcher_state.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/save_target_mismatch_review_required.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/partial_index.yaml
+    - fixtures/filesystem/semantic_readiness_edge_cases/export_snapshot_timing_skew.yaml
+
+audit_rules:
+  - rule_id: readiness_parity_floor
+    description: >
+      For the same fixture subject, every listed surface preserves the parity
+      floor. Any omission must become an explicit narrowing with a failure
+      item; silent omission is non-conforming.
+  - rule_id: safe_next_actions_preserved
+    description: >
+      A not-ready record preserves the ordered safe-next-action list across
+      export, migration, recovery, and UI surfaces; dropping an action is a
+      parity failure unless the surface also emits an explicit narrowing.
+  - rule_id: identity_evidence_required_on_diff
+    description: >
+      When presentation path and canonical URI differ, the record carries both
+      along with alias evidence. A surface must not “fix” the presentation path
+      by silently rewriting it to the canonical URI.
+

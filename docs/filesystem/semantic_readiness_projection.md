@@ -17,7 +17,9 @@ Machine-readable companions:
 
 - View/inspector contract: [`schemas/filesystem/semantic_readiness_view.schema.json`](../../schemas/filesystem/semantic_readiness_view.schema.json)
 - Explainer copy id register: [`artifacts/filesystem/readiness_explainer_copy_ids.yaml`](../../artifacts/filesystem/readiness_explainer_copy_ids.yaml)
+- Parity matrix: [`artifacts/filesystem/semantic_readiness_parity_matrix.yaml`](../../artifacts/filesystem/semantic_readiness_parity_matrix.yaml)
 - Fixture corpus: [`fixtures/filesystem/semantic_readiness_cases/`](../../fixtures/filesystem/semantic_readiness_cases/)
+- Edge-case corpus: [`fixtures/filesystem/semantic_readiness_edge_cases/`](../../fixtures/filesystem/semantic_readiness_edge_cases/)
 
 ## Scope
 
@@ -171,6 +173,11 @@ anchors the minimum acceptance set:
 Each fixture MUST remain render-stable across shell, search, diagnostics,
 migration, and support projections by consuming the same parity-floor fields.
 
+The edge-case corpus under
+[`fixtures/filesystem/semantic_readiness_edge_cases/`](../../fixtures/filesystem/semantic_readiness_edge_cases/)
+adds path-identity drift and save-target mismatch scenarios that require
+presentation-vs-canonical evidence and export parity discipline.
+
 ## References
 
 - Filesystem identity + readiness vocabulary:
@@ -181,4 +188,5 @@ migration, and support projections by consuming the same parity-floor fields.
   `docs/files/save_fallback_and_watch_fidelity_contract.md`
 - Path truth chip precedent (projection parity):
   `docs/fs/path_truth_packet.md`
-
+- Conformance packet and parity audit:
+  `docs/verification/semantic_readiness_conformance_packet.md`

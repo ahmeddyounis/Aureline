@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../../../schemas/filesystem/semantic_readiness_view.schema.json
+__fixture__:
+  name: stale_watcher_state
+  scenario: >
+    Watch fidelity degraded after open. External-change honesty is reduced, so
+    freshness-sensitive claims must be downgraded and exported as non-exact.
+  doc_section: Semantic-readiness conformance — stale watcher state
+  exercises:
+    semantic_readiness.state: partial
+    not_ready_reason: watcher_degraded
+record_kind: semantic_readiness_view_record
+semantic_readiness_view_schema_version: 1
+view_id: readiness.edge.stale_watcher_state.0001
+readiness_record:
+  record_kind: semantic_readiness_record
+  filesystem_identity_schema_version: 1
+  subject:
+    kind: object
+    identity:
+      record_kind: filesystem_identity_record
+      filesystem_identity_schema_version: 1
+      presentation_path:
+        uri: file:///ws/src/main.rs
+        display_label: main.rs
+        root_badge: local
+      logical_workspace_identity:
+        workspace_id: ws-aureline-primary
+        root_id: root-1
+        logical_uri: aureline-ws://ws-aureline-primary/root-1/src/main.rs
+        trust_state: trusted
+      canonical_filesystem_object:
+        canonical_uri: file:///ws/src/main.rs
+        normalization_form: nfc
+        strongest_identity_token:
+          kind: device_inode_generation
+          value: dev:1/ino:2001/gen:1
+        fallback_identity_tokens: []
+      alias_set:
+        aliases:
+          - alias_uri: file:///ws/src/main.rs
+            alias_kind: symlink
+            resolution_chain:
+              - file:///ws/src/main.rs
+              - -> canonical
+  semantic_readiness:
+    state: partial
+    not_ready_reason: watcher_degraded
+    safe_next_action: open_offline_details
+    producer_id: workspace_vfs
+    producer_version: vfs-proto-0.0.0
+    observed_at: "mono:readiness:stale_watcher_state:0001"
+    explainer: Watch fidelity is degraded; external-change detection may lag.
+    readiness_chip:
+      state: partial
+      detail_target: aureline.vfs.showWatchFidelityDetails
+    not_ready_explainer:
+      title: Watch fidelity degraded
+      body: >
+        File watching is degraded on this root. Aureline may not notice external
+        changes promptly, so freshness-sensitive claims are downgraded until watch
+        fidelity recovers.
+      what_still_works:
+        - Opening, editing, and saving files (compare-before-write remains the floor)
+        - Manual refresh or reload
+    safe_next_actions:
+      - action: open_offline_details
+        command_id: aureline.vfs.openWatchFidelityDetails
+        consequence: Opens the watch-fidelity detail surface for this root.
+      - action: wait
+        command_id: aureline.vfs.noop
+        consequence: Background recovery attempts continue under the default budget.
+    support_export:
+      packet_family: semantic_readiness
+      redaction_policy: default_filesystem_redaction_v1
+      parity_signature: parity:filesystem:readiness:stale_watcher_state:0001
+why_not_ready:
+  blocking_subsystem: vfs_watcher
+  freshness_source: watcher_health
+  confidence_class: medium
+  not_ready_explainer_copy_id: filesystem.readiness.explainer.watcher_degraded
+  safe_next_actions:
+    - action: open_offline_details
+      command_id: aureline.vfs.openWatchFidelityDetails
+      consequence: Opens the watch-fidelity detail surface for this root.
+    - action: wait
+      command_id: aureline.vfs.noop
+      consequence: Background recovery attempts continue under the default budget.
+  escalation_target:
+    kind: docs_reference
+    ref: docs/files/save_fallback_and_watch_fidelity_contract.md
+    label: Watch fidelity contract
+recorded_at: "mono:readiness:stale_watcher_state:view:0001"
+

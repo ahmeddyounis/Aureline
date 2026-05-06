@@ -36,3 +36,4 @@ over a partially-ready workspace.
 | [`moved_file.json`](./moved_file.json)                                 | Rename that preserves the canonical identity token                                           | §4.3               |
 | [`partially_ready_workspace.json`](./partially_ready_workspace.json)   | Composite workspace-scoped readiness with child producer records                             | §4.4               |
 | [`semantic_readiness_cases/`](./semantic_readiness_cases/)             | Readiness projection cases and why-not-ready inspector view contract                         | §2–§3              |
+| [`semantic_readiness_edge_cases/`](./semantic_readiness_edge_cases/)   | Readiness parity on path-identity drift and save-target edge cases                           | §4–§5              |

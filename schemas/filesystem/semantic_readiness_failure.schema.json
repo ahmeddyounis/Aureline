@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/filesystem/semantic_readiness_failure.schema.json",
+  "title": "Aureline semantic-readiness parity failure codes",
+  "description": "Schema for semantic-readiness parity and export narrowing failures. These records are designed to be emitted by parity audits and by support/migration/recovery tooling when a surface cannot preserve the semantic-readiness parity floor. Failure codes are stable and portable across desktop UI, headless/CLI output, migration reports, recovery packets, and support exports. The codes here do not redefine the semantic-readiness vocabulary itself; they describe when a surface failed to preserve or honestly narrow that vocabulary.",
+  "type": "object",
+  "$ref": "#/$defs/semantic_readiness_failure_record",
+  "$defs": {
+    "semantic_readiness_failure_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this failure-code record set."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "semantic_readiness_failure_record",
+      "description": "Discriminator for the failure record payload."
+    },
+    "surface_id": {
+      "type": "string",
+      "enum": [
+        "desktop_ui",
+        "cli_or_headless",
+        "migration_report",
+        "recovery_packet",
+        "support_export"
+      ],
+      "description": "Surface family emitting the failure item."
+    },
+    "failure_code": {
+      "type": "string",
+      "enum": [
+        "wrong_state_projection",
+        "missing_explainer",
+        "canonical_target_mismatch",
+        "dropped_safe_action",
+        "export_time_narrowing"
+      ],
+      "description": "Stable failure code category."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["actionable", "warning"],
+      "description": "Severity class used by audits and support tooling."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export."
+    },
+    "optional_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
+    "semantic_readiness_failure_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "semantic_readiness_failure_schema_version",
+        "failure_id",
+        "failure_code",
+        "severity",
+        "surface_id",
+        "fixture_ref",
+        "recorded_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "semantic_readiness_failure_record" },
+        "semantic_readiness_failure_schema_version": {
+          "$ref": "#/$defs/semantic_readiness_failure_schema_version"
+        },
+        "failure_id": { "$ref": "#/$defs/opaque_id" },
+        "failure_code": { "$ref": "#/$defs/failure_code" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "surface_id": { "$ref": "#/$defs/surface_id" },
+        "fixture_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative fixture path the failure refers to."
+        },
+        "subject_ref": {
+          "$ref": "#/$defs/optional_string",
+          "description": "Optional stable subject reference (view_id, logical uri, or equivalent)."
+        },
+        "presentation_uri": {
+          "$ref": "#/$defs/optional_string",
+          "description": "Presentation URI evidence when path truth differs from canonical truth."
+        },
+        "canonical_uri": {
+          "$ref": "#/$defs/optional_string",
+          "description": "Canonical URI evidence when path truth differs from canonical truth."
+        },
+        "expected_state": { "$ref": "#/$defs/optional_string" },
+        "observed_state": { "$ref": "#/$defs/optional_string" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "maxLength": 1024 }
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional file refs supporting the failure diagnosis."
+        },
+        "recorded_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Recorder-local monotonic timestamp (opaque)."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "failure_code": { "const": "canonical_target_mismatch" } },
+            "required": ["failure_code"]
+          },
+          "then": {
+            "required": ["presentation_uri", "canonical_uri"],
+            "properties": {
+              "presentation_uri": { "type": "string", "minLength": 1 },
+              "canonical_uri": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ],
+      "description": "Failure item emitted when a surface cannot preserve readiness parity or must narrow at export time."
+    }
+  }
+}
+
