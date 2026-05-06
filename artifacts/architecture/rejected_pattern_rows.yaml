@@ -1,0 +1,283 @@
+# Rejected-pattern ledger.
+#
+# Machine-readable register of architectural patterns that are explicitly
+# out of bounds for the baseline posture. This ledger exists so reviewers
+# can start from a rejected proposal and find:
+#   - the governing decision/ADR/contract that rules it out, and
+#   - the concrete evidence required to reopen the decision.
+#
+# This file does not replace the driver traceability join
+# (artifacts/architecture/driver_to_rejected_pattern_refs.yaml). It is the
+# reviewer-facing ledger of rejection reasons and reopen requirements.
+
+schema_version: 1
+artifact_id: aureline.rejected_pattern_rows
+title: Rejected architecture patterns — ledger and reopen requirements
+overview_document: docs/architecture/decision_summary_and_rejected_patterns.md
+
+source_documents:
+  - ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+    sections:
+      - "4.4 Explicitly rejected architectural patterns"
+  - ref: artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+    sections:
+      - "rejected_patterns"
+  - ref: artifacts/governance/decision_index.yaml
+    sections:
+      - "decisions"
+
+companion_refs:
+  driver_traceability_matrix_ref: docs/architecture/driver_traceability_matrix.md
+  driver_to_rejected_pattern_refs_ref: artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+  revisit_trigger_matrix_ref: artifacts/architecture/revisit_trigger_matrix.yaml
+  decision_index_ref: artifacts/governance/decision_index.yaml
+  forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+  mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+  examples_ref: fixtures/architecture/rejected_pattern_examples/
+
+# -----------------------------------------------------------------------------
+# Pattern rows.
+#
+# `pattern_id` values are stable review handles. Reopening a pattern means
+# opening a new ADR (or successor decision row) that cites the relevant
+# revisit triggers and ships with the required evidence packets.
+# -----------------------------------------------------------------------------
+pattern_rows:
+  - pattern_id: rp.flagship_shell_browser_runtime
+    title: Flagship desktop shell built on a browser/Electron runtime
+    description: >
+      Building the primary desktop shell on an embedded browser runtime
+      (Electron/Chromium-class) and relying on the browser's rendering,
+      text, and accessibility stack for the core editor.
+    why_rejected: >
+      Conflicts with the latency, memory, and accessibility/control thesis
+      of the native shell and renderer posture.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#42-architecture-decision-summary
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0002-renderer-text-stack-and-shaping-fallback.md
+      - artifacts/architecture/renderer_tradeoff_rows.yaml
+    default_reopen_forums:
+      - architecture_council
+      - performance_council
+      - accessibility_review
+    revisit_trigger_refs:
+      - rt.protected_performance_ceiling_forces_stack_swap
+      - rt.accessibility_bridge_infeasible_without_browser_stack
+
+  - pattern_id: rp.blocking_io_on_hot_path
+    title: Blocking filesystem/network/process I/O on protected UI paths
+    description: >
+      Any direct blocking filesystem, network, or subprocess work on the
+      input/render/command-entry hot path (including “just for startup”)
+      outside explicitly isolated bootstrap/installer flows.
+    why_rejected: >
+      Violates the protected interaction-path constraint and undermines
+      the ability to keep input and rendering responsive under load.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#33-hard-constraints
+      - artifacts/architecture/protected_path_dependency_rules.yaml
+      - artifacts/architecture/process_placement_map.yaml
+      - artifacts/perf/latency_budget_ledger.yaml
+      - artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+    default_reopen_forums:
+      - architecture_council
+      - performance_council
+    revisit_trigger_refs:
+      - rt.protected_performance_ceiling_forces_stack_swap
+
+  - pattern_id: rp.per_feature_private_semantic_store
+    title: Per-feature private search or semantic stores
+    description: >
+      Shipping separate per-feature indexes/graphs/stores (search,
+      navigation, refactor, review, AI, etc.) as independent “truth”
+      sources instead of routing through the shared workspace graph and
+      explainable truth contracts.
+    why_rejected: >
+      Produces inconsistent answers, duplicates indexing cost, and makes
+      drift and provenance unreviewable across surfaces.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0014-search-readiness-ranking-result-truth.md
+      - docs/graph/provenance_and_confidence_contract.md
+    default_reopen_forums:
+      - architecture_council
+    revisit_trigger_refs:
+      - rt.correctness_or_provenance_break_requires_new_truth_model
+
+  - pattern_id: rp.ambient_privilege_extensions_or_ai_tools
+    title: Ambient-privilege extensions or AI tools
+    description: >
+      Allowing extensions or AI-assisted tools to act with implicit,
+      unbounded authority (filesystem, network, process launch, policy,
+      secrets) without a declared capability contract and enforcement.
+    why_rejected: >
+      Breaks the capability model and makes enterprise governance,
+      auditability, and safety posture non-credible.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0012-extension-manifest-permission-publisher-policy.md
+      - docs/adr/0019-wasm-wit-extension-host-and-capability-worlds.md
+      - docs/ai/prompt_injection_and_taint_contract.md
+    default_reopen_forums:
+      - architecture_council
+      - security_trust_review
+    revisit_trigger_refs:
+      - rt.safety_incident_forces_capability_redesign
+
+  - pattern_id: rp.optional_service_on_core_path
+    title: Hosted service dependency for a core local workflow
+    description: >
+      Making managed services (collaboration, hosted AI, cloud graph
+      indexing, account sign-in, sync, etc.) mandatory for core local
+      open/edit/save/search/tasks/Git workflows.
+    why_rejected: >
+      Violates the local-first and outage/air-gap resilience posture and
+      turns optional services into hidden single points of failure.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#33-hard-constraints
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0001-identity-modes.md
+      - artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+    default_reopen_forums:
+      - architecture_council
+      - product_scope_review
+    revisit_trigger_refs:
+      - rt.deployment_profile_change_requires_service_dependency
+
+  - pattern_id: rp.plaintext_secret_fallback
+    title: Plaintext fallback for long-lived secrets or tokens
+    description: >
+      Persisting long-lived credentials on disk in plaintext (or
+      equivalently weak reversible forms) when an OS or enterprise trust
+      store is unavailable.
+    why_rejected: >
+      Expands the blast radius of compromise and violates the trust and
+      enterprise security posture; the safe fallback is a visible
+      degradation or session-only in-memory posture.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+    default_reopen_forums:
+      - security_trust_review
+    revisit_trigger_refs:
+      - rt.safety_incident_forces_capability_redesign
+      - rt.legal_or_policy_change_forces_storage_change
+
+  - pattern_id: rp.destructive_schema_migration_without_downgrade
+    title: Destructive durable-state migrations without backup and downgrade story
+    description: >
+      Mutating durable user/workspace state or schemas in ways that are
+      not reversible, do not preserve an export/backup, or do not provide
+      a downgrade path.
+    why_rejected: >
+      Durable-state breakage destroys user trust and makes recovery and
+      support/export non-credible.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/state/durable_state_compatibility_contract.md
+      - docs/release/update_and_rollback_contract.md
+    default_reopen_forums:
+      - architecture_council
+      - release_council
+    revisit_trigger_refs:
+      - rt.correctness_or_recoverability_break_requires_model_change
+
+  - pattern_id: rp.structured_viewer_strips_unknown_metadata_on_save
+    title: Structured viewers that strip unknown/vendor metadata on open/save
+    description: >
+      Writing structured artifacts (notebooks, manifests, configs, etc.)
+      while dropping unknown metadata/extensions, then claiming the write
+      path is “safe” or “compatible”.
+    why_rejected: >
+      Breaks ecosystem interoperability and destroys information that
+      other tools depend on; a viewer may narrow to read-only rather than
+      corrupting the source.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+    default_reopen_forums:
+      - architecture_council
+      - compatibility_ecosystem_review
+    revisit_trigger_refs:
+      - rt.standards_maturity_shift_changes_round_trip_rules
+
+  - pattern_id: rp.unreviewable_write_without_journal_or_preview
+    title: Silent multi-file mutation without preview/checkpoint/journal
+    description: >
+      Applying refactors, AI edits, migrations, or batch changes without
+      a previewable diff, an undo/checkpoint boundary, and a durable
+      mutation lineage record.
+    why_rejected: >
+      Undermines trust, rollback, and provenance; reviewers cannot audit
+      what changed and users cannot recover reliably.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/architecture/preview_runtime_contract.md
+      - artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+    default_reopen_forums:
+      - architecture_council
+      - security_trust_review
+    revisit_trigger_refs:
+      - rt.safety_incident_forces_capability_redesign
+
+  - pattern_id: rp.one_os_only_best_effort_integration
+    title: Best-effort one-OS-only integration on a claimed supported platform
+    description: >
+      Claiming support for a platform while shipping incomplete or
+      inconsistent behavior for authentication, input, accessibility, or
+      trust-store integration (“works on my OS” posture).
+    why_rejected: >
+      Multiplies support burden and makes trust/safety behavior
+      unpredictable across users.
+    governing_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#44-explicitly-rejected-architectural-patterns
+      - docs/adr/0016-shell-windowing-input-accessibility-boundary.md
+      - docs/release/compatibility_report_template.md
+    default_reopen_forums:
+      - product_scope_review
+      - release_council
+      - accessibility_review
+    revisit_trigger_refs:
+      - rt.compatibility_or_support_cost_forces_scope_narrowing
+
+  - pattern_id: rp.unsafe_embedded_auth
+    title: Unsafe embedded authentication inside app or embedded surfaces
+    description: >
+      Collecting credentials or performing managed sign-in exclusively
+      inside embedded webviews or extension-hosted surfaces, or allowing
+      embedded surfaces to impersonate system security chrome for
+      approval or auth flows.
+    why_rejected: >
+      Breaks trustworthy security UX, increases phishing risk, and
+      undermines enterprise audit posture; system-browser-first auth and
+      explicit handoff is required for stable flows.
+    governing_refs:
+      - docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+      - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#managed-sign-in
+    default_reopen_forums:
+      - security_trust_review
+      - architecture_council
+    revisit_trigger_refs:
+      - rt.safety_incident_forces_capability_redesign
+
+  - pattern_id: rp.unbounded_background_work_on_user_interaction_path
+    title: Unbounded background work that starves visible interaction
+    description: >
+      Letting background work (indexing, sync, AI, maintenance, retries)
+      consume capacity reserved for protected interaction paths, causing
+      typing/render/command-entry stalls.
+    why_rejected: >
+      Violates protected latency and accessibility posture; background
+      work must yield or narrow first.
+    governing_refs:
+      - artifacts/architecture/process_placement_map.yaml
+      - artifacts/perf/latency_budget_ledger.yaml
+      - artifacts/architecture/driver_to_rejected_pattern_refs.yaml
+    default_reopen_forums:
+      - performance_council
+      - architecture_council
+    revisit_trigger_refs:
+      - rt.protected_performance_ceiling_forces_stack_swap
+

@@ -91,10 +91,16 @@ waiver/descoping posture) is in `artifacts/architecture/protected_journey_map.ya
 
 ## Rejected patterns (examples)
 
-The canonical mapping lives in `artifacts/architecture/driver_to_rejected_pattern_refs.yaml`. Typical examples:
+The driver/journey traceability mapping lives in `artifacts/architecture/driver_to_rejected_pattern_refs.yaml`.
+
+The reviewer-facing rejected-pattern ledger (rejection rationale + reopen evidence requirements) lives in:
+
+- `artifacts/architecture/rejected_pattern_rows.yaml`
+- `artifacts/architecture/revisit_trigger_matrix.yaml`
+
+Typical examples:
 
 - Blocking I/O on protected input/render paths.
 - Optional service calls on the core local-edit critical path.
 - Unreviewable multi-file mutation (AI, refactor, migration) without preview/checkpoint.
 - Public or stable claims made from seed-only or stale evidence.
-

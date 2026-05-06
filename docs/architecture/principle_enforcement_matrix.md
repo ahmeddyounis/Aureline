@@ -2,7 +2,10 @@
 
 This document turns Aureline’s architecture principles into **reviewable** and
 **CI-checkable** expectations. The principles are not new requirements; they are
-the decision summary from the Technical Architecture Document. This matrix makes
+the decision summary from the Technical Architecture Document. For a compact
+entrypoint into the baseline posture (decision summary + rejected patterns + reopen
+triggers), start at `docs/architecture/decision_summary_and_rejected_patterns.md`.
+This matrix makes
 them actionable by naming, per principle:
 
 - the protected paths and lanes where it matters most,
@@ -14,6 +17,7 @@ them actionable by naming, per principle:
 ## Source of truth
 
 - Principles: `.t2/docs/Aureline_Technical_Architecture_Document.md` §4.1.
+- Decision summary and rejected patterns: `docs/architecture/decision_summary_and_rejected_patterns.md`.
 - Principle ids (short forms): `docs/benchmarks/fitness_function_catalog.md` §5.
 - Machine hooks introduced here:
   - `artifacts/architecture/principle_checks.yaml`
@@ -279,4 +283,3 @@ duplicate governance prose.
 - A launch-critical surface ships without keyboard/screen-reader parity.
 - A feature performs network/provider egress before trust/policy gates or hides
   provenance and auditability.
-

@@ -1,0 +1,240 @@
+# Architecture revisit-trigger matrix.
+#
+# A revisit trigger is the opposite of “we can revisit later”. It is a
+# concrete, measurable condition that:
+#   - authorizes reopening a decision or a rejected pattern, and
+#   - names the evidence packet(s) and decision forum required to do so.
+#
+# This matrix is referenced from:
+#   - docs/architecture/decision_summary_and_rejected_patterns.md
+#   - artifacts/architecture/rejected_pattern_rows.yaml
+
+schema_version: 1
+artifact_id: aureline.architecture_revisit_trigger_matrix
+title: Architecture revisit triggers — measurable signals + required evidence
+overview_document: docs/architecture/decision_summary_and_rejected_patterns.md
+
+companion_refs:
+  decision_index_ref: artifacts/governance/decision_index.yaml
+  forum_matrix_ref: artifacts/governance/forum_matrix.yaml
+  mandatory_review_artifacts_ref: artifacts/governance/mandatory_review_artifacts.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  fitness_function_catalog_ref: artifacts/bench/fitness_function_catalog.yaml
+
+trigger_rows:
+  - trigger_id: rt.protected_performance_ceiling_forces_stack_swap
+    title: Protected performance ceiling forces an architecture change
+    measurable_signal: >
+      A protected-path budget breach (for a protected metric or release
+      bar in the latency/fitness ledgers) exceeds its threshold on the
+      declared baseline hardware and corpus for three consecutive
+      benchmark runs (or across two distinct corpus slices), and the
+      remediation would require swapping a stack element (renderer,
+      transport, storage, runtime topology) or materially changing a
+      protected interaction-path contract.
+    example_inputs:
+      - artifacts/perf/latency_budget_ledger.yaml
+      - artifacts/bench/fitness_function_catalog.yaml
+      - docs/benchmarks/
+    reopen_forums:
+      - performance_council
+      - architecture_council
+    required_artifact_classes:
+      - benchmark_report
+      - adr
+    minimum_evidence_notes: >
+      The benchmark report must name the affected protected metric(s),
+      corpus, and baseline hardware profile; the ADR must explain why the
+      budget cannot be met without reopening the underlying decision.
+
+  - trigger_id: rt.accessibility_bridge_infeasible_without_browser_stack
+    title: Accessibility bridge infeasible under current shell posture
+    measurable_signal: >
+      Accessibility conformance cannot be achieved on claimed platforms
+      under the native shell/renderer posture without a material stack
+      change, and the failure is reproducible in the agreed test harness
+      (not a one-off device anomaly) and persists after one full round of
+      mitigation attempts is documented.
+    example_inputs:
+      - docs/accessibility/
+      - artifacts/accessibility/
+      - fixtures/accessibility/
+    reopen_forums:
+      - accessibility_review
+      - architecture_council
+    required_artifact_classes:
+      - design_packet
+      - benchmark_report
+      - adr
+    minimum_evidence_notes: >
+      Requires an accessibility design packet (flows + constraints) plus
+      a measurable reproduction and a concrete alternative stack plan.
+
+  - trigger_id: rt.dependency_eol_or_security_blocker
+    title: Dependency end-of-life or security blocker forces replacement
+    measurable_signal: >
+      A critical dependency reaches end-of-life (or is scheduled to do so
+      within the next 12 months), becomes unmaintained, or is affected by
+      a security issue that cannot be mitigated within the current
+      posture (or the mitigation would violate a protected invariant).
+    example_inputs:
+      - artifacts/governance/dependency_ledger.yaml
+      - docs/repo/dependency_rules.md
+      - docs/security/
+    reopen_forums:
+      - security_trust_review
+      - architecture_council
+    required_artifact_classes:
+      - adr
+      - waiver_packet
+    minimum_evidence_notes: >
+      The reopening ADR must include a mitigation/transition plan. If the
+      decision must narrow temporarily, a time-bounded waiver packet is
+      required.
+
+  - trigger_id: rt.legal_or_policy_change_forces_storage_change
+    title: Legal/policy constraint forces a durable-state or retention change
+    measurable_signal: >
+      A legal, license, privacy, or enterprise policy change makes the
+      current storage/retention/security posture non-compliant for a
+      claimed deployment profile, with a concrete compliance delta that
+      cannot be satisfied by narrowing scope labels alone.
+    example_inputs:
+      - docs/security/
+      - docs/state/
+      - docs/release/
+    reopen_forums:
+      - security_trust_review
+      - release_council
+      - architecture_council
+    required_artifact_classes:
+      - adr
+      - verification_packet
+    minimum_evidence_notes: >
+      The packet must name affected deployment profiles and the exact
+      compliance delta; the ADR must show how durable-state compatibility
+      and rollback are preserved (or explicitly narrowed with waivers).
+
+  - trigger_id: rt.standards_maturity_shift_changes_round_trip_rules
+    title: Standards maturity shift changes compatibility/round-trip posture
+    measurable_signal: >
+      A standard or ecosystem contract reaches sufficient maturity (or
+      deprecates a previously assumed behavior) such that the current
+      compatibility posture becomes incorrect or unnecessarily costly.
+    example_inputs:
+      - docs/architecture/standards_interchange_matrix.md
+      - docs/release/compatibility_report_template.md
+    reopen_forums:
+      - compatibility_ecosystem_review
+      - architecture_council
+    required_artifact_classes:
+      - rfc
+      - compatibility_report
+    minimum_evidence_notes: >
+      Requires an RFC to describe scope and migration, plus a
+      compatibility report (or report plan) for affected surfaces.
+
+  - trigger_id: rt.correctness_or_recoverability_break_requires_model_change
+    title: Correctness/recoverability contract cannot be met without reopening the model
+    measurable_signal: >
+      Recovery, rollback, or save correctness requirements cannot be met
+      under the current durable-state and migration posture without
+      reopening the underlying design decision, and a concrete loss or
+      corruption case is demonstrated with fixtures or drills.
+    example_inputs:
+      - docs/state/durable_state_compatibility_contract.md
+      - docs/release/update_and_rollback_contract.md
+      - docs/support/
+    reopen_forums:
+      - architecture_council
+      - release_council
+    required_artifact_classes:
+      - adr
+      - verification_packet
+    minimum_evidence_notes: >
+      The verification packet must include a reproduction (fixture or
+      drill) and a rollback story; the ADR must name the narrowed/default
+      behavior if unresolved.
+
+  - trigger_id: rt.correctness_or_provenance_break_requires_new_truth_model
+    title: Provenance/correctness breaks require a new truth model
+    measurable_signal: >
+      Cross-surface truth becomes contradictory or unexplainable under
+      the current shared-graph and provenance posture, and resolving the
+      contradiction requires changing how truth is stored or routed.
+    example_inputs:
+      - docs/graph/provenance_and_confidence_contract.md
+      - docs/adr/0014-search-readiness-ranking-result-truth.md
+      - docs/ai/context_assembly_contract.md
+    reopen_forums:
+      - architecture_council
+    required_artifact_classes:
+      - rfc
+      - verification_packet
+    minimum_evidence_notes: >
+      Requires a concrete contradiction case with fixtures plus a truth
+      routing proposal that preserves explainability.
+
+  - trigger_id: rt.safety_incident_forces_capability_redesign
+    title: Safety/security incident forces capability or boundary redesign
+    measurable_signal: >
+      A safety or security incident demonstrates the current capability,
+      boundary, or authentication posture is insufficient, and the fix
+      requires changing the architecture baseline rather than tightening
+      an implementation detail.
+    example_inputs:
+      - docs/security/
+      - artifacts/security/
+      - schemas/security/
+    reopen_forums:
+      - security_trust_review
+      - architecture_council
+    required_artifact_classes:
+      - adr
+      - verification_packet
+    minimum_evidence_notes: >
+      The packet must include incident reproduction or forensic summary
+      plus the mitigations; the ADR must define the new boundary/capability
+      contract and downgrade posture.
+
+  - trigger_id: rt.compatibility_or_support_cost_forces_scope_narrowing
+    title: Compatibility/support cost forces narrowing of claimed platform scope
+    measurable_signal: >
+      Supporting a claimed platform/profile requires ongoing exceptions,
+      unverifiable behavior, or persistent gaps in security/accessibility
+      posture that cannot be closed under current staffing and evidence
+      lanes without repeated waivers or repeated release blockers.
+    example_inputs:
+      - docs/release/channel_support_window_contract.md
+      - docs/release/compatibility_report_template.md
+      - docs/support/
+    reopen_forums:
+      - product_scope_review
+      - release_council
+    required_artifact_classes:
+      - compatibility_report
+      - waiver_packet
+    minimum_evidence_notes: >
+      The report must name the gap and the narrowed support posture; a
+      waiver is required for any temporary exception to a claimed support
+      statement.
+
+  - trigger_id: rt.deployment_profile_change_requires_service_dependency
+    title: Deployment profile change requires revisiting service dependencies
+    measurable_signal: >
+      A claimed deployment profile changes (local-only, remote-attached,
+      managed, self-hosted, air-gapped) such that an optional service
+      becomes necessary for a workflow previously guaranteed to work
+      offline or without sign-in.
+    example_inputs:
+      - artifacts/release/install_topology_matrix.yaml
+      - docs/release/install_topology_plan.md
+    reopen_forums:
+      - product_scope_review
+      - architecture_council
+    required_artifact_classes:
+      - rfc
+      - verification_packet
+    minimum_evidence_notes: >
+      Requires an RFC to describe profile changes and a verification
+      packet demonstrating the new degraded-mode and continuity posture.
