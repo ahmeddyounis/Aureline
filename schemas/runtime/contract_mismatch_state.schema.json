@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/contract_mismatch_state.schema.json",
+  "title": "Aureline managed API / contract mismatch state record",
+  "description": "Boundary schema for the contract_mismatch_state_record frozen in docs/runtime/managed_contract_mismatch_contract.md. The record exists so the desktop UI, CLI surfaces, diagnostics/doctor probes, service-health aggregator, support-bundle exporter, and release/compat tooling can agree on one typed description of managed API contract skew, provider schema drift, stale contract caches, browser/companion/runtime mismatches, and mirror-delayed metadata. The record is intentionally explicit about expected versus observed contract versions, the declared supported range, the local-safe fallback posture, and whether write paths are narrowed or blocked. Raw URLs, raw hostnames, raw tenant identifiers, raw access tokens, and raw payload bytes MUST NOT cross this boundary; the record carries opaque ids and typed vocabulary only. The eventual runtime contract-mismatch publisher crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning surface reads. Adding a new mismatch-domain class, mismatch-state class, fallback posture, read/write posture, suggested-action class, or service-contract-state projection is additive-minor and MUST bump contract_mismatch_state_schema_version; repurposing an existing value is breaking and requires a governance decision row.",
+  "type": "object",
+  "$ref": "#/$defs/contract_mismatch_state_record",
+  "$defs": {
+    "contract_mismatch_state_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this contract-mismatch state export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "contract_mismatch_state_record",
+      "description": "Discriminator. Always contract_mismatch_state_record for payloads conforming to this schema."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, diagnostics, support bundles, and admin exports."
+    },
+    "stable_ref": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._:-][a-z0-9]+)*$",
+      "description": "Stable lowercase reference token. It may use '.', ':', '_', or '-' separators."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewer-facing sentence safe for UI tables, logs, and exports. Raw secret material and raw payload bytes MUST NOT appear."
+    },
+    "boundary_family": {
+      "type": "string",
+      "enum": [
+        "launcher_and_local_sidecars",
+        "desktop_cli_and_remote_agent",
+        "managed_control_plane",
+        "extension_host_and_sdk",
+        "schema_or_state_bundle",
+        "provider_linked_packet",
+        "audit_or_event_producer_consumer",
+        "cli_or_export_boundary",
+        "browser_companion_and_remote_or_review_session"
+      ],
+      "description": "Re-exported boundary-family vocabulary aligned with schemas/compat/mixed_version_envelope.schema.json. Included so contract-mismatch states can join to compat rows and skew windows when available."
+    },
+    "compat_row_ref": {
+      "type": "string",
+      "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Optional reference to a compat_row id from artifacts/compat/qualification_matrix_seed.yaml when the mismatch is rooted in a governed boundary row."
+    },
+    "skew_register_ref": {
+      "type": "string",
+      "pattern": "^skew_register:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Optional reference to a skew_register id from artifacts/compat/version_skew_register.yaml when the mismatch is rooted in a governed boundary row."
+    },
+    "skew_window_ref": {
+      "type": "string",
+      "pattern": "^skew_window:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Optional reference to a skew_window id from artifacts/compat/skew_windows.yaml when the mismatch is rooted in a governed boundary row."
+    },
+    "supported_range_row_ref": {
+      "type": "string",
+      "pattern": "^supported_range_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Reference to a supported-range row id from artifacts/runtime/supported_range_rows.yaml. Used so supported ranges remain exportable and mechanically auditable."
+    },
+    "mismatch_domain_class": {
+      "type": "string",
+      "enum": [
+        "managed_api_contract_mismatch",
+        "provider_schema_drift",
+        "stale_contract_cache",
+        "companion_browser_runtime_mismatch",
+        "mirror_delayed_metadata"
+      ],
+      "description": "High-level mismatch-domain taxonomy that drives user cues and repair routing."
+    },
+    "mismatch_state_class": {
+      "type": "string",
+      "enum": [
+        "no_mismatch",
+        "supported_range_exact_match",
+        "supported_range_within_window",
+        "supported_range_too_old",
+        "supported_range_too_new",
+        "supported_range_unknown"
+      ],
+      "description": "Closed mismatch-state vocabulary. supported_range_within_window captures current-plus-previous-minor / additive window cases where the contract is supported but not an exact match; surfaces MUST avoid implying full parity when this value applies."
+    },
+    "supported_range_source_class": {
+      "type": "string",
+      "enum": [
+        "embedded_default",
+        "cached_last_known_good",
+        "mirrored_registry",
+        "service_advertised_live",
+        "unresolved_unknown"
+      ],
+      "description": "Where the supported-range declaration came from. cached_last_known_good and mirrored_registry are admissible offline; unresolved_unknown is explicit and non-conforming as a silent default."
+    },
+    "fallback_posture_class": {
+      "type": "string",
+      "enum": [
+        "full_capability",
+        "degraded_cached_read_only",
+        "degraded_local_safe_baseline",
+        "blocked_privileged_paths",
+        "blocked_no_safe_fallback"
+      ],
+      "description": "Closed fallback-posture vocabulary. degraded_* values require explicit disclosure of what remains safe locally; blocked_* values require an export/help action."
+    },
+    "io_posture_class": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "narrowed_read_only",
+        "narrowed_idempotent_only",
+        "blocked"
+      ],
+      "description": "Read/write posture class used for action-level denial or downgrade surfaces. normal means the mismatch does not narrow the lane; narrowed_* means the lane continues with restrictions; blocked means the lane is refused."
+    },
+    "service_contract_state": {
+      "type": "string",
+      "enum": [
+        "ready",
+        "degraded",
+        "local_only",
+        "stale",
+        "contract_mismatch",
+        "policy_blocked",
+        "unavailable"
+      ],
+      "description": "Projection onto the shared service-contract-state vocabulary (see docs/adr/0013-docs-help-service-health-truth.md)."
+    },
+    "suggested_action_class": {
+      "type": "string",
+      "enum": [
+        "open_service_health_details",
+        "open_help_contract_mismatch",
+        "retry_contract_metadata_refresh",
+        "switch_to_cached_read_only_mode",
+        "switch_to_local_only_mode",
+        "upgrade_client_component",
+        "downgrade_client_component",
+        "wait_for_staged_rollout",
+        "request_admin_policy_change",
+        "export_support_bundle",
+        "contact_admin_or_support"
+      ],
+      "description": "Closed suggested-action vocabulary. Surfaces may render a subset, but the record MUST name at least one action whenever mismatch_state_class is not supported_range_exact_match or no_mismatch."
+    },
+    "supported_range_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "supported_range_row_ref",
+        "range_source_class",
+        "window_class",
+        "min_supported_version",
+        "max_supported_version",
+        "range_label"
+      ],
+      "properties": {
+        "supported_range_row_ref": { "$ref": "#/$defs/supported_range_row_ref" },
+        "range_source_class": { "$ref": "#/$defs/supported_range_source_class" },
+        "window_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Window class declared by the supported-range row (for example current_plus_previous_minor_or_lts, declared_adjacent_window, same_schema_epoch_additive_only)."
+        },
+        "min_supported_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Minimum supported contract version when representable as a scalar. Null is admissible when the row declares a window class that is not reducible to scalar min/max without a companion release index."
+        },
+        "max_supported_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Maximum supported contract version when representable as a scalar. Null is admissible when the row declares a window class that is not reducible to scalar min/max without a companion release index."
+        },
+        "range_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short human-readable label suitable for UI chips and exports (for example 'current + previous minor', 'same schema epoch (additive only)')."
+        },
+        "as_of": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ],
+          "description": "When the supported range snapshot was captured. Null is admissible only for embedded_default."
+        }
+      },
+      "description": "Snapshot of the supported-range row as applied to this mismatch evaluation. Captured so exports remain self-contained even when the row changes later."
+    },
+    "contract_mismatch_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "contract_mismatch_state_schema_version",
+        "contract_mismatch_state_id",
+        "mismatch_domain",
+        "boundary_family",
+        "compat_row_ref",
+        "skew_register_ref",
+        "skew_window_ref",
+        "expected_contract_version",
+        "observed_contract_version",
+        "supported_range",
+        "mismatch_state",
+        "fallback_posture",
+        "read_path_posture",
+        "write_path_posture",
+        "service_contract_state_projection",
+        "suggested_actions",
+        "summary",
+        "captured_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "contract_mismatch_state_record" },
+        "contract_mismatch_state_schema_version": {
+          "$ref": "#/$defs/contract_mismatch_state_schema_version"
+        },
+        "contract_mismatch_state_id": { "$ref": "#/$defs/opaque_id" },
+        "mismatch_domain": { "$ref": "#/$defs/mismatch_domain_class" },
+        "boundary_family": { "$ref": "#/$defs/boundary_family" },
+        "compat_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/compat_row_ref" }
+          ],
+          "description": "Optional compat_row ref when the mismatch is tied to a governed compat boundary. Null is admissible for purely local cache drift or mirror-only metadata where no compat row exists yet."
+        },
+        "skew_register_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/skew_register_ref" }
+          ],
+          "description": "Optional skew-register ref when the mismatch is tied to a governed compat boundary."
+        },
+        "skew_window_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/skew_window_ref" }
+          ],
+          "description": "Optional skew-window ref when the mismatch is tied to a governed compat boundary."
+        },
+        "expected_contract_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Contract version the consumer expected to speak. Must be stable and displayable; raw build metadata belongs in build identity records, not here."
+        },
+        "observed_contract_version": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1 }
+          ],
+          "description": "Contract version observed from the provider. Null is admissible only when the provider could not be contacted and only cached range evidence is available."
+        },
+        "supported_range": { "$ref": "#/$defs/supported_range_snapshot" },
+        "mismatch_state": { "$ref": "#/$defs/mismatch_state_class" },
+        "fallback_posture": { "$ref": "#/$defs/fallback_posture_class" },
+        "read_path_posture": { "$ref": "#/$defs/io_posture_class" },
+        "write_path_posture": { "$ref": "#/$defs/io_posture_class" },
+        "service_contract_state_projection": {
+          "$ref": "#/$defs/service_contract_state",
+          "description": "Projection onto the shared service-contract-state vocabulary used by service-health. contract_mismatch is used when the provider is reachable but outside the supported window; local_only is used when the provider is unreachable but the local-safe baseline applies."
+        },
+        "suggested_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/suggested_action_class" },
+          "description": "Ordered list of suggested repair, export, or continue-locally actions. Surfaces may render a subset but MUST NOT invent actions outside this vocabulary."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional additional reviewer note. Never the sole carrier of supported-range or fallback semantics."
+        }
+      },
+      "description": "Contract mismatch state record: explicit, exportable truth about contract skew and the resulting local-safe fallback posture."
+    }
+  }
+}

@@ -1,0 +1,195 @@
+# Supported-contract-range rows.
+#
+# Machine-readable registry of supported contract-version windows and
+# their required local-safe fallback posture. This file exists so
+# service-health, diagnostics/doctor, Help/About disclosures, and
+# support-bundle exports can show the same supported-range and fallback
+# truth without burying it in logs or release notes.
+#
+# Companion to:
+#   - docs/runtime/managed_contract_mismatch_contract.md
+#   - schemas/runtime/contract_mismatch_state.schema.json
+#
+# Rules:
+#   - Every row MUST declare: boundary_family, mismatch_domain, window_class,
+#     range_label, fallback_posture, read_path_posture, write_path_posture,
+#     and at least one suggested_action.
+#   - Row ids follow the pattern supported_range_row:<family>.<row>.
+#   - Adding a row is additive-minor: bump supported_range_rows_schema_version.
+#   - Repurposing an existing row is breaking and requires a governance decision.
+
+supported_range_rows_schema_version: 1
+
+sources:
+  contract: docs/runtime/managed_contract_mismatch_contract.md
+  schema: schemas/runtime/contract_mismatch_state.schema.json
+  compat_skew_windows: artifacts/compat/skew_windows.yaml
+  compat_boundary_matrix: docs/compat/boundary_matrix.md
+
+boundary_family_vocabulary:
+  - launcher_and_local_sidecars
+  - desktop_cli_and_remote_agent
+  - managed_control_plane
+  - extension_host_and_sdk
+  - schema_or_state_bundle
+  - provider_linked_packet
+  - audit_or_event_producer_consumer
+  - cli_or_export_boundary
+  - browser_companion_and_remote_or_review_session
+
+mismatch_domain_vocabulary:
+  - managed_api_contract_mismatch
+  - provider_schema_drift
+  - stale_contract_cache
+  - companion_browser_runtime_mismatch
+  - mirror_delayed_metadata
+
+fallback_posture_vocabulary:
+  - full_capability
+  - degraded_cached_read_only
+  - degraded_local_safe_baseline
+  - blocked_privileged_paths
+  - blocked_no_safe_fallback
+
+io_posture_vocabulary:
+  - normal
+  - narrowed_read_only
+  - narrowed_idempotent_only
+  - blocked
+
+suggested_action_vocabulary:
+  - open_service_health_details
+  - open_help_contract_mismatch
+  - retry_contract_metadata_refresh
+  - switch_to_cached_read_only_mode
+  - switch_to_local_only_mode
+  - upgrade_client_component
+  - downgrade_client_component
+  - wait_for_staged_rollout
+  - request_admin_policy_change
+  - export_support_bundle
+  - contact_admin_or_support
+
+rows:
+  - id: supported_range_row:managed_control_plane.service_api_family
+    boundary_family: managed_control_plane
+    mismatch_domain: managed_api_contract_mismatch
+    compat_row_ref: compat_row:provider.service_api_and_browser_handoff
+    skew_window_ref: skew_window:managed_control_plane.current_plus_previous_minor_or_lts
+    skew_register_ref: skew_register:provider.service_api_and_browser_handoff
+    window_class: current_plus_previous_minor_or_lts
+    range_label: current + previous minor (or LTS window)
+    min_supported_version: null
+    max_supported_version: null
+    fallback_posture: degraded_cached_read_only
+    read_path_posture: narrowed_read_only
+    write_path_posture: blocked
+    suggested_actions:
+      - open_service_health_details
+      - switch_to_cached_read_only_mode
+      - wait_for_staged_rollout
+      - upgrade_client_component
+      - export_support_bundle
+      - contact_admin_or_support
+    notes: >
+      When a managed control-plane or service API family is outside the
+      supported window, cached safe operations remain available with a
+      visible disclosure. Privileged write paths are blocked; the UI must
+      say so explicitly and must not imply parity.
+
+  - id: supported_range_row:provider_linked_packet.service_api_family
+    boundary_family: provider_linked_packet
+    mismatch_domain: provider_schema_drift
+    compat_row_ref: compat_row:provider.service_api_and_browser_handoff
+    skew_window_ref: skew_window:provider_linked_packet.service_family_window
+    skew_register_ref: skew_register:provider.service_api_and_browser_handoff
+    window_class: current_plus_previous_minor_or_lts
+    range_label: current + previous minor (provider service window)
+    min_supported_version: null
+    max_supported_version: null
+    fallback_posture: blocked_privileged_paths
+    read_path_posture: narrowed_read_only
+    write_path_posture: blocked
+    suggested_actions:
+      - open_service_health_details
+      - switch_to_cached_read_only_mode
+      - retry_contract_metadata_refresh
+      - export_support_bundle
+      - contact_admin_or_support
+    notes: >
+      Provider-linked drift is treated as a contract boundary. Cached
+      metadata reads remain available where safe; writes and privileged
+      actions are refused rather than partially executed against an
+      unknown or drifted provider schema.
+
+  - id: supported_range_row:browser_companion.runtime_bridge_window
+    boundary_family: browser_companion_and_remote_or_review_session
+    mismatch_domain: companion_browser_runtime_mismatch
+    compat_row_ref: compat_row:remote.attach_envelope_and_drift
+    skew_window_ref: skew_window:browser_companion_and_remote_or_review_session.service_family_window
+    skew_register_ref: skew_register:remote.attach_envelope_and_drift
+    window_class: current_plus_previous_minor_or_lts
+    range_label: current + previous minor (companion bridge)
+    min_supported_version: null
+    max_supported_version: null
+    fallback_posture: degraded_local_safe_baseline
+    read_path_posture: narrowed_read_only
+    write_path_posture: blocked
+    suggested_actions:
+      - open_help_contract_mismatch
+      - switch_to_local_only_mode
+      - upgrade_client_component
+      - export_support_bundle
+      - contact_admin_or_support
+    notes: >
+      When the companion/browser/runtime bridge is outside the supported
+      window, the surface must hand off to a local-safe baseline (desktop
+      or review-only) rather than dead-ending. Writes across the bridge
+      are blocked.
+
+  - id: supported_range_row:contract_cache.last_known_good_window
+    boundary_family: schema_or_state_bundle
+    mismatch_domain: stale_contract_cache
+    compat_row_ref: null
+    skew_window_ref: null
+    skew_register_ref: null
+    window_class: same_schema_epoch_additive_only
+    range_label: same schema epoch (additive only)
+    min_supported_version: null
+    max_supported_version: null
+    fallback_posture: degraded_local_safe_baseline
+    read_path_posture: narrowed_read_only
+    write_path_posture: narrowed_idempotent_only
+    suggested_actions:
+      - retry_contract_metadata_refresh
+      - switch_to_local_only_mode
+      - export_support_bundle
+      - contact_admin_or_support
+    notes: >
+      A stale contract cache does not block local work. The system
+      continues with embedded defaults and the last-known-good cache
+      while refusing to widen write authority based on stale metadata.
+
+  - id: supported_range_row:mirror_registry.delayed_metadata_window
+    boundary_family: audit_or_event_producer_consumer
+    mismatch_domain: mirror_delayed_metadata
+    compat_row_ref: null
+    skew_window_ref: null
+    skew_register_ref: null
+    window_class: same_schema_epoch_additive_only
+    range_label: mirrored metadata delayed (stale-but-usable)
+    min_supported_version: null
+    max_supported_version: null
+    fallback_posture: degraded_cached_read_only
+    read_path_posture: narrowed_read_only
+    write_path_posture: blocked
+    suggested_actions:
+      - retry_contract_metadata_refresh
+      - open_service_health_details
+      - export_support_bundle
+      - contact_admin_or_support
+    notes: >
+      Mirror delay is a freshness downgrade, not a silent failure. Cached
+      metadata may be used with a visible stale label; mutation that
+      depends on up-to-date metadata is blocked until the mirror catches
+      up or a local-safe alternative path is chosen.
