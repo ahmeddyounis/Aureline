@@ -1,0 +1,446 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/migration_report.schema.json",
+  "title": "Aureline migration report contract",
+  "description": "Boundary schema for a machine-readable migration report emitted after import apply commits durable state. The report captures source tool/version, target profile/workspace descriptor, rollback checkpoint linkage, grouped importer outcomes, category parity scores, post-import validation outcomes, unsupported item truth, exact build identity, and an explicit next-step decision state plus distinct available actions. The report is export-safe by design: raw secrets, raw credentials, raw absolute paths, raw extension storage, raw workspace file bodies, and raw log bodies are forbidden at this boundary; the report carries opaque refs, counts, controlled vocabulary, and redaction-aware summaries only. See docs/migration/post_import_validation_contract.md and docs/migration/post_import_decision_sheet.md.",
+  "$ref": "#/$defs/migration_report_record",
+  "$defs": {
+    "migration_report_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the migration report contract. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for export and support handoff."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 timestamp."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware free text safe for UI and export."
+    },
+
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+
+    "migration_report_id": {
+      "type": "string",
+      "pattern": "^migration-report:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable migration report id."
+    },
+
+    "migration_source_kind": {
+      "type": "string",
+      "enum": [
+        "vs_code",
+        "jetbrains_family",
+        "vim_or_neovim",
+        "emacs",
+        "sublime_textmate",
+        "prior_aureline",
+        "portable_profile_bundle",
+        "support_recovery_bundle",
+        "workflow_bundle_handoff",
+        "generic_import"
+      ]
+    },
+
+    "migration_source_scope": {
+      "type": "string",
+      "enum": [
+        "user_profile",
+        "workspace",
+        "portable_export",
+        "support_bundle",
+        "workflow_bundle",
+        "other"
+      ]
+    },
+
+    "migration_source_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_kind", "display_name", "source_version"],
+      "properties": {
+        "source_kind": { "$ref": "#/$defs/migration_source_kind" },
+        "display_name": { "$ref": "#/$defs/non_empty_string" },
+        "source_version": { "$ref": "#/$defs/non_empty_string" },
+        "source_scope": { "$ref": "#/$defs/migration_source_scope" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "discovery_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "migration_target_kind": {
+      "type": "string",
+      "enum": [
+        "active_profile",
+        "profile_library_entry",
+        "portable_profile_artifact",
+        "active_workspace",
+        "workspace_manifest",
+        "workspace_candidate",
+        "workflow_bundle_candidate"
+      ]
+    },
+
+    "migration_apply_scope": {
+      "type": "string",
+      "enum": [
+        "preview_only",
+        "profile_only",
+        "workspace_only",
+        "profile_and_workspace"
+      ]
+    },
+
+    "migration_target_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_kind", "target_ref", "apply_scope"],
+      "properties": {
+        "target_kind": { "$ref": "#/$defs/migration_target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "apply_scope": { "$ref": "#/$defs/migration_apply_scope" },
+        "target_label": { "$ref": "#/$defs/redaction_aware_text" }
+      }
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "insufficient_evidence"]
+    },
+
+    "parity_score_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "score", "confidence_class"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": [
+            "keymap",
+            "theme_and_visuals",
+            "settings",
+            "tasks_and_run_configs",
+            "launch_debug",
+            "extensions_and_providers",
+            "snippets_and_templates",
+            "other"
+          ]
+        },
+        "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "confidence_class": { "$ref": "#/$defs/confidence_class" },
+        "evidence_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "outcome_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "imported",
+        "mapped",
+        "skipped",
+        "manual_review",
+        "bridge_required",
+        "unsupported",
+        "total_rows"
+      ],
+      "properties": {
+        "imported": { "type": "integer", "minimum": 0 },
+        "mapped": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "manual_review": { "type": "integer", "minimum": 0 },
+        "bridge_required": { "type": "integer", "minimum": 0 },
+        "unsupported": { "type": "integer", "minimum": 0 },
+        "total_rows": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "validator_class": {
+      "type": "string",
+      "enum": [
+        "keybinding_conflict",
+        "missing_extension_suggestion",
+        "launch_config_sanity",
+        "cli_headless_smoke",
+        "workflow_smoke",
+        "settings_schema_migration",
+        "bundle_readiness"
+      ]
+    },
+
+    "validator_outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_with_warnings",
+        "failed_recoverable",
+        "failed_blocking",
+        "skipped_not_applicable"
+      ]
+    },
+
+    "post_import_validation_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validator_class", "outcome_class", "validator_run_ref"],
+      "properties": {
+        "validator_class": { "$ref": "#/$defs/validator_class" },
+        "outcome_class": { "$ref": "#/$defs/validator_outcome_class" },
+        "validator_run_ref": { "$ref": "#/$defs/opaque_id" }
+      }
+    },
+
+    "unsupported_item_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain", "source_object_ref", "source_label"],
+      "properties": {
+        "domain": { "$ref": "#/$defs/non_empty_string" },
+        "source_object_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+
+    "unsupported_items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["unsupported_count", "unsupported_rows"],
+      "properties": {
+        "unsupported_count": { "type": "integer", "minimum": 0 },
+        "unsupported_rows": { "type": "array", "items": { "$ref": "#/$defs/unsupported_item_row" } }
+      }
+    },
+
+    "post_import_action": {
+      "type": "string",
+      "enum": [
+        "review_migration_report",
+        "roll_back_import",
+        "keep_imported_state",
+        "adopt_recommended_bundle",
+        "review_unsupported_items",
+        "export_report"
+      ]
+    },
+
+    "next_step_state": {
+      "type": "string",
+      "enum": [
+        "decision_optional",
+        "decision_required",
+        "decision_recorded"
+      ]
+    },
+
+    "next_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "decision_sheet_ref", "available_actions"],
+      "properties": {
+        "state": { "$ref": "#/$defs/next_step_state" },
+        "decision_sheet_ref": { "$ref": "#/$defs/non_empty_string" },
+        "available_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/post_import_action" }
+        },
+        "recommended_action": { "$ref": "#/$defs/post_import_action" },
+        "chosen_action": { "$ref": "#/$defs/post_import_action" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "recommended_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "consequence_summaries": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "available_actions": { "contains": { "const": "roll_back_import" } } },
+            "required": ["available_actions"]
+          },
+          "then": { "required": ["rollback_checkpoint_ref"] }
+        },
+        {
+          "if": {
+            "properties": { "available_actions": { "contains": { "const": "adopt_recommended_bundle" } } },
+            "required": ["available_actions"]
+          },
+          "then": { "required": ["recommended_bundle_ref"] }
+        }
+      ]
+    },
+
+    "migration_report_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "migration_report_schema_version",
+        "migration_report_id",
+        "migration_session_ref",
+        "source_descriptor",
+        "target_descriptor",
+        "outcome_packet_ref",
+        "restore_record_ref",
+        "exact_build_identity_ref",
+        "outcome_summary",
+        "parity_score_refs",
+        "post_import_validation_summary_ref",
+        "post_import_validation_refs",
+        "unsupported_items",
+        "export_refs",
+        "support_packet_refs",
+        "docs_help_refs",
+        "next_step",
+        "generated_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "migration_report_record" },
+        "migration_report_schema_version": { "$ref": "#/$defs/migration_report_schema_version" },
+        "migration_report_id": { "$ref": "#/$defs/migration_report_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_descriptor": { "$ref": "#/$defs/migration_source_descriptor" },
+        "target_descriptor": { "$ref": "#/$defs/migration_target_descriptor" },
+        "selected_domains": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" } },
+        "outcome_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "restore_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "import_rollback_checkpoint_ref": { "$ref": "#/$defs/opaque_id" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/non_empty_string" },
+        "outcome_summary": { "$ref": "#/$defs/outcome_summary" },
+        "parity_score_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/parity_score_ref" }
+        },
+        "post_import_validation_summary_ref": { "$ref": "#/$defs/opaque_id" },
+        "post_import_validation_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/post_import_validation_ref" }
+        },
+        "recommended_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "unsupported_items": { "$ref": "#/$defs/unsupported_items" },
+        "export_refs": { "type": "array", "items": { "$ref": "#/$defs/non_empty_string" }, "uniqueItems": true },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "next_step": { "$ref": "#/$defs/next_step" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "migration_report_record",
+      "migration_report_schema_version": 1,
+      "migration_report_id": "migration-report:vs-code-first-run-0001",
+      "migration_session_ref": "migration-session:vs-code-first-run-0001",
+      "source_descriptor": {
+        "source_kind": "vs_code",
+        "display_name": "VS Code",
+        "source_version": "1.89.0",
+        "source_scope": "user_profile",
+        "artifact_ref": "source-artifact:vscode-profile-root"
+      },
+      "target_descriptor": {
+        "target_kind": "active_workspace",
+        "target_ref": "workspace:ts-web-app",
+        "apply_scope": "profile_and_workspace",
+        "target_label": "TypeScript Web App"
+      },
+      "selected_domains": ["settings", "shortcuts", "tasks_and_run_configs"],
+      "outcome_packet_ref": "importer-outcome-packet:vs-code-first-run-0001",
+      "restore_record_ref": "migration-restore-record:vs-code-first-run-0001",
+      "exact_build_identity_ref": "build-id:aureline:nightly:0.8.0-nightly.20260506:aarch64-apple-darwin:release:3e7b1a9c8d42",
+      "outcome_summary": {
+        "imported": 42,
+        "mapped": 11,
+        "skipped": 3,
+        "manual_review": 2,
+        "bridge_required": 1,
+        "unsupported": 2,
+        "total_rows": 61
+      },
+      "parity_score_refs": [
+        {
+          "category": "keymap",
+          "score": 91,
+          "confidence_class": "high",
+          "evidence_ref": "evidence:keymap-parity:0001"
+        },
+        {
+          "category": "tasks_and_run_configs",
+          "score": 62,
+          "confidence_class": "medium",
+          "evidence_ref": "evidence:task-parity:0001"
+        }
+      ],
+      "post_import_validation_summary_ref": "post-import-validation-summary:vs-code-first-run-0001",
+      "post_import_validation_refs": [
+        {
+          "validator_class": "keybinding_conflict",
+          "outcome_class": "passed_with_warnings",
+          "validator_run_ref": "validation-run:vscode-keybinding-conflict-0001"
+        },
+        {
+          "validator_class": "bundle_readiness",
+          "outcome_class": "passed",
+          "validator_run_ref": "validation-run:vscode-bundle-readiness-0001"
+        }
+      ],
+      "recommended_bundle_ref": "workflow-bundle:ts-web-launch-pack",
+      "unsupported_items": {
+        "unsupported_count": 1,
+        "unsupported_rows": [
+          {
+            "domain": "extensions_and_providers",
+            "source_object_ref": "vscode:extension:webview-heavy-addon",
+            "source_label": "Webview-heavy addon",
+            "docs_help_refs": ["docs-ref:migration-unsupported-webview"]
+          }
+        ]
+      },
+      "export_refs": ["support_bundle.migration_report"],
+      "support_packet_refs": ["support:migration:vs-code-first-run-0001"],
+      "docs_help_refs": [
+        "docs/migration/post_import_validation_contract.md",
+        "docs/migration/post_import_decision_sheet.md"
+      ],
+      "next_step": {
+        "state": "decision_required",
+        "decision_sheet_ref": "docs/migration/post_import_decision_sheet.md",
+        "available_actions": [
+          "review_migration_report",
+          "keep_imported_state",
+          "adopt_recommended_bundle",
+          "review_unsupported_items",
+          "export_report"
+        ],
+        "recommended_action": "adopt_recommended_bundle",
+        "recommended_bundle_ref": "workflow-bundle:ts-web-launch-pack"
+      },
+      "generated_at": "2026-05-06T20:10:00Z"
+    }
+  ]
+}

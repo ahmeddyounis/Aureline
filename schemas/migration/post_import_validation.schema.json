@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/migration/post_import_validation.schema.json",
+  "title": "Aureline post-import validation runner contract",
+  "description": "Boundary schema for post-import validation runner records emitted after import apply commits durable state. Each validator emits a machine-readable run record with a closed validator_class and outcome_class vocabulary; a grouped summary record enumerates all validator refs (including explicit skipped_not_applicable outcomes). Raw secrets, raw credentials, raw absolute paths, raw extension storage, raw workspace file bodies, and raw log bodies are forbidden at this boundary; producers emit opaque refs, counts, controlled labels, and redaction-aware summaries only. See docs/migration/post_import_validation_contract.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/post_import_validation_run_record" },
+    { "$ref": "#/$defs/post_import_validation_summary_record" }
+  ],
+  "$defs": {
+    "post_import_validation_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the post-import validation runner contract. Bumped only on breaking payload changes."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to persist and export."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 timestamp. Producers use a monotonic source where possible."
+    },
+
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware free text safe for UI and export."
+    },
+
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+
+    "migration_domain": {
+      "type": "string",
+      "enum": [
+        "settings",
+        "shortcuts",
+        "themes_and_visuals",
+        "snippets_and_templates",
+        "tasks_and_run_configs",
+        "launch_debug",
+        "extensions_and_providers",
+        "workspace_metadata",
+        "profiles_and_layout",
+        "docs_and_tours",
+        "bridge_metadata",
+        "other"
+      ],
+      "description": "Closed migration-domain set reused by post-import validation details."
+    },
+
+    "validator_class": {
+      "type": "string",
+      "enum": [
+        "keybinding_conflict",
+        "missing_extension_suggestion",
+        "launch_config_sanity",
+        "cli_headless_smoke",
+        "workflow_smoke",
+        "settings_schema_migration",
+        "bundle_readiness"
+      ],
+      "description": "Closed post-import validator class set shared across migration-center and entry/restore contracts."
+    },
+
+    "outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "passed_with_warnings",
+        "failed_recoverable",
+        "failed_blocking",
+        "skipped_not_applicable"
+      ],
+      "description": "Closed validator outcome vocabulary."
+    },
+
+    "run_mode": {
+      "type": "string",
+      "enum": [
+        "interactive_shell",
+        "headless_cli",
+        "automation",
+        "support_replay"
+      ],
+      "description": "How the validator was executed."
+    },
+
+    "post_import_validation_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validator_class", "outcome_class", "validator_run_ref"],
+      "properties": {
+        "validator_class": { "$ref": "#/$defs/validator_class" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "validator_run_ref": { "$ref": "#/$defs/opaque_id" }
+      },
+      "description": "One post-import validation outcome ref."
+    },
+
+    "keybinding_conflict_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflict_count"],
+      "properties": {
+        "conflict_count": { "type": "integer", "minimum": 0 },
+        "high_frequency_conflict_count": { "type": "integer", "minimum": 0 },
+        "conflict_row_refs": { "$ref": "#/$defs/ref_array" },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "description": "Details for the keybinding_conflict validator."
+    },
+
+    "extension_suggestion_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_extension_ref", "source_extension_label", "suggested_target_ref", "mapping_basis"],
+      "properties": {
+        "source_extension_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_extension_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "suggested_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "mapping_basis": {
+          "type": "string",
+          "enum": ["capability_based", "name_heuristic", "user_override", "not_applicable"]
+        },
+        "compatibility_row_refs": { "$ref": "#/$defs/ref_array" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" }
+      },
+      "description": "One missing-extension suggestion row."
+    },
+
+    "missing_extension_suggestion_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suggestions"],
+      "properties": {
+        "suggestions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extension_suggestion_row" },
+          "description": "Suggestion rows. Empty is allowed when the validator is skipped or no suggestions exist."
+        },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "description": "Details for the missing_extension_suggestion validator."
+    },
+
+    "launch_config_sanity_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runnable_count", "review_required_count", "blocked_count"],
+      "properties": {
+        "runnable_count": { "type": "integer", "minimum": 0 },
+        "review_required_count": { "type": "integer", "minimum": 0 },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "domain": { "$ref": "#/$defs/migration_domain" },
+        "related_outcome_row_refs": { "$ref": "#/$defs/ref_array" },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "description": "Details for launch_config_sanity (tasks/run configs and launch/debug parity sanity)."
+    },
+
+    "headless_smoke_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suite_ref"],
+      "properties": {
+        "suite_ref": { "$ref": "#/$defs/non_empty_string" },
+        "artifact_refs": { "$ref": "#/$defs/ref_array" },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "description": "Details for cli_headless_smoke and workflow_smoke validators."
+    },
+
+    "settings_schema_migration_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validated_key_count", "rejected_key_count"],
+      "properties": {
+        "validated_key_count": { "type": "integer", "minimum": 0 },
+        "rejected_key_count": { "type": "integer", "minimum": 0 },
+        "coerced_key_count": { "type": "integer", "minimum": 0 },
+        "schema_refs": { "$ref": "#/$defs/ref_array" },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "description": "Details for settings_schema_migration."
+    },
+
+    "bundle_readiness_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recommendation_class"],
+      "properties": {
+        "recommendation_class": {
+          "type": "string",
+          "enum": ["not_recommended", "optional", "recommended"]
+        },
+        "recommended_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "reason_summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/redaction_aware_text" } }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "recommendation_class": { "enum": ["optional", "recommended"] } },
+            "required": ["recommendation_class"]
+          },
+          "then": { "required": ["recommended_bundle_ref", "reason_summary"] }
+        }
+      ],
+      "description": "Details for bundle_readiness."
+    },
+
+    "post_import_validation_details": {
+      "oneOf": [
+        { "$ref": "#/$defs/keybinding_conflict_detail" },
+        { "$ref": "#/$defs/missing_extension_suggestion_detail" },
+        { "$ref": "#/$defs/launch_config_sanity_detail" },
+        { "$ref": "#/$defs/headless_smoke_detail" },
+        { "$ref": "#/$defs/settings_schema_migration_detail" },
+        { "$ref": "#/$defs/bundle_readiness_detail" }
+      ]
+    },
+
+    "post_import_validation_run_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "post_import_validation_schema_version",
+        "validator_run_id",
+        "migration_session_ref",
+        "outcome_packet_ref",
+        "validator_class",
+        "run_mode",
+        "outcome_class",
+        "summary",
+        "started_at",
+        "completed_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "post_import_validation_run_record" },
+        "post_import_validation_schema_version": { "$ref": "#/$defs/post_import_validation_schema_version" },
+        "validator_run_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "outcome_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "validator_class": { "$ref": "#/$defs/validator_class" },
+        "run_mode": { "$ref": "#/$defs/run_mode" },
+        "outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "details": { "$ref": "#/$defs/post_import_validation_details" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "export_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "started_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "completed_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "validator_class": { "const": "keybinding_conflict" } },
+            "required": ["validator_class"]
+          },
+          "then": { "properties": { "details": { "$ref": "#/$defs/keybinding_conflict_detail" } }, "required": ["details"] }
+        },
+        {
+          "if": {
+            "properties": { "validator_class": { "const": "missing_extension_suggestion" } },
+            "required": ["validator_class"]
+          },
+          "then": { "properties": { "details": { "$ref": "#/$defs/missing_extension_suggestion_detail" } }, "required": ["details"] }
+        },
+        {
+          "if": {
+            "properties": { "validator_class": { "const": "launch_config_sanity" } },
+            "required": ["validator_class"]
+          },
+          "then": { "properties": { "details": { "$ref": "#/$defs/launch_config_sanity_detail" } }, "required": ["details"] }
+        },
+        {
+          "if": {
+            "properties": { "validator_class": { "enum": ["cli_headless_smoke", "workflow_smoke"] } },
+            "required": ["validator_class"]
+          },
+          "then": { "properties": { "details": { "$ref": "#/$defs/headless_smoke_detail" } }, "required": ["details"] }
+        },
+        {
+          "if": {
+            "properties": { "validator_class": { "const": "settings_schema_migration" } },
+            "required": ["validator_class"]
+          },
+          "then": { "properties": { "details": { "$ref": "#/$defs/settings_schema_migration_detail" } }, "required": ["details"] }
+        },
+        {
+          "if": {
+            "properties": { "validator_class": { "const": "bundle_readiness" } },
+            "required": ["validator_class"]
+          },
+          "then": { "properties": { "details": { "$ref": "#/$defs/bundle_readiness_detail" } }, "required": ["details"] }
+        }
+      ],
+      "description": "One validator run record emitted by the post-import validation runner."
+    },
+
+    "post_import_validation_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "post_import_validation_schema_version",
+        "post_import_validation_summary_id",
+        "migration_session_ref",
+        "outcome_packet_ref",
+        "overall_outcome_class",
+        "post_import_validation_refs",
+        "created_at"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "post_import_validation_summary_record" },
+        "post_import_validation_schema_version": { "$ref": "#/$defs/post_import_validation_schema_version" },
+        "post_import_validation_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "migration_session_ref": { "$ref": "#/$defs/opaque_id" },
+        "outcome_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "overall_outcome_class": { "$ref": "#/$defs/outcome_class" },
+        "post_import_validation_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/post_import_validation_ref" }
+        },
+        "recommended_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "docs_help_refs": { "$ref": "#/$defs/ref_array" },
+        "export_refs": { "$ref": "#/$defs/ref_array" },
+        "support_packet_refs": { "$ref": "#/$defs/ref_array" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Grouped post-import validation summary record cited by migration sessions and migration reports."
+    }
+  },
+  "examples": [
+    {
+      "record_kind": "post_import_validation_run_record",
+      "post_import_validation_schema_version": 1,
+      "validator_run_id": "validation-run:vscode-keybinding-conflict-0001",
+      "migration_session_ref": "migration-session:vs-code-first-run-0001",
+      "outcome_packet_ref": "importer-outcome-packet:vs-code-first-run-0001",
+      "validator_class": "keybinding_conflict",
+      "run_mode": "interactive_shell",
+      "outcome_class": "passed_with_warnings",
+      "summary": "Detected 1 chord conflict involving a high-frequency command; requires review.",
+      "details": {
+        "conflict_count": 1,
+        "high_frequency_conflict_count": 1,
+        "conflict_row_refs": ["keybinding-conflict-row:0001"],
+        "notes": []
+      },
+      "docs_help_refs": ["docs-ref:keymap-conflict-review"],
+      "export_refs": ["export:migration:validation:keybinding-conflict:0001"],
+      "support_packet_refs": ["support:migration:validation:keybinding-conflict:0001"],
+      "started_at": "2026-05-06T19:41:00Z",
+      "completed_at": "2026-05-06T19:41:03Z"
+    },
+    {
+      "record_kind": "post_import_validation_summary_record",
+      "post_import_validation_schema_version": 1,
+      "post_import_validation_summary_id": "post-import-validation-summary:vs-code-first-run-0001",
+      "migration_session_ref": "migration-session:vs-code-first-run-0001",
+      "outcome_packet_ref": "importer-outcome-packet:vs-code-first-run-0001",
+      "overall_outcome_class": "passed_with_warnings",
+      "post_import_validation_refs": [
+        {
+          "validator_class": "keybinding_conflict",
+          "outcome_class": "passed_with_warnings",
+          "validator_run_ref": "validation-run:vscode-keybinding-conflict-0001"
+        },
+        {
+          "validator_class": "missing_extension_suggestion",
+          "outcome_class": "skipped_not_applicable",
+          "validator_run_ref": "validation-run:vscode-missing-extension-0001"
+        }
+      ],
+      "created_at": "2026-05-06T19:42:00Z"
+    }
+  ]
+}

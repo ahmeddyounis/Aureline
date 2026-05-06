@@ -28,6 +28,12 @@ Companion artifacts:
 - [`/schemas/migration/importer_outcome.schema.json`](../../schemas/migration/importer_outcome.schema.json)
   — machine-readable schema for `importer_outcome_row_record` and
   `importer_outcome_packet_record`.
+- [`/docs/migration/post_import_validation_contract.md`](./post_import_validation_contract.md),
+  [`/schemas/migration/post_import_validation.schema.json`](../../schemas/migration/post_import_validation.schema.json),
+  [`/docs/migration/post_import_decision_sheet.md`](./post_import_decision_sheet.md),
+  and [`/schemas/migration/migration_report.schema.json`](../../schemas/migration/migration_report.schema.json)
+  — post-import validation runner contract, post-import decision sheet, and
+  machine-readable migration report schema.
 - [`/docs/migration/first_run_import_diff_and_rollback_contract.md`](./first_run_import_diff_and_rollback_contract.md)
   — first-run dry-run import plan, preview diff, apply, rollback, and
   imported-profile history contract.
@@ -39,6 +45,9 @@ Companion artifacts:
 - [`/fixtures/migration/import_preview_cases/`](../../fixtures/migration/import_preview_cases/)
   — worked cases for first-run full preview, partial import, skip path,
   rollback, and imported-profile history linkage.
+- [`/fixtures/migration/post_import_cases/`](../../fixtures/migration/post_import_cases/)
+  — worked cases for post-import validation, explicit next-step state, bundle
+  handoff recommendation, and rollback vs keep-state decisions after apply.
 - [`/docs/migration/source_ecosystem_coverage_matrix.md`](./source_ecosystem_coverage_matrix.md)
   — governed source ecosystem coverage matrix for the marketed migration
   lanes and their non-claimed source policy.
