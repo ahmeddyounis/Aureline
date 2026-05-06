@@ -57,6 +57,13 @@ The companion artifacts are:
   — token-conformance audit format, machine-readable drift fail-gate
   rules, and worked manifest / refusal / inheritance-gap fixtures
   that diff canonical vocabulary against per-surface consumption.
+- [`/docs/design/semantic_token_domains_and_palette_contract.md`](./semantic_token_domains_and_palette_contract.md),
+  [`/artifacts/design/semantic_token_domains.yaml`](../../artifacts/design/semantic_token_domains.yaml),
+  [`/schemas/design/palette_mapping_row.schema.json`](../../schemas/design/palette_mapping_row.schema.json),
+  and
+  [`/fixtures/design/palette_examples/`](../../fixtures/design/palette_examples/)
+  — semantic token-domain ledger and palette mapping examples for
+  status/severity, syntax, diff, chart, and trust/freshness cues.
 - [`/artifacts/design/component_state_screenshot_corpus.yaml`](../../artifacts/design/component_state_screenshot_corpus.yaml),
   [`/docs/design/component_state_diff_packet_template.md`](./component_state_diff_packet_template.md),
   and

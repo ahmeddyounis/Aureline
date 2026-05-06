@@ -1453,6 +1453,16 @@ code.
   [`/artifacts/design/theme_support_rows.yaml`](../artifacts/design/theme_support_rows.yaml);
   layer and scrim tokens in
   [`/artifacts/design/layer_and_scrim_tokens.yaml`](../artifacts/design/layer_and_scrim_tokens.yaml).
+- [`design/semantic_token_domains_and_palette_contract.md`](./design/semantic_token_domains_and_palette_contract.md)
+  — semantic token-domain ledger and palette contract that makes status,
+  severity, syntax highlighting, diff roles, chart series roles, and
+  trust/freshness/lifecycle cues mechanically attributable to one meaning
+  owner. Machine-readable ledger in
+  [`/artifacts/design/semantic_token_domains.yaml`](../artifacts/design/semantic_token_domains.yaml);
+  boundary schema in
+  [`/schemas/design/palette_mapping_row.schema.json`](../schemas/design/palette_mapping_row.schema.json);
+  worked examples in
+  [`/fixtures/design/palette_examples/`](../fixtures/design/palette_examples/).
 - [`design/typography_text_contract.md`](./design/typography_text_contract.md)
   — typography roles, scale, font fallback posture, and overflow/copy-
   honesty contract for shell, docs/help, editor-adjacent UI, tables,

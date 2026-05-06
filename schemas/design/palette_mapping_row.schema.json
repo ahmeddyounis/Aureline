@@ -1,0 +1,206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/palette_mapping_row.schema.json",
+  "title": "Aureline semantic palette mapping rows and examples",
+  "description": "Boundary schema for the semantic token-domain palette contract frozen in docs/design/semantic_token_domains_and_palette_contract.md, the machine-readable ledger at artifacts/design/semantic_token_domains.yaml, and the worked machine-readable examples under fixtures/design/palette_examples/. The goal is to make visual semantics mechanical: each row names which semantic domain owns a token (status, trust, syntax, diff, chart, lifecycle/freshness), which theme classes supply default values, which override scopes are allowed (theme package vs language syntax theme), and which surfaces/roles the token propagates to. This schema is design-time only; it is not a runtime token export.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/palette_mapping_row_record" },
+    { "$ref": "#/$defs/palette_mapping_example_record" }
+  ],
+  "$defs": {
+    "palette_mapping_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for palette-mapping row and example records."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": ["palette_mapping_row_record", "palette_mapping_example_record"]
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log and safe in fixtures."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "nonempty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonempty_string" },
+        "scenario": { "$ref": "#/$defs/nonempty_string" },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" }
+        }
+      }
+    },
+
+    "token_family_class": {
+      "$ref": "./token_export_manifest.schema.json#/$defs/token_family_class"
+    },
+
+    "theme_class": {
+      "$ref": "./token_export_manifest.schema.json#/$defs/theme_class"
+    },
+
+    "token_domain_class": {
+      "type": "string",
+      "enum": [
+        "theme_semantic",
+        "state_hues",
+        "semantic_status",
+        "trust_visual_state",
+        "syntax",
+        "diff",
+        "chart",
+        "lifecycle_and_freshness"
+      ],
+      "description": "Closed semantic domain vocabulary for palette mapping rows. Domains are meaning owners, not just namespaces."
+    },
+
+    "override_policy_class": {
+      "type": "string",
+      "enum": [
+        "product_semantic_only",
+        "theme_package_override_allowed",
+        "user_overlay_override_allowed",
+        "imported_theme_override_allowed",
+        "language_theme_override_allowed"
+      ],
+      "description": "High-level override policy for the token role. language_theme_override_allowed means a language/syntax theme may supply a value; product_semantic_only forbids language-level override."
+    },
+
+    "color_value": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "description": "Concrete value (hex/rgba/etc) or a short derived hint (e.g. 'derived-from:al.color.state.success'). Parsers MUST NOT assume a single literal format."
+    },
+
+    "role_value_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "foreground": { "$ref": "#/$defs/color_value" },
+        "background": { "$ref": "#/$defs/color_value" },
+        "fill": { "$ref": "#/$defs/color_value" },
+        "border": { "$ref": "#/$defs/color_value" },
+        "stroke": { "$ref": "#/$defs/color_value" },
+        "underline": { "$ref": "#/$defs/color_value" }
+      },
+      "description": "Multi-channel colour mapping for tokens that ship distinct foreground/fill/border roles."
+    },
+
+    "theme_value": {
+      "oneOf": [{ "$ref": "#/$defs/color_value" }, { "$ref": "#/$defs/role_value_map" }]
+    },
+
+    "value_by_theme_class": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dark_reference", "light_parity"],
+      "properties": {
+        "dark_reference": { "$ref": "#/$defs/theme_value" },
+        "light_parity": { "$ref": "#/$defs/theme_value" },
+        "high_contrast_dark": { "$ref": "#/$defs/theme_value" },
+        "high_contrast_light": { "$ref": "#/$defs/theme_value" }
+      }
+    },
+
+    "palette_mapping_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "palette_mapping_schema_version",
+        "row_id",
+        "token_domain_class",
+        "token_family_class",
+        "token_ref",
+        "override_policy_class",
+        "value_by_theme_class",
+        "propagates_to",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "palette_mapping_row_record" },
+        "palette_mapping_schema_version": { "$ref": "#/$defs/palette_mapping_schema_version" },
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "token_domain_class": { "$ref": "#/$defs/token_domain_class" },
+        "token_family_class": { "$ref": "#/$defs/token_family_class" },
+        "token_ref": { "$ref": "#/$defs/nonempty_string" },
+        "override_policy_class": { "$ref": "#/$defs/override_policy_class" },
+        "value_by_theme_class": { "$ref": "#/$defs/value_by_theme_class" },
+        "propagates_to": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty_string" },
+          "uniqueItems": true
+        },
+        "required_non_color_cues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" },
+          "uniqueItems": true
+        },
+        "source_of_truth_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" },
+          "uniqueItems": true
+        },
+        "notes": { "$ref": "#/$defs/nonempty_string" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "palette_mapping_example_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "palette_mapping_schema_version",
+        "example_id",
+        "token_domain_class",
+        "rows",
+        "minted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "palette_mapping_example_record" },
+        "palette_mapping_schema_version": { "$ref": "#/$defs/palette_mapping_schema_version" },
+        "example_id": { "$ref": "#/$defs/opaque_id" },
+        "token_domain_class": { "$ref": "#/$defs/token_domain_class" },
+        "surface_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty_string" },
+          "uniqueItems": true
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/palette_mapping_row_record" }
+        },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+
