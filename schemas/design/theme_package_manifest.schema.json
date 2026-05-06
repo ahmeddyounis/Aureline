@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/theme_package_manifest.schema.json",
+  "title": "Aureline theme-package appearance manifest record",
+  "description": "Boundary schema for the theme_package_appearance_manifest_record frozen in docs/design/theme_package_manifest_contract.md. The record exists to make appearance packages inspectable and attributable across first-party, imported, extension, and embedded surfaces. It binds the theme_package_manifest_ref + theme_package_revision_ref pair carried by theme-support claims and extension/embedded appearance descriptors back to canonical package identity, provenance, the three token-set handles (semantic, component, syntax), explicit supported-mode declarations, density defaults, motion posture coverage, and per-mode minimum-contrast targets. Raw token values, raw asset bytes, raw rendered screenshots, raw URLs, raw absolute paths, raw signing keys, and raw user content never cross this boundary; this schema carries opaque ids, closed vocabulary, small numeric targets, and short privacy-safe notes only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/theme_package_appearance_manifest_record" }
+  ],
+  "$defs": {
+    "theme_package_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for theme-package appearance manifest records. Vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / evidence packets / support bundles. Raw URLs, raw absolute paths, raw asset bytes, and raw user content never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      },
+      "description": "Re-exported policy-context packet (ADR-0008 / ADR-0009 / ADR-0001)."
+    },
+
+    "theme_class": {
+      "type": "string",
+      "enum": [
+        "dark_reference",
+        "light_parity",
+        "high_contrast_dark",
+        "high_contrast_light"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "density_class": {
+      "type": "string",
+      "enum": ["compact", "standard", "comfortable"],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "accessibility_posture_class": {
+      "type": "string",
+      "enum": [
+        "motion_standard",
+        "motion_reduced",
+        "motion_low_motion",
+        "motion_power_saver",
+        "motion_critical_hot_path"
+      ],
+      "description": "Re-exported from schemas/design/token_export_manifest.schema.json without modification."
+    },
+
+    "supported_mode_class": {
+      "type": "string",
+      "enum": ["dark", "light", "hc-dark", "hc-light"],
+      "description": "Supported-mode vocabulary used for claim narrowing. Maps 1:1 onto the four theme_class values."
+    },
+
+    "theme_package_provenance_class": {
+      "type": "string",
+      "enum": [
+        "built_in_with_product",
+        "extension_contributed",
+        "community_supplied",
+        "imported_translated",
+        "air_gapped_offline"
+      ],
+      "description": "Closed provenance vocabulary describing how the package entered the system (built-in, extension, community, imported, or offline ingest)."
+    },
+
+    "token_set_kind": {
+      "type": "string",
+      "enum": ["semantic", "component", "syntax"]
+    },
+
+    "token_set_format_class": {
+      "type": "string",
+      "enum": [
+        "token_table_json",
+        "token_table_yaml",
+        "token_overlay_record",
+        "external_blob"
+      ],
+      "description": "Format hint for tooling only. The token bytes are out of scope; this contract carries only handles and small summaries."
+    },
+
+    "token_set_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token_set_ref", "token_set_revision_ref"],
+      "properties": {
+        "token_set_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_set_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "token_set_kind": { "$ref": "#/$defs/token_set_kind" },
+        "format_class": { "$ref": "#/$defs/token_set_format_class" },
+        "estimated_token_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional count hint for review summaries. Not the source of truth for conformance."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "token_set_bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["semantic", "component", "syntax"],
+      "properties": {
+        "semantic": { "$ref": "#/$defs/token_set_binding" },
+        "component": { "$ref": "#/$defs/token_set_binding" },
+        "syntax": { "$ref": "#/$defs/token_set_binding" }
+      }
+    },
+
+    "contrast_target_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minimum_text_contrast_target",
+        "minimum_ui_contrast_target",
+        "focus_ring_contrast_target",
+        "focus_ring_stroke_px",
+        "forced_colors_friendly"
+      ],
+      "properties": {
+        "minimum_text_contrast_target": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 21.0
+        },
+        "minimum_ui_contrast_target": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 21.0
+        },
+        "focus_ring_contrast_target": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 21.0
+        },
+        "focus_ring_stroke_px": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "forced_colors_friendly": {
+          "type": "boolean",
+          "description": "True when the mode can defer to the platform forced-colors palette without losing state conveyance."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "supported_mode_declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode_class",
+        "theme_class",
+        "contrast_targets",
+        "evidence_path"
+      ],
+      "properties": {
+        "mode_class": { "$ref": "#/$defs/supported_mode_class" },
+        "theme_class": { "$ref": "#/$defs/theme_class" },
+        "contrast_targets": { "$ref": "#/$defs/contrast_target_metadata" },
+        "evidence_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace-relative path to the evidence packet, capture manifest, or fixture used to justify this mode claim."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "density_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default_density_class", "supported_density_classes"],
+      "properties": {
+        "default_density_class": { "$ref": "#/$defs/density_class" },
+        "supported_density_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/density_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "motion_flag_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "default_accessibility_posture_class",
+        "supported_accessibility_posture_classes"
+      ],
+      "properties": {
+        "default_accessibility_posture_class": {
+          "$ref": "#/$defs/accessibility_posture_class"
+        },
+        "supported_accessibility_posture_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/accessibility_posture_class" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "theme_package_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provenance_class"],
+      "properties": {
+        "provenance_class": { "$ref": "#/$defs/theme_package_provenance_class" },
+        "source_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the ingest source (extension id, import report id, offline ingest batch id)."
+        },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "theme_package_appearance_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "theme_package_manifest_schema_version",
+        "appearance_manifest_id",
+        "theme_package_manifest_ref",
+        "theme_package_revision_ref",
+        "package_id",
+        "package_revision_ref",
+        "package_version_label",
+        "provenance",
+        "token_sets",
+        "supported_modes",
+        "density_defaults",
+        "motion_flags",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "theme_package_appearance_manifest_record" },
+        "theme_package_manifest_schema_version": { "$ref": "#/$defs/theme_package_manifest_schema_version" },
+        "appearance_manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "theme_package_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "theme_package_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "package_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "package_version_label": { "$ref": "#/$defs/short_label_text" },
+        "provenance": { "$ref": "#/$defs/theme_package_provenance" },
+        "token_sets": { "$ref": "#/$defs/token_set_bundle" },
+        "supported_modes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/supported_mode_declaration" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "density_defaults": { "$ref": "#/$defs/density_defaults" },
+        "motion_flags": { "$ref": "#/$defs/motion_flag_summary" },
+        "minimum_contrast_note": {
+          "$ref": "#/$defs/short_note_text",
+          "description": "Optional summary note about the contrast targets across modes."
+        },
+        "compatibility_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_note_text" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Supported-mode declaration MUST keep mode_class and theme_class aligned.",
+          "properties": {
+            "supported_modes": {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": { "mode_class": { "const": "dark" } },
+                      "required": ["mode_class"]
+                    },
+                    "then": {
+                      "properties": { "theme_class": { "const": "dark_reference" } },
+                      "required": ["theme_class"]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": { "mode_class": { "const": "light" } },
+                      "required": ["mode_class"]
+                    },
+                    "then": {
+                      "properties": { "theme_class": { "const": "light_parity" } },
+                      "required": ["theme_class"]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": { "mode_class": { "const": "hc-dark" } },
+                      "required": ["mode_class"]
+                    },
+                    "then": {
+                      "properties": { "theme_class": { "const": "high_contrast_dark" } },
+                      "required": ["theme_class"]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": { "mode_class": { "const": "hc-light" } },
+                      "required": ["mode_class"]
+                    },
+                    "then": {
+                      "properties": { "theme_class": { "const": "high_contrast_light" } },
+                      "required": ["theme_class"]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
