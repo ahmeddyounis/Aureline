@@ -35,3 +35,4 @@ over a partially-ready workspace.
 | [`symlink_alias.json`](./symlink_alias.json)                           | Symlink / junction alias; two presentation paths, one canonical object                      | §4.2               |
 | [`moved_file.json`](./moved_file.json)                                 | Rename that preserves the canonical identity token                                           | §4.3               |
 | [`partially_ready_workspace.json`](./partially_ready_workspace.json)   | Composite workspace-scoped readiness with child producer records                             | §4.4               |
+| [`semantic_readiness_cases/`](./semantic_readiness_cases/)             | Readiness projection cases and why-not-ready inspector view contract                         | §2–§3              |
