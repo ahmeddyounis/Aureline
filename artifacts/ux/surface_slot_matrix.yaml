@@ -1,0 +1,500 @@
+# UI composition surface-slot matrix.
+#
+# This artifact freezes stable slot ids and slot-ownership rules for the
+# Aureline shell. It exists so panes, bars, embedded surfaces, and
+# extension surfaces attach to declared insertion points instead of
+# inventing ad hoc layout.
+#
+# Rules:
+#   - Slot ids are stable identifiers for composition and layout restore.
+#     They are not implementation widget ids.
+#   - Slots marked protected_host_only are reserved for host-owned
+#     control-plane truth (identity, trust/auth/policy prompts, critical
+#     overlays). Extension/provider surfaces are denied unless an
+#     explicit admission row is added here.
+#   - Where this artifact disagrees with upstream contracts (UI/UX spec,
+#     shell zoning, overlay contract, embedded-surface ADR), the upstream
+#     owner wins and this file must be updated in the same patch.
+
+schema_version: 1
+matrix_id: aureline.ui_composition_surface_slot_matrix
+status: seeded
+
+overview_doc: docs/ux/ui_composition_surface_slot_matrix.md
+
+source_refs:
+  ui_ux_spec: .t2/docs/Aureline_UI_UX_Spec_Document.md
+  shell_zones_and_density: docs/ux/shell_zone_and_density_contract.md
+  shell_metrics: artifacts/ux/shell_metrics.yaml
+  title_context_bar: docs/ux/title_context_bar_contract.md
+  rail_sidebar: docs/ux/rail_sidebar_contract.md
+  tabs_editor_groups: docs/ux/tabs_editor_groups_contract.md
+  status_bar: docs/ux/status_bar_contract.md
+  overlay_layer: docs/ux/overlay_layer_contract.md
+  notification_contract: docs/ux/notification_contract.md
+  durable_work: docs/ux/durable_work_contract.md
+  embedded_surface_adr: docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+  embedded_boundary_card: docs/ux/embedded_surface_boundary_cards.md
+  window_display: docs/ux/window_display_contract.md
+  companion_surface: docs/companion/companion_surface_contract.md
+
+vocabularies:
+  protection_class:
+    - protected_host_only
+    - host_owned_with_budget
+    - surface_owner_with_insertion
+    - open_surface_container
+
+  extension_insertion_policy:
+    - prohibited
+    - allowed_via_budgeted_schema
+    - allowed_via_owner_contract
+    - allowed_with_explicit_admission_row
+
+  persistence_class:
+    - required_chrome_always_present
+    - restorable_window_topology
+    - restorable_workspace_state
+    - durable_until_resolved_or_archived
+    - transient_window_local
+    - os_managed_mirror
+    - out_of_shell
+
+  content_class:
+    - identity_chrome
+    - primary_route_map
+    - structural_navigation
+    - working_set_container
+    - review_or_approval_surface
+    - contextual_detail
+    - execution_output_panel
+    - activity_center
+    - status_item_cluster
+    - transient_overlay
+    - toast_or_banner_lane
+    - embedded_surface_with_boundary_card
+    - extension_surface
+    - companion_surface
+
+slot_rows:
+  - slot_id: slot.title_context_bar.identity
+    shell_zone: title_context_bar
+    slot_label: Title/context bar identity chrome
+    owner_refs:
+      - docs/ux/title_context_bar_contract.md
+      - artifacts/ux/shell_metrics.yaml
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [identity_chrome]
+    lifecycle_notes: >
+      Always present required chrome. Carries canonical identity tuple;
+      never becomes workflow-local action strips or transient alert lanes.
+    focus_policy_ref: shell_metrics.zone_rows.title_context_bar.focus_policy
+    persistence_class: required_chrome_always_present
+    collapse_overflow_notes: >
+      May compress/condense; must remain keyboard-reachable; must not sheet.
+
+  - slot_id: slot.activity_rail.primary_routes
+    shell_zone: activity_rail
+    slot_label: Activity rail primary route entries
+    owner_refs:
+      - docs/ux/rail_sidebar_contract.md
+      - artifacts/ux/shell_metrics.yaml
+    protection_class: protected_host_only
+    extension_insertion_policy: allowed_via_owner_contract
+    allowed_content_classes: [primary_route_map]
+    lifecycle_notes: >
+      Hosts the stable top-level route map. Extension-provided views do not
+      add a new primary rail rank by default; future/extension rows route
+      through overflow and explicit placement decisions.
+    focus_policy_ref: shell_metrics.zone_rows.activity_rail.focus_policy
+    persistence_class: restorable_window_topology
+    collapse_overflow_notes: >
+      Overflow may land in a drawer but must remain keyboard reachable.
+
+  - slot_id: slot.sidebar.section_surface
+    shell_zone: left_sidebar
+    slot_label: Sidebar section surface body
+    owner_refs:
+      - docs/ux/rail_sidebar_contract.md
+      - schemas/ux/section_slot.schema.json
+      - artifacts/ux/shell_metrics.yaml
+    protection_class: surface_owner_with_insertion
+    extension_insertion_policy: allowed_via_owner_contract
+    allowed_content_classes: [structural_navigation]
+    lifecycle_notes: >
+      Hosts section-owned structural navigation and durable lists. Critical
+      actions must not exist only here; they require command-backed parity.
+      Missing/blocked providers or extensions render a placeholder in-slot.
+    focus_policy_ref: shell_metrics.zone_rows.left_sidebar.focus_policy
+    persistence_class: restorable_window_topology
+    collapse_overflow_notes: >
+      May sheet or drawer in compact modes; state remains reopenable.
+
+  - slot_id: slot.main_workspace.working_set
+    shell_zone: main_workspace
+    slot_label: Main workspace working-set container (tabs/editor groups)
+    owner_refs:
+      - docs/ux/tabs_editor_groups_contract.md
+      - docs/workspace/layout_serialization_contract.md
+      - artifacts/ux/shell_metrics.yaml
+    protection_class: open_surface_container
+    extension_insertion_policy: allowed_with_explicit_admission_row
+    allowed_content_classes: [working_set_container, review_or_approval_surface]
+    lifecycle_notes: >
+      Dominant task surface. Supports editors, diffs, notebooks, review
+      surfaces, and long-form evidence. Restore preserves pane/tab identity
+      and uses placeholders rather than silently collapsing layout.
+    focus_policy_ref: shell_metrics.zone_rows.main_workspace.focus_policy
+    persistence_class: restorable_workspace_state
+    collapse_overflow_notes: >
+      Must preserve minimum useful width; fall back explicitly rather than
+      creating unusable narrow panes.
+
+  - slot_id: slot.main_workspace.review_surface
+    shell_zone: main_workspace
+    slot_label: Main workspace review/approval surface container
+    owner_refs:
+      - docs/ux/overlay_layer_contract.md
+      - docs/ux/dialog_sheet_contract.md
+      - docs/ux/shell_interaction_safety_contract.md
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [review_or_approval_surface]
+    lifecycle_notes: >
+      Durable review and approval surfaces that must remain host-owned:
+      trust/auth/policy prompts, destructive confirmations, high-risk
+      approval sheets, apply-review canvases, and other consequence-bearing
+      review flows. Embedded/extension surfaces may request review but do
+      not render the approving UI chrome themselves.
+    focus_policy_ref: shell_metrics.zone_rows.main_workspace.focus_policy
+    persistence_class: restorable_window_topology
+    collapse_overflow_notes: >
+      Must preserve identity, consequence disclosure, and safe actions at all widths.
+
+  - slot_id: slot.right_inspector.contextual_detail
+    shell_zone: right_inspector
+    slot_label: Right inspector contextual detail container
+    owner_refs:
+      - artifacts/ux/shell_metrics.yaml
+      - docs/ux/shell_zone_and_density_contract.md
+    protection_class: open_surface_container
+    extension_insertion_policy: allowed_with_explicit_admission_row
+    allowed_content_classes: [contextual_detail, embedded_surface_with_boundary_card]
+    lifecycle_notes: >
+      Optional contextual detail and explanation. May sheet in compact
+      layouts; must not become the only route to finish a core task.
+    focus_policy_ref: shell_metrics.zone_rows.right_inspector.focus_policy
+    persistence_class: restorable_window_topology
+    collapse_overflow_notes: >
+      May sheet; must preserve target ref on sheet open and keep a keyboard
+      route back to the invoker.
+
+  - slot_id: slot.bottom_panel.tool_panels
+    shell_zone: bottom_panel
+    slot_label: Bottom panel tool panel container (terminal/problems/output/tests/activity)
+    owner_refs:
+      - artifacts/ux/shell_metrics.yaml
+      - docs/ux/shell_close_reopen_contract.md
+    protection_class: surface_owner_with_insertion
+    extension_insertion_policy: allowed_via_owner_contract
+    allowed_content_classes: [execution_output_panel, activity_center]
+    lifecycle_notes: >
+      Hosts execution output and longitudinal state. Live panels must
+      restore as evidence-only when no-rerun applies. Secondary tabs may
+      overflow before the main workspace shrinks.
+    focus_policy_ref: shell_metrics.zone_rows.bottom_panel.focus_policy
+    persistence_class: restorable_window_topology
+    collapse_overflow_notes: >
+      Secondary tabs overflow before workspace shrink; drawer allowed.
+
+  - slot_id: status.slot.recovery.primary
+    shell_zone: status_bar
+    slot_label: Status bar recovery-primary slot
+    owner_refs:
+      - docs/ux/status_bar_contract.md
+      - schemas/ux/status_item.schema.json
+    protection_class: host_owned_with_budget
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [status_item_cluster]
+    lifecycle_notes: >
+      Reserved for recovery-critical state. Extensions cannot claim this
+      slot directly; the shell may synthesize recovery items from extension
+      lifecycle records.
+    focus_policy_ref: shell_metrics.zone_rows.status_bar.focus_policy
+    persistence_class: required_chrome_always_present
+    collapse_overflow_notes: >
+      Must remain visible at supported widths; overflow requires a named
+      summary and keyboard reachability.
+
+  - slot_id: status.slot.extension.scoped
+    shell_zone: status_bar
+    slot_label: Status bar extension-scoped slot
+    owner_refs:
+      - docs/ux/status_bar_contract.md
+      - schemas/ux/status_item.schema.json
+    protection_class: host_owned_with_budget
+    extension_insertion_policy: allowed_via_budgeted_schema
+    allowed_content_classes: [status_item_cluster]
+    lifecycle_notes: >
+      Budgeted extension state only; never used for recovery-critical by
+      direct extension request.
+    focus_policy_ref: shell_metrics.zone_rows.status_bar.focus_policy
+    persistence_class: required_chrome_always_present
+    collapse_overflow_notes: >
+      Overflows before first-party recovery-critical and active-context truth.
+
+  - slot_id: slot.overlay.command_palette
+    shell_zone: transient_overlay
+    slot_label: Command palette overlay
+    owner_refs:
+      - docs/ux/overlay_layer_contract.md
+      - artifacts/ux/shell_metrics.yaml
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [transient_overlay]
+    lifecycle_notes: >
+      Transient overlay owned by the shell; records focus-return target and
+      is window-local. Extension surfaces cannot replace or impersonate it.
+    focus_policy_ref: shell_metrics.zone_rows.transient_overlay.focus_policy
+    persistence_class: transient_window_local
+    collapse_overflow_notes: >
+      Must remain keyboard reachable; escape dismisses predictably.
+
+  - slot_id: slot.overlay.dialog_or_sheet
+    shell_zone: transient_overlay
+    slot_label: Dialog/sheet overlay surface
+    owner_refs:
+      - docs/ux/overlay_layer_contract.md
+      - docs/ux/dialog_sheet_contract.md
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [transient_overlay]
+    lifecycle_notes: >
+      Blocking and reviewable overlays: dialogs, sheets, critical prompts.
+      Product-owned nesting rules apply; extensions may request host review
+      surfaces but cannot own critical layers.
+    focus_policy_ref: shell_metrics.zone_rows.transient_overlay.focus_policy
+    persistence_class: transient_window_local
+    collapse_overflow_notes: >
+      Owns a focus trap where required; must preserve safe dismissal paths.
+
+  - slot_id: slot.notification.toast_lane
+    shell_zone: transient_overlay
+    slot_label: Toast lane (transient notifications)
+    owner_refs:
+      - docs/ux/overlay_layer_contract.md
+      - docs/ux/toast_contract.md
+      - docs/ux/notification_contract.md
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [toast_or_banner_lane]
+    lifecycle_notes: >
+      Host-owned toast projection of canonical notification events.
+      Toasts are acknowledgement/mirror surfaces only; durable state must
+      live in activity-center rows, history lanes, or other durable owners.
+    focus_policy_ref: shell_metrics.zone_rows.transient_overlay.focus_policy
+    persistence_class: transient_window_local
+    collapse_overflow_notes: >
+      Must not obscure primary dialog actions; activation reopens exact target.
+
+  - slot_id: slot.notification.banner_lane
+    shell_zone: transient_overlay
+    slot_label: Banner lane (persistent contextual banners)
+    owner_refs:
+      - docs/ux/overlay_layer_contract.md
+      - docs/ux/banner_notice_contract.md
+      - docs/ux/notification_contract.md
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [toast_or_banner_lane]
+    lifecycle_notes: >
+      Host-owned banner surfaces used for durable or blocking state where a
+      toast is forbidden. Banners preserve canonical event id and link to a
+      durable owner (activity row, review surface, history lane).
+    focus_policy_ref: shell_metrics.zone_rows.transient_overlay.focus_policy
+    persistence_class: durable_until_resolved_or_archived
+    collapse_overflow_notes: >
+      Must remain inspectable and keyboard reachable; dismissal does not erase durable history.
+
+  - slot_id: slot.surface.status_strip
+    shell_zone: null
+    slot_label: Top-of-surface status strip / readiness banner slot (inside a pane)
+    owner_refs:
+      - docs/ux/status_strip_family_contract.md
+      - schemas/ux/status_strip.schema.json
+    protection_class: surface_owner_with_insertion
+    extension_insertion_policy: allowed_via_owner_contract
+    allowed_content_classes: [status_item_cluster]
+    lifecycle_notes: >
+      Status strips are pane-local readiness and scope truth. They are not a
+      notification lane and must not be replaced by surface-local synonyms
+      for partial/stale/provider-backed/blocked state.
+    focus_policy_ref: pane_local_focus_policy
+    persistence_class: restorable_window_topology
+    collapse_overflow_notes: >
+      May condense; must keep partial/stale/blocked truth visible and exportable.
+
+  - slot_id: slot.out_of_shell.companion_surface
+    shell_zone: null
+    slot_label: Companion surface container (out of shell)
+    owner_refs:
+      - docs/companion/companion_surface_contract.md
+      - docs/ux/window_display_contract.md
+    protection_class: protected_host_only
+    extension_insertion_policy: prohibited
+    allowed_content_classes: [companion_surface]
+    lifecycle_notes: >
+      Companion surfaces are separate clients (browser/mobile/desktop companion)
+      with no-bypass posture. They do not embed into the desktop shell's
+      protected chrome; they mirror canonical command/trust graphs.
+    focus_policy_ref: out_of_shell_focus_policy
+    persistence_class: out_of_shell
+    collapse_overflow_notes: >
+      N/A (out of shell).
+
+surface_rows:
+  - surface_family_id: surface.docs_help
+    surface_label: Docs/help reader surface
+    surface_kind: first_party_or_embedded
+    allowed_slots:
+      - slot.right_inspector.contextual_detail
+      - slot.main_workspace.working_set
+    banned_slots:
+      - slot.title_context_bar.identity
+      - status.slot.recovery.primary
+      - slot.overlay.command_palette
+    notes: >
+      Embedded docs/help must include host-owned boundary chrome. Docs are
+      contextual by default (inspector) and may promote to a main-workspace
+      tab for long-form reading.
+
+  - surface_family_id: surface.live_preview
+    surface_label: Live preview surface (runtime-backed)
+    surface_kind: first_party_or_provider_backed
+    allowed_slots:
+      - slot.main_workspace.working_set
+      - slot.right_inspector.contextual_detail
+      - slot.bottom_panel.tool_panels
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.activity_rail.primary_routes
+      - status.slot.recovery.primary
+      - slot.overlay.dialog_or_sheet
+    notes: >
+      Preview is data-plane truth; it cannot displace identity chrome or
+      impersonate host-native approval surfaces.
+
+  - surface_family_id: surface.auth_handoff_confirmation
+    surface_label: Auth handoff confirmation surface
+    surface_kind: first_party_host_owned
+    allowed_slots:
+      - slot.overlay.dialog_or_sheet
+      - slot.main_workspace.review_surface
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.sidebar.section_surface
+      - status.slot.extension.scoped
+    notes: >
+      Browser-first auth confirmation is host-owned and transient or
+      review-surface scoped. It is not a general-purpose embedded account page.
+
+  - surface_family_id: surface.activity_center
+    surface_label: Activity center durable work surface
+    surface_kind: first_party
+    allowed_slots:
+      - slot.bottom_panel.tool_panels
+      - slot.main_workspace.working_set
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.activity_rail.primary_routes
+      - slot.overlay.command_palette
+    notes: >
+      Durable work and attention require a durable home; activity center
+      may live in the bottom panel by default and may promote to a
+      main-workspace surface for deep review.
+
+  - surface_family_id: surface.incident_support
+    surface_label: Incident/support/admin triage surfaces
+    surface_kind: first_party
+    allowed_slots:
+      - slot.sidebar.section_surface
+      - slot.main_workspace.working_set
+      - slot.right_inspector.contextual_detail
+      - slot.bottom_panel.tool_panels
+    banned_slots:
+      - slot.title_context_bar.identity
+      - status.slot.extension.scoped
+      - slot.overlay.command_palette
+    notes: >
+      May claim durable slots; must not use transient-only overlays as the
+      only route to a blocking action or export.
+
+  - surface_family_id: surface.extension_view
+    surface_label: Extension-contributed view/panel surface
+    surface_kind: extension_surface
+    allowed_slots:
+      - slot.sidebar.section_surface
+      - slot.main_workspace.working_set
+      - slot.right_inspector.contextual_detail
+      - slot.bottom_panel.tool_panels
+      - status.slot.extension.scoped
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.activity_rail.primary_routes
+      - status.slot.recovery.primary
+      - slot.overlay.command_palette
+      - slot.overlay.dialog_or_sheet
+    notes: >
+      Extension surfaces must respect shell focus, density, and safety
+      rules. Protected host-only slots are denied unless explicitly added
+      as an admission row.
+
+  - surface_family_id: surface.companion_surface
+    surface_label: Browser/mobile companion surface (out of shell)
+    surface_kind: companion_surface
+    allowed_slots:
+      - slot.out_of_shell.companion_surface
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.main_workspace.working_set
+      - slot.overlay.dialog_or_sheet
+    notes: >
+      Companion surfaces are separate clients with no-bypass posture; they
+      do not embed directly into the desktop shell's protected slots.
+
+  - surface_family_id: surface.status_strip
+    surface_label: Status strip / readiness banner component family
+    surface_kind: first_party
+    allowed_slots:
+      - slot.surface.status_strip
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.notification.toast_lane
+    notes: >
+      Status strips are pane-local readiness/scope truth. They are not a
+      notification lane and do not replace global identity chrome.
+
+  - surface_family_id: surface.toast
+    surface_label: Toast notification surface instance
+    surface_kind: first_party
+    allowed_slots:
+      - slot.notification.toast_lane
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.main_workspace.review_surface
+    notes: >
+      Toasts are transient acknowledgement/mirror surfaces; they do not host
+      blocking approvals or displace control-plane identity chrome.
+
+  - surface_family_id: surface.banner
+    surface_label: Banner/notice surface instance
+    surface_kind: first_party
+    allowed_slots:
+      - slot.notification.banner_lane
+    banned_slots:
+      - slot.title_context_bar.identity
+      - slot.overlay.command_palette
+    notes: >
+      Banners are host-owned contextual surfaces that remain inspectable and
+      link to durable owners; they do not replace palette or identity chrome.
