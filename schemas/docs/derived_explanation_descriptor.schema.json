@@ -1,0 +1,342 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/docs/derived_explanation_descriptor.schema.json",
+  "title": "Aureline derived-explanation descriptor object model",
+  "description": "Boundary schema for the derived_explanation_descriptor_record frozen in docs/docs/knowledge_pack_and_learning_tour_matrix.md. A derived explanation is a cached, reproducible, non-canonical explanation artifact (AI-backed or deterministic) produced from graph queries and docs-pack inputs. Every derived explanation MUST retain upstream citation anchors for offline/export reconstructability and MUST never masquerade as canonical truth: each non-trivial claim either carries supporting citation anchors or is explicitly marked as inference with confidence. Raw prompts, full completion text, raw file paths, raw URLs, and raw provider payloads never cross this boundary; the descriptor carries opaque ids, typed vocabulary, short privacy-safe summaries, and evidence refs only. Adding a new surface_kind, offline_capability_class, stale_cause_class, inference_label_class, confidence_class, or claim_kind is additive-minor and bumps derived_explanation_descriptor_schema_version; repurposing an existing value is breaking and requires a governance decision.",
+  "type": "object",
+  "$ref": "#/$defs/derived_explanation_descriptor_record",
+  "$defs": {
+    "derived_explanation_descriptor_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this derived-explanation descriptor export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "derived_explanation_descriptor_record",
+      "description": "Discriminator for the concrete payload shape. Every record carries this kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / support bundles / portability exports."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+      "description": "BCP-47 language tag (e.g. en, en-US, pt-BR, zh-Hant-HK)."
+    },
+
+    "source_class": {
+      "type": "string",
+      "const": "derived_explanation",
+      "description": "Derived explanations are never primary authority; they cite upstream anchors or label inference explicitly."
+    },
+
+    "derivation": {
+      "type": "string",
+      "enum": ["derived", "derived_with_upstream_anchors"],
+      "description": "Derived explanations are always synthesized from upstream sources; derived_with_upstream_anchors is used when the explanation spans multiple authoritative anchors."
+    },
+
+    "surface_kind": {
+      "type": "string",
+      "enum": [
+        "docs_browser_result",
+        "glossary_card",
+        "guided_tour_step",
+        "architecture_map",
+        "codebase_explanation"
+      ],
+      "description": "Which surface family produced (and renders) the derived explanation."
+    },
+
+    "offline_capability_class": {
+      "type": "string",
+      "enum": ["fully_offline_capable", "mirror_only_capable", "online_optional"],
+      "description": "Offline capability declaration for the rendered content."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"],
+      "description": "Freshness class at mint time (re-uses the docs/help freshness vocabulary)."
+    },
+
+    "version_match_state": {
+      "type": "string",
+      "enum": [
+        "exact_build_match",
+        "compatible_minor_drift",
+        "incompatible_drift_detected",
+        "pre_release_unverified",
+        "unknown_target_build"
+      ],
+      "description": "Version-match state at mint time against the running build identity."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Export/redaction posture class. Raw content redaction is owned by the broker; this descriptor is metadata-safe by default."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "type": "string", "enum": ["trusted", "restricted"] },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "stale_cause_class": {
+      "type": "string",
+      "enum": [
+        "graph_epoch_advanced",
+        "docs_pack_revision_changed",
+        "workspace_revision_changed",
+        "build_identity_changed",
+        "policy_epoch_changed",
+        "unknown_or_unverified_inputs"
+      ],
+      "description": "Why an explanation is stale or unverified. Used for explicit stale labeling and repair flows."
+    },
+
+    "inference_label_class": {
+      "type": "string",
+      "enum": ["inference", "heuristic", "unknown"],
+      "description": "Inference label attached when a claim is not backed by supporting citation anchors."
+    },
+
+    "confidence_class": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Confidence tier for an inference-labeled claim."
+    },
+
+    "claim_kind": {
+      "type": "string",
+      "enum": [
+        "fact_claim",
+        "inference_claim",
+        "procedure_or_step",
+        "definition_or_glossary"
+      ],
+      "description": "High-level classification for a claim block, used by audits and exports."
+    },
+
+    "docs_pack_input_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pack_id", "pack_revision_ref", "source_class"],
+      "properties": {
+        "pack_id": { "$ref": "#/$defs/opaque_id" },
+        "pack_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_class": {
+          "type": "string",
+          "enum": [
+            "project_docs",
+            "generated_reference",
+            "mirrored_official_docs",
+            "curated_knowledge_pack",
+            "support_runbook"
+          ],
+          "description": "Authoritative input source class for this pack reference. derived_explanation is not an admissible input source here."
+        }
+      }
+    },
+
+    "derived_explanation_claim_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "claim_kind", "claim_summary", "supporting_citation_anchor_refs"],
+      "properties": {
+        "claim_id": { "$ref": "#/$defs/opaque_id" },
+        "claim_kind": { "$ref": "#/$defs/claim_kind" },
+        "claim_summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Short, privacy-safe summary of the claim. MUST NOT include raw file paths, raw URLs, or raw prompt/completion transcripts."
+        },
+        "supporting_citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "docs_citation_anchor_record ids supporting this claim."
+        },
+        "supporting_symbol_linked_reference_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Optional symbol_linked_reference_record ids supporting this claim."
+        },
+        "inference": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["inference_label_class", "confidence_class"],
+              "properties": {
+                "inference_label_class": { "$ref": "#/$defs/inference_label_class" },
+                "confidence_class": { "$ref": "#/$defs/confidence_class" }
+              }
+            }
+          ],
+          "description": "Required (non-null) when supporting_citation_anchor_refs is empty."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Claims without supporting citation anchors must be inference-labeled with confidence.",
+          "if": {
+            "properties": {
+              "supporting_citation_anchor_refs": { "maxItems": 0 }
+            },
+            "required": ["supporting_citation_anchor_refs"]
+          },
+          "then": {
+            "properties": { "inference": { "not": { "type": "null" } } },
+            "required": ["inference"]
+          }
+        }
+      ]
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "derived_explanation_descriptor_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "derived_explanation_descriptor_schema_version",
+        "explanation_id",
+        "surface_kind",
+        "source_class",
+        "derivation",
+        "query_hash",
+        "graph_epoch_ref",
+        "docs_pack_set",
+        "target_build_identity_ref",
+        "locale",
+        "freshness_class_at_mint",
+        "version_match_state_at_mint",
+        "offline_capability_class",
+        "upstream_citation_anchor_refs",
+        "claims",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "derived_explanation_descriptor_schema_version": {
+          "$ref": "#/$defs/derived_explanation_descriptor_schema_version"
+        },
+        "explanation_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_kind": { "$ref": "#/$defs/surface_kind" },
+        "source_class": { "$ref": "#/$defs/source_class" },
+        "derivation": { "$ref": "#/$defs/derivation" },
+        "query_hash": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 256,
+          "description": "Opaque, stable hash of the query inputs (graph query + docs selection), used for cache identity."
+        },
+        "graph_epoch_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the graph epoch the explanation was derived from."
+        },
+        "docs_pack_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/docs_pack_input_ref" },
+          "uniqueItems": true,
+          "description": "Docs-pack inputs that participated in the explanation."
+        },
+        "target_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque pin to the running build identity the explanation was minted under."
+        },
+        "locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+        "freshness_class_at_mint": { "$ref": "#/$defs/freshness_class" },
+        "version_match_state_at_mint": { "$ref": "#/$defs/version_match_state" },
+        "offline_capability_class": { "$ref": "#/$defs/offline_capability_class" },
+        "stale_causes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stale_cause_class" },
+          "uniqueItems": true,
+          "description": "Optional set of stale/unverified causes, present when freshness_class_at_mint is stale or unverified."
+        },
+        "upstream_citation_anchor_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Upstream authoritative anchors retained for offline/export reconstructability."
+        },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/derived_explanation_claim_record" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "stale_causes are required when freshness_class_at_mint is stale or unverified.",
+          "if": {
+            "properties": {
+              "freshness_class_at_mint": { "enum": ["stale", "unverified"] }
+            },
+            "required": ["freshness_class_at_mint"]
+          },
+          "then": {
+            "required": ["stale_causes"],
+            "properties": {
+              "stale_causes": { "type": "array", "minItems": 1 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,244 @@
+# Knowledge-pack and learning-tour matrix (machine-readable rows).
+#
+# Companion to:
+#   - docs/docs/knowledge_pack_and_learning_tour_matrix.md
+#   - schemas/docs/derived_explanation_descriptor.schema.json
+#
+# Purpose:
+#   Freeze one shared matrix so docs and guided-learning surfaces can
+#   answer: source class, freshness basis, citation set, and offline
+#   capability without inventing a parallel governance vocabulary.
+#
+# Rules:
+#   - Surfaces MUST apply citation_minimum by source_class.
+#   - Derived explanations MUST never be treated as primary authority;
+#     they retain upstream anchors and label inference with confidence.
+#   - A surface MUST declare exactly one offline_capability_class for
+#     the content currently rendered.
+#   - Planning identifiers MUST NOT appear in any user-facing strings
+#     produced from this artifact.
+
+schema_version: 1
+artifact_id: aureline.docs.knowledge_pack_and_learning_tour_matrix
+status: seeded
+
+matrix_document: docs/docs/knowledge_pack_and_learning_tour_matrix.md
+
+boundary_schemas:
+  docs_pack_manifest: schemas/docs/docs_pack_manifest.schema.json
+  citation_anchor: schemas/docs/citation_anchor.schema.json
+  derived_explanation_descriptor: schemas/docs/derived_explanation_descriptor.schema.json
+  guided_surface_state: schemas/ux/guided_surface_state.schema.json
+  guided_tour: schemas/ux/guided_tour.schema.json
+
+offline_capability_classes:
+  - id: fully_offline_capable
+    meaning: Required bytes and evidence resolve locally; no network required.
+  - id: mirror_only_capable
+    meaning: Content/evidence resolves from a configured mirror or imported bundle; upstream online fetch is not assumed.
+  - id: online_optional
+    meaning: Operates offline for local/mirrored sources; may explicitly widen to online sources when policy/connectivity allow.
+
+source_class_rows:
+  - source_class: project_docs
+    typical_content:
+      - readme
+      - adr
+      - runbook
+      - design_note
+      - onboarding_page
+    identity_freshness_keys:
+      - workspace_revision_ref
+      - doc_path
+      - anchor_or_span_optional
+    offline_mirror_posture: always_local_first
+    citation_minimum:
+      - doc_path
+      - workspace_revision_ref
+      - anchor_or_span_when_available
+
+  - source_class: generated_reference
+    typical_content:
+      - openapi_docs
+      - rustdoc
+      - generated_schema_docs
+    identity_freshness_keys:
+      - build_identity_ref
+      - generator_identity_and_version
+      - source_revision_ref
+    offline_mirror_posture: cacheable_and_mirrorable_build_artifact
+    citation_minimum:
+      - generator_identity_and_version
+      - source_contract_ref
+      - build_identity_ref
+      - page_or_anchor_when_available
+
+  - source_class: mirrored_official_docs
+    typical_content:
+      - vendor_reference_docs
+      - language_reference_docs
+      - framework_guides
+    identity_freshness_keys:
+      - pack_id
+      - pack_revision_ref
+      - locale
+      - upstream_digest_ref
+    offline_mirror_posture: signed_pack_mirrorable_offline_capable
+    citation_minimum:
+      - pack_id
+      - pack_revision_ref
+      - page_or_anchor_ref
+
+  - source_class: curated_knowledge_pack
+    typical_content:
+      - glossary_cards
+      - tutorial_pack
+      - org_onboarding_cards
+    identity_freshness_keys:
+      - pack_id
+      - pack_revision_ref
+      - locale
+      - signer_identity_ref
+    offline_mirror_posture: signed_pack_mirrorable_offline_capable
+    citation_minimum:
+      - pack_id
+      - pack_revision_ref
+      - underlying_evidence_anchor_refs_or_inference_label
+
+  - source_class: derived_explanation
+    typical_content:
+      - codebase_explanation
+      - architecture_map_narrative
+      - guided_step_paraphrase
+    identity_freshness_keys:
+      - query_hash
+      - graph_epoch_ref
+      - docs_pack_set_ref
+      - target_build_identity_ref
+    offline_mirror_posture: cached_locally_never_canonical_truth
+    citation_minimum:
+      - upstream_citation_anchor_refs
+      - per_claim_supporting_anchors_or_inference_label_with_confidence
+
+surface_artifact_rows:
+  - surface_artifact: docs_browser_result
+    allowed_source_classes:
+      - project_docs
+      - generated_reference
+      - mirrored_official_docs
+      - curated_knowledge_pack
+      - derived_explanation
+    mutable_state:
+      - view_state_only
+    required_truth_labels:
+      - source_class
+      - freshness_class
+      - locale
+      - trust_class
+      - offline_capability_class
+    mutation_permission: view_only
+    citation_application: apply_source_class_citation_minimum
+    offline_capability_rule:
+      must_declare: true
+      default_class: fully_offline_capable
+      widen_to_online_optional_when:
+        - online_sources_selected_or_fetched
+
+  - surface_artifact: glossary_card
+    allowed_source_classes:
+      - curated_knowledge_pack
+      - project_docs
+      - mirrored_official_docs
+      - generated_reference
+      - derived_explanation
+    mutable_state:
+      - dismiss
+      - pin
+    required_truth_labels:
+      - pack_revision_ref
+      - freshness_class
+      - scope
+      - locale
+      - locale_fallback_disclosed_when_used
+      - offline_capability_class
+    mutation_permission: may_open_related_docs_or_code_via_stable_commands_only
+    citation_application: apply_source_class_citation_minimum
+    offline_capability_rule:
+      must_declare: true
+      default_class: fully_offline_capable
+      widen_to_online_optional_when:
+        - pack_refresh_or_online_fetch_required_and_permitted
+
+  - surface_artifact: guided_tour_step
+    allowed_source_classes:
+      - project_docs
+      - curated_knowledge_pack
+      - mirrored_official_docs
+      - generated_reference
+      - derived_explanation
+    mutable_state:
+      - progress
+      - completion
+      - dismissal
+    required_truth_labels:
+      - citation_set
+      - freshness_class
+      - missing_scope_indicator
+      - locale
+      - locale_fallback_disclosed_when_used
+      - offline_capability_class
+    mutation_permission: actions_route_through_stable_command_ids
+    citation_application: apply_source_class_citation_minimum
+    offline_capability_rule:
+      must_declare: true
+      default_class: fully_offline_capable
+      widen_to_online_optional_when:
+        - tour_requires_non_mirrored_external_docs_and_policy_allows
+
+  - surface_artifact: architecture_map
+    allowed_source_classes:
+      - project_docs
+      - curated_knowledge_pack
+      - mirrored_official_docs
+      - generated_reference
+      - derived_explanation
+    mutable_state:
+      - zoom
+      - layout_state
+    required_truth_labels:
+      - graph_epoch_ref
+      - completeness_label
+      - source_classes_participated
+      - freshness_class
+      - offline_capability_class
+    mutation_permission: view_only_unless_explicit_follow_up_command_invoked
+    citation_application: apply_source_class_citation_minimum
+    offline_capability_rule:
+      must_declare: true
+      default_class: fully_offline_capable
+      widen_to_online_optional_when:
+        - map_enrichment_fetches_online_sources_with_disclosure
+
+  - surface_artifact: codebase_explanation
+    allowed_source_classes:
+      - project_docs
+      - curated_knowledge_pack
+      - mirrored_official_docs
+      - generated_reference
+      - derived_explanation
+    mutable_state:
+      - cached_session_state
+    required_truth_labels:
+      - citations
+      - confidence
+      - inference_labels
+      - freshness_class
+      - offline_capability_class
+    mutation_permission: no_direct_mutation_follow_up_actions_explicit
+    citation_application: apply_source_class_citation_minimum
+    offline_capability_rule:
+      must_declare: true
+      default_class: fully_offline_capable
+      widen_to_online_optional_when:
+        - explainer_widens_to_online_sources_with_policy_and_disclosure
+
