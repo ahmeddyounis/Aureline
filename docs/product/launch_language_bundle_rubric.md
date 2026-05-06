@@ -244,6 +244,13 @@ for the claim, the pack too:
   supported, with certified wording gated on a certified-archetype
   report that covers the corresponding hardware and toolchain rows."
 
+Replacement-grade wording for the TypeScript/JavaScript launch wedge
+should also resolve to the acceptance rows that define “replacement
+grade” in concrete terms. The canonical acceptance matrix lives in:
+
+- `docs/compat/typescript_javascript_expert_acceptance_matrix.md`
+- `artifacts/compat/ts_js_acceptance_rows.yaml`
+
 ## Change discipline
 
 - **Add a new bundle row** when a new archetype enters launch scope.
