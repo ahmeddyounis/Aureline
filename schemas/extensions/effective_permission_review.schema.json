@@ -1,0 +1,802 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/extensions/effective_permission_review.schema.json",
+  "title": "Aureline extension effective-permission review sheet, manifest-scope diff, and publisher-continuity packet vocabulary",
+  "description": "Boundary schema for the reviewer-facing permission review sheet, the manifest-scope diff row set, and the publisher-continuity packet frozen in docs/extensions/effective_permission_review_contract.md. The record family exists so install/update/restore flows can explain declared scope vs effective permission (including transitive widening through dependency closure and narrowing through policy or registry ceilings) without per-surface prose or registry-specific guesswork, and so publisher continuity remains visible through offline review and support exports. Adding a new enumerated member or an additive field is additive-minor with an effective_permission_review_schema_version bump; repurposing an existing member is breaking and requires a new decision row. Raw artifact bytes, raw signing-key material, raw policy-bundle bytes, raw URLs, raw absolute filesystem paths, and raw secrets MUST NOT appear in any record; records carry refs and redacted labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/effective_permission_review_sheet_record" },
+    { "$ref": "#/$defs/manifest_scope_diff_record" },
+    { "$ref": "#/$defs/publisher_continuity_packet_record" },
+    { "$ref": "#/$defs/extension_install_review_case_record" }
+  ],
+  "$defs": {
+    "effective_permission_review_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this review-contract vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "effective_permission_review_sheet_record",
+        "manifest_scope_diff_record",
+        "publisher_continuity_packet_record",
+        "extension_install_review_case_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "$ref": "effective_permission.schema.json#/$defs/opaque_id"
+    },
+
+    "monotonic_timestamp": {
+      "$ref": "effective_permission.schema.json#/$defs/monotonic_timestamp"
+    },
+
+    "redaction_class": {
+      "$ref": "effective_permission.schema.json#/$defs/redaction_class"
+    },
+
+    "freshness_class": {
+      "$ref": "effective_permission.schema.json#/$defs/freshness_class"
+    },
+
+    "host_contract_family": {
+      "$ref": "effective_permission.schema.json#/$defs/host_contract_family"
+    },
+
+    "artifact_transport_family": {
+      "$ref": "effective_permission.schema.json#/$defs/artifact_transport_family"
+    },
+
+    "permission_scope_kind": {
+      "$ref": "effective_permission.schema.json#/$defs/permission_scope_kind"
+    },
+
+    "support_window_class": {
+      "$ref": "sdk_release_bundle.schema.json#/$defs/support_window_class"
+    },
+
+    "install_review_subject_class": {
+      "type": "string",
+      "enum": [
+        "extension_install",
+        "extension_update",
+        "extension_downgrade",
+        "bundle_install",
+        "bundle_update",
+        "mirror_adapter_install",
+        "managed_workspace_binding_install",
+        "emergency_disable_apply",
+        "publisher_continuity_migration"
+      ],
+      "description": "Install-review subject class re-exported from docs/runtime/target_discovery_and_install_review_taxonomy.md."
+    },
+
+    "install_review_disposition_class": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "awaiting_user_confirmation",
+        "awaiting_admin_confirmation",
+        "approved",
+        "denied",
+        "deferred_pending_freshness",
+        "deferred_pending_provider_link",
+        "expired_superseded"
+      ],
+      "description": "Install-review disposition class re-exported from docs/runtime/target_discovery_and_install_review_taxonomy.md."
+    },
+
+    "runtime_budget_class": {
+      "type": "string",
+      "enum": [
+        "short_bounded",
+        "medium_bounded",
+        "long_bounded",
+        "streaming_bounded",
+        "small_fixed",
+        "medium_fixed",
+        "large_fixed",
+        "metered_per_session",
+        "metered_per_hour",
+        "metered_per_activation",
+        "declared_prefix_only",
+        "declared_prefix_preview_only",
+        "attached_sessions_only",
+        "bounded_per_subscription",
+        "not_applicable"
+      ],
+      "description": "Nominal runtime-budget class vocabulary re-exported from artifacts/extensions/runtime_budget_rows.yaml#nominal_budget_classes. This is a reviewer-facing budget band (not a numeric ceiling)."
+    },
+
+    "effective_state_class": {
+      "type": "string",
+      "enum": [
+        "unchanged",
+        "narrowed",
+        "step_up_required",
+        "denied",
+        "introduced_by_inheritance",
+        "inheritance_withheld"
+      ],
+      "description": "Typed diff-state class for one permission-scope entry between the declared/requested/inherited/effective sets."
+    },
+
+    "contribution_class": {
+      "type": "string",
+      "enum": [
+        "primary_contributor",
+        "transitive_contributor",
+        "withholding_contributor"
+      ],
+      "description": "Class describing whether a closure member contributes permission scope, contributes transitively, or withholds/blocks inheritance."
+    },
+
+    "transitive_growth_flag": {
+      "type": "string",
+      "enum": [
+        "capability_inherit_widened_effective_set",
+        "capability_inherit_introduced_new_scope_kind",
+        "closure_member_freshness_floor_unmet",
+        "closure_member_quarantined_blocks_parent",
+        "closure_member_retired_blocks_parent",
+        "closure_member_disabled_by_policy_blocks_parent"
+      ],
+      "description": "Typed flags explaining why the transitive closure must render inline on the review sheet."
+    },
+
+    "disclosure_flag": {
+      "type": "string",
+      "enum": [
+        "declared_effective_diff",
+        "policy_narrowed",
+        "provider_link_required",
+        "freshness_floor_unmet",
+        "managed_only_channel_required",
+        "kill_switch_tripped",
+        "publisher_quarantined",
+        "structured_round_trip_risk_present",
+        "notebook_trust_rung_below_fully_trusted"
+      ],
+      "description": "Install-review disclosure flag vocabulary re-exported from docs/runtime/target_discovery_and_install_review_taxonomy.md."
+    },
+
+    "irreversibility_flag": {
+      "type": "string",
+      "enum": [
+        "signature_resign",
+        "mirror_snapshot_pinned",
+        "publisher_migration_committed",
+        "emergency_disable_committed",
+        "managed_binding_pinned",
+        "workspace_trust_escalated"
+      ],
+      "description": "Install-review irreversibility flag vocabulary re-exported from docs/runtime/target_discovery_and_install_review_taxonomy.md."
+    },
+
+    "signature_reverify_state": {
+      "type": "string",
+      "enum": [
+        "reverify_passed_authoritative",
+        "reverify_passed_warm_cached",
+        "reverify_pending",
+        "reverify_failed",
+        "reverify_unavailable"
+      ],
+      "description": "Signature reverify state used by mirror/offline install-review packets. The state is a projection; raw signature and key material never appear."
+    },
+
+    "catalog_truth_state": {
+      "type": "string",
+      "enum": [
+        "live_registry_authoritative",
+        "mirror_replicated_current",
+        "mirror_replicated_stale",
+        "mirror_continuity_broken",
+        "offline_bundle_pinned",
+        "vendored_local_pinned",
+        "catalog_truth_unknown_pending_reverify"
+      ],
+      "description": "Mirror/offline catalog truth state vocabulary used by install-review and support exports."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": ["public_registry", "private_registry", "mirror", "offline_bundle", "vendored_local"],
+      "description": "Registry source class vocabulary aligned with schemas/extensions/effective_permission.schema.json."
+    },
+
+    "rollback_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_rollback_required",
+        "rollback_pending_user_confirmation",
+        "rollback_pending_admin_confirmation",
+        "rollback_in_flight",
+        "rollback_completed_verified",
+        "rollback_failed_manual_repair_required"
+      ],
+      "description": "Rollback posture class projected on install/update/restore review surfaces."
+    },
+
+    "quarantine_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_quarantine_active",
+        "quarantined_by_policy_pack",
+        "quarantined_by_kill_switch",
+        "quarantined_publisher",
+        "quarantine_lifted_pending_reverify"
+      ],
+      "description": "Quarantine posture class projected on install/update/restore review surfaces."
+    },
+
+    "target_scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "profile",
+            "admin_policy_projection",
+            "import_preview",
+            "offline_restore_preview",
+            "unknown"
+          ],
+          "description": "Where the reviewed install/update/restore is authoritative. workspace/profile map to durable artifacts; admin_policy_projection and import_preview are review artifacts; offline_restore_preview is a dry-run against an offline bundle or local archive."
+        },
+        "scope_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redaction-aware human label for the scope. Raw filesystem paths are forbidden."
+        }
+      }
+    },
+
+    "affected_artifact_class": {
+      "type": "string",
+      "enum": [
+        "workspace_extension_recommendation_set",
+        "workspace_extension_lockfile",
+        "profile_extension_recommendation_set",
+        "profile_extension_lockfile",
+        "support_export_projection",
+        "offline_bundle_manifest_projection",
+        "local_archive_projection",
+        "policy_projection",
+        "other_review_artifact"
+      ],
+      "description": "Closed artifact-kind vocabulary for the affected manifests/lockfiles section of the review sheet."
+    },
+
+    "artifact_change_class": {
+      "type": "string",
+      "enum": [
+        "added",
+        "modified",
+        "removed",
+        "unchanged_but_referenced",
+        "unknown_pending_refresh"
+      ],
+      "description": "How the reviewed action changes the affected artifact."
+    },
+
+    "affected_artifact_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_class", "path_hint", "change_class"],
+      "properties": {
+        "artifact_class": { "$ref": "#/$defs/affected_artifact_class" },
+        "path_hint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Redacted, displayable path hint. Absolute paths are forbidden (for example use '.aureline/extensions.lock.json' rather than '/Users/...')."
+        },
+        "artifact_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to the full artifact identity, when recorded."
+        },
+        "change_class": { "$ref": "#/$defs/artifact_change_class" }
+      }
+    },
+
+    "scope_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_target"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/permission_scope_kind" },
+        "scope_target": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "permission_diff_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_kind", "scope_target", "declared_present", "requested_present", "inherited_closure_refs", "effective_state_class", "narrowing_reason_refs"],
+      "properties": {
+        "scope_kind": { "$ref": "#/$defs/permission_scope_kind" },
+        "scope_target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed target for the scope (path prefix, provider id, setting id, capability ref, host-contract ref, etc)."
+        },
+        "declared_present": { "type": "boolean" },
+        "requested_present": { "type": "boolean" },
+        "inherited_closure_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Closure-member refs that introduced this scope into the inherited set. Empty when not inherited."
+        },
+        "effective_state_class": { "$ref": "#/$defs/effective_state_class" },
+        "narrowing_reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to policy-pack constraints, dependency markers, mirror rules, or revocation/quarantine rows that explain why the effective state differs."
+        }
+      }
+    },
+
+    "requested_vs_effective_permission_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "declared_permission_set_ref",
+        "requested_permission_set_ref",
+        "inherited_permission_set_ref",
+        "effective_permission_set_ref",
+        "diff_entries"
+      ],
+      "properties": {
+        "declared_permission_set_ref": { "$ref": "#/$defs/opaque_id" },
+        "requested_permission_set_ref": { "$ref": "#/$defs/opaque_id" },
+        "inherited_permission_set_ref": { "$ref": "#/$defs/opaque_id" },
+        "effective_permission_set_ref": { "$ref": "#/$defs/opaque_id" },
+        "diff_entries": {
+          "type": "array",
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/permission_diff_entry" }
+        }
+      }
+    },
+
+    "transitive_closure_member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_lifecycle_row_ref",
+        "contribution_class",
+        "contributed_scopes",
+        "contribution_freshness_class",
+        "contribution_dependency_marker_refs"
+      ],
+      "properties": {
+        "capability_lifecycle_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "contribution_class": { "$ref": "#/$defs/contribution_class" },
+        "contributed_scopes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scope_descriptor" }
+        },
+        "contribution_freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "contribution_dependency_marker_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+
+    "transitive_permission_visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transitive_capability_closure_refs",
+        "closure_members",
+        "transitive_growth_flag_set",
+        "review_must_render_inline"
+      ],
+      "properties": {
+        "transitive_capability_closure_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "closure_members": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transitive_closure_member" }
+        },
+        "transitive_growth_flag_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transitive_growth_flag" }
+        },
+        "review_must_render_inline": {
+          "type": "boolean",
+          "description": "True when the review sheet must render the closure members inline (for example when the effective set widens beyond the declared set)."
+        }
+      }
+    },
+
+    "mirror_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_source_class",
+        "catalog_snapshot_revision_ref",
+        "signature_reverify_state",
+        "mirror_continuity_row_ref",
+        "catalog_truth_state"
+      ],
+      "properties": {
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "mirror_endpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "offline_bundle_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "vendored_local_path_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "catalog_snapshot_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "signature_reverify_state": { "$ref": "#/$defs/signature_reverify_state" },
+        "mirror_continuity_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "catalog_truth_state": { "$ref": "#/$defs/catalog_truth_state" }
+      }
+    },
+
+    "effective_permission_review_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_permission_review_schema_version",
+        "sheet_id",
+        "created_at",
+        "install_review_subject_class",
+        "install_review_disposition_class",
+        "subject_ref",
+        "subject_version_ref",
+        "manifest_row_ref",
+        "effective_permission_summary_ref",
+        "declared_permissions_digest",
+        "requested_vs_effective_permission_diff",
+        "transitive_permission_visibility",
+        "host_contract_family",
+        "artifact_transport_family",
+        "runtime_budget_class",
+        "support_window_class",
+        "capability_lifecycle_row_refs",
+        "target_scope",
+        "affected_artifacts",
+        "rollback_checkpoint_ref",
+        "rollback_posture_class",
+        "quarantine_posture_class",
+        "mirror_posture",
+        "publisher_continuity_packet_ref",
+        "policy_pack_narrowing_refs",
+        "disclosure_flag_set",
+        "irreversibility_flag_set",
+        "review_event_refs",
+        "freshness_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "effective_permission_review_sheet_record" },
+        "effective_permission_review_schema_version": {
+          "$ref": "#/$defs/effective_permission_review_schema_version"
+        },
+        "sheet_id": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "install_review_subject_class": { "$ref": "#/$defs/install_review_subject_class" },
+        "install_review_disposition_class": { "$ref": "#/$defs/install_review_disposition_class" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque subject ref (typically the extension identity or lockfile row id)."
+        },
+        "subject_version_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque subject version ref (typically the extension version or lockfile selected-version ref)."
+        },
+        "manifest_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 extension_manifest_row the review binds to."
+        },
+        "effective_permission_summary_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 effective_permission_summary_record the review binds to."
+        },
+        "declared_permissions_digest": { "type": "string", "minLength": 1 },
+        "requested_vs_effective_permission_diff": {
+          "$ref": "#/$defs/requested_vs_effective_permission_diff"
+        },
+        "transitive_permission_visibility": {
+          "$ref": "#/$defs/transitive_permission_visibility"
+        },
+        "host_contract_family": { "$ref": "#/$defs/host_contract_family" },
+        "artifact_transport_family": { "$ref": "#/$defs/artifact_transport_family" },
+        "runtime_budget_class": { "$ref": "#/$defs/runtime_budget_class" },
+        "support_window_class": { "$ref": "#/$defs/support_window_class" },
+        "capability_lifecycle_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to capability-lifecycle rows (ADR-0011) the subject and its closure members bind."
+        },
+        "target_scope": { "$ref": "#/$defs/target_scope" },
+        "affected_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_artifact_row" }
+        },
+        "rollback_checkpoint_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to the rollback checkpoint retained for this install/update/restore. Null admissible only when rollback_posture_class = no_rollback_required."
+        },
+        "rollback_posture_class": { "$ref": "#/$defs/rollback_posture_class" },
+        "quarantine_posture_class": { "$ref": "#/$defs/quarantine_posture_class" },
+        "mirror_posture": { "$ref": "#/$defs/mirror_posture" },
+        "publisher_continuity_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to a publisher_continuity_packet_record rendered alongside the permission sheet."
+        },
+        "policy_pack_narrowing_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered refs to applied policy-pack constraint rows that narrow the subject."
+        },
+        "disclosure_flag_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disclosure_flag" }
+        },
+        "irreversibility_flag_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/irreversibility_flag" }
+        },
+        "review_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered list of audit-event refs recorded during the review."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "A sheet that claims no rollback is required MUST set rollback_checkpoint_ref = null.",
+          "if": {
+            "properties": { "rollback_posture_class": { "const": "no_rollback_required" } },
+            "required": ["rollback_posture_class"]
+          },
+          "then": {
+            "properties": { "rollback_checkpoint_ref": { "type": "null" } },
+            "required": ["rollback_checkpoint_ref"]
+          }
+        }
+      ]
+    },
+
+    "manifest_scope_bucket": {
+      "type": "string",
+      "enum": [
+        "package_target",
+        "workspace_impact",
+        "profile_impact",
+        "policy_or_registry_narrowing"
+      ],
+      "description": "Frozen manifest-scope diff bucket. package_target captures artifact/manifest changes; workspace_impact and profile_impact capture durable-state impact; policy_or_registry_narrowing captures changes that occur only due to policy, mirror, or private-registry ceilings."
+    },
+
+    "manifest_change_class": {
+      "type": "string",
+      "enum": [
+        "added",
+        "removed",
+        "modified",
+        "narrowed",
+        "widened",
+        "unchanged"
+      ],
+      "description": "Closed change-class vocabulary for manifest-scope diff rows."
+    },
+
+    "manifest_scope_diff_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "scope_bucket",
+        "change_class",
+        "field_path",
+        "reason_refs",
+        "affected_artifact_refs",
+        "rendered_label"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "scope_bucket": { "$ref": "#/$defs/manifest_scope_bucket" },
+        "change_class": { "$ref": "#/$defs/manifest_change_class" },
+        "field_path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed field path the diff row refers to (for example 'manifest.declared_permissions', 'lockfile.rows[acme-labs/prose-helper]')."
+        },
+        "before_summary": {
+          "oneOf": [{ "type": "null" }, { "type": "string" }],
+          "description": "Optional redacted summary of the prior value. Raw bytes and raw paths forbidden."
+        },
+        "after_summary": {
+          "oneOf": [{ "type": "null" }, { "type": "string" }],
+          "description": "Optional redacted summary of the next value. Raw bytes and raw paths forbidden."
+        },
+        "reason_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs explaining the change (policy-pack constraints, registry parity assertions, mirror continuity rows, or lifecycle events)."
+        },
+        "affected_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to affected artifacts (lockfile, recommendation set, restore preview packet)."
+        },
+        "rendered_label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-legible label rendered on the diff row. Must be derivable from typed fields; raw secrets and raw absolute paths forbidden."
+        },
+        "explanation_label": {
+          "oneOf": [{ "type": "null" }, { "type": "string" }],
+          "description": "Optional expanded explanation rendered when the user drills into the row."
+        }
+      }
+    },
+
+    "manifest_scope_diff_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_permission_review_schema_version",
+        "diff_id",
+        "created_at",
+        "install_review_subject_class",
+        "subject_ref",
+        "subject_version_ref",
+        "diff_rows",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "manifest_scope_diff_record" },
+        "effective_permission_review_schema_version": {
+          "$ref": "#/$defs/effective_permission_review_schema_version"
+        },
+        "diff_id": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "install_review_subject_class": { "$ref": "#/$defs/install_review_subject_class" },
+        "subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "subject_version_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_row_ref_before": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Nullable ref to the prior manifest row when diffing an update/downgrade/restore."
+        },
+        "manifest_row_ref_after": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Nullable ref to the next manifest row when diffing an update/downgrade/restore."
+        },
+        "diff_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/manifest_scope_diff_row" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "publisher_continuity_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_permission_review_schema_version",
+        "packet_id",
+        "created_at",
+        "publisher_identity_ref",
+        "publisher_continuity_row_ref",
+        "signer_lineage_refs",
+        "publisher_transfer_refs",
+        "revocation_and_quarantine_refs",
+        "mirror_promotion_refs",
+        "private_registry_parity_assertion_refs",
+        "freshness_class",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "publisher_continuity_packet_record" },
+        "effective_permission_review_schema_version": {
+          "$ref": "#/$defs/effective_permission_review_schema_version"
+        },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "publisher_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Publisher identity ref (ADR-0012)."
+        },
+        "publisher_continuity_row_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Ref to the ADR-0012 publisher_continuity_row."
+        },
+        "signer_lineage_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Ordered refs proving signer lineage (signing keys, key rotations, signature attestations). Raw key material forbidden."
+        },
+        "publisher_transfer_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to publisher transfer / successor / orphan markers and their audit records."
+        },
+        "revocation_and_quarantine_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to revocation, suspension, quarantine, emergency-disable, and restoration lifecycle records."
+        },
+        "mirror_promotion_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to mirror promotion, mirror continuity, and channel promotion rows that affect publisher continuity posture on non-public lanes."
+        },
+        "private_registry_parity_assertion_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Refs to registry parity assertions ensuring private registries and mirrors project the same vocabulary as public registry lanes."
+        },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" }
+      }
+    },
+
+    "extension_install_review_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "effective_permission_review_schema_version",
+        "case_id",
+        "title",
+        "scenario",
+        "review_sheet_record_ref",
+        "manifest_scope_diff_record_ref",
+        "publisher_continuity_packet_ref",
+        "required_surface_set"
+      ],
+      "properties": {
+        "record_kind": { "const": "extension_install_review_case_record" },
+        "effective_permission_review_schema_version": {
+          "$ref": "#/$defs/effective_permission_review_schema_version"
+        },
+        "case_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable case id. Repurposing an existing id is breaking."
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "review_sheet_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_scope_diff_record_ref": { "$ref": "#/$defs/opaque_id" },
+        "publisher_continuity_packet_ref": { "$ref": "#/$defs/opaque_id" },
+        "required_surface_set": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["install_review_sheet", "permission_inspector", "support_bundle", "mirror_offline_review", "cli_headless"]
+          },
+          "description": "Surfaces this case MUST render onto for parity testing."
+        }
+      }
+    }
+  }
+}
+

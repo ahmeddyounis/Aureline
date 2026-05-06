@@ -1,0 +1,209 @@
+# Policy-narrowed permission review case.
+#
+# Companion to:
+# - docs/extensions/effective_permission_review_contract.md
+# - schemas/extensions/effective_permission_review.schema.json
+#
+# Covers: policy-narrowed permissions (step-up required + denied) with
+# explicit manifest-scope diff bucketing and a rollback checkpoint.
+
+# yaml-language-server: $schema=../../../schemas/extensions/effective_permission_review.schema.json
+__fixture__:
+  name: policy_narrowed_permissions
+  scenario: >
+    Extension update review where an admin policy pack narrows a declared
+    filesystem_write scope to step-up approval and denies a declared
+    shell_execute scope. The review sheet renders the typed diff and the
+    narrowing refs without custom prose; the scope diff separates package
+    target changes from workspace lockfile impact and policy narrowing.
+
+---
+
+record_kind: publisher_continuity_packet_record
+effective_permission_review_schema_version: 1
+packet_id: pcp:pub-acme-labs:2026-05-06
+created_at: "2026-05-06T10:00:00Z"
+publisher_identity_ref: pub-acme-labs
+publisher_continuity_row_ref: pub-acme-labs
+signer_lineage_refs:
+  - key-acme-labs-ed25519-2026-q2
+  - signing-continuity-acme-labs-latest
+publisher_transfer_refs: []
+revocation_and_quarantine_refs: []
+mirror_promotion_refs:
+  - mirror-continuity-public-registry-live
+private_registry_parity_assertion_refs: []
+freshness_class: authoritative_live
+redaction_class: support_bundle
+
+---
+
+record_kind: manifest_scope_diff_record
+effective_permission_review_schema_version: 1
+diff_id: msd:acme-labs/prose-helper:1.4.2-to-1.4.3:policy-narrowed
+created_at: "2026-05-06T10:00:10Z"
+install_review_subject_class: extension_update
+subject_ref: acme-labs/prose-helper
+subject_version_ref: 1.4.3
+manifest_row_ref_before: acme-labs/prose-helper@1.4.2
+manifest_row_ref_after: acme-labs/prose-helper@1.4.3
+diff_rows:
+  - row_id: msd-row-001
+    scope_bucket: package_target
+    change_class: modified
+    field_path: manifest.declared_permissions
+    before_summary: "declares filesystem_write + shell_execute"
+    after_summary: "declares filesystem_write + shell_execute (unchanged); effective narrowed by policy"
+    reason_refs: []
+    affected_artifact_refs: []
+    rendered_label: Declared permissions unchanged; effective is narrowed by policy
+    explanation_label: null
+  - row_id: msd-row-002
+    scope_bucket: workspace_impact
+    change_class: modified
+    field_path: workspace.extensions.lockfile
+    before_summary: ".aureline/extensions.lock.json row pinned at 1.4.2"
+    after_summary: ".aureline/extensions.lock.json row pinned at 1.4.3"
+    reason_refs: []
+    affected_artifact_refs:
+      - artifact:workspace:extensions.lock
+    rendered_label: Workspace lockfile updates to 1.4.3
+    explanation_label: null
+  - row_id: msd-row-003
+    scope_bucket: policy_or_registry_narrowing
+    change_class: narrowed
+    field_path: effective_permissions.filesystem_write
+    before_summary: "filesystem_write unchanged"
+    after_summary: "filesystem_write requires step-up approval"
+    reason_refs:
+      - policy-pack:acme-org-default#permission_floor
+    affected_artifact_refs:
+      - artifact:workspace:extensions.lock
+    rendered_label: Policy requires step-up for workspace writes
+    explanation_label: null
+  - row_id: msd-row-004
+    scope_bucket: policy_or_registry_narrowing
+    change_class: removed
+    field_path: effective_permissions.shell_execute
+    before_summary: "shell_execute unchanged"
+    after_summary: "shell_execute denied by policy"
+    reason_refs:
+      - policy-pack:acme-org-default#deny_shell_execute
+    affected_artifact_refs:
+      - artifact:workspace:extensions.lock
+    rendered_label: Policy denies shell execution
+    explanation_label: null
+redaction_class: support_bundle
+
+---
+
+record_kind: effective_permission_review_sheet_record
+effective_permission_review_schema_version: 1
+sheet_id: eprs:acme-labs/prose-helper:1.4.3:policy-narrowed
+created_at: "2026-05-06T10:00:20Z"
+install_review_subject_class: extension_update
+install_review_disposition_class: awaiting_user_confirmation
+subject_ref: acme-labs/prose-helper
+subject_version_ref: 1.4.3
+manifest_row_ref: acme-labs/prose-helper@1.4.3
+effective_permission_summary_ref: eps:acme-labs/prose-helper@1.4.3
+declared_permissions_digest: "sha256:dg-declared-prose-helper-1.4.3"
+requested_vs_effective_permission_diff:
+  declared_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#declared"
+  requested_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#requested"
+  inherited_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#inherited"
+  effective_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#effective"
+  diff_entries:
+    - scope_kind: filesystem_read
+      scope_target: "workspace:/docs/**"
+      declared_present: true
+      requested_present: true
+      inherited_closure_refs: []
+      effective_state_class: unchanged
+      narrowing_reason_refs: []
+    - scope_kind: filesystem_write
+      scope_target: "workspace:/docs/**"
+      declared_present: true
+      requested_present: true
+      inherited_closure_refs: []
+      effective_state_class: step_up_required
+      narrowing_reason_refs:
+        - policy-pack:acme-org-default#permission_floor
+    - scope_kind: shell_execute
+      scope_target: "shell:default"
+      declared_present: true
+      requested_present: true
+      inherited_closure_refs: []
+      effective_state_class: denied
+      narrowing_reason_refs:
+        - policy-pack:acme-org-default#deny_shell_execute
+transitive_permission_visibility:
+  transitive_capability_closure_refs: []
+  closure_members: []
+  transitive_growth_flag_set: []
+  review_must_render_inline: false
+host_contract_family: wasm_component_model
+artifact_transport_family: wasm_signed_artifact
+runtime_budget_class: medium_bounded
+support_window_class: general_long_window
+capability_lifecycle_row_refs:
+  - cap-prose-helper-v1
+target_scope:
+  scope_class: workspace
+  scope_ref: workspace-globex-docs
+  scope_label: Globex Docs Workspace
+affected_artifacts:
+  - artifact_class: workspace_extension_recommendation_set
+    path_hint: ".aureline/extensions.recommend.jsonc"
+    artifact_ref: null
+    change_class: unchanged_but_referenced
+  - artifact_class: workspace_extension_lockfile
+    path_hint: ".aureline/extensions.lock.json"
+    artifact_ref: artifact:workspace:extensions.lock
+    change_class: modified
+rollback_checkpoint_ref: checkpoint:workspace-globex-docs:2026-05-06T10:00:05Z
+rollback_posture_class: rollback_pending_user_confirmation
+quarantine_posture_class: no_quarantine_active
+mirror_posture:
+  registry_source_class: public_registry
+  mirror_endpoint_ref: null
+  offline_bundle_ref: null
+  vendored_local_path_ref: null
+  catalog_snapshot_revision_ref: catalog:public-registry:2026-05-06T10:00:00Z
+  signature_reverify_state: reverify_passed_authoritative
+  mirror_continuity_row_ref: mirror-continuity-public-registry-live
+  catalog_truth_state: live_registry_authoritative
+publisher_continuity_packet_ref: pcp:pub-acme-labs:2026-05-06
+policy_pack_narrowing_refs:
+  - policy-pack:acme-org-default#permission_floor
+  - policy-pack:acme-org-default#deny_shell_execute
+disclosure_flag_set:
+  - policy_narrowed
+  - declared_effective_diff
+irreversibility_flag_set: []
+review_event_refs:
+  - install_review_packet_opened
+  - effective_permission_narrowed_by_policy_pack
+  - install_review_disclosure_completed
+freshness_class: authoritative_live
+redaction_class: support_bundle
+
+---
+
+record_kind: extension_install_review_case_record
+effective_permission_review_schema_version: 1
+case_id: install_review_case.policy_narrowed_permissions
+title: Policy narrows declared permissions (step-up + denied)
+scenario: >
+  Update review for acme-labs/prose-helper where policy forces step-up on
+  filesystem_write and denies shell_execute; scope diff and continuity
+  remain inspectable.
+review_sheet_record_ref: eprs:acme-labs/prose-helper:1.4.3:policy-narrowed
+manifest_scope_diff_record_ref: msd:acme-labs/prose-helper:1.4.2-to-1.4.3:policy-narrowed
+publisher_continuity_packet_ref: pcp:pub-acme-labs:2026-05-06
+required_surface_set:
+  - install_review_sheet
+  - permission_inspector
+  - support_bundle
+  - cli_headless
+

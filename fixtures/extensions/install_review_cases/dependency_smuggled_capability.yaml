@@ -1,0 +1,204 @@
+# Dependency-supplied capability review case.
+#
+# Companion to:
+# - docs/extensions/effective_permission_review_contract.md
+# - schemas/extensions/effective_permission_review.schema.json
+#
+# Covers: dependency closure widens effective permission beyond the
+# top-level manifest declaration (introduced_by_inheritance).
+
+# yaml-language-server: $schema=../../../schemas/extensions/effective_permission_review.schema.json
+__fixture__:
+  name: dependency_smuggled_capability
+  scenario: >
+    Clean install review where the top-level manifest does not directly
+    declare network egress, but a dependency capability inherited via
+    capability_inherit introduces network_egress scopes. The review sheet
+    is forced to render the transitive closure inline.
+
+---
+
+record_kind: publisher_continuity_packet_record
+effective_permission_review_schema_version: 1
+packet_id: pcp:pub-acme-labs:2026-05-06T11:00
+created_at: "2026-05-06T11:00:00Z"
+publisher_identity_ref: pub-acme-labs
+publisher_continuity_row_ref: pub-acme-labs
+signer_lineage_refs:
+  - key-acme-labs-ed25519-2026-q2
+publisher_transfer_refs: []
+revocation_and_quarantine_refs: []
+mirror_promotion_refs:
+  - mirror-continuity-public-registry-live
+private_registry_parity_assertion_refs: []
+freshness_class: warm_cached
+redaction_class: support_bundle
+
+---
+
+record_kind: manifest_scope_diff_record
+effective_permission_review_schema_version: 1
+diff_id: msd:acme-labs/prose-helper:1.4.3:dependency-widening
+created_at: "2026-05-06T11:00:10Z"
+install_review_subject_class: extension_install
+subject_ref: acme-labs/prose-helper
+subject_version_ref: 1.4.3
+manifest_row_ref_before: null
+manifest_row_ref_after: acme-labs/prose-helper@1.4.3
+diff_rows:
+  - row_id: msd-row-101
+    scope_bucket: package_target
+    change_class: added
+    field_path: manifest.binding
+    before_summary: null
+    after_summary: "binds capability_inherit: spellcheck-core-v2"
+    reason_refs: []
+    affected_artifact_refs: []
+    rendered_label: Installs extension and binds dependency capability
+    explanation_label: null
+  - row_id: msd-row-102
+    scope_bucket: package_target
+    change_class: widened
+    field_path: effective_permissions.network_egress
+    before_summary: null
+    after_summary: "network_egress introduced via dependency closure"
+    reason_refs:
+      - cap-spellcheck-core-v2
+      - marker-spellcheck-core-introduces-egress
+    affected_artifact_refs: []
+    rendered_label: Dependency introduces network egress scope
+    explanation_label: null
+  - row_id: msd-row-103
+    scope_bucket: workspace_impact
+    change_class: modified
+    field_path: workspace.extensions.lockfile
+    before_summary: "extension absent"
+    after_summary: "lockfile pins acme-labs/prose-helper@1.4.3"
+    reason_refs: []
+    affected_artifact_refs:
+      - artifact:workspace:extensions.lock
+    rendered_label: Workspace lockfile gains a new resolved row
+    explanation_label: null
+redaction_class: support_bundle
+
+---
+
+record_kind: effective_permission_review_sheet_record
+effective_permission_review_schema_version: 1
+sheet_id: eprs:acme-labs/prose-helper:1.4.3:dependency-widening
+created_at: "2026-05-06T11:00:20Z"
+install_review_subject_class: extension_install
+install_review_disposition_class: awaiting_user_confirmation
+subject_ref: acme-labs/prose-helper
+subject_version_ref: 1.4.3
+manifest_row_ref: acme-labs/prose-helper@1.4.3
+effective_permission_summary_ref: eps:acme-labs/prose-helper@1.4.3#with-closure
+declared_permissions_digest: "sha256:dg-declared-prose-helper-1.4.3"
+requested_vs_effective_permission_diff:
+  declared_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#declared"
+  requested_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#requested"
+  inherited_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#inherited-with-spellcheck"
+  effective_permission_set_ref: "eps:acme-labs/prose-helper@1.4.3#effective-with-closure"
+  diff_entries:
+    - scope_kind: filesystem_read
+      scope_target: "workspace:/docs/**"
+      declared_present: true
+      requested_present: true
+      inherited_closure_refs: []
+      effective_state_class: unchanged
+      narrowing_reason_refs: []
+    - scope_kind: capability_inherit
+      scope_target: "capability-row:spellcheck-core-v2"
+      declared_present: true
+      requested_present: true
+      inherited_closure_refs:
+        - cap-spellcheck-core-v2
+      effective_state_class: unchanged
+      narrowing_reason_refs: []
+    - scope_kind: network_egress
+      scope_target: "api.spellcheck-core.example"
+      declared_present: false
+      requested_present: true
+      inherited_closure_refs:
+        - cap-spellcheck-core-v2
+      effective_state_class: introduced_by_inheritance
+      narrowing_reason_refs:
+        - marker-spellcheck-core-introduces-egress
+transitive_permission_visibility:
+  transitive_capability_closure_refs:
+    - cap-spellcheck-core-v2
+  closure_members:
+    - capability_lifecycle_row_ref: cap-spellcheck-core-v2
+      contribution_class: transitive_contributor
+      contributed_scopes:
+        - scope_kind: network_egress
+          scope_target: "api.spellcheck-core.example"
+      contribution_freshness_class: warm_cached
+      contribution_dependency_marker_refs:
+        - marker-spellcheck-core-introduces-egress
+  transitive_growth_flag_set:
+    - capability_inherit_widened_effective_set
+    - capability_inherit_introduced_new_scope_kind
+  review_must_render_inline: true
+host_contract_family: wasm_component_model
+artifact_transport_family: wasm_signed_artifact
+runtime_budget_class: medium_bounded
+support_window_class: general_short_window
+capability_lifecycle_row_refs:
+  - cap-prose-helper-v1
+  - cap-spellcheck-core-v2
+target_scope:
+  scope_class: workspace
+  scope_ref: workspace-globex-docs
+  scope_label: Globex Docs Workspace
+affected_artifacts:
+  - artifact_class: workspace_extension_recommendation_set
+    path_hint: ".aureline/extensions.recommend.jsonc"
+    artifact_ref: null
+    change_class: unchanged_but_referenced
+  - artifact_class: workspace_extension_lockfile
+    path_hint: ".aureline/extensions.lock.json"
+    artifact_ref: artifact:workspace:extensions.lock
+    change_class: modified
+rollback_checkpoint_ref: null
+rollback_posture_class: no_rollback_required
+quarantine_posture_class: no_quarantine_active
+mirror_posture:
+  registry_source_class: public_registry
+  mirror_endpoint_ref: null
+  offline_bundle_ref: null
+  vendored_local_path_ref: null
+  catalog_snapshot_revision_ref: catalog:public-registry:2026-05-06T11:00:00Z
+  signature_reverify_state: reverify_passed_warm_cached
+  mirror_continuity_row_ref: mirror-continuity-public-registry-live
+  catalog_truth_state: live_registry_authoritative
+publisher_continuity_packet_ref: pcp:pub-acme-labs:2026-05-06T11:00
+policy_pack_narrowing_refs: []
+disclosure_flag_set:
+  - declared_effective_diff
+irreversibility_flag_set: []
+review_event_refs:
+  - install_review_packet_opened
+  - effective_permission_computed
+  - install_review_disclosure_completed
+freshness_class: warm_cached
+redaction_class: support_bundle
+
+---
+
+record_kind: extension_install_review_case_record
+effective_permission_review_schema_version: 1
+case_id: install_review_case.dependency_smuggled_capability
+title: Dependency closure widens effective permission
+scenario: >
+  Install review where network egress is introduced only through
+  capability inheritance; the transitive closure must render inline.
+review_sheet_record_ref: eprs:acme-labs/prose-helper:1.4.3:dependency-widening
+manifest_scope_diff_record_ref: msd:acme-labs/prose-helper:1.4.3:dependency-widening
+publisher_continuity_packet_ref: pcp:pub-acme-labs:2026-05-06T11:00
+required_surface_set:
+  - install_review_sheet
+  - permission_inspector
+  - support_bundle
+  - cli_headless
+
