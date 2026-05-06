@@ -18,6 +18,18 @@ Companion contracts:
 - [`/docs/workspace/layout_serialization_contract.md`](../workspace/layout_serialization_contract.md)
 - [`/docs/workspace/entry_restore_object_model.md`](../workspace/entry_restore_object_model.md)
 
+Coverage inventory and shared evidence:
+
+- [`/docs/state/state_migration_coverage_matrix.md`](./state_migration_coverage_matrix.md)
+  — published inventory of state-bearing artifact families and their
+  migration / recovery obligations.
+- [`/artifacts/state/migration_playbook_index.yaml`](../../artifacts/state/migration_playbook_index.yaml)
+  — canonical per-family index that keeps coverage complete across the
+  state-object inventory and adjacent packet families.
+- [`/schemas/state/recovery_evidence_packet.schema.json`](../../schemas/state/recovery_evidence_packet.schema.json)
+  — shared recovery-evidence packet shape restore / downgrade / migration
+  surfaces can cite instead of inventing per-surface outputs.
+
 The machine-readable schema lives at:
 
 - [`/schemas/state/restore_provenance.schema.json`](../../schemas/state/restore_provenance.schema.json)

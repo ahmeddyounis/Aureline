@@ -1,0 +1,802 @@
+# State migration / recovery playbook index.
+#
+# Tooling reads this file. The narrative companion is
+# docs/state/state_migration_coverage_matrix.md. If they disagree, this
+# file is authoritative and the narrative is updated in the same change.
+#
+# Scope:
+#   - One row per durable state object in artifacts/state/state_objects.yaml.
+#   - Additional rows for state-bearing artifact families outside the
+#     state-object registry that still participate in migration/recovery
+#     reviews (portable-state packages, restore-artifact-family packets,
+#     provider-linked drafts, AI retained artifacts, notebook artifacts).
+#   - Per-family obligations: schema owner, stability label, backup rule,
+#     downgrade behavior, compare/export posture, corruption fallback, and
+#     the evidence profile the family requires after migration or recovery.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/state/state_migration_coverage_matrix.md
+
+companion_refs:
+  state_object_inventory_ref: artifacts/state/state_objects.yaml
+  profile_and_state_map_ref: docs/state/profile_and_state_map.md
+  durable_state_compatibility_contract_ref: docs/state/durable_state_compatibility_contract.md
+  migration_and_restore_playbook_ref: docs/state/migration_and_restore_playbook.md
+  portable_state_package_contract_ref: docs/state/portable_state_package_contract.md
+  restore_artifact_family_contract_ref: docs/state/restore_artifact_family_contract.md
+  ai_memory_contract_ref: docs/ai/memory_and_reconciliation_contract.md
+  recovery_evidence_packet_schema_ref: schemas/state/recovery_evidence_packet.schema.json
+
+coverage_category_vocabulary:
+  - user_authored_or_user_owned
+  - regenerateable_cache_or_derived
+  - imported_or_authority_owned
+
+compare_export_ability_vocabulary:
+  - compare_and_export_supported
+  - compare_supported_export_optional
+  - compare_supported_export_metadata_only
+  - compare_not_applicable_export_not_applicable
+
+migration_support_vocabulary:
+  - migrate_in_place
+  - rebuild_only
+  - authority_refresh_only
+  - no_migration_supported
+
+evidence_profiles:
+  durable_truth_migration:
+    required_fields:
+      - before
+      - after
+      - backup_reference
+      - dry_run_diff
+      - retained_artifacts
+      - warnings
+      - manual_follow_ups
+      - rollback_result
+    notes: >
+      Used for user-authored durable truth and other families where schema
+      meaning changes can lose intent. Backup and rollback evidence is
+      mandatory even when the apply succeeds.
+
+  recovery_journal_replay:
+    required_fields:
+      - before
+      - after
+      - backup_reference
+      - dry_run_diff
+      - retained_artifacts
+      - warnings
+      - manual_follow_ups
+      - rollback_result
+    notes: >
+      Used for recovery journals and replayable state: evidence must
+      disclose truncation, fallback, and any degraded restore posture.
+
+  derived_cache_rebuild:
+    required_fields:
+      - before
+      - after
+      - backup_reference
+      - dry_run_diff
+      - retained_artifacts
+      - warnings
+      - manual_follow_ups
+      - rollback_result
+    notes: >
+      Used for regenerate-able derived caches. The packet must explicitly
+      state when the cache was rebuilt, and must not imply durable truth
+      existed beyond the authoritative sources.
+
+  authority_owned_refresh:
+    required_fields:
+      - before
+      - after
+      - backup_reference
+      - dry_run_diff
+      - retained_artifacts
+      - warnings
+      - manual_follow_ups
+      - rollback_result
+    notes: >
+      Used for admin / credential-store / provider-owned artifacts where
+      "migration" is a refresh, reauth, or signed-epoch replacement.
+
+  evidence_bundle_readonly:
+    required_fields:
+      - before
+      - after
+      - backup_reference
+      - dry_run_diff
+      - retained_artifacts
+      - warnings
+      - manual_follow_ups
+      - rollback_result
+    notes: >
+      Used for content-addressed evidence bundles. Evidence must describe
+      any unreadable items and the effect on export/review surfaces.
+
+artifact_families:
+  # ------------------------------------------------------------------------
+  # Durable state-object inventory rows (canonical ids).
+  # ------------------------------------------------------------------------
+
+  - family_id: state_object:user_global_settings
+    display_name: User global settings
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=user_global_settings]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: migrating_with_equivalence_map
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: backup_rollback
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:keybindings
+    display_name: Keybindings
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=keybindings]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: migrating_with_equivalence_map
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: backup_rollback
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:snippets
+    display_name: Snippets
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=snippets]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:themes_and_design_tokens
+    display_name: Themes and design tokens
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=themes_and_design_tokens]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: migrating_with_equivalence_map
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: backup_rollback
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:command_aliases
+    display_name: Command aliases
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=command_aliases]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:ui_presets_and_layout_defaults
+    display_name: UI presets and layout defaults
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=ui_presets_and_layout_defaults]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:extension_selection_inventory
+    display_name: Extension selection inventory
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=extension_selection_inventory]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: migrating_with_equivalence_map
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: backup_rollback
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:ai_preset_selection
+    display_name: AI preset selection
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=ai_preset_selection]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:terminal_preferences
+    display_name: Terminal preferences
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=terminal_preferences]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:machine_specific_settings
+    display_name: Machine-specific settings
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=machine_specific_settings]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:profile_library_index
+    display_name: Profile library index
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=profile_library_index]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: block_feature_only
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:workspace_manifest
+    display_name: Workspace manifest
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=workspace_manifest]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: migrating_with_equivalence_map
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:workset_manifest
+    display_name: Workset manifests
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=workset_manifest]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:tasks_and_launch_configs
+    display_name: Tasks and launch configs
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=tasks_and_launch_configs]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:extension_recommendations
+    display_name: Extension recommendations
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=extension_recommendations]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: block_feature_only
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:extension_lockfile
+    display_name: Extension lockfile
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=extension_lockfile]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_object:index_cache
+    display_name: Index cache
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=index_cache]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: frozen_no_evolution
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:object_store
+    display_name: Shared object store
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=object_store]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:execution_context_cache
+    display_name: Execution-context cache
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=execution_context_cache]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: frozen_no_evolution
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:logs_and_traces
+    display_name: Logs and traces
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=logs_and_traces]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:interactive_hot_cache
+    display_name: Interactive hot cache
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=interactive_hot_cache]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: frozen_no_evolution
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:knowledge_cache
+    display_name: Knowledge cache
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=knowledge_cache]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: frozen_no_evolution
+    backup_before_migrate_rule: backup_not_applicable_disposable
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:prebuild_environment_cache
+    display_name: Prebuild environment cache
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=prebuild_environment_cache]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: regenerateable_cache_or_derived
+    migration_support: rebuild_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_not_applicable_export_not_applicable
+    corruption_fallback: rebuild_automatically
+    evidence_profile: derived_cache_rebuild
+
+  - family_id: state_object:dirty_buffer_recovery_journal
+    display_name: Dirty-buffer recovery journal
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=dirty_buffer_recovery_journal]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: replay_only_no_schema
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:session_restore_state
+    display_name: Session restore state
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=session_restore_state]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:local_history
+    display_name: Local history
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=local_history]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: replay_only_no_schema
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:deferred_intent_outbox
+    display_name: Deferred-intent outbox
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=deferred_intent_outbox]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: replay_only_no_schema
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:ai_memory_metadata
+    display_name: AI memory metadata
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=ai_memory_metadata]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: open_with_warning
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:terminal_restore_metadata
+    display_name: Terminal restore metadata
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=terminal_restore_metadata]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:sync_metadata
+    display_name: Sync metadata
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=sync_metadata]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:conflict_journal
+    display_name: Sync conflict journal
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=conflict_journal]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: replay_only_no_schema
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: recovery_journal_replay
+
+  - family_id: state_object:admin_policy_bundle
+    display_name: Admin policy bundle
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=admin_policy_bundle]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: signed_epoch_replacement
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_refused
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: authority_owned_refresh
+
+  - family_id: state_object:policy_bundle_cache
+    display_name: Policy bundle cache
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=policy_bundle_cache]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: signed_epoch_replacement
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_refused
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: authority_owned_refresh
+
+  - family_id: state_object:trust_approvals
+    display_name: Trust approvals
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=trust_approvals]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: additive_minor_only
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_reads_with_fallback
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: authority_owned_refresh
+
+  - family_id: state_object:auth_session_secrets
+    display_name: Auth session secrets (credential-store handles)
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=auth_session_secrets]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: frozen_no_evolution
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: authority_owned_refresh
+
+  - family_id: state_object:long_lived_credentials
+    display_name: Long-lived credentials (credential-store handles)
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=long_lived_credentials]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: frozen_no_evolution
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: authority_owned_refresh
+
+  - family_id: state_object:admin_audit_log
+    display_name: Admin audit log
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=admin_audit_log]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: authority_owned_refresh
+
+  - family_id: state_object:support_bundles
+    display_name: Support bundles
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=support_bundles]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: no_migration_supported
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: block_feature_only
+    evidence_profile: evidence_bundle_readonly
+
+  - family_id: state_object:crash_envelopes
+    display_name: Crash envelopes
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=crash_envelopes]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: no_migration_supported
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_not_applicable_content_addressed
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: block_feature_only
+    evidence_profile: evidence_bundle_readonly
+
+  - family_id: state_object:review_packets
+    display_name: Review packets
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=review_packets]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: evidence_bundle_readonly
+
+  - family_id: state_object:benchmark_results
+    display_name: Benchmark results
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=benchmark_results]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: evidence_bundle_readonly
+
+  - family_id: state_object:release_evidence_packs
+    display_name: Release evidence packs
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=release_evidence_packs]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: evidence_bundle_readonly
+
+  - family_id: state_object:incident_bundles
+    display_name: Incident bundles
+    source_kind: state_object_inventory
+    source_ref: artifacts/state/state_objects.yaml#state_objects[id=incident_bundles]
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: content_addressed_immutable
+    backup_before_migrate_rule: backup_handled_by_authority
+    downgrade_behavior: downgrade_reads_fully
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: fail_closed_for_privileged_operations
+    evidence_profile: evidence_bundle_readonly
+
+  # ------------------------------------------------------------------------
+  # Additional non-state-object families.
+  # ------------------------------------------------------------------------
+
+  - family_id: state_family:portable_state_packages
+    display_name: Portable-state package (manifest + package)
+    source_kind: contract_family
+    source_ref: docs/state/portable_state_package_contract.md
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: contract_frozen
+    backup_before_migrate_rule: backup_required_before_destructive_migration
+    downgrade_behavior: downgrade_requires_export_only
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: restore_destination_review
+    evidence_profile: durable_truth_migration
+
+  - family_id: state_family:restore_artifact_family
+    display_name: Restore artifact family (authority checkpoint + window topology)
+    source_kind: contract_family
+    source_ref: docs/state/restore_artifact_family_contract.md
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: contract_frozen
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_documented_fallback
+    compare_export_ability: compare_and_export_supported
+    corruption_fallback: repair_flow
+    evidence_profile: recovery_journal_replay
+
+  - family_id: ai_family:retained_artifacts
+    display_name: AI retained artifacts (memory objects + deferred intents)
+    source_kind: contract_family
+    source_ref: docs/ai/memory_and_reconciliation_contract.md
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: migrate_in_place
+    stability_label: contract_frozen
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_reads_with_documented_fallback
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: repair_flow
+    evidence_profile: recovery_journal_replay
+
+  - family_id: provider_family:linked_drafts
+    display_name: Provider-linked drafts and handoff artifacts
+    source_kind: contract_family
+    source_ref: docs/state/workspace_memory_contract.md
+    schema_owner: "@ahmeddyounis"
+    coverage_category: imported_or_authority_owned
+    migration_support: authority_refresh_only
+    stability_label: contract_frozen
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_requires_export_only
+    compare_export_ability: compare_supported_export_metadata_only
+    corruption_fallback: open_with_warning
+    evidence_profile: authority_owned_refresh
+
+  - family_id: notebook_family:notebook_state
+    display_name: Notebook durable viewer/output artifacts
+    source_kind: contract_family
+    source_ref: docs/notebooks/kernel_output_lineage_and_widget_contract.md
+    schema_owner: "@ahmeddyounis"
+    coverage_category: user_authored_or_user_owned
+    migration_support: no_migration_supported
+    stability_label: contract_frozen
+    backup_before_migrate_rule: backup_optional_user_offered
+    downgrade_behavior: downgrade_requires_export_only
+    compare_export_ability: compare_supported_export_optional
+    corruption_fallback: open_with_warning
+    evidence_profile: durable_truth_migration
+

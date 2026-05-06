@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/state/recovery_evidence_packet.schema.json",
+  "title": "Aureline recovery evidence packet",
+  "description": "Boundary schema for the recovery_evidence_packet_record. The packet is the shared, review-friendly evidence object produced after a restore, migration, downgrade, or recovery action that touches durable state. It captures before/after producer + schema versions, the backup / rollback reference, a dry-run diff summary (or explicit no-dry-run disclosure), retained artifact refs, warnings, manual follow-ups, and the rollback result. Raw paths, raw URLs, raw secrets, raw command lines, raw logs, and raw payload bodies never appear; only opaque refs and redaction-aware reviewable text do.",
+  "type": "object",
+  "allOf": [{ "$ref": "#/$defs/recovery_evidence_packet_record" }],
+  "$defs": {
+    "recovery_evidence_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for recovery evidence packets. Bumped only on breaking payload changes."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe for manifests, logs, support exports, and compare handles."
+    },
+    "nullable_opaque_id": {
+      "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }]
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Opaque to this schema."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Reviewable prose or label after the active redaction policy has already been applied."
+    },
+    "nullable_redaction_aware_text": {
+      "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "channel_class": {
+      "type": ["string", "null"],
+      "enum": ["experimental", "beta", "stable", "lts", null]
+    },
+    "platform_class": {
+      "type": ["string", "null"],
+      "enum": ["macos", "windows", "linux", "container", "remote_agent", "managed_cloud", "other", null]
+    },
+    "build_stamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["producer_name", "producer_version"],
+      "properties": {
+        "producer_name": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "producer_channel": { "$ref": "#/$defs/channel_class" },
+        "producer_platform_class": { "$ref": "#/$defs/platform_class" },
+        "producer_instance_handle": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Pseudonymous build identity. Never a raw hostname."
+    },
+    "version_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "schema_version"],
+      "properties": {
+        "build": { "$ref": "#/$defs/build_stamp" },
+        "schema_version": { "$ref": "#/$defs/redaction_aware_text" },
+        "artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      },
+      "description": "Before/after version projection. The optional artifact_ref is an opaque handle to the specific artifact body."
+    },
+    "backup_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backup_present", "backup_ref", "rollback_checkpoint_ref", "notes"],
+      "properties": {
+        "backup_present": { "type": "boolean" },
+        "backup_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notes": { "$ref": "#/$defs/nullable_redaction_aware_text" }
+      },
+      "description": "Backup and rollback reference for destructive operations. When backup_present is false, backup_ref and rollback_checkpoint_ref MUST be null."
+    },
+    "dry_run_diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["dry_run_performed", "diff_summary_ref", "diff_summary_text"],
+      "properties": {
+        "dry_run_performed": { "type": "boolean" },
+        "diff_summary_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "diff_summary_text": { "$ref": "#/$defs/nullable_redaction_aware_text" }
+      },
+      "description": "Dry-run diff evidence. When dry_run_performed is false, diff_summary_ref and diff_summary_text MUST be null."
+    },
+    "retained_artifact_role": {
+      "type": "string",
+      "enum": [
+        "preserved_prior_artifact",
+        "translated_candidate",
+        "rollback_checkpoint",
+        "exported_package",
+        "support_bundle_candidate",
+        "evidence_bundle",
+        "other_retained_artifact"
+      ],
+      "description": "Role the retained artifact played during the operation."
+    },
+    "retained_artifact_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_ref", "role", "notes"],
+      "properties": {
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "role": { "$ref": "#/$defs/retained_artifact_role" },
+        "notes": { "$ref": "#/$defs/nullable_redaction_aware_text" }
+      }
+    },
+    "warning_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warning_class", "summary", "related_artifact_refs"],
+      "properties": {
+        "warning_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed warning id (closed by the owning surface / contract)."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "related_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "manual_follow_up_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["follow_up_class", "summary", "related_artifact_refs"],
+      "properties": {
+        "follow_up_class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Typed follow-up id (closed by the owning surface / contract)."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" },
+        "related_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "rollback_outcome_class": {
+      "type": "string",
+      "enum": ["not_attempted", "succeeded", "failed", "not_applicable"],
+      "description": "Outcome class for rollback."
+    },
+    "rollback_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "rollback_checkpoint_ref", "rolled_back_artifact_ref", "notes"],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/rollback_outcome_class" },
+        "rollback_checkpoint_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "rolled_back_artifact_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notes": { "$ref": "#/$defs/nullable_redaction_aware_text" }
+      }
+    },
+    "recovery_evidence_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "recovery_evidence_packet_schema_version",
+        "packet_id",
+        "packet_label",
+        "subject_family_ref",
+        "before",
+        "after",
+        "backup_reference",
+        "dry_run_diff",
+        "retained_artifacts",
+        "warnings",
+        "manual_follow_ups",
+        "rollback_result",
+        "emitted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "recovery_evidence_packet_record",
+          "description": "Discriminator for the recovery-evidence packet payload."
+        },
+        "recovery_evidence_packet_schema_version": {
+          "$ref": "#/$defs/recovery_evidence_packet_schema_version"
+        },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "packet_label": { "$ref": "#/$defs/redaction_aware_text" },
+        "subject_family_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable family reference into artifacts/state/migration_playbook_index.yaml#artifact_families[].family_id."
+        },
+        "before": { "$ref": "#/$defs/version_block" },
+        "after": { "$ref": "#/$defs/version_block" },
+        "backup_reference": { "$ref": "#/$defs/backup_reference" },
+        "dry_run_diff": { "$ref": "#/$defs/dry_run_diff" },
+        "retained_artifacts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/retained_artifact_record" },
+          "uniqueItems": true
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/warning_record" },
+          "uniqueItems": true
+        },
+        "manual_follow_ups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/manual_follow_up_record" },
+          "uniqueItems": true
+        },
+        "rollback_result": { "$ref": "#/$defs/rollback_result" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "notes": {
+          "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }]
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "backup_reference": { "properties": { "backup_present": { "const": false } } } } },
+          "then": {
+            "properties": {
+              "backup_reference": {
+                "properties": {
+                  "backup_ref": { "type": "null" },
+                  "rollback_checkpoint_ref": { "type": "null" }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "dry_run_diff": { "properties": { "dry_run_performed": { "const": false } } } } },
+          "then": {
+            "properties": {
+              "dry_run_diff": {
+                "properties": {
+                  "diff_summary_ref": { "type": "null" },
+                  "diff_summary_text": { "type": "null" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

@@ -1,0 +1,70 @@
+# Recovery evidence packet — settings migration with backup + dry-run diff.
+#
+# Validates against:
+#   schemas/state/recovery_evidence_packet.schema.json
+
+__fixture__:
+  name: settings_migration_with_backup
+  scenario: >
+    User-authored settings cross a schema-meaning change. The surface
+    runs a dry-run diff, creates a backup/rollback checkpoint before
+    writing, preserves the prior artifact for compare/export, and emits
+    a recovery-evidence packet capturing the shared post-migration fields.
+
+record_kind: recovery_evidence_packet_record
+recovery_evidence_packet_schema_version: 1
+packet_id: recovery-evidence-settings-migration-0001
+packet_label: Settings migration — compatible translation with preserved prior artifact
+subject_family_ref: state_object:user_global_settings
+
+before:
+  build:
+    producer_name: aureline
+    producer_version: 0.0.0-dev
+    producer_channel: experimental
+    producer_platform_class: macos
+    producer_instance_handle: producer-instance-settings-0001
+  schema_version: settings-body-schema-v1
+  artifact_ref: user-global-settings-pre-migration-0001
+
+after:
+  build:
+    producer_name: aureline
+    producer_version: 0.0.0-dev
+    producer_channel: experimental
+    producer_platform_class: macos
+    producer_instance_handle: producer-instance-settings-0001
+  schema_version: settings-body-schema-v2
+  artifact_ref: user-global-settings-post-migration-0001
+
+backup_reference:
+  backup_present: true
+  backup_ref: preserved-user-global-settings-pre-migration-0001
+  rollback_checkpoint_ref: rollback-checkpoint-settings-migration-0001
+  notes: Backup-before-migrate required; preserved pre-translation body for compare/export.
+
+dry_run_diff:
+  dry_run_performed: true
+  diff_summary_ref: diff-preview-settings-migration-0001
+  diff_summary_text: >
+    Two fields translated through an equivalence map; one deprecated key removed.
+
+retained_artifacts:
+  - artifact_ref: preserved-user-global-settings-pre-migration-0001
+    role: preserved_prior_artifact
+    notes: Pre-translation body preserved for compare/export.
+  - artifact_ref: rollback-checkpoint-settings-migration-0001
+    role: rollback_checkpoint
+    notes: One-step rollback checkpoint.
+
+warnings: []
+manual_follow_ups: []
+
+rollback_result:
+  outcome: not_attempted
+  rollback_checkpoint_ref: rollback-checkpoint-settings-migration-0001
+  rolled_back_artifact_ref: null
+  notes: Migration apply completed; rollback not invoked.
+
+emitted_at: "mono:7000:01:02:03.0001"
+
