@@ -1,0 +1,262 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/artifact_publication_row.schema.json",
+  "title": "Aureline artifact publication row record",
+  "description": "Boundary schema for the artifact_publication_row_record frozen in docs/release/pipeline_trust_domain_and_publication_matrix.md. The record is the per-artifact-family publication row that reviewers use to trace a publishable artifact through build, signing, promotion, publication, mirror/offline movement, and revocation WITHOUT crossing an unnamed trust boundary. Each row names one publication lane, one artifact kind, the producing trust domain and component boundary, the signer boundary used (or explicit absence), the publisher boundary and publish-target refs, the retention floor class, and the revocation linkage class. Raw private keys, raw credentials, raw artifact bytes, raw URLs, and raw absolute paths never cross this boundary; the record carries stable ids, typed vocabulary, and refs only. Adding a new lane_class, artifact_kind_class, publisher_boundary_class, signer_boundary_id, retention_floor_class, revocation_granularity_class, or optional field is additive-minor and bumps artifact_publication_row_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/artifact_publication_row_record",
+  "$defs": {
+    "artifact_publication_row_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the artifact-publication-row payload shape. Current value is 1."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nullable_non_empty_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe for logs, manifests, support packets, release packets, and audit exports. Raw URLs, raw file paths, raw credentials, and raw bytes never appear here."
+    },
+    "publication_lane_class": {
+      "type": "string",
+      "enum": [
+        "developer_preview",
+        "internal_test",
+        "public_stable",
+        "mirror_only",
+        "emergency_offline"
+      ],
+      "description": "Distribution-intent lane used to interpret producer/signer/publisher semantics."
+    },
+    "artifact_kind_class": {
+      "type": "string",
+      "enum": [
+        "binary",
+        "helper_or_agent_build",
+        "symbols",
+        "sbom",
+        "attestation",
+        "manifest",
+        "extension_bundle",
+        "policy_bundle",
+        "docs_pack",
+        "benchmark_pack"
+      ],
+      "description": "High-level artifact kind vocabulary for publication review. The artifact_family_class below binds to a concrete release artifact family when one exists."
+    },
+    "artifact_family_class": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "https://aureline.dev/schemas/release/publish_target.schema.json#/$defs/artifact_family_class" }
+      ],
+      "description": "Optional concrete artifact family class, aligned with publish_target.schema.json when applicable."
+    },
+    "signer_boundary_id": {
+      "type": "string",
+      "enum": [
+        "none",
+        "developer_local_signing_only",
+        "hardened_signing_service",
+        "mirror_receipt_signer",
+        "third_party_publisher"
+      ],
+      "description": "Where signatures/attestations are produced. Build workers must not carry raw signing keys; signing uses a named boundary."
+    },
+    "publisher_boundary_class": {
+      "type": "string",
+      "enum": [
+        "local_only",
+        "internal_channel_or_ring",
+        "public_channel",
+        "mirror_feed_or_offline_bundle",
+        "offline_bundle"
+      ],
+      "description": "What kind of publisher boundary mutates distribution state for this row."
+    },
+    "trust_domain_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable trust-domain id. The canonical vocabulary is declared in artifacts/release/pipeline_lane_rules.yaml."
+    },
+    "component_id": {
+      "type": "string",
+      "enum": [
+        "developer_workstation",
+        "ci_runner",
+        "remote_cache",
+        "signing_service",
+        "package_builder",
+        "mirror",
+        "release_center",
+        "public_download_surface"
+      ]
+    },
+    "artifact_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_kind_class",
+        "artifact_family_class",
+        "notes"
+      ],
+      "properties": {
+        "artifact_kind_class": { "$ref": "#/$defs/artifact_kind_class" },
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "producer_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_domain",
+        "component_id",
+        "lane_ref",
+        "notes"
+      ],
+      "properties": {
+        "trust_domain": { "$ref": "#/$defs/trust_domain_id" },
+        "component_id": { "$ref": "#/$defs/component_id" },
+        "lane_ref": { "$ref": "#/$defs/nullable_non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "signer_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signer_boundary_id",
+        "notes"
+      ],
+      "properties": {
+        "signer_boundary_id": { "$ref": "#/$defs/signer_boundary_id" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "publisher_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "publisher_boundary_class",
+        "trust_domain",
+        "publish_target_refs",
+        "public_download_surface_class",
+        "notes"
+      ],
+      "properties": {
+        "publisher_boundary_class": { "$ref": "#/$defs/publisher_boundary_class" },
+        "trust_domain": {
+          "oneOf": [
+            { "type": "string", "const": "none" },
+            { "$ref": "#/$defs/trust_domain_id" }
+          ]
+        },
+        "publish_target_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "public_download_surface_class": { "$ref": "#/$defs/non_empty_string" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "retention_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "retention_floor_class",
+        "source_ref"
+      ],
+      "properties": {
+        "retention_floor_class": { "$ref": "#/$defs/non_empty_string" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "revocation_linkage_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "revocation_granularity_class",
+        "source_ref"
+      ],
+      "properties": {
+        "revocation_granularity_class": { "$ref": "#/$defs/non_empty_string" },
+        "source_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "trust_path_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "build_trust_domain",
+        "sign_signer_boundary_id",
+        "promote_trust_domain",
+        "publish_trust_domain",
+        "mirror_trust_domain",
+        "revoke_trust_domain"
+      ],
+      "properties": {
+        "build_trust_domain": { "$ref": "#/$defs/trust_domain_id" },
+        "sign_signer_boundary_id": { "$ref": "#/$defs/signer_boundary_id" },
+        "promote_trust_domain": { "$ref": "#/$defs/trust_domain_id" },
+        "publish_trust_domain": { "$ref": "#/$defs/trust_domain_id" },
+        "mirror_trust_domain": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_domain_id" }
+          ]
+        },
+        "revoke_trust_domain": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/trust_domain_id" }
+          ]
+        }
+      },
+      "description": "Minimal traceability envelope naming the trust boundary at each step for this lane and artifact."
+    },
+    "artifact_publication_row_id": {
+      "type": "string",
+      "pattern": "^artifact_publication_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable artifact-publication-row id."
+    },
+    "artifact_publication_row_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_publication_row_schema_version",
+        "artifact_publication_row_id",
+        "lane_class",
+        "artifact",
+        "producer",
+        "signer",
+        "publisher",
+        "retention",
+        "revocation_linkage",
+        "trust_path"
+      ],
+      "properties": {
+        "artifact_publication_row_schema_version": { "$ref": "#/$defs/artifact_publication_row_schema_version" },
+        "artifact_publication_row_id": { "$ref": "#/$defs/artifact_publication_row_id" },
+        "lane_class": { "$ref": "#/$defs/publication_lane_class" },
+        "artifact": { "$ref": "#/$defs/artifact_descriptor" },
+        "producer": { "$ref": "#/$defs/producer_descriptor" },
+        "signer": { "$ref": "#/$defs/signer_descriptor" },
+        "publisher": { "$ref": "#/$defs/publisher_descriptor" },
+        "retention": { "$ref": "#/$defs/retention_descriptor" },
+        "revocation_linkage": { "$ref": "#/$defs/revocation_linkage_descriptor" },
+        "trust_path": { "$ref": "#/$defs/trust_path_descriptor" }
+      }
+    }
+  }
+}
+

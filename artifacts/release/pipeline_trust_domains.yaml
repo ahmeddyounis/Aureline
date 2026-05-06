@@ -1,0 +1,831 @@
+# Pipeline trust-domain, signer-boundary, and artifact-publication matrix seed.
+#
+# Machine-readable companion to
+# docs/release/pipeline_trust_domain_and_publication_matrix.md.
+#
+# This artifact freezes:
+# - stable trust-domain ids (reused from pipeline_lane_rules.yaml);
+# - signer-boundary ids and the component matrix that binds them; and
+# - a seeded artifact-publication row set covering the release artifact
+#   families that must remain traceable through build → sign → promote →
+#   publish → mirror/offline → revoke paths.
+
+schema_version: 1
+map_id: aureline.pipeline_trust_domains
+status: seeded
+
+policy_doc_ref: docs/release/pipeline_trust_domain_and_publication_matrix.md
+pipeline_lane_rules_ref: artifacts/release/pipeline_lane_rules.yaml
+cache_trust_classes_ref: artifacts/release/cache_trust_classes.yaml
+artifact_family_map_ref: artifacts/release/artifact_family_map.yaml
+artifact_graph_rules_ref: artifacts/release/artifact_graph_rules.yaml
+publish_target_contract_ref: docs/release/release_center_object_model_contract.md
+publish_target_schema_ref: schemas/release/publish_target.schema.json
+mirror_integrity_contract_ref: docs/release/mirror_integrity_and_offline_verification_contract.md
+signing_quorum_ref: artifacts/governance/signing_quorum.yaml
+provenance_baseline_ref: docs/governance/provenance_and_compliance_baseline.md
+exact_build_identity_model_ref: docs/build/exact_build_identity_model.md
+cleanroom_rebuild_lane_ref: docs/build/cleanroom_rebuild_lane.md
+
+trust_domain_vocabulary_ref: artifacts/release/pipeline_lane_rules.yaml#trust_domain_vocabulary
+trust_domains:
+  - trust_domain: untrusted_contributor
+    title: Untrusted contributor / developer workstation domain
+    publication_lanes:
+      - developer_preview
+    notes: >
+      Includes developer workstation builds and untrusted PR lanes. No
+      release-bearing credentials, no cache writes outside PR-local
+      caches, and no channel publication.
+
+  - trust_domain: protected_engineering
+    title: Protected engineering domain
+    publication_lanes:
+      - internal_test
+    notes: >
+      Trusted CI for protected merges. May emit internal evidence and
+      content-addressed cache entries; never publishes public channels.
+
+  - trust_domain: release_nightly
+    title: Nightly release publication domain
+    publication_lanes:
+      - internal_test
+    notes: >
+      Publishes the nightly channel only. Signing and attestation still
+      occur via the hardened signing boundary; build workers never hold
+      raw signing keys.
+
+  - trust_domain: release_preview
+    title: Preview release publication domain
+    publication_lanes:
+      - internal_test
+    notes: >
+      Publishes the preview channel only. Treated as pre-stable public
+      truth; never uses stable/LTS credentials.
+
+  - trust_domain: release_beta
+    title: Beta release publication domain
+    publication_lanes:
+      - internal_test
+    notes: >
+      Publishes the beta channel only. Still not support-bearing stable
+      truth; used to rehearse stable-candidate coupling rules.
+
+  - trust_domain: release_stable
+    title: Stable release publication domain
+    publication_lanes:
+      - public_stable
+    notes: >
+      Publishes the stable channel only. Support-bearing publication.
+      Promotion, rollback, and revocation actions cite audited release
+      center objects and signing-quorum policy.
+
+  - trust_domain: release_lts
+    title: LTS release publication domain
+    publication_lanes:
+      - public_stable
+    notes: >
+      Publishes the LTS channel only. Requires retention and mirror/offline
+      parity that covers the support window.
+
+  - trust_domain: release_hotfix
+    title: Emergency hotfix release publication domain
+    publication_lanes:
+      - emergency_offline
+      - public_stable
+    notes: >
+      Publishes the hotfix channel only. Uses the strictest approvals and
+      minimized dependency surface rules.
+
+  - trust_domain: cleanroom_protected
+    title: Clean-room rebuild and verification domain
+    publication_lanes:
+      - internal_test
+      - public_stable
+    notes: >
+      Re-materializes inputs from pinned commits, lockfiles, and reviewed
+      toolchain references to provide reproducibility evidence. Never
+      publishes channels.
+
+  - trust_domain: release_mirror_or_offline
+    title: Mirror and offline publication domain
+    publication_lanes:
+      - mirror_only
+      - emergency_offline
+    notes: >
+      Produces mirror-continuity receipts, offline bundles, and import
+      receipts without advancing authoritative public channels.
+
+signer_boundary_vocabulary:
+  - none
+  - developer_local_signing_only
+  - hardened_signing_service
+  - mirror_receipt_signer
+  - third_party_publisher
+
+publication_lane_vocabulary:
+  - developer_preview
+  - internal_test
+  - public_stable
+  - mirror_only
+  - emergency_offline
+
+component_boundary_vocabulary:
+  - developer_workstation
+  - ci_runner
+  - remote_cache
+  - signing_service
+  - package_builder
+  - mirror
+  - release_center
+  - public_download_surface
+
+component_trust_boundary_matrix:
+  - component_id: developer_workstation
+    trust_domain: untrusted_contributor
+    signer_boundary_id: developer_local_signing_only
+    secrets_posture: no_release_credentials
+    notes: >
+      Developer builds are permitted for local iteration. They never
+      become support-bearing public artifacts and cannot publish a
+      channel.
+
+  - component_id: ci_runner
+    trust_domain: untrusted_contributor
+    signer_boundary_id: none
+    secrets_posture: no_release_credentials
+    notes: >
+      Untrusted PR runners. May build/test but holds no channel or
+      signing credentials.
+
+  - component_id: ci_runner
+    trust_domain: protected_engineering
+    signer_boundary_id: none
+    secrets_posture: protected_merge_credentials_only
+    notes: >
+      Protected CI. May write protected caches and emit internal
+      evidence; never publishes channels or holds signing keys.
+
+  - component_id: ci_runner
+    trust_domain: release_nightly
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: >
+      Nightly lane runner. Builds and packages under nightly credentials
+      and requests signing by digest; raw keys remain isolated.
+
+  - component_id: ci_runner
+    trust_domain: release_preview
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: Preview lane runner. Same key-custody rules as nightly.
+
+  - component_id: ci_runner
+    trust_domain: release_beta
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: Beta lane runner. Same key-custody rules as nightly.
+
+  - component_id: ci_runner
+    trust_domain: release_stable
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: Stable lane runner. Same key-custody rules as other lanes.
+
+  - component_id: ci_runner
+    trust_domain: release_lts
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: LTS lane runner. Same key-custody rules as stable.
+
+  - component_id: ci_runner
+    trust_domain: release_hotfix
+    signer_boundary_id: none
+    secrets_posture: hotfix_credentials_only
+    notes: >
+      Hotfix lane runner. Minimized dependency surface and extra
+      approvals.
+
+  - component_id: ci_runner
+    trust_domain: cleanroom_protected
+    signer_boundary_id: none
+    secrets_posture: cleanroom_runner_only
+    notes: >
+      Clean-room rebuild runner. Re-materializes inputs and emits
+      reproducibility proof; never publishes a channel.
+
+  - component_id: package_builder
+    trust_domain: release_nightly
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: >
+      Assembles installables and release bundles under nightly lane
+      credentials. Signing is requested by digest; raw signing keys
+      remain isolated.
+
+  - component_id: package_builder
+    trust_domain: release_preview
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: >
+      Assembles installables and release bundles under preview lane
+      credentials. Signing is requested by digest; raw signing keys
+      remain isolated.
+
+  - component_id: package_builder
+    trust_domain: release_beta
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: >
+      Assembles installables and release bundles under beta lane
+      credentials. Signing is requested by digest; raw signing keys
+      remain isolated.
+
+  - component_id: package_builder
+    trust_domain: release_stable
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: >
+      Assembles installables and release bundles under stable lane
+      credentials. Signing is requested by digest; raw signing keys
+      remain isolated.
+
+  - component_id: package_builder
+    trust_domain: release_lts
+    signer_boundary_id: none
+    secrets_posture: lane_publishing_credentials_only
+    notes: >
+      Assembles installables and release bundles under LTS lane
+      credentials. Signing is requested by digest; raw signing keys
+      remain isolated.
+
+  - component_id: package_builder
+    trust_domain: release_hotfix
+    signer_boundary_id: none
+    secrets_posture: hotfix_credentials_only
+    notes: >
+      Assembles installables and release bundles under hotfix lane
+      credentials. Signing is requested by digest; raw signing keys
+      remain isolated.
+
+  - component_id: package_builder
+    trust_domain: cleanroom_protected
+    signer_boundary_id: none
+    secrets_posture: cleanroom_runner_only
+    notes: >
+      Clean-room packaging/assembly used only for verification outputs.
+      Never publishes a channel.
+
+  - component_id: remote_cache
+    trust_domain: protected_engineering
+    signer_boundary_id: none
+    secrets_posture: cache_acceleration_only
+    notes: >
+      Remote cache entries are never authoritative. Admissibility is
+      defined by cache_trust_classes.yaml and lane rules.
+
+  - component_id: signing_service
+    trust_domain: release_stable
+    signer_boundary_id: hardened_signing_service
+    secrets_posture: isolated_signing_keys
+    notes: >
+      Signing happens in an isolated service. Release lanes submit digest
+      sets; the service verifies digests before signing.
+
+  - component_id: mirror
+    trust_domain: release_mirror_or_offline
+    signer_boundary_id: mirror_receipt_signer
+    secrets_posture: mirror_operator_receipts_only
+    notes: >
+      Mirror operators may sign continuity receipts; they never re-sign
+      origin artifacts as if they were the origin.
+
+  - component_id: release_center
+    trust_domain: release_stable
+    signer_boundary_id: hardened_signing_service
+    secrets_posture: audited_publication_actions_only
+    notes: >
+      Release center mutates publish targets (promote/rollback/revoke,
+      etc.) using audited actions and signing-quorum policy.
+
+  - component_id: public_download_surface
+    trust_domain: none
+    signer_boundary_id: none
+    secrets_posture: untrusted_distribution_surface
+    notes: >
+      Public download surfaces distribute bytes but are not trusted to
+      author provenance, signatures, or publication truth.
+
+# -----------------------------------------------------------------------------
+# Seeded artifact-publication rows.
+#
+# Each row is intended to validate against:
+# schemas/release/artifact_publication_row.schema.json
+# -----------------------------------------------------------------------------
+artifact_publication_rows:
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:ide_binary.developer_preview
+    lane_class: developer_preview
+    artifact:
+      artifact_kind_class: binary
+      artifact_family_class: ide_binary
+      notes: Developer workstation or PR preview payload.
+    producer:
+      trust_domain: untrusted_contributor
+      component_id: developer_workstation
+      lane_ref: contributor_pr_lane
+      notes: Local or untrusted builds are permitted for iteration only.
+    signer:
+      signer_boundary_id: developer_local_signing_only
+      notes: Developer signatures are never authoritative for public truth.
+    publisher:
+      publisher_boundary_class: local_only
+      trust_domain: untrusted_contributor
+      publish_target_refs: []
+      public_download_surface_class: not_applicable
+      notes: Stored locally or as ephemeral CI artifacts only.
+    retention:
+      retention_floor_class: not_applicable
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: not_applicable
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: untrusted_contributor
+      sign_signer_boundary_id: developer_local_signing_only
+      promote_trust_domain: untrusted_contributor
+      publish_trust_domain: untrusted_contributor
+      mirror_trust_domain: null
+      revoke_trust_domain: null
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:ide_binary.internal_test
+    lane_class: internal_test
+    artifact:
+      artifact_kind_class: binary
+      artifact_family_class: ide_binary
+      notes: Nightly/preview/beta validation payload.
+    producer:
+      trust_domain: release_nightly
+      component_id: package_builder
+      lane_ref: nightly_release_lane
+      notes: Built under lane credentials; no raw signing keys on workers.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Signatures and attestations are produced by an isolated signer.
+    publisher:
+      publisher_boundary_class: internal_channel_or_ring
+      trust_domain: release_nightly
+      publish_target_refs:
+        - publish_target:internal.nightly
+      public_download_surface_class: not_applicable
+      notes: Internal distribution only.
+    retention:
+      retention_floor_class: paired_release_family_support_window
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: exact_build_node_set_or_channel_manifest
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_nightly
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_nightly
+      publish_trust_domain: release_nightly
+      mirror_trust_domain: null
+      revoke_trust_domain: release_nightly
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:ide_binary.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: binary
+      artifact_family_class: ide_binary
+      notes: Support-bearing stable/LTS payload.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: Built under stable lane; promotion binds to exact-build identity.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Stable signatures/attestations come only from the hardened signer boundary.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Published as part of the coupled artifact graph.
+    retention:
+      retention_floor_class: paired_release_family_support_window_and_open_advisories
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: exact_build_node_set_or_channel_manifest
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:helper_or_agent_build.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: helper_or_agent_build
+      artifact_family_class: null
+      notes: >
+        Helper/agent build payload covered by the runtime_binary node family.
+        Concrete artifact families land later; this row freezes the trust path.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: Produced under the stable lane; helper payloads share the same exact-build identity set.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Helper payload signatures/attestations are produced by the hardened signer boundary.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Published only as part of the coupled stable/LTS artifact graph.
+    retention:
+      retention_floor_class: paired_release_family_support_window_and_open_advisories
+      source_ref: artifacts/release/artifact_graph_rules.yaml#node_families.runtime_binary
+    revocation_linkage:
+      revocation_granularity_class: exact_build_node_set
+      source_ref: docs/release/mirror_integrity_and_offline_verification_contract.md
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:sbom_document.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: sbom
+      artifact_family_class: sbom_document
+      notes: Release SBOM published alongside stable artifacts.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: SBOM output is generated under the same build identity as the payload it describes.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: SBOM attestations/signatures are produced by the hardened signer boundary.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Published as part of the stable release-truth bundle.
+    retention:
+      retention_floor_class: declared_response_window
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: coordinated_release_family_or_channel_manifest
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:signed_attestation.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: attestation
+      artifact_family_class: signed_attestation
+      notes: Signed attestation/provenance record bound to exact-build identity and artifact digests.
+    producer:
+      trust_domain: release_stable
+      component_id: signing_service
+      lane_ref: stable_release_lane
+      notes: Produced by the signing boundary after digest verification; workers never carry raw signing keys.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Attestation signatures are produced only inside the hardened signer boundary.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Published with the stable artifact graph so provenance can be verified end to end.
+    retention:
+      retention_floor_class: declared_response_window
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: coordinated_release_family_or_channel_manifest
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:docs_pack.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: docs_pack
+      artifact_family_class: docs_pack
+      notes: Docs pack shipped with stable artifacts and bound to the same build identity.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: Docs packs that describe a release are emitted from the release publication domain.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Docs packs are digest-pinned and signed/attested as needed for mirror/offline verification.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Published together with the payload so About/Help truth can cite the same build.
+    retention:
+      retention_floor_class: published_artifact_replacement_window
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: coordinated_release_family_or_channel_manifest
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:schema_export.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: docs_pack
+      artifact_family_class: schema_export
+      notes: Public schema export published with stable artifacts.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: Schema exports that describe a release are emitted from the release publication domain.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Schema export digest set is signed/attested for mirror/offline verification.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Published as release-bearing public truth; never treated as post-release cleanup.
+    retention:
+      retention_floor_class: published_artifact_replacement_window
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: coordinated_release_family_or_channel_manifest
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:extension_package.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: extension_bundle
+      artifact_family_class: extension_package
+      notes: Official extension package publication (registry/marketplace) with provenance and mirror continuity.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: Official extension packs follow the same provenance and release-evidence linkage as other first-party artifacts.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Official extension pack signatures originate from the hardened signer boundary.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:registry.marketplace.official
+      public_download_surface_class: official_registry_or_marketplace
+      notes: Registry/marketplace publication is audited; mirror/offline movement preserves origin identity.
+    retention:
+      retention_floor_class: published_artifact_replacement_window
+      source_ref: artifacts/release/trust_framework_rows.yaml#row_id:trust.extension_distribution_artifacts
+    revocation_linkage:
+      revocation_granularity_class: coordinated_release_family_or_channel_manifest
+      source_ref: docs/release/mirror_integrity_and_offline_verification_contract.md
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:policy_bundle.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: policy_bundle
+      artifact_family_class: policy_bundle
+      notes: Signed policy bundle used for offline/enterprise distribution and trust narrowing.
+    producer:
+      trust_domain: release_stable
+      component_id: release_center
+      lane_ref: stable_release_lane
+      notes: Policy bundles are signed objects with explicit supersedence and revocation linkage.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Policy-bundle signatures originate from the hardened signer boundary; emergency publication follows signing quorum rules.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:policy.bundle.public
+      public_download_surface_class: official_policy_distribution
+      notes: Policy publication is auditable and mirrorable; offline imports carry manual-import receipts.
+    retention:
+      retention_floor_class: declared_response_window
+      source_ref: artifacts/release/trust_framework_rows.yaml#row_id:trust.policy_and_emergency_artifacts
+    revocation_linkage:
+      revocation_granularity_class: channel_manifest_or_trust_root
+      source_ref: artifacts/governance/signing_quorum.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:revocation_manifest.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: manifest
+      artifact_family_class: revocation_manifest
+      notes: Signed revocation/yank/disable metadata that propagates to mirrors and offline bundles.
+    producer:
+      trust_domain: release_hotfix
+      component_id: release_center
+      lane_ref: emergency_hotfix_lane
+      notes: Revocation metadata is produced and recorded as a release-center action with audited lineage.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Revocation metadata is signed under emergency quorum; raw keys remain isolated.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_hotfix
+      publish_target_refs:
+        - publish_target:public.stable
+      public_download_surface_class: official_public_download
+      notes: Propagates to stable/LTS/mirror surfaces through signed successor metadata.
+    retention:
+      retention_floor_class: declared_response_window
+      source_ref: docs/release/mirror_integrity_and_offline_verification_contract.md
+    revocation_linkage:
+      revocation_granularity_class: channel_manifest_or_trust_root
+      source_ref: schemas/release/revocation_propagation_record.schema.json
+    trust_path:
+      build_trust_domain: release_hotfix
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_hotfix
+      publish_trust_domain: release_hotfix
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:benchmark_pack.public_stable
+    lane_class: public_stable
+    artifact:
+      artifact_kind_class: benchmark_pack
+      artifact_family_class: null
+      notes: >
+        Benchmark publication pack / public proof packet (see artifact_graph_rules node family benchmark_public_proof).
+        This is release-bearing truth when performance claims are cited.
+    producer:
+      trust_domain: release_stable
+      component_id: package_builder
+      lane_ref: stable_release_lane
+      notes: Benchmark-public proof is produced from controlled corpora and bound to exact-build identity refs.
+    signer:
+      signer_boundary_id: hardened_signing_service
+      notes: Benchmark-public proof packets are signed/attested for auditability when published.
+    publisher:
+      publisher_boundary_class: public_channel
+      trust_domain: release_stable
+      publish_target_refs:
+        - publish_target:benchmarks.public
+      public_download_surface_class: official_public_download
+      notes: Published only with required methodology disclosures and comparability notes.
+    retention:
+      retention_floor_class: declared_response_window
+      source_ref: artifacts/release/artifact_graph_rules.yaml#node_families.benchmark_public_proof
+    revocation_linkage:
+      revocation_granularity_class: coordinated_release_family_or_channel_manifest
+      source_ref: docs/release/mirror_integrity_and_offline_verification_contract.md
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_stable
+      publish_trust_domain: release_stable
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:debug_symbols.mirror_only
+    lane_class: mirror_only
+    artifact:
+      artifact_kind_class: symbols
+      artifact_family_class: ide_debug_symbols
+      notes: Mirror-only distribution of debug bytes with continuity receipts.
+    producer:
+      trust_domain: release_mirror_or_offline
+      component_id: mirror
+      lane_ref: mirror_or_offline_promotion_lane
+      notes: Mirror assembly never re-anchors identity; it preserves origin digests.
+    signer:
+      signer_boundary_id: mirror_receipt_signer
+      notes: Signs mirror continuity receipts, not the origin artifact as origin.
+    publisher:
+      publisher_boundary_class: mirror_feed_or_offline_bundle
+      trust_domain: release_mirror_or_offline
+      publish_target_refs:
+        - publish_target:customer.mirror.feed
+      public_download_surface_class: not_applicable
+      notes: Mirror feed/offline bundle publication does not advance public channels.
+    retention:
+      retention_floor_class: paired_release_family_support_window_and_open_advisories
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: exact_build_node_set
+      source_ref: artifacts/release/artifact_family_map.yaml
+    trust_path:
+      build_trust_domain: release_stable
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_mirror_or_offline
+      publish_trust_domain: release_mirror_or_offline
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
+
+  - artifact_publication_row_schema_version: 1
+    artifact_publication_row_id: artifact_publication_row:offline_bundle.emergency_offline
+    lane_class: emergency_offline
+    artifact:
+      artifact_kind_class: manifest
+      artifact_family_class: update_metadata
+      notes: Emergency offline bundle manifest and verification packet.
+    producer:
+      trust_domain: release_mirror_or_offline
+      component_id: mirror
+      lane_ref: mirror_or_offline_promotion_lane
+      notes: Emergency offline distribution preserves origin identity and receipts.
+    signer:
+      signer_boundary_id: mirror_receipt_signer
+      notes: Emergency offline receipts and verification packets are signed for auditability.
+    publisher:
+      publisher_boundary_class: offline_bundle
+      trust_domain: release_mirror_or_offline
+      publish_target_refs:
+        - publish_target:air_gap.bundle
+      public_download_surface_class: not_applicable
+      notes: Does not advance authoritative channel pointers.
+    retention:
+      retention_floor_class: declared_response_window
+      source_ref: artifacts/release/artifact_family_map.yaml
+    revocation_linkage:
+      revocation_granularity_class: channel_manifest_or_trust_root
+      source_ref: artifacts/release/promotion_gate_map.yaml#advisory_and_revocation_scope_policy
+    trust_path:
+      build_trust_domain: release_hotfix
+      sign_signer_boundary_id: hardened_signing_service
+      promote_trust_domain: release_mirror_or_offline
+      publish_trust_domain: release_mirror_or_offline
+      mirror_trust_domain: release_mirror_or_offline
+      revoke_trust_domain: release_hotfix
