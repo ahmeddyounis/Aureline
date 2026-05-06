@@ -695,6 +695,14 @@ and scopes.
   new product capability or managed service must either map to an
   existing row or land a new row in the same change; adding a
   managed service without a row is a governance error.
+- The `open_paid_boundary_and_antilockin_matrix` row is the canonical
+  home for the open-vs-paid boundary and anti-lock-in publication
+  controls. It provides a machine-readable row register
+  (`artifacts/governance/open_paid_boundary_rows.yaml`) plus worked
+  publication-control examples under
+  `fixtures/governance/publication_control_examples/` so packaging and
+  docs/help surfaces cannot quietly make local-core workflows depend on
+  hidden paid services or vendor-console-only control surfaces.
 - Capability rows that introduce managed copies, support exports, AI
   evidence, usage exports, exit packets, or destruction receipts also
   resolve through the `record_class_registry` row so the managed claim
