@@ -1,0 +1,361 @@
+# Repair-class matrix and preview-before-repair contract.
+#
+# Companion to:
+# - docs/recovery/repair_class_matrix.md
+# - docs/support/repair_transaction_contract.md
+# - schemas/support/repair_transaction.schema.json
+#
+# This artifact is intentionally small and reviewable. It publishes the
+# cross-surface repair classes and the minimum preview/checkpoint/caveat
+# rules that keep “Fix” actions attributable and honest.
+
+schema_version: 1
+artifact_id: aureline.recovery.repair_classes
+title: Repair-class matrix, preview minima, checkpoint rules, and caveats
+
+contract_source: docs/recovery/repair_class_matrix.md
+
+related_docs:
+  - docs/support/repair_transaction_contract.md
+  - docs/reliability/recovery_scenario_contract.md
+  - docs/recovery/recovery_rung_matrix.md
+  - docs/runtime/browser_runtime_contract.md
+
+companion_refs:
+  repair_transaction_schema_ref: schemas/support/repair_transaction.schema.json
+  doctor_finding_schema_ref: schemas/support/doctor_finding.schema.json
+  scenario_picker_schema_ref: schemas/support/scenario_picker.schema.json
+  safe_first_action_matrix_ref: artifacts/recovery/safe_first_action_matrix.yaml
+  repair_class_examples_ref: fixtures/recovery/repair_class_examples
+
+# --------------------------------------------------------------------------
+# Repair-class groups (canonical human labels)
+#
+# These seven group ids match the architecture matrix labels and exist
+# to keep UI copy and support narratives honest about blast radius.
+# Groups map onto one or more stable support repair tokens.
+# --------------------------------------------------------------------------
+
+repair_class_group_vocabulary:
+  - dispose_rebuild
+  - disable_quarantine
+  - rollback_reinstall
+  - reresolve_context
+  - revoke_expire_route
+  - refresh_policy_session
+  - export_escalate
+
+# Reversal vocabulary is re-exported verbatim from
+# schemas/support/repair_transaction.schema.json#transaction_reversal_class.
+transaction_reversal_vocabulary:
+  - exact
+  - compensating
+  - regenerate
+  - manual
+  - audit_only
+
+# --------------------------------------------------------------------------
+# Matrix rows
+#
+# required_preview_fields is intentionally phrased as reviewer-facing
+# checklist items rather than schema field paths so it can cover both
+# repair transactions and export/escalation actions.
+# --------------------------------------------------------------------------
+
+repair_class_groups:
+  - group_id: dispose_rebuild
+    display_name: Dispose / rebuild
+    stable_support_tokens:
+      repair_class_family:
+        - disposable_state_rebuild
+      suggested_repair_class:
+        - restart_watcher_with_reseed
+        - reset_ephemeral_cache
+        - refresh_docs_or_mirror_pack
+    checkpoint_rule:
+      checkpoint_required_when:
+        - shared_store_with_evidence_bearing_state
+        - durable_settings_or_profile_adjacency
+      checkpoint_optional_when:
+        - disposable_state_only_confirmed
+      checkpoint_forbidden_when: []
+    default_reversal_expectation: regenerate
+    required_preview_fields:
+      - impacted_storage_or_state_classes
+      - preserved_state_assertions
+      - preview_of_deleted_vs_retained_artifacts
+      - rebuild_source_summary_and_cost_hint
+      - postcondition_checks_required
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent: false
+      reapply_requires_new_confirmation_if_scope_changes: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - disposable_derived_cache
+        - watcher_backlog_state
+        - docs_pack_mirror_snapshot
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+        - session_restore_store
+        - durable_workspace_indexes
+    marketing_support_caveats:
+      - never_claims_restore_user_authored_state
+      - describe_as_rebuild_of_derived_artifacts_only
+      - cannot_be_a_substitute_for_backup_or_checkpoint_promises
+
+  - group_id: disable_quarantine
+    display_name: Disable / quarantine
+    stable_support_tokens:
+      repair_class_family:
+        - extension_isolation
+      suggested_repair_class:
+        - quarantine_and_bisect_extension
+    checkpoint_rule:
+      checkpoint_required_when:
+        - coupled_with_other_durable_changes
+      checkpoint_optional_when:
+        - quarantining_only
+      checkpoint_forbidden_when: []
+    default_reversal_expectation: compensating
+    required_preview_fields:
+      - affected_extension_or_host_inventory
+      - explicit_disabled_capabilities
+      - preserved_state_assertions
+      - explicit_reenable_path_and_required_review_gate
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent: false
+      reenable_requires_explicit_review_gate: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - extension_quarantine_state
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+        - installed_extension_marketplace_state
+        - managed_workspace_control_plane
+    marketing_support_caveats:
+      - do_not_market_as_permanent_fix_without_evidence
+      - must_describe_capability_narrowing_and_reenable_gate
+      - never_auto_reenables_silently
+
+  - group_id: rollback_reinstall
+    display_name: Rollback / reinstall
+    stable_support_tokens:
+      repair_class_family:
+        - extension_rollback_reinstall
+        - remote_runtime_repair
+      suggested_repair_class:
+        - rollback_or_reinstall_extension
+        - rollback_remote_runtime
+    checkpoint_rule:
+      checkpoint_required_when:
+        - user_visible_version_or_channel_changes
+        - remote_runtime_identity_changes
+      checkpoint_optional_when: []
+      checkpoint_forbidden_when: []
+    default_reversal_expectation: manual
+    required_preview_fields:
+      - before_after_artifact_identity_refs
+      - eligibility_checks_and_verification_results
+      - impacted_state_classes_and_preserved_state_assertions
+      - explicit_user_or_admin_consent_marker_required
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent_when_managed: true
+      reapply_requires_new_confirmation_if_target_changes: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - extension_install_set
+        - remote_agent_runtime_handle
+        - remote_helper_session_handle
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+        - managed_workspace_control_plane
+    marketing_support_caveats:
+      - must_name_artifact_being_rolled_back_or_reinstalled
+      - must_not_remove_unrelated_assets_as_collateral
+      - must_preserve_exact_build_identity_refs_for_audit
+
+  - group_id: reresolve_context
+    display_name: Re-resolve context
+    stable_support_tokens:
+      repair_class_family:
+        - execution_context_reresolve
+      suggested_repair_class:
+        - install_or_repair_toolchain
+    checkpoint_rule:
+      checkpoint_required_when:
+        - durable_launch_profile_or_binding_changes
+      checkpoint_optional_when:
+        - ephemeral_handle_refresh_only
+      checkpoint_forbidden_when: []
+    default_reversal_expectation: compensating
+    required_preview_fields:
+      - before_after_execution_context_summary
+      - affected_targets_or_projects
+      - bindings_or_handles_to_be_invalidated
+      - preserved_state_assertions_including_no_user_source_rewrite
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent: false
+      toolchain_install_requires_explicit_consent: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - execution_context_handle
+        - language_server_session_handle
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+    marketing_support_caveats:
+      - must_not_claim_code_was_modified
+      - must_show_before_after_toolchain_resolution_in_preview
+      - must_call_out_any_new_dependency_install_steps
+
+  - group_id: revoke_expire_route
+    display_name: Revoke / expire route
+    stable_support_tokens:
+      repair_class_family:
+        - remote_runtime_repair
+        - policy_entitlement_refresh
+      suggested_repair_class:
+        - reapprove_target_or_route
+        - reattach_helper_with_new_approval
+        - reacquire_trust_approval
+    checkpoint_rule:
+      checkpoint_required_when:
+        - session_or_layout_durable_bindings_change
+      checkpoint_optional_when:
+        - route_metadata_only_revocation
+      checkpoint_forbidden_when: []
+    default_reversal_expectation: exact
+    required_preview_fields:
+      - route_or_session_handle_summary
+      - revoke_or_expire_consequence_statement
+      - preserved_state_assertions_including_no_hidden_route_publish
+      - explicit_reconnect_or_reapproval_path
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent_when_policy_forced: true
+      requires_visible_link_invalidation_notice: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - remote_helper_session_handle
+        - trust_approval_ticket
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+        - managed_workspace_control_plane
+    marketing_support_caveats:
+      - must_not_describe_as_silent_reconnect
+      - must_make_link_invalidation_user_visible
+      - must_not_widen_trust_or_publish_new_routes_as_side_effect
+
+  - group_id: refresh_policy_session
+    display_name: Refresh policy / session
+    stable_support_tokens:
+      repair_class_family:
+        - policy_entitlement_refresh
+      suggested_repair_class:
+        - refresh_policy_entitlement
+        - reacquire_trust_approval
+    checkpoint_rule:
+      checkpoint_required_when:
+        - durable_admin_cache_or_session_state_changes
+      checkpoint_optional_when: []
+      checkpoint_forbidden_when: []
+    default_reversal_expectation: compensating
+    required_preview_fields:
+      - current_policy_epoch_or_session_posture_summary
+      - what_will_be_refreshed_and_what_will_not_change
+      - reauth_or_admin_consent_requirement_statement
+      - forbidden_action_assertions_including_no_trust_widen
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent_when_managed: true
+      reauth_must_be_explicit_not_hidden: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - policy_entitlement_handle
+        - trust_approval_ticket
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+    marketing_support_caveats:
+      - never_hidden_sign_in_or_reauth
+      - must_not_mutate_managed_policy_bundles
+      - must_not_imply_trust_widening
+
+  - group_id: export_escalate
+    display_name: Export / escalate
+    stable_support_tokens:
+      repair_class_family:
+        - guided_export_escalation
+        - observe_only_no_repair
+      other_repair_class:
+        - support_bundle_export
+        - trace_capture
+    checkpoint_rule:
+      checkpoint_required_when: []
+      checkpoint_optional_when: []
+      checkpoint_forbidden_when:
+        - export_escalate_is_audit_only
+    default_reversal_expectation: audit_only
+    required_preview_fields:
+      - included_artifact_classes_and_size_bounds
+      - redaction_choice_and_user_review_gate
+      - destination_path_or_handle_summary
+      - explicit_statement_no_hidden_mutation_occurs
+    user_review_requirement:
+      apply_requires_explicit_user_confirmation: true
+      apply_requires_admin_consent_when_managed: true
+      export_must_be_user_reviewable_before_share: true
+    side_effect_scope:
+      may_mutate_state_classes:
+        - support_export_store_export
+        - doctor_audit_log_entry
+      must_not_mutate_state_classes:
+        - user_authored_files
+        - workspace_trust_store
+        - credential_store
+        - managed_policy_overrides
+        - session_restore_store
+    marketing_support_caveats:
+      - audit_only_not_a_hidden_fix
+      - user_controls_what_is_shared_via_preview
+      - never_auto_upload_without_review
+
+# --------------------------------------------------------------------------
+# Global caveat rules
+# --------------------------------------------------------------------------
+
+caveat_rules:
+  - id: cache_rebuild_never_marketed_as_restore
+    summary: >
+      Dispose/rebuild actions MUST NOT be marketed as restoring user-authored state.
+      They rebuild derived artifacts from authoritative sources; they do not
+      reconstruct lost authored bytes.
+    applies_to_group_ids:
+      - dispose_rebuild
+
+  - id: export_escalate_is_audit_only
+    summary: >
+      Export/escalate actions are audit artifacts, not hidden mutations. Any state
+      mutation beyond artifact creation is non-conforming.
+    applies_to_group_ids:
+      - export_escalate

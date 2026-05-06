@@ -351,6 +351,10 @@ backed by a checkpoint is non-conforming.
 | `policy_entitlement_refresh` | Refresh trust posture, approval ticket, or policy/entitlement state; never widen trust beyond the user's request. | `compensating` | `apply_with_rollback_on_failure` |
 | `guided_export_escalation` | No safe local repair exists. The transaction prepares an escalation packet instead of applying. | `audit_only` | `apply_refused_escalation_only` |
 
+Cross-surface copy, preview minima, checkpoint expectations, and marketing/support caveats are frozen in:
+[`/docs/recovery/repair_class_matrix.md`](../recovery/repair_class_matrix.md) and
+[`/artifacts/recovery/repair_classes.yaml`](../../artifacts/recovery/repair_classes.yaml).
+
 Rule: every `extension_rollback_reinstall` transaction MUST set
 `runtime_requirements.requires_active_user_consent = true` and
 include `silent_extension_reinstall` in `forbidden_action_assertions`.
