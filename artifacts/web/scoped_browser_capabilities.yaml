@@ -1,0 +1,413 @@
+# Scoped browser and web surface capability matrix (machine-readable).
+#
+# Purpose
+#   Freeze what browser-delivered and embedded-webview-like surfaces may
+#   do, what they must not do, and what disclosure is required so no web
+#   surface silently widens authority, secret scope, or managed/control-
+#   plane dependence.
+#
+# Rules
+#   - Any write capability (provider mutation, remote edit, policy
+#     changes) must be explicitly permitted by a row and must render the
+#     required disclosure. No hidden write authority.
+#   - Secret bytes, raw cookies, raw callback URLs, and raw tokens never
+#     render into web content; web surfaces reference handles/envelopes
+#     only.
+#   - Auth is system-browser-first. Silent embedded-webview fallback is
+#     forbidden unless an explicit exception register row is active.
+#   - Embedded web surfaces do not gain ambient filesystem or device
+#     permission authority; all sensitive actions route through host-
+#     owned review/permission surfaces.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/web/scoped_browser_surface_matrix.md
+
+companion_contracts:
+  embedded_surface_boundary_adr: docs/adr/0015-embedded-surface-boundary-and-auth-handoff.md
+  embedded_boundary_card_contract: docs/ux/embedded_surface_boundary_cards.md
+  system_browser_callback_packet: docs/auth/system_browser_callback_packet.md
+  auth_handoff_interstitial_contract: docs/auth/auth_handoff_interstitial_contract.md
+  browser_runtime_contract: docs/runtime/browser_runtime_contract.md
+  remote_attach_tunnel_contract: docs/remote/attach_tunnel_port_forward_contract.md
+  origin_target_route_taxonomy: docs/runtime/origin_target_route_taxonomy.md
+  safe_preview_trust_classes: docs/security/safe_preview_trust_classes.md
+  companion_surface_contract: docs/companion/companion_surface_contract.md
+
+normative_source:
+  primary:
+    path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "9.9 Scoped browser and web-surface architecture"
+      - "Appendix AP — Scoped Browser and Web Surface Matrix"
+  secondary:
+    - path: .t2/docs/Aureline_PRD.md
+      anchors:
+        - "5.36 Enterprise identity, authorization, and policy distribution architecture"
+        - "5.37 Native OS integration and desktop-platform contract"
+    - path: .t2/docs/Aureline_Technical_Design_Document.md
+      anchors:
+        - "8.64 Connected-provider, browser-handoff, and external-workflow UX"
+        - "8.67 Logs, metrics, incident timeline, and runbook UX"
+
+# -----------------------------------------------------------------------------
+# Vocabularies
+# -----------------------------------------------------------------------------
+
+surface_id_vocabulary:
+  - docs_viewing
+  - auth_handoff
+  - preview_and_share
+  - incident_and_ci_review
+  - admin_flows
+  - companion_notifications
+  - extension_embedded_web_surfaces
+
+delivery_mode_vocabulary:
+  - embedded_webview_in_desktop_shell
+  - system_browser_handoff
+  - scoped_browser_companion
+  - local_core_fallback
+
+write_scope_vocabulary:
+  - write_scope.none
+  - write_scope.comments_and_approvals_only
+  - write_scope.targeted_remote_file_edits_only
+  - write_scope.policy_edit_via_host_native_review_only
+
+file_access_posture_vocabulary:
+  - file_access.none
+  - file_access.host_selected_object_read_only
+  - file_access.remote_workspace_scoped_read_write_via_host_commands
+  - file_access.user_selected_upload_only
+
+secret_handling_posture_vocabulary:
+  - secrets.no_secret_bytes
+  - secrets.secret_handles_reference_only
+  - secrets.session_scoped_envelope_only
+  - secrets.embedded_auth_exception_required
+
+provider_identity_disclosure_vocabulary:
+  - provider_disclosure.boundary_card_required
+  - provider_disclosure.handoff_sheet_required
+  - provider_disclosure.companion_capability_badge_required
+
+copy_export_posture_vocabulary:
+  - copy_export.copy_allowed_redaction_applied
+  - copy_export.export_by_reference_only
+  - copy_export.share_link_policy_gated
+  - copy_export.raw_url_copy_forbidden
+
+device_permission_posture_vocabulary:
+  - device_permissions.none
+  - device_permissions.host_native_only
+
+offline_behavior_posture_vocabulary:
+  - offline.snapshot_allowed
+  - offline.external_open_only_when_offline
+  - offline.local_continuity_required
+
+managed_dependency_posture_vocabulary:
+  - managed_dependency.none_required
+  - managed_dependency.optional_managed
+  - managed_dependency.required_for_write_paths
+
+required_disclosure_vocabulary:
+  - disclosure.owner_origin_chrome
+  - disclosure.boundary_card_fields
+  - disclosure.capability_limitations_list
+  - disclosure.preserved_local_work_block
+  - disclosure.callback_origin_and_return_path
+  - disclosure.route_termination_audience_ttl_revoke
+  - disclosure.data_residency_hint
+  - disclosure.control_plane_dependence_label
+  - disclosure.reserved_native_surface_ban
+
+# -----------------------------------------------------------------------------
+# Matrix rows
+# -----------------------------------------------------------------------------
+
+rows:
+
+  - row_id: web_surface_row.docs_viewing.embedded_webview
+    surface_id: docs_viewing
+    delivery_mode: embedded_webview_in_desktop_shell
+    auth_trust_posture: >
+      Account-free local use remains valid; docs may be rendered from
+      signed local packs or other declared sources with explicit
+      source/freshness disclosure.
+    state_ownership: >
+      Docs truth is host-owned; embedded body does not mint its own
+      version/freshness truth.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.none
+    secret_handling_posture: secrets.no_secret_bytes
+    provider_identity_disclosure: provider_disclosure.boundary_card_required
+    copy_export_posture:
+      - copy_export.copy_allowed_redaction_applied
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.none
+    offline_behavior_posture: offline.snapshot_allowed
+    managed_dependency_posture: managed_dependency.none_required
+    local_core_fallback: >
+      If embedded rendering is unavailable or policy-blocked, fall back
+      to a local-core docs renderer (plain text / markdown) with the
+      same source/version/freshness disclosure.
+    required_disclosures:
+      - disclosure.owner_origin_chrome
+      - disclosure.boundary_card_fields
+      - disclosure.capability_limitations_list
+      - disclosure.reserved_native_surface_ban
+
+  - row_id: web_surface_row.docs_viewing.system_browser
+    surface_id: docs_viewing
+    delivery_mode: system_browser_handoff
+    auth_trust_posture: >
+      Optional authenticated browsing; no implicit trust elevation for
+      local workspace authority.
+    state_ownership: >
+      System browser owns rendering; Aureline owns the handoff reason
+      and the return-anchor identity.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.user_selected_upload_only
+    secret_handling_posture: secrets.session_scoped_envelope_only
+    provider_identity_disclosure: provider_disclosure.handoff_sheet_required
+    copy_export_posture:
+      - copy_export.export_by_reference_only
+      - copy_export.share_link_policy_gated
+    device_permission_posture: device_permissions.host_native_only
+    offline_behavior_posture: offline.external_open_only_when_offline
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If the system browser cannot be launched, keep docs usable via the
+      local-core docs renderer and disclose that external docs/portals
+      are unavailable.
+    required_disclosures:
+      - disclosure.callback_origin_and_return_path
+      - disclosure.data_residency_hint
+
+  - row_id: web_surface_row.auth_handoff.system_browser_first
+    surface_id: auth_handoff
+    delivery_mode: system_browser_handoff
+    auth_trust_posture: >
+      System-browser-first sign-in/consent/step-up. Callback return is
+      origin-validated, replay-safe, and tenant/workspace scoped.
+    state_ownership: >
+      Auth session state is host-owned; the system browser renders the
+      provider page; Aureline owns correlation, return anchor, and
+      preserved-local-work truth.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.none
+    secret_handling_posture: secrets.session_scoped_envelope_only
+    provider_identity_disclosure: provider_disclosure.handoff_sheet_required
+    copy_export_posture:
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.host_native_only
+    offline_behavior_posture: offline.local_continuity_required
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If browser launch is blocked or unavailable, offer device-code or
+      manual resume per the auth handoff contract while asserting
+      preserved local capability. No silent embedded fallback.
+    required_disclosures:
+      - disclosure.preserved_local_work_block
+      - disclosure.callback_origin_and_return_path
+
+  - row_id: web_surface_row.auth_handoff.embedded_webview_forbidden_by_default
+    surface_id: auth_handoff
+    delivery_mode: embedded_webview_in_desktop_shell
+    auth_trust_posture: >
+      Forbidden by default. Admissible only when an explicit embedded-
+      auth exception register entry is active and the surface renders
+      visibly lower-trust cues.
+    state_ownership: >
+      Auth review and final approval remain host-native; embedded
+      content never renders final approval controls.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.none
+    secret_handling_posture: secrets.embedded_auth_exception_required
+    provider_identity_disclosure: provider_disclosure.boundary_card_required
+    copy_export_posture:
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.none
+    offline_behavior_posture: offline.local_continuity_required
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If the exception is not active or policy blocks the embed, route
+      to system browser or device code and preserve local continuity.
+    required_disclosures:
+      - disclosure.owner_origin_chrome
+      - disclosure.boundary_card_fields
+      - disclosure.capability_limitations_list
+      - disclosure.reserved_native_surface_ban
+
+  - row_id: web_surface_row.preview_and_share.embedded_webview
+    surface_id: preview_and_share
+    delivery_mode: embedded_webview_in_desktop_shell
+    auth_trust_posture: >
+      Local or remote preview rendered in a scoped embedded surface.
+      Cross-origin and storage mutation is gated by the browser-runtime
+      contract.
+    state_ownership: >
+      Preview-route identity and termination truth are host-owned; the
+      embedded body does not mint shareable links or widen exposure.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.none
+    secret_handling_posture: secrets.secret_handles_reference_only
+    provider_identity_disclosure: provider_disclosure.boundary_card_required
+    copy_export_posture:
+      - copy_export.copy_allowed_redaction_applied
+      - copy_export.share_link_policy_gated
+    device_permission_posture: device_permissions.host_native_only
+    offline_behavior_posture: offline.snapshot_allowed
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If embedded preview is blocked/unavailable, fall back to a local-
+      core preview summary (route truth, logs, snapshot export) and
+      offer system-browser handoff only through a typed packet.
+    required_disclosures:
+      - disclosure.owner_origin_chrome
+      - disclosure.route_termination_audience_ttl_revoke
+      - disclosure.control_plane_dependence_label
+
+  - row_id: web_surface_row.preview_and_share.system_browser
+    surface_id: preview_and_share
+    delivery_mode: system_browser_handoff
+    auth_trust_posture: >
+      External open/handoff through typed packets. Share visibility is
+      policy-gated; public links are denied by default.
+    state_ownership: >
+      Route broker and host shell own audience/TTL/revoke truth.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.user_selected_upload_only
+    secret_handling_posture: secrets.session_scoped_envelope_only
+    provider_identity_disclosure: provider_disclosure.handoff_sheet_required
+    copy_export_posture:
+      - copy_export.share_link_policy_gated
+      - copy_export.export_by_reference_only
+    device_permission_posture: device_permissions.host_native_only
+    offline_behavior_posture: offline.external_open_only_when_offline
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If the system browser cannot be launched, keep local preview
+      inspectable in-product and disclose that external open is
+      unavailable.
+    required_disclosures:
+      - disclosure.route_termination_audience_ttl_revoke
+
+  - row_id: web_surface_row.incident_and_ci_review.embedded_webview
+    surface_id: incident_and_ci_review
+    delivery_mode: embedded_webview_in_desktop_shell
+    auth_trust_posture: >
+      Read-only evidence viewing by default. Any comment/approval path
+      must be explicitly policy-admitted and routed through host-owned
+      envelopes.
+    state_ownership: >
+      Evidence and provenance remain host-owned; embedded rendering is a
+      projection over structured artifacts with explicit freshness and
+      redaction posture.
+    allowed_write_scope: write_scope.comments_and_approvals_only
+    file_access_posture: file_access.host_selected_object_read_only
+    secret_handling_posture: secrets.no_secret_bytes
+    provider_identity_disclosure: provider_disclosure.boundary_card_required
+    copy_export_posture:
+      - copy_export.copy_allowed_redaction_applied
+      - copy_export.export_by_reference_only
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.none
+    offline_behavior_posture: offline.snapshot_allowed
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If embedded rendering is blocked/unavailable, show a local-core
+      evidence summary (artifact ids, timestamps, freshness, redaction)
+      and offer open-in-browser via typed handoff only.
+    required_disclosures:
+      - disclosure.owner_origin_chrome
+      - disclosure.capability_limitations_list
+      - disclosure.control_plane_dependence_label
+
+  - row_id: web_surface_row.admin_flows.system_browser
+    surface_id: admin_flows
+    delivery_mode: system_browser_handoff
+    auth_trust_posture: >
+      Admin portals and dashboards open through system browser handoff.
+      Policy edits require host-native review and audit.
+    state_ownership: >
+      Admin policy and bundle cache truth are host-owned; external admin
+      UI is provider-owned and must not be mistaken for local policy.
+    allowed_write_scope: write_scope.policy_edit_via_host_native_review_only
+    file_access_posture: file_access.user_selected_upload_only
+    secret_handling_posture: secrets.session_scoped_envelope_only
+    provider_identity_disclosure: provider_disclosure.handoff_sheet_required
+    copy_export_posture:
+      - copy_export.export_by_reference_only
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.host_native_only
+    offline_behavior_posture: offline.external_open_only_when_offline
+    managed_dependency_posture: managed_dependency.required_for_write_paths
+    local_core_fallback: >
+      When the admin portal is unavailable or policy blocks it, keep
+      local-core inspection available: show cached policy bundle signer,
+      epoch, freshness, and explain-why; allow export by reference.
+    required_disclosures:
+      - disclosure.control_plane_dependence_label
+      - disclosure.data_residency_hint
+
+  - row_id: web_surface_row.companion_notifications.scoped_companion
+    surface_id: companion_notifications
+    delivery_mode: scoped_browser_companion
+    auth_trust_posture: >
+      Companion surfaces are capability-limited and must not widen
+      authority beyond declared envelopes. Mutating intent drains
+      through desktop-owned envelopes only.
+    state_ownership: >
+      Desktop and canonical packets own truth; the companion reuses ids
+      by reference and never mints parallel private truth.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.none
+    secret_handling_posture: secrets.no_secret_bytes
+    provider_identity_disclosure: provider_disclosure.companion_capability_badge_required
+    copy_export_posture:
+      - copy_export.export_by_reference_only
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.host_native_only
+    offline_behavior_posture: offline.snapshot_allowed
+    managed_dependency_posture: managed_dependency.optional_managed
+    local_core_fallback: >
+      If the companion cannot perform a follow/handoff, it captures a
+      snapshot for later drain and directs the user back to the desktop.
+    required_disclosures:
+      - disclosure.capability_limitations_list
+      - disclosure.route_termination_audience_ttl_revoke
+
+  - row_id: web_surface_row.extension_embedded_web_surfaces.embedded_webview
+    surface_id: extension_embedded_web_surfaces
+    delivery_mode: embedded_webview_in_desktop_shell
+    auth_trust_posture: >
+      Extension-hosted web-like surfaces are capability-limited and must
+      not impersonate host-native security, trust, update, rollback, or
+      AI-apply surfaces.
+    state_ownership: >
+      Host owns boundary truth; extension surface is a projection with
+      explicit owner/publisher identity and capability limitations.
+    allowed_write_scope: write_scope.none
+    file_access_posture: file_access.none
+    secret_handling_posture: secrets.no_secret_bytes
+    provider_identity_disclosure: provider_disclosure.boundary_card_required
+    copy_export_posture:
+      - copy_export.copy_allowed_redaction_applied
+      - copy_export.raw_url_copy_forbidden
+    device_permission_posture: device_permissions.none
+    offline_behavior_posture: offline.snapshot_allowed
+    managed_dependency_posture: managed_dependency.none_required
+    local_core_fallback: >
+      If the embed is blocked or narrowed, the host keeps the boundary
+      card visible and routes to native alternatives or external open
+      via typed packets where permitted.
+    required_disclosures:
+      - disclosure.owner_origin_chrome
+      - disclosure.boundary_card_fields
+      - disclosure.capability_limitations_list
+      - disclosure.reserved_native_surface_ban
+

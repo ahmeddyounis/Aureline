@@ -1304,6 +1304,15 @@ code.
   [`/schemas/remote/forwarded_endpoint.schema.json`](../schemas/remote/forwarded_endpoint.schema.json);
   worked fixtures in
   [`/fixtures/remote/attach_cases/`](../fixtures/remote/attach_cases/).
+- [`web/scoped_browser_surface_matrix.md`](./web/scoped_browser_surface_matrix.md)
+  — scoped browser and embedded web surface capability matrix, local-core
+  fallback postures, and disclosure rules shared by docs panes, auth
+  handoff, preview/share, incident review, admin portals, companion
+  notifications, and extension-hosted web surfaces. Machine-readable
+  matrix in
+  [`/artifacts/web/scoped_browser_capabilities.yaml`](../artifacts/web/scoped_browser_capabilities.yaml);
+  worked examples in
+  [`/fixtures/web/browser_surface_cases/`](../fixtures/web/browser_surface_cases/).
 - [`runtime/resource_governor_contract.md`](./runtime/resource_governor_contract.md)
   — shared runtime resource-governor contract covering protected
   work classes, threshold families, queue and shed order,
