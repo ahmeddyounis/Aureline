@@ -1,0 +1,189 @@
+# Stability-label register.
+#
+# Machine-readable stability vocabulary shared across public surface
+# families: schemas, CLI machine output, manifests, WIT worlds, service
+# APIs, event envelopes, and exported packets.
+#
+# This register is intentionally cross-surface. It maps stability
+# labels onto existing maturity lanes, lifecycle metadata states, and
+# CLI machine-output stability classes so docs/help, support/export, and
+# mixed-version tooling render one consistent story about:
+#   - what is stable,
+#   - for how long, and
+#   - what must be advertised.
+
+schema_version: 1
+status: seeded
+overview_page: docs/governance/public_interface_stability_matrix.md
+
+source_specs:
+  - .t2/docs/Aureline_PRD.md §5.54 Public interface, versioning, and deprecation policy
+  - docs/governance/interface_lifecycle_policy.md
+  - schemas/governance/deprecation_metadata.schema.json
+  - docs/automation/cli_surface_contract.md
+  - schemas/automation/cli_output_registry_entry.schema.json
+  - docs/compat/upgrade_order_contract.md
+
+mapping_notes:
+  maturity_lane: >
+    Surface-contract packets name maturity_lane stable|beta|experimental|internal.
+    This register uses Provisional as the reviewer-facing label for the beta lane.
+  legacy_label: >
+    Legacy is the reviewer-facing label rendered for deprecated-but-supported
+    interfaces that remain inside their declared overlap window. The
+    authoritative lifecycle state remains interface_lifecycle_state = deprecated.
+
+stability_labels:
+  - id: internal
+    label: Internal
+    description: >
+      Not a public contract. External consumers must not depend on it.
+      Internal surfaces may still carry version fields for debugging,
+      but compatibility promises are explicitly absent.
+    equivalent_vocab:
+      surface_contract_maturity_lanes: [internal]
+      interface_lifecycle_states: [internal]
+      cli_machine_output_stability_classes: [internal_no_stability_promise]
+    compatibility_horizon_floor:
+      rule_mode: none
+      windows: []
+      notes: No compatibility promise; may change at any time.
+    allowed_change_types:
+      - additive_change
+      - breaking_change
+      - removal_or_replacement_without_overlap
+    deprecation_burden:
+      - no_required_notice_surfaces
+      - must_fail_predictably
+    version_advertisement_requirements:
+      required_fields:
+        - surface_contract_ref
+        - stability_label
+      recommended_fields:
+        - running_build_identity_ref
+        - contract_version_anchors
+
+  - id: experimental
+    label: Experimental
+    description: >
+      Publicly visible, best-effort only. Breaking changes and removal
+      are allowed; discoverability surfaces must disclose the label.
+    equivalent_vocab:
+      surface_contract_maturity_lanes: [experimental]
+      interface_lifecycle_states: [experimental]
+      cli_machine_output_stability_classes: [experimental_schema_governed_may_break]
+    compatibility_horizon_floor:
+      rule_mode: none
+      windows: []
+      notes: Best-effort; consumers should expect breakage.
+    allowed_change_types:
+      - additive_change
+      - breaking_change
+      - removal_with_explicit_notice
+    deprecation_burden:
+      - notice_required_where_discoverable
+      - must_not_silently_corrupt_or_guess
+    version_advertisement_requirements:
+      required_fields:
+        - surface_contract_ref
+        - stability_label
+        - contract_version_anchors
+      recommended_fields:
+        - running_build_identity_ref
+
+  - id: provisional
+    label: Provisional
+    description: >
+      Intended for promotion. Compatibility is expected within a release
+      family, but additive growth is expected. Breaking removals require
+      explicit migration guidance.
+    equivalent_vocab:
+      surface_contract_maturity_lanes: [beta]
+      interface_lifecycle_states: [beta]
+      cli_machine_output_stability_classes: [preview_schema_governed_additive_minor_only]
+    compatibility_horizon_floor:
+      rule_mode: any_of
+      windows:
+        - value: 1
+          unit: minor_releases
+        - value: 90
+          unit: days
+      notes: Minimum overlap owed before removal; stronger windows may be published per surface family.
+    allowed_change_types:
+      - additive_change
+      - additive_enum_growth
+      - breaking_change_with_migration_guidance
+    deprecation_burden:
+      - publish_machine_readable_metadata_once_non_experimental
+      - document_migration_for_breaking_changes
+    version_advertisement_requirements:
+      required_fields:
+        - surface_contract_ref
+        - stability_label
+        - contract_version_anchors
+        - running_build_identity_ref
+
+  - id: stable
+    label: Stable
+    description: >
+      Third-party contract. Additive-only within a schema epoch; breaking
+      changes require explicit version bumps and migration guidance.
+    equivalent_vocab:
+      surface_contract_maturity_lanes: [stable]
+      interface_lifecycle_states: [stable]
+      cli_machine_output_stability_classes: [stable_schema_governed]
+    compatibility_horizon_floor:
+      rule_mode: all_of
+      windows:
+        - value: 2
+          unit: minor_releases
+        - value: 12
+          unit: months
+      notes: Minimum overlap owed for stable ids and schema families unless a surface publishes a stronger window.
+    allowed_change_types:
+      - additive_change
+      - additive_enum_growth
+      - breaking_change_requires_version_bump
+    deprecation_burden:
+      - publish_deprecation_metadata_row
+      - require_notice_surfaces_release_notes_and_docs
+      - require_compatibility_report_update
+    version_advertisement_requirements:
+      required_fields:
+        - surface_contract_ref
+        - stability_label
+        - contract_version_anchors
+        - running_build_identity_ref
+      recommended_fields:
+        - deprecation_metadata_refs
+        - compatibility_policy_refs
+
+  - id: legacy
+    label: Legacy
+    description: >
+      Deprecated-but-supported. The interface remains within its declared
+      overlap window; consumers should migrate to the replacement.
+    equivalent_vocab:
+      surface_contract_maturity_lanes: [stable, beta]
+      interface_lifecycle_states: [deprecated]
+      cli_machine_output_stability_classes: [stable_schema_governed, preview_schema_governed_additive_minor_only]
+    compatibility_horizon_floor:
+      rule_mode: derived
+      windows: []
+      notes: Inherits the overlap window declared by the deprecation-metadata row for the interface id or schema family.
+    allowed_change_types:
+      - additive_change_only
+      - no_repurpose
+      - removal_only_after_overlap_window
+    deprecation_burden:
+      - publish_deprecation_metadata_row
+      - include_successor_pointer
+      - publish_notice_surfaces
+    version_advertisement_requirements:
+      required_fields:
+        - surface_contract_ref
+        - stability_label
+        - contract_version_anchors
+        - running_build_identity_ref
+        - deprecation_metadata_refs
+

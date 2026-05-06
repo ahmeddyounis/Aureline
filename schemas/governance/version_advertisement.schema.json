@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/version_advertisement.schema.json",
+  "title": "Aureline public-interface version advertisement record",
+  "description": "Boundary schema for a machine-readable version advertisement block that public surfaces can embed or return. The record exists so mixed-version and support flows can identify which contract a payload is speaking without scraping prose: it names the governing surface-contract row ref, an explicit cross-surface stability label, one or more contract version anchors (schema file + version slot, OpenAPI version, WIT package version, etc.), and the running_build_identity_ref of the producer where available. This schema does not implement negotiation; runtime negotiation uses schemas/compat/mixed_version_envelope.schema.json and the skew-window declarations in artifacts/compat/. Adding a new stability_label, anchor_kind, or optional field is additive-minor and requires bumping version_advertisement_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/version_advertisement_record",
+  "$defs": {
+    "version_advertisement_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this advertisement record. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log, export, and diff. Raw secrets, raw paths, and raw payload bodies never appear here."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "surface_contract_ref": {
+      "type": "string",
+      "pattern": "^artifacts/governance/(stable_surface_inventory|compatibility_surfaces)\\.yaml#.+$",
+      "description": "Row ref naming the governed surface family (stable_surface_inventory or compatibility_surfaces)."
+    },
+
+    "stability_label": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "experimental",
+        "provisional",
+        "stable",
+        "legacy"
+      ],
+      "description": "Cross-surface stability label rendered by docs/help, support/export, and machine-readable responders. Maps onto maturity lanes and lifecycle metadata; see artifacts/governance/stability_label_rows.yaml."
+    },
+
+    "anchor_kind": {
+      "type": "string",
+      "enum": [
+        "json_schema_file",
+        "payload_schema_version",
+        "registry_schema_version",
+        "openapi_document",
+        "openapi_version",
+        "wit_package",
+        "wit_package_version",
+        "contract_packet_row",
+        "compatibility_policy_ref"
+      ],
+      "description": "Kind of version or policy anchor advertised. Multiple anchors are allowed so one record can point at both a governing schema file and the payload's version slot."
+    },
+
+    "anchor_version": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "string", "minLength": 1 }
+      ],
+      "description": "Anchor version value. Integers are typical for schema_version fields; strings are typical for SemVer or OpenAPI versions."
+    },
+
+    "version_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/anchor_kind" },
+        "ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Repo-relative path, schema $id, row ref, or other opaque reference the anchor points at."
+        },
+        "version": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/anchor_version" }
+          ],
+          "description": "Version value for the anchor, when applicable."
+        },
+        "version_slot": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Name of the version field inside a payload when advertising a slot (e.g. cli_output_payload_schema_version). Null when the anchor is not a payload slot."
+        },
+        "notes": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1, "maxLength": 320 }
+          ],
+          "description": "Short reviewer-facing note safe for support exports."
+        }
+      }
+    },
+
+    "version_advertisement_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "version_advertisement_schema_version",
+        "surface_contract_ref",
+        "stability_label",
+        "running_build_identity_ref",
+        "version_anchors"
+      ],
+      "properties": {
+        "__fixture__": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "scenario"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "scenario": { "type": "string", "minLength": 1 },
+            "doc_sections": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "uniqueItems": true
+            }
+          },
+          "description": "Optional worked-example prelude carried on fixtures."
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "version_advertisement_record",
+          "description": "Discriminator for this payload shape."
+        },
+        "version_advertisement_schema_version": {
+          "$ref": "#/$defs/version_advertisement_schema_version"
+        },
+        "surface_contract_ref": { "$ref": "#/$defs/surface_contract_ref" },
+        "stability_label": { "$ref": "#/$defs/stability_label" },
+        "running_build_identity_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the producer's running build identity (resolves to an exact-build identity record)."
+        },
+        "surface_instance_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Optional per-instance id within the surface family (command_id, schema family id, API surface id, WIT world id)."
+        },
+        "version_anchors": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/version_anchor" },
+          "description": "One or more anchors that identify the contract version the payload is speaking."
+        },
+        "deprecation_metadata_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Optional refs to interface-lifecycle metadata rows or documents that disclose deprecation or legacy posture."
+        },
+        "compatibility_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "description": "Optional refs to compatibility rows, skew-window declarations, or packet refs that define mixed-version or support posture."
+        }
+      }
+    }
+  }
+}
+
