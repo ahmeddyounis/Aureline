@@ -58,7 +58,10 @@ fixtures update in the same change.
 | Artifact | Role |
 |---|---|
 | [`/artifacts/platform/file_association_ownership_matrix.yaml`](./file_association_ownership_matrix.yaml) | Machine-readable ownership matrix binding every file-extension class and recent-item / dock / taskbar reopen surface to one owning channel, one registration class, one user-or-admin override-disclosure rule, and the exact-target reopen rule per side-by-side relation. |
+| [`/artifacts/platform/protocol_handler_ownership_matrix.yaml`](./protocol_handler_ownership_matrix.yaml) | Protocol-handler focused view (schemes + shared default) that references the full ownership matrix row ids and enumerates exact-target reopen drills. |
+| [`/artifacts/platform/recent_item_and_protocol_ownership_audit.md`](./recent_item_and_protocol_ownership_audit.md) | Narrative audit packet for recent-item registration, protocol handlers, file associations, notification click-through, and dock/taskbar open actions. |
 | [`/fixtures/platform/deep_link_replay_cases/`](../../fixtures/platform/deep_link_replay_cases/) | Worked `deep_link_intent_record` fixtures that prove every replay-denied posture, every authority-widening intent, every drifted target, and every origin-mismatch return fails closed with a typed denial reason and a fallback that preserves user intent or denies with explanation. |
+| [`/fixtures/platform/exact_target_reopen_cases/`](../../fixtures/platform/exact_target_reopen_cases/) | Worked `deep_link_intent_record` fixtures that prove exact-target reopen succeeds truthfully or fails closed with bounded recovery across local files, workspaces, remote targets, review handoff, and auth callbacks. |
 | [`/fixtures/platform/system_affordance_cases/`](../../fixtures/platform/system_affordance_cases/) | Upstream `system_affordance_case_record` fixtures the route-audit rows bind to for file association, native dialog, OS notification, badge, removable-volume return, copy / share, and open-from-terminal cases. |
 
 ## 1. Scope

@@ -1,0 +1,236 @@
+# Protocol-handler ownership matrix.
+#
+# Machine-readable companion to:
+#   - artifacts/platform/recent_item_and_protocol_ownership_audit.md
+#   - artifacts/platform/system_affordance_route_audit.md
+#   - artifacts/platform/file_association_ownership_matrix.yaml
+#   - artifacts/release/channel_ownership_audit.yaml
+#
+# Purpose:
+#   - Freeze which protocol schemes exist per channel and which scheme is the
+#     shared default.
+#   - Freeze which side-by-side relations require explicit user/admin choice for
+#     the shared default.
+#   - Freeze which exact-target reopen drills (fixtures) prove that deep links
+#     either resolve truthfully or fail closed with bounded recovery actions.
+#
+# Vocabulary policy:
+#   - This file does not mint new enums. Values are re-exported from:
+#     - artifacts/release/channel_ownership_audit.yaml
+#     - artifacts/release/state_root_map.yaml
+#     - schemas/platform/deep_link_intent.schema.json
+#
+# If this file conflicts with artifacts/platform/file_association_ownership_matrix.yaml
+# or the upstream ledgers, the upstream ledgers win and this file updates in the same
+# change.
+
+schema_version: 1
+matrix_id: aureline.protocol_handler_ownership_matrix
+status: seeded
+
+audit_packet_source: artifacts/platform/recent_item_and_protocol_ownership_audit.md
+route_audit_source: artifacts/platform/system_affordance_route_audit.md
+file_association_ownership_matrix_source: artifacts/platform/file_association_ownership_matrix.yaml
+channel_ownership_audit_source: artifacts/release/channel_ownership_audit.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+deep_link_intent_schema: schemas/platform/deep_link_intent.schema.json
+
+fixtures_ref_deep_link_replay: fixtures/platform/deep_link_replay_cases
+fixtures_ref_exact_target_reopen: fixtures/platform/exact_target_reopen_cases
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§9.12 Native OS integration and desktop management requirements"
+      - "§10.22 Deep-link, callback, and replay-deny contracts"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "Channel-association review row"
+      - "Native desktop integration, deep-link, and system-affordance contract"
+
+# -----------------------------------------------------------------------------
+# Re-exported vocabularies (subset).
+# -----------------------------------------------------------------------------
+
+side_by_side_relation_class_vocabulary:
+  - stable_and_preview
+  - stable_and_beta
+  - stable_and_lts
+  - preview_and_beta
+  - installed_and_portable
+  - three_channel_matrix
+  - managed_and_portable
+
+channel_class_vocabulary:
+  - stable
+  - preview
+  - beta
+  - lts
+  - portable_stable
+  - portable_preview
+
+protocol_handler_ownership_class_vocabulary:
+  - per_channel_suffixed_scheme
+  - shared_scheme_with_user_or_admin_default
+  - not_registered
+
+handler_ownership_class_vocabulary:
+  - machine_global_registered
+  - current_user_registered
+  - portable_local_only
+  - managed_policy_owned
+  - no_handler_ownership
+  - conflict_unknown_owner
+
+ownership_change_review_state_vocabulary:
+  - no_change
+  - preview_required_before_change
+  - blocked_by_policy
+  - accepted_after_review
+  - denied_conflict
+
+audit_event_id_vocabulary:
+  - platform.deep_link_intent_received
+  - platform.deep_link_intent_admitted
+  - platform.deep_link_intent_review_required
+  - platform.deep_link_intent_denied
+  - platform.handler_ownership_reviewed
+
+fallback_class_vocabulary:
+  - open_intent_review_sheet
+  - open_cached_context
+  - locate_missing_target
+  - open_activity_center
+  - open_default_browser
+  - deny_with_explanation
+
+# -----------------------------------------------------------------------------
+# Scheme placeholders (re-exported from artifacts/release/state_root_map.yaml).
+# -----------------------------------------------------------------------------
+
+scheme_placeholders:
+  per_channel_suffixed:
+    stable: aureline-stable
+    preview: aureline-preview
+    beta: aureline-beta
+    lts: aureline-lts
+  shared_default:
+    scheme: aureline
+    default_resolution_rule: user_or_admin_selected_default
+    forbidden_rule: no_silent_claim_of_shared_scheme
+    wrong_target_behavior: return_typed_result_code_do_not_redirect
+
+# -----------------------------------------------------------------------------
+# Ownership rows.
+#
+# Rows refer to the owning row ids in artifacts/platform/file_association_ownership_matrix.yaml
+# so the protocol-only view does not drift from the full ownership matrix.
+# -----------------------------------------------------------------------------
+
+ownership_rows:
+  - id: protocol_handler_ownership:stable_and_preview
+    side_by_side_relation_class: stable_and_preview
+    coexisting_channels: [stable, preview]
+    required_operator_choices:
+      - shared_protocol_default_channel
+    matrix_row_refs:
+      - protocol_handler:stable_and_preview:per_channel_suffixed
+      - protocol_handler:stable_and_preview:shared_default
+
+  - id: protocol_handler_ownership:stable_and_beta
+    side_by_side_relation_class: stable_and_beta
+    coexisting_channels: [stable, beta]
+    required_operator_choices:
+      - shared_protocol_default_channel
+    notes: >
+      Beta channel-identity is reserved; the ownership model remains the same to
+      prevent a future beta card from landing as last-writer-wins.
+    matrix_row_refs:
+      - protocol_handler:stable_and_beta:per_channel_suffixed
+      - protocol_handler:stable_and_beta:shared_default
+
+  - id: protocol_handler_ownership:stable_and_lts
+    side_by_side_relation_class: stable_and_lts
+    coexisting_channels: [stable, lts]
+    required_operator_choices:
+      - shared_protocol_default_channel
+    matrix_row_refs:
+      - protocol_handler:stable_and_lts:per_channel_suffixed
+      - protocol_handler:stable_and_lts:shared_default
+
+  - id: protocol_handler_ownership:preview_and_beta
+    side_by_side_relation_class: preview_and_beta
+    coexisting_channels: [preview, beta]
+    required_operator_choices:
+      - shared_protocol_default_channel
+    notes: >
+      Beta channel-identity is reserved; the ownership model remains the same to
+      prevent a future beta card from landing as last-writer-wins.
+    matrix_row_refs:
+      - protocol_handler:preview_and_beta:per_channel_suffixed
+      - protocol_handler:preview_and_beta:shared_default
+
+  - id: protocol_handler_ownership:installed_and_portable
+    side_by_side_relation_class: installed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    required_operator_choices: []
+    matrix_row_refs:
+      - protocol_handler:installed_and_portable:installed
+      - protocol_handler:installed_and_portable:portable
+
+  - id: protocol_handler_ownership:three_channel_matrix
+    side_by_side_relation_class: three_channel_matrix
+    coexisting_channels: [stable, preview, portable_stable]
+    required_operator_choices:
+      - shared_protocol_default_channel
+    matrix_row_refs:
+      - protocol_handler:three_channel_matrix:per_channel_suffixed
+      - protocol_handler:three_channel_matrix:shared_default
+      - protocol_handler:three_channel_matrix:portable
+
+  - id: protocol_handler_ownership:managed_and_portable
+    side_by_side_relation_class: managed_and_portable
+    coexisting_channels: [stable, portable_stable]
+    required_operator_choices:
+      - shared_protocol_default_channel
+    notes: >
+      Managed deployment may lock the shared scheme. The review-state surface must
+      show blocked-by-policy rather than accepting a silent takeover.
+    matrix_row_refs:
+      - protocol_handler:managed_and_portable:managed
+
+# -----------------------------------------------------------------------------
+# Exact-target reopen drills.
+# -----------------------------------------------------------------------------
+
+exact_target_reopen_drills:
+  - drill_id: exact_target_reopen:review_link
+    route_class: review_or_work_item
+    source_surface_class: protocol_handler
+    must_hold:
+      - exact target identity is preserved across reopen
+      - shared-scheme owner is disclosed when relevant
+      - failure routes to bounded recovery, never silent redirect
+    fixture_refs:
+      - fixtures/platform/exact_target_reopen_cases/review_handoff_admitted_exact.yaml
+      - fixtures/platform/deep_link_replay_cases/review_link_replay_denied_target_drifted.yaml
+
+  - drill_id: exact_target_reopen:auth_callback
+    route_class: auth_callback
+    source_surface_class: default_browser_callback
+    must_hold:
+      - callback is single-use and replay denies consumed tokens
+      - no raw callback payload crosses the boundary
+      - recovery requires explicit restart in the default browser
+    fixture_refs:
+      - fixtures/platform/exact_target_reopen_cases/auth_callback_admitted_exact.yaml
+      - fixtures/platform/exact_target_reopen_cases/auth_callback_replay_denied_consumed.yaml
+
+  - drill_id: exact_target_reopen:managed_resume
+    route_class: managed_workspace_resume
+    source_surface_class: os_notification_click
+    must_hold:
+      - resume either reconnects exactly or fails closed
+      - remote-unreachable routes to activity-center recovery actions
+    fixture_refs:
+      - fixtures/platform/exact_target_reopen_cases/managed_workspace_resume_remote_unreachable_denied.yaml
