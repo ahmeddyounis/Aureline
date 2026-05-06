@@ -1,0 +1,72 @@
+# yaml-language-server: $schema=../../../schemas/runtime/state_transition_rule.schema.json
+
+record_kind: state_machine_example_record
+state_transition_rule_schema_version: 1
+example_id: example.runtime.update_rollback.failed_health_rollback
+object_class: update_rollback
+object_ref: "runtime:update_flow:01"
+scenario_summary: >
+  A signed update is applied, a post-apply health checkpoint fails, and the
+  updater rolls back while the rollback handle is still valid.
+
+timeline:
+  - at: "2026-05-06T07:40:00Z"
+    user_visible_state_class: initializing
+    diagnostic_substate_ref: update.download_verified
+    evidence_reconstruction_class: authoritative_live
+    note: Payload downloaded and verified; apply has not started.
+
+  - at: "2026-05-06T07:41:30Z"
+    user_visible_state_class: applying
+    diagnostic_substate_ref: update.apply_in_progress
+    evidence_reconstruction_class: authoritative_live
+    note: Apply started; outcome not yet known.
+
+  - at: "2026-05-06T07:43:00Z"
+    user_visible_state_class: rollback_available
+    diagnostic_substate_ref: update.awaiting_health_checkpoint
+    evidence_reconstruction_class: authoritative_live
+    note: Apply completed but confirmation has not passed; rollback remains available.
+
+  - at: "2026-05-06T07:44:10Z"
+    user_visible_state_class: recovered
+    diagnostic_substate_ref: update.rolled_back_after_failed_health
+    evidence_reconstruction_class: authoritative_live
+    note: Rollback completed and the prior known-good build is active again.
+
+transitions:
+  - at: "2026-05-06T07:40:00Z"
+    transition_class: start
+    from_state_class: removed
+    to_state_class: initializing
+    evidence_refs:
+      - "audit:update_apply_requested:01"
+      - "checkpoint:update_payload_verified:01"
+    note: Update apply session begins after verification.
+
+  - at: "2026-05-06T07:41:30Z"
+    transition_class: start
+    from_state_class: initializing
+    to_state_class: applying
+    evidence_refs:
+      - "checkpoint:update_apply_started:01"
+    note: Apply step begins.
+
+  - at: "2026-05-06T07:43:00Z"
+    transition_class: handoff
+    from_state_class: applying
+    to_state_class: rollback_available
+    evidence_refs:
+      - "checkpoint:update_apply_completed:01"
+      - "rollback_handle:update_previous_install:01"
+    note: Update is live but remains within the rollback window until confirmation.
+
+  - at: "2026-05-06T07:44:10Z"
+    transition_class: rollback
+    from_state_class: rollback_available
+    to_state_class: recovered
+    evidence_refs:
+      - "audit:update_health_checkpoint_failed:01"
+      - "checkpoint:update_rollback_completed:01"
+    note: Health checkpoint fails; rollback executes using the retained rollback handle.
+

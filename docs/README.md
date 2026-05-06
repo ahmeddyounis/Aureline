@@ -1321,6 +1321,16 @@ code.
   `unsupported`, and `overloaded`. Machine-readable thresholds,
   policy fixtures, and overload scenarios live in
   [`/artifacts/runtime/resource_governor_thresholds.yaml`](../artifacts/runtime/resource_governor_thresholds.yaml).
+- [`runtime/shared_state_machine_rules.md`](./runtime/shared_state_machine_rules.md)
+  — shared cross-object state-class catalog and transition legend used
+  to project workspace, extension, remote, collaboration, AI action,
+  update/rollback, and long-running work state into one reusable set.
+  Machine-readable catalog in
+  [`/artifacts/runtime/state_catalog.yaml`](../artifacts/runtime/state_catalog.yaml);
+  boundary schema in
+  [`/schemas/runtime/state_transition_rule.schema.json`](../schemas/runtime/state_transition_rule.schema.json);
+  worked fixtures in
+  [`/fixtures/runtime/state_machine_examples/`](../fixtures/runtime/state_machine_examples/).
 - [`perf/efficiency_state_policy.md`](./perf/efficiency_state_policy.md)
   — battery, thermal, and power-saver specialization of the shared
   runtime governor. Freezes the efficiency-state model, worker-

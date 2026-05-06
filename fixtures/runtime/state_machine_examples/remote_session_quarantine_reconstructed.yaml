@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=../../../schemas/runtime/state_transition_rule.schema.json
+
+record_kind: state_machine_example_record
+state_transition_rule_schema_version: 1
+example_id: example.runtime.remote_session.quarantine_reconstructed
+object_class: remote_session
+object_ref: "runtime:remote_attach_session:01"
+scenario_summary: >
+  A remote session degrades, is quarantined by a supervisor decision, and is
+  temporarily reconstructed from evidence after a crash before a clear-and-reattach
+  returns the session to a ready posture.
+
+timeline:
+  - at: "2026-05-06T07:50:00Z"
+    user_visible_state_class: initializing
+    diagnostic_substate_ref: remote_session.attach_in_progress
+    evidence_reconstruction_class: authoritative_live
+    note: Attach requested and target identity is resolving.
+
+  - at: "2026-05-06T07:50:40Z"
+    user_visible_state_class: ready
+    diagnostic_substate_ref: remote_session.active
+    evidence_reconstruction_class: authoritative_live
+    note: Session is active under current authority and policy.
+
+  - at: "2026-05-06T07:51:20Z"
+    user_visible_state_class: degraded
+    diagnostic_substate_ref: remote_session.transport_interrupted
+    evidence_reconstruction_class: authoritative_live
+    note: Transport interruptions force a narrowed posture while local work continues.
+
+  - at: "2026-05-06T07:52:00Z"
+    user_visible_state_class: quarantined
+    diagnostic_substate_ref: remote_session.supervisor_quarantine
+    evidence_reconstruction_class: authoritative_live
+    note: Supervisor quarantines the session; fresh attach is required.
+
+  - at: "2026-05-06T07:55:00Z"
+    user_visible_state_class: quarantined
+    diagnostic_substate_ref: remote_session.reconstructed_from_forensic_packet
+    evidence_reconstruction_class: evidence_only_reconstruction
+    note: After a crash, the UI reconstructs the quarantine posture from evidence only.
+
+  - at: "2026-05-06T07:56:30Z"
+    user_visible_state_class: recovered
+    diagnostic_substate_ref: remote_session.quarantine_cleared
+    evidence_reconstruction_class: authoritative_live
+    note: Quarantine cleared with explicit authority; session eligible for reattach.
+
+  - at: "2026-05-06T07:57:30Z"
+    user_visible_state_class: initializing
+    diagnostic_substate_ref: remote_session.reattach_in_progress
+    evidence_reconstruction_class: authoritative_live
+    note: Reattach begins under fresh authority.
+
+  - at: "2026-05-06T07:58:10Z"
+    user_visible_state_class: ready
+    diagnostic_substate_ref: remote_session.active
+    evidence_reconstruction_class: authoritative_live
+    note: Session is active again after revalidation.
+
+transitions:
+  - at: "2026-05-06T07:50:00Z"
+    transition_class: start
+    from_state_class: removed
+    to_state_class: initializing
+    evidence_refs:
+      - "audit:remote_attach_requested:01"
+    note: Attach begins.
+
+  - at: "2026-05-06T07:50:40Z"
+    transition_class: start
+    from_state_class: initializing
+    to_state_class: ready
+    evidence_refs:
+      - "checkpoint:remote_attach_admitted:01"
+    note: Session becomes active after admission.
+
+  - at: "2026-05-06T07:51:20Z"
+    transition_class: retry
+    from_state_class: ready
+    to_state_class: degraded
+    evidence_refs:
+      - "audit:remote_transport_interrupted:01"
+    note: Transport failure narrows posture while preserving local continuity.
+
+  - at: "2026-05-06T07:52:00Z"
+    transition_class: quarantine
+    from_state_class: degraded
+    to_state_class: quarantined
+    evidence_refs:
+      - "policy_decision:supervisor_quarantine:01"
+      - "forensic_packet:remote_attach_fault:01"
+    note: Supervisor quarantine isolates the session and blocks automatic resume.
+
+  - at: "2026-05-06T07:55:00Z"
+    transition_class: evidence_only_reconstruction
+    from_state_class: quarantined
+    to_state_class: quarantined
+    evidence_refs:
+      - "forensic_packet:supervisor_restart_capture:01"
+    note: Crash restart reconstructs the session posture from evidence only.
+
+  - at: "2026-05-06T07:56:30Z"
+    transition_class: resume
+    from_state_class: quarantined
+    to_state_class: recovered
+    evidence_refs:
+      - "audit:quarantine_clear_requested:01"
+    note: Explicit clear action lifts quarantine and records the recovery attempt.
+
+  - at: "2026-05-06T07:57:30Z"
+    transition_class: retry
+    from_state_class: recovered
+    to_state_class: initializing
+    evidence_refs:
+      - "checkpoint:remote_attach_fresh_authority:01"
+    note: Reattach retries under fresh authority.
+
+  - at: "2026-05-06T07:58:10Z"
+    transition_class: start
+    from_state_class: initializing
+    to_state_class: ready
+    evidence_refs:
+      - "checkpoint:remote_attach_revalidated:01"
+    note: Reattach completes and the session returns to a ready posture.
+

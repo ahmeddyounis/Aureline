@@ -1,0 +1,412 @@
+# Cross-object state catalog, transition legend hooks, and mapping rows.
+#
+# Machine-readable companion to:
+# - docs/runtime/shared_state_machine_rules.md
+# - schemas/runtime/state_transition_rule.schema.json
+#
+# This artifact publishes:
+# - the closed user-visible state-class vocabulary (what a surface may say);
+# - the evidence-reconstruction vocabulary (how the state was obtained);
+# - default visual semantics (semantic-status palette) for each state class; and
+# - seed mapping rows binding domain-specific lifecycle states to the shared
+#   user-visible classes.
+#
+# Rules:
+# - Surfaces MUST NOT mint new user-visible state class names. Owners may keep
+#   fine-grained internal states but must map to this set for shared surfaces.
+# - Diagnostic substates are allowed (and expected) but MUST NOT replace the
+#   shared user-visible state class.
+# - Adding a state class or evidence class is additive-minor only when the
+#   companion doc, schema, and at least one fixture update in the same change.
+
+schema_version: 1
+artifact_id: aureline.runtime.shared_state_catalog
+title: Shared state catalog and mapping rows
+
+contract_source: docs/runtime/shared_state_machine_rules.md
+
+companion_refs:
+  transition_schema_ref: schemas/runtime/state_transition_rule.schema.json
+  fixture_cases_ref: fixtures/runtime/state_machine_examples/
+
+related_refs:
+  - docs/architecture/lifecycle_statecharts.md
+  - schemas/governance/lifecycle_state.schema.json
+  - docs/runtime/resource_governor_contract.md
+  - artifacts/runtime/resource_governor_thresholds.yaml
+  - docs/recovery/recovery_rung_matrix.md
+  - artifacts/recovery/recovery_rungs.yaml
+  - docs/remote/attach_tunnel_port_forward_contract.md
+  - schemas/remote/attach_session.schema.json
+  - artifacts/extensions/extension_lifecycle_states.yaml
+  - docs/release/update_ready_review_contract.md
+  - schemas/release/update_ready_review.schema.json
+  - docs/runtime/background_queue_contract.md
+  - schemas/runtime/background_job.schema.json
+
+vocabulary:
+  user_visible_state_class:
+    - id: initializing
+      display_name: Initializing
+      semantic_status_class: info
+      terminal: false
+      failure: false
+      meaning: >
+        Admission/setup is in progress and may still be denied, paused, or
+        degraded. Surfaces that render initializing MUST also render an
+        actionable next-checkpoint hint or a bounded progress indicator; indefinite
+        initializing without progress is non-conforming.
+
+    - id: ready
+      display_name: Ready
+      semantic_status_class: success
+      terminal: false
+      failure: false
+      meaning: >
+        Object is usable for its declared scope under the current authority,
+        policy epoch, and trust posture. "Ready" does not imply full feature
+        parity; it means the owner asserts the declared floor is met.
+
+    - id: degraded
+      display_name: Degraded
+      semantic_status_class: warning
+      terminal: false
+      failure: true
+      meaning: >
+        Object remains usable but capability is narrowed, truth is partial, or a
+        dependency is impaired. Degraded MUST be accompanied by a typed cause and
+        a recommended exit path.
+
+    - id: blocked
+      display_name: Blocked
+      semantic_status_class: warning
+      terminal: false
+      failure: false
+      meaning: >
+        Progress is paused and requires an external unblock (user action,
+        dependency recovery, renewed authority). Blocked is distinct from
+        pending_review (a reviewer decision) and out_of_policy (policy denial).
+
+    - id: pending_review
+      display_name: Pending review
+      semantic_status_class: info
+      terminal: false
+      failure: false
+      meaning: >
+        A reviewer decision is required before the object may advance to a
+        mutating or authority-widening step. Pending review MUST disclose the
+        reviewer/authority lane and the specific decision object ref when
+        available.
+
+    - id: applying
+      display_name: Applying
+      semantic_status_class: info
+      terminal: false
+      failure: false
+      meaning: >
+        A mutating, recovery, or apply step is in flight. Applying MUST cite the
+        checkpoint/idempotency posture (whether rollback exists, whether retry is
+        safe) and MUST not claim a final outcome until the owner emits it.
+
+    - id: rollback_available
+      display_name: Rollback available
+      semantic_status_class: warning
+      terminal: false
+      failure: false
+      meaning: >
+        A rollback handle exists and remains valid under declared limits (expiry,
+        retention, scope). This is a reversible posture that MUST disclose what
+        rollback can and cannot restore.
+
+    - id: quarantined
+      display_name: Quarantined
+      semantic_status_class: danger
+      terminal: false
+      failure: true
+      meaning: >
+        Object is isolated by supervisor, policy, or a recovery ladder. Quarantine
+        cannot silently lift; exit requires an explicit clear action with actor
+        authority and preserved evidence.
+
+    - id: recovered
+      display_name: Recovered
+      semantic_status_class: success
+      terminal: false
+      failure: false
+      meaning: >
+        A recovery, rollback, or quarantine-clear action succeeded and the owner
+        has recorded an outcome. Recovered may still require revalidation before
+        returning to a full ready posture.
+
+    - id: stale
+      display_name: Stale
+      semantic_status_class: warning
+      terminal: false
+      failure: true
+      meaning: >
+        Last-known-good projection is being shown while freshness or identity is
+        not current. Stale MUST disclose the stale basis and the maximum claim
+        language permitted until revalidated.
+
+    - id: out_of_policy
+      display_name: Out of policy
+      semantic_status_class: danger
+      terminal: false
+      failure: true
+      meaning: >
+        Policy/trust/provenance rules deny the requested posture. Out of policy is
+        distinct from blocked: the default exit is policy change, scope narrowing,
+        or explicit override under a governed authority lane.
+
+    - id: removed
+      display_name: Removed
+      semantic_status_class: info
+      terminal: true
+      failure: false
+      meaning: >
+        Object is not live (closed/retired/removed). Evidence may remain available
+        for audit, export, replay, or support reconstruction; removal is not an
+        evidence deletion claim.
+
+  evidence_reconstruction_class:
+    - id: authoritative_live
+      meaning: >
+        State is emitted by the authoritative live owner for this object.
+    - id: imported_history
+      meaning: >
+        State is imported from a capture/export and is segregated from live truth.
+    - id: evidence_only_reconstruction
+      meaning: >
+        State is reconstructed from evidence only (logs/audits/snapshots) without
+        authoritative live confirmation. Consumers cap claims and require revalidation
+        before mutating continuation.
+    - id: unknown_requires_review
+      meaning: >
+        The evidence basis is missing or conflicting; refuse by default and require
+        explicit review.
+
+  transition_class:
+    - id: start
+      meaning: Begin a live object posture.
+    - id: stop
+      meaning: End a live object posture and revoke authority.
+    - id: suspend
+      meaning: Pause progress without removing the object.
+    - id: resume
+      meaning: Resume progress after unblock and revalidation.
+    - id: retry
+      meaning: Try again without erasing prior evidence.
+    - id: abandon
+      meaning: Give up while preserving evidence and disclosures.
+    - id: rollback
+      meaning: Return through a declared rollback/compensating path.
+    - id: quarantine
+      meaning: Isolate the object under supervisor/policy/recovery ladder.
+    - id: handoff
+      meaning: Transfer ownership/authority for continuation to a new owner.
+    - id: imported_history
+      meaning: Transition produced as part of an import window (not live truth).
+    - id: evidence_only_reconstruction
+      meaning: Transition produced only by evidence reconstruction (not live truth).
+
+# -----------------------------------------------------------------------------
+# Seed mapping rows
+#
+# Mapping is a projection: owners keep their fine-grained states; shared
+# surfaces render user_visible_state_class plus optional diagnostic substate.
+# -----------------------------------------------------------------------------
+
+mappings:
+
+  - object_class: workspace
+    source_refs:
+      - artifacts/architecture/statecharts/workspace_session.md
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-s-lifecycle-state-machines-seed-set
+    rows:
+      - source_state: unopened
+        user_visible_state_class: removed
+        note: No live session exists.
+      - source_state: opening
+        user_visible_state_class: initializing
+        note: Admission, trust, restore, and target identity resolving.
+      - source_state: active
+        user_visible_state_class: ready
+        note: Usable under current authority/trust.
+      - source_state: degraded
+        user_visible_state_class: degraded
+        note: Usable with narrowed route/trust/freshness/restore fidelity.
+      - source_state: recovering
+        user_visible_state_class: applying
+        note: Recovery or repair in flight.
+      - source_state: suspended
+        user_visible_state_class: blocked
+        note: Paused or evidence-only posture; no live work running.
+      - source_state: closing
+        user_visible_state_class: applying
+        note: Close/cancel in progress.
+      - source_state: closed
+        user_visible_state_class: removed
+        note: Session stopped; no live authority remains.
+      - source_state: failed
+        user_visible_state_class: degraded
+        note: Failure details live in diagnostic substate and evidence refs.
+      - source_state: archived
+        user_visible_state_class: removed
+        note: Sealed history; liveness ended.
+
+  - object_class: extension
+    source_refs:
+      - artifacts/extensions/extension_lifecycle_states.yaml
+    rows:
+      - source_state: discovered
+        user_visible_state_class: removed
+        note: Visible but not admitted for activation.
+      - source_state: installed
+        user_visible_state_class: ready
+        note: Locally present and eligible for activation.
+      - source_state: disabled
+        user_visible_state_class: blocked
+        note: Explicit disable decision blocks activation.
+      - source_state: pending_activation
+        user_visible_state_class: initializing
+        note: Activation admission checks in flight.
+      - source_state: active
+        user_visible_state_class: ready
+        note: Running under negotiated capability worlds.
+      - source_state: degraded
+        user_visible_state_class: degraded
+        note: Capability narrowed; still present.
+      - source_state: quarantined
+        user_visible_state_class: quarantined
+        note: Crash-loop or quarantine trigger isolated the extension.
+      - source_state: recovered
+        user_visible_state_class: recovered
+        note: Quarantine was cleared and a recovery attempt recorded.
+      - source_state: removed
+        user_visible_state_class: removed
+        note: No live activation; evidence may remain.
+      - source_state: publisher_blocked
+        user_visible_state_class: out_of_policy
+        note: Publisher/policy denial blocks activation/install/update.
+
+  - object_class: remote_session
+    source_refs:
+      - docs/remote/attach_tunnel_port_forward_contract.md
+      - schemas/remote/attach_session.schema.json
+    rows:
+      - source_state: requested
+        user_visible_state_class: initializing
+      - source_state: resolving_target
+        user_visible_state_class: initializing
+      - source_state: attaching
+        user_visible_state_class: initializing
+      - source_state: active
+        user_visible_state_class: ready
+      - source_state: reconnecting
+        user_visible_state_class: degraded
+      - source_state: paused
+        user_visible_state_class: blocked
+      - source_state: degraded
+        user_visible_state_class: degraded
+      - source_state: retarget_review_required
+        user_visible_state_class: pending_review
+      - source_state: provider_unavailable
+        user_visible_state_class: degraded
+      - source_state: policy_denied
+        user_visible_state_class: out_of_policy
+      - source_state: approval_expired
+        user_visible_state_class: blocked
+      - source_state: capability_narrowed
+        user_visible_state_class: degraded
+      - source_state: teardown_pending
+        user_visible_state_class: applying
+      - source_state: closed
+        user_visible_state_class: removed
+      - source_state: quarantined
+        user_visible_state_class: quarantined
+
+  - object_class: collaboration_session
+    source_refs:
+      - artifacts/architecture/statecharts/collaboration_session.md
+    rows:
+      - source_state: solo
+        user_visible_state_class: ready
+        note: Local editing posture is healthy even when not shared.
+      - source_state: publish_pending
+        user_visible_state_class: initializing
+      - source_state: shared_active
+        user_visible_state_class: ready
+      - source_state: participant_degraded
+        user_visible_state_class: degraded
+      - source_state: shared_degraded
+        user_visible_state_class: degraded
+      - source_state: ended
+        user_visible_state_class: removed
+      - source_state: archived
+        user_visible_state_class: removed
+
+  - object_class: ai_action
+    source_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-s-lifecycle-state-machines-seed-set
+    rows:
+      - source_state: drafted
+        user_visible_state_class: pending_review
+      - source_state: context_resolving
+        user_visible_state_class: initializing
+      - source_state: approval_pending
+        user_visible_state_class: pending_review
+      - source_state: executing
+        user_visible_state_class: applying
+      - source_state: patch_proposed
+        user_visible_state_class: pending_review
+      - source_state: applied
+        user_visible_state_class: applying
+      - source_state: verified
+        user_visible_state_class: ready
+      - source_state: rejected
+        user_visible_state_class: removed
+      - source_state: reverted
+        user_visible_state_class: recovered
+
+  - object_class: update_rollback
+    source_refs:
+      - docs/release/update_ready_review_contract.md
+      - docs/release/update_and_rollback_contract.md
+      - .t2/docs/Aureline_Technical_Architecture_Document.md#appendix-s-lifecycle-state-machines-seed-set
+    rows:
+      - source_state: available
+        user_visible_state_class: ready
+      - source_state: downloaded
+        user_visible_state_class: initializing
+      - source_state: verified
+        user_visible_state_class: initializing
+      - source_state: staged
+        user_visible_state_class: rollback_available
+        note: Rollback window is visible before the next launch.
+      - source_state: applied
+        user_visible_state_class: rollback_available
+        note: Rollback remains available until confirmation checkpoint.
+      - source_state: confirmed
+        user_visible_state_class: ready
+      - source_state: rolled_back
+        user_visible_state_class: recovered
+
+  - object_class: long_running_job
+    source_refs:
+      - schemas/runtime/background_job.schema.json
+      - artifacts/runtime/resource_governor_thresholds.yaml
+    rows:
+      - source_state: warming
+        user_visible_state_class: initializing
+      - source_state: ready
+        user_visible_state_class: ready
+      - source_state: partial
+        user_visible_state_class: degraded
+      - source_state: degraded
+        user_visible_state_class: degraded
+      - source_state: offline
+        user_visible_state_class: blocked
+      - source_state: unsupported
+        user_visible_state_class: out_of_policy
+      - source_state: overloaded
+        user_visible_state_class: degraded
