@@ -67,6 +67,14 @@ instead of re-minting their vocabulary:
   Every support-row claim cites a theme-package manifest ref and a
   theme-package revision ref; the row never re-mints the package's
   fields.
+- [`/docs/design/theme_portability_contract.md`](./theme_portability_contract.md)
+  and
+  [`/schemas/design/theme_portability_record.schema.json`](../../schemas/design/theme_portability_record.schema.json)
+  own the durable theme portability record (`theme_package_portability_record`)
+  that sync/export/support lanes carry. Support-row claims cite this
+  record by `import_export_portability_ref` so later export/support
+  surfaces can explain provenance and translation truth without
+  flattening imported themes into opaque blobs.
 - [`/docs/ux/embedded_surface_boundary_cards.md`](../ux/embedded_surface_boundary_cards.md)
   and
   [`/schemas/ux/embedded_boundary_card.schema.json`](../../schemas/ux/embedded_boundary_card.schema.json)
@@ -247,8 +255,9 @@ Required record fields (frozen):
   claim's overrides ship under (e.g. `al.color`, `al.color.diff`).
 - `import_export_portability_ref` — opaque ref to the theme-package
   manifest's portability record (signature state, mirrorability,
-  permitted deployment profiles). Required so later support/export
-  flows can reuse the audited row.
+  permitted deployment profiles). See
+  [`/docs/design/theme_portability_contract.md`](./theme_portability_contract.md).
+  Required so later support/export flows can reuse the audited row.
 - `linked_appearance_session_refs[]` — opaque refs to the appearance-
   session records under which this row was last validated (optional;
   may be empty in seed fixtures).

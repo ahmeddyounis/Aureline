@@ -1,0 +1,574 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/design/theme_portability_record.schema.json",
+  "title": "Aureline theme-package portability record",
+  "description": "Boundary schema for theme_package_portability_record frozen in docs/design/theme_portability_contract.md. The record preserves theme import/export provenance (ecosystem/tool/version/artifact handles), translation coverage (translated counts, unresolved counts), portable unsupported-slot and unresolved-slot notes, portability flags, and explicit downgrade events when a carrier cannot preserve full fidelity. The record is safe to log, safe on RPC, safe in portable profile packages, safe in managed-sync payloads, and safe in support exports. Raw token values, raw source theme bytes, raw screenshots, raw URLs, raw absolute paths, and raw user content never cross this boundary; records carry opaque ids, typed vocabulary, counts, and short privacy-safe notes only.",
+  "type": "object",
+  "oneOf": [{ "$ref": "#/$defs/theme_package_portability_record" }],
+  "$defs": {
+    "theme_portability_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for theme portability records. Vocabulary additions are additive-minor and require a version bump."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests, and safe in support/export packets."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "short_label_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+
+    "short_note_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": {
+          "type": "string",
+          "enum": ["trusted", "restricted"]
+        },
+        "execution_context_id": { "type": "string", "minLength": 1 }
+      }
+    },
+
+    "theme_package_provenance_class": {
+      "type": "string",
+      "enum": [
+        "built_in_with_product",
+        "extension_contributed",
+        "community_supplied",
+        "imported_translated",
+        "air_gapped_offline"
+      ],
+      "description": "Closed provenance vocabulary describing how the package entered the system. Mirrors schemas/design/theme_package_manifest.schema.json."
+    },
+
+    "theme_package_signature_state": {
+      "type": "string",
+      "enum": [
+        "signed_verified",
+        "signed_unverified",
+        "unsigned_explicit_acceptance",
+        "signature_failed_blocked",
+        "not_applicable_built_in"
+      ],
+      "description": "Closed theme-package signature-state vocabulary. Mirrors schemas/ux/theme_package_manifest.schema.json without modification."
+    },
+
+    "theme_package_mirrorability_class": {
+      "type": "string",
+      "enum": [
+        "mirror_allowed",
+        "mirror_with_attribution_required",
+        "mirror_forbidden",
+        "air_gapped_only",
+        "not_mirrorable_signed_blob"
+      ],
+      "description": "Closed theme-package mirrorability-class vocabulary. Mirrors schemas/ux/theme_package_manifest.schema.json without modification."
+    },
+
+    "deployment_profile_id": {
+      "type": "string",
+      "enum": [
+        "individual_local",
+        "self_hosted",
+        "enterprise_online",
+        "air_gapped",
+        "managed_cloud"
+      ],
+      "description": "Re-exported from artifacts/governance/deployment_profiles.yaml without modification."
+    },
+
+    "source_ecosystem_class": {
+      "type": "string",
+      "enum": [
+        "vscode",
+        "jetbrains",
+        "vim",
+        "emacs",
+        "zed",
+        "sublime",
+        "textmate",
+        "unknown"
+      ],
+      "description": "Re-exported from schemas/design/theme_import_mapping_report.schema.json without modification."
+    },
+
+    "source_tool_descriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ecosystem",
+        "source_tool_name",
+        "source_tool_version",
+        "source_theme_identifier",
+        "source_artifact_ref"
+      ],
+      "properties": {
+        "source_ecosystem": { "$ref": "#/$defs/source_ecosystem_class" },
+        "source_tool_name": { "$ref": "#/$defs/short_label_text" },
+        "source_tool_version": { "$ref": "#/$defs/short_label_text" },
+        "source_theme_identifier": { "$ref": "#/$defs/opaque_id" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_schema_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "notes": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "export_destination_class": {
+      "type": "string",
+      "enum": [
+        "portable_profile_package",
+        "managed_sync_payload",
+        "support_bundle_metadata_export",
+        "migration_center_handoff_bundle",
+        "external_ecosystem_theme_bundle"
+      ],
+      "description": "Closed destination vocabulary for export/projection events that carry a portability record."
+    },
+
+    "export_provenance_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_destination_class",
+        "export_tool_name",
+        "export_tool_version",
+        "exported_artifact_ref",
+        "exported_at"
+      ],
+      "properties": {
+        "export_destination_class": { "$ref": "#/$defs/export_destination_class" },
+        "target_ecosystem": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/source_ecosystem_class" }
+          ],
+          "description": "Target ecosystem for external exports (nullable for Aureline-internal carriers)."
+        },
+        "export_tool_name": { "$ref": "#/$defs/short_label_text" },
+        "export_tool_version": { "$ref": "#/$defs/short_label_text" },
+        "exported_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "notes": { "$ref": "#/$defs/short_note_text" },
+        "exported_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "mapping_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_source_slot_count",
+        "translated_slot_count",
+        "unsupported_slot_count",
+        "unresolved_mapping_count",
+        "substituted_with_fallback_count",
+        "blocked_honesty_count",
+        "deprecated_replacement_count"
+      ],
+      "properties": {
+        "total_source_slot_count": { "type": "integer", "minimum": 0 },
+        "translated_slot_count": { "type": "integer", "minimum": 0 },
+        "unsupported_slot_count": { "type": "integer", "minimum": 0 },
+        "unresolved_mapping_count": { "type": "integer", "minimum": 0 },
+        "substituted_with_fallback_count": { "type": "integer", "minimum": 0 },
+        "blocked_honesty_count": { "type": "integer", "minimum": 0 },
+        "deprecated_replacement_count": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Aggregate mapping counts derived from the audited import-mapping report. The seven counts MUST sum to total_source_slot_count."
+    },
+
+    "syntax_coverage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_source_scope_count",
+        "coverage_percent",
+        "unresolved_scope_count",
+        "unsupported_scope_refs"
+      ],
+      "properties": {
+        "total_source_scope_count": { "type": "integer", "minimum": 0 },
+        "coverage_percent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "unresolved_scope_count": { "type": "integer", "minimum": 0 },
+        "unsupported_scope_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Compact syntax coverage summary for export/support surfaces. The audited import-mapping report remains the structured evidence."
+    },
+
+    "slot_portability_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_slot_ref", "note"],
+      "properties": {
+        "source_slot_ref": { "$ref": "#/$defs/opaque_id" },
+        "slot_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/short_label_text" }
+          ],
+          "description": "Optional privacy-safe label for UI; source_slot_ref remains the stable join key."
+        },
+        "note": { "$ref": "#/$defs/short_note_text" }
+      }
+    },
+
+    "translation_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "translated_token_count",
+        "mapping_summary",
+        "syntax_coverage",
+        "unsupported_slot_summary_notes",
+        "unresolved_slot_summary_notes",
+        "unsupported_slots",
+        "unresolved_slots"
+      ],
+      "properties": {
+        "translated_token_count": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Translated token/slot count suitable for projection. When mapping_summary is present, this SHOULD equal mapping_summary.translated_slot_count."
+        },
+        "mapping_summary": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/mapping_summary" }]
+        },
+        "syntax_coverage": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/syntax_coverage_summary" }]
+        },
+        "unsupported_slot_summary_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_note_text" },
+          "uniqueItems": true,
+          "description": "Portable summary notes that MUST remain even when per-slot detail is elided for a metadata-only carrier."
+        },
+        "unresolved_slot_summary_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/short_note_text" },
+          "uniqueItems": true,
+          "description": "Portable summary notes describing unresolved mappings and review posture."
+        },
+        "unsupported_slots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/slot_portability_note" },
+          "uniqueItems": true,
+          "description": "Portable unsupported-slot notes. Full-fidelity lanes (sync/profile export) MUST carry these; metadata-only lanes MAY elide them only with an explicit downgrade event."
+        },
+        "unresolved_slots": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/slot_portability_note" },
+          "uniqueItems": true,
+          "description": "Portable unresolved-slot notes. Full-fidelity lanes (sync/profile export) MUST carry these; metadata-only lanes MAY elide them only with an explicit downgrade event."
+        }
+      }
+    },
+
+    "import_parity_claim_state": {
+      "type": "string",
+      "enum": [
+        "not_applicable_not_imported",
+        "not_claimed",
+        "claimed_with_report",
+        "partial_claim_with_gaps",
+        "denied_unresolved_or_blocked"
+      ],
+      "description": "Parity-claim state for imported-translated packages. Mirrors schemas/design/theme_import_mapping_report.schema.json parity_claim_state vocabulary with an explicit not_applicable_not_imported sentinel for non-imported packages."
+    },
+
+    "theme_portability_flag": {
+      "type": "string",
+      "enum": [
+        "contains_unsupported_slots",
+        "contains_unresolved_slots",
+        "contains_blocked_honesty_rows",
+        "contains_fallback_substitutions",
+        "contains_deprecated_replacements",
+        "has_import_provenance",
+        "has_export_provenance",
+        "has_downgrade_events"
+      ],
+      "description": "Compact, projection-friendly flags. Flags are informative; the authoritative facts live in the referenced report records and summary fields."
+    },
+
+    "appearance_fact_class": {
+      "type": "string",
+      "enum": [
+        "source_tool_and_version",
+        "source_artifact_ref",
+        "import_mapping_report_ref",
+        "user_facing_import_report_ref",
+        "translation_counts",
+        "syntax_coverage_summary",
+        "unsupported_slot_notes_per_slot",
+        "unresolved_slot_notes_per_slot",
+        "parity_claim_state",
+        "signature_and_mirrorability",
+        "permitted_deployment_profiles",
+        "export_provenance"
+      ],
+      "description": "Closed fact-class vocabulary used by downgrade events and carry rules."
+    },
+
+    "portability_target_surface_class": {
+      "type": "string",
+      "enum": [
+        "portable_profile_export",
+        "managed_sync",
+        "support_bundle_metadata_export",
+        "migration_center_handoff",
+        "external_ecosystem_export"
+      ],
+      "description": "Closed portability-lane vocabulary for downgrade events."
+    },
+
+    "portability_downgrade_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "downgrade_event_id",
+        "target_surface_class",
+        "dropped_fact_classes",
+        "downgrade_note",
+        "emitted_at"
+      ],
+      "properties": {
+        "downgrade_event_id": { "$ref": "#/$defs/opaque_id" },
+        "target_surface_class": { "$ref": "#/$defs/portability_target_surface_class" },
+        "dropped_fact_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/appearance_fact_class" },
+          "uniqueItems": true
+        },
+        "downgrade_note": { "$ref": "#/$defs/short_note_text" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    },
+
+    "theme_package_portability_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "theme_portability_schema_version",
+        "portability_ref",
+        "theme_package_manifest_ref",
+        "theme_package_revision_ref",
+        "package_id",
+        "package_revision_ref",
+        "package_version_label",
+        "provenance_class",
+        "signature_state",
+        "mirrorability_class",
+        "permitted_deployment_profiles",
+        "import_provenance",
+        "import_mapping_report_ref",
+        "user_facing_import_report_ref",
+        "translation_summary",
+        "parity_claim_state",
+        "portability_flags",
+        "export_provenance_history",
+        "downgrade_events",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "theme_package_portability_record" },
+        "theme_portability_schema_version": { "$ref": "#/$defs/theme_portability_schema_version" },
+        "portability_ref": { "$ref": "#/$defs/opaque_id" },
+        "theme_package_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "theme_package_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "package_id": { "$ref": "#/$defs/opaque_id" },
+        "package_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "package_version_label": { "$ref": "#/$defs/short_label_text" },
+        "provenance_class": { "$ref": "#/$defs/theme_package_provenance_class" },
+        "signature_state": { "$ref": "#/$defs/theme_package_signature_state" },
+        "mirrorability_class": { "$ref": "#/$defs/theme_package_mirrorability_class" },
+        "permitted_deployment_profiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/deployment_profile_id" },
+          "uniqueItems": true
+        },
+        "import_provenance": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/source_tool_descriptor" }]
+        },
+        "import_mapping_report_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "user_facing_import_report_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "translation_summary": { "$ref": "#/$defs/translation_summary" },
+        "parity_claim_state": { "$ref": "#/$defs/import_parity_claim_state" },
+        "portability_flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/theme_portability_flag" },
+          "uniqueItems": true
+        },
+        "export_provenance_history": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/export_provenance_row" },
+          "uniqueItems": true
+        },
+        "downgrade_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/portability_downgrade_event" },
+          "uniqueItems": true
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Imported-translated provenance requires non-null import provenance and a non-null mapping report ref.",
+          "if": {
+            "properties": { "provenance_class": { "const": "imported_translated" } },
+            "required": ["provenance_class"]
+          },
+          "then": {
+            "properties": {
+              "import_provenance": { "$ref": "#/$defs/source_tool_descriptor" },
+              "import_mapping_report_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["import_provenance", "import_mapping_report_ref"]
+          }
+        },
+        {
+          "description": "Imported-translated packages must not use not_applicable_not_imported parity state.",
+          "if": {
+            "properties": { "provenance_class": { "const": "imported_translated" } },
+            "required": ["provenance_class"]
+          },
+          "then": {
+            "not": {
+              "properties": { "parity_claim_state": { "const": "not_applicable_not_imported" } },
+              "required": ["parity_claim_state"]
+            }
+          }
+        },
+        {
+          "description": "claimed_with_report parity requires zero unresolved and zero blocked counts when mapping_summary is present.",
+          "if": {
+            "properties": { "parity_claim_state": { "const": "claimed_with_report" } },
+            "required": ["parity_claim_state"]
+          },
+          "then": {
+            "properties": {
+              "translation_summary": {
+                "type": "object",
+                "properties": {
+                  "mapping_summary": {
+                    "type": "object",
+                    "properties": {
+                      "unresolved_mapping_count": { "const": 0 },
+                      "blocked_honesty_count": { "const": 0 }
+                    },
+                    "required": ["unresolved_mapping_count", "blocked_honesty_count"]
+                  }
+                },
+                "required": ["mapping_summary"]
+              }
+            }
+          }
+        },
+        {
+          "description": "denied_unresolved_or_blocked parity requires at least one unresolved or blocked count when mapping_summary is present.",
+          "if": {
+            "properties": { "parity_claim_state": { "const": "denied_unresolved_or_blocked" } },
+            "required": ["parity_claim_state"]
+          },
+          "then": {
+            "properties": {
+              "translation_summary": {
+                "type": "object",
+                "properties": {
+                  "mapping_summary": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": { "unresolved_mapping_count": { "minimum": 1 } },
+                        "required": ["unresolved_mapping_count"]
+                      },
+                      {
+                        "type": "object",
+                        "properties": { "blocked_honesty_count": { "minimum": 1 } },
+                        "required": ["blocked_honesty_count"]
+                      }
+                    ]
+                  }
+                },
+                "required": ["mapping_summary"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
