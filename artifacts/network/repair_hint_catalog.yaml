@@ -1,0 +1,129 @@
+# Repair-hint catalog for transport remediation.
+#
+# This artifact is the canonical, screenshot-safe copy source for:
+#   - effective_route_state_record.remediation_hints
+#   - transport_denial_record.required_remediation
+#   - transport_decision_record.repair_hints (high-level hints)
+#
+# It ties stable reason codes (enum-backed) to short sentences and an explicit
+# admin-vs-user repair boundary so transport failures do not collapse into
+# generic connectivity copy.
+#
+# Rules:
+#   - Sentences MUST be export-safe: no raw URLs, hostnames, IPs, credentials,
+#     PAC bodies, PEM/private key material, raw SSH keys, tokens, or request/
+#     response bodies.
+#   - Sentences MUST preserve route/origin truth (proxy vs direct vs mirror,
+#     trust vs policy vs offline) using the same vocabulary as the inspector.
+#   - Reason codes come from existing schema enums; do not mint new ad hoc codes.
+
+schema_version: 1
+status: seeded
+
+overview_page: docs/network/transport_remediation_contract.md
+
+source_schemas:
+  effective_route_state: schemas/network/effective_route_state.schema.json
+  transport_denial: schemas/network/transport_denial.schema.json
+  transport_decision: schemas/network/transport_decision.schema.json
+  network_remediation_card: schemas/network/network_remediation_card.schema.json
+
+vocabularies:
+  remediation_hint_kind_class:
+    - proxy_pac_mismatch
+    - certificate_trust_failure
+    - client_certificate_absence
+    - ssh_host_key_drift
+    - dns_or_mirror_issue
+    - admin_vs_user_repair_boundary
+  remediation_kind_class:
+    - proxy_pac_mismatch
+    - certificate_trust_failure
+    - client_certificate_absence
+    - ssh_host_key_drift
+    - dns_or_mirror_issue
+    - policy_refresh
+    - offline_deferral_review
+    - support_packet_export
+    - admin_handoff
+    - managed_service_handoff
+    - no_remediation_required
+  admin_or_user_repair_boundary_class:
+    - end_user_can_repair
+    - admin_must_repair
+    - support_assisted_repair
+    - managed_service_must_repair
+    - repair_unavailable_in_profile
+
+remediation_hints:
+  # effective_route_state_record.remediation_hints (hint_kind + hint_class)
+
+  - hint_id: hint.proxy_pac_mismatch.review_proxy_settings
+    remediation_hint_kind_class: proxy_pac_mismatch
+    hint_class: review_proxy_settings
+    repair_boundary_class: end_user_can_repair
+    hint_sentence: Review effective proxy mode and ensure the expected proxy source is active for this profile.
+
+  - hint_id: hint.proxy_pac_mismatch.review_pac_resolution
+    remediation_hint_kind_class: proxy_pac_mismatch
+    hint_class: review_pac_resolution
+    repair_boundary_class: admin_must_repair
+    hint_sentence: Ask the network admin to review PAC resolution and publish a corrected proxy configuration.
+
+  - hint_id: hint.proxy_pac_mismatch.refresh_pac_script
+    remediation_hint_kind_class: proxy_pac_mismatch
+    hint_class: refresh_pac_script
+    repair_boundary_class: admin_must_repair
+    hint_sentence: Refresh the PAC script source under policy; do not fall back to direct origin.
+
+  - hint_id: hint.certificate_trust_failure.add_ca_bundle
+    remediation_hint_kind_class: certificate_trust_failure
+    hint_class: add_ca_bundle
+    repair_boundary_class: admin_must_repair
+    hint_sentence: Install or publish the required organization CA bundle so TLS verification succeeds without disabling trust checks.
+
+  - hint_id: hint.client_certificate_absence.switch_to_supported_auth_path
+    remediation_hint_kind_class: client_certificate_absence
+    hint_class: switch_to_supported_auth_path
+    repair_boundary_class: admin_must_repair
+    hint_sentence: Switch the endpoint to a supported authentication path; do not retry with an unmanaged credential mode.
+
+  - hint_id: hint.ssh_host_key_drift.review_ssh_host_proof
+    remediation_hint_kind_class: ssh_host_key_drift
+    hint_class: review_ssh_host_proof
+    repair_boundary_class: admin_must_repair
+    hint_sentence: Review the pinned SSH host proof and publish an updated pin before retrying.
+
+  - hint_id: hint.dns_or_mirror_issue.request_dns_review
+    remediation_hint_kind_class: dns_or_mirror_issue
+    hint_class: request_dns_review
+    repair_boundary_class: admin_must_repair
+    hint_sentence: Request a DNS review for split-horizon or policy DNS mismatch; do not assume public resolution is valid.
+
+  # transport_denial_record.required_remediation (remediation_kind + action)
+
+required_remediation:
+  - remediation_id: remediation.expired_mirror_metadata.refresh_mirror
+    remediation_kind_class: dns_or_mirror_issue
+    remediation_action_class: refresh_mirror
+    repair_boundary_class: admin_must_repair
+    remediation_sentence: Refresh the approved mirror snapshot and retry without enabling direct public fallback.
+
+  - remediation_id: remediation.blocked_public_fallback.request_admin_handoff
+    remediation_kind_class: admin_handoff
+    remediation_action_class: request_admin_handoff
+    repair_boundary_class: admin_must_repair
+    remediation_sentence: Hand off to admin to review policy or profile settings that forbid public-origin fallback for this endpoint class.
+
+  - remediation_id: remediation.offline_only_mode.keep_local_work_available
+    remediation_kind_class: offline_deferral_review
+    remediation_action_class: inspect_only_no_action
+    repair_boundary_class: end_user_can_repair
+    remediation_sentence: Continue local-only work; retry the networked action only after connectivity or policy mode changes.
+
+  - remediation_id: remediation.certificate_trust_failure.export_support_packet
+    remediation_kind_class: support_packet_export
+    remediation_action_class: export_support_packet
+    repair_boundary_class: support_assisted_repair
+    remediation_sentence: Export a metadata-safe transport packet for offline review by support or the admin team.
+
