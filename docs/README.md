@@ -296,6 +296,14 @@ code.
   [`/schemas/platform/window_state.schema.json`](../schemas/platform/window_state.schema.json);
   worked fixtures in
   [`/fixtures/platform/window_display_cases/`](../fixtures/platform/window_display_cases/).
+- [`platform/system_open_target_truth.md`](./platform/system_open_target_truth.md)
+  — system-open and native-dialog target binding contract that preserves the
+  literal OS target while surfacing VFS canonical identity and alias truth
+  before risky writes.
+  Boundary schema in
+  [`/schemas/platform/system_open_target_packet.schema.json`](../schemas/platform/system_open_target_packet.schema.json);
+  worked fixtures in
+  [`/fixtures/platform/network_share_alias_cases/`](../fixtures/platform/network_share_alias_cases/).
 - [`qa/multi_window_verification.md`](./qa/multi_window_verification.md)
   — seeded verification matrix for multi-window, monitor-topology,
   mixed-DPI, suspend/resume, off-screen recovery, and restart/reopen

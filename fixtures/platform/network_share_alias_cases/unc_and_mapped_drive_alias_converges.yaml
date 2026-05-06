@@ -1,0 +1,75 @@
+$schema: ../../../schemas/platform/system_open_target_packet.schema.json
+__fixture__:
+  name: unc_and_mapped_drive_alias_converges
+  scenario: >
+    A user opens the same network-share file through a mapped drive and a UNC
+    path. The resolver binds both literal targets to one canonical filesystem
+    object, surfaces the alias relationship, and allows writes because the
+    root provides a stable identity token.
+  exercised_axes:
+    record_kind: system_open_target_packet_record
+    external_path: network_share_alias
+    identity_strength: strong
+    write_posture: writes_allowed
+  contract_sections:
+    - "4. Wrong-target prevention rules (system-open)"
+    - "6. Network-share and case-variant fixtures"
+
+record_kind: system_open_target_packet_record
+system_open_target_schema_version: 1
+packet_id: platform:system-open-target:unc-mapped-drive:converges:01
+source_surface_class: file_association
+requested_action_class: open_existing_context
+active_profile_ref: null
+availability_class: exact_available
+
+literal_target:
+  literal: "Z:\\src\\App.ts"
+  format_class: windows_drive_path
+  display_label: "Z:\\src\\App.ts"
+
+presentation_path:
+  uri: "file:///Z:/src/App.ts"
+  display_label: "Z:\\src\\App.ts"
+  root_badge: "network_share"
+
+logical_workspace_identity: null
+root_class: local_windows_like
+
+canonical_filesystem_object:
+  canonical_uri: "unc://SERVER/Share/src/App.ts"
+  normalization_form: none
+  strongest_identity_token:
+    kind: windows_object_id
+    value: "winobjid:SERVER:Share:00000001"
+  fallback_identity_tokens:
+    - kind: inode_mtime_size
+      value: "mtime=1715000000,size=1234"
+
+alias_set:
+  aliases:
+    - alias_uri: "unc://SERVER/Share/src/App.ts"
+      alias_kind: remote_alias
+      resolution_chain:
+        - "mapped_drive Z: -> \\\\SERVER\\Share"
+        - "normalize -> unc://SERVER/Share/src/App.ts"
+    - alias_uri: "file:///Z:/src/App.ts"
+      alias_kind: remote_alias
+      resolution_chain:
+        - "Z: -> \\\\SERVER\\Share"
+
+external_path_classes:
+  - network_share_mapped_drive
+  - network_share_unc
+
+save_target_anchor:
+  token_ref: "save_token:unc-mapped-drive:01"
+  write_posture: writes_allowed
+  overwrite_risk: none
+
+collision_summary:
+  collision_class: alias_set_present_strong_identity
+  detail: "UNC and mapped-drive resolve to one canonical object; buffer authority must converge."
+
+emitted_at: "2026-05-06T12:00:00Z"
+

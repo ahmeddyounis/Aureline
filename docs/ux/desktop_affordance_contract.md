@@ -28,6 +28,13 @@ The companion artifacts are:
   click-through, badge lineage, lock-screen privacy, removable-volume
   return, deep-link denial, native dialog routing, system share / copy
   affordances, and open-from-terminal continuity.
+- [`/schemas/platform/system_open_target_packet.schema.json`](../../schemas/platform/system_open_target_packet.schema.json)
+  - boundary schema for system-open and native-dialog target binding that
+  preserves the literal OS target while surfacing VFS canonical identity and
+  alias truth before risky writes.
+- [`/fixtures/platform/network_share_alias_cases/`](../../fixtures/platform/network_share_alias_cases/)
+  - worked fixtures covering network-share alias disclosure, case-variant
+  collisions, and disconnected-share placeholder recovery.
 
 This contract rides alongside and does not re-mint the vocabularies
 already frozen in:

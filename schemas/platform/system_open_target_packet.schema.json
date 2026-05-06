@@ -1,0 +1,486 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/system_open_target_packet.schema.json",
+  "title": "Aureline system-open target truth packet",
+  "description": "Boundary schema for system-open and native-dialog target binding frozen in docs/platform/system_open_target_truth.md. The packet preserves the literal OS-provided target string while binding it to VFS identity (presentation path, canonical filesystem object, alias set) before any risky trust/policy decision or durable write. It exists to prevent wrong-target saves caused by deep links, file associations, network share aliases (UNC vs mapped drive), symlinks/junctions, case variants, and Unicode-normalization variants. When a target cannot be resolved exactly, the resolver emits a truthful placeholder record with recovery actions rather than opening an empty shell. Raw file bodies, secrets, and credentials never cross this boundary; records carry identity metadata, availability, and typed recovery actions only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/system_open_target_packet_record" },
+    { "$ref": "#/$defs/system_open_target_placeholder_record" }
+  ],
+  "$defs": {
+    "system_open_target_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this system-open target packet export. Bumped only on breaking payload changes."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "system_open_target_packet_record",
+        "system_open_target_placeholder_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "source_surface_class": {
+      "type": "string",
+      "enum": [
+        "system_open",
+        "file_association",
+        "open_with",
+        "reveal_in_system_shell",
+        "native_open_dialog",
+        "native_save_dialog",
+        "drag_drop_open",
+        "open_from_terminal"
+      ],
+      "description": "OS-facing source surface that produced the literal target."
+    },
+
+    "requested_action_class": {
+      "type": "string",
+      "enum": [
+        "inspect_only",
+        "reveal_only",
+        "open_existing_context",
+        "create_or_add_context",
+        "choose_save_target",
+        "save_existing_target",
+        "unknown_requires_review"
+      ],
+      "description": "High-level requested action class for routing and disclosure."
+    },
+
+    "target_availability_class": {
+      "type": "string",
+      "enum": [
+        "exact_available",
+        "available_read_only",
+        "stale_available",
+        "moved_or_alias_changed",
+        "missing_or_unmounted",
+        "blocked_by_policy",
+        "auth_required",
+        "remote_unreachable",
+        "expired",
+        "ambiguous",
+        "unknown"
+      ],
+      "description": "Target availability at binding time. Any value other than exact_available requires degraded fallback or denial before writes."
+    },
+
+    "literal_target_format_class": {
+      "type": "string",
+      "enum": [
+        "windows_drive_path",
+        "windows_unc_path",
+        "posix_path",
+        "file_uri",
+        "unknown"
+      ],
+      "description": "Shape hint for the literal target string."
+    },
+
+    "literal_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["literal", "format_class"],
+      "properties": {
+        "literal": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Exact target string delivered by the OS or dialog. Preserved for explanation; not silently rewritten."
+        },
+        "format_class": { "$ref": "#/$defs/literal_target_format_class" },
+        "display_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Optional UI label derived from the literal target without canonical rewrite."
+        }
+      }
+    },
+
+    "presentation_path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "display_label", "root_badge"],
+      "properties": {
+        "uri": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "VFS presentation URI corresponding to the literal target."
+        },
+        "display_label": { "$ref": "#/$defs/non_empty_string" },
+        "root_badge": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted", "pending_evaluation"]
+    },
+
+    "logical_workspace_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_id", "root_id", "logical_uri", "trust_state"],
+      "properties": {
+        "workspace_id": { "$ref": "#/$defs/non_empty_string" },
+        "root_id": { "$ref": "#/$defs/non_empty_string" },
+        "logical_uri": { "$ref": "#/$defs/non_empty_string" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "policy_scope": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "root_class": {
+      "type": "string",
+      "enum": [
+        "local_posix_like",
+        "local_windows_like",
+        "remote_agent_mount",
+        "container_mount",
+        "cloud_backed_sync_root",
+        "virtual_generated_document",
+        "archive_like_view",
+        "unknown"
+      ],
+      "description": "Root class for the resolved canonical object. Used for local-vs-remote boundary disclosure."
+    },
+
+    "normalization_form": {
+      "type": "string",
+      "enum": ["none", "nfc", "nfd", "mixed_observed"]
+    },
+
+    "strongest_identity_token_kind": {
+      "type": "string",
+      "enum": [
+        "file_id_generation",
+        "device_inode_generation",
+        "windows_object_id",
+        "provider_object_id_revision",
+        "logical_document_id_source_refs",
+        "content_hash_only"
+      ]
+    },
+
+    "identity_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/strongest_identity_token_kind" },
+        "value": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "fallback_identity_token_kind": {
+      "type": "string",
+      "enum": [
+        "device_inode",
+        "inode_mtime_size",
+        "content_hash",
+        "remote_revision_token"
+      ]
+    },
+
+    "fallback_identity_token": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/fallback_identity_token_kind" },
+        "value": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "canonical_filesystem_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["canonical_uri", "normalization_form", "strongest_identity_token"],
+      "properties": {
+        "canonical_uri": { "$ref": "#/$defs/non_empty_string" },
+        "normalization_form": { "$ref": "#/$defs/normalization_form" },
+        "strongest_identity_token": { "$ref": "#/$defs/identity_token" },
+        "fallback_identity_tokens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/fallback_identity_token" }
+        }
+      }
+    },
+
+    "alias_kind": {
+      "type": "string",
+      "enum": [
+        "symlink",
+        "junction",
+        "hardlink_sibling",
+        "case_only_variant",
+        "unicode_normalization_variant",
+        "remote_alias",
+        "bind_mount_alias",
+        "container_mount_alias",
+        "archive_inner_alias"
+      ]
+    },
+
+    "alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alias_uri", "alias_kind"],
+      "properties": {
+        "alias_uri": { "$ref": "#/$defs/non_empty_string" },
+        "alias_kind": { "$ref": "#/$defs/alias_kind" },
+        "resolution_chain": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" }
+        }
+      }
+    },
+
+    "alias_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["aliases"],
+      "properties": {
+        "aliases": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/alias" }
+        }
+      }
+    },
+
+    "external_path_class": {
+      "type": "string",
+      "enum": [
+        "local_volume",
+        "removable_volume",
+        "network_share_unc",
+        "network_share_mapped_drive",
+        "network_share_posix_mount",
+        "cloud_sync_root",
+        "case_variant_observed",
+        "unicode_normalization_variant_observed",
+        "unknown"
+      ]
+    },
+
+    "external_path_classes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/external_path_class" },
+      "uniqueItems": true,
+      "description": "Set of external-path classifications that must be disclosed before risky writes or trust decisions."
+    },
+
+    "overwrite_risk_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "possible_overwrite",
+        "explicit_overwrite_intended",
+        "unknown_requires_review"
+      ]
+    },
+
+    "write_posture_class": {
+      "type": "string",
+      "enum": [
+        "writes_allowed",
+        "read_only",
+        "blocked_policy_or_read_only",
+        "blocked_ambiguous_or_wrong_target",
+        "blocked_requires_review",
+        "blocked_requires_retarget"
+      ]
+    },
+
+    "save_target_anchor": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["token_ref", "write_posture", "overwrite_risk"],
+          "properties": {
+            "token_ref": { "$ref": "#/$defs/non_empty_string" },
+            "write_posture": { "$ref": "#/$defs/write_posture_class" },
+            "overwrite_risk": { "$ref": "#/$defs/overwrite_risk_class" }
+          },
+          "description": "Optional anchor to a save-target token minted by the VFS/save pipeline. Null when the request is reveal-only or no token can be issued safely."
+        }
+      ]
+    },
+
+    "collision_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "alias_set_present_strong_identity",
+        "alias_set_present_weak_identity_blocks_write",
+        "case_variant_collision_blocks_write",
+        "network_share_alias_requires_review",
+        "ambiguous_target_blocks_write"
+      ]
+    },
+
+    "collision_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["collision_class"],
+      "properties": {
+        "collision_class": { "$ref": "#/$defs/collision_class" },
+        "detail": { "$ref": "#/$defs/nullable_string" }
+      },
+      "description": "Typed collision and alias disclosure summary used to fail safe before writes."
+    },
+
+    "recovery_action_class": {
+      "type": "string",
+      "enum": [
+        "locate_missing_target",
+        "open_read_only_cached_view",
+        "reconnect",
+        "reauth",
+        "cancel"
+      ]
+    },
+
+    "recovery_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/recovery_action_class" },
+        "label": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+
+    "system_open_target_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "system_open_target_schema_version",
+        "packet_id",
+        "source_surface_class",
+        "requested_action_class",
+        "availability_class",
+        "literal_target",
+        "presentation_path",
+        "root_class",
+        "canonical_filesystem_object",
+        "alias_set",
+        "external_path_classes",
+        "save_target_anchor",
+        "collision_summary",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "system_open_target_packet_record" },
+        "system_open_target_schema_version": { "$ref": "#/$defs/system_open_target_schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "active_profile_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional active-profile reference used for system-open routing and disclosure."
+        },
+        "availability_class": { "$ref": "#/$defs/target_availability_class" },
+        "literal_target": { "$ref": "#/$defs/literal_target" },
+        "presentation_path": { "$ref": "#/$defs/presentation_path" },
+        "logical_workspace_identity": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/logical_workspace_identity" }
+          ]
+        },
+        "root_class": { "$ref": "#/$defs/root_class" },
+        "canonical_filesystem_object": { "$ref": "#/$defs/canonical_filesystem_object" },
+        "alias_set": { "$ref": "#/$defs/alias_set" },
+        "external_path_classes": { "$ref": "#/$defs/external_path_classes" },
+        "save_target_anchor": { "$ref": "#/$defs/save_target_anchor" },
+        "collision_summary": { "$ref": "#/$defs/collision_summary" },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "description": "Resolved system-open target truth packet. Carries both the literal target and the canonical object identity the next write would touch."
+    },
+
+    "placeholder_reason_class": {
+      "type": "string",
+      "enum": [
+        "missing_or_unmounted",
+        "remote_unreachable",
+        "blocked_by_policy",
+        "moved_or_alias_changed",
+        "ambiguous_target",
+        "unknown"
+      ]
+    },
+
+    "system_open_target_placeholder_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "system_open_target_schema_version",
+        "packet_id",
+        "source_surface_class",
+        "requested_action_class",
+        "availability_class",
+        "placeholder_reason_class",
+        "literal_target",
+        "external_path_classes",
+        "recovery_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "system_open_target_placeholder_record" },
+        "system_open_target_schema_version": { "$ref": "#/$defs/system_open_target_schema_version" },
+        "packet_id": { "$ref": "#/$defs/non_empty_string" },
+        "source_surface_class": { "$ref": "#/$defs/source_surface_class" },
+        "requested_action_class": { "$ref": "#/$defs/requested_action_class" },
+        "active_profile_ref": { "$ref": "#/$defs/nullable_string" },
+        "availability_class": { "$ref": "#/$defs/target_availability_class" },
+        "placeholder_reason_class": { "$ref": "#/$defs/placeholder_reason_class" },
+        "literal_target": { "$ref": "#/$defs/literal_target" },
+        "presentation_path": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/presentation_path" }
+          ],
+          "description": "Optional presentation-path hint when the target could be parsed into a VFS URI even if it could not be resolved."
+        },
+        "external_path_classes": { "$ref": "#/$defs/external_path_classes" },
+        "cached_context_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional opaque reference to cached read-only context for 'open cached context' recovery."
+        },
+        "recovery_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action" }
+        },
+        "emitted_at": { "$ref": "#/$defs/timestamp" }
+      },
+      "description": "Unresolved system-open placeholder record. Used when the target is missing, disconnected, blocked, moved, or ambiguous; must drive a truthful placeholder rather than an empty window."
+    }
+  }
+}
+
