@@ -30,6 +30,14 @@ tooling, or live drift-detection backends.
 
 - [`/schemas/public_truth/public_drift_item.schema.json`](../../schemas/public_truth/public_drift_item.schema.json)
   — boundary schema for one `public_drift_item_record`.
+- [`/docs/docs/docs_help_about_service_health_parity.md`](../docs/docs_help_about_service_health_parity.md)
+  and
+  [`/schemas/docs/help_badge_projection.schema.json`](../../schemas/docs/help_badge_projection.schema.json)
+  — cross-surface parity packet and projection schema for docs/help/About/service-health badges and handoff reasons.
+- [`/artifacts/docs/help_parity_matrix.yaml`](../../artifacts/docs/help_parity_matrix.yaml)
+  and
+  [`/fixtures/docs/help_about_cases/`](../../fixtures/docs/help_about_cases)
+  — parity matrix and worked case corpus used by audits and release checks.
 - [`/fixtures/public_truth/public_truth_audit_cases/`](../../fixtures/public_truth/public_truth_audit_cases)
   — worked drift cases covering open, blocking, and closed postures
   across help/About/service-health/release-notes/known-limits/public-

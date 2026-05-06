@@ -286,6 +286,10 @@ handoff.
 - [`/schemas/docs/help_status_badge.schema.json`](../../schemas/docs/help_status_badge.schema.json)
   — shared docs/help/About/service-health source, version, freshness,
   and browser-handoff-reason vocabulary.
+- [`/docs/docs/docs_help_about_service_health_parity.md`](./docs_help_about_service_health_parity.md)
+  and
+  [`/schemas/docs/help_badge_projection.schema.json`](../../schemas/docs/help_badge_projection.schema.json)
+  — cross-surface parity packet and projection schema that keep badge fields and handoff reasons identical across surfaces.
 - [`/schemas/docs/docs_pack_manifest.schema.json`](../../schemas/docs/docs_pack_manifest.schema.json)
   — docs-pack source/version/locale/offline truth that docs-bearing
   destinations point into.
