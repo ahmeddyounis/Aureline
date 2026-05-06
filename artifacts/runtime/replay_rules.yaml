@@ -1,0 +1,109 @@
+# Ordering, idempotency, and replay rules for canonical event envelopes.
+#
+# Machine-readable companion to:
+# - docs/runtime/event_ordering_and_replay_contract.md
+# - schemas/runtime/event_envelope.schema.json
+#
+# This artifact publishes the closed vocabulary and the normative rules a
+# consumer uses to:
+# - sort within a stream (total order),
+# - preserve partial order and unknown ordering honestly,
+# - dedupe duplicate deliveries via idempotency keys, and
+# - replay captured envelopes without reintroducing side effects.
+
+schema_version: 1
+artifact_id: aureline.runtime.event_replay_rules
+title: Canonical event ordering, idempotency, and replay rules
+
+contract_source: docs/runtime/event_ordering_and_replay_contract.md
+
+companion_refs:
+  event_envelope_schema_ref: schemas/runtime/event_envelope.schema.json
+  fixture_cases_ref: fixtures/runtime/event_ordering_cases/
+
+vocabulary:
+  ordering_class:
+    - id: total_order_stream
+      meaning: >
+        Event is totally ordered within a declared stream and epoch.
+        ordering.stream_id_ref, ordering.stream_epoch_ref, and
+        ordering.monotonic_sequence are required.
+    - id: partial_order_causal_only
+      meaning: >
+        Ordering is only meaningful through causal links. Consumers must not
+        claim a strict wall-clock order across unrelated events.
+    - id: partial_order_import_window
+      meaning: >
+        Ordering is only meaningful within the declared import window. Events
+        outside the window are not comparable without a causal edge.
+    - id: ordering_unknown_requires_review
+      meaning: >
+        Ordering cannot be recovered; consumers must not invent a position.
+
+  replay_safety_class:
+    - id: replay_safe_evidence_only
+      meaning: >
+        Replaying the envelope is safe for display/state reconstruction only
+        and must not trigger any external mutation.
+    - id: replay_safe_idempotent
+      meaning: >
+        Replaying is admissible only when idempotency_key is present and the
+        consumer dedupes within the declared dedupe scope.
+    - id: replay_requires_fresh_authority
+      meaning: >
+        Replay is admissible only after re-validation under a fresh authority
+        source (for example a new authority ticket or renewed provider grant).
+    - id: replay_forbidden_external_effect
+      meaning: >
+        Never replay because the envelope corresponds to an external mutation
+        that must not be reissued.
+    - id: replay_unknown_requires_review
+      meaning: >
+        Refuse by default and require explicit review.
+
+rules:
+  sort_keys:
+    within_stream_total_order:
+      key_components:
+        - ordering.stream_id_ref
+        - ordering.stream_epoch_ref
+        - ordering.monotonic_sequence
+      tie_breakers:
+        - observed_time.monotonic_reference_nanoseconds
+        - event_id
+      notes: >
+        Arrival/ingest time is not a truth source for stream order; it is a
+        diagnostic hint only.
+    cross_stream_projection:
+      notes: >
+        Cross-stream ordering is a UI projection only. Consumers prefer causal
+        links first; then use observed_time only when clock sync state and
+        partial-order label permit comparison; otherwise render concurrency or
+        unknown ordering explicitly.
+
+  dedupe:
+    key_components:
+      - ingest.dedupe_scope_ref
+      - idempotency_key
+    duplicate_disposition: deduped_duplicate_delivery
+    notes: >
+      Two envelopes with the same dedupe key are the same logical effect or
+      observation. The second envelope must not apply the side effect twice;
+      it may only refresh receipt/freshness evidence.
+
+  out_of_order:
+    admissible: true
+    handling: >
+      Preserve every envelope instance. When a stream is total-ordered, reorder
+      by stream sort keys. When only partial order exists, preserve causal
+      edges and render unknown ordering rather than inventing a total order.
+
+  replay:
+    explicit_boundary_required: true
+    replayed_from_capture_authority_source_class: replayed_from_capture
+    live_merge_forbidden: true
+    notes: >
+      Replayed envelopes never merge into live producer state. Replay tools
+      declare a window/capture scope and consumers label replayed truth as
+      replayed rather than authoritative live.
+

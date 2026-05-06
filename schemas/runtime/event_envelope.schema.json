@@ -1,0 +1,665 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/event_envelope.schema.json",
+  "title": "Aureline canonical event envelope ordering/idempotency/replay contract",
+  "description": "Boundary schema for the canonical event envelope used by logs, automation, diagnostics, support exports, and recovery/replay lanes to agree on event time, ordering, causality, idempotency, and replay safety. See docs/runtime/event_ordering_and_replay_contract.md. The schema is intentionally explicit about clock source and partial-order labelling so skewed and imported histories do not silently masquerade as totally ordered truth. Raw payload bytes, raw secret material, raw URLs, raw absolute paths, raw command lines, and raw provider bodies never cross this boundary; the envelope carries typed vocabulary, opaque ids, hashes, and short reviewer-facing labels only. The eventual event-log crate's Rust types are the schema of record; this file is the cross-tool boundary every non-owning lane reads.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/event_envelope_record" },
+    { "$ref": "#/$defs/event_ordering_case_record" }
+  ],
+  "$defs": {
+    "event_envelope_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this event-envelope contract. Current value is 1. Bumped only on breaking payload changes; additive optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "event_envelope_record",
+        "event_ordering_case_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in support bundles, and safe in exports. Raw payload bytes, raw tokens, raw URLs, raw hostnames, and raw absolute paths never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short reviewable sentence safe for export surfaces. Raw bodies, raw paths, raw URLs, and raw secret material are forbidden."
+    },
+
+    "event_kind_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(?:\\.[a-z][a-z0-9_]*)*$",
+      "description": "Stable event-kind identifier. Either a single lower_snake token or a dotted lower_snake path."
+    },
+
+    "iso_duration": {
+      "type": "string",
+      "pattern": "^-?P(?:[0-9]+Y)?(?:[0-9]+M)?(?:[0-9]+W)?(?:[0-9]+D)?(?:T(?:[0-9]+H)?(?:[0-9]+M)?(?:[0-9]+(?:\\.[0-9]+)?S)?)?$",
+      "description": "ISO 8601 duration string."
+    },
+
+    "clock_source_class": {
+      "type": "string",
+      "enum": [
+        "local_monotonic_reference_clock",
+        "local_system_wall_clock",
+        "ntp_synchronized_wall_clock",
+        "trusted_platform_authenticated_clock",
+        "remote_agent_reported_clock",
+        "extension_reported_clock",
+        "imported_external_audit_trail_clock",
+        "reconstructed_from_backup_clock",
+        "synthetic_fixture_tick_source"
+      ],
+      "description": "Clock source vocabulary aligned to the timestamp-envelope contract."
+    },
+
+    "clock_sync_state_class": {
+      "type": "string",
+      "enum": [
+        "synchronized",
+        "synchronized_with_bounded_skew",
+        "unsynchronized",
+        "unsynchronized_partial_order_only",
+        "unsynchronized_import_only",
+        "synthesized_for_fixture"
+      ],
+      "description": "Clock synchronization posture aligned to the timestamp-envelope contract."
+    },
+
+    "skew_direction_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "ahead_of_canonical",
+        "behind_canonical",
+        "direction_unknown"
+      ],
+      "description": "Skew direction vocabulary aligned to the timestamp-envelope contract."
+    },
+
+    "partial_order_label_class": {
+      "type": "string",
+      "enum": [
+        "fully_ordered_monotonic",
+        "partially_ordered_same_runtime",
+        "partially_ordered_causal_only",
+        "partially_ordered_import_window",
+        "unordered_only_grouping"
+      ],
+      "description": "Partial-order label vocabulary aligned to the timestamp-envelope contract."
+    },
+
+    "import_origin_class": {
+      "type": "string",
+      "enum": [
+        "not_imported",
+        "remote_agent_export",
+        "extension_export",
+        "external_audit_trail",
+        "companion_surface_export",
+        "support_bundle_replay",
+        "recovery_snapshot_replay"
+      ],
+      "description": "Import origin vocabulary aligned to the timestamp-envelope contract."
+    },
+
+    "actor_class": {
+      "type": "string",
+      "enum": [
+        "human_account",
+        "installation_or_app_grant",
+        "delegated_user_token",
+        "project_scoped_grant",
+        "policy_injected_service_identity",
+        "unknown_actor_class"
+      ],
+      "description": "Actor classification aligned to the runtime authority-ticket and provider callback contracts."
+    },
+
+    "authority_class": {
+      "type": "string",
+      "enum": [
+        "workspace_vfs",
+        "buffer_editor",
+        "derived_knowledge",
+        "execution",
+        "policy_entitlement",
+        "provider_overlay"
+      ],
+      "description": "Authority-class vocabulary aligned to the runtime authority-class matrix."
+    },
+
+    "authority_source_class": {
+      "type": "string",
+      "enum": [
+        "live_authority",
+        "derived_projection",
+        "imported_history",
+        "replayed_from_capture",
+        "synthetic_fixture"
+      ],
+      "description": "Where this envelope's truth comes from. live_authority = emitted by the canonical owner in a live session. derived_projection = computed from other named inputs. imported_history = imported from an external or remote source. replayed_from_capture = replayed from a retained capture (support bundle, recovery snapshot). synthetic_fixture = harness-only example data."
+    },
+
+    "ordering_class": {
+      "type": "string",
+      "enum": [
+        "total_order_stream",
+        "partial_order_causal_only",
+        "partial_order_import_window",
+        "ordering_unknown_requires_review"
+      ],
+      "description": "Whether the event can be strictly ordered and in what scope. total_order_stream requires a stream id + epoch + monotonic sequence. partial_order_* forbids claiming strict cross-stream order. ordering_unknown_requires_review means consumers must not invent order."
+    },
+
+    "replay_safety_class": {
+      "type": "string",
+      "enum": [
+        "replay_safe_evidence_only",
+        "replay_safe_idempotent",
+        "replay_requires_fresh_authority",
+        "replay_forbidden_external_effect",
+        "replay_unknown_requires_review"
+      ],
+      "description": "Replay safety classification. evidence_only = safe to replay for display/state reconstruction only. idempotent = replayable when idempotency_key is present and the consumer dedupes. requires_fresh_authority = replay is permitted only after re-validation under a fresh authority ticket. forbidden_external_effect = never replay causes an external mutation. unknown_requires_review = refuse by default."
+    },
+
+    "ingest_disposition_class": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "deduped_duplicate_delivery",
+        "held_out_of_order_waiting_predecessor",
+        "accepted_import_only_no_mutation",
+        "accepted_replay_no_live_merge",
+        "dropped_invalid_or_untrusted"
+      ],
+      "description": "Ingest disposition of this envelope by the ingesting runtime. Used for diagnostics and support exports; does not mutate the original observation."
+    },
+
+    "observed_time_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "canonical_utc_wall_clock",
+        "monotonic_reference_nanoseconds",
+        "monotonic_epoch_ref",
+        "clock_source_class",
+        "clock_sync_state_class",
+        "skew",
+        "partial_order_label_class",
+        "import_origin_class",
+        "import_declared"
+      ],
+      "properties": {
+        "canonical_utc_wall_clock": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Canonical UTC wall-clock timestamp for the observation."
+        },
+        "monotonic_reference_nanoseconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Monotonic reference reading in nanoseconds from the observing runtime."
+        },
+        "monotonic_epoch_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Opaque id naming the monotonic-clock epoch the monotonic_reference_nanoseconds belongs to."
+        },
+        "clock_source_class": { "$ref": "#/$defs/clock_source_class" },
+        "clock_sync_state_class": { "$ref": "#/$defs/clock_sync_state_class" },
+        "skew": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "skew_direction_class",
+                "skew_magnitude_duration",
+                "skew_tolerance_duration",
+                "skew_last_verified_at",
+                "skew_note_label"
+              ],
+              "properties": {
+                "skew_direction_class": { "$ref": "#/$defs/skew_direction_class" },
+                "skew_magnitude_duration": { "$ref": "#/$defs/iso_duration" },
+                "skew_tolerance_duration": { "$ref": "#/$defs/iso_duration" },
+                "skew_last_verified_at": { "$ref": "#/$defs/monotonic_timestamp" },
+                "skew_note_label": {
+                  "oneOf": [
+                    { "type": "null" },
+                    { "$ref": "#/$defs/reviewable_sentence" }
+                  ]
+                }
+              }
+            }
+          ],
+          "description": "Measured skew disclosure when available. Required (non-null) when clock_sync_state_class = synchronized_with_bounded_skew."
+        },
+        "partial_order_label_class": { "$ref": "#/$defs/partial_order_label_class" },
+        "import_origin_class": { "$ref": "#/$defs/import_origin_class" },
+        "import_declared": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "import_window_start_utc",
+                "import_window_end_utc",
+                "import_source_ref"
+              ],
+              "properties": {
+                "import_window_start_utc": { "type": "string", "format": "date-time" },
+                "import_window_end_utc": { "type": "string", "format": "date-time" },
+                "import_source_ref": { "$ref": "#/$defs/opaque_id" }
+              }
+            }
+          ],
+          "description": "Import window declaration for imported/replayed observations. Must be non-null when import_origin_class is not_imported is false."
+        }
+      },
+      "allOf": [
+        {
+          "description": "clock_sync_state_class = synchronized_with_bounded_skew requires a non-null skew block.",
+          "if": {
+            "properties": { "clock_sync_state_class": { "const": "synchronized_with_bounded_skew" } },
+            "required": ["clock_sync_state_class"]
+          },
+          "then": {
+            "properties": { "skew": { "not": { "type": "null" } } },
+            "required": ["skew"]
+          }
+        },
+        {
+          "description": "synthetic_fixture_tick_source requires synthesized_for_fixture clock sync state.",
+          "if": {
+            "properties": { "clock_source_class": { "const": "synthetic_fixture_tick_source" } },
+            "required": ["clock_source_class"]
+          },
+          "then": {
+            "properties": { "clock_sync_state_class": { "const": "synthesized_for_fixture" } },
+            "required": ["clock_sync_state_class"]
+          }
+        },
+        {
+          "description": "import_origin_class != not_imported requires a non-null import_declared block.",
+          "if": {
+            "properties": { "import_origin_class": { "not": { "const": "not_imported" } } },
+            "required": ["import_origin_class"]
+          },
+          "then": {
+            "properties": { "import_declared": { "not": { "type": "null" } } },
+            "required": ["import_declared"]
+          }
+        },
+        {
+          "description": "import_origin_class = not_imported requires import_declared = null.",
+          "if": {
+            "properties": { "import_origin_class": { "const": "not_imported" } },
+            "required": ["import_origin_class"]
+          },
+          "then": {
+            "properties": { "import_declared": { "type": "null" } },
+            "required": ["import_declared"]
+          }
+        }
+      ]
+    },
+
+    "actor_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_subject_ref",
+        "actor_class",
+        "authority_ticket_ref"
+      ],
+      "properties": {
+        "actor_subject_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/actor_class" },
+        "authority_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "authority_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority_class",
+        "authority_source_class",
+        "authority_source_ref"
+      ],
+      "properties": {
+        "authority_class": { "$ref": "#/$defs/authority_class" },
+        "authority_source_class": { "$ref": "#/$defs/authority_source_class" },
+        "authority_source_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the authoritative origin manifest/packet/session for this event. Required (non-null) when authority_source_class is imported_history or replayed_from_capture."
+        }
+      },
+      "allOf": [
+        {
+          "description": "imported_history and replayed_from_capture require authority_source_ref.",
+          "if": {
+            "properties": {
+              "authority_source_class": {
+                "enum": ["imported_history", "replayed_from_capture"]
+              }
+            },
+            "required": ["authority_source_class"]
+          },
+          "then": {
+            "properties": { "authority_source_ref": { "not": { "type": "null" } } },
+            "required": ["authority_source_ref"]
+          }
+        }
+      ]
+    },
+
+    "ordering_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ordering_class",
+        "stream_id_ref",
+        "stream_epoch_ref",
+        "monotonic_sequence",
+        "ordering_unknown_reason"
+      ],
+      "properties": {
+        "ordering_class": { "$ref": "#/$defs/ordering_class" },
+        "stream_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "stream_epoch_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "monotonic_sequence": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "integer", "minimum": 0 }
+          ],
+          "description": "Monotonic non-negative sequence within a stream epoch. Required when ordering_class = total_order_stream. Null otherwise."
+        },
+        "ordering_unknown_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Required when ordering_class = ordering_unknown_requires_review; null otherwise."
+        }
+      },
+      "allOf": [
+        {
+          "description": "total_order_stream requires stream_id_ref, stream_epoch_ref, and monotonic_sequence.",
+          "if": {
+            "properties": { "ordering_class": { "const": "total_order_stream" } },
+            "required": ["ordering_class"]
+          },
+          "then": {
+            "properties": {
+              "stream_id_ref": { "not": { "type": "null" } },
+              "stream_epoch_ref": { "not": { "type": "null" } },
+              "monotonic_sequence": { "not": { "type": "null" } },
+              "ordering_unknown_reason": { "type": "null" }
+            },
+            "required": ["stream_id_ref", "stream_epoch_ref", "monotonic_sequence", "ordering_unknown_reason"]
+          }
+        },
+        {
+          "description": "ordering_unknown_requires_review requires ordering_unknown_reason and forbids a monotonic_sequence claim.",
+          "if": {
+            "properties": { "ordering_class": { "const": "ordering_unknown_requires_review" } },
+            "required": ["ordering_class"]
+          },
+          "then": {
+            "properties": {
+              "ordering_unknown_reason": { "not": { "type": "null" } },
+              "monotonic_sequence": { "type": "null" }
+            },
+            "required": ["ordering_unknown_reason", "monotonic_sequence"]
+          }
+        }
+      ]
+    },
+
+    "replay_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replay_safety_class",
+        "replay_scope_ref"
+      ],
+      "properties": {
+        "replay_safety_class": { "$ref": "#/$defs/replay_safety_class" },
+        "replay_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref to the replay window / capture manifest / support bundle / recovery snapshot that the replay is scoped to. Required (non-null) when replay_safety_class implies the envelope is replayed_from_capture."
+        }
+      }
+    },
+
+    "ingest_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ingested_at",
+        "ingest_disposition_class",
+        "dedupe_scope_ref"
+      ],
+      "properties": {
+        "ingested_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "ingest_disposition_class": { "$ref": "#/$defs/ingest_disposition_class" },
+        "dedupe_scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque ref naming the dedupe scope used for idempotency keys (for example a provider subscription id, a task-run session id, a deferred-intent queue id). Required (non-null) when idempotency_key is non-empty."
+        }
+      }
+    },
+
+    "links_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workspace_id_ref",
+        "execution_context_id_ref",
+        "trace_id_ref",
+        "deferred_intent_id_ref",
+        "provider_callback_envelope_id_ref",
+        "collaboration_session_id_ref",
+        "support_bundle_id_ref"
+      ],
+      "properties": {
+        "workspace_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "execution_context_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "trace_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "deferred_intent_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "provider_callback_envelope_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "collaboration_session_id_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "support_bundle_id_ref": { "$ref": "#/$defs/nullable_opaque_id" }
+      }
+    },
+
+    "event_envelope_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "event_envelope_schema_version",
+        "event_id",
+        "event_kind",
+        "causal_parent_event_id",
+        "actor",
+        "authority",
+        "observed_time",
+        "ordering",
+        "idempotency_key",
+        "replay",
+        "ingest",
+        "links"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "event_envelope_record" },
+        "event_envelope_schema_version": { "$ref": "#/$defs/event_envelope_schema_version" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "event_kind": { "$ref": "#/$defs/event_kind_id" },
+        "causal_parent_event_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional causal parent pointer. Null is admissible when the event is a causal root or when causality is unknown."
+        },
+        "actor": { "$ref": "#/$defs/actor_block" },
+        "authority": { "$ref": "#/$defs/authority_block" },
+        "observed_time": { "$ref": "#/$defs/observed_time_block" },
+        "ordering": { "$ref": "#/$defs/ordering_block" },
+        "idempotency_key": {
+          "type": "string",
+          "description": "Idempotency key used for dedupe and replay-consistency. Empty string means not applicable; events that are replay_safe_idempotent MUST provide a non-empty key."
+        },
+        "replay": { "$ref": "#/$defs/replay_block" },
+        "ingest": { "$ref": "#/$defs/ingest_block" },
+        "links": { "$ref": "#/$defs/links_block" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Optional short reviewer-facing summary. Never carries raw payload."
+        },
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema pointer used only by fixture files so editors can resolve the boundary schema; never part of the runtime record."
+        },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      },
+      "allOf": [
+        {
+          "description": "replay_safe_idempotent requires a non-empty idempotency_key.",
+          "if": {
+            "properties": {
+              "replay": {
+                "properties": { "replay_safety_class": { "const": "replay_safe_idempotent" } },
+                "required": ["replay_safety_class"]
+              }
+            },
+            "required": ["replay"]
+          },
+          "then": {
+            "properties": { "idempotency_key": { "minLength": 1 } },
+            "required": ["idempotency_key"]
+          }
+        },
+        {
+          "description": "Non-empty idempotency_key requires ingest.dedupe_scope_ref to be non-null.",
+          "if": {
+            "properties": { "idempotency_key": { "minLength": 1 } },
+            "required": ["idempotency_key"]
+          },
+          "then": {
+            "properties": {
+              "ingest": {
+                "properties": { "dedupe_scope_ref": { "not": { "type": "null" } } },
+                "required": ["dedupe_scope_ref"]
+              }
+            },
+            "required": ["ingest"]
+          }
+        }
+      ],
+      "description": "One canonical event envelope record."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional fixture prelude block carried on worked-case records."
+    },
+
+    "event_ordering_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "event_envelope_schema_version",
+        "case_id",
+        "captured_at",
+        "events"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "event_ordering_case_record" },
+        "event_envelope_schema_version": { "$ref": "#/$defs/event_envelope_schema_version" },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "summary": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ]
+        },
+        "events": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/event_envelope_record" }
+        },
+        "$schema": {
+          "type": "string",
+          "description": "Optional schema pointer used only by fixture files so editors can resolve the boundary schema; never part of the runtime record."
+        },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" }
+      },
+      "description": "Worked-case record containing multiple event envelopes. Used by fixtures to demonstrate ordering, dedupe, and replay behavior end-to-end."
+    }
+  }
+}
