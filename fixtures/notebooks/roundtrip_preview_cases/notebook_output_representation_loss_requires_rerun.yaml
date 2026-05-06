@@ -1,0 +1,89 @@
+# yaml-language-server: $schema=../../../schemas/notebooks/roundtrip_preview.schema.json
+__fixture__:
+  name: notebook_output_representation_loss_requires_rerun
+  scenario: >-
+    A notebook cell edit preview will normalize the stored output MIME
+    bundle (dropping a redundant alternate and canonicalizing a rich
+    representation). Cell input source remains intact, but the output
+    representation is lossy. The notebook remains fully trusted; kernel
+    trust is available, but output trust remains captured evidence until
+    the user explicitly re-executes.
+  seed_section: Output representation normalization; rerun required for freshness
+  exercised_classes:
+    subject_class: notebook_cell
+    structured_round_trip_risk_class: lossy_output_representation
+    preview_representation_class: normalised_preview
+    rebuild_intent_class: reexecute_required_for_fresh_output
+    apply_gate_class: warn_allow_apply
+  linked_docs:
+    - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+    - docs/notebooks/output_viewer_truth_contract.md
+    - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+
+roundtrip_preview_schema_version: 1
+record_kind: structured_round_trip_preview_sheet_record
+preview_id: rtpreview.nb.cell.output_norm.roc_plot.v1
+
+subject:
+  subject_class: notebook_cell
+  subject_ref: nb.subject.cell.roc_plot
+  display_label: Notebook cell preview (ROC plot cell; output representation normalized)
+  artifact_class: null
+  notebook_document_ref: nb.doc.model_eval.roc.01
+  cell_id_ref: nb.cell.roc_plot
+  output_id_ref: nb.output.roc_plot.image.01
+
+trust_posture:
+  notebook_trust_rung: fully_trusted_user
+  per_cell_trust_overrides: []
+  document_trust_state: document_trust_elevated_on_explicit_grant
+  kernel_trust_state: kernel_trust_inherited_from_document_trust
+  output_trust_state: output_trust_captured_from_prior_session
+  widget_trust_state: null
+  kernel_transport_class: local_managed_toolchain_kernel
+
+authored_source:
+  source_format_class: notebook_cell_source_text
+  source_artifact_ref: nb.source.cell.roc_plot.v2
+  source_fingerprint_ref: hash.nb.cell.roc_plot.source.v2
+  authored_summary_label: Authored cell source is canonical; stored output is captured evidence and remains non-live until re-execution.
+
+effective_preview:
+  preview_representation_class: normalised_preview
+  effective_representation_ref: nb.preview.cell.roc_plot.structured.v1
+  effective_summary_label: Preview shows normalized output representation and a disclosure chip; it does not claim live output refresh.
+
+round_trip:
+  structured_round_trip_risk_class: lossy_output_representation
+  irreversibility_flag: false
+  disclosure_flag_set:
+    - representation_normalised
+  affected_fields:
+    - /cells/nb.cell.roc_plot/outputs[0]/data
+  reversal_hint_ref: action.nb.cell.roc_plot.rerun_to_regenerate_outputs
+
+raw_preservation:
+  raw_bytes_posture: preserved_until_apply_resolves
+  preserved_raw_artifact_ref: nb.preserve.raw.ipynb.before_output_norm.v1
+  preservation_summary_label: A raw preserved copy of the notebook exists until the preview resolves, so representation loss is reversible by restore + rerun.
+
+rerun_requirement:
+  intent_class: reexecute_required_for_fresh_output
+  action_ref: action.nb.cell.roc_plot.rerun_to_regenerate_outputs
+  summary_label: Outputs become authoritative again only after explicit re-execution; captured outputs remain evidence-only.
+
+apply_gate_class: warn_allow_apply
+
+safe_next_actions:
+  - action_class: open_compare_diff
+    action_label: Compare output representation changes before apply
+    destination_ref: nb.diff.cell.roc_plot.outputs.v1
+  - action_class: rerun_or_regenerate
+    action_label: Rerun the cell after apply to regenerate outputs
+    destination_ref: action.nb.cell.roc_plot.rerun_to_regenerate_outputs
+  - action_class: preserve_raw_copy
+    action_label: Keep preserved raw notebook copy available
+    destination_ref: nb.preserve.raw.ipynb.before_output_norm.v1
+
+captured_at: "2026-05-06T21:35:30Z"
+

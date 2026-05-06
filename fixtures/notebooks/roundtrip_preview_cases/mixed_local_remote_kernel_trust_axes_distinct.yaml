@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=../../../schemas/notebooks/roundtrip_preview.schema.json
+__fixture__:
+  name: mixed_local_remote_kernel_trust_axes_distinct
+  scenario: >-
+    A notebook was previously executed on a remote-agent kernel, and its
+    outputs are captured evidence. The notebook is fully trusted, but
+    the remote kernel is currently unavailable. The preview is lossless
+    for source edits, while execution trust (kernel availability) and
+    output trust (captured) remain visibly distinct.
+  seed_section: Mixed local/remote; kernel unavailable; output captured; lossless source edit
+  exercised_classes:
+    subject_class: notebook_document
+    notebook_trust_rung: fully_trusted_user
+    kernel_trust_state: kernel_trust_unavailable_no_kernel
+    output_trust_state: output_trust_captured_from_prior_session
+    kernel_transport_class: remote_agent_primary_kernel
+    structured_round_trip_risk_class: lossless_roundtrip
+  linked_docs:
+    - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+    - docs/notebooks/output_viewer_truth_contract.md
+    - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+
+roundtrip_preview_schema_version: 1
+record_kind: structured_round_trip_preview_sheet_record
+preview_id: rtpreview.nb.doc.remote_kernel_unavailable.lossless_source_edit.v1
+
+subject:
+  subject_class: notebook_document
+  subject_ref: nb.subject.doc.remote_agent_captured_outputs
+  display_label: Notebook preview (remote kernel unavailable; captured outputs; source edit is lossless)
+  artifact_class: null
+  notebook_document_ref: nb.doc.remote_agent.eval.01
+  cell_id_ref: null
+  output_id_ref: null
+
+trust_posture:
+  notebook_trust_rung: fully_trusted_user
+  per_cell_trust_overrides: []
+  document_trust_state: document_trust_elevated_on_explicit_grant
+  kernel_trust_state: kernel_trust_unavailable_no_kernel
+  output_trust_state: output_trust_captured_from_prior_session
+  widget_trust_state: widget_trust_unavailable_no_kernel
+  kernel_transport_class: remote_agent_primary_kernel
+
+authored_source:
+  source_format_class: notebook_ipynb_json
+  source_artifact_ref: nb.source.ipynb.remote_agent.eval.01
+  source_fingerprint_ref: hash.nb.doc.remote_agent.eval.01.ipynb.v3
+  authored_summary_label: Canonical `.ipynb` remains editable and reviewable even when the producing kernel is unavailable.
+
+effective_preview:
+  preview_representation_class: full_fidelity_preview
+  effective_representation_ref: nb.preview.ipynb.remote_agent.eval.01.structured.v1
+  effective_summary_label: Preview shows exact source changes while keeping captured outputs labeled as evidence-only.
+
+round_trip:
+  structured_round_trip_risk_class: lossless_roundtrip
+  irreversibility_flag: false
+  disclosure_flag_set: []
+  reversal_hint_ref: rtpreview.reversal.exact_undo_supported
+
+raw_preservation:
+  raw_bytes_posture: not_needed_lossless_roundtrip
+  preserved_raw_artifact_ref: null
+  preservation_summary_label: Lossless source edit; no extra raw-preserve requirement for apply.
+
+rerun_requirement:
+  intent_class: reexecute_required_for_fresh_output
+  action_ref: action.nb.remote_agent.reconnect_or_resolve_kernel
+  summary_label: Outputs become live/fresh only after re-execution; kernel is currently unavailable so rerun requires reconnect or kernel resolution.
+
+apply_gate_class: allow_apply
+
+safe_next_actions:
+  - action_class: reconnect_or_resolve_kernel
+    action_label: Reconnect remote-agent kernel or resolve an alternative kernel before rerun
+    destination_ref: action.nb.remote_agent.reconnect_or_resolve_kernel
+  - action_class: open_compare_diff
+    action_label: Compare notebook source changes before apply
+    destination_ref: nb.diff.ipynb.remote_agent.eval.01.v1
+  - action_class: keep_read_only
+    action_label: Keep outputs as captured evidence (no auto-rerun)
+    destination_ref: null
+
+captured_at: "2026-05-06T21:39:10Z"
+

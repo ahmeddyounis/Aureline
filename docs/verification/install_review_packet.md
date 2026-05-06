@@ -690,10 +690,13 @@ record; it quotes one minted by the install-review sheet.
   `install_review_record` family, the compatibility-label audit row
   shape, or the activation-budget example row shape. Reserved
   shapes are documented here for later schema landing.
-- **Explicit gaps:** the `notebook_trust_rung` and
-  `structured_round_trip_risk_packet_ref` slots are reserved but
-  the notebook and structured-round-trip lanes have not yet minted
-  canonical emitters for install-review contexts.
+- **Explicit gaps:** install-review packets reserve the
+  `notebook_trust_rung` and `structured_round_trip_risk_packet_ref`
+  slots and quote them when present; the canonical notebook trust ladder
+  and structured round-trip preview-sheet record are specified by
+  `docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md` and
+  `schemas/notebooks/roundtrip_preview.schema.json`, but install-review
+  runtime emitters are not yet wired to always populate those slots.
 
 ## Reviewer signoff
 

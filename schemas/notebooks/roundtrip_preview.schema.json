@@ -1,0 +1,599 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/notebooks/roundtrip_preview.schema.json",
+  "title": "Aureline structured round-trip preview sheet (notebooks + rich structured artifacts)",
+  "description": "Boundary schema for structured_round_trip_preview_sheet_record, the preview-first truth record frozen in docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md. The record exists so notebook and structured-asset surfaces can disclose trust boundaries (document/kernel/output/widget), round-trip risk, irreversibility, raw-preservation posture, rerun/regenerate requirements, and safe next actions before any structured rewrite applies. The record is safe to quote in docs/help, support exports, and future structured editors: it carries opaque refs, hashes, typed vocabulary, and short reviewer-facing labels only. Raw notebook JSON bodies, raw cell source bytes, raw output bytes, raw widget state, raw kernel-protocol frames, raw absolute paths, raw URLs, raw hostnames, raw cookies, and raw credential material MUST NOT appear. Adding a new enumerated member or additive field is additive-minor and bumps roundtrip_preview_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/structured_round_trip_preview_sheet_record",
+  "$defs": {
+    "roundtrip_preview_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the structured round-trip preview sheet record."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "exercised_classes": { "type": "object", "additionalProperties": true },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque ref safe to log, safe on RPC, and safe in support exports. Raw paths, URLs, bodies, and secrets are forbidden."
+    },
+
+    "nullable_opaque_ref": {
+      "oneOf": [
+        { "$ref": "#/$defs/opaque_ref" },
+        { "type": "null" }
+      ]
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "structured_round_trip_preview_sheet_record"
+    },
+
+    "subject_class": {
+      "type": "string",
+      "enum": [
+        "notebook_document",
+        "notebook_cell",
+        "notebook_output",
+        "structured_manifest",
+        "structured_env_file",
+        "structured_lockfile",
+        "structured_artifact_other"
+      ],
+      "description": "Coarse subject family for the preview sheet."
+    },
+
+    "source_format_class": {
+      "type": "string",
+      "enum": [
+        "notebook_ipynb_json",
+        "notebook_cell_source_text",
+        "json_manifest",
+        "yaml_manifest",
+        "dotenv_env_file",
+        "structured_lockfile_text",
+        "structured_text_other"
+      ],
+      "description": "Authored-source format class. Raw bytes never cross; only refs and summaries do."
+    },
+
+    "artifact_class": {
+      "type": "string",
+      "enum": [
+        "build_output",
+        "codegen_source_sibling",
+        "structured_lockfile",
+        "notebook_output",
+        "preview_render_snapshot",
+        "mirrored_pack_artifact"
+      ],
+      "description": "Re-export of generated artifact artifact_class vocabulary (docs/architecture/generated_artifact_safe_edit_policy.md)."
+    },
+
+    "nullable_artifact_class": {
+      "oneOf": [
+        { "$ref": "#/$defs/artifact_class" },
+        { "type": "null" }
+      ]
+    },
+
+    "notebook_trust_rung": {
+      "type": "string",
+      "enum": [
+        "untrusted_tainted",
+        "untrusted_quarantined_for_review",
+        "structural_only_trusted",
+        "selective_cell_trust",
+        "fully_trusted_user",
+        "fully_trusted_workspace_policy",
+        "trust_revoked_pending_review"
+      ],
+      "description": "Notebook trust ladder rung vocabulary (docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md)."
+    },
+
+    "nullable_notebook_trust_rung": {
+      "oneOf": [
+        { "$ref": "#/$defs/notebook_trust_rung" },
+        { "type": "null" }
+      ]
+    },
+
+    "notebook_trust_override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cell_id_ref", "rung", "reason_label"],
+      "properties": {
+        "cell_id_ref": { "$ref": "#/$defs/opaque_ref" },
+        "rung": { "$ref": "#/$defs/notebook_trust_rung" },
+        "reason_label": { "$ref": "#/$defs/reviewable_label" },
+        "evidence_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "notebook_document_trust_state": {
+      "type": "string",
+      "enum": [
+        "document_trust_inherited_from_workspace",
+        "document_trust_elevated_on_explicit_grant",
+        "document_trust_restricted_by_policy",
+        "document_trust_revoked"
+      ],
+      "description": "Re-export of ADR-0022 notebook_document_trust_state."
+    },
+
+    "notebook_kernel_trust_state": {
+      "type": "string",
+      "enum": [
+        "kernel_trust_inherited_from_document_trust",
+        "kernel_trust_elevated_for_signed_repo_recipe",
+        "kernel_trust_restricted_by_policy",
+        "kernel_trust_unavailable_no_kernel"
+      ],
+      "description": "Re-export of ADR-0022 notebook_kernel_trust_state."
+    },
+
+    "notebook_output_trust_state": {
+      "type": "string",
+      "enum": [
+        "output_trust_live_from_current_session",
+        "output_trust_captured_from_prior_session",
+        "output_trust_replayed_from_captured_output",
+        "output_trust_orphaned_no_kernel_binding",
+        "output_trust_widget_gated"
+      ],
+      "description": "Re-export of ADR-0022 notebook_output_trust_state."
+    },
+
+    "nullable_notebook_output_trust_state": {
+      "oneOf": [
+        { "$ref": "#/$defs/notebook_output_trust_state" },
+        { "type": "null" }
+      ]
+    },
+
+    "notebook_widget_trust_state": {
+      "type": "string",
+      "enum": [
+        "widget_trust_denied_by_default",
+        "widget_trust_admitted_with_preview",
+        "widget_trust_suppressed_by_trust",
+        "widget_trust_suppressed_by_policy",
+        "widget_trust_suppressed_by_content_class",
+        "widget_trust_unavailable_no_kernel"
+      ],
+      "description": "Re-export of ADR-0022 notebook_widget_trust_state."
+    },
+
+    "nullable_notebook_widget_trust_state": {
+      "oneOf": [
+        { "$ref": "#/$defs/notebook_widget_trust_state" },
+        { "type": "null" }
+      ]
+    },
+
+    "notebook_kernel_transport_class": {
+      "type": "string",
+      "enum": [
+        "local_managed_toolchain_kernel",
+        "local_provisioned_kernel",
+        "remote_agent_primary_kernel",
+        "managed_workspace_agent_kernel",
+        "provider_side_remote_kernel",
+        "compatibility_bridge_remote_kernel"
+      ],
+      "description": "Re-export of ADR-0022 notebook_kernel_transport_class."
+    },
+
+    "nullable_notebook_kernel_transport_class": {
+      "oneOf": [
+        { "$ref": "#/$defs/notebook_kernel_transport_class" },
+        { "type": "null" }
+      ]
+    },
+
+    "structured_round_trip_risk_class": {
+      "type": "string",
+      "enum": [
+        "lossless_roundtrip",
+        "lossy_metadata_only",
+        "lossy_output_representation",
+        "lossy_structural",
+        "lossy_irreversible",
+        "round_trip_unavailable",
+        "round_trip_policy_blocked"
+      ],
+      "description": "Structured round-trip risk class vocabulary frozen in docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md."
+    },
+
+    "preview_representation_class": {
+      "type": "string",
+      "enum": [
+        "full_fidelity_preview",
+        "normalised_preview",
+        "summary_only_preview",
+        "tombstone_preview"
+      ],
+      "description": "Names what the preview surface actually rendered."
+    },
+
+    "structured_round_trip_disclosure_flag": {
+      "type": "string",
+      "enum": [
+        "representation_normalised",
+        "attachment_dropped",
+        "signature_resigned",
+        "external_side_effect",
+        "remote_mutation",
+        "redaction_applied",
+        "policy_narrowed"
+      ]
+    },
+
+    "affected_field_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Typed field path for round-trip impact disclosure (JSON Pointer, schema path, or structured editor path)."
+    },
+
+    "raw_bytes_posture": {
+      "type": "string",
+      "enum": [
+        "not_needed_lossless_roundtrip",
+        "preserved_in_open_buffer",
+        "preserved_in_recovery_journal",
+        "preserved_until_apply_resolves",
+        "unavailable_source_missing",
+        "policy_redacted_metadata_only"
+      ],
+      "description": "Raw preservation posture. Mirrors decode-recovery raw-byte posture semantics without carrying raw bytes."
+    },
+
+    "rebuild_intent_class": {
+      "type": "string",
+      "enum": [
+        "none_required",
+        "regenerate_recommended",
+        "regenerate_required_before_authoritative_claims",
+        "rebuild_required_before_authoritative_claims",
+        "reexecute_required_for_fresh_output",
+        "mirror_refresh_required",
+        "manual_recovery_required"
+      ],
+      "description": "Re-export of generated-artifact rebuild_intent_class (what makes the result authoritative again?)."
+    },
+
+    "rebuild_intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent_class", "summary_label"],
+      "properties": {
+        "intent_class": { "$ref": "#/$defs/rebuild_intent_class" },
+        "action_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "apply_gate_class": {
+      "type": "string",
+      "enum": [
+        "allow_apply",
+        "warn_allow_apply",
+        "require_compare_first_review",
+        "require_typed_confirmation",
+        "refuse_rewrite"
+      ],
+      "description": "Minimum apply gate required by the preview sheet. Surfaces may strengthen gates; weakening is non-conforming."
+    },
+
+    "safe_next_action_class": {
+      "type": "string",
+      "enum": [
+        "open_authored_source",
+        "open_effective_preview",
+        "open_compare_diff",
+        "preserve_raw_copy",
+        "rerun_or_regenerate",
+        "reconnect_or_resolve_kernel",
+        "admit_widget_with_preview",
+        "keep_read_only",
+        "contact_admin_for_policy_review",
+        "no_safe_action_available"
+      ],
+      "description": "Safe next action vocabulary for round-trip preview sheets."
+    },
+
+    "safe_next_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action_class", "action_label"],
+      "properties": {
+        "action_class": { "$ref": "#/$defs/safe_next_action_class" },
+        "action_label": { "$ref": "#/$defs/reviewable_label" },
+        "destination_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject_class", "subject_ref", "display_label"],
+      "properties": {
+        "subject_class": { "$ref": "#/$defs/subject_class" },
+        "subject_ref": { "$ref": "#/$defs/opaque_ref" },
+        "display_label": { "$ref": "#/$defs/reviewable_label" },
+        "artifact_class": { "$ref": "#/$defs/nullable_artifact_class" },
+        "notebook_document_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "cell_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "output_id_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "trust_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "notebook_trust_rung",
+        "document_trust_state",
+        "kernel_trust_state",
+        "output_trust_state",
+        "widget_trust_state",
+        "kernel_transport_class"
+      ],
+      "properties": {
+        "notebook_trust_rung": { "$ref": "#/$defs/nullable_notebook_trust_rung" },
+        "per_cell_trust_overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/notebook_trust_override" },
+          "uniqueItems": true
+        },
+        "document_trust_state": { "$ref": "#/$defs/notebook_document_trust_state" },
+        "kernel_trust_state": { "$ref": "#/$defs/notebook_kernel_trust_state" },
+        "output_trust_state": { "$ref": "#/$defs/nullable_notebook_output_trust_state" },
+        "widget_trust_state": { "$ref": "#/$defs/nullable_notebook_widget_trust_state" },
+        "kernel_transport_class": { "$ref": "#/$defs/nullable_notebook_kernel_transport_class" }
+      }
+    },
+
+    "authored_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_format_class",
+        "source_artifact_ref",
+        "source_fingerprint_ref",
+        "authored_summary_label"
+      ],
+      "properties": {
+        "source_format_class": { "$ref": "#/$defs/source_format_class" },
+        "source_artifact_ref": { "$ref": "#/$defs/opaque_ref" },
+        "source_fingerprint_ref": { "$ref": "#/$defs/opaque_ref" },
+        "authored_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "effective_preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "preview_representation_class",
+        "effective_representation_ref",
+        "effective_summary_label"
+      ],
+      "properties": {
+        "preview_representation_class": { "$ref": "#/$defs/preview_representation_class" },
+        "effective_representation_ref": { "$ref": "#/$defs/opaque_ref" },
+        "effective_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "round_trip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "structured_round_trip_risk_class",
+        "irreversibility_flag",
+        "disclosure_flag_set",
+        "reversal_hint_ref"
+      ],
+      "properties": {
+        "structured_round_trip_risk_class": { "$ref": "#/$defs/structured_round_trip_risk_class" },
+        "irreversibility_flag": { "type": "boolean" },
+        "disclosure_flag_set": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/structured_round_trip_disclosure_flag" },
+          "uniqueItems": true
+        },
+        "affected_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/affected_field_path" },
+          "uniqueItems": false
+        },
+        "reversal_hint_ref": { "$ref": "#/$defs/nullable_opaque_ref" }
+      }
+    },
+
+    "raw_preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_bytes_posture", "preserved_raw_artifact_ref", "preservation_summary_label"],
+      "properties": {
+        "raw_bytes_posture": { "$ref": "#/$defs/raw_bytes_posture" },
+        "preserved_raw_artifact_ref": { "$ref": "#/$defs/nullable_opaque_ref" },
+        "preservation_summary_label": { "$ref": "#/$defs/reviewable_label" }
+      }
+    },
+
+    "structured_round_trip_preview_sheet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roundtrip_preview_schema_version",
+        "record_kind",
+        "preview_id",
+        "subject",
+        "trust_posture",
+        "authored_source",
+        "effective_preview",
+        "round_trip",
+        "raw_preservation",
+        "rerun_requirement",
+        "apply_gate_class",
+        "safe_next_actions",
+        "captured_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "roundtrip_preview_schema_version": { "$ref": "#/$defs/roundtrip_preview_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "preview_id": { "$ref": "#/$defs/opaque_ref" },
+        "subject": { "$ref": "#/$defs/subject" },
+        "trust_posture": { "$ref": "#/$defs/trust_posture" },
+        "authored_source": { "$ref": "#/$defs/authored_source" },
+        "effective_preview": { "$ref": "#/$defs/effective_preview" },
+        "round_trip": { "$ref": "#/$defs/round_trip" },
+        "raw_preservation": { "$ref": "#/$defs/raw_preservation" },
+        "rerun_requirement": { "$ref": "#/$defs/rebuild_intent" },
+        "apply_gate_class": { "$ref": "#/$defs/apply_gate_class" },
+        "safe_next_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/safe_next_action" }
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_ref" },
+          "uniqueItems": true
+        },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "If reversal_hint_ref is null, irreversibility_flag must be true.",
+          "if": {
+            "properties": {
+              "round_trip": {
+                "properties": { "reversal_hint_ref": { "type": "null" } },
+                "required": ["reversal_hint_ref"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "round_trip": {
+                "properties": { "irreversibility_flag": { "const": true } },
+                "required": ["irreversibility_flag"]
+              }
+            }
+          }
+        },
+        {
+          "description": "Risk classes that imply affected fields must provide them.",
+          "if": {
+            "properties": {
+              "round_trip": {
+                "properties": {
+                  "structured_round_trip_risk_class": {
+                    "enum": [
+                      "lossy_metadata_only",
+                      "lossy_output_representation",
+                      "lossy_structural"
+                    ]
+                  }
+                },
+                "required": ["structured_round_trip_risk_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "round_trip": {
+                "required": ["affected_fields"],
+                "properties": {
+                  "affected_fields": { "minItems": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "Apply gate refuse_rewrite is mandatory when the round-trip is unavailable or policy blocked.",
+          "if": {
+            "properties": {
+              "round_trip": {
+                "properties": {
+                  "structured_round_trip_risk_class": {
+                    "enum": ["round_trip_unavailable", "round_trip_policy_blocked"]
+                  }
+                },
+                "required": ["structured_round_trip_risk_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "apply_gate_class": { "const": "refuse_rewrite" }
+            }
+          }
+        },
+        {
+          "description": "Notebook subjects must carry a non-null notebook_trust_rung.",
+          "if": {
+            "properties": {
+              "subject": {
+                "properties": {
+                  "subject_class": {
+                    "enum": ["notebook_document", "notebook_cell", "notebook_output"]
+                  }
+                },
+                "required": ["subject_class"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "trust_posture": {
+                "properties": {
+                  "notebook_trust_rung": { "$ref": "#/$defs/notebook_trust_rung" }
+                },
+                "required": ["notebook_trust_rung"]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

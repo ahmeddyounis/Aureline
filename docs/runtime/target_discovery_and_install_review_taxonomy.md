@@ -224,7 +224,7 @@ can cite it inline.
    `activation_budget_summary_record` (see §Example packet
    schemas below).
 
-## Vocabulary 4: notebook-trust ladder (reserved slots)
+## Vocabulary 4: notebook-trust ladder
 
 A notebook-trust packet names **how far up the trust ladder a
 notebook currently sits** and **which ladder rungs its cells,
@@ -233,10 +233,13 @@ mixed-trust notebooks (imported public notebook, ingested gist,
 AI-generated cells, partially reviewed cells) stay reviewable
 without collapsing into a single "trusted / untrusted" bit.
 
-**Canonical owner:** `notebook_trust_gate` (reserved). Until the
-notebook lane lands, extension authors, AI authors, and import
-authors MUST NOT mint parallel trust bits; they reserve packet
-fields under the rung vocabulary below.
+**Canonical owner:** `notebook_trust_gate`. Downstream surfaces
+(install-review, import review, AI apply, support export) quote the
+rung and do not re-derive trust from prose. The canonical contract
+and preview-sheet record live at:
+
+- `docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md`
+- `schemas/notebooks/roundtrip_preview.schema.json`
 
 ### `notebook_trust_rung` (frozen)
 
@@ -250,7 +253,7 @@ fields under the rung vocabulary below.
 | `fully_trusted_workspace_policy`     | Admin policy pins the notebook to trusted (for curated workspace notebooks). Trust survives re-open; still narrowed by capability-lifecycle / dependency-marker rules.                                |
 | `trust_revoked_pending_review`       | Notebook was trusted but a revocation event (policy change, signature mismatch, provenance drift) demoted it. Outputs render with a revocation notice; user action required to revisit the rung.      |
 
-**Reserved packet fields (slots):**
+**Packet fields (slots):**
 
 - `notebook_trust_rung` — one of the tokens above.
 - `per_cell_trust_overrides` — list of `{cell_id, rung, reason}`;
@@ -288,7 +291,7 @@ fields under the rung vocabulary below.
    `trust_revoked_pending_review` rather than silently inherit
    the prior rung.
 
-## Vocabulary 5: structured round-trip risk (reserved slots)
+## Vocabulary 5: structured round-trip risk
 
 Rich-document surfaces (notebooks, structured outputs, diagramic
 cells, design exports, rich clipboard flows) preview changes
@@ -300,6 +303,10 @@ repaint a lossy action as lossless.
 **Canonical owner:** the renderer that owns the structured form
 (notebook renderer, diagram renderer, design-export renderer).
 Downstream surfaces quote the packet; they do not re-derive risk.
+The canonical preview-sheet record and schema live at:
+
+- `docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md`
+- `schemas/notebooks/roundtrip_preview.schema.json`
 
 ### `structured_round_trip_risk_class` (frozen)
 
@@ -313,7 +320,7 @@ Downstream surfaces quote the packet; they do not re-derive risk.
 | `round_trip_unavailable`          | Surface cannot determine round-trip risk (renderer unreachable, schema-version mismatch, unsupported attachment class). Must deny the lossy path rather than guess.                                                                           |
 | `round_trip_policy_blocked`       | Admin policy blocks the round-trip (egress-narrowed export, managed-only content class, redaction-required attachment). Surface renders a typed policy-block chip rather than a generic error.                                                |
 
-**Reserved packet fields (slots):**
+**Packet fields (slots):**
 
 - `structured_round_trip_risk_class` — one of the tokens above.
 - `preview_representation_class` — one of
