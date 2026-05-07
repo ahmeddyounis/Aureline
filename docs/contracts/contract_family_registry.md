@@ -14,6 +14,13 @@ Authoritative artifacts:
   a family participates in CLI/headless output, desktop export, support bundles,
   release packets, and provider/browser handoff evidence.
 
+Related artifacts:
+
+- `artifacts/contracts/example_pack_index.yaml` — shared index of reference
+  payload examples for contract-bearing schemas.
+- `docs/contracts/reference_contract_examples_index.md` — human overview of the
+  example pack.
+
 ## How to use this registry
 
 When adding a new machine-readable packet or record:
@@ -50,4 +57,3 @@ Add a new row to `artifacts/contracts/contract_families.yaml` and include:
 - `primary_doc_refs[]` and at least one `example_source_refs[]`
 - compatibility linkages (`compatibility_surface_ids`, `compat_row:*` refs) when
   the family participates in compatibility or release review
-
