@@ -1,0 +1,564 @@
+# yaml-language-server: $schema=../../schemas/governance/human_readable_artifact_family.schema.json
+# Human-readable durable artifact registry (machine-readable form).
+#
+# This registry exists so every loader, formatter, migration tool, and support
+# export surface can answer the same questions without inventing its own rules:
+#   - who owns an artifact family and how it is reviewed;
+#   - which text-first format is canonical for that family;
+#   - where the schema contract lives (or whether it is not yet published);
+#   - whether comments, unknown fields, and ordering must be preserved;
+#   - whether Aureline may write the file directly, must show a preview first,
+#     should regenerate instead of preserving hand edits, or must treat it as
+#     inspect-only.
+#
+# Companion narrative:
+#   - docs/governance/human_readable_artifact_registry.md
+#
+# If this file and the narrative disagree, this file is authoritative for
+# tooling and the narrative MUST be updated in the same change.
+#
+# Do not surface internal planning identifiers in product strings; this
+# registry is governance-only.
+
+schema_version: 1
+
+source_specs:
+  - .t2/docs/Aureline_PRD.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - docs/config/artifact_format_and_migration_policy.md
+  - docs/config/human_edited_artifact_contract.md
+  - docs/state/config_and_state_path_map.md
+  - docs/state/profile_and_state_map.md
+  - docs/state/portable_state_package_contract.md
+  - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+  - docs/ai/prompt_injection_and_taint_contract.md
+
+# -----------------------------------------------------------------------------
+# Editability classes.
+#
+# Rows below assign exactly one editability class so every surface can decide
+# whether it is allowed to write the artifact directly, must show a preview, or
+# should refuse writes and offer inspection only.
+# -----------------------------------------------------------------------------
+editability_classes:
+  - id: freely_editable
+    summary: >
+      Free-form text meant for direct human edits. Aureline may edit only via an
+      explicit user action and must avoid background rewrites or normalization.
+    aureline_write_posture:
+      may_autoformat_without_user_review: false
+      may_canonicalize_without_user_review: false
+      requires_preview_before_write: false
+
+  - id: structured_safe_editable
+    summary: >
+      Schema-backed artifacts intended for direct human edits. Writers preserve
+      comments, unknown fields, and authored ordering per the row posture.
+    aureline_write_posture:
+      may_autoformat_without_user_review: false
+      may_canonicalize_without_user_review: false
+      requires_preview_before_write: false
+
+  - id: review_before_write
+    summary: >
+      Writes are allowed, but the surface must present a change preview that
+      discloses any lossiness, canonicalization, or wider-than-requested edits.
+    aureline_write_posture:
+      may_autoformat_without_user_review: false
+      may_canonicalize_without_user_review: false
+      requires_preview_before_write: true
+
+  - id: regenerate_preferred
+    summary: >
+      Tool-generated but reviewable artifacts. The preferred edit flow is to
+      regenerate from the authoritative source with a preview and rollback
+      checkpoint rather than hand-editing the artifact.
+    aureline_write_posture:
+      may_autoformat_without_user_review: true
+      may_canonicalize_without_user_review: true
+      requires_preview_before_write: true
+
+  - id: inspect_only
+    summary: >
+      Artifacts that are readable and exportable, but not a general-purpose edit
+      surface. Writes route through their owning authority (policy, signed
+      bundle, or controlled tool), not arbitrary editors.
+    aureline_write_posture:
+      may_autoformat_without_user_review: false
+      may_canonicalize_without_user_review: false
+      requires_preview_before_write: true
+
+# -----------------------------------------------------------------------------
+# Artifact-family rows.
+#
+# One row per durable, human-owned or reviewable artifact family. Rows focus on
+# user/profile/workspace durable state and adjacent review artifacts (lockfiles,
+# import reports, manifests) rather than internal caches.
+# -----------------------------------------------------------------------------
+artifact_families:
+  - id: human_readable_artifact_registry_yaml
+    title: Human-readable durable artifact registry (machine form)
+    description: Governance registry that freezes durable artifact editability and preservation posture.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: yaml
+    schema_home: schemas/governance/human_readable_artifact_family.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: refuse_read
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: excluded
+    canonical_locations:
+      - "artifacts/governance/human_readable_artifacts.yaml"
+    policy_refs:
+      - docs/governance/human_readable_artifact_registry.md
+      - docs/config/artifact_format_and_migration_policy.md
+    notes: >
+      This registry is governance-only. It is consumed by loaders, formatters,
+      migration tooling, and support flows to avoid surface-local format rules.
+
+  - id: user_settings_file
+    title: User-scope settings file
+    description: User-global settings overrides, edited directly by the user.
+    owner_class: user
+    authorship_class: user_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/settings.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: not_expected_in_vcs
+    portability_expectation: portable
+    canonical_locations:
+      - "$AURELINE_CONFIG/settings.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+      - docs/state/config_and_state_path_map.md
+    notes: >
+      Writers must preserve user comments and unknown fields. Any write that
+      cannot preserve round-trip fidelity must refuse or route through a preview
+      and rollback checkpoint.
+
+  - id: machine_specific_settings_file
+    title: Machine-scope settings file
+    description: Per-device settings overrides that never sync by default.
+    owner_class: machine
+    authorship_class: user_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/settings.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: not_expected_in_vcs
+    portability_expectation: portable_with_machine_addendum
+    canonical_locations:
+      - "$AURELINE_CONFIG/machine.settings.jsonc"
+    policy_refs:
+      - docs/config/artifact_format_and_migration_policy.md
+      - docs/state/profile_and_state_map.md
+      - docs/state/config_and_state_path_map.md
+
+  - id: workspace_settings_file
+    title: Workspace-scope settings file
+    description: Settings overrides committed with a repository and reviewed in VCS.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/settings.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/settings.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+      - docs/state/profile_and_state_map.md
+
+  - id: keybindings_file
+    title: Keybindings file
+    description: User/profile keybinding overrides backed by stable command identifiers.
+    owner_class: profile
+    authorship_class: user_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/keybindings.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: not_expected_in_vcs
+    portability_expectation: portable
+    canonical_locations:
+      - "$AURELINE_CONFIG/keybindings.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/state/profile_and_state_map.md
+
+  - id: workspace_tasks_file
+    title: Workspace tasks file
+    description: Project-owned task definitions reviewed alongside code changes.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/tasks.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/tasks.jsonc"
+      - "tasks.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+
+  - id: workspace_launch_file
+    title: Workspace launch/debug configuration file
+    description: Project-owned launch configs reviewed alongside code changes.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/launch.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/launch.jsonc"
+      - "launch.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+
+  - id: workspace_manifest_file
+    title: Workspace manifest file
+    description: Declares roots, worksets, and trusted metadata pointers for a workspace.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/config/workspace_manifest.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - "aureline.workspace.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/state/config_and_state_path_map.md
+
+  - id: ai_policy_instruction_file
+    title: AI instruction and workspace policy file
+    description: Workspace-authored AI instruction and policy configuration with comments preserved.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: contract_not_yet_seeded
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/ai/instructions.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/ai/prompt_injection_and_taint_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+    notes: >
+      Treated as a trust boundary: writers must preserve comments and unknown
+      fields and must not silently widen permissions, retention, or egress.
+
+  - id: designated_ai_policy_file
+    title: Designated AI policy file (signed/admin-admitted)
+    description: Policy-authority AI policy file admitted only via signing evidence and admin posture.
+    owner_class: admin_or_tenant
+    authorship_class: managed_only
+    editability_class: inspect_only
+    format_class: jsonc
+    schema_home: contract_not_yet_seeded
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: refuse_read
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: admin_owned
+    canonical_locations:
+      - ".aureline/ai/policy/*"
+    policy_refs:
+      - docs/ai/prompt_injection_and_taint_contract.md
+      - docs/ai/review_assist_publish_contract.md
+    notes: >
+      Designated policy files are not an ordinary edit surface. Any write path
+      routes through policy authority, signing, and review gates.
+
+  - id: repo_instruction_bundle_markdown
+    title: Repo instruction bundle (agent and policy guidance)
+    description: Repo-authored instruction bundles consumed by assist tooling.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: freely_editable
+    format_class: markdown
+    schema_home: null
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "**/AGENTS.md"
+      - "**/CLAUDE.md"
+    policy_refs:
+      - docs/ai/prompt_injection_and_taint_contract.md
+      - docs/ai/context_assembly_contract.md
+      - docs/ai/prompt_composer_contract.md
+    notes: >
+      Instruction bundles may narrow behavior and safety posture but must not
+      silently widen permissions, retention, or network egress.
+
+  - id: api_request_file
+    title: Request file (API/service)
+    description: Hand-authored request files intended for reproducibility and review.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/api/request_document.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/requests/*.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+
+  - id: notebook_document_ipynb
+    title: Notebook document
+    description: Notebook document files whose metadata and ordering must round-trip without destruction.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: review_before_write
+    format_class: notebook_json
+    schema_home: contract_not_yet_seeded
+    comment_policy: format_disallows_comments
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - "**/*.ipynb"
+    policy_refs:
+      - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+      - docs/adr/0022-notebook-document-model-kernel-transport-trust-and-diff-merge.md
+    notes: >
+      Notebook writes require a structured round-trip preview that discloses any
+      lossiness, unknown-metadata drift, or output-stripping behavior.
+
+  - id: notebook_adjacent_manifest
+    title: Notebook-adjacent sidecar manifest
+    description: Notebook sidecar manifest for trust, output, and pairing metadata.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/notebook/notebook_metadata_aureline.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/notebooks/*.manifest.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+
+  - id: docs_glossary_tour_pack_manifest
+    title: Docs, glossary, tour, and exercise pack manifest
+    description: Authoring manifest for docs and guided content packs.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/docs/docs_pack_manifest.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - "docs/packs/*/manifest.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+
+  - id: theme_package_manifest
+    title: Theme package manifest
+    description: Theme package manifest pinned to the theme and token schema.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/ux/theme_package_manifest.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - "themes/*/aureline.theme.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+
+  - id: theme_import_report
+    title: Theme import report
+    description: Generated review artifact describing theme import fidelity and drops.
+    owner_class: generator
+    authorship_class: generated_reviewable
+    editability_class: regenerate_preferred
+    format_class: json
+    schema_home: schemas/ux/theme_import_report.schema.json
+    comment_policy: generated_only_no_manual_edit
+    ordering_policy: generated_only_no_manual_edit
+    unknown_field_policy: refuse_read
+    vcs_review_posture: optional_in_vcs
+    portability_expectation: local_only
+    canonical_locations:
+      - "<generated>/theme_import_report.json"
+    policy_refs:
+      - docs/config/artifact_format_and_migration_policy.md
+
+  - id: quality_profile_suppression_baseline_file
+    title: Quality profile, suppression, and baseline file
+    description: Reviewable quality-control profiles and suppression/baseline rules.
+    owner_class: workspace
+    authorship_class: workspace_authored
+    editability_class: structured_safe_editable
+    format_class: jsonc
+    schema_home: schemas/execution/quality_profile.schema.json
+    comment_policy: preserve_verbatim
+    ordering_policy: stable_order_preserved
+    unknown_field_policy: preserve_verbatim
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/quality/*.jsonc"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+
+  - id: extension_lockfile_reviewable
+    title: Extension lockfile
+    description: Generated but reviewable extension resolution lockfile.
+    owner_class: generator
+    authorship_class: generated_reviewable
+    editability_class: regenerate_preferred
+    format_class: json
+    schema_home: schemas/ecosystem/extension_lockfile.schema.json
+    comment_policy: generated_only_no_manual_edit
+    ordering_policy: generated_only_no_manual_edit
+    unknown_field_policy: refuse_read
+    vcs_review_posture: expected_in_vcs
+    portability_expectation: shared_workspace_only
+    canonical_locations:
+      - ".aureline/extensions.lock.json"
+    policy_refs:
+      - docs/config/human_edited_artifact_contract.md
+      - docs/config/artifact_format_and_migration_policy.md
+
+  - id: profile_export_portable
+    title: Portable profile export
+    description: User-exported portable profile body that crosses machine boundaries.
+    owner_class: profile
+    authorship_class: user_authored
+    editability_class: review_before_write
+    format_class: json
+    schema_home: schemas/profile/portable_profile.schema.json
+    comment_policy: format_disallows_comments
+    ordering_policy: canonical_reorder_disclosed
+    unknown_field_policy: preserve_under_namespaced_key
+    vcs_review_posture: optional_in_vcs
+    portability_expectation: portable
+    canonical_locations:
+      - "*.aureprofile.json"
+      - "<user-selected>/profile_export.json"
+    policy_refs:
+      - docs/state/profile_and_state_map.md
+      - docs/config/artifact_format_and_migration_policy.md
+    notes: >
+      JSON is chosen for maximum interoperability. Unknown extension blocks are
+      preserved under a namespaced preserved-extensions key.
+
+  - id: portable_state_package
+    title: Portable-state package (mixed-manifest bundle)
+    description: Exportable package with a manifest, payload sections, and integrity/redaction metadata.
+    owner_class: profile
+    authorship_class: generated_reviewable
+    editability_class: regenerate_preferred
+    format_class: multi_format_bundle
+    schema_home: schemas/state/portable_state_manifest.schema.json
+    comment_policy: format_disallows_comments
+    ordering_policy: canonical_reorder_disclosed
+    unknown_field_policy: refuse_read
+    vcs_review_posture: optional_in_vcs
+    portability_expectation: portable
+    canonical_locations:
+      - "<export>/portable_state_package/*"
+      - "<export>/portable_state_manifest.json"
+    policy_refs:
+      - docs/state/portable_state_package_contract.md
+      - docs/state/profile_and_state_map.md
+
+  - id: evidence_packet_manifest_reviewable
+    title: Evidence-packet manifest
+    description: Generated, reviewable manifest that binds evidence bodies to provenance and schema anchors.
+    owner_class: generator
+    authorship_class: generated_reviewable
+    editability_class: regenerate_preferred
+    format_class: json
+    schema_home: contract_not_yet_seeded
+    comment_policy: generated_only_no_manual_edit
+    ordering_policy: generated_only_no_manual_edit
+    unknown_field_policy: refuse_read
+    vcs_review_posture: optional_in_vcs
+    portability_expectation: local_only
+    canonical_locations:
+      - "artifacts/evidence/*.manifest.json"
+    policy_refs:
+      - docs/config/artifact_format_and_migration_policy.md
+      - docs/governance/verification_packet_template.md
+
+  - id: admin_policy_file
+    title: Local admin policy artifact
+    description: Reviewable admin-managed policy authority artifact used for effective policy explainability.
+    owner_class: admin_or_tenant
+    authorship_class: managed_only
+    editability_class: inspect_only
+    format_class: json
+    schema_home: schemas/policy/admin_policy.schema.json
+    comment_policy: format_disallows_comments
+    ordering_policy: canonical_reorder_disclosed
+    unknown_field_policy: refuse_read
+    vcs_review_posture: forbidden_in_vcs
+    portability_expectation: admin_owned
+    canonical_locations:
+      - "$AURELINE_POLICY/aureline.policy.json"
+    policy_refs:
+      - docs/policy/admin_policy_and_bundle_cache_contract.md

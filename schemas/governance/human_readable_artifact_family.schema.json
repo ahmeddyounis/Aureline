@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/human_readable_artifact_family.schema.json",
+  "title": "Aureline human-readable durable artifact registry",
+  "description": "Boundary schema for artifacts/governance/human_readable_artifacts.yaml and worked examples under fixtures/governance/human_readable_artifact_examples/. The registry freezes the canonical inventory of user-owned, workspace-owned, generated-but-reviewable, and managed-only text-first durable artifact families. Each row records the text format, schema home, comment and unknown-field preservation posture, ordering expectations, VCS review posture, portability expectation, and editability class so loaders, formatters, migration tools, and support flows do not invent format rules independently.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_families"],
+  "properties": {
+    "__fixture__": { "$ref": "#/$defs/fixture_block" },
+    "schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for this registry document shape. Current value is 1."
+    },
+    "source_specs": {
+      "type": "array",
+      "description": "Optional list of source documents that motivated the seeded registry rows.",
+      "items": { "$ref": "#/$defs/path_ref" },
+      "uniqueItems": true
+    },
+    "editability_classes": {
+      "type": "array",
+      "description": "Optional vocabulary list for editability classes. The artifact rows reference editability_class values from this set.",
+      "items": { "$ref": "#/$defs/editability_class_definition" },
+      "uniqueItems": true
+    },
+    "artifact_families": {
+      "type": "array",
+      "description": "Registry rows describing one artifact family each.",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/human_readable_artifact_family" },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "fixture_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable fixture name."
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short description of what the fixture demonstrates."
+        },
+        "doc_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional list of doc section headings exercised by this fixture."
+        }
+      }
+    },
+
+    "lower_snake_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier."
+    },
+
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path, example path, or document reference. Consumers treat it as opaque text."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "non_empty_string_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+
+    "owner_class": {
+      "type": "string",
+      "enum": ["user", "profile", "workspace", "machine", "admin_or_tenant", "generator"],
+      "description": "Who owns the artifact's meaning and can legitimately author changes. generator indicates the file is written by tools but still reviewable."
+    },
+
+    "authorship_class": {
+      "type": "string",
+      "enum": ["user_authored", "workspace_authored", "generated_reviewable", "managed_only"],
+      "description": "Authorship posture: user_authored is edited directly by the user; workspace_authored is committed with the project; generated_reviewable is produced by tools but intended for review; managed_only is governed by policy or admin distribution and is not a general-purpose edit surface."
+    },
+
+    "format_class": {
+      "type": "string",
+      "enum": ["jsonc", "json", "yaml", "markdown", "notebook_json", "multi_format_bundle"],
+      "description": "On-disk format family for the artifact."
+    },
+
+    "comment_policy": {
+      "type": "string",
+      "enum": [
+        "preserve_verbatim",
+        "preserve_with_key_attachment",
+        "lossy_rewrite_disclosed",
+        "format_disallows_comments",
+        "generated_only_no_manual_edit"
+      ],
+      "description": "Comment preservation posture."
+    },
+
+    "unknown_field_policy": {
+      "type": "string",
+      "enum": [
+        "preserve_verbatim",
+        "preserve_under_namespaced_key",
+        "drop_with_disclosure",
+        "refuse_read"
+      ],
+      "description": "Unknown-field preservation posture."
+    },
+
+    "ordering_policy": {
+      "type": "string",
+      "enum": [
+        "stable_order_preserved",
+        "canonical_reorder_disclosed",
+        "not_applicable_unordered_shape",
+        "generated_only_no_manual_edit"
+      ],
+      "description": "Ordering posture for keys, blocks, or rows."
+    },
+
+    "vcs_review_posture": {
+      "type": "string",
+      "enum": ["expected_in_vcs", "optional_in_vcs", "not_expected_in_vcs", "forbidden_in_vcs"],
+      "description": "Whether the artifact is expected to be reviewed through version control."
+    },
+
+    "portability_expectation": {
+      "type": "string",
+      "enum": [
+        "portable",
+        "portable_with_machine_addendum",
+        "local_only",
+        "shared_workspace_only",
+        "admin_owned",
+        "excluded"
+      ],
+      "description": "Portability expectation for export/import flows."
+    },
+
+    "editability_class": {
+      "type": "string",
+      "enum": [
+        "freely_editable",
+        "structured_safe_editable",
+        "review_before_write",
+        "regenerate_preferred",
+        "inspect_only"
+      ],
+      "description": "Editability class for IDE tooling."
+    },
+
+    "editability_class_definition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "summary", "aureline_write_posture"],
+      "properties": {
+        "id": { "$ref": "#/$defs/editability_class" },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Short definition of the class."
+        },
+        "aureline_write_posture": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "may_autoformat_without_user_review",
+            "may_canonicalize_without_user_review",
+            "requires_preview_before_write"
+          ],
+          "properties": {
+            "may_autoformat_without_user_review": {
+              "type": "boolean",
+              "description": "Whether Aureline may auto-format this class without a user review step."
+            },
+            "may_canonicalize_without_user_review": {
+              "type": "boolean",
+              "description": "Whether Aureline may canonicalize ordering/whitespace for this class without a user review step."
+            },
+            "requires_preview_before_write": {
+              "type": "boolean",
+              "description": "Whether any write in this class requires a preview step."
+            }
+          }
+        }
+      }
+    },
+
+    "schema_home": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/path_ref" },
+        { "type": "string", "enum": ["contract_not_yet_seeded"] }
+      ],
+      "description": "Repo-relative schema location governing this artifact family, or contract_not_yet_seeded when the schema is not yet published."
+    },
+
+    "human_readable_artifact_family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "owner_class",
+        "authorship_class",
+        "editability_class",
+        "format_class",
+        "schema_home",
+        "comment_policy",
+        "ordering_policy",
+        "unknown_field_policy",
+        "vcs_review_posture",
+        "portability_expectation",
+        "canonical_locations",
+        "policy_refs"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/lower_snake_id" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "description": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/non_empty_string" }],
+          "description": "Optional reviewer-facing description."
+        },
+        "owner_class": { "$ref": "#/$defs/owner_class" },
+        "authorship_class": { "$ref": "#/$defs/authorship_class" },
+        "editability_class": { "$ref": "#/$defs/editability_class" },
+        "format_class": { "$ref": "#/$defs/format_class" },
+        "schema_home": { "$ref": "#/$defs/schema_home" },
+        "comment_policy": { "$ref": "#/$defs/comment_policy" },
+        "ordering_policy": { "$ref": "#/$defs/ordering_policy" },
+        "unknown_field_policy": { "$ref": "#/$defs/unknown_field_policy" },
+        "vcs_review_posture": { "$ref": "#/$defs/vcs_review_posture" },
+        "portability_expectation": { "$ref": "#/$defs/portability_expectation" },
+        "canonical_locations": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Example paths, globs, or location concepts where this family lives."
+        },
+        "policy_refs": {
+          "$ref": "#/$defs/non_empty_string_array",
+          "description": "Documents that define the format/preservation/write rules this row inherits."
+        },
+        "notes": {
+          "oneOf": [{ "type": "null" }, { "type": "string" }],
+          "description": "Optional notes clarifying edge cases or special handling."
+        }
+      }
+    }
+  }
+}

@@ -11,6 +11,12 @@ Companion artifacts:
 - [`/artifacts/governance/control_artifact_index.yaml`](../../artifacts/governance/control_artifact_index.yaml)
   — machine-readable register. Tooling reads this file; the narrative
   below describes the same rows.
+- [`./human_readable_artifact_registry.md`](./human_readable_artifact_registry.md)
+  and
+  [`/artifacts/governance/human_readable_artifacts.yaml`](../../artifacts/governance/human_readable_artifacts.yaml)
+  — canonical registry for user/profile/workspace durable artifacts plus
+  generated-but-reviewable and managed-only inspectable artifacts,
+  including editability classes and cross-surface preservation posture.
 - [`./source_appendix_completion_audit.md`](./source_appendix_completion_audit.md)
   and
   [`/artifacts/governance/source_seed_completion_matrix.yaml`](../../artifacts/governance/source_seed_completion_matrix.yaml)
