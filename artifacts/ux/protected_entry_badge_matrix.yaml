@@ -1,0 +1,329 @@
+# Protected-entry badge parity matrix.
+#
+# Companion to:
+# - docs/ux/protected_entry_badge_parity.md
+# - docs/ux/command_diagnostics_contract.md
+# - schemas/commands/diagnostic_projection.schema.json#/$defs/protected_entry_badge_record
+#
+# Purpose:
+# Prevent target/origin/route disclosures from drifting across protected entry
+# points (terminal, tasks, debug, remote attach, provider-bearing entry, and
+# browser handoff), including export-safe screenshots, support bundles, and
+# textual logs.
+#
+# Conformance rules (frozen):
+# - Rows MUST quote controlled vocabulary tokens (no hand-authored surface copy).
+# - Rows MUST reference canonical route/target/lifecycle/capability artifacts.
+# - Tooltip and export requirements are field-derived; free-text tooltips are
+#   non-conforming.
+# - Adding a row is additive-minor when it lands with fixtures; repurposing a
+#   token is breaking and requires a governance decision row.
+
+protected_entry_badge_matrix_schema_version: 1
+
+sources:
+  audit_doc_ref: docs/ux/protected_entry_badge_parity.md
+  command_diagnostics_contract_ref: docs/ux/command_diagnostics_contract.md
+  badge_schema_ref: schemas/commands/diagnostic_projection.schema.json#/$defs/protected_entry_badge_record
+  route_taxonomy_ref: docs/runtime/origin_target_route_taxonomy.md
+  route_truth_matrix_ref: artifacts/runtime/action_origin_target_labels.yaml
+  host_identity_contract_ref: docs/ux/host_identity_contract.md
+  host_boundary_packet_ref: docs/verification/target_and_host_boundary_packet.md
+  host_boundary_matrix_ref: artifacts/remote/host_boundary_matrix.yaml
+  target_graph_badge_projection_ref: artifacts/runtime/target_graph_badge_projection.yaml
+  terminal_truth_contract_ref: docs/execution/terminal_truth_contract.md
+  run_attempt_contract_ref: docs/execution/run_and_attempt_contract.md
+  debug_truth_contract_ref: docs/execution/debug_truth_contract.md
+  provider_handoff_contract_ref: docs/providers/provider_link_header_and_handoff_contract.md
+  browser_handoff_schema_ref: schemas/integration/browser_handoff_packet.schema.json
+  badge_pill_contract_ref: docs/ux/badge_pill_contract.md
+  lifecycle_badge_contract_ref: docs/ux/capability_lifecycle_badge_contract.md
+
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#14.2
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#16.7
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#16.8
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#16.16
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#21.15
+
+style_guide_refs:
+  - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#25.2
+  - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#25.3
+
+# ---------------------------------------------------------------------------
+# Badge-family inventory (what each family answers, and where fields come from)
+# ---------------------------------------------------------------------------
+
+badge_family_vocabulary:
+  - family_id: degraded_or_stale_status
+    answers: Is the entry narrowed (stale/degraded/blocked)?
+    canonical_sources:
+      - schemas/ux/status_pill.schema.json (family=status, family=freshness)
+      - schemas/ux/lifecycle_badge.schema.json (freshness / refusal / downgrade)
+      - artifacts/runtime/target_graph_badge_projection.yaml (availability state)
+    required_export_fields:
+      - status_term
+      - explanation_sentence_ref
+    notes: >
+      Degraded/stale is not encoded inside protected_entry_badge_record; it is
+      co-rendered as status/freshness/lifecycle pills. Protected entry surfaces
+      MUST render an explicit downgrade pill when the underlying target/provider
+      is stale/degraded rather than letting badges disappear.
+
+  - family_id: host_boundary
+    answers: Which boundary is crossed (local/remote/container/managed/browser return)?
+    canonical_sources:
+      - artifacts/runtime/target_graph_badge_projection.yaml (host_boundary labels)
+      - docs/ux/host_identity_contract.md (route_truth + host_identity projection)
+      - artifacts/remote/host_boundary_matrix.yaml (cue stacks and wrong-target posture)
+    bound_fields:
+      - protected_entry_badge_record.target_trust_class
+      - protected_entry_badge_record.target_kind_class
+      - target_identity_ref -> host identity / host-boundary cue stack (resolver)
+    tooltip_requires:
+      - host_boundary_cue_stack_ref
+      - wrong_target_reapproval_class (when applicable)
+    export_requires:
+      - boundary_label_ref
+      - target_identity_ref
+
+  - family_id: target
+    answers: What is being targeted?
+    canonical_sources:
+      - schemas/commands/diagnostic_projection.schema.json#/$defs/target_kind_class
+      - target_identity_ref -> canonical target packet (resolver)
+    bound_fields:
+      - protected_entry_badge_record.target_kind_class
+      - protected_entry_badge_record.target_identity_ref
+      - protected_entry_badge_record.export_safe_target_label_ref
+    tooltip_requires:
+      - target_kind_class
+      - target_trust_class
+      - target_identity_ref
+    export_requires:
+      - export_safe_target_label_ref
+
+  - family_id: origin
+    answers: What authority plane initiated the entry?
+    canonical_sources:
+      - schemas/commands/diagnostic_projection.schema.json#/$defs/authority_class
+      - artifacts/runtime/action_origin_target_labels.yaml (origin taxonomy)
+    bound_fields:
+      - protected_entry_badge_record.origin_authority_class
+      - protected_entry_badge_record.origin_client_scope
+      - protected_entry_badge_record.origin_identity_ref
+    tooltip_requires:
+      - origin_authority_class
+      - origin_client_scope
+      - origin_identity_ref
+    export_requires:
+      - export_safe_origin_label_ref
+
+  - family_id: actor
+    answers: Who are we acting as (provider-side actor class)?
+    canonical_sources:
+      - schemas/integration/browser_handoff_packet.schema.json#provider_actor_class
+    bound_fields:
+      - protected_entry_badge_record.origin_actor_class
+    tooltip_requires:
+      - origin_actor_class
+      - origin_identity_ref
+    notes: >
+      Actor is distinct from origin authority: a user can initiate locally while
+      acting as a delegated provider token.
+
+  - family_id: route_and_exposure
+    answers: How did the user reach the entry, and what exposure/risk class applies?
+    canonical_sources:
+      - schemas/commands/diagnostic_projection.schema.json#/$defs/target_route_class
+      - docs/runtime/origin_target_route_taxonomy.md (route/exposure semantics)
+      - docs/ux/command_diagnostics_contract.md (protected-entry selection rules)
+    bound_fields:
+      - protected_entry_badge_record.target_route_class
+    tooltip_requires:
+      - target_route_class
+      - required_trust_state_floor
+      - required_grant_scope_floor
+    notes: >
+      Exposure/risk is disclosed via preview/approval/lifecycle cues adjacent to
+      the badge cluster; do not rely on badge color or icon-only signals.
+
+  - family_id: client_scope
+    answers: Which clients are entitled to render/execute this entry?
+    canonical_sources:
+      - schemas/commands/diagnostic_projection.schema.json#/$defs/client_scope
+    bound_fields:
+      - protected_entry_badge_record.origin_client_scope
+    tooltip_requires:
+      - origin_client_scope
+
+  - family_id: provider_or_local_class
+    answers: Is this local, remote-agent, managed-control-plane, or external-provider bearing?
+    canonical_sources:
+      - protected_entry_badge_record.target_kind_class + target_trust_class
+      - artifacts/runtime/target_graph_badge_projection.yaml (host boundary labels)
+    notes: >
+      Surfaces should not introduce a separate provider/local dialect; they
+      derive the class from the canonical target_kind + trust + host-boundary
+      cue stack.
+
+  - family_id: browser_handoff_state
+    answers: If this entry launches a browser, what typed handoff packet governs it?
+    canonical_sources:
+      - schemas/integration/browser_handoff_packet.schema.json
+      - docs/providers/provider_link_header_and_handoff_contract.md
+    required_tooltip_fields:
+      - destination_class
+      - reason_code
+      - expected_authority_on_destination
+      - replay_posture
+      - return_anchor_ref
+    notes: >
+      The handoff packet is the only URL-bearing owner; raw URLs never appear in
+      protected-entry badges, exports, or logs.
+
+# ---------------------------------------------------------------------------
+# Ordering rules (for screenshots, tooltips, and logs)
+# ---------------------------------------------------------------------------
+
+ordering_rules:
+  family_order:
+    - degraded_or_stale_status
+    - host_boundary
+    - target
+    - actor
+    - origin
+    - route_and_exposure
+    - client_scope
+  density_budget_ref: docs/ux/badge_pill_contract.md#core-rules
+
+# ---------------------------------------------------------------------------
+# Entry surfaces (audited surfaces; not a rendering-surface enum)
+# ---------------------------------------------------------------------------
+
+entry_surface_vocabulary:
+  - terminal_header_strip
+  - terminal_paste_safety_sheet
+  - terminal_context_menu_apply
+  - task_launcher
+  - task_history_rerun_entry
+  - debug_launcher
+  - debug_attach_sheet
+  - remote_attach_entry_card
+  - provider_tile_entry
+  - embedded_docs_link
+  - browser_handoff_sheet
+  - support_export_receipt
+  - textual_log_line
+
+# ---------------------------------------------------------------------------
+# Archetype rows (token-level badge semantics; fixtures and cases bind here)
+# ---------------------------------------------------------------------------
+
+archetype_rows:
+  - row_id: pe_badge_row:terminal:local_shell:paste_review
+    protected_entry_class: terminal_entry
+    target_kind_class: local_device_shell
+    target_trust_class: local_trusted
+    origin_authority_class: user_initiated_local
+    origin_actor_class: human_account
+    origin_client_scope: desktop_product
+    target_route_class: editor_keybinding_route
+    required_trust_state_floor: trusted
+    required_grant_scope_floor: once
+    export_safe_wording_class: safe_for_public_docs
+    canonical_artifact_refs:
+      - docs/execution/terminal_truth_contract.md
+      - docs/ux/command_diagnostics_contract.md
+      - schemas/commands/diagnostic_projection.schema.json
+    fixture_refs:
+      - fixtures/commands/diagnostic_rows/badge_terminal_paste.json
+
+  - row_id: pe_badge_row:tasks:local_task_runner:launch
+    protected_entry_class: tasks_entry
+    target_kind_class: task_runner_session
+    target_trust_class: local_trusted
+    origin_authority_class: user_initiated_local
+    origin_actor_class: human_account
+    origin_client_scope: desktop_product
+    target_route_class: palette_invocation_route
+    required_trust_state_floor: trusted
+    required_grant_scope_floor: session
+    export_safe_wording_class: safe_for_public_docs
+    canonical_artifact_refs:
+      - docs/execution/run_and_attempt_contract.md
+      - docs/ux/host_identity_contract.md
+      - docs/runtime/origin_target_route_taxonomy.md
+    fixture_refs:
+      - fixtures/commands/diagnostic_rows/badge_tasks_entry_launch.json
+
+  - row_id: pe_badge_row:debug:local_debug_adapter:launch
+    protected_entry_class: debug_entry
+    target_kind_class: debug_adapter_session
+    target_trust_class: local_trusted
+    origin_authority_class: user_initiated_local
+    origin_actor_class: human_account
+    origin_client_scope: desktop_product
+    target_route_class: palette_invocation_route
+    required_trust_state_floor: trusted
+    required_grant_scope_floor: session
+    export_safe_wording_class: safe_for_public_docs
+    canonical_artifact_refs:
+      - docs/execution/debug_truth_contract.md
+      - docs/execution/run_and_attempt_contract.md
+      - docs/ux/host_identity_contract.md
+    fixture_refs:
+      - fixtures/commands/diagnostic_rows/badge_debug_entry_launch.json
+
+  - row_id: pe_badge_row:remote_attach:remote_agent:resume
+    protected_entry_class: remote_attach_entry
+    target_kind_class: remote_agent_shell
+    target_trust_class: remote_agent_trusted
+    origin_authority_class: user_initiated_local
+    origin_actor_class: delegated_user_token
+    origin_client_scope: desktop_product
+    target_route_class: restored_session_reconnect_route
+    required_trust_state_floor: trusted
+    required_grant_scope_floor: session
+    export_safe_wording_class: safe_for_support_export
+    canonical_artifact_refs:
+      - docs/verification/target_and_host_boundary_packet.md
+      - docs/ux/host_identity_contract.md
+      - artifacts/remote/host_boundary_matrix.yaml
+    fixture_refs:
+      - fixtures/commands/diagnostic_rows/badge_remote_attach.json
+
+  - row_id: pe_badge_row:provider_entry:external_provider:mutation
+    protected_entry_class: provider_bearing_action_entry
+    target_kind_class: provider_account_mutation
+    target_trust_class: external_provider_restricted
+    origin_authority_class: user_initiated_shared
+    origin_actor_class: installation_or_app_grant
+    origin_client_scope: desktop_product
+    target_route_class: palette_invocation_route
+    required_trust_state_floor: trusted
+    required_grant_scope_floor: workspace
+    export_safe_wording_class: safe_for_support_export
+    canonical_artifact_refs:
+      - docs/runtime/origin_target_route_taxonomy.md
+      - docs/providers/provider_link_header_and_handoff_contract.md
+    fixture_refs:
+      - fixtures/commands/diagnostic_rows/badge_provider_bearing_publish.json
+
+  - row_id: pe_badge_row:browser_handoff:external_site:consent
+    protected_entry_class: browser_handoff_entry
+    target_kind_class: browser_handoff_external_site
+    target_trust_class: external_provider_restricted
+    origin_authority_class: user_initiated_local
+    origin_actor_class: delegated_user_token
+    origin_client_scope: desktop_product
+    target_route_class: palette_invocation_route
+    required_trust_state_floor: trusted
+    required_grant_scope_floor: session
+    export_safe_wording_class: safe_for_public_docs
+    canonical_artifact_refs:
+      - schemas/integration/browser_handoff_packet.schema.json
+      - docs/providers/provider_link_header_and_handoff_contract.md
+      - docs/ux/embedded_surface_boundary_cards.md
+    fixture_refs:
+      - fixtures/commands/diagnostic_rows/badge_browser_handoff.json

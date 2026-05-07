@@ -31,6 +31,8 @@ pipeline resolves.
 | `diagnostic_row_missing_capability.json` + `remediation_missing_capability.json` + `badge_credential_broker_step_up.json` | Missing-capability credential broker step-up | `required_credential_missing`; badge is a credential-broker-scope target with `step_up_authentication_required` approval. |
 | `diagnostic_row_reapproval_required.json` + `remediation_reapproval_required.json` + `badge_remote_attach.json` | Reapproval-required remote attach on reconnect | `approval_denial_no_approval_path` on a `restored_session_reconnect_route`; badge shows remote-agent target, delegated-user-token origin. |
 | `diagnostic_row_terminal_paste_enabled.json` + `badge_terminal_paste.json` | Protected-entry terminal multiline paste | Enabled row with protected-entry badge; target is a local device shell, route is `editor_keybinding_route`. |
+| `badge_tasks_entry_launch.json` | Protected-entry task launcher entry | Badge for a tasks entry point targeting a local task runner session; route is `palette_invocation_route`. |
+| `badge_debug_entry_launch.json` | Protected-entry debug launcher entry | Badge for a debug entry point targeting a debug adapter session; route is `palette_invocation_route`. |
 | `diagnostic_row_browser_handoff_enabled.json` + `badge_browser_handoff.json` | Protected-entry browser handoff | Enabled row with protected-entry badge; target is `browser_handoff_external_site`, origin is `delegated_user_token`. |
 
 ## Parity expectations
