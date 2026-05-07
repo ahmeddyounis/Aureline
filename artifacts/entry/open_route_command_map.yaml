@@ -1,0 +1,170 @@
+# Open-route ↔ command identity map (Entry Surfaces)
+#
+# Purpose: freeze a single vocabulary for “Open …” routes so entry surfaces do not
+# fork route names, command IDs, or scope consequences as implementation lands.
+#
+# This file is intentionally small and opinionated: it is a parity packet, not a
+# full command registry.
+
+record_kind: open_route_command_map_record
+open_route_command_map_version: 1
+title: Open-route command map (entry surfaces)
+
+canonical_sources:
+  - docs/workspace/entry_restore_object_model.md
+  - docs/ux/workspace_entry_route_matrix.md
+  - docs/ux/project_entry_contract.md
+  - docs/workspace/scope_truth_packet.md
+  - artifacts/entry/workspace_switch_preview_contract.md
+  - artifacts/commands/command_registry_seed.yaml
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+
+namespace_notes:
+  ux_command_id_ref_prefix: "command."
+  stable_command_id_prefix: "cmd:"
+  rule: >
+    Entry chooser rows and open-flow sheets reference commands via `command.*` ids
+    (command refs). Support/audit/automation references the stable command id via
+    `cmd:*`. Where a command is not yet present in `artifacts/commands/command_registry_seed.yaml`,
+    the `cmd:*` id is reserved here for parity and support traceability.
+
+open_routes:
+  - open_route_id: open_route.open_file
+    entry_route_id_family: workspace_entry.open_folder
+    entry_verb: open
+    target_kind: local_file
+    resulting_mode: single_file
+    open_flow_sheet_class: open_local_target_no_review_required
+    command_identity:
+      ux_command_id_ref: command.workspace.open_file
+      stable_command_id: cmd:workspace.open_file
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: local_file
+    required_previews:
+      open_flow_sheet_record: emitted_even_if_elided
+      trust_policy_target_profile_changes: disclosed_on_sheet_when_present
+      scope_consequence_switch_preview: not_required
+
+  - open_route_id: open_route.open_folder
+    entry_route_id_family: workspace_entry.open_folder
+    entry_verb: open
+    target_kind: local_folder
+    resulting_mode: folder
+    open_flow_sheet_class: open_local_target
+    command_identity:
+      ux_command_id_ref: command.workspace.open_folder
+      stable_command_id: cmd:workspace.open_folder
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: local_folder
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      scope_consequence_switch_preview: required_when_replacing_active_workspace_or_dirty_buffers
+
+  - open_route_id: open_route.open_workspace_manifest
+    entry_route_id_family: workspace_entry.open_workspace
+    entry_verb: open
+    target_kind: workspace_manifest
+    resulting_mode: workspace_with_roots
+    open_flow_sheet_class: open_local_target
+    command_identity:
+      ux_command_id_ref: command.workspace.open_workspace
+      stable_command_id: cmd:workspace.open_workspace
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: workspace_manifest
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      scope_consequence_switch_preview: required_when_replacing_active_workspace_or_dirty_buffers
+
+  - open_route_id: open_route.add_root_to_active_workspace
+    entry_route_id_family: workspace_entry.open_workspace
+    entry_verb: add_root
+    target_kind: local_folder
+    resulting_mode: workspace_with_roots
+    open_flow_sheet_class: add_root_to_active_workspace
+    command_identity:
+      ux_command_id_ref: command.workspace.add_root_local
+      stable_command_id: cmd:workspace.add_root_local
+    recents:
+      writes_recent_work_entry: updates_active_workspace_row_only
+      recent_work_target_kind: workspace_manifest
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      scope_consequence_switch_preview: not_applicable
+      scope_widen_diff_record: required_before_commit
+
+  - open_route_id: open_route.open_in_new_window_keep_current_open
+    entry_route_id_family: workspace_entry.open_folder
+    entry_verb: open
+    target_kind: local_folder
+    resulting_mode: folder
+    open_flow_sheet_class: open_local_target
+    command_identity:
+      ux_command_id_ref: command.workspace.open_folder
+      stable_command_id: cmd:workspace.open_folder
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: local_folder
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      scope_consequence_switch_preview: required
+      switch_preview_choice_class: open_target_in_new_window_keep_current_open
+
+  - open_route_id: open_route.remote_attach_resume
+    entry_route_id_family: workspace_entry.resume_snapshot
+    entry_verb: resume
+    target_kind: managed_cloud_workspace
+    resulting_mode: resume_live_session
+    open_flow_sheet_class: restore_or_resume
+    command_identity:
+      ux_command_id_ref: command.workspace.resume_managed_cloud
+      stable_command_id: cmd:workspace.resume_managed
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: managed_cloud_workspace
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      scope_consequence_switch_preview: required_when_replacing_active_workspace_or_dirty_buffers
+
+  - open_route_id: open_route.clone_repository
+    entry_route_id_family: workspace_entry.clone_repository
+    entry_verb: clone
+    target_kind: remote_repository
+    resulting_mode: clone_then_review
+    open_flow_sheet_class: clone_remote_target
+    command_identity:
+      ux_command_id_ref: command.workspace.clone_repository
+      stable_command_id: cmd:workspace.clone_repository
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: remote_repository
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      destination_and_collision_preview: required_before_any_write
+
+  - open_route_id: open_route.import_handoff_or_portable_state
+    entry_route_id_family: workspace_entry.import
+    entry_verb: import
+    target_kind: handoff_packet
+    resulting_mode: extract_then_review
+    open_flow_sheet_class: import_artifact
+    command_identity:
+      ux_command_id_ref: command.workspace.import_handoff_packet
+      stable_command_id: cmd:workspace.import_handoff_packet
+    recents:
+      writes_recent_work_entry: true
+      recent_work_target_kind: handoff_packet
+    required_previews:
+      open_flow_sheet_record: required
+      trust_policy_target_profile_changes: always_disclosed
+      import_compare_or_dry_run_preview: required_when_mutation_possible
+

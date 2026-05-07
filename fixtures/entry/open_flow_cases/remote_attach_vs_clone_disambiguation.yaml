@@ -1,0 +1,50 @@
+record_kind: open_flow_case_record
+open_flow_case_schema_version: 1
+case_id: open_flow:remote_target:attach_vs_clone:01
+title: Remote attach/resume and clone are never inferred from ambiguous input
+scenario_summary: >
+  A remote-looking target is presented (deep link, clipboard, or typed input). The
+  entry surface must not guess whether the user meant a repository clone or a remote
+  workspace attach/resume; the user selects one explicit route before commit.
+routes:
+  - open_route_id: open_route.clone_repository
+    entry_verb: clone
+    target_kind: remote_repository
+    resulting_mode: clone_then_review
+    command_identity:
+      ux_command_id_ref: command.workspace.clone_repository
+      stable_command_id: cmd:workspace.clone_repository
+    required_previews:
+      open_flow_sheet_record: required
+      destination_and_collision_preview: required_before_any_write
+  - open_route_id: open_route.remote_attach_resume
+    entry_verb: resume
+    target_kind: managed_cloud_workspace
+    resulting_mode: resume_live_session
+    command_identity:
+      ux_command_id_ref: command.workspace.resume_managed_cloud
+      stable_command_id: cmd:workspace.resume_managed
+    required_previews:
+      open_flow_sheet_record: required
+      deep_link_intent_review: required_when_invoked_via_link
+surfaces:
+  - surface_class: start_center
+    invocation: clone_repository_primary_action_vs_resume_row
+    requirement: must_not_collapse_into_get_started
+  - surface_class: command_palette
+    invocation: palette_clone_vs_resume
+    requirement: two_distinct_commands_and_sheets
+  - surface_class: deep_link
+    invocation: deep_link_intent_review
+    requirement: resolver_must_not_promote_open_to_clone_or_resume_after_activation
+__fixture__:
+  name: remote_attach_vs_clone_disambiguation
+  scenario: >
+    The same user intent string (“open remote …”) must never cause silent selection
+    of clone vs attach. The resolver offers explicit routes whose command identities,
+    previews, and resulting modes differ.
+  contract_sections:
+    - artifacts/entry/open_flow_truth.md §3.2
+    - artifacts/entry/open_flow_truth.md §4.6
+    - artifacts/entry/open_flow_truth.md §4.7
+
