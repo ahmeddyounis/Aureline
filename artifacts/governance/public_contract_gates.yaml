@@ -1,0 +1,259 @@
+# Public-contract maturity-gate map.
+#
+# This file defines the promotion prerequisites ("gates") required before a
+# contract surface may truthfully claim Beta/Provisional or Stable posture in
+# docs/help, CLI structured output, exported bundles, or service contracts.
+#
+# This file does not implement enforcement. It freezes the gate vocabulary and
+# the per-surface required-evidence map so future CI gates and review checklists
+# can cite one source of truth.
+#
+# Companion narrative:
+#   docs/governance/public_contract_stabilization_order.md
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-07"
+
+overview_page: docs/governance/public_contract_stabilization_order.md
+priority_register_ref: artifacts/governance/public_contract_priority.yaml
+
+authoritative_inputs:
+  compatibility_surface_inventory_ref: artifacts/governance/compatibility_surfaces.yaml
+  stable_surface_inventory_ref: artifacts/governance/stable_surface_inventory.yaml
+  interface_lifecycle_policy_ref: docs/governance/interface_lifecycle_policy.md
+  stability_label_register_ref: artifacts/governance/stability_label_rows.yaml
+  standards_matrix_ref: artifacts/governance/standards_matrix.yaml
+  example_pack_index_ref: artifacts/contracts/example_pack_index.yaml
+  contract_family_registry_ref: artifacts/contracts/contract_families.yaml
+  frozen_surface_manifest_ref: artifacts/contracts/frozen_surface_manifest.yaml
+
+vocabulary:
+  maturity_lanes:
+    - internal
+    - experimental
+    - beta
+    - stable
+  evidence_kinds:
+    - compatibility_surface_row
+    - stable_surface_inventory_row
+    - schema_or_interface_definition
+    - contract_doc
+    - example_pack_coverage
+    - compatibility_window_source
+    - standards_matrix_row
+    - stability_label_and_version_advertisement
+    - interface_lifecycle_and_deprecation_metadata
+    - mixed_version_policy
+    - qualification_or_conformance_evidence
+    - frozen_surface_ci_row
+
+gate_profiles:
+  - profile_id: launch_critical.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Minimum contract evidence required before a launch-critical surface may
+      claim Provisional/Beta posture on any discoverable surface (docs/help,
+      CLI machine output, export manifests, service responses).
+    required_evidence:
+      - evidence_kind: compatibility_surface_row
+        requirement: A compatibility-surface inventory row exists and names the surface owner and versioning mechanism.
+      - evidence_kind: schema_or_interface_definition
+        requirement: The governing schema/interface exists (JSON Schema, WIT package, or OpenAPI seed) with explicit version fields.
+      - evidence_kind: contract_doc
+        requirement: A narrative contract doc exists and states downgrade behavior and migration notes for breaking changes.
+      - evidence_kind: example_pack_coverage
+        requirement: At least one reference example exists, with CI-required validation for launch-critical families where feasible.
+      - evidence_kind: compatibility_window_source
+        requirement: A compatibility window source row exists (qualification matrix, skew window register, or stable-surface packet).
+
+  - profile_id: launch_critical.stable_claim
+    target_maturity_lane: stable
+    summary: >
+      Minimum contract evidence required before a launch-critical surface may
+      claim Stable posture (or omit a stability disclaimer) anywhere.
+    required_evidence:
+      - evidence_kind: stable_surface_inventory_row
+        requirement: A stable-surface packet exists with reader/writer semantics, downgrade behavior, and support window posture.
+      - evidence_kind: stability_label_and_version_advertisement
+        requirement: Stability label mapping and version advertisement anchors exist and are referenced by docs/help and machine outputs.
+      - evidence_kind: interface_lifecycle_and_deprecation_metadata
+        requirement: The surface is governed by the lifecycle/deprecation policy (no repurpose, alias strategy, support windows).
+      - evidence_kind: qualification_or_conformance_evidence
+        requirement: A qualification/conformance evidence row exists and is cited as the compatibility window source.
+      - evidence_kind: frozen_surface_ci_row
+        requirement: If the surface is “frozen enough to build against,” a frozen-surface manifest row exists so CI enforces same-train diff metadata.
+
+  - profile_id: user_owned_state.stable_claim
+    target_maturity_lane: stable
+    summary: >
+      Stronger stable-claim gate for user-owned durable artifacts (settings,
+      profiles, workspace manifests, portability/migration packets).
+    required_evidence:
+      - evidence_kind: stable_surface_inventory_row
+        requirement: Stable-surface packet exists with explicit downgrade posture and rollback/migration rules for durable state.
+      - evidence_kind: interface_lifecycle_and_deprecation_metadata
+        requirement: Deprecation metadata policy applies (aliases, overlap windows, no repurpose once non-experimental).
+      - evidence_kind: example_pack_coverage
+        requirement: Canonical examples cover at least one migration or downgrade path and remain CI-valid.
+      - evidence_kind: mixed_version_policy
+        requirement: Mixed-version envelope/skew-window posture is explicit for any cross-version read/write boundary.
+
+  - profile_id: user_owned_state.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for user-owned state: requires explicit vocabulary for
+      restore fidelity and downgrade labels even when the surface remains beta.
+    required_evidence:
+      - evidence_kind: compatibility_surface_row
+        requirement: Compatibility surface row exists and names restore fidelity/downgrade semantics.
+      - evidence_kind: schema_or_interface_definition
+        requirement: Governing schemas exist with explicit version fields.
+      - evidence_kind: contract_doc
+        requirement: Migration narrative exists and is linked from the surface row.
+
+  - profile_id: automation_surface.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for automation-facing machine output: scripts must be
+      able to validate shape without scraping prose.
+    required_evidence:
+      - evidence_kind: schema_or_interface_definition
+        requirement: Machine-output schema exists and is referenced by a registry row (command/output registry or equivalent).
+      - evidence_kind: example_pack_coverage
+        requirement: At least one CI-required example exists for each promoted command/output class.
+      - evidence_kind: interface_lifecycle_and_deprecation_metadata
+        requirement: Retired command ids and envelope fields route through deprecation metadata with migration notes.
+
+  - profile_id: ecosystem_surface.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for extension manifests and WIT boundaries: requires
+      standard-shaped ABI and explicit negotiation/downgrade behavior.
+    required_evidence:
+      - evidence_kind: standards_matrix_row
+        requirement: The surface cites the relevant standards-matrix rows (JSON Schema and/or WIT).
+      - evidence_kind: schema_or_interface_definition
+        requirement: Schemas/WIT packages exist with explicit version rules.
+      - evidence_kind: contract_doc
+        requirement: Host negotiation and quarantine rules are documented and cite the same surface ids.
+      - evidence_kind: example_pack_coverage
+        requirement: CI-validated examples exist for registry/manifest rows where the surface is promoted.
+
+  - profile_id: service_api.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for service APIs: requires a standard-shaped publication
+      path and an explicit degradation story for out-of-window clients.
+    required_evidence:
+      - evidence_kind: standards_matrix_row
+        requirement: The service API family cites the OpenAPI standards row (or a deviation ADR).
+      - evidence_kind: schema_or_interface_definition
+        requirement: OpenAPI (or typed seed packet) exists with explicit versioning and deprecation headers.
+      - evidence_kind: compatibility_window_source
+        requirement: Qualification row names the supported skew window and upgrade order.
+
+  - profile_id: support_export.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for support export and evidence: requires stable record
+      classes and explicit redaction posture.
+    required_evidence:
+      - evidence_kind: schema_or_interface_definition
+        requirement: Support/evidence packet schemas exist and cite record_class ids and exact-build identity refs.
+      - evidence_kind: contract_doc
+        requirement: Redaction/export rules exist and are referenced by the surface row.
+      - evidence_kind: example_pack_coverage
+        requirement: At least one CI-required example exists that demonstrates a safe default bundle.
+
+  - profile_id: notification_surface.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for notification and attention envelopes: requires stable
+      taxonomy and rules that prevent silent urgency widening.
+    required_evidence:
+      - evidence_kind: schema_or_interface_definition
+        requirement: Envelope schemas exist with version fields and stable vocabulary ids.
+      - evidence_kind: contract_doc
+        requirement: Taxonomy doc exists and states downgrade and additive-growth expectations.
+
+  - profile_id: public_truth_surface.stable_claim
+    target_maturity_lane: stable
+    summary: >
+      Stable gate for docs/help publication surfaces: requires stability labels,
+      freshness/version truth, and discoverable machine anchors.
+    required_evidence:
+      - evidence_kind: stable_surface_inventory_row
+        requirement: Stable-surface packet exists and names version advertisement anchors.
+      - evidence_kind: stability_label_and_version_advertisement
+        requirement: Stability label and version advertisement rules are applied consistently across docs/help and exported manifests.
+      - evidence_kind: frozen_surface_ci_row
+        requirement: Docs-pack surfaces that are frozen must be present in the frozen-surface manifest for same-train enforcement.
+
+  - profile_id: qualification_surface.provisional_claim
+    target_maturity_lane: beta
+    summary: >
+      Provisional gate for compatibility/certification reports: requires a
+      report template/schema and explicit citation to the surface ids it covers.
+    required_evidence:
+      - evidence_kind: schema_or_interface_definition
+        requirement: A report/row schema exists for compatibility rows and report packets.
+      - evidence_kind: contract_doc
+        requirement: Report narrative defines how claims cite row refs and how drift is detected.
+
+surface_gate_overrides:
+  - surface_id: command_plane.command_graph_and_ui_slot_schema
+    required_gate_profiles:
+      - launch_critical.stable_claim
+    additional_required_refs:
+      - artifacts/compat/qualification_matrix_seed.yaml#compat_row:command_plane.command_descriptor_schema
+      - docs/governance/interface_lifecycle_policy.md
+
+  - surface_id: settings.setting_definition_and_effective_value_json
+    required_gate_profiles:
+      - user_owned_state.stable_claim
+
+  - surface_id: workspace.manifest_and_pane_tree
+    required_gate_profiles:
+      - user_owned_state.stable_claim
+
+  - surface_id: workspace.entry_restore_and_migration_result
+    required_gate_profiles:
+      - user_owned_state.provisional_claim
+
+  - surface_id: automation.cli_structured_output_contract
+    required_gate_profiles:
+      - automation_surface.provisional_claim
+
+  - surface_id: extensions.manifest_registry_and_offline_bundle
+    required_gate_profiles:
+      - ecosystem_surface.provisional_claim
+
+  - surface_id: extensions.wit_host_worlds_and_bindings
+    required_gate_profiles:
+      - ecosystem_surface.provisional_claim
+    additional_required_refs:
+      - artifacts/governance/standards_matrix.yaml#standard.wasm_component_model_wit
+
+  - surface_id: service.optional_api_family
+    required_gate_profiles:
+      - service_api.provisional_claim
+    additional_required_refs:
+      - artifacts/governance/standards_matrix.yaml#standard.openapi_3_2
+
+  - surface_id: support.bundle_and_evidence_packets
+    required_gate_profiles:
+      - support_export.provisional_claim
+
+  - surface_id: notification.attention_and_activity_envelope
+    required_gate_profiles:
+      - notification_surface.provisional_claim
+
+  - surface_id: docs.docs_pack_manifest
+    required_gate_profiles:
+      - public_truth_surface.stable_claim
+
+  - surface_id: certification.reference_workspace_and_archetype_report
+    required_gate_profiles:
+      - qualification_surface.provisional_claim
+

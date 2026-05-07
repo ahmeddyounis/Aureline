@@ -128,6 +128,13 @@ Companion artifacts:
   bundles, task-event envelopes, plus specialized surfaces). Future
   public or beta surfaces register there before they may claim
   stability.
+- [`./public_contract_stabilization_order.md`](./public_contract_stabilization_order.md),
+  [`/artifacts/governance/public_contract_priority.yaml`](../../artifacts/governance/public_contract_priority.yaml),
+  and
+  [`/artifacts/governance/public_contract_gates.yaml`](../../artifacts/governance/public_contract_gates.yaml)
+  — stabilization order, risk rationale, and promotion prerequisites
+  for the highest-cost public contracts so hardening decisions do not
+  re-litigate contract criticality.
 - [`./interface_lifecycle_policy.md`](./interface_lifecycle_policy.md)
   — shared lifecycle and deprecation metadata policy for stable ids,
   aliases, schema families, replacement chains, support windows, and
