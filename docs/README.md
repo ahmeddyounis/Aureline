@@ -1437,6 +1437,15 @@ code.
   worked fixtures (one taxonomy seed record and one cross-surface
   command projection example) in
   [`/fixtures/commands/ui_slot_taxonomy_examples/`](../fixtures/commands/ui_slot_taxonomy_examples/).
+- [`commands/command_surface_projection.md`](./commands/command_surface_projection.md)
+  — canonical command surface-projection packet describing how one
+  command’s canonical identity, alias history, shortcut display, disabled
+  reasons, docs/help pivots, and imported-keymap anchors project across
+  shell and discoverability surfaces (palette, menus, keybindings, help,
+  onboarding, migration, and why-unavailable). Boundary schema in
+  [`/schemas/commands/command_projection.schema.json`](../schemas/commands/command_projection.schema.json);
+  worked cases in
+  [`/fixtures/commands/command_surface_projection_cases/`](../fixtures/commands/command_surface_projection_cases/).
 - [`commands/command_parity_diff.md`](./commands/command_parity_diff.md)
   — reusable cross-surface parity diff format plus the current
   seed report for launch-bearing command surfaces. Compares stable
