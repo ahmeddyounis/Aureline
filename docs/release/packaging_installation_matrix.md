@@ -249,8 +249,14 @@ exports:
 - rollback target and evidence refs;
 - uninstall or disable owner.
 
+The managed-package report shape used to satisfy the inventory and
+diagnostic requirements above is seeded in
+[`/artifacts/release/managed_package_report_seed.yaml`](../../artifacts/release/managed_package_report_seed.yaml).
+
 Silent deployment summaries must use structured result classes from
 [`/artifacts/release/silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml)
+and the boundary schema in
+[`/schemas/release/silent_deployment_result.schema.json`](../../schemas/release/silent_deployment_result.schema.json)
 instead of free-text-only failures.
 
 ## Change Control

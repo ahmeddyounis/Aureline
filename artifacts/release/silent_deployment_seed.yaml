@@ -196,7 +196,7 @@ return_code_families:
       Expected caller action: invoke the rollback path for this
       install-profile card.
     admissible_result_statuses: [failed, rolled_back]
-    admissible_result_kinds: [install, update]
+    admissible_result_kinds: [install, update, rollback]
   - id: verification_failed
     numeric_codes: [9]
     semantics: >
@@ -226,25 +226,34 @@ return_code_families:
 unattended_deployment_result_record_shape:
   record_kind: unattended_deployment_result_record
   required_fields:
+    - silent_deployment_result_schema_version
+    - record_kind
     - result_id
     - result_kind
     - result_status
     - return_code_family
     - return_code_numeric
     - install_profile_card_ref
+    - failure_reason_class
     - redaction_class
     - remediation_pointer_class
-  conditional_fields:
-    - name: failure_reason_class
-      required_when: "result_status != success"
-    - name: support_bundle_ref
-      required_when: "return_code_family in {internal_failure, verification_failed}"
-  reserved_fields:
+    - support_bundle_ref
     - running_build_identity_ref
     - policy_injection_context_ref
     - rollback_evidence_ref
     - fleet_ring_context_ref
     - offline_bundle_signature_ref
+    - state_root_refs
+    - managed_package_report_ref
+  conditional_fields:
+    - name: failure_reason_class
+      required_when: "result_status != success"
+    - name: support_bundle_ref
+      required_when: "return_code_family in {internal_failure, verification_failed}"
+    - name: state_root_refs
+      required_when: "failure_reason_class in {state_root_collision, side_by_side_marker_corruption, portable_spill_detected}"
+  reserved_fields:
+    - notes
 
 # -----------------------------------------------------------------------------
 # Worked fixtures.
@@ -257,7 +266,9 @@ unattended_deployment_result_record_shape:
 # -----------------------------------------------------------------------------
 fixtures:
 
-  - result_id: fixture.install.windows.x86_64.per_machine_installed.stable.success
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.install.windows.x86_64.per_machine_installed.stable.success
     result_kind: install
     result_status: success
     return_code_family: success
@@ -268,12 +279,20 @@ fixtures:
     redaction_class: no_secrets_present
     support_bundle_ref: null
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs: null
+    managed_package_report_ref: null
     notes: >
       Reference success fixture: a silent per-machine install on a
       Windows x86_64 host completed without warnings. Demonstrates the
       minimum field set on the success path.
 
-  - result_id: fixture.update.macos.universal_binary.per_machine_installed.stable.partial_success_reboot
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.update.macos.universal_binary.per_machine_installed.stable.partial_success_reboot
     result_kind: update
     result_status: reboot_required
     return_code_family: partial_success
@@ -284,12 +303,22 @@ fixtures:
     redaction_class: secrets_redacted_before_emit
     support_bundle_ref: reserved
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_machine_shared_data_root.stable
+    managed_package_report_ref: null
     notes: >
       Update completed but a reboot is required before the new binary
       is active. Demonstrates the partial_success family and the
       reboot_required status coexisting on one record.
 
-  - result_id: fixture.install.linux.x86_64.managed_deployed.stable.trust_policy_denial
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.install.linux.x86_64.managed_deployed.stable.trust_policy_denial
     result_kind: install
     result_status: failed
     return_code_family: trust_policy_denial
@@ -300,12 +329,20 @@ fixtures:
     redaction_class: secrets_redacted_before_emit
     support_bundle_ref: null
     running_build_identity_ref: null
+    policy_injection_context_ref: reserved
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs: null
+    managed_package_report_ref: reserved
     notes: >
       Managed-fleet install denied by admin policy. Demonstrates that
       trust_policy_denial is only admissible on a card whose
       policy_injection_class is other than none.
 
-  - result_id: fixture.install.air_gap_bundle_target.platform_native_any.offline_bundle.stable.mirror_metadata_stale
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.install.air_gap_bundle_target.platform_native_any.offline_bundle.stable.mirror_metadata_stale
     result_kind: install
     result_status: failed
     return_code_family: network_transport
@@ -316,12 +353,21 @@ fixtures:
     redaction_class: no_secrets_present
     support_bundle_ref: null
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: reserved
+    state_root_refs:
+      - state.offline_bundle_mirror_metadata_root.stable
+    managed_package_report_ref: null
     notes: >
       Offline bundle install failed because the mirror metadata is
       past its offline_expiration_at deadline. Demonstrates the
       network_transport family on an air-gap-target row.
 
-  - result_id: fixture.update.windows.x86_64.per_machine_installed.stable.rollback_required
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.update.windows.x86_64.per_machine_installed.stable.rollback_required
     result_kind: update
     result_status: failed
     return_code_family: rollback_required
@@ -332,13 +378,23 @@ fixtures:
     redaction_class: secrets_redacted_before_emit
     support_bundle_ref: reserved
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+    managed_package_report_ref: null
     notes: >
       Update left the host in a state that must be rolled back to the
       card's rollback_target_class (previous_build_same_channel).
       Callers are expected to follow up with a result_kind == rollback
       record resolving the outcome.
 
-  - result_id: fixture.rollback.windows.x86_64.per_machine_installed.stable.success_after_rollback_required
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.rollback.windows.x86_64.per_machine_installed.stable.success_after_rollback_required
     result_kind: rollback
     result_status: rolled_back
     return_code_family: rollback_required
@@ -349,6 +405,14 @@ fixtures:
     redaction_class: secrets_redacted_before_emit
     support_bundle_ref: reserved
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: reserved
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_configuration_root.preview
+    managed_package_report_ref: null
     notes: >
       Follow-up record for the rollback_required case. Demonstrates
       that the rollback_required family remains on the record even
@@ -356,7 +420,9 @@ fixtures:
       to rolled_back, and the family stays so the fleet console can
       correlate the two records.
 
-  - result_id: fixture.verify.windows.x86_64.per_machine_installed.stable.verification_failed
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.verify.windows.x86_64.per_machine_installed.stable.verification_failed
     result_kind: verify
     result_status: verify_failed
     return_code_family: verification_failed
@@ -367,13 +433,21 @@ fixtures:
     redaction_class: no_secrets_present
     support_bundle_ref: reserved
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: reserved
+    state_root_refs: null
+    managed_package_report_ref: null
     notes: >
       Install-signature verification failed. Demonstrates the
       verification_failed family and the verify result_kind. Install
       remains on the host but is flagged as unverified until the
       caller refreshes the offline bundle or the mirror metadata.
 
-  - result_id: fixture.uninstall.linux.x86_64.managed_deployed.stable.admin_required
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.uninstall.linux.x86_64.managed_deployed.stable.admin_required
     result_kind: uninstall
     result_status: failed
     return_code_family: admin_required
@@ -384,13 +458,21 @@ fixtures:
     redaction_class: no_secrets_present
     support_bundle_ref: null
     running_build_identity_ref: null
+    policy_injection_context_ref: reserved
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs: null
+    managed_package_report_ref: reserved
     notes: >
       Uninstall failed because the invoking caller does not hold
       admin / managed-fleet authority on the host. Demonstrates the
       admin_required family and the contact_admin remediation
       pointer.
 
-  - result_id: fixture.install.windows.x86_64.portable.portable_stable.portable_spill_detected
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.install.windows.x86_64.portable.portable_stable.portable_spill_detected
     result_kind: install
     result_status: failed
     return_code_family: internal_failure
@@ -401,13 +483,23 @@ fixtures:
     redaction_class: secrets_redacted_before_emit
     support_bundle_ref: reserved
     running_build_identity_ref: null
+    policy_injection_context_ref: null
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs:
+      - state.portable_colocated_root.portable_stable
+      - state.per_user_configuration_root.stable
+    managed_package_report_ref: null
     notes: >
       Portable install detected a spill into a user-profile state
       root (for example a machine-global update-marker write). The
       portable row MUST fail closed when this is detected rather than
       silently spilling into an installed channel's durable state.
 
-  - result_id: fixture.pin.linux.x86_64.managed_deployed.stable.success
+  - silent_deployment_result_schema_version: 1
+    record_kind: unattended_deployment_result_record
+    result_id: fixture.pin.linux.x86_64.managed_deployed.stable.success
     result_kind: pin
     result_status: success
     return_code_family: success
@@ -418,6 +510,12 @@ fixtures:
     redaction_class: no_secrets_present
     support_bundle_ref: null
     running_build_identity_ref: null
+    policy_injection_context_ref: reserved
+    rollback_evidence_ref: null
+    fleet_ring_context_ref: null
+    offline_bundle_signature_ref: null
+    state_root_refs: null
+    managed_package_report_ref: reserved
     notes: >
       Channel-pin succeeded on a managed Linux install. Demonstrates
       that result_kind == pin is a legitimate unattended operation

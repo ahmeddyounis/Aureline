@@ -1,0 +1,138 @@
+# Managed-package report seed.
+#
+# Machine-readable companion to docs/platform/desktop_management_contract.md
+# and docs/release/packaging_installation_matrix.md. Defines the managed-package
+# report fields used by enterprise / fleet deployment tooling and by later
+# diagnostics/support exports.
+#
+# The report exists so a managed install/update/rollback/uninstall can be
+# audited without reading installer code:
+#   - which artifact and channel is installed;
+#   - who owns updates (user/admin/managed fleet/external package manager);
+#   - which binary root class and durable state roots apply;
+#   - which policy roots are in force;
+#   - what rollback target is admissible; and
+#   - where exact-build install diagnostics can be found.
+#
+# This seed is intentionally path-agnostic: it uses stable ids and class
+# placeholders (install-topology cards and state-root rows) rather than concrete
+# OS paths or registry keys.
+
+schema_version: 1
+status: seeded
+
+install_topology_matrix_source: artifacts/release/install_topology_matrix.yaml
+state_root_map_source: artifacts/release/state_root_map.yaml
+channel_identity_source: artifacts/release/channel_identity_and_state_roots.yaml
+silent_deployment_seed_source: artifacts/release/silent_deployment_seed.yaml
+silent_deployment_result_schema: schemas/release/silent_deployment_result.schema.json
+exact_build_identity_schema: schemas/build/exact_build_identity.schema.json
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "§25.9 Install, portable-mode, and fleet-rollout architecture"
+      - "§B.2 Stable CLI exit-code model"
+  - path: .t2/docs/Aureline_Milestones_Document.md
+    anchors:
+      - "§6.18 Install authority, fleet rollout, and device-governance contract"
+
+# -----------------------------------------------------------------------------
+# Record shape (authoritative).
+#
+# A managed_package_report_record is emitted by managed deployment lanes and
+# referenced by silent-deployment results and by later support/export packets.
+# -----------------------------------------------------------------------------
+managed_package_report_record_shape:
+  record_kind: managed_package_report_record
+  required_fields:
+    - report_id
+    - install_profile_card_ref
+    - channel_identity_ref
+    - artifact_identity
+    - updater_owner_class
+    - binary_root_class
+    - durable_state_root_refs
+    - policy_root_refs
+    - rollback_target_class
+    - exact_build_install_diagnostics
+    - redaction_class
+  reserved_fields:
+    - fleet_inventory_context_ref
+    - policy_injection_context_ref
+    - uninstall_preservation_class
+
+# -----------------------------------------------------------------------------
+# Worked fixtures.
+#
+# Fixtures are illustrative managed package reports that reference stable ids.
+# They are not platform paths and must not leak secrets.
+# -----------------------------------------------------------------------------
+fixtures:
+  - report_id: fixture.managed_package_report.windows.managed_deployed.stable.seed
+    install_profile_card_ref: card.windows.x86_64.managed_deployed.stable
+    channel_identity_ref: channel_identity.stable
+    artifact_identity:
+      exact_build_identity_ref: null
+      build_id: null
+      artifact_family_ref: artifact_family.windows.msi
+    updater_owner_class: managed_fleet
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+    policy_root_refs:
+      - state.per_machine_admin_policy_root.stable
+    rollback_target_class: last_broad_cut_same_channel
+    exact_build_install_diagnostics:
+      diagnostics_export:
+        - exact_build_manifest_available
+        - install_topology_record_available
+        - state_root_audit_available
+      running_build_identity_ref: null
+    redaction_class: secrets_redacted_before_emit
+    fleet_inventory_context_ref: null
+    policy_injection_context_ref: null
+    uninstall_preservation_class: null
+    notes: >
+      Reference seed report for a managed Windows Stable install. The managed
+      package report is joinable to the install-topology card, channel identity,
+      and the stable state-root ids without embedding OS paths.
+
+  - report_id: fixture.managed_package_report.linux.customer_managed_mirror.stable.seed
+    install_profile_card_ref: card.linux.x86_64.customer_managed_mirror.stable
+    channel_identity_ref: channel_identity.stable
+    artifact_identity:
+      exact_build_identity_ref: null
+      build_id: null
+      artifact_family_ref: artifact_family.linux.deb
+    updater_owner_class: admin
+    binary_root_class: per_machine_program_area
+    durable_state_root_refs:
+      - state.per_user_configuration_root.stable
+      - state.per_user_recovery_root.stable
+      - state.per_user_derived_cache_root.stable
+      - state.per_machine_shared_data_root.stable
+      - state.per_machine_admin_policy_root.stable
+      - state.offline_bundle_mirror_metadata_root.stable
+    policy_root_refs:
+      - state.per_machine_admin_policy_root.stable
+    rollback_target_class: last_broad_cut_same_channel
+    exact_build_install_diagnostics:
+      diagnostics_export:
+        - exact_build_manifest_available
+        - install_topology_record_available
+        - state_root_audit_available
+      running_build_identity_ref: null
+    redaction_class: secrets_redacted_before_emit
+    fleet_inventory_context_ref: null
+    policy_injection_context_ref: null
+    uninstall_preservation_class: null
+    notes: >
+      Reference seed report for a customer-managed mirror row. The report carries
+      the mirror metadata durable state-root id so fleet tooling can reconcile
+      freshness and verification state without reading local paths.
+

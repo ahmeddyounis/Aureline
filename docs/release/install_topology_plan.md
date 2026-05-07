@@ -36,10 +36,15 @@ Companion artifacts:
   portable ZIP, PKG, DMG, app ZIP, DEB, RPM, AppImage, tarball, remote
   tarball, and image-layer bundle) and bind them to the state-root and
   channel rows here.
-- [`/artifacts/release/silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml)
-  — machine-readable return-code family seed plus worked
-  `unattended_deployment_result_record` fixtures covering install,
-  update, rollback, uninstall, and verify-failed outcomes.
+- [`/docs/release/silent_deployment_contract.md`](./silent_deployment_contract.md),
+  [`/schemas/release/silent_deployment_result.schema.json`](../../schemas/release/silent_deployment_result.schema.json),
+  [`/artifacts/release/silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml),
+  [`/artifacts/release/managed_package_report_seed.yaml`](../../artifacts/release/managed_package_report_seed.yaml),
+  and
+  [`/fixtures/release/silent_deployment_cases/`](../../fixtures/release/silent_deployment_cases/)
+  — silent-deployment contract, boundary schema, return-code family
+  vocabulary, managed package report shape, and worked packet fixtures
+  that join results to install-topology cards and state-root ids.
 - [`/docs/platform/deployment_and_unsupported_path_matrix.md`](../platform/deployment_and_unsupported_path_matrix.md),
   [`/artifacts/platform/tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml),
   and
@@ -533,12 +538,21 @@ access. The matrix reserves `mirror_metadata_integrity_class` and
 `customer_managed_mirror` rows so later release-evidence packets
 carry offline expiry and mirror integrity without retrofitting.
 
-## Failed unattended install / update / rollback result shape
+## Silent deployment result shape
 
-The silent-deployment seed defines one
-`unattended_deployment_result_record` every failed unattended
-install, update, pin, rollback, or uninstall resolves into. Fields:
+Silent deployment emits an `unattended_deployment_result_record` whose
+vocabularies are frozen by the seed and whose structure is frozen by
+the boundary schema. The record is joinable back to the install-profile
+card and state-root rows so support and enterprise tooling do not rely
+on platform-specific installer prose.
 
+Fields (see
+[`/docs/release/silent_deployment_contract.md`](./silent_deployment_contract.md)
+and
+[`/schemas/release/silent_deployment_result.schema.json`](../../schemas/release/silent_deployment_result.schema.json)):
+
+- `silent_deployment_result_schema_version` and `record_kind` — envelope
+  fields for schema evolution and record discrimination.
 - `result_kind` — one of `install`, `update`, `pin`, `rollback`,
   `uninstall`, `verify`.
 - `result_status` — one of `success`, `partial_success`, `failed`,
@@ -563,6 +577,11 @@ install, update, pin, rollback, or uninstall resolves into. Fields:
   row the outcome applies to.
 - `running_build_identity_ref` — ref into the exact-build identity
   record the outcome applies to, if any.
+- `state_root_refs` — required for state-root collisions, side-by-side
+  marker corruption, or portable spill detection; references stable ids
+  from the state-root map.
+- `managed_package_report_ref` — references a managed package report id
+  when the install-profile card declares a managed-package report slot.
 - `remediation_pointer_class` — one of a closed pointer set
   (`run_project_doctor`, `inspect_support_bundle`,
   `refresh_mirror_metadata`, `contact_admin`, `reissue_policy_bundle`,
@@ -571,6 +590,10 @@ install, update, pin, rollback, or uninstall resolves into. Fields:
 - `support_bundle_ref` — reserved ref into the support-bundle family
   so a failed unattended result can be linked to the bundle the admin
   captured.
+- `policy_injection_context_ref`, `rollback_evidence_ref`,
+  `fleet_ring_context_ref`, and `offline_bundle_signature_ref` —
+  reserved linkage slots that later lanes fill without changing the
+  return-code family or record kind.
 - `redaction_class` — same redaction vocabulary as the profile /
   state map so failure payloads do not leak secrets.
 
@@ -637,16 +660,15 @@ not under policy control, so a policy denial is not admissible).
 - Rollback artifact graphs for each ring are implemented; the
   matrix's `rollback_target_class` values become executable.
 - The unattended-deployment result schema becomes a published
-  boundary schema under
-  [`/schemas/release/`](../../schemas/release/)
-  alongside this seed.
+  boundary schema consumed by CLI JSON output, support exports, and
+  managed deployment tooling.
 - The state-root map rows resolve into concrete platform-specific
   paths (per host OS), replacing the placeholder path classes. The
   per-host-OS resolver lives with the install lane and is not part
   of this plan.
-- Managed-package report surfaces (`available`) for
-  `external_package_manager` and `managed_fleet` rows — reserved at
-  this milestone — are wired to a fleet-console read path.
+- Managed-package report slots become first-class inventory exports so
+  fleet tooling can correlate package state, install topology, and
+  silent deployment outcomes without scraping platform installer logs.
 
 ## Status
 

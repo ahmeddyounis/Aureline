@@ -45,7 +45,8 @@ truth.
 | Which install modes, updater owners, policy injection classes, and silent-install classes exist? | [`install_topology_matrix.yaml`](../../artifacts/release/install_topology_matrix.yaml) |
 | Which installer artifact families are eligible? | [`install_artifact_families.yaml`](../../artifacts/release/install_artifact_families.yaml) |
 | Which channel identity and state roots are touched? | [`channel_identity_and_state_roots.yaml`](../../artifacts/release/channel_identity_and_state_roots.yaml) and [`state_root_map.yaml`](../../artifacts/release/state_root_map.yaml) |
-| Which unattended result classes and exit-code families are allowed? | [`silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml) |
+| Which unattended result classes and exit-code families are allowed? | [`silent_deployment_contract.md`](../release/silent_deployment_contract.md), [`silent_deployment_seed.yaml`](../../artifacts/release/silent_deployment_seed.yaml), and [`silent_deployment_result.schema.json`](../../schemas/release/silent_deployment_result.schema.json) |
+| Which managed-package inventory report shape is emitted? | [`managed_package_report_seed.yaml`](../../artifacts/release/managed_package_report_seed.yaml) |
 | Which package-manager, fleet-tool, helper/agent, and unsupported paths may be named? | [`deployment_and_unsupported_path_matrix.md`](./deployment_and_unsupported_path_matrix.md), [`tested_package_managers.yaml`](../../artifacts/platform/tested_package_managers.yaml), and [`unsupported_paths.yaml`](../../artifacts/platform/unsupported_paths.yaml) |
 | Which policy artifact carries admin controls? | [`admin_policy_and_bundle_cache_contract.md`](../policy/admin_policy_and_bundle_cache_contract.md) |
 | Which extension mirror vocabulary is reused? | [`channel_promotion_rows.yaml`](../../artifacts/extensions/channel_promotion_rows.yaml) |

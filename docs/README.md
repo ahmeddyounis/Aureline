@@ -1684,11 +1684,18 @@ code.
   mirror metadata stale, update rollback_required plus its
   rollback follow-up, verify-failed, managed uninstall
   admin_required, portable spill detected, and channel-pin
-  success). No installer, updater, or fleet tooling is implemented
-  at this milestone; the plan is the vocabulary and row-shape
-  layer every later release-engineering, continuity, fleet-
-  rollout, desktop-affordance, and endpoint-posture lane composes
-  over.
+  success). Silent deployment is further frozen by
+  [`release/silent_deployment_contract.md`](./release/silent_deployment_contract.md)
+  and its boundary schema
+  [`/schemas/release/silent_deployment_result.schema.json`](../schemas/release/silent_deployment_result.schema.json),
+  with worked audit cases in
+  [`/fixtures/release/silent_deployment_cases/`](../fixtures/release/silent_deployment_cases/)
+  and a managed-package inventory seed in
+  [`/artifacts/release/managed_package_report_seed.yaml`](../artifacts/release/managed_package_report_seed.yaml).
+  No installer, updater, or fleet tooling is implemented at this
+  milestone; the plan is the vocabulary and row-shape layer every
+  later release-engineering, continuity, fleet-rollout, desktop-
+  affordance, and endpoint-posture lane composes over.
 
 ## Machine-readable registers
 
