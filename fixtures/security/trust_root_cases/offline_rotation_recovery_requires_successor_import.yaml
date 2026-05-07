@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=../../../schemas/security/key_state.schema.json
+__fixture__:
+  name: offline_rotation_recovery_requires_successor_import
+  scenario: >
+    A device in an offline/air-gapped posture has a pinned offline trust root
+    that has been rotated upstream while it was offline. The target enters a
+    rotation_completed_recheck_required posture: updates/imports remain blocked
+    until the successor import is performed and explicitly rechecked, but local
+    work continues. This case is designed to connect directly to manual-import
+    receipts and offline-verification packets.
+  contract_sections:
+    - Mirror and sovereign import roots
+    - Local-first degradation rules
+
+record_kind: key_hierarchy_case_record
+key_schema_version: 1
+case_id: key_hierarchy_case.offline_rotation_recovery_requires_successor_import
+title: Offline trust-root rotation requires successor import and recheck; local work continues
+scenario: >
+  Offline target is behind on trust-root rotation; refuse new trust-bearing
+  imports/updates until successor root is imported and verified.
+
+key_states:
+  - record_kind: key_state_record
+    key_schema_version: 1
+    record_id: key_state.mirror_and_sovereign_import_roots.rotation_recheck_required
+    key_scope: mirror_and_sovereign_import_roots
+    key_mode: offline_trust_root
+    key_ref: key.ref.offline.trust_root.pinned
+    key_epoch: epoch.0005
+    key_state_class: rotation_completed_recheck_required
+    key_state_summary: >
+      Trust root rotated while this target was offline; successor import and
+      explicit recheck are required before resuming trust-bearing imports.
+    rotation_planned_at: null
+    rotation_started_at: "2026-05-01T00:00:00Z"
+    rotation_completed_at: "2026-05-03T00:00:00Z"
+    local_editing_continues: true
+    affected_action_families:
+      - marketplace_install_action_family
+      - policy_distribution_action_family
+      - sync_action_family
+    fail_posture: boundary_recheck_required
+    notes:
+      - "Offline continuity is honest: imported state must not claim live freshness until rechecked."
+
+continuity_summary:
+  local_editing_continues: true
+  retained_local_safe_capabilities:
+    - Continue local edit, save, search, Git, and local tooling.
+    - Inspect existing installed state and cached evidence as last known.
+  blocked_or_degraded_capabilities:
+    - Importing updates/extensions/policy bundles from offline bundles is blocked until successor root import completes.
+    - Mirror/offline verification surfaces must render rotation recheck required with an explicit repair path.
+
+narrative_refs:
+  - docs/security/trust_root_rotation_rehearsal.md
+  - docs/security/manual_emergency_import_contract.md
+  - docs/release/mirror_integrity_and_offline_verification_contract.md
+  - fixtures/security/manual_import_cases/trust_root_rotation_offline_transfer.yaml
+  - fixtures/security/manual_import_cases/trust_root_rotation_chain_entry.yaml

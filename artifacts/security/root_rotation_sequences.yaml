@@ -1,0 +1,278 @@
+# Trust-root rotation and continuity rehearsal sequences.
+#
+# This artifact exists so security and release operators can rehearse
+# trust-root continuity and compromise response using stable, reviewable
+# sequences instead of incident-only runbooks.
+#
+# Narrative companion:
+#   docs/security/trust_root_rotation_rehearsal.md
+#
+# Related contracts:
+#   docs/release/artifact_verification_contract.md
+#   docs/security/emergency_action_model.md
+#   docs/release/mirror_integrity_and_offline_verification_contract.md
+#   docs/security/key_hierarchy_and_tenant_encryption_contract.md
+
+schema_version: 1
+record_kind: trust_root_rotation_rehearsal_sequences
+status: seeded
+as_of: "2026-05-07"
+
+overview_doc_ref: docs/security/trust_root_rotation_rehearsal.md
+
+sequence_vocabulary:
+  scenario_class:
+    - planned_rotation_dual_signed_overlap
+    - planned_rotation_cross_signed_transition
+    - emergency_rotation_after_compromise
+    - offline_import_root_update
+    - mirror_continuity_root_rotation
+    - customer_managed_key_rotation
+    - customer_managed_key_revoke_or_replace
+    - customer_managed_key_outage
+  evidence_kind:
+    - trust_root_rotation_state_record
+    - artifact_verification_row_record
+    - emergency_action_record
+    - revocation_record
+    - mirror_integrity_packet_record
+    - revocation_propagation_record
+    - manual_import_receipt_record
+    - metadata_chain_entry_record
+    - offline_verification_packet_record
+    - release_evidence_packet
+    - key_state_record
+
+failure_mode_vocabulary:
+  - stale_trust_root_state
+  - missing_rotation_metadata
+  - revoked_root_or_signer
+  - lower_order_bundle_attempt_under_broken_trust
+  - mirror_or_offline_continuity_failure
+
+sequences:
+  - sequence_id: rotation_sequence.release_signing_root.planned_dual_signed_overlap
+    title: Planned release-signing root rotation (dual-signed overlap)
+    scenario_class: planned_rotation_dual_signed_overlap
+    applies_to:
+      trust_root_family_class: release_signing_root
+      key_scope: null
+    goal: >
+      Rotate the release-signing root without breaking verification for
+      installers and offline bundles anchored on the predecessor root.
+    preconditions:
+      - Predecessor root is not compromised; continuity statement is admissible.
+      - Overlap window and review forum are declared before promotion.
+    required_evidence:
+      - evidence_kind: trust_root_rotation_state_record
+        must_exist: true
+        notes:
+          - stale_or_rotating_state_class reflects dual-signed overlap.
+      - evidence_kind: artifact_verification_row_record
+        must_exist: true
+        notes:
+          - Representative release payloads carry signatures under both roots.
+      - evidence_kind: release_evidence_packet
+        must_exist: true
+        notes:
+          - Packet must state trust-root rotation evidence and mirror continuity.
+    steps:
+      - step_id: publish_successor_root_with_continuity
+        step_summary: Publish successor root and continuity statement.
+        required_outputs:
+          - trust_root_rotation_state_record (successor root, overlap window, continuity statement ref)
+        expected_system_effects:
+          blocks:
+            - none
+          degrades:
+            - surfaces may label "rotation in progress" but remain usable
+          local_continuation:
+            - local work unaffected
+      - step_id: ship_dual_signed_artifacts_during_overlap
+        step_summary: Ship artifacts with signatures under both roots.
+        required_outputs:
+          - artifact_verification_row_record (trust_root_pointer_class reflects dual-signed overlap)
+        expected_system_effects:
+          blocks:
+            - none
+          degrades:
+            - none
+          local_continuation:
+            - local work unaffected
+      - step_id: end_overlap_and_retire_predecessor
+        step_summary: End overlap; stop shipping under predecessor root.
+        required_outputs:
+          - trust_root_rotation_state_record (rollout_overlap_ended or legacy-grace posture)
+        expected_system_effects:
+          blocks:
+            - accepting new artifacts signed only under predecessor (except declared legacy-grace inspection)
+          degrades:
+            - legacy artifacts may be inspection-only if grace is declared
+          local_continuation:
+            - local work unaffected
+    failure_mode_expectations:
+      stale_trust_root_state:
+        blocks:
+          - promotion/widening decisions
+        degrades:
+          - update/install surfaces show "stale trust state" with repair path
+        local_continuation:
+          - local work continues
+      missing_rotation_metadata:
+        blocks:
+          - accepting successor root as authoritative
+        degrades:
+          - render "continuity review required"
+        local_continuation:
+          - local work continues
+
+  - sequence_id: rotation_sequence.update_metadata_root.planned_cross_signed_transition
+    title: Planned update-metadata root rotation (cross-signed transition)
+    scenario_class: planned_rotation_cross_signed_transition
+    applies_to:
+      trust_root_family_class: update_metadata_root
+      key_scope: null
+    goal: >
+      Rotate update-metadata trust without allowing rollback or accepting
+      unsigned/unknown metadata.
+    required_evidence:
+      - evidence_kind: trust_root_rotation_state_record
+        must_exist: true
+      - evidence_kind: artifact_verification_row_record
+        must_exist: true
+        notes:
+          - Representative channel metadata rows bind to the rotation state.
+    steps:
+      - step_id: publish_cross_signed_successor
+        step_summary: Publish successor update-metadata root cross-signed by predecessor.
+        required_outputs:
+          - trust_root_rotation_state_record (cross_signed_transition continuity statement class)
+        expected_system_effects:
+          blocks:
+            - none
+          degrades:
+            - rotation notice may appear on update surfaces
+          local_continuation:
+            - local work unaffected
+      - step_id: enforce_monotonic_metadata
+        step_summary: Reject lower-order snapshot/timestamp metadata even during rotation.
+        required_outputs:
+          - artifact_verification_row_record (rollback refusal logged and exportable)
+        expected_system_effects:
+          blocks:
+            - accepting lower-version or rollback metadata
+          degrades:
+            - none
+          local_continuation:
+            - local work unaffected
+
+  - sequence_id: rotation_sequence.policy_signer_root.rollback_or_mismatch_handling
+    title: Policy signer root rollback/mismatch handling (fail-closed for policy distribution)
+    scenario_class: emergency_rotation_after_compromise
+    applies_to:
+      trust_root_family_class: policy_signer_root
+      key_scope: null
+    goal: >
+      Ensure policy distribution never widens trust under an unknown, stale,
+      mismatched, or rolled-back policy signer root.
+    required_evidence:
+      - evidence_kind: key_state_record
+        must_exist: true
+        notes:
+          - Policy distribution failure posture remains scoped; local work continues.
+      - evidence_kind: emergency_action_record
+        must_exist: false
+        notes:
+          - Emergency action is optional; a mismatch can be a typed refusal without an emergency action.
+    steps:
+      - step_id: detect_policy_root_rollback_or_mismatch
+        step_summary: Detect rollback/mismatch against pinned policy root or monotonic epoch.
+        required_outputs:
+          - key_state_record (artifact_signing_and_release_keys or mirror_and_sovereign_import_roots as applicable)
+        expected_system_effects:
+          blocks:
+            - policy distribution that would widen trust
+          degrades:
+            - keep last-known-good policy in effect with stale/blocked label
+          local_continuation:
+            - local work continues; read-only inspection remains available
+
+  - sequence_id: rotation_sequence.mirror_and_sovereign_import_roots.offline_update
+    title: Offline import-root update (sovereign / air-gapped)
+    scenario_class: offline_import_root_update
+    applies_to:
+      trust_root_family_class: null
+      key_scope: mirror_and_sovereign_import_roots
+    goal: >
+      Update pinned offline verification roots without pretending live freshness,
+      and without allowing unknown roots to be accepted silently.
+    required_evidence:
+      - evidence_kind: manual_import_receipt_record
+        must_exist: true
+      - evidence_kind: metadata_chain_entry_record
+        must_exist: true
+      - evidence_kind: offline_verification_packet_record
+        must_exist: true
+        notes:
+          - Packet includes trust-root pointer block and freshness semantics.
+    steps:
+      - step_id: import_successor_root_via_manual_path
+        step_summary: Import successor root through removable-media/file import with detached-signature verification.
+        required_outputs:
+          - manual_import_receipt_record (observed_signer_continuity_state may be unknown_offline)
+        expected_system_effects:
+          blocks:
+            - trusting new artifacts until successor root is active on this profile
+          degrades:
+            - none
+          local_continuation:
+            - local work continues; inspection/export available
+      - step_id: preserve_metadata_chain_for_review
+        step_summary: Preserve metadata chain and obligations so offline review can prove arrival path and timing.
+        required_outputs:
+          - metadata_chain_entry_record
+          - offline_verification_packet_record (references receipts and rotation state refs)
+        expected_system_effects:
+          blocks:
+            - none
+          degrades:
+            - offline surfaces render unknown_offline continuity honestly
+          local_continuation:
+            - local work continues
+
+  - sequence_id: rotation_sequence.customer_managed_key.outage_and_recovery
+    title: Customer-managed key outage (managed data) remains scoped
+    scenario_class: customer_managed_key_outage
+    applies_to:
+      trust_root_family_class: null
+      key_scope: tenant_org_managed_data_keys
+    goal: >
+      Prove customer-managed key outages block only protected managed-data
+      families while preserving local-first continuity.
+    required_evidence:
+      - evidence_kind: key_state_record
+        must_exist: true
+    steps:
+      - step_id: simulate_key_unreachable
+        step_summary: Key path unreachable; decrypt of protected managed data fails closed.
+        required_outputs:
+          - key_state_record (customer_managed_unreachable)
+        expected_system_effects:
+          blocks:
+            - managed sync/policy-cache decrypt/offboarding plaintext export
+          degrades:
+            - managed features render scoped outage labels
+          local_continuation:
+            - local work continues
+      - step_id: restore_and_recheck_boundary
+        step_summary: Restore reachability and perform explicit recheck before resuming.
+        required_outputs:
+          - key_state_record (bound_and_current after explicit recheck)
+        expected_system_effects:
+          blocks:
+            - none
+          degrades:
+            - none
+          local_continuation:
+            - local work continues
+

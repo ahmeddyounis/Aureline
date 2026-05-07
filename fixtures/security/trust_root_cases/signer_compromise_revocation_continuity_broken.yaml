@@ -1,0 +1,236 @@
+# yaml-language-server: $schema=../../../schemas/security/emergency_action_record.schema.json
+__fixture__:
+  name: signer_compromise_revocation_continuity_broken
+  scenario: >
+    Worked revocation_record for a signing-material compromise where no
+    continuity statement from the predecessor signer is admissible. The record
+    uses signer_continuity.continuity_state = continuity_broken, revokes the
+    compromised signer material, and blocks new trust-bearing updates/promotion
+    paths while preserving local-first continuity.
+  contract_sections:
+    - "Signer continuity"
+    - "Revocation record"
+    - "Distribution state"
+    - "Local continuity"
+
+emergency_action_schema_version: 1
+record_kind: revocation_record
+
+revocation_id: revocation.AURELINE-REV-2026-0002
+blast_radius_class: trust_chain_wide
+
+severity_class: security_severity.operational_emergency
+surface_notice_class: emergency_action_required
+reason_class: active_signed_artifact_compromise
+urgency_class: immediate
+enforcement_posture_class: revoked
+record_state: active
+
+title: >
+  Signing material compromised; revoke immediately and rotate trust roots before updates resume
+summary: >
+  Aureline revoked the compromised signing material after confirmed misuse.
+  No continuity statement from the compromised predecessor is admissible, so
+  connected, mirrored, and offline profiles must import the successor trust
+  root and updated revocation metadata before any new artifact is trusted.
+  Existing authenticated local binaries keep bounded local continuity.
+
+affected_subjects:
+  - subject_kind: signing_material
+    subject_id: signing_material.release_signer.stable.2026q2.compromised
+    note: Compromised signing material is revoked; new artifacts must not rely on it.
+  - subject_kind: signing_root
+    subject_id: trust_root.aureline.stable.2026q2
+    note: Any trust-root snapshot anchored on the compromised signer/root is refused.
+  - subject_kind: release_channel
+    subject_id: release-channel:stable
+    note: Stable verification and publication remain blocked until successor trust root is imported.
+
+affected_install_linkage:
+  install_profile_card_refs:
+    - card.linux.x86_64.managed_deployed.stable
+    - card.linux.x86_64.customer_managed_mirror.stable
+    - card.air_gap_bundle_target.platform_native_any.offline_bundle.stable
+  exact_build_identity_refs:
+    - build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b
+  channel_classes:
+    - stable
+  publication_posture_classes:
+    - online_vendor
+    - customer_managed_mirror
+    - offline_signed_bundle
+  mirror_freshness_class: stale_past_grace
+  offline_expiration_at: "2026-05-20T00:00:00Z"
+  local_continuity_note: >
+    Existing authenticated local binaries remain usable for local work, but any
+    update, mirror promotion, or offline bundle import that would accept new
+    trust must wait for the successor root and revocation metadata.
+
+deployment_profile_scope:
+  - self_hosted
+  - enterprise_online
+  - air_gapped
+
+trigger_source_class: signed_emergency_bundle
+
+signer_continuity:
+  continuity_state: continuity_broken
+  current_signer_ref: trust_root.aureline.stable.2026q3
+  previous_signer_refs:
+    - trust_root.aureline.stable.2026q2
+  continuity_statement_ref: null
+  last_verified_at: "2026-05-06T18:10:00Z"
+  note: >
+    The predecessor signing material is compromised; no continuity statement is
+    admissible. Successor trust root must be imported through the documented
+    path and verified using the emergency chain and revocation state.
+
+distribution_statuses:
+  - distribution_id: distribution.revocation.live.0002
+    source_class: authoritative_origin
+    path_class: managed_pull
+    freshness_class: authoritative_live
+    validation_state: verified_current
+    observed_signer_continuity_state: continuity_broken
+    observed_at: "2026-05-06T18:12:00Z"
+    receipt_ref: receipt.revocation.live.0002
+    supersedes_known_snapshot_ref: trust_root_snapshot.stable.2026q2
+    note: >
+      Connected profiles observed the revocation live; signer continuity is
+      explicitly broken because predecessor is compromised.
+  - distribution_id: distribution.revocation.mirror.0002
+    source_class: customer_managed_mirror
+    path_class: mirror_sync
+    freshness_class: mirrored_stale_past_grace
+    validation_state: verified_but_stale
+    observed_signer_continuity_state: continuity_broken
+    observed_at: "2026-05-06T19:05:00Z"
+    receipt_ref: receipt.revocation.mirror_sync.0002
+    supersedes_known_snapshot_ref: trust_root_snapshot.stable.2026q2
+    note: Mirror has the revocation, but is beyond grace; mirror-only installs must not proceed.
+  - distribution_id: distribution.revocation.manual.0002
+    source_class: manual_import_bundle
+    path_class: file_import
+    freshness_class: manual_snapshot_current
+    validation_state: pending_review
+    observed_signer_continuity_state: continuity_broken
+    observed_at: "2026-05-06T20:10:00Z"
+    receipt_ref: receipt.revocation.manual_import.0002
+    supersedes_known_snapshot_ref: trust_root_snapshot.stable.2026q2
+    note: Manual import is admissible; receiving profile must preserve receipt refs and obligations.
+  - distribution_id: distribution.revocation.offline.0002
+    source_class: offline_transfer_snapshot
+    path_class: offline_transfer
+    freshness_class: offline_snapshot_unexpired
+    validation_state: cached_without_revalidation
+    observed_signer_continuity_state: unknown_offline
+    observed_at: "2026-05-06T21:02:00Z"
+    receipt_ref: receipt.revocation.offline_transfer.0002
+    supersedes_known_snapshot_ref: trust_root_snapshot.stable.2026q2
+    note: Offline transfer preserved; continuity is recorded as unknown_offline on the receiving target.
+
+local_continuity:
+  posture_class: offline_continuity_until_expiry
+  note: >
+    Existing authenticated local binaries keep local continuity, but no new
+    stable artifact may be trusted until the successor root is imported and the
+    revocation is visible on the receiving profile.
+  retained_capabilities:
+    - Continue local editing, search, Git, and support export with the current authenticated binary.
+    - Inspect revocation history and required actions offline.
+  blocked_capabilities:
+    - Verify or apply new stable updates while continuity is broken.
+    - Promote mirrored or offline bundles until successor-root import is complete.
+
+required_actions:
+  - required_action_id: required_action.revocation.rotate_root
+    actor_class: org_admin
+    action_class: rotate_trust_root
+    blocking_class: required_to_restore_safe_updates
+    deadline_semantics: immediate
+    deadline_at: "2026-05-07T08:00:00Z"
+    note: Import and activate the successor trust root before resuming verification or publication.
+  - required_action_id: required_action.revocation.pin_last_known_good
+    actor_class: mirror_operator
+    action_class: pin_last_known_good
+    blocking_class: required_to_restore_feature
+    deadline_semantics: before_channel_resume
+    deadline_at: "2026-05-07T08:00:00Z"
+    note: Keep last-known-good authenticated bundles pinned until successor root is active.
+  - required_action_id: required_action.revocation.support_export
+    actor_class: support_operator
+    action_class: export_support_packet
+    blocking_class: recommended_only
+    deadline_semantics: informational_only
+    deadline_at: null
+    note: Export revocation + receipt refs for any support packet covering failed mirror/offline verification.
+
+relationship_links:
+  related_advisory_refs:
+    - advisory_record.AURELINE-ADV-2026-0002
+  related_incident_workspace_packet_refs:
+    - incident_workspace_packet.signed_binary_chain_bypass
+  supersedes_record_refs: []
+  superseded_by_record_ref: null
+  revokes_record_refs:
+    - trust_root_snapshot.stable.2026q2
+  revoked_subject_refs:
+    - signing_material.release_signer.stable.2026q2.compromised
+
+history_links:
+  decision_history_refs:
+    - advisory_record.AURELINE-ADV-2026-0002#decision_history.1
+  activity_event_refs:
+    - activity_event.revocation.signer_compromise.stable.0002
+  support_packet_refs:
+    - support_bundle.remote_connector_loss.local_first
+  release_evidence_packet_refs:
+    - release_evidence_packet.signed_binary_chain_bypass
+  admin_export_refs:
+    - admin_export.revocation.signer_compromise.stable.2026-05-06
+  distribution_receipt_refs:
+    - receipt.revocation.live.0002
+    - receipt.revocation.mirror_sync.0002
+    - receipt.revocation.manual_import.0002
+    - receipt.revocation.offline_transfer.0002
+  public_notice_refs:
+    - public_notice.revocation.signer_compromise.stable.2026-05-06
+
+reconciliation:
+  state: awaiting_manual_import
+  owner_class: org_admin
+  post_incident_review_refs:
+    - post_incident_review.signer_compromise.stable.2026-05-08
+  follow_up_support_packet_refs:
+    - support_bundle.remote_connector_loss.local_first
+  resume_condition_note: >
+    Every claimed mirrored or offline stable profile must import and verify the
+    successor trust root and updated revocation metadata before stable channel
+    resume.
+
+enforcement_details:
+  affected_capability_refs:
+    - capability.auto_update.stable_channel
+    - capability.bundle_verification.offline_import
+  affected_channel_refs:
+    - release-channel:stable
+  minimum_safe_version_ref: build-id:aureline:stable:0.7.3:x86_64-unknown-linux-gnu:release:a4d1c3f0e27b
+  successor_signer_ref: signing_authority.release_hardware_key_sign.aureline.stable.2026q3
+  successor_trust_root_ref: trust_root.aureline.stable.2026q3
+  recovery_guidance_note: >
+    Import successor root, keep last-known-good bundles pinned, and do not
+    accept new trust-bearing artifacts until the successor root is active on the
+    receiving profile.
+
+effective_at: "2026-05-06T18:12:00Z"
+review_deadline_at: "2026-05-08T17:00:00Z"
+expires_at: null
+
+policy_context:
+  policy_epoch: policy_epoch.security_response_pre_implementation.2026.05
+  trust_state: managed_admin
+  execution_context_id: execution_context.security_trust_review.private_security_channel
+
+redaction_class: release_public
+
+minted_at: "2026-05-06T18:12:00Z"
