@@ -16,6 +16,9 @@ Companion artifacts:
 - [`/fixtures/remote/attach_cases/`](../../fixtures/remote/attach_cases/)
   contains worked attach, reconnect, tunnel, collision, policy-denial,
   paused, degraded, and browser-handoff cases.
+- [`/artifacts/remote/attach_rerun_sequence.md`](../../artifacts/remote/attach_rerun_sequence.md)
+  ties attach truth to execution-context resolution, rerun-last-test dispatch,
+  and normalized task-event envelopes for supportable replay.
 
 This contract composes with, and does not replace:
 

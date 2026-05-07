@@ -38,12 +38,13 @@ can anchor their replay contracts to one shared record shape.
 | Fixture | Source kind | Confidence | Key coverage |
 |---|---|---|---|
 | [`native_cargo_test_case_outcome.json`](./native_cargo_test_case_outcome.json) | `native_task_runner` | `authoritative_from_source` | test-case outcome; retained_local_with_replay_opt_in; in-process native adapter |
+| [`remote_agent_cargo_test_case_outcome.json`](./remote_agent_cargo_test_case_outcome.json) | `native_task_runner` | `authoritative_from_source` | test-case outcome; retained_managed_with_redaction; remote-agent placement proof |
 | [`bsp_build_target_lifecycle.json`](./bsp_build_target_lifecycle.json) | `build_server_protocol_client` | `authoritative_from_source` | build-target completion; out-of-process sidecar adapter; local cache hit |
 | [`bazel_bep_artifact_publication.json`](./bazel_bep_artifact_publication.json) | `bazel_build_event_protocol` | `authoritative_from_source` | artifact publication; BEP ingest; retained_local_with_replay_opt_in |
 | [`junit_structured_test_suite.json`](./junit_structured_test_suite.json) | `structured_tool_output_ingest` | `structured_parse_match` | test-suite completion; JUnit XML ingest reports structured_parse_match (never authoritative) |
 | [`heuristic_parser_diagnostic.json`](./heuristic_parser_diagnostic.json) | `heuristic_parser` | `heuristic_best_effort` | diagnostic from line-oriented parser; secret_pattern_scan + path_redaction_pass applied; adapter_confidence_downgrade at the end |
 | [`unsupported_source_preserved.json`](./unsupported_source_preserved.json) | `heuristic_parser` / `preserve_opaque_with_provenance` | `unknown` | unsupported_source_placeholder + opaque_preservation_only; review gap kept reviewable |
-| [`replay_bundle_support_export.json`](./replay_bundle_support_export.json) | n/a (bundle record) | n/a | replay-bundle record indexing the six envelope fixtures above for support-export |
+| [`replay_bundle_support_export.json`](./replay_bundle_support_export.json) | n/a (bundle record) | n/a | replay-bundle record indexing the baseline envelope fixtures for support-export |
 
 ## Coverage contract
 

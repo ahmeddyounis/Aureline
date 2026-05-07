@@ -79,6 +79,7 @@ schema_family_ref: artifacts/governance/schema_families.yaml#family_id:tooling
 fixture_root: fixtures/tooling/task_event_replay
 fixture_refs:
   - fixtures/tooling/task_event_replay/native_cargo_test_case_outcome.json
+  - fixtures/tooling/task_event_replay/remote_agent_cargo_test_case_outcome.json
   - fixtures/tooling/task_event_replay/bsp_build_target_lifecycle.json
   - fixtures/tooling/task_event_replay/bazel_bep_artifact_publication.json
   - fixtures/tooling/task_event_replay/junit_structured_test_suite.json
@@ -154,6 +155,56 @@ adapters:
       and the native cargo test event stream for test outcomes. Does
       not emit for non-cargo workspaces; such sources route to the
       heuristic parser with a degraded confidence class instead.
+
+  - adapter_id: aureline.remote_agent.cargo_runner
+    title: Remote-agent cargo task runner (build / test / bench)
+    source_kind: native_task_runner
+    producer_tool: cargo.runner
+    producer_tool_version_policy: >-
+      Same producer semantics as the native cargo runner. Placement differs:
+      the adapter runs on a remote agent and emits the same envelope vocabulary.
+    ingest_host_class: remote_agent
+    adapter_confidence_ceiling: authoritative_from_source
+    unsupported_source_posture: reject_with_explanation
+    raw_payload_retention_posture: retained_managed_with_redaction
+    capabilities:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic_structured
+      - log_line_streaming
+      - progress_tick
+      - resource_usage_sample
+    payload_kinds_supported:
+      - task_lifecycle
+      - build_target_lifecycle
+      - compile_unit_lifecycle
+      - test_case_outcome
+      - test_suite_outcome
+      - artifact_publication
+      - diagnostic
+      - log_line
+      - progress_tick
+      - resource_usage
+    normalization_passes:
+      - raw_capture_only
+      - utf8_validation_and_replace
+      - ansi_escape_strip
+      - line_framing_and_offset
+      - path_redaction_pass
+      - schema_canonicalization
+      - source_specific_decoder
+      - adapter_confidence_preserved
+    fixture_refs:
+      - fixtures/tooling/task_event_replay/remote_agent_cargo_test_case_outcome.json
+    notes: >-
+      Emits the same envelope vocabulary as aureline.native.cargo_runner but
+      records ingest_host_class=remote_agent and defaults to managed retention
+      with redaction. This is the canonical placement-diff proof for remote
+      rerun flows: command semantics and event vocabulary remain identical.
 
   - adapter_id: aureline.bsp.client_v2
     title: Build Server Protocol v2 client

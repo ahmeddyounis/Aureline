@@ -15,6 +15,9 @@ Machine-readable companions:
   - `task_channel_record`, the logical stream or mirror that carries
   output, structured events, diagnostics, artifacts, notification
   mirrors, imported CI logs, or provider-backed overlays.
+- [`/schemas/execution/normalized_task_event.schema.json`](../../schemas/execution/normalized_task_event.schema.json)
+  - schema handle for one normalized task event (alias of the canonical
+    tooling task-event envelope record).
 - [`/schemas/execution/task_event.schema.json`](../../schemas/execution/task_event.schema.json)
   - `task_event_record`, the chronology-bearing event emitted on a
   task channel.
