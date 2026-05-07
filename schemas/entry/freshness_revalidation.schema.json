@@ -1,0 +1,531 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/entry/freshness_revalidation.schema.json",
+  "title": "Aureline warm-start chooser freshness and revalidation contract",
+  "description": "Boundary schema for exportable warm-start chooser records that must make warm starts honest about liveness, age, pending updates, and what must revalidate before work is considered live again. The contract covers the four distinct warm-start lanes: resume live workspace, start from snapshot, clone fresh, and open without starter. It also freezes what must be disclosed about revalidation requirements (credentials, ports, dependencies, indexes, policy, trust, extensions, runtime images/toolchains) and the safe fallback behavior when revalidation fails. See artifacts/entry/warm_start_chooser_contract.md. Raw absolute paths, raw hostnames, raw URLs with embedded credentials, raw secrets, raw policy bundle bodies, and raw provider payloads never appear here; the record carries opaque refs, closed vocabularies, and short redaction-aware summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/warm_start_chooser_set_record" },
+    { "$ref": "#/$defs/warm_start_chooser_decision_record" },
+    { "$ref": "#/$defs/warm_start_chooser_outcome_record" }
+  ],
+  "$defs": {
+    "freshness_revalidation_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the warm-start chooser freshness/revalidation contract."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__. Production consumers ignore this object."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, support bundles, and exports. Raw paths, raw hostnames, raw URLs with embedded credentials, and secrets never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Consumers do not infer ordering beyond producer ordering."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware summary text."
+    },
+
+    "source_surface": {
+      "$ref": "../workspace/entry_and_restore_result.schema.json#/$defs/source_surface",
+      "description": "Re-exported source_surface from schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "target_kind": {
+      "$ref": "../workspace/entry_and_restore_result.schema.json#/$defs/target_kind",
+      "description": "Re-exported target_kind from schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "entry_verb": {
+      "$ref": "../workspace/entry_and_restore_result.schema.json#/$defs/entry_verb",
+      "description": "Re-exported entry_verb from schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "declared_freshness_class": {
+      "$ref": "../workspace/bootstrap_packet.schema.json#/$defs/freshness_class",
+      "description": "Re-exported declared freshness class from schemas/workspace/bootstrap_packet.schema.json."
+    },
+    "packet_outcome_class": {
+      "$ref": "../workspace/bootstrap_packet.schema.json#/$defs/packet_outcome_class",
+      "description": "Re-exported packet outcome class from schemas/workspace/bootstrap_packet.schema.json."
+    },
+    "resumability_action_class": {
+      "$ref": "../workspace/bootstrap_packet.schema.json#/$defs/resumability_action_class",
+      "description": "Re-exported resumability action class from schemas/workspace/bootstrap_packet.schema.json."
+    },
+    "post_open_prerequisite_class": {
+      "$ref": "../workspace/bootstrap_packet.schema.json#/$defs/post_open_prerequisite_class",
+      "description": "Re-exported post-open prerequisite class from schemas/workspace/bootstrap_packet.schema.json."
+    },
+    "post_open_prerequisite_posture": {
+      "$ref": "../workspace/bootstrap_packet.schema.json#/$defs/post_open_prerequisite_posture",
+      "description": "Re-exported post-open prerequisite posture from schemas/workspace/bootstrap_packet.schema.json."
+    },
+    "write_safety_badge": {
+      "$ref": "../ux/recent_work_row.schema.json#/$defs/write_safety_badge",
+      "description": "Re-exported write-safety badge from schemas/ux/recent_work_row.schema.json."
+    },
+    "restore_availability": {
+      "$ref": "../ux/recent_work_row.schema.json#/$defs/restore_availability",
+      "description": "Re-exported restore availability from schemas/ux/recent_work_row.schema.json."
+    },
+    "host_class": {
+      "$ref": "../workspace/prebuild_fingerprint.schema.json#/$defs/host_class",
+      "description": "Re-exported host class from schemas/workspace/prebuild_fingerprint.schema.json."
+    },
+    "platform_arch": {
+      "$ref": "../workspace/prebuild_fingerprint.schema.json#/$defs/platform_arch",
+      "description": "Re-exported platform arch from schemas/workspace/prebuild_fingerprint.schema.json."
+    },
+    "freshness_age_class": {
+      "$ref": "../workspace/prebuild_fingerprint.schema.json#/$defs/freshness_age_class",
+      "description": "Re-exported freshness age class from schemas/workspace/prebuild_fingerprint.schema.json."
+    },
+    "cache_class": {
+      "$ref": "../workspace/prebuild_fingerprint.schema.json#/$defs/cache_class",
+      "description": "Re-exported cache class from schemas/workspace/prebuild_fingerprint.schema.json."
+    },
+    "required_revalidation_class": {
+      "$ref": "../workspace/prebuild_fingerprint.schema.json#/$defs/required_revalidation_class",
+      "description": "Re-exported required revalidation class from schemas/workspace/prebuild_fingerprint.schema.json."
+    },
+    "attach_authority_class": {
+      "$ref": "../workspace/source_locator.schema.json#/$defs/live_session_descriptor/properties/attach_authority_class",
+      "description": "Re-exported attach authority class from schemas/workspace/source_locator.schema.json."
+    },
+    "live_session_class": {
+      "$ref": "../workspace/source_locator.schema.json#/$defs/live_session_descriptor/properties/session_class",
+      "description": "Re-exported live session class from schemas/workspace/source_locator.schema.json."
+    },
+
+    "warm_start_lane_class": {
+      "type": "string",
+      "enum": [
+        "resume_live_workspace",
+        "start_from_snapshot",
+        "clone_fresh_repository",
+        "open_without_starter"
+      ],
+      "description": "Closed warm-start lane set. Surfaces MUST keep these lanes distinct; they are not one generic Open."
+    },
+    "decision_actor_class": {
+      "type": "string",
+      "enum": ["user", "system_default", "policy_enforced", "other"],
+      "description": "Who selected the warm-start lane. Used for support chronology."
+    },
+
+    "row_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_locator_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to the source_locator_record that supplied this candidate's source identity."
+        },
+        "live_session_handle_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Opaque ref to the live session handle when the lane is resume-live."
+        },
+        "snapshot_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Opaque ref to the snapshot/prebuild artifact identity when the lane is start-from-snapshot."
+        },
+        "commit_identity_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Opaque ref to the commit/tree identity that the snapshot or clone is based on."
+        }
+      },
+      "description": "Identity anchors for the lane; at least one anchor must be present per lane rules."
+    },
+
+    "revalidation_item_class": {
+      "anyOf": [
+        { "$ref": "#/$defs/required_revalidation_class" },
+        { "$ref": "#/$defs/post_open_prerequisite_class" }
+      ],
+      "description": "Union of required revalidation classes (prebuild fingerprint) and post-open prerequisite classes (bootstrap packet)."
+    },
+
+    "revalidation_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "item_class", "posture", "blocking"],
+      "properties": {
+        "item_id": { "$ref": "#/$defs/opaque_id" },
+        "item_class": {
+          "allOf": [
+            { "$ref": "#/$defs/revalidation_item_class" },
+            { "not": { "const": "none" } }
+          ]
+        },
+        "posture": { "$ref": "#/$defs/post_open_prerequisite_posture" },
+        "blocking": { "type": "boolean" },
+        "summary": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] }
+      },
+      "description": "One revalidation/precondition item that must be satisfied (or will run) before the lane can be considered live or write-capable."
+    },
+
+    "lane_failure_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on_failure_actions", "on_failure_recommended_lanes"],
+      "properties": {
+        "on_failure_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/resumability_action_class" },
+          "description": "Typed safe actions the surface MUST keep available when this lane fails revalidation."
+        },
+        "on_failure_recommended_lanes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/warm_start_lane_class" },
+          "description": "Lane-level safe fallbacks the surface SHOULD recommend when this lane cannot proceed."
+        },
+        "summary": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] }
+      },
+      "description": "Frozen failure behavior so warm-starts degrade safely instead of trapping the user."
+    },
+
+    "warm_start_choice_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "lane_class",
+        "entry_verb_on_commit",
+        "enabled",
+        "declared_freshness_class",
+        "freshness_as_of",
+        "freshness_age_class",
+        "host_class",
+        "platform_arch",
+        "pending_cache_update_classes",
+        "pending_prerequisite_classes",
+        "revalidation_items",
+        "write_safety_badge",
+        "restore_availability",
+        "failure_posture",
+        "keyboard_reachable",
+        "minted_at"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "lane_class": { "$ref": "#/$defs/warm_start_lane_class" },
+        "entry_verb_on_commit": { "$ref": "#/$defs/entry_verb" },
+        "enabled": { "type": "boolean" },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "True when the surface must require an explicit confirmation step before committing this lane."
+        },
+        "presentation_label": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] },
+        "presentation_subtitle": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] },
+        "disabled_reason_code": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Required when the row renders visible-but-disabled. Free-form but stable enough for support triage."
+        },
+
+        "identity": { "$ref": "#/$defs/row_identity" },
+
+        "declared_freshness_class": { "$ref": "#/$defs/declared_freshness_class" },
+        "freshness_as_of": { "$ref": "#/$defs/monotonic_timestamp" },
+        "freshness_age_class": { "$ref": "#/$defs/freshness_age_class" },
+
+        "host_class": { "$ref": "#/$defs/host_class" },
+        "platform_arch": { "$ref": "#/$defs/platform_arch" },
+
+        "attach_authority_class": { "anyOf": [{ "$ref": "#/$defs/attach_authority_class" }, { "type": "null" }] },
+        "live_session_class": { "anyOf": [{ "$ref": "#/$defs/live_session_class" }, { "type": "null" }] },
+
+        "pending_cache_update_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/cache_class" },
+          "uniqueItems": true,
+          "description": "Cache classes known to be stale/missing that will rebuild or refresh on this lane."
+        },
+        "pending_prerequisite_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/post_open_prerequisite_class" },
+          "uniqueItems": true,
+          "description": "Post-open prerequisite classes expected or required on this lane."
+        },
+        "revalidation_items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/revalidation_item" },
+          "description": "Concrete revalidation items the user can inspect before commit."
+        },
+
+        "write_safety_badge": { "$ref": "#/$defs/write_safety_badge" },
+        "restore_availability": { "$ref": "#/$defs/restore_availability" },
+
+        "failure_posture": { "$ref": "#/$defs/lane_failure_posture" },
+
+        "keyboard_reachable": { "type": "boolean", "const": true },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "lane_class": { "const": "resume_live_workspace" } }, "required": ["lane_class"] },
+          "then": {
+            "required": ["identity", "attach_authority_class", "live_session_class"],
+            "properties": {
+              "entry_verb_on_commit": { "const": "resume" },
+              "attach_authority_class": { "not": { "type": "null" } },
+              "live_session_class": { "not": { "type": "null" } },
+              "identity": {
+                "required": ["live_session_handle_ref"],
+                "properties": {
+                  "live_session_handle_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "lane_class": { "const": "start_from_snapshot" } }, "required": ["lane_class"] },
+          "then": {
+            "required": ["identity"],
+            "properties": {
+              "entry_verb_on_commit": { "const": "start_from_snapshot" },
+              "identity": {
+                "required": ["snapshot_ref"],
+                "properties": {
+                  "snapshot_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "lane_class": { "const": "clone_fresh_repository" } }, "required": ["lane_class"] },
+          "then": {
+            "required": ["identity"],
+            "properties": {
+              "entry_verb_on_commit": { "const": "clone" },
+              "identity": {
+                "required": ["source_locator_ref"],
+                "properties": {
+                  "source_locator_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "lane_class": { "const": "open_without_starter" } }, "required": ["lane_class"] },
+          "then": {
+            "required": ["identity"],
+            "properties": {
+              "entry_verb_on_commit": { "const": "open" },
+              "identity": {
+                "required": ["source_locator_ref"],
+                "properties": {
+                  "source_locator_ref": { "not": { "type": "null" } }
+                }
+              }
+            }
+          }
+        }
+      ],
+      "description": "One warm-start choice row rendered by a surface before it commits to the lane."
+    },
+
+    "warm_start_chooser_set_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "freshness_revalidation_schema_version",
+        "chooser_id",
+        "source_surface",
+        "target_kind",
+        "target_ref",
+        "rows",
+        "emitted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "$schema": { "type": "string" },
+
+        "record_kind": { "const": "warm_start_chooser_set_record" },
+        "freshness_revalidation_schema_version": { "$ref": "#/$defs/freshness_revalidation_schema_version" },
+        "chooser_id": { "$ref": "#/$defs/opaque_id" },
+
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_record_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque linkage to upstream record(s) this chooser wraps (recent-work id, resume-live card id, prebuild picker id, locator id, etc.)."
+        },
+
+        "rows": {
+          "type": "array",
+          "minItems": 4,
+          "items": { "$ref": "#/$defs/warm_start_choice_row" }
+        },
+
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "rows": {
+              "contains": {
+                "type": "object",
+                "properties": { "lane_class": { "const": "resume_live_workspace" } },
+                "required": ["lane_class"]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "rows": {
+              "contains": {
+                "type": "object",
+                "properties": { "lane_class": { "const": "start_from_snapshot" } },
+                "required": ["lane_class"]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "rows": {
+              "contains": {
+                "type": "object",
+                "properties": { "lane_class": { "const": "clone_fresh_repository" } },
+                "required": ["lane_class"]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "rows": {
+              "contains": {
+                "type": "object",
+                "properties": { "lane_class": { "const": "open_without_starter" } },
+                "required": ["lane_class"]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          }
+        }
+      ],
+      "description": "One warm-start chooser instance emitted before lane selection."
+    },
+
+    "warm_start_chooser_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "freshness_revalidation_schema_version",
+        "decision_id",
+        "chooser_ref",
+        "source_surface",
+        "chosen_lane_class",
+        "chosen_row_ref",
+        "actor_class",
+        "decision_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "$schema": { "type": "string" },
+
+        "record_kind": { "const": "warm_start_chooser_decision_record" },
+        "freshness_revalidation_schema_version": { "$ref": "#/$defs/freshness_revalidation_schema_version" },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "chooser_ref": { "$ref": "#/$defs/opaque_id" },
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "chosen_lane_class": { "$ref": "#/$defs/warm_start_lane_class" },
+        "chosen_row_ref": { "$ref": "#/$defs/opaque_id" },
+        "actor_class": { "$ref": "#/$defs/decision_actor_class" },
+        "decision_summary": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] },
+        "decision_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Record of which warm-start lane was selected."
+    },
+
+    "warm_start_chooser_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "freshness_revalidation_schema_version",
+        "outcome_id",
+        "decision_ref",
+        "chooser_ref",
+        "chosen_lane_class",
+        "chosen_row_ref",
+        "chosen_identity",
+        "chosen_declared_freshness_class",
+        "chosen_freshness_age_class",
+        "chosen_attach_authority_class",
+        "required_revalidation_item_classes",
+        "packet_outcome_class",
+        "outcome_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "$schema": { "type": "string" },
+
+        "record_kind": { "const": "warm_start_chooser_outcome_record" },
+        "freshness_revalidation_schema_version": { "$ref": "#/$defs/freshness_revalidation_schema_version" },
+        "outcome_id": { "$ref": "#/$defs/opaque_id" },
+        "decision_ref": { "$ref": "#/$defs/opaque_id" },
+        "chooser_ref": { "$ref": "#/$defs/opaque_id" },
+        "chosen_lane_class": { "$ref": "#/$defs/warm_start_lane_class" },
+        "chosen_row_ref": { "$ref": "#/$defs/opaque_id" },
+
+        "chosen_identity": { "$ref": "#/$defs/row_identity" },
+        "chosen_declared_freshness_class": { "$ref": "#/$defs/declared_freshness_class" },
+        "chosen_freshness_age_class": { "$ref": "#/$defs/freshness_age_class" },
+        "chosen_attach_authority_class": { "anyOf": [{ "$ref": "#/$defs/attach_authority_class" }, { "type": "null" }] },
+        "required_revalidation_item_classes": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/revalidation_item_class" },
+              { "not": { "const": "none" } }
+            ]
+          },
+          "uniqueItems": true,
+          "description": "Unioned revalidation/prerequisite tokens required (or still pending) for the chosen lane."
+        },
+
+        "packet_outcome_class": { "$ref": "#/$defs/packet_outcome_class" },
+        "bootstrap_packet_ref": {
+          "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }],
+          "description": "Optional ref to the bootstrap_packet_record that reconstructs what happened post-choice."
+        },
+        "outcome_summary": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] },
+        "outcome_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Outcome record capturing the chosen lane's freshness/revalidation truth through open and support export."
+    }
+  }
+}

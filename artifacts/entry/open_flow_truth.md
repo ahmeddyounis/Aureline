@@ -19,6 +19,12 @@ Chooser rows + open-flow sheets (pre-commit invariants and disclosure axes):
 - `schemas/ux/entry_chooser_row.schema.json`
 - `schemas/ux/open_flow_sheet.schema.json`
 
+Warm-start chooser honesty (resume live vs snapshot vs clone fresh vs open without starter):
+
+- `artifacts/entry/warm_start_chooser_contract.md`
+- `schemas/entry/freshness_revalidation.schema.json`
+- `fixtures/entry/warm_start_cases/`
+
 Multi-root and scope widening truth (evidence and diff record):
 
 - `docs/workspace/scope_truth_packet.md`
@@ -163,4 +169,3 @@ The fixtures under `fixtures/entry/open_flow_cases/` are the seed parity corpus 
 
 - Start Center, main menu, command palette, protocol handlers, and deep links all resolve through the same open-route vocabulary; and
 - multi-root widening and cross-window opening are explicit choices, not silent guesses.
-

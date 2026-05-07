@@ -20,6 +20,13 @@ The companion fixtures live under:
 
 - [`/fixtures/ux/template_and_prebuild_states/`](../../fixtures/ux/template_and_prebuild_states/)
 
+The warm-start chooser freshness + revalidation contract (lane-level truth that
+the resume-live card and prebuild picker MUST preserve) lives at:
+
+- [`/artifacts/entry/warm_start_chooser_contract.md`](../../artifacts/entry/warm_start_chooser_contract.md)
+- [`/schemas/entry/freshness_revalidation.schema.json`](../../schemas/entry/freshness_revalidation.schema.json)
+- [`/fixtures/entry/warm_start_cases/`](../../fixtures/entry/warm_start_cases/)
+
 This contract is normative for the disclosure posture. Where it
 disagrees with the PRD, TAD, TDD, UI/UX spec, or milestone document
 anchors quoted in §14, those sources win and this document plus
@@ -942,6 +949,14 @@ exactly one `resume_live_workspace_card_record`.
    `regenerate_from_canonical_source` (entry-restore §4).
    `Resume` is disabled with `disabled_reason_code =
    rebuild_required`.
+4. **Warm-start honesty is lane-backed.** When a surface renders
+   the four `alternative_lanes`, it MUST also satisfy the lane-level
+   freshness + revalidation contract in
+   `artifacts/entry/warm_start_chooser_contract.md` and MUST be able
+   to export a `warm_start_chooser_set_record` (and decision/outcome
+   chain) per `schemas/entry/freshness_revalidation.schema.json` so
+   liveness, age, pending updates, and revalidation requirements do
+   not disappear after the click.
 
 ## 8. Post-create handoff summary record
 

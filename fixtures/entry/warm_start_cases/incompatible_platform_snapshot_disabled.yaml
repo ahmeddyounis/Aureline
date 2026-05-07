@@ -1,0 +1,203 @@
+$schema: ../../../schemas/entry/freshness_revalidation.schema.json
+__fixture__:
+  name: incompatible_platform_snapshot_disabled
+  scenario: >
+    Warm-start chooser where the available snapshot was produced for an incompatible
+    platform/toolchain combination. The snapshot lane is visible-but-disabled and
+    names the platform mismatch and revalidation blockers; clone-fresh and
+    open-without-starter remain safe alternatives.
+  doc_sections:
+    - artifacts/entry/warm_start_chooser_contract.md#43-clone-fresh-clone_fresh_repository
+    - artifacts/entry/warm_start_chooser_contract.md#42-start-from-snapshot-start_from_snapshot
+
+record_kind: warm_start_chooser_set_record
+freshness_revalidation_schema_version: 1
+chooser_id: warm-start-chooser:graph:proto:platform-mismatch:001
+source_surface: start_center
+target_kind: template_or_prebuild_snapshot
+target_ref: snapshot:prebuild:graph-proto:2026-05-02
+source_record_refs:
+  - recent-work:graph-proto:rw-010
+rows:
+  - row_id: warm-start-row:resume-live:004
+    lane_class: resume_live_workspace
+    entry_verb_on_commit: resume
+    enabled: false
+    requires_confirmation: false
+    presentation_label: Resume live workspace
+    presentation_subtitle: No live session is available for this target.
+    disabled_reason_code: no_live_session_handle_available
+    identity:
+      source_locator_ref: locator:live-resume-target:graph-proto:001
+      live_session_handle_ref: live-session-handle:none
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: unknown_freshness
+    freshness_as_of: t+0400
+    freshness_age_class: unknown_requires_revalidation
+    host_class: managed_workspace
+    platform_arch: linux-x86_64
+    attach_authority_class: authority_never_established
+    live_session_class: managed_cloud_workspace_session
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - network_restore
+    revalidation_items:
+      - item_id: reval:resume:network:004
+        item_class: network_restore
+        posture: required_before_open
+        blocking: true
+        summary: Live resume requires connectivity and a valid session handle.
+    write_safety_badge: writes_blocked_target_unavailable
+    restore_availability: evidence_only
+    failure_posture:
+      on_failure_actions:
+        - set_up_later
+        - continue_in_restricted_mode
+        - export_evidence
+      on_failure_recommended_lanes:
+        - start_from_snapshot
+        - clone_fresh_repository
+        - open_without_starter
+      summary: Without a live session, use snapshot/clone or open without starter.
+    keyboard_reachable: true
+    minted_at: t+0400
+
+  - row_id: warm-start-row:snapshot-start:004
+    lane_class: start_from_snapshot
+    entry_verb_on_commit: start_from_snapshot
+    enabled: false
+    requires_confirmation: true
+    presentation_label: Start from snapshot
+    presentation_subtitle: Snapshot platform/toolchain is incompatible with this host.
+    disabled_reason_code: snapshot_platform_or_toolchain_incompatible
+    identity:
+      source_locator_ref: locator:snapshot:graph-proto:2026-05-02
+      live_session_handle_ref: null
+      snapshot_ref: snapshot:prebuild:graph-proto:2026-05-02
+      commit_identity_ref: git:commit:graph-proto:aa11bb22
+    declared_freshness_class: mirror_fresh
+    freshness_as_of: t+0400
+    freshness_age_class: fresh_under_window
+    host_class: prebuild_runtime
+    platform_arch: linux-x86_64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - toolchain_layer
+      - service_image_layer
+    pending_prerequisite_classes:
+      - toolchain_install
+      - devcontainer_attach
+    revalidation_items:
+      - item_id: reval:snapshot:host:004
+        item_class: host
+        posture: required_before_open
+        blocking: true
+        summary: Snapshot host/platform does not match; it cannot be represented as a compatible warm start.
+      - item_id: reval:snapshot:toolchain:004
+        item_class: toolchain
+        posture: required_before_open
+        blocking: true
+        summary: Toolchain identity mismatch requires rebuilding on the current host.
+    write_safety_badge: writes_blocked_cached_view_only
+    restore_availability: evidence_only
+    failure_posture:
+      on_failure_actions:
+        - discard_and_restart
+        - open_read_only_partial
+        - set_up_later
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+        - open_without_starter
+      summary: Snapshot cannot proceed; clone fresh or open without starter are the safe alternatives.
+    keyboard_reachable: true
+    minted_at: t+0400
+
+  - row_id: warm-start-row:clone-fresh:004
+    lane_class: clone_fresh_repository
+    entry_verb_on_commit: clone
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Clone fresh
+    presentation_subtitle: Clone source and materialize toolchains for this host.
+    identity:
+      source_locator_ref: locator:repo-url:graph-proto:origin
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: git:ref:graph-proto:main
+    declared_freshness_class: live_origin
+    freshness_as_of: t+0400
+    freshness_age_class: fresh_under_window
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - toolchain_layer
+      - dependency_store
+      - index_shard
+    pending_prerequisite_classes:
+      - toolchain_install
+      - package_restore
+      - trust_review
+    revalidation_items:
+      - item_id: reval:clone:trust:004
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust review is required before enabling mutating execution paths.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - refresh_mirror
+        - switch_to_live_origin
+        - set_up_later
+      on_failure_recommended_lanes:
+        - open_without_starter
+      summary: If clone is blocked, open without starter remains available.
+    keyboard_reachable: true
+    minted_at: t+0400
+
+  - row_id: warm-start-row:open-without-starter:004
+    lane_class: open_without_starter
+    entry_verb_on_commit: open
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Open without starter
+    presentation_subtitle: Open existing local state; environment setup remains opt-in.
+    identity:
+      source_locator_ref: locator:local-folder:graph-proto:004
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: unknown_freshness
+    freshness_as_of: t+0400
+    freshness_age_class: unknown_requires_revalidation
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - trust_review
+    revalidation_items:
+      - item_id: reval:plain-open:trust:004
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust review may be required before enabling execution paths.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - open_minimal
+        - continue_in_restricted_mode
+        - export_evidence
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+      summary: If open is narrowed, open minimal and keep clone-fresh available.
+    keyboard_reachable: true
+    minted_at: t+0400
+emitted_at: t+0400

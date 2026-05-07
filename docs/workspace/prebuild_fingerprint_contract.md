@@ -26,6 +26,11 @@ updated in the same change.
   artifacts, stale indexes, local overrides, and the distinction
   between live resume, snapshot start, fresh clone, and cached
   prebuild reuse.
+- [`/artifacts/entry/warm_start_chooser_contract.md`](../../artifacts/entry/warm_start_chooser_contract.md)
+  and [`/schemas/entry/freshness_revalidation.schema.json`](../../schemas/entry/freshness_revalidation.schema.json)
+  - lane-level disclosure contract for how entry surfaces must present
+  freshness/age and revalidation truth before commit (and keep it
+  exportable through open, restore, and support packets).
 
 Related contracts this document composes with:
 

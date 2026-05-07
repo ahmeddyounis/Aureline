@@ -1,0 +1,204 @@
+$schema: ../../../schemas/entry/freshness_revalidation.schema.json
+__fixture__:
+  name: offline_mirror_fallback_clone_disabled
+  scenario: >
+    Warm-start chooser during offline startup where clone-fresh is blocked and
+    live-resume cannot be revalidated. The chooser keeps freshness truth explicit
+    (offline/mirror), shows what will revalidate on open, and preserves an
+    actionable open-without-starter fallback.
+  doc_sections:
+    - artifacts/entry/warm_start_chooser_contract.md#32-warm-start-lanes-non-negotiable-separation
+    - docs/workspace/bootstrap_packet_contract.md#resumability
+
+record_kind: warm_start_chooser_set_record
+freshness_revalidation_schema_version: 1
+chooser_id: warm-start-chooser:offline:mirror-fallback:001
+source_surface: start_center
+target_kind: local_repo_root
+target_ref: workspace:local:offline-demo:rw-020
+source_record_refs:
+  - startup_state:offline_startup
+rows:
+  - row_id: warm-start-row:resume-live:005
+    lane_class: resume_live_workspace
+    entry_verb_on_commit: resume
+    enabled: false
+    requires_confirmation: true
+    presentation_label: Resume live workspace
+    presentation_subtitle: Network is offline; live attach cannot be revalidated.
+    disabled_reason_code: network_unreachable_live_resume_disabled
+    identity:
+      source_locator_ref: locator:live-resume-target:offline-demo:001
+      live_session_handle_ref: managed-session-handle:offline-demo:001
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: unknown_freshness
+    freshness_as_of: t+0500
+    freshness_age_class: unknown_requires_revalidation
+    host_class: managed_workspace
+    platform_arch: linux-x86_64
+    attach_authority_class: authority_live
+    live_session_class: managed_cloud_workspace_session
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - network_restore
+      - reauth
+    revalidation_items:
+      - item_id: reval:resume:network:005
+        item_class: network_restore
+        posture: required_before_open
+        blocking: true
+        summary: Live resume requires connectivity to revalidate liveness and authority.
+      - item_id: reval:resume:credentials:005
+        item_class: credentials
+        posture: required_before_mutation
+        blocking: true
+        summary: Credential posture cannot be assumed while offline.
+    write_safety_badge: writes_unsafe_stale_or_disconnected
+    restore_availability: evidence_only
+    failure_posture:
+      on_failure_actions:
+        - continue_offline
+        - open_read_only_partial
+        - export_evidence
+      on_failure_recommended_lanes:
+        - start_from_snapshot
+        - open_without_starter
+      summary: While offline, use snapshot or open without starter; resume live waits for network restore.
+    keyboard_reachable: true
+    minted_at: t+0500
+
+  - row_id: warm-start-row:snapshot-start:005
+    lane_class: start_from_snapshot
+    entry_verb_on_commit: start_from_snapshot
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Start from snapshot
+    presentation_subtitle: Signed offline bundle snapshot; freshness is offline and may be stale.
+    identity:
+      source_locator_ref: locator:snapshot:offline-demo:bundle:001
+      live_session_handle_ref: null
+      snapshot_ref: snapshot:offline-bundle:offline-demo:001
+      commit_identity_ref: git:commit:offline-demo:11223344
+    declared_freshness_class: signed_offline_bundle
+    freshness_as_of: t+0500
+    freshness_age_class: stale_over_window
+    host_class: prebuild_runtime
+    platform_arch: linux-x86_64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - index_shard
+    pending_prerequisite_classes:
+      - trust_review
+      - policy_review
+    revalidation_items:
+      - item_id: reval:snapshot:trust:005
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Snapshot does not imply trust; admission remains explicit.
+      - item_id: reval:snapshot:mirror:005
+        item_class: mirror_refresh
+        posture: optional_deferred
+        blocking: false
+        summary: Mirror refresh may be offered when network returns; offline snapshot remains labeled.
+    write_safety_badge: writes_require_revalidation
+    restore_availability: compatible
+    failure_posture:
+      on_failure_actions:
+        - continue_offline
+        - open_minimal
+        - export_evidence
+      on_failure_recommended_lanes:
+        - open_without_starter
+      summary: If snapshot setup cannot proceed offline, open without starter remains the safe path.
+    keyboard_reachable: true
+    minted_at: t+0500
+
+  - row_id: warm-start-row:clone-fresh:005
+    lane_class: clone_fresh_repository
+    entry_verb_on_commit: clone
+    enabled: false
+    requires_confirmation: false
+    presentation_label: Clone fresh
+    presentation_subtitle: Offline; clone from origin is unavailable until network restores.
+    disabled_reason_code: network_unreachable_clone_disabled
+    identity:
+      source_locator_ref: locator:repo-url:offline-demo:origin
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: git:ref:offline-demo:main
+    declared_freshness_class: offline_snapshot
+    freshness_as_of: t+0500
+    freshness_age_class: unknown_requires_revalidation
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - network_restore
+      - mirror_refresh
+    revalidation_items:
+      - item_id: reval:clone:network:005
+        item_class: network_restore
+        posture: required_before_open
+        blocking: true
+        summary: Network restore is required before clone can proceed.
+    write_safety_badge: writes_blocked_target_unavailable
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - continue_offline
+        - set_up_later
+        - export_evidence
+      on_failure_recommended_lanes:
+        - start_from_snapshot
+        - open_without_starter
+      summary: While offline, use snapshot or open without starter; clone waits for network restore.
+    keyboard_reachable: true
+    minted_at: t+0500
+
+  - row_id: warm-start-row:open-without-starter:005
+    lane_class: open_without_starter
+    entry_verb_on_commit: open
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Open without starter
+    presentation_subtitle: Open local workspace without requiring network or starter assets.
+    identity:
+      source_locator_ref: locator:local-folder:offline-demo:005
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: offline_snapshot
+    freshness_as_of: t+0500
+    freshness_age_class: unknown_requires_revalidation
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - index_shard
+    pending_prerequisite_classes: []
+    revalidation_items:
+      - item_id: reval:plain-open:indexes:005
+        item_class: indexes
+        posture: optional_deferred
+        blocking: false
+        summary: Indexes may rebuild when resources are available; offline state remains labeled.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - continue_offline
+        - open_minimal
+        - export_evidence
+      on_failure_recommended_lanes:
+        - open_without_starter
+      summary: Open without starter remains the stable offline-safe lane.
+    keyboard_reachable: true
+    minted_at: t+0500
+emitted_at: t+0500
+

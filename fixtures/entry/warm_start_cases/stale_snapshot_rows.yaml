@@ -1,0 +1,249 @@
+$schema: ../../../schemas/entry/freshness_revalidation.schema.json
+__fixture__:
+  name: stale_snapshot_rows
+  scenario: >
+    Warm-start chooser where the remembered live session cannot be claimed as live
+    and the latest snapshot is stale over the freshness window. The chooser keeps
+    the four lanes distinct, shows snapshot/commit identity and age, enumerates
+    what will revalidate or rebuild, and preserves safe fallbacks.
+  doc_sections:
+    - artifacts/entry/warm_start_chooser_contract.md#2-warm-start-lanes-non-negotiable-separation
+    - artifacts/entry/warm_start_chooser_contract.md#3-required-disclosure-axes-every-lane-row
+
+record_kind: warm_start_chooser_set_record
+freshness_revalidation_schema_version: 1
+chooser_id: warm-start-chooser:payments:web:stale-snapshot:001
+source_surface: recent_work_activation
+target_kind: managed_cloud_workspace
+target_ref: workspace:managed:payments-web:rw-001
+source_record_refs:
+  - recent-work:payments-web:rw-001
+  - locator:managed-session:payments-web:001
+rows:
+  - row_id: warm-start-row:resume-live:001
+    lane_class: resume_live_workspace
+    entry_verb_on_commit: resume
+    enabled: false
+    requires_confirmation: true
+    presentation_label: Resume live workspace
+    presentation_subtitle: Session authority is expired; liveness must be revalidated.
+    disabled_reason_code: authority_expired_requires_reauth
+    identity:
+      source_locator_ref: locator:managed-session:payments-web:001
+      live_session_handle_ref: managed-session-handle:payments-web:001
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: live_origin
+    freshness_as_of: t+0100
+    freshness_age_class: expired
+    host_class: managed_workspace
+    platform_arch: linux-x86_64
+    attach_authority_class: authority_expired
+    live_session_class: managed_cloud_workspace_session
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - reauth
+      - credential_handle_refresh
+      - policy_review
+      - trust_review
+    revalidation_items:
+      - item_id: reval:resume-live:reauth:001
+        item_class: reauth
+        posture: required_before_open
+        blocking: true
+        summary: Reauthentication is required before remote attach can resume.
+      - item_id: reval:resume-live:credential-refresh:001
+        item_class: credential_handle_refresh
+        posture: required_before_mutation
+        blocking: true
+        summary: Credential handles must be refreshed before writes are allowed.
+      - item_id: reval:resume-live:policy:001
+        item_class: policy
+        posture: required_before_mutation
+        blocking: true
+        summary: Policy epoch must be revalidated for the resumed authority boundary.
+      - item_id: reval:resume-live:trust:001
+        item_class: trust
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust must be revalidated before mutating work resumes.
+    write_safety_badge: writes_require_revalidation
+    restore_availability: layout_only
+    failure_posture:
+      on_failure_actions:
+        - reauth_required
+        - continue_in_restricted_mode
+        - open_read_only_partial
+        - set_up_later
+      on_failure_recommended_lanes:
+        - start_from_snapshot
+        - clone_fresh_repository
+        - open_without_starter
+      summary: If resume cannot revalidate, reopen from snapshot or clone fresh; keep a non-starter open path.
+    keyboard_reachable: true
+    minted_at: t+0100
+
+  - row_id: warm-start-row:snapshot-start:001
+    lane_class: start_from_snapshot
+    entry_verb_on_commit: start_from_snapshot
+    enabled: true
+    requires_confirmation: true
+    presentation_label: Start from snapshot
+    presentation_subtitle: Snapshot is stale; setup will revalidate and rebuild before live claims.
+    identity:
+      source_locator_ref: locator:snapshot:payments-web:2026-04-20
+      live_session_handle_ref: null
+      snapshot_ref: snapshot:prebuild:payments-web:2026-04-20
+      commit_identity_ref: git:commit:payments-web:deadbeef
+    declared_freshness_class: mirror_stale
+    freshness_as_of: t+0100
+    freshness_age_class: stale_over_window
+    host_class: prebuild_runtime
+    platform_arch: linux-x86_64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - dependency_store
+      - index_shard
+      - extension_package
+    pending_prerequisite_classes:
+      - package_restore
+      - extension_restore
+      - policy_review
+      - trust_review
+    revalidation_items:
+      - item_id: reval:snapshot:indexes:001
+        item_class: indexes
+        posture: required_before_trusted_bootstrap
+        blocking: true
+        summary: Indexes are stale; rebuild is required before current-truth claims.
+      - item_id: reval:snapshot:deps:001
+        item_class: package_restore
+        posture: required_before_trusted_bootstrap
+        blocking: true
+        summary: Dependencies will be restored from declared locks before trusted bootstrap.
+      - item_id: reval:snapshot:extensions:001
+        item_class: extension_restore
+        posture: optional_deferred
+        blocking: false
+        summary: Extensions may restore after open; missing ones remain disabled until installed.
+      - item_id: reval:snapshot:policy:001
+        item_class: policy
+        posture: required_before_mutation
+        blocking: true
+        summary: Policy must be revalidated before writes or privileged actions.
+      - item_id: reval:snapshot:trust:001
+        item_class: trust
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust must be revalidated; snapshot does not imply admission.
+    write_safety_badge: writes_require_revalidation
+    restore_availability: compatible
+    failure_posture:
+      on_failure_actions:
+        - continue_in_restricted_mode
+        - open_minimal
+        - set_up_later
+        - export_evidence
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+        - open_without_starter
+      summary: If the snapshot cannot be made current, fall back to clone-fresh or open without starter.
+    keyboard_reachable: true
+    minted_at: t+0100
+
+  - row_id: warm-start-row:clone-fresh:001
+    lane_class: clone_fresh_repository
+    entry_verb_on_commit: clone
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Clone fresh
+    presentation_subtitle: Acquire source from origin without relying on warm state.
+    identity:
+      source_locator_ref: locator:repo-url:payments-web:origin
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: git:ref:payments-web:main
+    declared_freshness_class: live_origin
+    freshness_as_of: t+0100
+    freshness_age_class: fresh_under_window
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - dependency_store
+      - index_shard
+    pending_prerequisite_classes:
+      - trust_review
+      - policy_review
+      - package_restore
+    revalidation_items:
+      - item_id: reval:clone:trust:001
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust review is required before enabling mutating execution paths.
+      - item_id: reval:clone:policy:001
+        item_class: policy_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Policy review may narrow execution until approved.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - refresh_mirror
+        - switch_to_live_origin
+        - set_up_later
+        - continue_offline
+      on_failure_recommended_lanes:
+        - start_from_snapshot
+        - open_without_starter
+      summary: If clone is blocked by route or offline state, use snapshot or open without starter.
+    keyboard_reachable: true
+    minted_at: t+0100
+
+  - row_id: warm-start-row:open-without-starter:001
+    lane_class: open_without_starter
+    entry_verb_on_commit: open
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Open without starter
+    presentation_subtitle: Open a non-starter path; setup remains opt-in.
+    identity:
+      source_locator_ref: locator:local-fallback:payments-web:001
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: unknown_freshness
+    freshness_as_of: t+0100
+    freshness_age_class: unknown_requires_revalidation
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - index_shard
+    pending_prerequisite_classes:
+      - trust_review
+    revalidation_items:
+      - item_id: reval:plain-open:trust:001
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust review may be required before enabling execution in this workspace.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - open_minimal
+        - continue_in_restricted_mode
+        - export_evidence
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+      summary: If plain open is narrowed by policy or trust, open minimal and keep clone-fresh available.
+    keyboard_reachable: true
+    minted_at: t+0100
+emitted_at: t+0100
+

@@ -1,0 +1,215 @@
+$schema: ../../../schemas/entry/freshness_revalidation.schema.json
+__fixture__:
+  name: invalidated_prebuild_snapshot_disabled
+  scenario: >
+    Warm-start chooser where a previously visible snapshot/prebuild has been
+    invalidated (missing artifacts / fingerprint mismatch). The snapshot lane is
+    visible-but-disabled with explicit pending updates and revalidation items;
+    clone-fresh and open-without-starter remain safe fallbacks.
+  doc_sections:
+    - artifacts/entry/warm_start_chooser_contract.md#42-start-from-snapshot-start_from_snapshot
+    - docs/workspace/prebuild_fingerprint_contract.md#reuse-rules
+
+record_kind: warm_start_chooser_set_record
+freshness_revalidation_schema_version: 1
+chooser_id: warm-start-chooser:payments:web:invalidated-snapshot:001
+source_surface: template_or_prebuild_card
+target_kind: template_or_prebuild_snapshot
+target_ref: snapshot:prebuild:payments-web:2026-05-03
+source_record_refs:
+  - prebuild.fp.payments.web.snapshot.20260503
+  - prebuild.decision.payments.web.start-from-snapshot-invalidated
+rows:
+  - row_id: warm-start-row:resume-live:003
+    lane_class: resume_live_workspace
+    entry_verb_on_commit: resume
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Resume live workspace
+    presentation_subtitle: Live session is available; revalidation still applies to credentials and policy.
+    identity:
+      source_locator_ref: locator:managed-session:payments-web:003
+      live_session_handle_ref: managed-session-handle:payments-web:003
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: live_origin
+    freshness_as_of: t+0300
+    freshness_age_class: fresh_under_window
+    host_class: managed_workspace
+    platform_arch: linux-x86_64
+    attach_authority_class: authority_live
+    live_session_class: managed_cloud_workspace_session
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - credential_handle_refresh
+      - policy_review
+    revalidation_items:
+      - item_id: reval:resume:credentials:003
+        item_class: credentials
+        posture: required_before_mutation
+        blocking: true
+        summary: Credential posture must be current before mutating managed actions.
+      - item_id: reval:resume:policy:003
+        item_class: policy_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Policy epoch must be current for the live session boundary.
+    write_safety_badge: writes_require_revalidation
+    restore_availability: compatible
+    failure_posture:
+      on_failure_actions:
+        - continue_in_restricted_mode
+        - open_read_only_partial
+        - set_up_later
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+        - open_without_starter
+      summary: If live attach degrades, clone fresh or open without starter remain safe.
+    keyboard_reachable: true
+    minted_at: t+0300
+
+  - row_id: warm-start-row:snapshot-start:003
+    lane_class: start_from_snapshot
+    entry_verb_on_commit: start_from_snapshot
+    enabled: false
+    requires_confirmation: true
+    presentation_label: Start from snapshot
+    presentation_subtitle: Snapshot is invalidated; required artifacts are missing or incompatible.
+    disabled_reason_code: snapshot_invalidated_missing_artifacts
+    identity:
+      source_locator_ref: locator:snapshot:payments-web:2026-05-03
+      live_session_handle_ref: null
+      snapshot_ref: snapshot:prebuild:payments-web:2026-05-03
+      commit_identity_ref: git:commit:payments-web:cafebabe
+    declared_freshness_class: mirror_lagged
+    freshness_as_of: t+0300
+    freshness_age_class: unknown_requires_revalidation
+    host_class: prebuild_runtime
+    platform_arch: linux-x86_64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - service_image_layer
+      - environment_capsule_manifest
+      - dependency_store
+    pending_prerequisite_classes:
+      - toolchain_install
+      - devcontainer_attach
+      - package_restore
+      - schema_upgrade
+    revalidation_items:
+      - item_id: reval:snapshot:environment:003
+        item_class: environment
+        posture: required_before_open
+        blocking: true
+        summary: Environment capsule identity mismatched; snapshot cannot be opened without re-materialization.
+      - item_id: reval:snapshot:toolchain:003
+        item_class: toolchain
+        posture: required_before_open
+        blocking: true
+        summary: Toolchain identity mismatch requires rebuild before use.
+      - item_id: reval:snapshot:schema:003
+        item_class: schema
+        posture: required_before_open
+        blocking: true
+        summary: Schema upgrade is required; old snapshot state is not safe to replay as live.
+    write_safety_badge: writes_blocked_cached_view_only
+    restore_availability: evidence_only
+    failure_posture:
+      on_failure_actions:
+        - discard_and_restart
+        - open_read_only_partial
+        - export_evidence
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+        - open_without_starter
+      summary: Snapshot is not trustworthy to proceed; clone fresh or open without starter are the safe exits.
+    keyboard_reachable: true
+    minted_at: t+0300
+
+  - row_id: warm-start-row:clone-fresh:003
+    lane_class: clone_fresh_repository
+    entry_verb_on_commit: clone
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Clone fresh
+    presentation_subtitle: Acquire source without relying on invalidated snapshot state.
+    identity:
+      source_locator_ref: locator:repo-url:payments-web:origin
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: git:ref:payments-web:main
+    declared_freshness_class: live_origin
+    freshness_as_of: t+0300
+    freshness_age_class: fresh_under_window
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes:
+      - dependency_store
+      - index_shard
+    pending_prerequisite_classes:
+      - package_restore
+      - trust_review
+    revalidation_items:
+      - item_id: reval:clone:trust:003
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust review remains required after clone.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - refresh_mirror
+        - switch_to_live_origin
+        - set_up_later
+      on_failure_recommended_lanes:
+        - open_without_starter
+      summary: If clone is blocked, open without starter remains available.
+    keyboard_reachable: true
+    minted_at: t+0300
+
+  - row_id: warm-start-row:open-without-starter:003
+    lane_class: open_without_starter
+    entry_verb_on_commit: open
+    enabled: true
+    requires_confirmation: false
+    presentation_label: Open without starter
+    presentation_subtitle: Open locally without trusting the invalidated snapshot.
+    identity:
+      source_locator_ref: locator:local-folder:payments-web:003
+      live_session_handle_ref: null
+      snapshot_ref: null
+      commit_identity_ref: null
+    declared_freshness_class: unknown_freshness
+    freshness_as_of: t+0300
+    freshness_age_class: unknown_requires_revalidation
+    host_class: local_host
+    platform_arch: darwin-aarch64
+    attach_authority_class: null
+    live_session_class: null
+    pending_cache_update_classes: []
+    pending_prerequisite_classes:
+      - trust_review
+    revalidation_items:
+      - item_id: reval:plain-open:trust:003
+        item_class: trust_review
+        posture: required_before_mutation
+        blocking: true
+        summary: Trust review may be required before enabling execution paths.
+    write_safety_badge: writes_allowed
+    restore_availability: none
+    failure_posture:
+      on_failure_actions:
+        - open_minimal
+        - continue_in_restricted_mode
+        - export_evidence
+      on_failure_recommended_lanes:
+        - clone_fresh_repository
+      summary: If open is narrowed, open minimal and keep clone-fresh available.
+    keyboard_reachable: true
+    minted_at: t+0300
+emitted_at: t+0300
+
