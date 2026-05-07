@@ -1,0 +1,38 @@
+case_id: partial_semantic_warmup.stale_shard_reused_with_caveat
+purpose: >
+  Startup/reopen path where a prior graph shard exists and is reused as a cached
+  accelerator, but its freshness is below the declared floor. The surface
+  discloses cached/stale posture and does not repaint the shard as live semantic
+  truth.
+
+contract_refs:
+  contract_doc: docs/architecture/graph_warmup_and_refinement_contract.md
+  contract_artifact: artifacts/search/semantic_refinement_states.yaml
+  provider_arbitration: docs/language/provider_graph_and_arbitration_contract.md
+  navigation_schema: schemas/navigation/semantic_result_ref.schema.json
+
+scenario:
+  graph_shard_reuse:
+    reuse_class: cached_graph_reuse
+    invalidation_reason: shard_input_digest_stale
+    disclosure_summary: >
+      Cached shard is admitted for provisional navigation, but the freshness
+      caveat remains visible until live semantic refresh completes.
+
+  expected_surface_posture:
+    breadcrumbs:
+      allowed: true
+      must_render_freshness_chip: true
+      must_not_claim_freshness: [authoritative_live]
+    symbol_navigation:
+      allowed: true
+      result_confidence_must_not_upgrade_without_refresh: true
+    rename_preview:
+      allowed: true
+      apply_posture: blocked_pending_refresh
+
+expected_refinement:
+  refinement_event_kind: readiness_or_freshness_label_changed
+  must_not_do:
+    - silently drop the cached caveat without a new canonical packet/provenance record
+

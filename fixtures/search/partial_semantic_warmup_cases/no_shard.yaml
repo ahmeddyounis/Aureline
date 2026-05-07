@@ -1,0 +1,51 @@
+case_id: partial_semantic_warmup.no_shard_present
+purpose: >
+  Startup/reopen path where no prior graph shard can be reused.
+  Provisional navigation proceeds via metadata-only paths (hot-set lexical,
+  structural fallback) without implying live semantic completeness.
+
+contract_refs:
+  contract_doc: docs/architecture/graph_warmup_and_refinement_contract.md
+  contract_artifact: artifacts/search/semantic_refinement_states.yaml
+  startup_ordering: artifacts/startup/cold_start_ordering_packet.md
+  search_truth_schema: schemas/search/search_result_truth.schema.json
+  navigation_schema: schemas/navigation/semantic_result_ref.schema.json
+
+scenario:
+  graph_shard_reuse:
+    reuse_class: metadata_only
+    invalidation_reason: shard_missing
+    disclosure_summary: >
+      No prior shard is present; background warm-up will rebuild semantic state.
+      Early results and navigation are explicitly labeled as partial/heuristic.
+
+  expected_surface_posture:
+    quick_open:
+      allowed: true
+      must_disclose: [readiness_state, freshness_class, stale_or_partial_explanation]
+      must_not_claim_freshness: [authoritative_live]
+    breadcrumbs:
+      allowed: true
+      must_be_caveated: true
+    symbol_navigation:
+      allowed: true
+      must_be_caveated: true
+    rename_preview:
+      allowed: true
+      apply_must_be_review_gated: true
+    code_actions:
+      allowed: true
+      apply_must_be_review_gated: true
+
+supportability_reconstruction_minimum:
+  must_be_able_to_answer:
+    - which fallback path produced the provisional answer
+    - why no shard was reused
+    - what work is queued to refine later
+  export_safe_fields_required:
+    - semantic_readiness.state
+    - semantic_readiness.not_ready_reason
+    - semantic_readiness.safe_next_action
+    - freshness_class
+    - scope and completeness caveats
+

@@ -1,0 +1,188 @@
+# Graph-shard reuse and semantic refinement disclosure states.
+#
+# Machine-readable companion to docs/architecture/graph_warmup_and_refinement_contract.md.
+#
+# Purpose: freeze a reviewable, export-safe mapping from the “semantic refinements
+# arrive later” posture (startup/reopen/partial-index) into:
+#   - reuse classes (metadata-only, cached-graph, hybrid, live semantic),
+#   - reuse rejection / invalidation reasons,
+#   - disclosure expectations (which canonical packet fields must carry the caveat),
+#   - and fixture refs that exercise supersession lineage.
+#
+# Planning identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: semantic_refinement_state_contract
+packet_id: aureline.semantic_refinement_states
+status: seeded
+
+packet_document_ref: docs/architecture/graph_warmup_and_refinement_contract.md
+
+source_refs:
+  startup_ordering_packet_ref: artifacts/startup/cold_start_ordering_packet.md
+  startup_admission_order_ref: artifacts/startup/startup_admission_order.yaml
+  readiness_cues_contract_ref: docs/recovery/restore_hydration_phases_contract.md
+  search_result_truth_schema_ref: schemas/search/search_result_truth.schema.json
+  search_truth_labels_ref: artifacts/search/result_truth_labels.yaml
+  shard_rows_ref: artifacts/search/shard_rows.yaml
+  query_planner_contract_ref: docs/search/query_planner_contract_seed.md
+  semantic_navigation_contract_ref: docs/navigation/semantic_navigation_and_rename_contract.md
+  semantic_result_ref_schema_ref: schemas/navigation/semantic_result_ref.schema.json
+  rename_preview_schema_ref: schemas/navigation/rename_preview.schema.json
+  provider_arbitration_contract_ref: docs/language/provider_graph_and_arbitration_contract.md
+  semantic_readiness_vocab_ref: docs/filesystem/filesystem_identity_vocabulary.md
+  semantic_readiness_schema_ref: schemas/filesystem/save_target_token.schema.json
+
+# ---------------------------------------------------------------------------
+# Frozen vocabularies. Tooling and fixtures read these blocks; downstream work
+# MUST NOT mint tokens outside the enumerations below without updating this file.
+# ---------------------------------------------------------------------------
+vocabularies:
+  graph_shard_reuse_class:
+    description: >
+      Closed reuse-class vocabulary used by fixtures and supportability exports
+      to describe whether a semantic-capable surface is operating on metadata-only,
+      cached-graph reuse, a mixed/hybrid posture, or live semantic compute.
+      These are mapping labels; they do not replace the canonical schema fields.
+    values:
+      - metadata_only
+      - cached_graph_reuse
+      - hybrid_mixed_provenance
+      - live_semantic_compute
+
+  graph_shard_invalidation_reason:
+    description: >
+      Closed invalidation / reuse-rejection reasons for graph shard reuse.
+      These reasons are export-safe and are designed to map onto the
+      semantic-readiness not_ready_reason vocabulary and the provider arbitration
+      downgrade cues without collapsing distinct causes into one generic “not ready”.
+    values:
+      - shard_missing
+      - shard_schema_mismatch
+      - shard_identity_mismatch
+      - shard_input_digest_stale
+      - shard_policy_or_trust_mismatch
+      - shard_corrupt_or_quarantined
+      - shard_scope_narrowed
+      - shard_remote_dependency_unreachable
+      - shard_provider_quarantined
+
+  refinement_event_kind:
+    description: >
+      Closed refinement-event kinds used by fixtures to describe how later work
+      superseded earlier results. This vocabulary is explanatory: canonical event
+      lineage must still be represented through the owning schemas (e.g. search
+      streaming frames, navigation artifacts, provider arbitration records).
+    values:
+      - none
+      - readiness_or_freshness_label_changed
+      - corrective_replace_superseded_rows
+      - alternate_target_offered_no_redirect
+      - preview_blocked_pending_refresh
+
+# ---------------------------------------------------------------------------
+# Reuse classes: disclosure expectations and minimum mapping to canonical fields.
+# ---------------------------------------------------------------------------
+reuse_classes:
+  - reuse_class: metadata_only
+    summary: >
+      No semantic graph shard contributes. Surfaces may still provide useful
+      early navigation via lexical/hot-set and structural fallback, but must
+      label truth and scope limits explicitly.
+    disclosure_expectations:
+      search_surfaces:
+        must_express_partiality_via: schemas/search/search_result_truth.schema.json
+        must_not_claim: [authoritative_live]
+      navigation_and_language_surfaces:
+        must_express_provenance_via: schemas/navigation/semantic_result_ref.schema.json
+        must_not_claim_provider_health: [ready] # unless the chosen provider actually is ready for the declared scope
+
+  - reuse_class: cached_graph_reuse
+    summary: >
+      A persisted graph shard contributes cached semantic signal. Cached reuse
+      is allowed only with explicit freshness disclosure and must not repaint
+      cached answers as fresh live semantic compute.
+    disclosure_expectations:
+      search_surfaces:
+        must_express_freshness_via: schemas/search/search_result_truth.schema.json
+        must_not_claim: [authoritative_live] # unless revalidated against current identity + freshness floor
+      navigation_and_language_surfaces:
+        must_keep_cached_reuse_visible: docs/language/provider_graph_and_arbitration_contract.md
+
+  - reuse_class: hybrid_mixed_provenance
+    summary: >
+      Multiple contributors participate (cached + live + metadata). Mixed
+      provenance must stay mechanically visible; surfaces must not collapse the
+      presentation into a single unlabeled “exact” claim.
+    disclosure_expectations:
+      search_surfaces:
+        must_keep_contributors_visible_via:
+          - artifacts/search/result_truth_labels.yaml
+          - schemas/search/search_result_truth.schema.json
+      navigation_and_language_surfaces:
+        must_keep_scope_and_completeness_caveats_visible_via:
+          - docs/navigation/semantic_navigation_and_rename_contract.md
+          - schemas/navigation/semantic_result_ref.schema.json
+
+  - reuse_class: live_semantic_compute
+    summary: >
+      Live semantic compute backed by a provider that is ready, authoritative
+      for the claimed scope, and within freshness floors.
+    disclosure_expectations:
+      navigation_and_language_surfaces:
+        must_obey_authoritative_live_rules_ref: docs/language/provider_graph_and_arbitration_contract.md
+      search_surfaces:
+        must_obey_semantic_supplement_rules_ref: artifacts/search/result_truth_labels.yaml
+
+# ---------------------------------------------------------------------------
+# Invalidation reasons: mapping guidance (non-schema) for supportability exports.
+# ---------------------------------------------------------------------------
+invalidation_reason_mapping_guidance:
+  - invalidation_reason: shard_missing
+    semantic_readiness_not_ready_reason: producer_warming
+    safe_next_action_hint: wait
+  - invalidation_reason: shard_schema_mismatch
+    semantic_readiness_not_ready_reason: producer_restart
+    safe_next_action_hint: wait
+  - invalidation_reason: shard_identity_mismatch
+    semantic_readiness_not_ready_reason: input_digest_stale
+    safe_next_action_hint: refresh_input_digests
+  - invalidation_reason: shard_input_digest_stale
+    semantic_readiness_not_ready_reason: input_digest_stale
+    safe_next_action_hint: refresh_input_digests
+  - invalidation_reason: shard_policy_or_trust_mismatch
+    semantic_readiness_not_ready_reason: policy_blocked
+    safe_next_action_hint: open_alias_details
+  - invalidation_reason: shard_corrupt_or_quarantined
+    semantic_readiness_not_ready_reason: corrupt_input_quarantined
+    safe_next_action_hint: open_support_bundle
+  - invalidation_reason: shard_scope_narrowed
+    semantic_readiness_not_ready_reason: scope_excluded
+    safe_next_action_hint: widen_scope
+  - invalidation_reason: shard_remote_dependency_unreachable
+    semantic_readiness_not_ready_reason: offline_unreachable
+    safe_next_action_hint: open_offline_details
+  - invalidation_reason: shard_provider_quarantined
+    semantic_readiness_not_ready_reason: producer_restart
+    safe_next_action_hint: open_support_bundle
+
+# ---------------------------------------------------------------------------
+# Fixture coverage: partial semantic warm-up / refinement scenarios.
+# ---------------------------------------------------------------------------
+fixtures:
+  - fixture_ref: fixtures/search/partial_semantic_warmup_cases/no_shard.yaml
+    reuse_class: metadata_only
+    refinement_event_kind: none
+  - fixture_ref: fixtures/search/partial_semantic_warmup_cases/stale_shard.yaml
+    reuse_class: cached_graph_reuse
+    refinement_event_kind: readiness_or_freshness_label_changed
+  - fixture_ref: fixtures/search/partial_semantic_warmup_cases/incompatible_shard.yaml
+    reuse_class: metadata_only
+    refinement_event_kind: readiness_or_freshness_label_changed
+  - fixture_ref: fixtures/search/partial_semantic_warmup_cases/partially_warmed_roots.yaml
+    reuse_class: hybrid_mixed_provenance
+    refinement_event_kind: readiness_or_freshness_label_changed
+  - fixture_ref: fixtures/search/partial_semantic_warmup_cases/late_semantic_replacement.yaml
+    reuse_class: hybrid_mixed_provenance
+    refinement_event_kind: corrective_replace_superseded_rows
+

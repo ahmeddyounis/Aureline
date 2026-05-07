@@ -144,6 +144,9 @@ Rule:
 
 - “Semantic refinements arrive later” is the expected posture; emitting
   `semantic_ready` is allowed to lag behind `shell_ready`.
+- The disclosure and supersession rules for cached-graph reuse, metadata-only
+  fallback, and late refinement are frozen in
+  `docs/architecture/graph_warmup_and_refinement_contract.md`.
 
 ## 4) Startup admission ordering (machine-readable)
 
@@ -172,4 +175,3 @@ They cover:
 
 and include required degraded disclosures when watchers, indexes, or graph
 shards are unavailable.
-

@@ -1,0 +1,37 @@
+case_id: partial_semantic_warmup.late_semantic_replacement_supersedes_hot_set
+purpose: >
+  A quick open / search session initially streams hot-set candidates with
+  provisional markers. Later semantic refinement replaces earlier candidates.
+  The replacement is explicit: the planner emits a corrective replace frame that
+  names the superseded rows so support and parity audits can reconstruct what
+  changed and why.
+
+contract_refs:
+  contract_doc: docs/architecture/graph_warmup_and_refinement_contract.md
+  contract_artifact: artifacts/search/semantic_refinement_states.yaml
+  query_planner_contract: docs/search/query_planner_contract_seed.md
+  example_streaming_frame: fixtures/search/planner_cases/streaming_corrective_replace_frame.json
+
+scenario:
+  graph_shard_reuse:
+    reuse_class: hybrid_mixed_provenance
+    invalidation_reason: shard_missing
+    disclosure_summary: >
+      Initial hot-set-only results are admissible as provisional. Late semantic
+      warm-up refines and replaces specific candidates; the replacement is
+      explicit via superseded row ids.
+
+expected_refinement:
+  refinement_event_kind: corrective_replace_superseded_rows
+  lineage_requirements:
+    must_use_corrective_replace_frame: true
+    must_enumerate_superseded_ids: true
+    must_not_silent_drop_rows: true
+    must_preserve_stable_result_identity: true
+
+user_visible_effect:
+  must_not:
+    - silently redirect an already-opened target to a different target
+  may:
+    - offer an alternate refined target as a superseding option
+
