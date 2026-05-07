@@ -1,0 +1,71 @@
+schema_version: 1
+case_id: corpus.fs.conflict_save.remote_root_degradation
+case_family: conflict_save_case
+title: Remote-root degradation/disconnect blocks blind overwrite and favors retry or export
+summary: >
+  A remote-backed file becomes unreachable or cannot provide a conditional
+  write token (revision/ETag). The system cannot prove the remote authoritative
+  state, so overwrite and reload are disabled. Retry may revalidate authority;
+  save-as/export remains available to preserve local intent.
+
+scenario_axes:
+  buffer_dirty_state: dirty
+  external_observation: remote_state_unknown
+  uncertainty_axis: remote_root_uncertain
+  preferred_write_lane: remote_conditional_write
+
+save_pipeline:
+  compare_before_write:
+    result: blocked_remote_uncertain
+    durable_write_allowed: false
+    must_not_assert:
+      - remote_authoritative_revision_is_known
+      - overwrite_is_safe
+  write_lane_disclosure:
+    preferred_lane: conditional_remote_write (precondition token required)
+    degraded_lane: capability_uncertain_block
+
+review:
+  matrix_ref: artifacts/fs/save_review_choice_matrix.yaml
+  offered_choices:
+    - choice: retry
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: revalidation_attempt
+      resulting_authoritative_state_if_selected: authoritative_remote_revalidated
+    - choice: save_as
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: true
+      journal_implication: local_buffer_checkpoint
+      resulting_authoritative_state_if_selected: authoritative_exported_to_new_target
+    - choice: compare
+      enabled: false
+      forbidden_reason: remote_root_uncertain
+      requires_diff_metadata: true
+      requires_checkpoint: false
+      journal_implication: review_checkpoint_only
+      resulting_authoritative_state_if_selected: no_authoritative_state_yet
+    - choice: overwrite
+      enabled: false
+      forbidden_reason: remote_root_uncertain
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: restore_via_checkpoint_after_write
+      resulting_authoritative_state_if_selected: authoritative_buffer_written
+    - choice: reload
+      enabled: false
+      forbidden_reason: remote_root_uncertain
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: local_buffer_checkpoint
+      resulting_authoritative_state_if_selected: authoritative_external_loaded
+
+checkpoint_and_journal_expectations:
+  invariants:
+    - Remote uncertainty cannot be hidden by a locally “successful” save.
+    - Any eventual write must use a conditional token or remain explicitly degraded with review.
+

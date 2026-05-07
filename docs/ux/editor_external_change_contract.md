@@ -13,6 +13,10 @@ Companion artifacts:
   defines the export-safe event record, review-choice record, surface
   projection, diff metadata, checkpoint metadata, and authoritative state
   outcome.
+- [`/artifacts/fs/save_review_choice_matrix.yaml`](../../artifacts/fs/save_review_choice_matrix.yaml)
+  is the machine-readable review-choice matrix (choice keys, forbidden reasons,
+  diff/checkpoint requirements, and journal implications) shared across
+  external-change and save-conflict review surfaces.
 - [`/fixtures/editor/external_change_cases/`](../../fixtures/editor/external_change_cases/)
   contains worked cases for clean reloads, dirty save conflicts, external
   move/delete/rename, watcher loss, remote-root uncertainty, alias

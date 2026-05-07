@@ -1,0 +1,61 @@
+schema_version: 1
+case_id: corpus.fs.conflict_save.post_resolution_journal_checkpoint
+case_family: conflict_save_case
+title: Conflict resolution captures checkpoints and a journal entry that can reconstruct the decision
+summary: >
+  A dirty-buffer save detects an external rewrite. The user reviews the diff and
+  then chooses overwrite. The system captures the external version checkpoint
+  before writing, records the chosen resolution, and emits a journal/checkpoint
+  packet that support and restore surfaces can replay: which basis was reviewed,
+  which bytes were replaced, and which checkpoint restores the replaced version.
+
+scenario_axes:
+  buffer_dirty_state: dirty
+  external_observation: rewrite_to_new_generation
+  selected_resolution: overwrite_after_compare
+  preferred_write_lane: atomic_replace_preferred
+
+save_pipeline:
+  compare_before_write:
+    initial_result: mismatch_blocks
+    after_review_result: user_admits_replacement
+  durable_write:
+    allowed_only_after:
+      - compare_completed_or_compare_disabled_disclosure_admitted
+      - external_version_checkpoint_captured
+      - save_target_token_revalidated
+    preferred_lane: atomic_replace (temp-write + fsync + atomic rename)
+  authoritative_state_update:
+    updates:
+      - buffer_generation_token_refreshed
+      - stale_buffer_disclosure_cleared_only_after_commit
+      - external_change_event_records_authoritative_state_after_choice
+
+review:
+  matrix_ref: artifacts/fs/save_review_choice_matrix.yaml
+  offered_choices_required_to_be_reconstructable: true
+  selected_choice: overwrite
+  selected_choice_requirements:
+    requires_diff_metadata: true
+    requires_checkpoint: true
+    journal_implication: restore_via_checkpoint_after_write
+    resulting_authoritative_state: authoritative_buffer_written
+
+checkpoint_and_journal_expectations:
+  checkpoints_must_exist:
+    - kind: local_buffer_checkpoint
+      purpose: restore local intent if overwrite was mistaken
+    - kind: external_version_checkpoint
+      purpose: restore the replaced external bytes
+    - kind: review_checkpoint
+      purpose: pin the reviewed basis (local + external refs)
+  journal_entry_must_link:
+    - save_target_token_packet_id
+    - external_change_event_id
+    - selected_review_choice_ref
+    - checkpoint_refs (local_buffer, external_version, review)
+    - resulting_authoritative_state
+  invariants:
+    - Overwrite cannot proceed without a checkpoint of the external version or an explicit policy disclosure.
+    - Support/export can reconstruct both the reviewed basis and the recovery route.
+

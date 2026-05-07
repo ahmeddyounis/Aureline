@@ -1,0 +1,103 @@
+schema_version: 1
+case_id: corpus.fs.conflict_save.external_rewrite_dirty_buffer
+case_family: conflict_save_case
+title: External rewrite while buffer is dirty blocks save and requires explicit review
+summary: >
+  A user has unsaved local edits. A sibling writer rewrites the on-disk file to
+  a newer generation before save. Compare-before-write detects the mismatch,
+  blocks durable write, and routes to the review-choice matrix without
+  downgrading uncertainty to a green/current state.
+
+scenario_axes:
+  buffer_dirty_state: dirty
+  external_observation: rewrite_to_new_generation
+  watcher_state: healthy_or_degraded_irrelevant_to_correctness_floor
+  preferred_write_lane: atomic_replace_preferred
+
+save_pipeline:
+  staged_snapshot:
+    required: true
+    includes:
+      - buffer_bytes_snapshot
+      - save_target_token_ref
+      - local_generation_token_ref
+  fidelity_validation:
+    required: true
+    preserves_by_default:
+      - encoding
+      - bom_state
+      - dominant_line_endings
+      - final_newline_semantics
+  compare_before_write:
+    result: mismatch
+    basis_generation_token: generation:local:orders-rs:0041
+    observed_generation_token: generation:local:orders-rs:0042
+    durable_write_allowed: false
+    must_emit_external_change_event: true
+  write_lane_disclosure:
+    preferred_lane: atomic_replace (temp-write + fsync + atomic rename)
+    degraded_lanes_must_be_explicit:
+      - in_place_write_with_review
+      - capability_uncertain_block
+
+review:
+  matrix_ref: artifacts/fs/save_review_choice_matrix.yaml
+  offered_choices:
+    - choice: compare
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: true
+      requires_checkpoint: false
+      journal_implication: review_checkpoint_only
+      resulting_authoritative_state_if_selected: no_authoritative_state_yet
+    - choice: overwrite
+      enabled: false
+      forbidden_reason: user_not_reviewed_external_state
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: restore_via_checkpoint_after_write
+      resulting_authoritative_state_if_selected: authoritative_buffer_written
+    - choice: merge
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: local_and_external_checkpoints
+      resulting_authoritative_state_if_selected: authoritative_merged_result
+    - choice: reload
+      enabled: false
+      forbidden_reason: dirty_buffer
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: local_buffer_checkpoint
+      resulting_authoritative_state_if_selected: authoritative_external_loaded
+    - choice: cancel
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: no_mutation
+      resulting_authoritative_state_if_selected: last_known_good_stale
+
+checkpoint_and_journal_expectations:
+  before_any_destructive_choice:
+    must_have_checkpoint_posture: true
+    destructive_choices:
+      - overwrite
+      - merge
+      - reload
+  checkpoints:
+    local_buffer_checkpoint_required_for:
+      - merge
+      - reload_with_discard
+      - save_as
+    external_version_checkpoint_required_for:
+      - overwrite
+      - merge
+    review_checkpoint_may_be_minted_by:
+      - compare
+  invariants:
+    - No durable write occurs on compare-before-write mismatch.
+    - Save must remain blocked until a recorded review choice resolves the conflict.
+    - Uncertainty (if any) stays visible; it cannot collapse into “saved successfully”.
+

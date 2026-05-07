@@ -1,0 +1,197 @@
+# Save review-choice matrix (compare / overwrite / merge / cancel / reload / retry / save_as)
+#
+# This artifact is the machine-readable representation of the review-choice
+# matrix frozen in `docs/ux/editor_external_change_contract.md`.
+#
+# Goal: every surface that offers conflict resolution choices emits the same
+# choice keys, the same forbidden reasons, and the same journal/checkpoint
+# implications so support/export packets and restore provenance can reconstruct
+# the user's decision later.
+#
+# If this file conflicts with `.t2/docs/*` or `docs/ux/editor_external_change_contract.md`,
+# those sources win and this matrix must update in the same change.
+
+schema_version: 1
+
+ux_contract_source: docs/ux/editor_external_change_contract.md
+event_schema_ref: schemas/editor/external_change_event.schema.json
+
+frozen_invariants:
+  - Compare-before-write is the correctness floor.
+  - Silent overwrite is forbidden.
+  - Uncertainty must remain visible until proven resolved.
+  - A disabled choice remains present with a forbidden reason.
+  - Destructive choices require checkpoint posture or explicit disclosure when unavailable.
+
+vocab:
+  review_choice:
+    - compare
+    - overwrite
+    - merge
+    - cancel
+    - reload
+    - retry
+    - save_as
+  forbidden_reason:
+    - none
+    - dirty_buffer
+    - no_diff_basis
+    - watcher_uncertain
+    - remote_root_uncertain
+    - alias_ambiguous
+    - target_missing
+    - read_only
+    - policy_blocked
+    - binary_unmergeable
+    - missing_checkpoint
+    - removable_identity_uncertain
+    - unsupported_case_only_rename
+    - symlink_escape_blocked
+    - merge_strategy_unavailable
+    - autosave_forbidden
+    - no_save_target_token
+    - user_not_reviewed_external_state
+    - not_reload_safe
+  journal_implication:
+    - no_mutation
+    - review_checkpoint_only
+    - local_buffer_checkpoint
+    - external_version_checkpoint
+    - local_and_external_checkpoints
+    - restore_via_checkpoint_after_write
+    - undo_buffer_only
+    - revalidation_attempt
+  authoritative_state_class:
+    - no_authoritative_state_yet
+    - authoritative_external_loaded
+    - authoritative_buffer_written
+    - authoritative_merged_result
+    - authoritative_remote_revalidated
+    - authoritative_alias_converged
+    - authoritative_exported_to_new_target
+    - last_known_good_stale
+    - target_missing
+    - save_blocked_pending_review
+
+# -----------------------------------------------------------------------------
+# Rows
+# -----------------------------------------------------------------------------
+
+choice_rows:
+  - choice: compare
+    requires_diff_metadata: true
+    requires_checkpoint: false
+    journal_implication: review_checkpoint_only
+    resulting_authoritative_state_if_selected: no_authoritative_state_yet
+    may_be_offered_when:
+      - Any external change is detected.
+      - Any save attempt is blocked pending review.
+      - Reload basis is unclear or cannot be claimed as reload-safe.
+    forbidden_when:
+      - No comparable basis exists (must remain offered but disabled with forbidden_reason=no_diff_basis).
+    notes: >
+      Compare does not mutate durable bytes. It pins the reviewed basis so a
+      later overwrite/merge/reload choice cannot pretend it was made against a
+      different external version.
+
+  - choice: overwrite
+    requires_diff_metadata: true
+    requires_checkpoint: true
+    journal_implication: restore_via_checkpoint_after_write
+    resulting_authoritative_state_if_selected: authoritative_buffer_written
+    may_be_offered_when:
+      - The user has reviewed the external state (or a compare-disabled disclosure was admitted explicitly).
+      - Uncertainty is resolved and the save target token is current.
+      - A checkpoint posture exists for the external version (or policy explicitly permits overwrite without one, with disclosure).
+    forbidden_when:
+      - Any unresolved uncertainty (watcher/remote/alias/removable identity).
+      - Read-only, policy-blocked, missing save target, or background/autosave execution.
+    notes: >
+      Overwrite is a destructive choice. It must checkpoint the replaced
+      external version and remain attributable to the reviewed basis.
+
+  - choice: merge
+    requires_diff_metadata: true
+    requires_checkpoint: true
+    journal_implication: local_and_external_checkpoints
+    resulting_authoritative_state_if_selected: authoritative_merged_result
+    may_be_offered_when:
+      - A merge strategy exists for the content kind and both local and external bases are known.
+      - Uncertainty is resolved and the canonical object is proven.
+    forbidden_when:
+      - Binary/unmergeable content, missing basis, unknown canonical object, or merge tool unavailable.
+    notes: >
+      Merge requires explicit base/local/external refs and must checkpoint both
+      local and external versions before applying a result.
+
+  - choice: cancel
+    requires_diff_metadata: false
+    requires_checkpoint: false
+    journal_implication: no_mutation
+    resulting_authoritative_state_if_selected: last_known_good_stale
+    may_be_offered_when:
+      - Always.
+    forbidden_when:
+      - Never.
+    notes: >
+      Cancel does not resolve the event. It preserves stale/uncertain disclosure
+      and must not relabel the buffer as current.
+
+  - choice: reload
+    variants:
+      - variant: reload_safe_clean
+        requires_diff_metadata: false
+        requires_checkpoint: false
+        journal_implication: undo_buffer_only
+        resulting_authoritative_state_if_selected: authoritative_external_loaded
+        may_be_offered_when:
+          - Buffer is clean and the event is marked reload-safe.
+        forbidden_when:
+          - not_reload_safe
+          - watcher_uncertain
+          - remote_root_uncertain
+          - alias_ambiguous
+        notes: >
+          Clean reload may rely on editor undo instead of a durable checkpoint,
+          but it still records the adopted external generation.
+      - variant: reload_with_discard
+        requires_diff_metadata: true
+        requires_checkpoint: true
+        journal_implication: local_buffer_checkpoint
+        resulting_authoritative_state_if_selected: authoritative_external_loaded
+        may_be_offered_when:
+          - The user explicitly discards local edits after compare and the local buffer is checkpointed first.
+        forbidden_when:
+          - dirty_buffer (until explicit discard and checkpoint posture is satisfied)
+          - user_not_reviewed_external_state
+          - watcher_uncertain
+          - remote_root_uncertain
+          - alias_ambiguous
+
+  - choice: retry
+    requires_diff_metadata: false
+    requires_checkpoint: false
+    journal_implication: revalidation_attempt
+    resulting_authoritative_state_if_selected: authoritative_remote_revalidated
+    may_be_offered_when:
+      - Watcher/remote/policy/removable identity state might become provable again.
+    forbidden_when:
+      - When retry would mutate bytes, mask a known conflict, or relabel uncertainty as current without evidence.
+    notes: >
+      Retry never mutates durable bytes. It either revalidates authority or
+      produces a new event with updated evidence.
+
+  - choice: save_as
+    requires_diff_metadata: false
+    requires_checkpoint: true
+    journal_implication: local_buffer_checkpoint
+    resulting_authoritative_state_if_selected: authoritative_exported_to_new_target
+    may_be_offered_when:
+      - The current save target is blocked or uncertain, or the user wants to write to a distinct canonical object.
+    forbidden_when:
+      - policy_blocked (when policy forbids exporting to any admitted target).
+    notes: >
+      Save-as is an escape hatch: it does not resolve the original event unless
+      the event records that the buffer was exported to a distinct canonical
+      object.
+

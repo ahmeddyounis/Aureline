@@ -1,0 +1,73 @@
+schema_version: 1
+case_id: corpus.fs.conflict_save.alias_path_ambiguity
+case_family: conflict_save_case
+title: Alias-path ambiguity blocks overwrite until the canonical target is proven
+summary: >
+  The buffer is attached to a presentation path whose alias resolution becomes
+  ambiguous (symlink target shift, remount remap, or identity-token mismatch).
+  The save pipeline must not guess which canonical object would be written.
+  Overwrite remains disabled while alias ambiguity is active; retry or save-as
+  is the safe next action.
+
+scenario_axes:
+  buffer_dirty_state: dirty
+  external_observation: alias_resolution_changed_or_ambiguous
+  uncertainty_axis: alias_ambiguous
+  preferred_write_lane: atomic_replace_preferred
+
+save_pipeline:
+  re_resolve_target:
+    result: uncertain
+    durable_write_allowed: false
+    must_not_assert:
+      - canonical_target_is_known
+      - watcher_is_sufficient_proof
+  compare_before_write:
+    result: uncertain_blocks
+    reason: identity_token_unavailable_or_alias_resolution_ambiguous
+
+review:
+  matrix_ref: artifacts/fs/save_review_choice_matrix.yaml
+  offered_choices:
+    - choice: retry
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: revalidation_attempt
+      resulting_authoritative_state_if_selected: authoritative_alias_converged
+    - choice: compare
+      enabled: false
+      forbidden_reason: no_diff_basis
+      requires_diff_metadata: true
+      requires_checkpoint: false
+      journal_implication: review_checkpoint_only
+      resulting_authoritative_state_if_selected: no_authoritative_state_yet
+    - choice: overwrite
+      enabled: false
+      forbidden_reason: alias_ambiguous
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: restore_via_checkpoint_after_write
+      resulting_authoritative_state_if_selected: authoritative_buffer_written
+    - choice: save_as
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: true
+      journal_implication: local_buffer_checkpoint
+      resulting_authoritative_state_if_selected: authoritative_exported_to_new_target
+    - choice: cancel
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: no_mutation
+      resulting_authoritative_state_if_selected: last_known_good_stale
+
+checkpoint_and_journal_expectations:
+  invariants:
+    - Alias ambiguity cannot be silently treated as “no external change”.
+    - Save remains blocked until retry resolves identity or the user exports to a new target.
+    - Any export packet retains alias ambiguity disclosure even if the user cancels.
+

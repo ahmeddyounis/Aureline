@@ -1,0 +1,77 @@
+schema_version: 1
+case_id: corpus.fs.conflict_save.move_or_rename_during_edit
+case_family: conflict_save_case
+title: External move/rename during edit triggers wrong-target prevention and explicit alias convergence
+summary: >
+  While a buffer is dirty, an external actor moves/renames the file. The save
+  pipeline must re-resolve canonical identity, detect the path change, and
+  prevent writing to the stale presentation path. The user must make an
+  explicit choice (compare, save-as, retry, or cancel). The system must not
+  recreate the old path or overwrite an unrelated object.
+
+scenario_axes:
+  buffer_dirty_state: dirty
+  external_observation: moved_or_renamed
+  uncertainty_axis: alias_path_change_requires_review
+  preferred_write_lane: atomic_replace_preferred
+
+save_pipeline:
+  staging_and_fidelity:
+    required: true
+  re_resolve_target:
+    result: canonical_object_same_but_presentation_path_changed
+    durable_write_allowed: false
+    reason: >
+      Writing to the old presentation path risks wrong-target overwrite or
+      recreating a path the user did not choose.
+  compare_before_write:
+    result: blocked_pending_review
+    required_disclosure:
+      - stale_presentation_path
+      - new_observed_presentation_path
+
+review:
+  matrix_ref: artifacts/fs/save_review_choice_matrix.yaml
+  offered_choices:
+    - choice: compare
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: true
+      requires_checkpoint: false
+      journal_implication: review_checkpoint_only
+      resulting_authoritative_state_if_selected: no_authoritative_state_yet
+    - choice: save_as
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: true
+      journal_implication: local_buffer_checkpoint
+      resulting_authoritative_state_if_selected: authoritative_exported_to_new_target
+    - choice: retry
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: revalidation_attempt
+      resulting_authoritative_state_if_selected: authoritative_alias_converged
+    - choice: overwrite
+      enabled: false
+      forbidden_reason: alias_ambiguous
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: restore_via_checkpoint_after_write
+      resulting_authoritative_state_if_selected: authoritative_buffer_written
+    - choice: cancel
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: no_mutation
+      resulting_authoritative_state_if_selected: last_known_good_stale
+
+checkpoint_and_journal_expectations:
+  invariants:
+    - Save does not write to a stale presentation path after an external move/rename.
+    - Any path update is treated as explicit alias convergence, not an implicit relabel.
+    - Support/export can reconstruct the move/rename observation and the user's resolution choice.
+

@@ -25,6 +25,10 @@ The corpus is split into five parts:
 - `case_only_rename_matrix.yaml`
   Explicit claimed, degraded, and unsupported rows for case-only rename
   behavior across root profiles.
+- `conflict_save_cases/`
+  Reviewer-facing conflict-aware save cases that freeze staging, fidelity
+  validation, compare-before-write mismatch/uncertainty handling, review choices,
+  and checkpoint/journal expectations for recovery-safe conflict resolution.
 
 Rules:
 

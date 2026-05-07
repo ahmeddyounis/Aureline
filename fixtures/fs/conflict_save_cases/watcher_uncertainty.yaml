@@ -1,0 +1,72 @@
+schema_version: 1
+case_id: corpus.fs.conflict_save.watcher_uncertainty
+case_family: conflict_save_case
+title: Watcher uncertainty stays visible and blocks destructive write choices
+summary: >
+  The watcher enters a degraded or uncertain state (overflow, missed subtree,
+  polling fallback, or manual-refresh-only). Even if no external change is
+  currently observed, the system cannot claim strong freshness. Save must not
+  silently “green” the buffer; overwrite and reload-with-discard remain gated
+  until compare-before-write produces evidence.
+
+scenario_axes:
+  buffer_dirty_state: dirty
+  external_observation: unknown_due_to_watcher_uncertainty
+  watcher_state: uncertain
+  preferred_write_lane: atomic_replace_preferred
+
+save_pipeline:
+  compare_before_write:
+    result: requires_recompare_or_blocks
+    durable_write_allowed: false
+    required_disclosure:
+      - watcher_uncertain
+      - compare_before_write_is_required_for_correctness
+  degraded_write_lane_rules:
+    - A degraded watch state does not auto-authorize overwrite.
+    - Any write lane weaker than atomic replace must be disclosed before bytes are written.
+
+review:
+  matrix_ref: artifacts/fs/save_review_choice_matrix.yaml
+  offered_choices:
+    - choice: retry
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: revalidation_attempt
+      resulting_authoritative_state_if_selected: authoritative_remote_revalidated
+    - choice: compare
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: true
+      requires_checkpoint: false
+      journal_implication: review_checkpoint_only
+      resulting_authoritative_state_if_selected: no_authoritative_state_yet
+    - choice: overwrite
+      enabled: false
+      forbidden_reason: watcher_uncertain
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: restore_via_checkpoint_after_write
+      resulting_authoritative_state_if_selected: authoritative_buffer_written
+    - choice: reload
+      enabled: false
+      forbidden_reason: not_reload_safe
+      requires_diff_metadata: true
+      requires_checkpoint: true
+      journal_implication: local_buffer_checkpoint
+      resulting_authoritative_state_if_selected: authoritative_external_loaded
+    - choice: cancel
+      enabled: true
+      forbidden_reason: none
+      requires_diff_metadata: false
+      requires_checkpoint: false
+      journal_implication: no_mutation
+      resulting_authoritative_state_if_selected: last_known_good_stale
+
+checkpoint_and_journal_expectations:
+  invariants:
+    - Uncertainty must remain visible across editor chrome, file tree, and support/export.
+    - Retry cannot relabel uncertainty as current unless it produces new compare evidence.
+
