@@ -1,0 +1,132 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: save_remains_protected_while_sync_pauses
+  scenario: >
+    The user hits save while a sync metadata refresh is runnable. Save intent
+    capture and disk journal handoff must remain protected; replication work must
+    pause or defer before it can block save/undo or render deadlines.
+  exercised_contract_sections:
+    - "Resource governor contract — core interaction outranks background work"
+    - "Threading and scheduling contract — sync_metadata_refresh yields"
+  exercised_classes_summary:
+    protected_hot_path_latency_budget_owner: hot_path_save_undo
+    background_worker_class: sync_metadata_refresh
+    governor_state_at_pause: constrained
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:sync:20260507T021500Z:0001"
+    task_kind: sync.metadata_refresh
+    worker_class: sync_metadata_refresh
+    priority_policy: low
+    yieldability: yield_with_checkpoint
+    cancellation_contract: checkpoint_then_cancel
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-07T02:15:00Z"
+    queue_lane: upload_replication
+    effective_concurrency_cap: 1
+    note: >
+      Sync refresh is background replication. It must pause under constrained
+      posture so save/undo remains protected.
+    instrumentation:
+      worker_class: sync_metadata_refresh
+      priority_policy: low
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: sync.metadata_refresh
+      queue_lane: upload_replication
+      latency_budget_owner: best_effort_background
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:save:20260507T021502Z:0001"
+    task_kind: vfs.save_intent_capture
+    worker_class: foreground_user_intent
+    priority_policy: high_priority_bounded
+    yieldability: yield_at_safe_points_only
+    cancellation_contract: no_inflight_cancel
+    latency_budget_owner: hot_path_save_undo
+    requested_at: "2026-05-07T02:15:02Z"
+    queue_lane: foreground
+    effective_concurrency_cap: 2
+    note: "Save intent capture must remain admitted regardless of background sync."
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high_priority_bounded
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: vfs.save_intent_capture
+      queue_lane: foreground
+      latency_budget_owner: hot_path_save_undo
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:save:20260507T021502Z:0001"
+    task_id: "task:save:20260507T021502Z:0001"
+    task_kind: vfs.save_intent_capture
+    requested_worker_class: foreground_user_intent
+    admitted_worker_class: foreground_user_intent
+    governor_state: constrained
+    queue_lane: foreground
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 2
+    decided_at: "2026-05-07T02:15:02Z"
+    rationale_summary: >
+      Save intent capture is protected. Constrained posture pauses background
+      replication rather than delaying save/undo.
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high_priority_bounded
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: vfs.save_intent_capture
+      queue_lane: foreground
+      latency_budget_owner: hot_path_save_undo
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:sync:20260507T021502Z:0002"
+    task_id: "task:sync:20260507T021500Z:0001"
+    task_kind: sync.metadata_refresh
+    requested_worker_class: sync_metadata_refresh
+    admitted_worker_class: sync_metadata_refresh
+    governor_state: constrained
+    queue_lane: upload_replication
+    admission_decision: paused
+    decision_reason: deferred_by_efficiency_state
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-07T02:15:02Z"
+    rationale_summary: >
+      Constrained posture narrows replication; sync refresh pauses to preserve
+      save/undo and render deadlines.
+    instrumentation:
+      worker_class: sync_metadata_refresh
+      priority_policy: low
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: sync.metadata_refresh
+      queue_lane: upload_replication
+      latency_budget_owner: best_effort_background
+
+  - record_kind: yield_event_record
+    worker_class_schema_version: 1
+    event_id: "yield:sync:20260507T021502Z:0001"
+    task_id: "task:sync:20260507T021500Z:0001"
+    task_kind: sync.metadata_refresh
+    yielding_worker_class: sync_metadata_refresh
+    preempting_worker_class: foreground_user_intent
+    yield_reason: checkpoint_boundary_reached
+    yielded_at: "2026-05-07T02:15:02Z"
+    resumed_at: "2026-05-07T02:16:10Z"
+    note: "Sync refresh yields at checkpoint while save intent capture proceeds."
+    instrumentation:
+      worker_class: sync_metadata_refresh
+      priority_policy: low
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: sync.metadata_refresh
+      queue_lane: upload_replication
+      latency_budget_owner: best_effort_background
+

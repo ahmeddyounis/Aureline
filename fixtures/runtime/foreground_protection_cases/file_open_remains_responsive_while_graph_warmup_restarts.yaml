@@ -1,0 +1,111 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: file_open_remains_responsive_while_graph_warmup_restarts
+  scenario: >
+    Graph warm-up is running when the user opens a file and scrolls immediately.
+    File open and visible navigation must remain responsive. Graph warm-up may be
+    superseded by the workset change, but it must restart from the last-good phase
+    checkpoint rather than forcing a restart-from-zero loop.
+  exercised_contract_sections:
+    - "Background-work queue contract — restart_after_supersede"
+    - "Threading and scheduling contract — foreground_user_intent placement"
+  exercised_classes_summary:
+    protected_foreground: foreground_user_intent
+    yieldable_background: indexing_search_maintenance
+    governor_state_during_open: degraded
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:warm:20260507T022500Z:0001"
+    task_kind: knowledge.graph_warmup
+    worker_class: indexing_search_maintenance
+    priority_policy: medium_yieldable
+    yieldability: yield_with_checkpoint
+    cancellation_contract: cancel_after_phase
+    latency_budget_owner: knowledge_maintenance
+    requested_at: "2026-05-07T02:25:00Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 2
+    note: "Graph warm-up runs as yieldable maintenance work; it must restart from checkpoint when superseded."
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: knowledge.graph_warmup
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:open:20260507T022501Z:0001"
+    task_kind: shell.open_file
+    worker_class: foreground_user_intent
+    priority_policy: high
+    yieldability: yield_at_safe_points_only
+    cancellation_contract: no_inflight_cancel
+    latency_budget_owner: visible_foreground_intent
+    requested_at: "2026-05-07T02:25:01Z"
+    queue_lane: foreground
+    effective_concurrency_cap: 2
+    note: "File open is explicit user navigation and must remain responsive."
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: shell.open_file
+      queue_lane: foreground
+      latency_budget_owner: visible_foreground_intent
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:open:20260507T022501Z:0001"
+    task_id: "task:open:20260507T022501Z:0001"
+    task_kind: shell.open_file
+    requested_worker_class: foreground_user_intent
+    admitted_worker_class: foreground_user_intent
+    governor_state: degraded
+    queue_lane: foreground
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 2
+    decided_at: "2026-05-07T02:25:01Z"
+    rationale_summary: >
+      Degraded posture narrows background work before it narrows visible navigation.
+      File open remains admitted while warmup work yields at checkpoints.
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: shell.open_file
+      queue_lane: foreground
+      latency_budget_owner: visible_foreground_intent
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:warm:20260507T022501Z:0002"
+    task_id: "task:warm:20260507T022500Z:0001"
+    task_kind: knowledge.graph_warmup
+    requested_worker_class: indexing_search_maintenance
+    admitted_worker_class: indexing_search_maintenance
+    governor_state: degraded
+    queue_lane: maintenance
+    admission_decision: deferred
+    decision_reason: deferred_by_governor_state
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-07T02:25:01Z"
+    rationale_summary: >
+      Degraded posture narrows knowledge maintenance. Graph warm-up defers and will
+      restart from its last-good phase checkpoint after the workset change settles.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: knowledge.graph_warmup
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+

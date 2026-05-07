@@ -1,0 +1,157 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: command_palette_remains_responsive_while_provider_refresh_replaces
+  scenario: >
+    A provider refresh is in-flight when the user opens the command palette and
+    begins typing a query. Foreground user intent and interactive language actions
+    must remain admitted; provider refresh may be superseded but must cancel at a
+    checkpoint so overlay posture stays coherent.
+  exercised_contract_sections:
+    - "Background-work queue contract — replace_superseded cancels at checkpoint"
+    - "Threading and scheduling contract — interactive_language_actions"
+    - "Resource governor contract — foreground protection"
+  exercised_classes_summary:
+    interactive_classes:
+      - ui_input
+      - interactive_language_actions
+    competing_background_lane: provider_overlay
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:prov:20260507T022000Z:0001"
+    task_kind: provider.overlay_refresh
+    worker_class: extension_background_work
+    priority_policy: low_capped
+    yieldability: yield_with_checkpoint
+    cancellation_contract: checkpoint_then_cancel
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-07T02:20:00Z"
+    queue_lane: provider_overlay
+    effective_concurrency_cap: 1
+    note: >
+      Provider refresh runs in a budgeted background class and must cancel at
+      checkpoint when superseded; it must not degrade command palette latency.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: provider.overlay_refresh
+      queue_lane: provider_overlay
+      latency_budget_owner: best_effort_background
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:palette:20260507T022001Z:0001"
+    task_kind: shell.command_palette_open
+    worker_class: foreground_user_intent
+    priority_policy: high
+    yieldability: yield_at_safe_points_only
+    cancellation_contract: no_inflight_cancel
+    latency_budget_owner: visible_foreground_intent
+    requested_at: "2026-05-07T02:20:01Z"
+    queue_lane: foreground
+    effective_concurrency_cap: 2
+    note: "Command palette open is explicit user intent and must remain responsive."
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: shell.command_palette_open
+      queue_lane: foreground
+      latency_budget_owner: visible_foreground_intent
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:palette:20260507T022001Z:0002"
+    task_kind: shell.command_palette_query
+    worker_class: interactive_language_actions
+    priority_policy: high
+    yieldability: yield_at_safe_points_only
+    cancellation_contract: cancel_immediate
+    latency_budget_owner: interactive_language
+    requested_at: "2026-05-07T02:20:01Z"
+    queue_lane: foreground
+    effective_concurrency_cap: 1
+    note: "Palette query refinement is interactive language work; it must not be starved."
+    instrumentation:
+      worker_class: interactive_language_actions
+      priority_policy: high
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: shell.command_palette_query
+      queue_lane: foreground
+      latency_budget_owner: interactive_language
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:palette:20260507T022001Z:0001"
+    task_id: "task:palette:20260507T022001Z:0001"
+    task_kind: shell.command_palette_open
+    requested_worker_class: foreground_user_intent
+    admitted_worker_class: foreground_user_intent
+    governor_state: nominal
+    queue_lane: foreground
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 2
+    decided_at: "2026-05-07T02:20:01Z"
+    rationale_summary: >
+      Foreground user intent is admitted immediately. Provider refresh remains
+      yieldable and must not block palette interaction.
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: shell.command_palette_open
+      queue_lane: foreground
+      latency_budget_owner: visible_foreground_intent
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:prov:20260507T022001Z:0002"
+    task_id: "task:prov:20260507T022000Z:0001"
+    task_kind: provider.overlay_refresh
+    requested_worker_class: extension_background_work
+    admitted_worker_class: extension_background_work
+    governor_state: nominal
+    queue_lane: provider_overlay
+    admission_decision: paused
+    decision_reason: paused_until_checkpoint
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-07T02:20:01Z"
+    rationale_summary: >
+      Provider refresh yields to interactive palette activity and pauses at a
+      checkpoint boundary so overlay posture remains coherent.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: provider.overlay_refresh
+      queue_lane: provider_overlay
+      latency_budget_owner: best_effort_background
+
+  - record_kind: yield_event_record
+    worker_class_schema_version: 1
+    event_id: "yield:prov:20260507T022001Z:0001"
+    task_id: "task:prov:20260507T022000Z:0001"
+    task_kind: provider.overlay_refresh
+    yielding_worker_class: extension_background_work
+    preempting_worker_class: interactive_language_actions
+    yield_reason: ui_input_arrived
+    yielded_at: "2026-05-07T02:20:01Z"
+    resumed_at: "2026-05-07T02:20:40Z"
+    note: "Provider refresh yields while command palette query is active; resumes after interactive pressure clears."
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: provider.overlay_refresh
+      queue_lane: provider_overlay
+      latency_budget_owner: best_effort_background
+

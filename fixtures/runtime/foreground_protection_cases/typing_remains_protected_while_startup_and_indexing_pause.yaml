@@ -1,0 +1,270 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: typing_remains_protected_while_startup_and_indexing_pause
+  scenario: >
+    Startup restore and a full-workspace index are active when the user begins
+    typing in an already-open editor. Hot-path input and render submission must
+    remain admitted. Yieldable background work must checkpoint and pause under
+    protect-core so typing cannot be starved.
+  exercised_contract_sections:
+    - "Background-work queue contract — hot-path budget is reserved"
+    - "Threading and scheduling contract — yield_with_checkpoint"
+    - "Resource governor contract — protect-core posture"
+  exercised_classes_summary:
+    protected_hot_path_worker_classes:
+      - ui_input
+      - render_submission
+    yieldable_background_worker_classes:
+      - indexing_search_maintenance
+    startup_related_work:
+      - foreground_user_intent
+    governor_state_at_pause: protect_core
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:start:20260507T020000Z:0001"
+    task_kind: startup.workspace_restore
+    worker_class: foreground_user_intent
+    priority_policy: high
+    yieldability: yield_at_safe_points_only
+    cancellation_contract: cancel_after_phase
+    latency_budget_owner: visible_foreground_intent
+    requested_at: "2026-05-07T02:00:00Z"
+    queue_lane: interactive_background
+    effective_concurrency_cap: 2
+    note: >
+      Startup restore runs as bounded foreground user intent handoff work. It must
+      never delay UI input dispatch.
+    instrumentation:
+      worker_class: foreground_user_intent
+      priority_policy: high
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: startup.workspace_restore
+      queue_lane: interactive_background
+      latency_budget_owner: visible_foreground_intent
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:index:20260507T020010Z:0001"
+    task_kind: index.full_scan
+    worker_class: indexing_search_maintenance
+    priority_policy: medium_yieldable
+    yieldability: yield_with_checkpoint
+    cancellation_contract: checkpoint_then_cancel
+    latency_budget_owner: knowledge_maintenance
+    requested_at: "2026-05-07T02:00:10Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 4
+    note: >
+      Full-scan indexing is yieldable maintenance work. It must checkpoint and
+      pause under protect-core so typing remains responsive.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:index:20260507T020010Z:0001"
+    task_id: "task:index:20260507T020010Z:0001"
+    task_kind: index.full_scan
+    requested_worker_class: indexing_search_maintenance
+    admitted_worker_class: indexing_search_maintenance
+    governor_state: nominal
+    queue_lane: maintenance
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 4
+    decided_at: "2026-05-07T02:00:10Z"
+    rationale_summary: >
+      Indexing is admitted within cap while the governor is nominal; it remains
+      yieldable and does not borrow hot-path capacity.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: admitted
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:ui:20260507T020012Z:0001"
+    task_kind: core.typing_keystroke
+    worker_class: ui_input
+    priority_policy: highest_priority
+    yieldability: non_yieldable_hot_path
+    cancellation_contract: no_inflight_cancel
+    latency_budget_owner: hot_path_input
+    requested_at: "2026-05-07T02:00:12Z"
+    queue_lane: foreground
+    effective_concurrency_cap: 1
+    note: "Typing keystroke arrives; hot path must remain admitted."
+    instrumentation:
+      worker_class: ui_input
+      priority_policy: highest_priority
+      yieldability: non_yieldable_hot_path
+      admission_decision: admitted
+      task_kind: core.typing_keystroke
+      queue_lane: foreground
+      latency_budget_owner: hot_path_input
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ui:20260507T020012Z:0001"
+    task_id: "task:ui:20260507T020012Z:0001"
+    task_kind: core.typing_keystroke
+    requested_worker_class: ui_input
+    admitted_worker_class: ui_input
+    governor_state: protect_core
+    queue_lane: foreground
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 1
+    decided_at: "2026-05-07T02:00:12Z"
+    rationale_summary: >
+      protect-core preserves UI input dispatch. Background yieldable work pauses
+      instead of delaying keystrokes.
+    instrumentation:
+      worker_class: ui_input
+      priority_policy: highest_priority
+      yieldability: non_yieldable_hot_path
+      admission_decision: admitted
+      task_kind: core.typing_keystroke
+      queue_lane: foreground
+      latency_budget_owner: hot_path_input
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:index:20260507T020012Z:0002"
+    task_id: "task:index:20260507T020010Z:0001"
+    task_kind: index.full_scan
+    requested_worker_class: indexing_search_maintenance
+    admitted_worker_class: indexing_search_maintenance
+    governor_state: protect_core
+    queue_lane: maintenance
+    admission_decision: paused
+    decision_reason: paused_until_checkpoint
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-07T02:00:12Z"
+    rationale_summary: >
+      protect-core is active. Indexing pauses until its next checkpoint to
+      preserve UI input and render submission latency budgets.
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: yield_event_record
+    worker_class_schema_version: 1
+    event_id: "yield:index:20260507T020012Z:0001"
+    task_id: "task:index:20260507T020010Z:0001"
+    task_kind: index.full_scan
+    yielding_worker_class: indexing_search_maintenance
+    preempting_worker_class: ui_input
+    yield_reason: governor_protect_core
+    yielded_at: "2026-05-07T02:00:12Z"
+    resumed_at: "2026-05-07T02:01:00Z"
+    note: "Indexing yields at checkpoint under protect-core; resumes in recovery."
+    instrumentation:
+      worker_class: indexing_search_maintenance
+      priority_policy: medium_yieldable
+      yieldability: yield_with_checkpoint
+      admission_decision: paused
+      task_kind: index.full_scan
+      queue_lane: maintenance
+      latency_budget_owner: knowledge_maintenance
+
+  - record_kind: worker_class_diagnostics_record
+    worker_class_schema_version: 1
+    snapshot_id: "sched:snapshot:20260507T020013Z:0001"
+    governor_state: protect_core
+    captured_at: "2026-05-07T02:00:13Z"
+    note: >
+      Snapshot after typing begins: hot-path classes remain runnable; yieldable
+      maintenance is paused at checkpoint and cannot starve the hot path.
+    worker_classes:
+      - worker_class: ui_input
+        effective_concurrency_cap: 1
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: render_submission
+        effective_concurrency_cap: 1
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: foreground_user_intent
+        effective_concurrency_cap: 2
+        running_count: 1
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: indexing_search_maintenance
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 1
+        blocked_count: 0
+        oldest_runnable_age_ms: 220
+        starvation_alarm_state: none
+        top_blocking_reason: "Paused at checkpoint by protect-core; awaiting recovery."
+      - worker_class: extension_background_work
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 2
+        blocked_count: 0
+        oldest_runnable_age_ms: 1200
+        starvation_alarm_state: none
+        top_blocking_reason: "Deferred by protect-core; background work does not borrow hot-path capacity."
+      - worker_class: ai_background_jobs
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 1
+        blocked_count: 0
+        oldest_runnable_age_ms: 1400
+        starvation_alarm_state: none
+        top_blocking_reason: "Deferred by protect-core; best-effort AI work remains queued."
+      - worker_class: sync_metadata_refresh
+        effective_concurrency_cap: 0
+        running_count: 0
+        runnable_count: 1
+        blocked_count: 0
+        oldest_runnable_age_ms: 900
+        starvation_alarm_state: none
+        top_blocking_reason: "Deferred by protect-core; replication work remains paused."
+      - worker_class: interactive_language_actions
+        effective_concurrency_cap: 1
+        running_count: 0
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+      - worker_class: task_debug_control
+        effective_concurrency_cap: 1
+        running_count: 0
+        runnable_count: 0
+        blocked_count: 0
+        oldest_runnable_age_ms: 0
+        starvation_alarm_state: none
+        top_blocking_reason: null
+

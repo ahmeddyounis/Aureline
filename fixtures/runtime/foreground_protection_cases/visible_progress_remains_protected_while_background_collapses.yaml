@@ -1,0 +1,160 @@
+# yaml-language-server: $schema=../../../schemas/runtime/worker_class.schema.json
+__fixture__:
+  name: visible_progress_remains_protected_while_background_collapses
+  scenario: >
+    A user-triggered task with visible progress (for example a find-in-files or a
+    debug control action) runs while background extension timers and AI warmups
+    repeatedly enqueue. Background work must collapse/replace and defer before it
+    can starve visible progress; the progress-bearing task remains admitted.
+  exercised_contract_sections:
+    - "Resource governor contract — collapse superseded work before delaying foreground"
+    - "Threading and scheduling contract — admission decisions are explicit"
+  exercised_classes_summary:
+    visible_progress_worker_class: task_debug_control
+    collapsing_background_worker_classes:
+      - extension_background_work
+      - ai_background_jobs
+    governor_state: constrained
+
+records:
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:progress:20260507T023000Z:0001"
+    task_kind: task.find_in_files_with_progress
+    worker_class: task_debug_control
+    priority_policy: high_priority_bounded
+    yieldability: yield_at_safe_points_only
+    cancellation_contract: cancel_immediate
+    latency_budget_owner: task_debug_control
+    requested_at: "2026-05-07T02:30:00Z"
+    queue_lane: foreground
+    effective_concurrency_cap: 1
+    note: "User-triggered task shows visible progress; it remains admitted under constrained posture."
+    instrumentation:
+      worker_class: task_debug_control
+      priority_policy: high_priority_bounded
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: task.find_in_files_with_progress
+      queue_lane: foreground
+      latency_budget_owner: task_debug_control
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:ext:20260507T023000Z:0002"
+    task_kind: extension.poll
+    worker_class: extension_background_work
+    priority_policy: low_capped
+    yieldability: yield_with_checkpoint
+    cancellation_contract: cancel_immediate
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-07T02:30:00Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 1
+    note: "Extension polling is best-effort background work and should collapse/replace rather than queue unboundedly."
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: extension.poll
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: worker_task_record
+    worker_class_schema_version: 1
+    task_id: "task:ai:20260507T023000Z:0003"
+    task_kind: ai.model_warmup
+    worker_class: ai_background_jobs
+    priority_policy: low_to_medium_budgeted
+    yieldability: yield_with_checkpoint
+    cancellation_contract: cancel_after_phase
+    latency_budget_owner: best_effort_background
+    requested_at: "2026-05-07T02:30:00Z"
+    queue_lane: maintenance
+    effective_concurrency_cap: 1
+    note: "AI warmup is optional assistance and must defer/collapse under constrained posture."
+    instrumentation:
+      worker_class: ai_background_jobs
+      priority_policy: low_to_medium_budgeted
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: ai.model_warmup
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:progress:20260507T023000Z:0001"
+    task_id: "task:progress:20260507T023000Z:0001"
+    task_kind: task.find_in_files_with_progress
+    requested_worker_class: task_debug_control
+    admitted_worker_class: task_debug_control
+    governor_state: constrained
+    queue_lane: foreground
+    admission_decision: admitted
+    decision_reason: admitted_within_cap
+    effective_concurrency_cap: 1
+    decided_at: "2026-05-07T02:30:00Z"
+    rationale_summary: >
+      Constrained posture keeps user-visible progress admitted. Background polling
+      and AI warmups defer/collapse before they can starve the progress-bearing task.
+    instrumentation:
+      worker_class: task_debug_control
+      priority_policy: high_priority_bounded
+      yieldability: yield_at_safe_points_only
+      admission_decision: admitted
+      task_kind: task.find_in_files_with_progress
+      queue_lane: foreground
+      latency_budget_owner: task_debug_control
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ext:20260507T023000Z:0001"
+    task_id: "task:ext:20260507T023000Z:0002"
+    task_kind: extension.poll
+    requested_worker_class: extension_background_work
+    admitted_worker_class: extension_background_work
+    governor_state: constrained
+    queue_lane: maintenance
+    admission_decision: deferred
+    decision_reason: collapsed_as_superseded
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-07T02:30:00Z"
+    rationale_summary: >
+      Extension polling is superseded and collapsed under constrained posture to
+      keep lane depth bounded and preserve visible progress.
+    instrumentation:
+      worker_class: extension_background_work
+      priority_policy: low_capped
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: extension.poll
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+
+  - record_kind: scheduling_decision_record
+    worker_class_schema_version: 1
+    decision_id: "sdec:ai:20260507T023000Z:0001"
+    task_id: "task:ai:20260507T023000Z:0003"
+    task_kind: ai.model_warmup
+    requested_worker_class: ai_background_jobs
+    admitted_worker_class: ai_background_jobs
+    governor_state: constrained
+    queue_lane: maintenance
+    admission_decision: deferred
+    decision_reason: deferred_by_governor_state
+    effective_concurrency_cap: 0
+    decided_at: "2026-05-07T02:30:00Z"
+    rationale_summary: >
+      AI warmup defers under constrained posture; it must not borrow capacity from
+      progress-bearing user tasks.
+    instrumentation:
+      worker_class: ai_background_jobs
+      priority_policy: low_to_medium_budgeted
+      yieldability: yield_with_checkpoint
+      admission_decision: deferred
+      task_kind: ai.model_warmup
+      queue_lane: maintenance
+      latency_budget_owner: best_effort_background
+

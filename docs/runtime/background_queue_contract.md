@@ -21,6 +21,11 @@ document must be updated in the same change.
   / staleness / cancellation / budget-domain matrix, the shell-ready
   budget-protection flag per workload lane, and the seeded
   coalesce / replace / restart diagnostics.
+- [`/artifacts/runtime/lane_arbitration_rules.md`](../../artifacts/runtime/lane_arbitration_rules.md)
+  — stable arbitration names and collapse-key templates used across scheduler,
+  benchmarks, and support exports.
+- [`/artifacts/runtime/checkpoint_resume_examples.yaml`](../../artifacts/runtime/checkpoint_resume_examples.yaml)
+  — checkpoint/resume proof corpus for pressure, suspend/resume, and cancellation.
 - [`/schemas/runtime/background_job.schema.json`](../../schemas/runtime/background_job.schema.json)
   — boundary schema for the background-job record, the queue-
   diagnostics record, and the collapse-event record every surface,

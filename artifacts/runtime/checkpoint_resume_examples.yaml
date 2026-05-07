@@ -1,0 +1,246 @@
+# Checkpoint/resume examples for lane arbitration and yieldable work.
+#
+# This artifact is a human- and tool-readable proof corpus used by:
+# - scheduler design and later implementation validation,
+# - benchmark harnesses that need stable scenario ids, and
+# - support exports / diagnostics inspectors that must explain "why did this
+#   work pause / resume / restart".
+#
+# Companion references:
+# - docs/runtime/background_queue_contract.md
+# - docs/runtime/resource_governor_contract.md
+# - docs/runtime/threading_and_scheduling_contract.md
+# - artifacts/runtime/queue_lane_matrix.yaml
+# - schemas/runtime/background_job.schema.json
+# - schemas/runtime/worker_class.schema.json
+
+schema_version: 1
+artifact_id: aureline.runtime.checkpoint_resume_examples
+title: Checkpoint, resume, cancel, and starvation-prevention proof corpus
+
+contract_sources:
+  - docs/runtime/background_queue_contract.md
+  - docs/runtime/resource_governor_contract.md
+  - docs/runtime/threading_and_scheduling_contract.md
+
+companion_refs:
+  lane_arbitration_rules_ref: artifacts/runtime/lane_arbitration_rules.md
+  queue_lane_matrix_ref: artifacts/runtime/queue_lane_matrix.yaml
+  background_job_schema_ref: schemas/runtime/background_job.schema.json
+  worker_class_schema_ref: schemas/runtime/worker_class.schema.json
+  resource_governor_thresholds_ref: artifacts/runtime/resource_governor_thresholds.yaml
+
+vocabulary:
+  pressure_signal_class:
+    - id: cpu_pressure
+      meaning: >
+        CPU saturation or frame-miss pressure threatens hot-path latency; the
+        governor may enter degraded/protect-core and pause yieldable work.
+    - id: io_pressure
+      meaning: >
+        Disk or filesystem pressure (high latency, low space, contention) causes
+        yieldable background work to checkpoint and pause before it blocks
+        save/undo or visible navigation.
+    - id: memory_pressure
+      meaning: >
+        Memory pressure triggers concurrency narrowing and background pause to
+        avoid swap storms and priority inversion on the hot path.
+    - id: battery_saver
+      meaning: >
+        Efficiency posture that narrows speculative work and batches low-priority
+        uploads; background work may be paused or deferred with explicit reasons.
+    - id: thermal_critical
+      meaning: >
+        Thermal-pressure posture that reduces parallelism and pauses optional
+        background work to avoid runaway heat and interactive regressions.
+    - id: suspend_or_resume
+      meaning: >
+        System suspend/resume boundary. Yieldable work must persist or revalidate
+        checkpoints and avoid claiming continuity when inputs became stale.
+
+  resume_outcome_class:
+    - id: resumed_from_checkpoint
+      meaning: >
+        Work resumed from a last-good checkpoint boundary with preserved progress.
+    - id: restarted_from_last_good_checkpoint
+      meaning: >
+        Work was superseded and restarted from a prior last-good checkpoint (not
+        from zero).
+    - id: cancelled_after_checkpoint
+      meaning: >
+        Cancellation was requested; work acknowledged cancellation only after
+        reaching its next checkpoint boundary (progress preserved).
+    - id: dropped_as_stale
+      meaning: >
+        Work reached the front of the lane but inputs/scope were no longer valid;
+        job dropped with explicit staleness evidence.
+    - id: paused_to_protect_hot_path
+      meaning: >
+        Work paused at a checkpoint due to protect-core or equivalent hot-path
+        preservation posture.
+    - id: deferred_or_shed
+      meaning: >
+        Work was deferred or shed to preserve foreground budgets and to keep lane
+        depth bounded.
+
+diagnostics_requirements:
+  background_queue:
+    must_surface_fields:
+      - lane
+      - lane_depth
+      - oldest_age_seconds
+      - collapse_count
+      - coalesce_count
+      - replace_count
+      - restart_count
+      - cancellation_lag_ms
+      - last_checkpoint
+      - budget_domain
+      - governor_state_at_sample
+      - visible_projection
+    must_explain:
+      - what_was_paused
+      - what_checkpoint_progress_exists
+      - what_was_cancelled_or_dropped_and_why
+  worker_class:
+    must_surface_fields:
+      - governor_state
+      - effective_concurrency_cap
+      - runnable_count
+      - running_count
+      - oldest_runnable_age_ms
+      - starvation_alarm_state
+    must_explain:
+      - which_worker_class_yielded
+      - what_preempted_it
+      - whether_resume_occurred_and_when
+
+examples:
+  - example_id: startup_restore_pauses_on_cpu_pressure_then_resumes
+    pressure_signals: [cpu_pressure]
+    arbitration_names:
+      - pause_yieldable_background_under_protect_core
+      - resume_from_checkpoint_with_bounded_ramp_up
+    scenario: >
+      Startup restore is mid-phase when hot-path pressure triggers protect-core.
+      Startup restore checkpoints at a phase boundary, pauses, and later resumes
+      in recovery. Diagnostics show the last checkpoint and the pause reason.
+    expected_resume_outcome: paused_to_protect_hot_path
+    checkpoint_expectation:
+      checkpoint_class: disk_persisted_checkpoint
+      checkpoint_ref: ckpt:startup.workspace_restore:wks:aureline:phase:workset_rehydrate:20260507T020005Z
+      must_include_note_about_pending_work: true
+    diagnostics_snapshot_minimum:
+      lane: interactive_background
+      workload_lane: startup_restore
+      visible_projection: warming
+      must_surface:
+        - pause_reason
+        - last_checkpoint
+        - lane_depth
+        - oldest_age_seconds
+
+  - example_id: graph_warmup_supersede_restarts_from_checkpoint
+    pressure_signals: [cpu_pressure, memory_pressure]
+    arbitration_names:
+      - collapse_restart_after_supersede
+      - resume_from_checkpoint_with_bounded_ramp_up
+    scenario: >
+      Graph warm-up is superseded by a workset change under pressure. The new
+      job restarts from the last-good phase checkpoint rather than from zero.
+      Support export records the checkpoint handoff and the restart count.
+    expected_resume_outcome: restarted_from_last_good_checkpoint
+    checkpoint_expectation:
+      checkpoint_class: collector_ingested_checkpoint
+      checkpoint_ref: ckpt:knowledge.graph_warmup:wks:aureline:phase:build_symbols:20260507T020120Z
+    diagnostics_snapshot_minimum:
+      lane: maintenance
+      workload_lane: graph_warmup
+      must_surface:
+        - restart_count
+        - last_checkpoint
+        - cancellation_lag_ms
+
+  - example_id: index_repair_pauses_on_io_pressure_without_restart_from_zero
+    pressure_signals: [io_pressure]
+    arbitration_names:
+      - pause_yieldable_background_under_protect_core
+      - resume_from_checkpoint_with_bounded_ramp_up
+    scenario: >
+      Index repair work hits disk pressure (high latency / low space / contention).
+      The job checkpoints and pauses before it can block save/undo. When the
+      pressure clears, it resumes from the recorded checkpoint (not from zero).
+    expected_resume_outcome: paused_to_protect_hot_path
+    checkpoint_expectation:
+      checkpoint_class: disk_persisted_checkpoint
+      checkpoint_ref: ckpt:knowledge.index_repair:wks:aureline:phase:validate_or_repair:20260507T020540Z
+    diagnostics_snapshot_minimum:
+      lane: maintenance
+      workload_lane: workspace_index_full
+      must_surface:
+        - pause_reason
+        - last_checkpoint
+        - oldest_age_seconds
+
+  - example_id: provider_refresh_cancelled_at_checkpoint_when_superseded
+    pressure_signals: [memory_pressure]
+    arbitration_names:
+      - collapse_replace_superseded
+    scenario: >
+      Provider overlay refresh is superseded by a newer refresh while the system
+      is under pressure. The older refresh cancels only at its checkpoint to
+      avoid split overlay posture; cancellation lag is recorded explicitly.
+    expected_resume_outcome: cancelled_after_checkpoint
+    checkpoint_expectation:
+      checkpoint_class: session_handoff_checkpoint
+      checkpoint_ref: ckpt:provider.overlay_refresh:wks:aureline:phase:overlay_fetch:20260507T021000Z
+    diagnostics_snapshot_minimum:
+      lane: provider_overlay
+      workload_lane: provider_refresh
+      must_surface:
+        - replace_count
+        - cancellation_lag_ms
+        - last_checkpoint
+
+  - example_id: telemetry_upload_paused_on_battery_or_thermal_then_resumes
+    pressure_signals: [battery_saver, thermal_critical]
+    arbitration_names:
+      - pause_yieldable_background_under_protect_core
+      - resume_from_checkpoint_with_bounded_ramp_up
+    scenario: >
+      Upload/replication is paused under efficiency constraints to preserve
+      interactive budgets. Queued state and queued bytes remain visible and are
+      resumed later from a resumable chunk boundary.
+    expected_resume_outcome: resumed_from_checkpoint
+    checkpoint_expectation:
+      checkpoint_class: disk_persisted_checkpoint
+      checkpoint_ref: ckpt:telemetry.support_bundle_upload:chunk:0004:20260507T021230Z
+    diagnostics_snapshot_minimum:
+      lane: upload_replication
+      workload_lane: telemetry_forward
+      must_surface:
+        - queued_bytes
+        - pause_reason
+        - last_checkpoint
+
+  - example_id: suspend_resume_requires_staleness_revalidation_or_drop
+    pressure_signals: [suspend_or_resume]
+    arbitration_names:
+      - resume_from_checkpoint_with_bounded_ramp_up
+    scenario: >
+      After a suspend/resume boundary, queued or paused work must revalidate its
+      staleness policy before claiming continuity. If the initiating scope no
+      longer exists, the job drops as stale with explicit evidence instead of
+      silently replaying.
+    expected_resume_outcome: dropped_as_stale
+    checkpoint_expectation:
+      checkpoint_class: disk_persisted_checkpoint
+      checkpoint_ref: ckpt:knowledge.hot_set_scan:wks:aureline:item:open_files:20260507T021800Z
+    diagnostics_snapshot_minimum:
+      lane: interactive_background
+      workload_lane: hot_set_scan
+      must_surface:
+        - last_checkpoint
+        - staleness_policy
+        - initiating_source
+

@@ -33,6 +33,9 @@ change.
 - [`/fixtures/runtime/scheduling_cases/`](../../fixtures/runtime/scheduling_cases/)
   — worked fixtures that show indexing, extensions, AI jobs, and sync refresh
   degrading before hot paths are harmed.
+- [`/fixtures/runtime/foreground_protection_cases/`](../../fixtures/runtime/foreground_protection_cases/)
+  — worked fixtures that freeze typing/save/command-palette/file-open and
+  visible-progress protection while background work pauses, collapses, or resumes.
 
 ## Scope and non-goals
 
@@ -269,4 +272,3 @@ be able to answer:
 
 The boundary records in `schemas/runtime/worker_class.schema.json` are the
 minimum set needed to explain those answers.
-
