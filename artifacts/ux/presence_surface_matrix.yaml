@@ -1,0 +1,356 @@
+# Native presence + OS notification/badge parity matrix (collaboration).
+#
+# Companion to:
+# - docs/ux/native_presence_notification_parity.md
+# - docs/ux/desktop_affordance_contract.md (§8 Notifications, Badges, and Collaboration Presence)
+# - docs/ux/notification_delivery_contract.md (§4 Frozen event classes and routing matrix)
+# - docs/ux/os_notification_and_quiet_hours_contract.md (suppression + privacy rules)
+#
+# Purpose:
+# Bind collaboration session presence + view authority + control/recording
+# posture to OS-facing surfaces (status item, OS notification, app-icon badge,
+# lock-screen summary) without allowing any OS surface to mint private state or
+# overstate authority.
+#
+# Rules (frozen):
+# - This file MUST NOT mint new delivery_surface_class, badge_class, quiet-hours
+#   modes, suppression reasons, or privacy payload classes. Rows quote the
+#   upstream vocabularies (schemas/ux/*) and collaboration boundary schemas.
+# - Presence projection MUST NOT imply control or recording; those cues are
+#   admitted only by control_grant and recorded_artifact rows.
+# - Badge counts MUST resolve to durable objects; OS surfaces never own counters.
+# - Quiet-hours suppression MUST emit auditable held records; release is typed.
+
+schema_version: 1
+matrix_id: aureline.ux.presence_surface_matrix.v1
+status: seeded
+
+source_doc_refs:
+  native_presence_notification_parity: docs/ux/native_presence_notification_parity.md
+  desktop_affordance_contract: docs/ux/desktop_affordance_contract.md
+  notification_delivery_contract: docs/ux/notification_delivery_contract.md
+  os_notification_and_quiet_hours_contract: docs/ux/os_notification_and_quiet_hours_contract.md
+  attention_activity_taxonomy: docs/ux/attention_activity_taxonomy.md
+  durable_work_contract: docs/ux/durable_work_contract.md
+  collaboration_session_authority_contract: docs/collaboration/session_authority_contract.md
+  collaboration_shared_control_contract: docs/collaboration/shared_control_contract.md
+  collaboration_recording_retention_delete_contract: docs/collaboration/recording_retention_delete_contract.md
+  join_shared_debug_sequence: artifacts/collaboration/join_shared_debug_sequence.md
+
+companion_artifact_refs:
+  badge_class_review: artifacts/ux/badge_class_review.yaml
+  quiet_hours_policy_matrix: artifacts/ux/quiet_hours_policy_matrix.yaml
+  quiet_hours_override_matrix: artifacts/ux/quiet_hours_override_matrix.yaml
+  durable_attention_corpus: artifacts/ux/durable_attention_corpus.yaml
+  system_affordance_cases: fixtures/platform/system_affordance_cases/
+  session_state_schema: schemas/collaboration/session_state.schema.json
+  follow_and_presenter_state_schema: schemas/collaboration/follow_and_presenter_state.schema.json
+  control_grant_schema: schemas/collaboration/control_grant.schema.json
+  recorded_artifact_row_schema: schemas/collaboration/recorded_artifact_row.schema.json
+  event_lineage_schema: schemas/ux/event_lineage.schema.json
+  activity_event_envelope_schema: schemas/ux/activity_event_envelope.schema.json
+  notification_suppression_record_schema: schemas/ux/notification_suppression_record.schema.json
+  deep_link_intent_schema: schemas/platform/deep_link_intent.schema.json
+
+ui_ux_spec_refs:
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.7
+  - .t2/docs/Aureline_UI_UX_Spec_Document.md#9.3
+
+style_guide_refs:
+  - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.7
+
+# ---------------------------------------------------------------------------
+# Row inventory. Each row is a parity rule: a stable mapping from one
+# collaboration signal (presence/follow/presenter/recording/control-grant)
+# into OS-facing surface projections.
+# ---------------------------------------------------------------------------
+parity_rows:
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:session_live_view_only
+    signal_sources:
+      - schemas/collaboration/session_state.schema.json#collaboration_session_record
+      - schemas/collaboration/follow_and_presenter_state.schema.json#follow_target_record
+      - schemas/collaboration/follow_and_presenter_state.schema.json#presenter_state_record
+    intent_summary: >
+      A live collaboration session whose default posture is view-first. Presence
+      and follow/presenter state may be projected, but no control or recording
+      is implied.
+    required_invariants:
+      - presence_does_not_imply_control
+      - presence_does_not_imply_recording
+      - status_item_is_projection_not_source
+    allowed_os_surfaces:
+      - status_item
+    forbidden_os_surfaces:
+      - os_badge_app_icon
+    status_item_projection:
+      must_include:
+        - session_state_class
+        - freshness_class
+        - authority_limit_label_ref
+      must_not_imply:
+        - shared_terminal_control
+        - shared_debug_control
+        - recording_active
+    badge_projection:
+      increments_badge_class: none
+      badge_class_review_row_ref: null
+    notification_projection:
+      emits_event_class: none
+      quiet_hours_suppressible_under: []
+      privacy_payload_class_default: in_product_only
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:session_recording_explicit_admitted
+    signal_sources:
+      - schemas/collaboration/recorded_artifact_row.schema.json#collaboration_recorded_artifact_row_record
+      - schemas/collaboration/session_state.schema.json#collaboration_session_record
+    intent_summary: >
+      Recording/transcript/replay posture is explicitly admitted by recorded-
+      artifact rows. OS projections may indicate that recording is active, but
+      must degrade on lock-screen and respect quiet-hours suppression.
+    required_invariants:
+      - recording_never_inferred_from_presence
+      - lock_screen_payload_degrades_by_policy
+    allowed_os_surfaces:
+      - status_item
+      - os_notification
+      - lock_screen_summary
+    forbidden_os_surfaces:
+      - os_badge_app_icon
+    status_item_projection:
+      must_include:
+        - recording_state_class
+        - retention_owner_class
+        - location_class
+      must_not_imply:
+        - control_grant_active
+    notification_projection:
+      emits_event_class: collaboration_or_human_request
+      badge_class_may_increment:
+        - session_requests
+      quiet_hours_suppressible_under:
+        - mode_quiet_hours_user
+        - mode_do_not_disturb_user
+        - mode_focus_mode_user
+        - mode_presentation
+        - mode_privacy_mode
+        - mode_reduced_attention_policy
+        - mode_admin_suppression
+      privacy_payload_class_default: lock_screen_safe_generic
+      lock_screen_payload_policy:
+        default_payload_class: lock_screen_safe_generic
+        scoped_identity_allowed_only_with_policy: true
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:follow_only_view_authority
+    signal_sources:
+      - schemas/collaboration/follow_and_presenter_state.schema.json#follow_target_record
+      - schemas/collaboration/session_state.schema.json#collaboration_session_record
+    intent_summary: >
+      Follow mode is view authority only. OS projections may state "Following"
+      and freshness, but must not imply control over terminal/debug lanes.
+    required_invariants:
+      - control_grant_not_inferable_from_presence_or_presenter_state
+      - follow_is_view_authority_only
+    allowed_os_surfaces:
+      - status_item
+    forbidden_os_surfaces:
+      - os_badge_app_icon
+      - os_notification
+    status_item_projection:
+      must_include:
+        - follow_mode_class
+        - follow_target_kind_class
+        - freshness_class
+      must_not_imply:
+        - terminal_lane_mutation
+        - debug_lane_mutation
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:shared_debug_control_grant
+    signal_sources:
+      - schemas/collaboration/control_grant.schema.json#control_grant_record
+      - schemas/collaboration/control_grant.schema.json#control_grant_revocation_record
+    intent_summary: >
+      Shared debug control is a typed, explicit grant. OS projections MUST make
+      the lane and expiry/revocation posture legible and MUST NOT allow OS-level
+      mutation shortcuts.
+    required_invariants:
+      - control_grant_is_only_authority_source
+      - grant_replay_after_revocation_forbidden
+      - no_bypass_on_os_shortcuts
+    allowed_os_surfaces:
+      - status_item
+      - os_notification
+    forbidden_os_surfaces:
+      - os_badge_app_icon
+    status_item_projection:
+      must_include:
+        - control_grant_lane_class
+        - authority_ceiling_class
+        - required_badge_classes
+      must_not_imply:
+        - wider_authority_than_grant
+    notification_projection:
+      emits_event_class: collaboration_or_human_request
+      badge_class_may_increment:
+        - session_requests
+      quiet_hours_suppressible_under:
+        - mode_quiet_hours_user
+        - mode_do_not_disturb_user
+        - mode_focus_mode_user
+        - mode_presentation
+        - mode_privacy_mode
+        - mode_reduced_attention_policy
+        - mode_admin_suppression
+      privacy_payload_class_default: lock_screen_safe_generic
+      forbidden_shortcut_action_classes_required:
+        - bypass_approval_workflow
+        - direct_mutation_from_lock_screen
+        - direct_mutation_from_dock_or_taskbar
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:shared_terminal_control_grant
+    signal_sources:
+      - schemas/collaboration/control_grant.schema.json#control_grant_record
+      - schemas/collaboration/control_grant.schema.json#control_grant_revocation_record
+    intent_summary: >
+      Shared terminal control is a typed, explicit grant. OS projections MUST
+      distinguish terminal read-only observation from any admitted mutation and
+      MUST NOT allow OS-level action replay after revocation.
+    required_invariants:
+      - control_grant_is_only_authority_source
+      - control_grant_not_inferable_from_presence_or_presenter_state
+      - grant_replay_after_revocation_forbidden
+      - no_bypass_on_os_shortcuts
+    allowed_os_surfaces:
+      - status_item
+      - os_notification
+    forbidden_os_surfaces:
+      - os_badge_app_icon
+    status_item_projection:
+      must_include:
+        - control_grant_lane_class
+        - authority_ceiling_class
+        - allowed_action_classes
+        - required_badge_classes
+      must_not_imply:
+        - wider_authority_than_grant
+    notification_projection:
+      emits_event_class: collaboration_or_human_request
+      badge_class_may_increment:
+        - session_requests
+      quiet_hours_suppressible_under:
+        - mode_quiet_hours_user
+        - mode_do_not_disturb_user
+        - mode_focus_mode_user
+        - mode_presentation
+        - mode_privacy_mode
+        - mode_reduced_attention_policy
+        - mode_admin_suppression
+      privacy_payload_class_default: lock_screen_safe_generic
+      forbidden_shortcut_action_classes_required:
+        - bypass_approval_workflow
+        - direct_mutation_from_lock_screen
+        - direct_mutation_from_dock_or_taskbar
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:presenter_state_view_authority_only
+    signal_sources:
+      - schemas/collaboration/follow_and_presenter_state.schema.json#presenter_state_record
+      - schemas/collaboration/session_state.schema.json#collaboration_session_record
+    intent_summary: >
+      Presenter stance is view authority only. OS projections may show that a
+      session is presenting and whether focus broadcast is active, but MUST NOT
+      imply any terminal/debug control grant or mutating authority.
+    required_invariants:
+      - presenter_authority_does_not_confer_mutation
+      - control_grant_not_inferable_from_presence_or_presenter_state
+    allowed_os_surfaces:
+      - status_item
+    forbidden_os_surfaces:
+      - os_badge_app_icon
+    status_item_projection:
+      must_include:
+        - presenter_role_classes
+        - focus_broadcast_posture_class
+        - freshness_class
+      must_not_imply:
+        - shared_terminal_control
+        - shared_debug_control
+        - recording_active
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:stale_presence_or_badge_cleanup_after_end
+    signal_sources:
+      - schemas/collaboration/session_state.schema.json#collaboration_session_transition_record
+      - schemas/ux/event_lineage.schema.json#event_lineage_record
+    intent_summary: >
+      When a collaboration session ends, OS-facing presence indicators must
+      clear or degrade to an "ended/stale" truthful state, and badge counts must
+      reflect only remaining durable attention items. No stale "active" badge or
+      presence indicator may persist after the canonical records clear.
+    required_invariants:
+      - badge_counts_resolve_to_durable_objects_only
+      - presence_indicator_must_not_outlive_session_record
+    allowed_os_surfaces:
+      - status_item
+      - os_badge_app_icon
+    status_item_projection:
+      must_include:
+        - ended_state_disclosure
+        - recovery_action_label_ref
+    badge_projection:
+      increments_badge_class: derived_from_badge_class_review
+      badge_class_review_row_ref: artifacts/ux/badge_class_review.yaml
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:quiet_hours_hold_and_release_digest
+    signal_sources:
+      - schemas/ux/notification_suppression_record.schema.json#notification_suppression_record
+      - artifacts/ux/quiet_hours_policy_matrix.yaml
+    intent_summary: >
+      Collaboration-origin notifications are suppressible under quiet-hours and
+      related modes. When held, the suppression record is auditable and release
+      occurs as a typed grouped digest on mode exit, not as replay of individual
+      notifications.
+    required_invariants:
+      - held_events_preserve_durable_history
+      - mode_exit_grouped_digest_release
+      - reopen_converges_on_canonical_target
+    allowed_os_surfaces:
+      - not_delivered_held
+      - activity_center_digest_card
+      - os_notification
+    notification_projection:
+      emits_event_class: collaboration_or_human_request
+      quiet_hours_suppressible_under:
+        - mode_quiet_hours_user
+        - mode_do_not_disturb_user
+        - mode_focus_mode_user
+        - mode_presentation
+        - mode_privacy_mode
+        - mode_reduced_attention_policy
+        - mode_admin_suppression
+      privacy_payload_class_default: lock_screen_safe_generic
+
+  - record_kind: presence_surface_parity_row_record
+    row_id: presence_row:cross_device_reopen_or_handoff
+    signal_sources:
+      - schemas/ux/event_lineage.schema.json#event_lineage_record
+      - schemas/platform/deep_link_intent.schema.json#system_affordance_case_record
+    intent_summary: >
+      OS notification click-through and badge activation reopen the exact
+      canonical object (or a truthful placeholder with freshness + recovery) and
+      never a generic home screen. Cross-device delivery shares one canonical
+      event id and collapses via cross-client lineage.
+    required_invariants:
+      - cross_client_canonical_event_id_preserved
+      - reopen_to_generic_home_forbidden
+      - reopen_denied_requires_revalidation_when_stale
+    allowed_os_surfaces:
+      - os_notification
+      - os_badge_app_icon
+      - status_item

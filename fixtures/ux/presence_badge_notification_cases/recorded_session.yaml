@@ -1,0 +1,77 @@
+__fixture__:
+  name: recorded_session
+  case_category: recording_state_projection
+  scenario: >
+    A collaboration session transitions into an explicitly admitted recording
+    posture. The status-item projection may show that recording is active, and
+    an OS notification may be emitted as a collaboration/human-request event.
+    Lock-screen payload remains generic by default; click-through reopens the
+    in-product session inspector/durable attention path.
+  exercised_axes:
+    recording_state_change: true
+    privacy_payload_class_default: lock_screen_safe_generic
+    quiet_hours_suppressible: true
+  contract_sections:
+    - "Core invariants"
+    - "OS notifications"
+    - "Lock-screen summaries"
+
+record_kind: presence_badge_notification_parity_case_record
+presence_badge_notification_parity_schema_version: 1
+case_id: case:presence_badge_notification_parity:recording:01
+case_category: recording_state_projection
+
+matrix_row_refs:
+  - presence_row:session_recording_explicit_admitted
+
+canonical_artifact_refs:
+  - docs/ux/native_presence_notification_parity.md
+  - artifacts/ux/presence_surface_matrix.yaml
+  - docs/ux/os_notification_and_quiet_hours_contract.md
+  - schemas/collaboration/recorded_artifact_row.schema.json
+  - schemas/ux/notification_suppression_record.schema.json
+
+upstream_fixture_refs:
+  join_and_recording_change: fixtures/collaboration/join_follow_cases/retention_recording_change_mid_session.yaml
+  system_affordance_lock_screen_clickthrough: fixtures/platform/system_affordance_cases/notification_clickthrough_lock_screen_privacy.json
+
+expected_os_projection:
+  status_item:
+    renders: true
+    must_include:
+      - recording_state_class
+      - retention_owner_class
+      - location_class
+  os_notification:
+    renders: true
+    event_class: collaboration_or_human_request
+    privacy_payload_class: lock_screen_safe_generic
+    must_not_offer:
+      - mutation_shortcut
+      - authority_widening_shortcut
+  lock_screen_summary:
+    renders: true
+    payload_class: lock_screen_safe_generic
+    must_not_include:
+      - raw_session_identity
+      - tenant_identity
+
+reviewer_checks:
+  - id: recording_is_explicit_enable
+    description: >
+      Recording is indicated only when an explicit recorded-artifact row admits
+      it; no inference from presence or follow state.
+    pass: true
+  - id: lock_screen_payload_generic
+    description: >
+      The lock-screen payload is lock_screen_safe_generic by default and does
+      not reveal session identity unless policy allows scoped disclosure.
+    pass: true
+  - id: clickthrough_exact_reopen
+    description: >
+      OS notification click-through resolves via canonical lineage to the exact
+      in-product object (or a truthful placeholder), not a generic home screen.
+    pass: true
+
+minted_at: "2026-05-07T00:00:00Z"
+

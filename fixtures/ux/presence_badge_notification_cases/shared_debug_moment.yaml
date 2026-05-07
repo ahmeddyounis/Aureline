@@ -1,0 +1,64 @@
+__fixture__:
+  name: shared_debug_moment
+  case_category: shared_debug_control_grant_projection
+  scenario: >
+    During a collaboration session, the host explicitly grants debug-lane
+    control to a guest and later revokes it. OS projections may notify the user
+    of the grant/revocation, but OS-level actions must never allow bypassed
+    mutation or replay after revocation.
+  exercised_axes:
+    control_grant_lane_class: debug_lane
+    revocation_present: true
+    privacy_payload_class_default: lock_screen_safe_generic
+  contract_sections:
+    - "Core invariants"
+    - "OS notifications"
+
+record_kind: presence_badge_notification_parity_case_record
+presence_badge_notification_parity_schema_version: 1
+case_id: case:presence_badge_notification_parity:shared-debug:01
+case_category: shared_debug_control_grant_projection
+
+matrix_row_refs:
+  - presence_row:shared_debug_control_grant
+
+canonical_artifact_refs:
+  - docs/ux/native_presence_notification_parity.md
+  - artifacts/ux/presence_surface_matrix.yaml
+  - docs/ux/os_notification_and_quiet_hours_contract.md
+  - schemas/collaboration/control_grant.schema.json
+  - schemas/ux/notification_suppression_record.schema.json
+
+upstream_fixture_refs:
+  control_requested_granted_revoked: fixtures/collaboration/join_follow_cases/control_requested_granted_revoked.yaml
+
+expected_os_projection:
+  status_item:
+    renders: true
+    must_include:
+      - control_grant_lane_class
+      - authority_ceiling_class
+      - required_badge_classes
+  os_notification:
+    renders: true
+    event_class: collaboration_or_human_request
+    privacy_payload_class: lock_screen_safe_generic
+    must_route_actions_through:
+      - in_product_approval_workflow
+  os_badge_app_icon:
+    renders: false
+
+reviewer_checks:
+  - id: grant_is_explicit_and_lane_scoped
+    description: >
+      Debug control authority is admitted only by control_grant_record and is
+      lane-scoped; presence/follow/presenter state does not widen it.
+    pass: true
+  - id: revoke_is_non_replayable
+    description: >
+      Revocation prevents replay; OS payloads and shortcuts cannot reapply a
+      revoked grant.
+    pass: true
+
+minted_at: "2026-05-07T00:00:00Z"
+

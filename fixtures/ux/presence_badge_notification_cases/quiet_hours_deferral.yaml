@@ -1,0 +1,62 @@
+__fixture__:
+  name: quiet_hours_deferral
+  case_category: quiet_hours_hold_and_release
+  scenario: >
+    A collaboration-origin event that would normally emit an OS notification
+    arrives while user quiet hours are active. Delivery is held (auditable) and
+    released as one typed grouped digest on mode exit; the OS surface must not
+    replay a burst of individual presence/control notifications.
+  exercised_axes:
+    quiet_hours_mode: mode_quiet_hours_user
+    suppression_outcome: not_delivered_held
+    release_rule: mode_exit_grouped_digest
+  contract_sections:
+    - "Quiet-hours and suppression are cross-surface, auditable, and reversible"
+    - "OS notifications"
+
+record_kind: presence_badge_notification_parity_case_record
+presence_badge_notification_parity_schema_version: 1
+case_id: case:presence_badge_notification_parity:quiet-hours:01
+case_category: quiet_hours_hold_and_release
+
+matrix_row_refs:
+  - presence_row:quiet_hours_hold_and_release_digest
+
+canonical_artifact_refs:
+  - docs/ux/native_presence_notification_parity.md
+  - artifacts/ux/presence_surface_matrix.yaml
+  - artifacts/ux/quiet_hours_policy_matrix.yaml
+  - artifacts/ux/quiet_hours_override_matrix.yaml
+  - docs/ux/os_notification_and_quiet_hours_contract.md
+
+upstream_fixture_refs:
+  quiet_hours_reopen_proof: fixtures/ux/interruptibility_cases/os_reopen_after_quiet_hours_exit.yaml
+
+expected_os_projection:
+  during_hold:
+    delivery_surface_class: not_delivered_held
+    must_preserve:
+      - canonical_event_id
+      - suppression_reason
+      - reopen_target_ref
+  on_mode_exit:
+    releases_as:
+      delivery_surface_class: activity_center_digest_card
+      release_trigger_class: mode_exit_grouped_digest_release
+    must_not_release_as:
+      - stacked_os_notifications_per_member
+
+reviewer_checks:
+  - id: held_is_auditable
+    description: >
+      A suppression record exists for the held collaboration event, preserving
+      canonical lineage and reopen identity during the hold.
+    pass: true
+  - id: release_is_grouped_digest
+    description: >
+      On quiet-hours exit, held members release as one grouped digest rather
+      than a replay burst of notifications.
+    pass: true
+
+minted_at: "2026-05-07T00:00:00Z"
+
