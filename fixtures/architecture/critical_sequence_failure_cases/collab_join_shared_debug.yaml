@@ -1,0 +1,103 @@
+# Critical-sequence failure cases: collaboration join + shared-debug follow (seed).
+#
+# Stage identity is governed by the critical-sequence latency pack:
+# artifacts/perf/critical_sequence_latencies.yaml#seq.collab.shared_debug_follow
+#
+# Planning / milestone identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: critical_sequence_failure_case_set
+case_set_id: critical_sequence_failures.collab.join_shared_debug_follow
+status: seeded
+
+sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.collab.shared_debug_follow
+sequence_contract_refs:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - docs/architecture/critical_sequence_diagrams.md
+  - artifacts/perf/critical_sequence_latencies.yaml
+  - schemas/collaboration/session_manifest.schema.json
+
+stage_vocabulary:
+  kind: critical_sequence_latency_pack_stage_ids
+  stages:
+    - seq_stage.collab.publish_envelope
+    - seq_stage.collab.join_presence
+    - seq_stage.collab.presence_update
+    - seq_stage.collab.debug_metadata
+    - seq_stage.collab.follow_projection
+    - seq_stage.collab.control_grant
+    - seq_stage.collab.audit_refs
+
+cases:
+  - case_id: cs_failure.collab.deny.join_denied_by_policy
+    failure_mode: deny
+    summary: >
+      Join request is denied by policy. The denial is typed; pre-join disclosure
+      remains visible and exportable; local work continues unaffected.
+    injection_locus:
+      stage_id: seq_stage.collab.join_presence
+    fault_domain_id: policy_entitlement_and_verifier_helpers
+    reconstruction_example_id: recon_example.collab.join_denied_policy_denies_export_is_still_actionable
+    fixture_refs:
+      - fixtures/collaboration/join_follow_cases/join_denied_policy_denies.yaml
+
+  - case_id: cs_failure.collab.degrade.follow_projection_stale_or_paused_local_editing_unblocked
+    failure_mode: degrade
+    summary: >
+      Presence/follow stream degrades (relay loss, stale presence, or guest
+      pauses follow). Local buffers remain authoritative and editable; degraded
+      posture is explicit and uses the published truth vocabulary.
+    injection_locus:
+      stage_id: seq_stage.collab.follow_projection
+    fault_domain_id: remote_connectors
+    expected_user_visible_truth:
+      follow_state: degraded_or_paused
+      local_editing_frozen: false
+      truth_contract: degraded_labeled
+
+  - case_id: cs_failure.collab.timeout.presence_join_deadline_exceeded_degrades_to_local_view_only
+    failure_mode: timeout
+    summary: >
+      Presence join exceeds its deadline. The join path degrades to local-view-
+      only (or remains not joined) with an actionable failure reason; no hidden
+      retry storm blocks the shell.
+    injection_locus:
+      stage_id: seq_stage.collab.join_presence
+    fault_domain_id: remote_connectors
+    expected_user_visible_truth:
+      outcome_class: timed_out
+      join_outcome: degraded_to_local_view_only
+      safe_next_actions:
+        - retry_join
+        - continue_local
+
+  - case_id: cs_failure.collab.cancel.guest_cancels_join_before_host_approval
+    failure_mode: cancel
+    summary: >
+      Guest cancels the join request before host approval. No replayable
+      authority is minted; audit rows record cancellation rather than silently
+      disappearing.
+    injection_locus:
+      stage_id: seq_stage.collab.join_presence
+    fault_domain_id: shell_interaction_core
+    expected_user_visible_truth:
+      join_outcome: cancelled_by_guest
+      authority_minted: false
+      audit_event_emitted: true
+
+  - case_id: cs_failure.collab.partial_recovery.control_requested_granted_then_revoked_immediate_effect
+    failure_mode: partial_recovery
+    summary: >
+      Guest requests control; host grants then revokes. Revocation is immediate
+      and non-replayable; follow remains view-first and does not imply control.
+    injection_locus:
+      stage_id: seq_stage.collab.control_grant
+    fault_domain_id: session_scoped_execution_hosts
+    expected_user_visible_truth:
+      control_grant_state: granted_then_revoked
+      revocation_immediate: true
+      replayable_after_revocation: false
+    fixture_refs:
+      - fixtures/collaboration/join_follow_cases/control_requested_granted_revoked.yaml
+      - fixtures/collaboration/join_follow_cases/retention_recording_change_mid_session.yaml
+

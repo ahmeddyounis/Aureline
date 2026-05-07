@@ -14,6 +14,9 @@ shell-ready-before-full-graph?”
 - Cold startup control-flow sequence diagrams:
   - `.t2/docs/Aureline_Technical_Architecture_Document.md` §8.5 “Cold startup to first useful edit”
   - `.t2/docs/Aureline_Technical_Design_Document.md` Appendix C “Cold startup to first useful edit”
+- Cross-sequence failure + reconstruction index:
+  - `artifacts/architecture/critical_sequence_failure_matrix.yaml`
+  - `artifacts/support/critical_sequence_trace_reconstruction.md`
 - Shell-ready / restore-hydration phase + ready-cue vocabulary:
   - `docs/recovery/restore_hydration_phases_contract.md`
   - `schemas/recovery/hydration_phase_event.schema.json` (`ready_cue_class`, `cue_transition_class`, `partiality_class`)

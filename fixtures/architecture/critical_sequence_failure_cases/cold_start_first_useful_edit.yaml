@@ -1,0 +1,128 @@
+# Critical-sequence failure cases: cold startup to first useful edit (seed).
+#
+# This file seeds reviewable failure-injection cases for the cold-start control
+# flow. Stage ids are `seg.*` segment ids (see artifacts/benchmarks/journey_segment_ids.yaml)
+# plus the ready-cue vocabulary in schemas/recovery/hydration_phase_event.schema.json.
+#
+# Planning / milestone identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: critical_sequence_failure_case_set
+case_set_id: critical_sequence_failures.cold_start.first_useful_edit
+status: seeded
+
+sequence_contract_refs:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_Technical_Design_Document.md
+  - artifacts/startup/cold_start_ordering_packet.md
+  - artifacts/startup/startup_admission_order.yaml
+
+stage_vocabulary:
+  kind: journey_segment_ids_and_ready_cues
+  segment_register_ref: artifacts/benchmarks/journey_segment_ids.yaml
+  ready_cue_schema_ref: schemas/recovery/hydration_phase_event.schema.json
+  core_segments:
+    - seg.startup.ui_dispatch.boot
+    - seg.startup.service_hop.runtime_init
+    - seg.startup.renderer_work.first_paint_compose
+    - seg.startup.ui_dispatch.first_useful_chrome_ready
+  threshold_ready_cues_required_emitted_live:
+    - shell_ready
+    - command_entry_ready
+
+cases:
+  - case_id: cs_failure.cold_start.deny.credential_store_locked_local_only_continuation
+    failure_mode: deny
+    summary: >
+      The credential store is locked during cold start. Provider-bearing work
+      that requires stored secrets is denied, while local-only continuity
+      remains usable and the shell still reaches shell_ready.
+    injection_locus:
+      segment_id: seg.startup.service_hop.runtime_init
+    fault_domain_id: policy_entitlement_and_verifier_helpers
+    expected_trace_posture:
+      required_ready_cues_emitted_live:
+        - shell_ready
+        - command_entry_ready
+      allowed_ready_cues_to_be_degraded:
+        - search_ready
+        - semantic_ready
+      truth_contract: local_only_continuation
+    reconstruction_example_id: recon_example.cold_start.credential_store_locked_local_only_continuation
+    fixture_refs:
+      - fixtures/auth/callback_and_lock_state_cases/credential_store_locked_on_launch.json
+      - fixtures/startup/cold_start_trace_cases/cold_launch.yaml
+
+  - case_id: cs_failure.cold_start.degrade.index_warmup_search_degraded
+    failure_mode: degrade
+    summary: >
+      Hot-set scan and search readiness are degraded at shell_ready. The shell
+      must disclose partiality; deep graph warm-up and full indexing remain
+      deferred and cannot block interactivity.
+    injection_locus:
+      segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+    fault_domain_id: workspace_knowledge_workers
+    expected_trace_posture:
+      required_ready_cues_emitted_live:
+        - shell_ready
+        - command_entry_ready
+      required_ready_cues_emitted_degraded:
+        - search_ready
+      required_partiality_classes:
+        - pending_index_warmup
+      truth_contract: degraded_labeled
+    fixture_refs:
+      - fixtures/startup/cold_start_trace_cases/cold_launch.yaml
+      - fixtures/startup/cold_start_trace_cases/open_recent_workspace.yaml
+
+  - case_id: cs_failure.cold_start.timeout.first_useful_chrome_deadline_exceeded_fallback
+    failure_mode: timeout
+    summary: >
+      First useful chrome does not become ready within the published threshold.
+      The system must surface a visible degraded posture or responsive fallback
+      state rather than spinning invisibly.
+    injection_locus:
+      segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+    fault_domain_id: shell_interaction_core
+    expected_trace_posture:
+      outcome_class: timed_out
+      degraded_posture: responsive_fallback_active
+      fallback_posture: software_renderer_active
+      truth_contract: unavailable_actionable
+    notes: >
+      This seed case freezes the requirement that a timeout is typed and
+      actionable. Implementation and timing budgets bind through the latency
+      budget ledger and shell fallbacks.
+
+  - case_id: cs_failure.cold_start.cancel.user_aborts_launch_before_shell_ready
+    failure_mode: cancel
+    summary: >
+      User aborts the launch before shell_ready is emitted. Cancellation must
+      revoke any pending background work and avoid leaving implied startup
+      completion in exported traces.
+    injection_locus:
+      segment_id: seg.startup.ui_dispatch.boot
+    fault_domain_id: shell_interaction_core
+    expected_trace_posture:
+      outcome_class: aborted_by_user
+      truth_contract: unavailable_actionable
+    notes: >
+      Cancellation authority is the user close action; any in-flight restore,
+      index warmup, or provider overlay work must be cancelled or safely
+      ignored for the aborted session.
+
+  - case_id: cs_failure.cold_start.partial_recovery.crash_loop_safe_mode_entry
+    failure_mode: partial_recovery
+    summary: >
+      Supervisor observes repeated startup failures and transitions into safe
+      mode. Shell interactivity returns with narrowed capabilities; recovery
+      exports cite the safe-mode rung and preserved checkpoint posture.
+    injection_locus:
+      segment_id: seg.startup.service_hop.runtime_init
+    fault_domain_id: shell_interaction_core
+    expected_trace_posture:
+      degraded_posture: responsive_fallback_active
+      truth_contract: degraded_labeled
+    fixture_refs:
+      - fixtures/support/recovery_ladder_cases/crash_loop_safe_mode.yaml
+      - artifacts/support/recovery_examples/safe_mode_crash_loop_entry.json

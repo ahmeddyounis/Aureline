@@ -1,0 +1,115 @@
+# Critical-sequence failure cases: AI multi-file patch with explicit approval (seed).
+#
+# Stage identity is governed by the critical-sequence latency pack:
+# artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+#
+# Planning / milestone identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: critical_sequence_failure_case_set
+case_set_id: critical_sequence_failures.ai.multi_file_patch_with_approval
+status: seeded
+
+sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+sequence_contract_refs:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - docs/architecture/critical_sequence_diagrams.md
+  - artifacts/perf/critical_sequence_latencies.yaml
+  - docs/ai/context_assembly_contract.md
+  - docs/ai/evidence_replayability_contract.md
+
+stage_vocabulary:
+  kind: critical_sequence_latency_pack_stage_ids
+  stage_span_ref_source: artifacts/perf/critical_sequence_latencies.yaml
+  stages:
+    - seq_stage.ai.request_admitted
+    - seq_stage.ai.context_resolution
+    - seq_stage.ai.policy_route_gate
+    - seq_stage.ai.first_model_token
+    - seq_stage.ai.diff_render
+    - seq_stage.ai.approval_checkpoint_apply
+    - seq_stage.ai.validation_stream
+
+cases:
+  - case_id: cs_failure.ai.deny.policy_route_gate_denies_provider_egress
+    failure_mode: deny
+    summary: >
+      Policy/route gate denies provider egress for the requested turn (trust,
+      quota, tools, or scope). The run must fail closed: no provider call, no
+      tool side effects, and apply stays disabled.
+    injection_locus:
+      stage_id: seq_stage.ai.policy_route_gate
+    fault_domain_id: policy_entitlement_and_verifier_helpers
+    expected_user_visible_truth:
+      ai_state: blocked
+      apply_enabled: false
+      provider_egress_attempted: false
+      safe_next_actions:
+        - narrow_scope
+        - switch_provider_or_route
+        - continue_local_without_ai
+    notes: >
+      Denial is expressed through the route/policy vocabulary and support export
+      receipts, not through sequence-specific prose.
+
+  - case_id: cs_failure.ai.degrade.provider_unavailable_reviewable_summary_apply_blocked
+    failure_mode: degrade
+    summary: >
+      Provider becomes unavailable. The UI may render a reviewable summary of
+      what would have changed, but apply remains blocked; export captures the
+      provider-unavailable posture for partial replay.
+    injection_locus:
+      stage_id: seq_stage.ai.first_model_token
+    fault_domain_id: ai_and_external_tool_brokers
+    reconstruction_example_id: recon_example.ai.provider_failure_blocks_apply_support_export_is_still_reconstructable
+    fixture_refs:
+      - fixtures/ai/multifile_patch_cases/provider_failure_review_summary_blocks_apply.yaml
+      - fixtures/ai/replay_cases/partial_replay_provider_unavailable.json
+
+  - case_id: cs_failure.ai.timeout.provider_roundtrip_times_out_no_hidden_spend
+    failure_mode: timeout
+    summary: >
+      Provider roundtrip exceeds the admitted deadline. Spend and tool tickets
+      are revoked; the export records a typed timeout outcome without embedding
+      raw provider payloads.
+    injection_locus:
+      stage_id: seq_stage.ai.first_model_token
+    fault_domain_id: ai_and_external_tool_brokers
+    expected_user_visible_truth:
+      ai_state: timed_out
+      apply_enabled: false
+      raw_provider_payload_exported: false
+      safe_next_actions:
+        - retry
+        - switch_provider_or_route
+        - continue_local_without_ai
+
+  - case_id: cs_failure.ai.cancel.user_rejects_patch_no_apply_no_mutation
+    failure_mode: cancel
+    summary: >
+      User rejects the patch in the review surface. No writes occur; the run is
+      closed with an explicit user-cancel/reject outcome and the evidence packet
+      remains exportable.
+    injection_locus:
+      stage_id: seq_stage.ai.diff_render
+    fault_domain_id: shell_interaction_core
+    fixture_refs:
+      - fixtures/ai/multifile_patch_cases/reject_patch_no_apply.yaml
+
+  - case_id: cs_failure.ai.partial_recovery.apply_subset_checkpointed_audit_proves_partial
+    failure_mode: partial_recovery
+    summary: >
+      User approves only a subset of hunks/files. Apply creates a checkpoint and
+      emits an audit record proving which subset was applied; validation may be
+      skipped or rerun explicitly, but never implied.
+    injection_locus:
+      stage_id: seq_stage.ai.approval_checkpoint_apply
+    fault_domain_id: shell_interaction_core
+    expected_user_visible_truth:
+      apply_outcome: partially_applied_checkpointed
+      audit_proves_subset: true
+      rollback_available: true
+    fixture_refs:
+      - fixtures/ai/multifile_patch_cases/approve_selected_hunks_apply_audit_proves_subset.yaml
+      - fixtures/ai/multifile_patch_cases/validation_skipped_then_rerun_then_apply_all.yaml
+

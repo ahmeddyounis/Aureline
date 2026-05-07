@@ -8,6 +8,10 @@ The machine-readable latency pack is
 [`/artifacts/perf/critical_sequence_latencies.yaml`](../../artifacts/perf/critical_sequence_latencies.yaml).
 The reviewer checklist is
 [`/fixtures/architecture/sequence_review_checklist.md`](../../fixtures/architecture/sequence_review_checklist.md).
+Failure-injection case sets and worked reconstruction examples are indexed in
+[`/artifacts/architecture/critical_sequence_failure_matrix.yaml`](../../artifacts/architecture/critical_sequence_failure_matrix.yaml)
+and described in
+[`/artifacts/support/critical_sequence_trace_reconstruction.md`](../../artifacts/support/critical_sequence_trace_reconstruction.md).
 
 ## Review Rules
 

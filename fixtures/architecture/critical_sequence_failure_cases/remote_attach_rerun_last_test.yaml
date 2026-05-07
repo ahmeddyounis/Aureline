@@ -1,0 +1,105 @@
+# Critical-sequence failure cases: remote attach and rerun last test (seed).
+#
+# Stage identity is governed by the critical-sequence latency pack:
+# artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+#
+# Planning / milestone identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: critical_sequence_failure_case_set
+case_set_id: critical_sequence_failures.remote.attach_rerun_last_test
+status: seeded
+
+sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+sequence_contract_refs:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - .t2/docs/Aureline_Technical_Design_Document.md
+  - docs/architecture/critical_sequence_diagrams.md
+  - artifacts/perf/critical_sequence_latencies.yaml
+  - docs/runtime/origin_target_route_taxonomy.md
+
+stage_vocabulary:
+  kind: critical_sequence_latency_pack_stage_ids
+  stages:
+    - seq_stage.remote.attach_intent
+    - seq_stage.remote.policy_auth
+    - seq_stage.remote.agent_hello
+    - seq_stage.remote.environment_facts
+    - seq_stage.remote.execution_context
+    - seq_stage.remote.test_stream
+
+cases:
+  - case_id: cs_failure.remote.deny.missing_capability_denied_no_task_events
+    failure_mode: deny
+    summary: >
+      Attach succeeds but test_run capability is not admitted. Rerun-last-test
+      is denied with explicit missing-capability disclosure; no normalized task
+      events are emitted.
+    injection_locus:
+      stage_id: seq_stage.remote.execution_context
+    fault_domain_id: remote_connectors
+    reconstruction_example_id: recon_example.remote.missing_capability_denied_no_task_events_emitted
+    fixture_refs:
+      - fixtures/remote/rerun_last_test_cases/missing_remote_capability_denied.yaml
+
+  - case_id: cs_failure.remote.degrade.artifact_availability_downgraded_links_still_truthful
+    failure_mode: degrade
+    summary: >
+      Rerun executes but some artifact classes are unavailable (for example:
+      coverage bundle, symbol set, or large logs). The task stream remains typed
+      and links disclose missing artifacts rather than implying completeness.
+    injection_locus:
+      stage_id: seq_stage.remote.test_stream
+    fault_domain_id: session_scoped_execution_hosts
+    fixture_refs:
+      - fixtures/remote/rerun_last_test_cases/downgraded_artifact_availability.yaml
+
+  - case_id: cs_failure.remote.timeout.attach_or_task_metadata_deadline_exceeded_actionable_failure
+    failure_mode: timeout
+    summary: >
+      Remote attach or task-metadata stream exceeds the published deadline.
+      The outcome is typed as timed_out and is actionable; no half-admitted
+      mutation continues silently on the remote target.
+    injection_locus:
+      stage_id: seq_stage.remote.policy_auth
+    fault_domain_id: remote_connectors
+    expected_user_visible_truth:
+      outcome_class: timed_out
+      local_continuation_allowed: true
+      remote_mutation_allowed: false
+      safe_next_actions:
+        - retry_attach
+        - pick_different_target
+        - continue_local
+
+  - case_id: cs_failure.remote.cancel.user_cancels_rerun_revokes_dispatch
+    failure_mode: cancel
+    summary: >
+      User cancels rerun-last-test after dispatch but before completion. The
+      cancellation authority is typed (user/policy/supervisor/disconnect) and
+      exported task state does not claim completion.
+    injection_locus:
+      stage_id: seq_stage.remote.test_stream
+    fault_domain_id: session_scoped_execution_hosts
+    expected_user_visible_truth:
+      outcome_class: aborted_by_user
+      cancellation_authority: user
+      normalized_task_events_may_be_partial: true
+
+  - case_id: cs_failure.remote.partial_recovery.reconnect_preserves_read_only_blocks_rerun_until_revalidated
+    failure_mode: partial_recovery
+    summary: >
+      Transport drops during attach; reconnect preserves read-only state. Rerun
+      is blocked/deferred until target identity and capability are revalidated.
+      Local workspace remains usable.
+    injection_locus:
+      stage_id: seq_stage.remote.agent_hello
+    fault_domain_id: remote_connectors
+    expected_user_visible_truth:
+      remote_state: reconnecting_read_only
+      rerun_outcome: blocked_or_deferred
+      local_continuation_allowed: true
+    fixture_refs:
+      - fixtures/remote/rerun_last_test_cases/reconnect_after_partial_attach_blocks_rerun.yaml
+      - fixtures/remote/rerun_last_test_cases/target_mismatch_requires_reapproval.yaml
+

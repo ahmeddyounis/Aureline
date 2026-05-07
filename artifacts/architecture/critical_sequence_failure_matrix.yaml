@@ -1,0 +1,157 @@
+# Critical-sequence failure-injection and reconstruction matrix (seed).
+#
+# Purpose:
+# - Freeze how protected runtime sequences seed failure injection and
+#   trace/support reconstruction, so future contract changes update all linked
+#   assets in one review.
+# - Provide one cross-sequence index that support, benchmark, replay, and
+#   release evidence can cite without inventing parallel failure narratives.
+#
+# This matrix is an index and vocabulary binder. The detailed case definitions
+# live under fixtures/architecture/critical_sequence_failure_cases/.
+#
+# Planning / milestone identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: critical_sequence_failure_matrix
+matrix_id: aureline.critical_sequence_failure_matrix
+status: seeded
+
+companion_trace_reconstruction_doc: artifacts/support/critical_sequence_trace_reconstruction.md
+fixtures_dir: fixtures/architecture/critical_sequence_failure_cases
+
+vocabulary_bindings:
+  # Stage + sequence vocabulary for protected cross-subsystem journeys.
+  critical_sequence_latency_pack_ref: artifacts/perf/critical_sequence_latencies.yaml
+  critical_sequence_diagrams_ref: docs/architecture/critical_sequence_diagrams.md
+
+  # Cold-start stage vocabulary (segment ids + ready cues).
+  cold_start_ordering_packet_ref: artifacts/startup/cold_start_ordering_packet.md
+  cold_start_admission_order_ref: artifacts/startup/startup_admission_order.yaml
+
+  # Save/conflict stage vocabulary (protected path + segment ids).
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  conflict_save_sequence_ref: artifacts/fs/conflict_save_sequence.md
+
+  # Trace and support export vocabulary used for reconstruction.
+  trace_event_schema_ref: schemas/traces/trace_event.schema.json
+  journey_segment_register_ref: artifacts/benchmarks/journey_segment_ids.yaml
+  route_taxonomy_ref: artifacts/runtime/action_origin_target_labels.yaml
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  object_handoff_schema_ref: schemas/support/object_handoff_packet.schema.json
+  reconstruction_drill_ref: docs/support/reconstruction_drill.md
+  reconstruction_checklist_ref: artifacts/support/reconstruction_checklist.yaml
+  fault_domain_restart_budget_ref: artifacts/runtime/restart_budgets.yaml
+
+failure_mode_vocabulary:
+  - deny
+  - degrade
+  - timeout
+  - cancel
+  - partial_recovery
+
+sequence_rows:
+  - sequence_row_id: critical_sequence_row.cold_start.first_useful_edit
+    title: Cold startup to first useful edit
+    primary_stage_vocabulary:
+      kind: journey_segment_ids_and_ready_cues
+      stage_register_ref: artifacts/benchmarks/journey_segment_ids.yaml
+      ready_cue_schema_ref: schemas/recovery/hydration_phase_event.schema.json
+      stage_refs:
+        - seg.startup.ui_dispatch.boot
+        - seg.startup.service_hop.runtime_init
+        - seg.startup.renderer_work.first_paint_compose
+        - seg.startup.ui_dispatch.first_useful_chrome_ready
+    contract_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md
+      - .t2/docs/Aureline_Technical_Design_Document.md
+      - artifacts/startup/cold_start_ordering_packet.md
+      - artifacts/startup/startup_admission_order.yaml
+    failure_case_set_ref: fixtures/architecture/critical_sequence_failure_cases/cold_start_first_useful_edit.yaml
+    seeded_reconstruction_example_ids:
+      - recon_example.cold_start.credential_store_locked_local_only_continuation
+
+  - sequence_row_id: critical_sequence_row.conflict_save.source_fidelity
+    title: Conflict-aware save with source fidelity
+    primary_stage_vocabulary:
+      kind: protected_path_and_journey_segments
+      protected_path_ref: path.editor.save
+      segment_refs:
+        - seg.open_edit_save.placeholder_save
+        - seg.open_edit_save.save_pipeline
+    contract_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md
+      - docs/adr/0006-vfs-save-cache-identity.md
+      - artifacts/fs/conflict_save_sequence.md
+      - artifacts/perf/protected_path_ledger.yaml
+    failure_case_set_ref: fixtures/architecture/critical_sequence_failure_cases/conflict_save_source_fidelity.yaml
+    seeded_reconstruction_example_ids:
+      - recon_example.conflict_save.external_change_detected_review_cancel
+
+  - sequence_row_id: critical_sequence_row.ai.multi_file_patch_approval
+    title: AI multi-file patch with explicit approval
+    primary_stage_vocabulary:
+      kind: critical_sequence_latency_pack_stage_ids
+      sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.ai.multi_file_change_approval
+      stage_refs:
+        - seq_stage.ai.request_admitted
+        - seq_stage.ai.context_resolution
+        - seq_stage.ai.policy_route_gate
+        - seq_stage.ai.first_model_token
+        - seq_stage.ai.diff_render
+        - seq_stage.ai.approval_checkpoint_apply
+        - seq_stage.ai.validation_stream
+    contract_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md
+      - docs/architecture/critical_sequence_diagrams.md
+      - artifacts/perf/critical_sequence_latencies.yaml
+      - docs/ai/evidence_replayability_contract.md
+      - docs/ai/context_assembly_contract.md
+    failure_case_set_ref: fixtures/architecture/critical_sequence_failure_cases/ai_multi_file_patch_with_approval.yaml
+    seeded_reconstruction_example_ids:
+      - recon_example.ai.provider_failure_blocks_apply_support_export_is_still_reconstructable
+
+  - sequence_row_id: critical_sequence_row.remote.attach_rerun_last_test
+    title: Remote attach and rerun last test
+    primary_stage_vocabulary:
+      kind: critical_sequence_latency_pack_stage_ids
+      sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.remote.attach_run_test
+      stage_refs:
+        - seq_stage.remote.attach_intent
+        - seq_stage.remote.policy_auth
+        - seq_stage.remote.agent_hello
+        - seq_stage.remote.environment_facts
+        - seq_stage.remote.execution_context
+        - seq_stage.remote.test_stream
+    contract_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md
+      - .t2/docs/Aureline_Technical_Design_Document.md
+      - docs/architecture/critical_sequence_diagrams.md
+      - artifacts/perf/critical_sequence_latencies.yaml
+      - docs/runtime/origin_target_route_taxonomy.md
+    failure_case_set_ref: fixtures/architecture/critical_sequence_failure_cases/remote_attach_rerun_last_test.yaml
+    seeded_reconstruction_example_ids:
+      - recon_example.remote.missing_capability_denied_no_task_events_emitted
+
+  - sequence_row_id: critical_sequence_row.collab.join_shared_debug_follow
+    title: Join collaboration session and follow shared debug
+    primary_stage_vocabulary:
+      kind: critical_sequence_latency_pack_stage_ids
+      sequence_ref: artifacts/perf/critical_sequence_latencies.yaml#seq.collab.shared_debug_follow
+      stage_refs:
+        - seq_stage.collab.publish_envelope
+        - seq_stage.collab.join_presence
+        - seq_stage.collab.presence_update
+        - seq_stage.collab.debug_metadata
+        - seq_stage.collab.follow_projection
+        - seq_stage.collab.control_grant
+        - seq_stage.collab.audit_refs
+    contract_refs:
+      - .t2/docs/Aureline_Technical_Architecture_Document.md
+      - docs/architecture/critical_sequence_diagrams.md
+      - artifacts/perf/critical_sequence_latencies.yaml
+      - schemas/collaboration/session_manifest.schema.json
+    failure_case_set_ref: fixtures/architecture/critical_sequence_failure_cases/collab_join_shared_debug.yaml
+    seeded_reconstruction_example_ids:
+      - recon_example.collab.join_denied_policy_denies_export_is_still_actionable
+

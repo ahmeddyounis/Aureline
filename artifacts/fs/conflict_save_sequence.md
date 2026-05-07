@@ -35,6 +35,11 @@ Seeded corpus:
 - `fixtures/fs/conflict_save_cases/README.md`
 - `fixtures/fs/conflict_save_cases/*.yaml`
 
+Cross-sequence failure + reconstruction index:
+
+- `artifacts/architecture/critical_sequence_failure_matrix.yaml`
+- `artifacts/support/critical_sequence_trace_reconstruction.md`
+
 ## Non-negotiable invariants
 
 1. **Compare-before-write is the correctness floor.** Watchers reduce latency;

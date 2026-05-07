@@ -1,0 +1,119 @@
+# Critical-sequence failure cases: conflict-aware save with source fidelity (seed).
+#
+# Stage identity is rooted in the protected-path ledger `path.editor.save` and
+# the `seg.open_edit_save.*` segment ids that appear in trace exports.
+#
+# Planning / milestone identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: critical_sequence_failure_case_set
+case_set_id: critical_sequence_failures.conflict_save.source_fidelity
+status: seeded
+
+sequence_contract_refs:
+  - .t2/docs/Aureline_Technical_Architecture_Document.md
+  - docs/adr/0006-vfs-save-cache-identity.md
+  - artifacts/fs/conflict_save_sequence.md
+  - artifacts/perf/protected_path_ledger.yaml#path.editor.save
+
+stage_vocabulary:
+  kind: protected_path_and_journey_segments
+  protected_path_ref: path.editor.save
+  segment_register_ref: artifacts/benchmarks/journey_segment_ids.yaml
+  segments:
+    - seg.open_edit_save.placeholder_save
+    - seg.open_edit_save.save_pipeline
+
+cases:
+  - case_id: cs_failure.conflict_save.deny.capability_uncertain_blocks_write
+    failure_mode: deny
+    summary: >
+      Save target capability/identity truth is uncertain at commit time (wrong
+      target or capability_uncertain). The pipeline must fail closed and block
+      durable write.
+    injection_locus:
+      protected_path_ref: path.editor.save
+      segment_id: seg.open_edit_save.save_pipeline
+    fault_domain_id: workspace_knowledge_workers
+    expected_user_visible_truth:
+      save_outcome: blocked
+      disclosure_required: true
+      allowed_next_actions:
+        - retry
+        - compare
+        - save_as
+        - cancel
+    fixture_refs:
+      - fixtures/fs/conflict_save_cases/alias_path_ambiguity.yaml
+      - fixtures/fs/conflict_save_cases/remote_root_degradation.yaml
+
+  - case_id: cs_failure.conflict_save.degrade.degraded_write_lane_disclosed
+    failure_mode: degrade
+    summary: >
+      Root cannot provide atomic replace; save proceeds only via an explicit
+      degraded lane (in-place write with review or remote conditional write)
+      with visible disclosure before bytes are written.
+    injection_locus:
+      protected_path_ref: path.editor.save
+      segment_id: seg.open_edit_save.save_pipeline
+    fault_domain_id: workspace_knowledge_workers
+    expected_user_visible_truth:
+      save_outcome: saved_on_degraded_lane
+      degraded_lane_disclosed: true
+    fixture_refs:
+      - fixtures/fs/conflict_save_cases/remote_root_degradation.yaml
+      - fixtures/fs/save_truth_cases/remote_conditional_conflict.json
+
+  - case_id: cs_failure.conflict_save.timeout.filesystem_io_deadline_exceeded_actionable_failure
+    failure_mode: timeout
+    summary: >
+      Filesystem I/O stalls during commit (temp write/fsync/rename) and exceeds
+      the bounded save deadline. The pipeline must return an actionable failure
+      without silently switching to a weaker write lane.
+    injection_locus:
+      protected_path_ref: path.editor.save
+      segment_id: seg.open_edit_save.save_pipeline
+    fault_domain_id: session_scoped_execution_hosts
+    expected_user_visible_truth:
+      save_outcome: timed_out
+      buffer_state_after: dirty
+      recovery_hint: retry_or_save_as
+    notes: >
+      This seed case freezes timeout handling as typed and actionable; it does
+      not prescribe a specific timeout value (owned by latency budget ledger).
+
+  - case_id: cs_failure.conflict_save.cancel.review_choice_cancel_leaves_bytes_unchanged
+    failure_mode: cancel
+    summary: >
+      Compare-before-write detects external change and opens the conflict review
+      surface. The user selects `cancel`, leaving the on-disk bytes unchanged
+      and keeping the buffer dirty with explicit stale/disclosure posture.
+    injection_locus:
+      protected_path_ref: path.editor.save
+      segment_id: seg.open_edit_save.save_pipeline
+    fault_domain_id: workspace_knowledge_workers
+    reconstruction_example_id: recon_example.conflict_save.external_change_detected_review_cancel
+    fixture_refs:
+      - fixtures/fs/conflict_save_cases/external_rewrite_dirty_buffer.yaml
+      - fixtures/runtime/vfs_decision_examples/external_change_conflict.json
+
+  - case_id: cs_failure.conflict_save.partial_recovery.merge_then_checkpointed_save
+    failure_mode: partial_recovery
+    summary: >
+      External-change conflict is resolved via `merge` with explicit checkpoints
+      (local buffer + external version) and a post-resolution journal
+      checkpoint. Durable write occurs only after the recorded choice.
+    injection_locus:
+      protected_path_ref: path.editor.save
+      segment_id: seg.open_edit_save.save_pipeline
+    fault_domain_id: workspace_knowledge_workers
+    expected_user_visible_truth:
+      save_outcome: saved_after_merge
+      checkpoints_required:
+        - local_buffer_checkpoint
+        - external_version_checkpoint
+      journal_checkpoint_emitted: true
+    fixture_refs:
+      - fixtures/fs/conflict_save_cases/post_resolution_journal_checkpoint.yaml
+      - artifacts/io/undo_recovery_examples/external_change_merge_conflict.json
+
