@@ -1,0 +1,850 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ai/patch_review_summary.schema.json",
+  "title": "Aureline AI multi-file patch review summary, validation attachment, approval, and apply-audit contract",
+  "description": "Boundary schema for the patch_review_summary_record, patch_validation_summary_record, patch_review_approval_record, patch_apply_audit_record, and patch_review_audit_event_record frozen in artifacts/ai/multifile_patch_review_sequence.md. This schema freezes the request-to-apply path for AI-generated multi-file workspace patches so (1) policy evaluation, review presentation, and undo/checkpoint capture are structurally required before any live-tree mutation is claimed, (2) validation evidence is attributable to the exact proposed patch via a content-addressed patch digest, and (3) the apply audit record can prove that only approved diff hunks reached the live tree even when a proposal originally covered broader scope. The schema composes with (and does not replace) schemas/ai/context_assembly.schema.json (prompt_composer_turn_draft_record, ai_context_assembly_record, ai_tool_call_lineage_record), schemas/ai/evidence_packet.schema.json (ai_evidence_packet_record), schemas/ai/provider_route_receipt.schema.json and schemas/ai/spend_receipt.schema.json (provider/model/route/spend truth), schemas/ux/interaction_safety.schema.json (preview/apply/validate/keep-or-revert phases and basis-drift denial), schemas/workspace/mutation_journal.schema.json (mutation group + checkpoint refs), schemas/integration/approval_ticket.schema.json (approval ticket), and schemas/security/audit_stream_record.schema.json (security audit stream entries). Raw patch bodies, raw diff text, raw prompt text, raw file bodies, raw terminal/log bodies, raw URLs, raw absolute paths, and raw credential material MUST NOT appear on any record emitted against this schema; records carry opaque refs, typed vocabularies, digests, and redaction-aware reviewable labels only. Adding a new enum member, a new optional field, or a new sub-record kind is additive-minor and bumps patch_review_summary_schema_version; repurposing an existing member is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/patch_review_summary_record" },
+    { "$ref": "#/$defs/patch_validation_summary_record" },
+    { "$ref": "#/$defs/patch_review_approval_record" },
+    { "$ref": "#/$defs/patch_apply_audit_record" },
+    { "$ref": "#/$defs/patch_review_audit_event_record" }
+  ],
+  "$defs": {
+    "patch_review_summary_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this patch review summary/approval/audit vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "patch_review_summary_record",
+        "patch_validation_summary_record",
+        "patch_review_approval_record",
+        "patch_apply_audit_record",
+        "patch_review_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / evidence packets / support bundles. Raw bodies, raw URLs, raw absolute paths, raw diff text, raw prompt text, and raw credential material never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Redaction-aware short sentence safe for review surfaces, support export, and audit trails. Must not include raw prompt text, raw diff bodies, raw URLs, raw absolute paths, or raw credential material."
+    },
+
+    "digest_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9]{64}$",
+      "description": "Hash-algorithm-prefixed digest. Patch bodies and diff hunks are content-addressed; the raw bytes never cross this boundary."
+    },
+
+    "trust_state": {
+      "type": "string",
+      "enum": ["trusted", "restricted"],
+      "description": "Workspace trust state at mint time (ADR-0018)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy_epoch", "trust_state"],
+      "properties": {
+        "policy_epoch": { "type": "string", "minLength": 1 },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "execution_context_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ADR-0009 execution-context id when the record was minted inside a live execution. Omitted when minted outside a live execution context."
+        }
+      },
+      "description": "Policy context the record was minted under. Revalidated on every approval/apply attempt; silent replay against a changed policy epoch is forbidden."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Client-scope vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": ["authoritative_live", "warm_cached", "degraded_cached", "stale", "unverified"],
+      "description": "Freshness-class vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction-class vocabulary re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "patch_intent_class": {
+      "type": "string",
+      "enum": [
+        "fix_or_quick_repair",
+        "refactor_or_cleanup",
+        "apply_recommended_change",
+        "test_generation_follow_up",
+        "other_patch_request"
+      ],
+      "description": "Frozen patch-intent vocabulary. Names why the patch flow was started without embedding raw prompt text."
+    },
+
+    "proposal_state_class": {
+      "type": "string",
+      "enum": [
+        "proposal_ready_for_review",
+        "proposal_failed_provider_error",
+        "proposal_blocked_by_policy",
+        "proposal_cancelled",
+        "proposal_superseded"
+      ],
+      "description": "Frozen proposal-state vocabulary. proposal_ready_for_review is the only state that can be approved for apply."
+    },
+
+    "patch_format_class": {
+      "type": "string",
+      "enum": ["unified_diff"],
+      "description": "Frozen patch-format vocabulary. unified_diff is the only seeded format for this protected apply path; other formats require an explicit expansion decision."
+    },
+
+    "patch_change_kind_class": {
+      "type": "string",
+      "enum": ["create", "modify", "rename", "delete"],
+      "description": "Frozen per-file change-kind vocabulary."
+    },
+
+    "blocked_reason_class": {
+      "type": "string",
+      "enum": [
+        "blocked_by_protected_path",
+        "blocked_by_policy",
+        "blocked_by_trust_state",
+        "blocked_by_scope_filter",
+        "blocked_by_redaction_requirement",
+        "blocked_unknown_requires_review"
+      ],
+      "description": "Frozen blocked-reason vocabulary for patch members that are present in the proposal but cannot be included in the applyable scope on this client/policy/trust posture."
+    },
+
+    "patch_file_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file_id_ref", "change_kind", "hunk_count", "summary_label"],
+      "properties": {
+        "file_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque file identity ref. Never a raw absolute path."
+        },
+        "change_kind": { "$ref": "#/$defs/patch_change_kind_class" },
+        "hunk_count": { "type": "integer", "minimum": 0 },
+        "byte_delta_estimate": {
+          "oneOf": [{ "type": "null" }, { "type": "integer" }],
+          "description": "Optional estimated byte delta (additions minus deletions) for the file. May be null when unknown."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Per-file row in a patch proposal inventory."
+    },
+
+    "patch_hunk_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hunk_id", "file_id_ref", "hunk_digest", "summary_label"],
+      "properties": {
+        "hunk_id": { "$ref": "#/$defs/opaque_id" },
+        "file_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "hunk_digest": { "$ref": "#/$defs/digest_sha256" },
+        "preview_anchor_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Optional opaque ref to a diff-hunk anchor identity used by review surfaces (for example a review_diff_hunk_target or equivalent)."
+        },
+        "line_span": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start_line", "end_line"],
+          "properties": {
+            "start_line": { "type": "integer", "minimum": 0 },
+            "end_line": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Approximate post-normalization line span for the hunk in the target file. Coordinates are review aids only; the digest is the authority."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Per-hunk row in a patch proposal inventory. The hunk digest is content-addressed; raw patch text never crosses this boundary."
+    },
+
+    "blocked_member_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason_class", "count", "member_id_refs", "summary_label"],
+      "properties": {
+        "reason_class": { "$ref": "#/$defs/blocked_reason_class" },
+        "count": { "type": "integer", "minimum": 0 },
+        "member_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Blocked-member rollup row. Carries typed reasons and opaque member identity refs."
+    },
+
+    "patch_review_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_review_summary_schema_version",
+        "patch_review_summary_id",
+        "proposal_state",
+        "intent_class",
+        "intent_summary",
+        "request_workspace_id_ref",
+        "turn_draft_id_ref",
+        "composer_plan_id_ref",
+        "context_assembly_id_ref",
+        "evidence_packet_id_ref",
+        "provider_route_receipt_id_ref",
+        "spend_receipt_id_ref",
+        "patch_format",
+        "patch_artifact_ref",
+        "patch_artifact_digest",
+        "patch_file_rows",
+        "patch_hunk_rows",
+        "included_file_count",
+        "blocked_file_count",
+        "included_hunk_count",
+        "blocked_member_summary",
+        "validation_summary_id_refs",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "freshness_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_review_summary_record" },
+        "patch_review_summary_schema_version": { "$ref": "#/$defs/patch_review_summary_schema_version" },
+        "patch_review_summary_id": { "$ref": "#/$defs/opaque_id" },
+
+        "proposal_state": { "$ref": "#/$defs/proposal_state_class" },
+
+        "intent_class": { "$ref": "#/$defs/patch_intent_class" },
+        "intent_summary": { "$ref": "#/$defs/reviewable_sentence" },
+
+        "request_workspace_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "turn_draft_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the prompt_composer_turn_draft_record that initiated the review-handoff patch flow."
+        },
+        "composer_plan_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "context_assembly_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "evidence_packet_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the ai_evidence_packet_record covering the provider run that produced the proposal (or the last successful run prior to a policy-blocked refresh)."
+        },
+        "provider_route_receipt_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "spend_receipt_id_ref": { "$ref": "#/$defs/opaque_id" },
+
+        "patch_format": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/patch_format_class" }],
+          "description": "Null when no patch body exists (provider failure or policy block)."
+        },
+        "patch_artifact_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to a content-addressed patch artifact (diff body) stored in the evidence/support cache. Null when proposal_state is not proposal_ready_for_review."
+        },
+        "patch_artifact_digest": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/digest_sha256" }],
+          "description": "Digest of the patch artifact body. Null when proposal_state is not proposal_ready_for_review."
+        },
+        "patch_file_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/patch_file_row" }
+        },
+        "patch_hunk_rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/patch_hunk_row" }
+        },
+
+        "included_file_count": { "type": "integer", "minimum": 0 },
+        "blocked_file_count": { "type": "integer", "minimum": 0 },
+        "included_hunk_count": { "type": "integer", "minimum": 0 },
+
+        "blocked_member_summary": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocked_member_row" }
+        },
+
+        "validation_summary_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to patch_validation_summary_record instances that bind validation evidence to this patch digest. Empty when validation did not run."
+        },
+
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "updated_at": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/monotonic_timestamp" }],
+          "description": "Optional monotonic timestamp for a benign re-render or summary-field refresh. Proposal content (patch digest, hunk inventory) must never change in place; replacements mint a new patch_review_summary_id."
+        }
+      },
+      "allOf": [
+        {
+          "description": "Only proposal_ready_for_review records may carry a patch digest and patch artifact ref.",
+          "if": {
+            "properties": { "proposal_state": { "const": "proposal_ready_for_review" } },
+            "required": ["proposal_state"]
+          },
+          "then": {
+            "required": ["patch_format", "patch_artifact_ref", "patch_artifact_digest"],
+            "properties": {
+              "patch_format": { "$ref": "#/$defs/patch_format_class" },
+              "patch_artifact_ref": { "$ref": "#/$defs/opaque_id" },
+              "patch_artifact_digest": { "$ref": "#/$defs/digest_sha256" },
+              "patch_hunk_rows": { "minItems": 1 },
+              "patch_file_rows": { "minItems": 1 }
+            }
+          },
+          "else": {
+            "properties": {
+              "patch_format": { "const": null },
+              "patch_artifact_ref": { "const": null },
+              "patch_artifact_digest": { "const": null },
+              "patch_hunk_rows": { "maxItems": 0 }
+            }
+          }
+        }
+      ],
+      "description": "Frozen review packet summary for one AI multi-file patch proposal. The record is minted before any approval or apply; it pins patch digest + hunk inventory so later validation, approval, apply, undo, and audit can prove lineage."
+    },
+
+    "validation_kind_class": {
+      "type": "string",
+      "enum": ["tests", "lint", "build", "format", "typecheck", "custom"],
+      "description": "Frozen validation-kind vocabulary for patch validation attachments."
+    },
+
+    "validation_outcome_class": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "failed",
+        "skipped_user_declined",
+        "skipped_policy_denied",
+        "skipped_tool_unavailable",
+        "failed_tool_error",
+        "unknown_requires_review"
+      ],
+      "description": "Frozen validation-outcome vocabulary. unknown_requires_review fails closed and must not be rendered as a pass."
+    },
+
+    "validation_attempt_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["validation_kind", "outcome", "summary_label", "tool_call_lineage_id_refs", "run_summary_id_refs"],
+      "properties": {
+        "validation_kind": { "$ref": "#/$defs/validation_kind_class" },
+        "outcome": { "$ref": "#/$defs/validation_outcome_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "tool_call_lineage_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to ai_tool_call_lineage_record rows (context-assembly contract) that executed the validation tool calls."
+        },
+        "run_summary_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to execution summary records (for example test_run_summary_record ids). Empty when the validation kind cannot produce a run summary on this client."
+        }
+      },
+      "description": "One attempted validation row bound to a patch proposal."
+    },
+
+    "validation_rollup_class": {
+      "type": "string",
+      "enum": [
+        "validation_passed",
+        "validation_failed",
+        "validation_partial",
+        "validation_skipped",
+        "validation_unknown_requires_review"
+      ],
+      "description": "Frozen validation rollup vocabulary for a patch proposal's attached validation."
+    },
+
+    "patch_validation_summary_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_review_summary_schema_version",
+        "patch_validation_summary_id",
+        "patch_review_summary_id_ref",
+        "patch_artifact_digest",
+        "validation_rollup",
+        "validation_attempt_rows",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_validation_summary_record" },
+        "patch_review_summary_schema_version": { "$ref": "#/$defs/patch_review_summary_schema_version" },
+        "patch_validation_summary_id": { "$ref": "#/$defs/opaque_id" },
+        "patch_review_summary_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "patch_artifact_digest": { "$ref": "#/$defs/digest_sha256" },
+        "validation_rollup": { "$ref": "#/$defs/validation_rollup_class" },
+        "validation_attempt_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/validation_attempt_row" }
+        },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "Validation summary attachment for a specific patch proposal. The patch digest is required so validation cannot be cited as generic background evidence for a different proposal."
+    },
+
+    "approval_action_class": {
+      "type": "string",
+      "enum": [
+        "approve_apply_all_hunks",
+        "approve_apply_selected_hunks",
+        "reject_no_apply",
+        "request_amendment_new_proposal_required",
+        "request_rerun_validation_no_apply",
+        "narrow_scope_then_request_amendment",
+        "cancelled_no_apply"
+      ],
+      "description": "Frozen approval-action vocabulary. Only the approve_* actions can be used as inputs to an apply attempt."
+    },
+
+    "approval_scope_class": {
+      "type": "string",
+      "enum": ["all_hunks", "hunk_allowlist", "no_apply"],
+      "description": "Frozen approval-scope vocabulary. all_hunks and hunk_allowlist are the only scopes that admit apply."
+    },
+
+    "patch_review_approval_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_review_summary_schema_version",
+        "patch_review_approval_id",
+        "patch_review_summary_id_ref",
+        "approval_action",
+        "approval_scope",
+        "approved_hunk_ids",
+        "approval_ticket_id_ref",
+        "summary_label",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_review_approval_record" },
+        "patch_review_summary_schema_version": { "$ref": "#/$defs/patch_review_summary_schema_version" },
+        "patch_review_approval_id": { "$ref": "#/$defs/opaque_id" },
+        "patch_review_summary_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "approval_action": { "$ref": "#/$defs/approval_action_class" },
+        "approval_scope": { "$ref": "#/$defs/approval_scope_class" },
+        "approved_hunk_ids": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/opaque_id" },
+              "uniqueItems": true
+            }
+          ],
+          "description": "Explicit approved hunk allowlist when approval_scope is hunk_allowlist. Null when approval_scope is all_hunks or no_apply."
+        },
+        "approval_ticket_id_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to an approval_ticket_record required to admit the apply attempt under the current policy. Null when approval_scope is no_apply."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Approve-all requires approval_scope = all_hunks and no explicit allowlist.",
+          "if": {
+            "properties": { "approval_action": { "const": "approve_apply_all_hunks" } },
+            "required": ["approval_action"]
+          },
+          "then": {
+            "properties": {
+              "approval_scope": { "const": "all_hunks" },
+              "approved_hunk_ids": { "const": null }
+            }
+          }
+        },
+        {
+          "description": "Approve-selected requires approval_scope = hunk_allowlist and a non-null allowlist.",
+          "if": {
+            "properties": { "approval_action": { "const": "approve_apply_selected_hunks" } },
+            "required": ["approval_action"]
+          },
+          "then": {
+            "properties": {
+              "approval_scope": { "const": "hunk_allowlist" },
+              "approved_hunk_ids": {
+                "type": "array",
+                "minItems": 1
+              }
+            },
+            "required": ["approved_hunk_ids"]
+          }
+        },
+        {
+          "description": "No-apply outcomes must not carry an approval ticket or allowlist.",
+          "if": {
+            "properties": {
+              "approval_action": {
+                "enum": [
+                  "reject_no_apply",
+                  "request_amendment_new_proposal_required",
+                  "request_rerun_validation_no_apply",
+                  "narrow_scope_then_request_amendment",
+                  "cancelled_no_apply"
+                ]
+              }
+            },
+            "required": ["approval_action"]
+          },
+          "then": {
+            "properties": {
+              "approval_scope": { "const": "no_apply" },
+              "approved_hunk_ids": { "const": null },
+              "approval_ticket_id_ref": { "const": null }
+            }
+          }
+        },
+        {
+          "description": "Apply-admitting approvals must cite a non-null approval ticket id ref.",
+          "if": {
+            "properties": {
+              "approval_scope": { "enum": ["all_hunks", "hunk_allowlist"] }
+            },
+            "required": ["approval_scope"]
+          },
+          "then": {
+            "properties": { "approval_ticket_id_ref": { "$ref": "#/$defs/opaque_id" } },
+            "required": ["approval_ticket_id_ref"]
+          }
+        }
+      ],
+      "description": "User approval outcome for a patch review summary. Approval is scope-specific (all hunks or an explicit hunk allowlist)."
+    },
+
+    "apply_outcome_class": {
+      "type": "string",
+      "enum": [
+        "applied_success",
+        "blocked_basis_drifted",
+        "blocked_by_policy",
+        "blocked_by_trust_state",
+        "blocked_unapproved_hunks_detected",
+        "failed_apply_engine_error",
+        "partial_apply_then_rolled_back",
+        "cancelled_by_user"
+      ],
+      "description": "Frozen apply-outcome vocabulary. blocked_unapproved_hunks_detected is the canonical outcome when the apply engine detects any attempt to materialize an unapproved hunk."
+    },
+
+    "patch_apply_audit_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_review_summary_schema_version",
+        "patch_apply_audit_id",
+        "patch_review_summary_id_ref",
+        "patch_review_approval_id_ref",
+        "patch_artifact_digest",
+        "apply_outcome",
+        "interaction_safety_packet_id_ref",
+        "undo_checkpoint_id_ref",
+        "mutation_group_id_ref",
+        "applied_hunk_ids",
+        "unapproved_hunk_ids",
+        "not_applied_hunk_ids",
+        "audit_stream_record_id_refs",
+        "summary_label",
+        "client_scopes",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_apply_audit_record" },
+        "patch_review_summary_schema_version": { "$ref": "#/$defs/patch_review_summary_schema_version" },
+        "patch_apply_audit_id": { "$ref": "#/$defs/opaque_id" },
+        "patch_review_summary_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "patch_review_approval_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "patch_artifact_digest": { "$ref": "#/$defs/digest_sha256" },
+        "apply_outcome": { "$ref": "#/$defs/apply_outcome_class" },
+        "interaction_safety_packet_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the interaction_safety_packet_record covering preview/apply/validate/keep-or-revert for this apply attempt."
+        },
+        "undo_checkpoint_id_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the undo/checkpoint boundary captured before commit (for example a local history snapshot id)."
+        },
+        "mutation_group_id_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }],
+          "description": "Opaque ref to the mutation_group_record (schemas/workspace/mutation_journal.schema.json) created by this apply attempt. Null when no mutation was committed."
+        },
+        "applied_hunk_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "The exact hunk ids from the reviewed hunk inventory that were materialized to the live tree."
+        },
+        "unapproved_hunk_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Any hunk ids the apply engine observed as attempted-but-unapproved. Must be empty on applied_success."
+        },
+        "not_applied_hunk_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Approved hunks that were not applied (conflict, drift, user cancellation, or rollback). Empty on applied_success when approval was all_hunks."
+        },
+        "audit_stream_record_id_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true,
+          "description": "Opaque refs to audit_stream_record entries (schemas/security/audit_stream_record.schema.json) that cover this apply attempt."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "applied_success must not report any unapproved hunks and must cite a committed mutation group id.",
+          "if": {
+            "properties": { "apply_outcome": { "const": "applied_success" } },
+            "required": ["apply_outcome"]
+          },
+          "then": {
+            "properties": {
+              "unapproved_hunk_ids": { "maxItems": 0 },
+              "mutation_group_id_ref": { "$ref": "#/$defs/opaque_id" }
+            },
+            "required": ["mutation_group_id_ref"]
+          }
+        },
+        {
+          "description": "blocked_unapproved_hunks_detected requires a non-empty unapproved set and must not claim applied_success.",
+          "if": {
+            "properties": { "apply_outcome": { "const": "blocked_unapproved_hunks_detected" } },
+            "required": ["apply_outcome"]
+          },
+          "then": {
+            "properties": {
+              "unapproved_hunk_ids": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "description": "Any non-success outcome may have a null mutation group ref (no committed mutation).",
+          "if": {
+            "properties": {
+              "apply_outcome": {
+                "enum": [
+                  "blocked_basis_drifted",
+                  "blocked_by_policy",
+                  "blocked_by_trust_state",
+                  "blocked_unapproved_hunks_detected",
+                  "failed_apply_engine_error",
+                  "partial_apply_then_rolled_back",
+                  "cancelled_by_user"
+                ]
+              }
+            },
+            "required": ["apply_outcome"]
+          },
+          "then": {
+            "properties": {
+              "mutation_group_id_ref": {
+                "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+              }
+            }
+          }
+        }
+      ],
+      "description": "Apply audit record proving reviewed → approved → applied lineage for an AI patch apply attempt. The applied hunk set is explicit; unapproved attempts are recorded and must fail closed."
+    },
+
+    "audit_event_id": {
+      "type": "string",
+      "enum": [
+        "patch_review_summary_minted",
+        "patch_review_summary_superseded",
+        "patch_validation_summary_minted",
+        "patch_review_approval_minted",
+        "patch_apply_audit_minted",
+        "patch_apply_denied_basis_drifted",
+        "patch_apply_denied_policy",
+        "patch_apply_denied_unapproved_hunks",
+        "patch_review_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the patch-review audit stream. Events must not carry raw patch bodies, raw prompt text, raw diff bodies, raw URLs, raw absolute paths, or raw credential material."
+    },
+
+    "patch_denial_reason": {
+      "type": "string",
+      "enum": [
+        "policy_evaluation_missing",
+        "review_packet_missing_patch_digest",
+        "validation_summary_missing_patch_digest",
+        "approval_missing_scope",
+        "approval_ticket_missing_on_apply",
+        "apply_attempted_without_review_packet",
+        "apply_attempted_without_approval_record",
+        "apply_attempted_without_checkpoint",
+        "apply_attempted_unapproved_hunk",
+        "basis_drift_detected_requires_reopen_review",
+        "schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; silent downgrade to best-effort apply is forbidden."
+    },
+
+    "patch_review_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "patch_review_summary_schema_version",
+        "audit_event_id",
+        "patch_review_summary_id_ref",
+        "policy_context",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "patch_review_audit_event_record" },
+        "patch_review_summary_schema_version": { "$ref": "#/$defs/patch_review_summary_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/audit_event_id" },
+        "patch_review_summary_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "patch_validation_summary_id_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "patch_review_approval_id_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "patch_apply_audit_id_ref": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/opaque_id" }]
+        },
+        "denial_reason": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/patch_denial_reason" }],
+          "description": "Required (non-null) when audit_event_id represents a denial event."
+        },
+        "summary_label": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }]
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "Denial events must carry a denial reason.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "patch_apply_denied_basis_drifted",
+                  "patch_apply_denied_policy",
+                  "patch_apply_denied_unapproved_hunks"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "required": ["denial_reason"],
+            "properties": {
+              "denial_reason": { "$ref": "#/$defs/patch_denial_reason" }
+            }
+          }
+        }
+      ],
+      "description": "Audit event emitted on the patch-review audit stream. Used for denial proofs and lifecycle traceability without embedding raw patch bodies."
+    }
+  }
+}
+
