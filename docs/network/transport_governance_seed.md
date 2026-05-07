@@ -778,9 +778,13 @@ record exposes.
 - Policy-bundle / entitlement seed — `active_policy_bundle_ref` and
   `policy_epoch_ref` are the opaque refs into the signed policy
   bundle governing the current transport posture.
-- Desktop platform conformance matrix — per-OS proxy, trust-store,
-  SSH, and secret-store conformance rows cross-walk with the
-  proxy-resolution-mode and trust-store-source vocabularies.
+- Native trust/auth conformance packet —
+  [`/docs/platform/native_trust_and_auth_conformance.md`](../platform/native_trust_and_auth_conformance.md)
+  and
+  [`/artifacts/platform/native_trust_integration_matrix.yaml`](../../artifacts/platform/native_trust_integration_matrix.yaml)
+  define the per-OS proxy/PAC, trust-store, and credential-store conformance
+  disclosure that cross-walks with this seed’s proxy-resolution-mode and
+  trust-store-source vocabularies.
 
 ## Adding or changing vocabulary
 

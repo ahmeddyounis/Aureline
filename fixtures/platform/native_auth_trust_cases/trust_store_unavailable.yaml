@@ -1,0 +1,50 @@
+# Trust store unavailable on a claimed profile — visible downgrade or typed denial.
+#
+# Reviewer-side conformance case for:
+# - docs/platform/native_trust_and_auth_conformance.md §6–§7
+__fixture__:
+  name: trust_store_unavailable
+  scenario: >
+    The OS secure store or trust store is unavailable on a claimed profile. The
+    product surfaces a durable degraded-state row and either (a) visibly downgrades
+    to session-only broker memory where the owning contract allows it, or (b) fails
+    closed with a typed denial for protected actions such as signing-class secrets
+    or mTLS-required endpoints. Local editing remains available; no plaintext
+    storage or insecure trust bypass is used.
+  drill_packet_ref: docs/platform/native_trust_and_auth_conformance.md
+  contract_sections:
+    - "§2 Shared invariants"
+    - "§6 Settings and diagnostics"
+  exercised_axes:
+    trust_store_source: trust_store_unknown
+    unlock_state: degraded_session_only
+
+case_id: native-auth-trust-case:trust-store:unavailable:claimed-profile:01
+case_class: trust_store_unavailable_on_claimed_profile
+applies_to_claimed_profiles:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+upstream_fixture_refs:
+  credential_state_example: fixtures/auth/credential_state_cases/secure_store_downgrade_session_only.yaml
+  shell_failure_mode_reference: docs/architecture/input_adapter_failure_modes.md
+
+expected_records_emitted:
+  - credential_state_record
+  - transport_decision_record
+  - transport_denial_record
+
+expected_projection_surfaces:
+  - settings.transport: shows trust_store_unknown as repair-only and blocks insecure retry
+  - settings.credentials: shows session-only downgrade explicitly
+  - support_bundle: includes downgrade/denial ids with metadata-only posture
+
+must_not_happen:
+  - silently fall back to plaintext files for long-lived secrets
+  - silently disable TLS verification or ignore pins/org CA bundles
+  - represent the failure as “offline” without a typed trust/store reason
+

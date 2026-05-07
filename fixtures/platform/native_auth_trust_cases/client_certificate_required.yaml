@@ -1,0 +1,46 @@
+# Client certificate required — typed trust failure with repair actions.
+#
+# Reviewer-side conformance case for:
+# - docs/platform/native_trust_and_auth_conformance.md §5–§7
+__fixture__:
+  name: client_certificate_required
+  scenario: >
+    A networked action to an org-approved endpoint requires an mTLS client
+    certificate. When no valid client certificate handle is available, transport
+    fails closed with `deny_trust` and `client_certificate_required`. The surface
+    presents a typed repair path (select/provision/renew certificate) and forbids
+    insecure TLS fallback or anonymous-auth downgrade.
+  drill_packet_ref: docs/platform/native_trust_and_auth_conformance.md
+  contract_sections:
+    - "§5 Trust overrides"
+    - "§6 Settings and diagnostics"
+  exercised_axes:
+    transport_decision_code: deny_trust
+    trust_failure_state: client_certificate_required
+
+case_id: native-auth-trust-case:trust:client-certificate-required:01
+case_class: client_certificate_required
+applies_to_claimed_profiles:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+upstream_fixture_refs:
+  transport_remediation_example: fixtures/network/transport_remediation_cases/client_certificate_absent.yaml
+
+expected_records_emitted:
+  - certificate_detail_card_record
+  - transport_denial_record
+
+expected_projection_surfaces:
+  - settings.transport: shows certificate card with client-certificate-required
+  - auth.credential_picker: offers select/provision path without exposing raw private bytes
+  - support_bundle: carries handle refs/fingerprints only (no PEM/private key)
+
+must_not_happen:
+  - downgrade from mTLS-required to bearer/anonymous without policy-visible decision
+  - offer insecure TLS retry or "ignore certificate" action
+

@@ -1,0 +1,46 @@
+# Stale callback return — replay denied; reopen/reauth required.
+#
+# Reviewer-side conformance case for:
+# - docs/platform/native_trust_and_auth_conformance.md §6–§7
+__fixture__:
+  name: stale_callback_return
+  scenario: >
+    The user starts a system-browser handoff and then the pending session expires
+    (sleep/resume, superseded handoff, or expiry window elapses). When the OS opens
+    the callback URL later, the return fails closed with a typed replay/expiry denial.
+    The UI routes to a reopen/reauth path and explicitly offers continue-local without
+    sign-in; no silent token reuse occurs.
+  drill_packet_ref: docs/platform/native_trust_and_auth_conformance.md
+  contract_sections:
+    - "§2 Shared invariants"
+    - "§6 Browser handoff cards and callback return"
+  exercised_axes:
+    outcome_class: denied_with_recovery
+    replay_posture: replay_denied_expired
+
+case_id: native-auth-trust-case:browser-return:stale:01
+case_class: stale_callback_return
+applies_to_claimed_profiles:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+upstream_fixture_refs:
+  lifecycle_drill_case: fixtures/platform/native_lifecycle_cases/expired_callback_after_sleep_reopen_required.yaml
+
+expected_records_emitted:
+  - auth_callback_packet_record
+  - network_attribution_record
+
+expected_projection_surfaces:
+  - auth.browser_return_banner: shows typed stale/expired state with reauth + continue-local actions
+  - support_bundle: includes denial audit id and replay posture, no raw query strings
+
+must_not_happen:
+  - stale callback completes auth silently
+  - stale callback reuses expired approval tickets or tokens
+  - callback opens a generic home screen without the reauth/recovery sheet
+

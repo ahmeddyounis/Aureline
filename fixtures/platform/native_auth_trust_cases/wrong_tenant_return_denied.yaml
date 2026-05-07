@@ -1,0 +1,43 @@
+# Wrong-tenant/workspace return — denied with visible recovery.
+#
+# Reviewer-side conformance case for:
+# - docs/platform/native_trust_and_auth_conformance.md §6–§7
+__fixture__:
+  name: wrong_tenant_return_denied
+  scenario: >
+    The browser returns to Aureline with a callback whose correlation state matches
+    a pending session, but the tenant/workspace binding does not match the pending
+    return route. The callback fails closed with a typed mismatch denial and routes
+    the user to reauthenticate in the correct scope (or continue local).
+  drill_packet_ref: docs/platform/native_trust_and_auth_conformance.md
+  contract_sections:
+    - "§6 Browser handoff cards and callback return"
+  exercised_axes:
+    outcome_class: denied_with_recovery
+    denial_class: auth_callback_tenant_or_workspace_mismatch_denied
+
+case_id: native-auth-trust-case:browser-return:wrong-tenant:01
+case_class: wrong_tenant_or_workspace_return
+applies_to_claimed_profiles:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+upstream_fixture_refs:
+  auth_callback_example: fixtures/auth/callback_and_lock_state_cases/callback_tenant_mismatch_denied.json
+
+expected_records_emitted:
+  - auth_callback_packet_record
+  - network_attribution_record
+
+expected_projection_surfaces:
+  - auth.browser_return_banner: shows mismatch reason + reauth + continue-local
+  - diagnostics.project_doctor: can export the packet id and mismatch class
+
+must_not_happen:
+  - callback switches tenant/workspace silently
+  - callback performs any remote mutation before binding validation
+

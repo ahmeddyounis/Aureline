@@ -1,0 +1,55 @@
+# Normal browser return — bound context restored with local-first posture intact.
+#
+# Reviewer-side conformance case for:
+# - docs/platform/native_trust_and_auth_conformance.md §6–§7
+__fixture__:
+  name: normal_browser_return
+  scenario: >
+    The user initiates a system-default-browser auth handoff. The browser returns
+    through the claimed return route (deep link on macOS/Linux GNOME, loopback on
+    Windows), correlation matches the pending session, and the bound tenant/workspace
+    is restored. The handoff success does not widen authority beyond the original
+    scope, and preserved local work remains explicitly stated.
+  drill_packet_ref: docs/platform/native_trust_and_auth_conformance.md
+  contract_sections:
+    - "§2 Shared invariants"
+    - "§4 Claimed profile summary"
+    - "§6 Degraded-state projection"
+  exercised_axes:
+    return_mode_class:
+      - platform_deep_link_return
+      - loopback_http_return
+    return_origin_validation_class:
+      - deep_link_scheme_pinned
+      - loopback_port_pinned
+    outcome_class: admitted_success
+
+case_id: native-auth-trust-case:browser-return:normal:01
+case_class: normal_browser_return
+applies_to_claimed_profiles:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+upstream_fixture_refs:
+  auth_callback_example: fixtures/auth/callback_and_lock_state_cases/return_from_browser_bound_workspace.json
+
+expected_records_emitted:
+  - auth_callback_packet_record
+  - auth_handoff_interstitial_record
+  - transport_decision_record
+
+expected_projection_surfaces:
+  - auth.browser_handoff_card: shows bound workspace/tenant, return anchor, and preserved_local_work
+  - settings.transport: shows effective proxy/trust state (even on success) as inspectable metadata
+  - support_bundle: includes packet ids and typed posture only (no raw URLs/tokens)
+
+must_not_happen:
+  - callback succeeds without tenant/workspace binding where binding is required
+  - callback widens authority beyond the pending handoff scope
+  - embedded webview fallback is used silently
+  - local editing is represented as blocked by sign-in success/failure
+

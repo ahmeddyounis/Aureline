@@ -16,6 +16,11 @@ Companion artifacts:
   — machine-readable claimed-profile roster, deployment-pattern support
   notes, platform-owned primitive rows, owners, validation methods, and
   known narrowings.
+- [`/docs/platform/native_trust_and_auth_conformance.md`](./native_trust_and_auth_conformance.md)
+  and
+  [`/artifacts/platform/native_trust_integration_matrix.yaml`](../../artifacts/platform/native_trust_integration_matrix.yaml)
+  — per-OS authoritative disclosure for system-browser auth return, proxy/PAC,
+  trust-store layering, and credential-store degraded states on claimed rows.
 - [`/docs/platform/desktop_management_contract.md`](./desktop_management_contract.md),
   [`/artifacts/platform/deployment_patterns.yaml`](../../artifacts/platform/deployment_patterns.yaml),
   and

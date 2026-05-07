@@ -13,6 +13,10 @@ Companion artifacts:
 - [`/schemas/auth/auth_callback_state.schema.json`](../../schemas/auth/auth_callback_state.schema.json)
   — machine-readable boundary for `auth_callback_packet_record`,
   `credential_store_lock_state_record`, and `account_boundary_record`.
+- [`/docs/platform/native_trust_and_auth_conformance.md`](../platform/native_trust_and_auth_conformance.md)
+  — per-OS authoritative disclosure for browser return transport, proxy/PAC and
+  trust-store sources, and credential-store degraded-state projection that this
+  packet’s abstract vocabulary must map onto.
 - [`/fixtures/auth/callback_and_lock_state_cases/`](../../fixtures/auth/callback_and_lock_state_cases/)
   — worked examples for account-free local mode, managed sign-in-
   required mode, restricted-managed-only posture, callback failure on

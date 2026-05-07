@@ -1,0 +1,482 @@
+# Native browser, proxy, trust-store, and credential-store integration matrix.
+#
+# Machine-readable companion to:
+#   - docs/platform/native_trust_and_auth_conformance.md
+#
+# Purpose:
+#   - Freeze per-OS authoritative sources for system-browser return, proxy/PAC
+#     inheritance, trust-store layering, and credential-store behavior.
+#   - Prevent adapters and feature lanes from inventing per-surface definitions
+#     of "system proxy", "system trust", or "secure store unavailable".
+#
+# Vocabulary policy:
+#   - This file re-exports vocabularies from upstream schemas and packets where
+#     practical. File-local labels are used only for reviewer readability; they
+#     are not cross-tool contract enums.
+#
+# If this file and docs/platform/native_trust_and_auth_conformance.md disagree,
+# this file is the tooling source and the doc must be updated in the same change.
+
+schema_version: 1
+matrix_id: aureline.platform.native_trust_integration_matrix.v1
+status: seeded
+
+source_doc: docs/platform/native_trust_and_auth_conformance.md
+fixtures_ref: fixtures/platform/native_auth_trust_cases/
+
+companion_contract_refs:
+  claimed_desktop_profiles: artifacts/platform/claimed_desktop_profiles.yaml
+  desktop_platform_conformance_matrix: docs/platform/desktop_platform_conformance_matrix.md
+  protocol_handler_ownership_matrix: artifacts/platform/protocol_handler_ownership_matrix.yaml
+  system_browser_callback_packet: docs/auth/system_browser_callback_packet.md
+  auth_handoff_interstitial_contract: docs/auth/auth_handoff_interstitial_contract.md
+  secret_broker_adr: docs/adr/0007-secret-broker-credential-handle-trust-store-redaction.md
+  transport_governance_seed: docs/network/transport_governance_seed.md
+  transport_governance_packet_seed: docs/network/transport_governance_packet_seed.md
+  transport_explainability_surface_contract: docs/network/transport_explainability_surface_contract.md
+  input_adapter_failure_modes: docs/architecture/input_adapter_failure_modes.md
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_PRD.md
+    anchors:
+      - "§5.37 Desktop-platform rules"
+      - "§5.42 Network, proxy, certificates, and transport-governance architecture"
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "Network and transport governance"
+      - "Identity, session, entitlement, and key-management architecture"
+  - path: .t2/docs/Aureline_Technical_Design_Document.md
+    anchors:
+      - "Appendix AA — Native OS and fleet-deployment conformance matrix"
+      - "Transport governance appendices"
+  - path: .t2/docs/Aureline_UI_UX_Spec_Document.md
+    anchors:
+      - "System-browser-first auth guidance"
+      - "Transport, proxy, certificate, and mirror-state templates"
+
+# Policy-blocked network posture is a required disclosed state for this packet.
+# The authoritative vocabulary lives in the transport governance packet; this
+# note exists to ensure platform rows do not treat policy-denied egress as an
+# ambiguous "offline" or "network error" state.
+policy_blocked_network_posture_note: >
+  When policy blocks network egress (deny-all profiles, policy-denied endpoints,
+  mirror-only restrictions, or admin-enforced proxy/trust rules), surfaces must
+  emit and project a typed transport governance denial (for example
+  transport_decision_code = deny_policy or deny_all-class posture). Local editing
+  and local-safe workflows remain available; only the specific networked
+  capability is narrowed.
+
+# -----------------------------------------------------------------------------
+# Re-exported vocabularies (subset).
+# -----------------------------------------------------------------------------
+
+claimed_desktop_profile_id_vocabulary:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+# Re-exported from docs/auth/system_browser_callback_packet.md and its schema.
+return_mode_class_vocabulary:
+  - loopback_http_return
+  - platform_deep_link_return
+  - device_code_poll_return
+  - manual_return_resume
+  - not_applicable
+
+return_origin_validation_class_vocabulary:
+  - strict_origin_match_required
+  - loopback_port_pinned
+  - deep_link_scheme_pinned
+  - device_code_poll_only
+  - manual_resume_only
+
+# Re-exported from docs/network/transport_governance_packet_seed.md and
+# schemas/network/transport_decision.schema.json.
+proxy_resolution_mode_vocabulary:
+  - manual_proxy
+  - environment_proxy
+  - pac_proxy
+  - system_proxy
+  - direct_no_proxy
+  - proxy_unknown
+
+trust_store_source_vocabulary:
+  - pinned_control_plane_trust_only
+  - os_trust_store_plus_org_ca_bundle
+  - os_trust_store
+  - air_gap_offline_trust_root
+  - trust_store_unknown
+
+# Re-exported from ADR 0007 (trust-store classes and unlock states).
+trust_store_class_vocabulary:
+  - os_keychain
+  - enterprise_vault_adapter
+  - platform_agent
+  - hsm_or_kms_backed
+  - session_memory_cache
+  - managed_policy_injector
+
+unlock_state_vocabulary:
+  - locked
+  - unlocking
+  - unlocked
+  - step_up_required
+  - degraded_session_only
+  - unavailable
+
+# File-local labels for reviewer readability (not cross-tool enums).
+browser_return_claim_kind_vocabulary:
+  - claimed_primary
+  - claimed_fallback_with_explicit_disclosure
+  - best_effort_repair_only
+
+integration_rows:
+  - row_id: native_trust_integration:macos_15_plus_universal
+    profile_id: macos_15_plus_universal
+    browser_handoff:
+      outbound_launch_policy: system_default_browser_required
+      callback_registration_assumption: >
+        Launch Services owns system-default-browser launch and callback routing.
+        Deep-link schemes and side-by-side relations follow the protocol-handler
+        ownership matrix; last-writer-wins scheme takeover is non-conforming.
+      return_route_claims:
+        - claim_kind: claimed_primary
+          return_mode_class: platform_deep_link_return
+          return_origin_validation_class: deep_link_scheme_pinned
+          notes: >
+            Primary return route on macOS claimed profiles. The scheme must be
+            pinned to the owning channel relation and validated by correlation.
+        - claim_kind: best_effort_repair_only
+          return_mode_class: manual_return_resume
+          return_origin_validation_class: manual_resume_only
+          notes: >
+            Repair-only fallback for blocked returns; must preserve local work
+            and never imply that editing requires sign-in.
+    proxy_inheritance:
+      system_proxy_authority: System Settings network proxy + OS PAC resolution.
+      system_pac_authority: OS PAC / auto proxy configuration when configured.
+      explicit_override_rules: >
+        Manual proxy and custom CA are allowed only as typed, inspectable settings
+        resolved through the shared transport governance layer; direct/no-proxy is
+        not a silent fallback after proxy failure.
+    trust_store_integration:
+      default_trust_store_source: os_trust_store
+      enterprise_ca_overlay_trust_store_source: os_trust_store_plus_org_ca_bundle
+      authority_note: >
+        Keychain trust roots plus user/admin-imported keychains and configuration
+        profiles constitute OS trust; org CA overlays must remain inspectable.
+      client_certificate_handling_note: >
+        Client certificates are referenced by handle only; raw certificate bytes
+        and private keys never project into UI, logs, or support export.
+    credential_store_integration:
+      trust_store_class: os_keychain
+      backend_label: Keychain Services
+      unlock_state_must_surface:
+        - unlocked
+        - locked
+        - step_up_required
+        - unavailable
+        - degraded_session_only
+      failure_copy_requirements: >
+        Failure copy must name "Keychain" explicitly, surface a typed unlock or
+        repair path, and include a continue-local path when the action is not
+        required for local editing.
+
+  - row_id: native_trust_integration:windows_11_23h2_plus_x86_64
+    profile_id: windows_11_23h2_plus_x86_64
+    browser_handoff:
+      outbound_launch_policy: system_default_browser_required
+      callback_registration_assumption: >
+        Windows callback handling is claim-bearing only when it is installed and
+        registered through a previewable protocol/loopback-safe path. Protocol
+        handler ownership and side-by-side rules follow the protocol-handler
+        ownership matrix; silent handler takeover is non-conforming.
+      return_route_claims:
+        - claim_kind: claimed_primary
+          return_mode_class: loopback_http_return
+          return_origin_validation_class: loopback_port_pinned
+          notes: >
+            Primary return route on Windows claimed profiles. Loopback port pinning
+            is the origin validation guard; the return anchor remains export-safe.
+        - claim_kind: claimed_fallback_with_explicit_disclosure
+          return_mode_class: platform_deep_link_return
+          return_origin_validation_class: deep_link_scheme_pinned
+          notes: >
+            Admissible fallback only when loopback return is unavailable and the
+            surface discloses the fallback class and preserves local work.
+        - claim_kind: best_effort_repair_only
+          return_mode_class: manual_return_resume
+          return_origin_validation_class: manual_resume_only
+          notes: >
+            Repair-only fallback; never a silent downgrade from loopback return.
+    proxy_inheritance:
+      system_proxy_authority: WinINET + WinHTTP effective proxy resolution.
+      system_pac_authority: WPAD/PAC when configured; parity with CLI/headless required.
+      explicit_override_rules: >
+        Manual/environment/PAC/system proxy precedence follows the transport packet.
+        Any WinHTTP/WinINET divergence is a typed denial that forbids direct fallback.
+    trust_store_integration:
+      default_trust_store_source: os_trust_store
+      enterprise_ca_overlay_trust_store_source: os_trust_store_plus_org_ca_bundle
+      authority_note: >
+        Current User and Local Machine certificate stores are the OS trust source.
+        Enterprise CA overlays and pinned control-plane trust remain inspectable.
+      client_certificate_handling_note: >
+        Client certificates are referenced by handle only; certificate selection is
+        surfaced as a typed prompt or denial with repair actions, never as raw PEM.
+    credential_store_integration:
+      trust_store_class: os_keychain
+      backend_label: Credential Manager / DPAPI-backed storage
+      unlock_state_must_surface:
+        - unlocked
+        - locked
+        - step_up_required
+        - unavailable
+        - degraded_session_only
+      failure_copy_requirements: >
+        Failure copy must name "Windows Credential Manager" (or equivalent) and
+        include a typed repair path plus continue-local fallback where applicable.
+
+  - row_id: native_trust_integration:linux_ubuntu_24_04_gnome_wayland_x86_64
+    profile_id: linux_ubuntu_24_04_gnome_wayland_x86_64
+    browser_handoff:
+      outbound_launch_policy: system_default_browser_required
+      callback_registration_assumption: >
+        Linux claims are limited to the named GNOME desktop profiles. Default
+        browser launch uses the OS default handler; callback return uses desktop-file
+        or portal-backed scheme handling and must validate scheme + correlation.
+      return_route_claims:
+        - claim_kind: claimed_primary
+          return_mode_class: platform_deep_link_return
+          return_origin_validation_class: deep_link_scheme_pinned
+          notes: >
+            Primary return route on the claimed GNOME desktop profiles. If the
+            desktop environment/session cannot provide reliable scheme return, the
+            profile must degrade visibly; silent fallback is unclaimed.
+        - claim_kind: best_effort_repair_only
+          return_mode_class: manual_return_resume
+          return_origin_validation_class: manual_resume_only
+          notes: >
+            Repair-only fallback for blocked returns; always preserves local work.
+    proxy_inheritance:
+      system_proxy_authority: GNOME proxy settings plus launcher environment proxies.
+      system_pac_authority: PAC honored only when the session exposes a PAC source.
+      explicit_override_rules: >
+        Manual and environment proxy modes are admissible as typed overrides through
+        the transport packet. If PAC is unavailable on the claimed profile, the
+        effective proxy state must disclose that limitation explicitly.
+    trust_store_integration:
+      default_trust_store_source: os_trust_store
+      enterprise_ca_overlay_trust_store_source: os_trust_store_plus_org_ca_bundle
+      authority_note: >
+        The distro CA bundle is the default OS trust. Enterprise CA import must use
+        the distro/desktop-profile tooling and remain inspectable as an org CA overlay.
+      client_certificate_handling_note: >
+        Client certificates are referenced by handle only; trust failures must name
+        client-certificate-required/expired states explicitly with repair actions.
+    credential_store_integration:
+      trust_store_class: os_keychain
+      backend_label: Secret Service via libsecret / GNOME Keyring
+      unlock_state_must_surface:
+        - unlocked
+        - locked
+        - unavailable
+        - degraded_session_only
+      failure_copy_requirements: >
+        Failure copy must name "Secret Service / Keyring" explicitly and, when the
+        store is unavailable, must show visible session-only downgrade (where allowed)
+        rather than implying durable secure storage still exists.
+
+  - row_id: native_trust_integration:linux_ubuntu_24_04_gnome_x11_x86_64
+    profile_id: linux_ubuntu_24_04_gnome_x11_x86_64
+    browser_handoff:
+      outbound_launch_policy: system_default_browser_required
+      callback_registration_assumption: >
+        Linux claims are limited to the named GNOME desktop profiles. Default
+        browser launch uses the OS default handler; callback return uses desktop-file
+        or portal-backed scheme handling and must validate scheme + correlation.
+      return_route_claims:
+        - claim_kind: claimed_primary
+          return_mode_class: platform_deep_link_return
+          return_origin_validation_class: deep_link_scheme_pinned
+          notes: >
+            Primary return route on the claimed GNOME desktop profiles. If the
+            desktop environment/session cannot provide reliable scheme return, the
+            profile must degrade visibly; silent fallback is unclaimed.
+        - claim_kind: best_effort_repair_only
+          return_mode_class: manual_return_resume
+          return_origin_validation_class: manual_resume_only
+          notes: >
+            Repair-only fallback for blocked returns; always preserves local work.
+    proxy_inheritance:
+      system_proxy_authority: GNOME proxy settings plus launcher environment proxies.
+      system_pac_authority: PAC honored only when the session exposes a PAC source.
+      explicit_override_rules: >
+        Manual and environment proxy modes are admissible as typed overrides through
+        the transport packet. If PAC is unavailable on the claimed profile, the
+        effective proxy state must disclose that limitation explicitly.
+    trust_store_integration:
+      default_trust_store_source: os_trust_store
+      enterprise_ca_overlay_trust_store_source: os_trust_store_plus_org_ca_bundle
+      authority_note: >
+        The distro CA bundle is the default OS trust. Enterprise CA import must use
+        the distro/desktop-profile tooling and remain inspectable as an org CA overlay.
+      client_certificate_handling_note: >
+        Client certificates are referenced by handle only; trust failures must name
+        client-certificate-required/expired states explicitly with repair actions.
+    credential_store_integration:
+      trust_store_class: os_keychain
+      backend_label: Secret Service via libsecret / GNOME Keyring
+      unlock_state_must_surface:
+        - unlocked
+        - locked
+        - unavailable
+        - degraded_session_only
+      failure_copy_requirements: >
+        Failure copy must name "Secret Service / Keyring" explicitly and, when the
+        store is unavailable, must show visible session-only downgrade (where allowed)
+        rather than implying durable secure storage still exists.
+
+  - row_id: native_trust_integration:linux_fedora_current_gnome_wayland_x86_64
+    profile_id: linux_fedora_current_gnome_wayland_x86_64
+    browser_handoff:
+      outbound_launch_policy: system_default_browser_required
+      callback_registration_assumption: >
+        Linux claims are limited to the named GNOME desktop profiles. Default
+        browser launch uses the OS default handler; callback return uses desktop-file
+        or portal-backed scheme handling and must validate scheme + correlation.
+      return_route_claims:
+        - claim_kind: claimed_primary
+          return_mode_class: platform_deep_link_return
+          return_origin_validation_class: deep_link_scheme_pinned
+          notes: >
+            Primary return route on the claimed GNOME desktop profiles. If the
+            desktop environment/session cannot provide reliable scheme return, the
+            profile must degrade visibly; silent fallback is unclaimed.
+        - claim_kind: best_effort_repair_only
+          return_mode_class: manual_return_resume
+          return_origin_validation_class: manual_resume_only
+          notes: >
+            Repair-only fallback for blocked returns; always preserves local work.
+    proxy_inheritance:
+      system_proxy_authority: GNOME proxy settings plus launcher environment proxies.
+      system_pac_authority: PAC honored only when the session exposes a PAC source.
+      explicit_override_rules: >
+        Manual and environment proxy modes are admissible as typed overrides through
+        the transport packet. If PAC is unavailable on the claimed profile, the
+        effective proxy state must disclose that limitation explicitly.
+    trust_store_integration:
+      default_trust_store_source: os_trust_store
+      enterprise_ca_overlay_trust_store_source: os_trust_store_plus_org_ca_bundle
+      authority_note: >
+        The distro CA bundle is the default OS trust. Enterprise CA import must use
+        the distro/desktop-profile tooling and remain inspectable as an org CA overlay.
+      client_certificate_handling_note: >
+        Client certificates are referenced by handle only; trust failures must name
+        client-certificate-required/expired states explicitly with repair actions.
+    credential_store_integration:
+      trust_store_class: os_keychain
+      backend_label: Secret Service via libsecret / GNOME Keyring
+      unlock_state_must_surface:
+        - unlocked
+        - locked
+        - unavailable
+        - degraded_session_only
+      failure_copy_requirements: >
+        Failure copy must name "Secret Service / Keyring" explicitly and, when the
+        store is unavailable, must show visible session-only downgrade (where allowed)
+        rather than implying durable secure storage still exists.
+
+  - row_id: native_trust_integration:linux_debian_stable_gnome_x11_x86_64
+    profile_id: linux_debian_stable_gnome_x11_x86_64
+    browser_handoff:
+      outbound_launch_policy: system_default_browser_required
+      callback_registration_assumption: >
+        Linux claims are limited to the named GNOME desktop profiles. Default
+        browser launch uses the OS default handler; callback return uses desktop-file
+        or portal-backed scheme handling and must validate scheme + correlation.
+      return_route_claims:
+        - claim_kind: claimed_primary
+          return_mode_class: platform_deep_link_return
+          return_origin_validation_class: deep_link_scheme_pinned
+          notes: >
+            Primary return route on the claimed GNOME desktop profiles. If the
+            desktop environment/session cannot provide reliable scheme return, the
+            profile must degrade visibly; silent fallback is unclaimed.
+        - claim_kind: best_effort_repair_only
+          return_mode_class: manual_return_resume
+          return_origin_validation_class: manual_resume_only
+          notes: >
+            Repair-only fallback for blocked returns; always preserves local work.
+    proxy_inheritance:
+      system_proxy_authority: GNOME proxy settings plus launcher environment proxies.
+      system_pac_authority: PAC honored only when the session exposes a PAC source.
+      explicit_override_rules: >
+        Manual and environment proxy modes are admissible as typed overrides through
+        the transport packet. If PAC is unavailable on the claimed profile, the
+        effective proxy state must disclose that limitation explicitly.
+    trust_store_integration:
+      default_trust_store_source: os_trust_store
+      enterprise_ca_overlay_trust_store_source: os_trust_store_plus_org_ca_bundle
+      authority_note: >
+        The distro CA bundle is the default OS trust. Enterprise CA import must use
+        the distro/desktop-profile tooling and remain inspectable as an org CA overlay.
+      client_certificate_handling_note: >
+        Client certificates are referenced by handle only; trust failures must name
+        client-certificate-required/expired states explicitly with repair actions.
+    credential_store_integration:
+      trust_store_class: os_keychain
+      backend_label: Secret Service via libsecret / GNOME Keyring
+      unlock_state_must_surface:
+        - unlocked
+        - locked
+        - unavailable
+        - degraded_session_only
+      failure_copy_requirements: >
+        Failure copy must name "Secret Service / Keyring" explicitly and, when the
+        store is unavailable, must show visible session-only downgrade (where allowed)
+        rather than implying durable secure storage still exists.
+
+conformance_case_index:
+  - case_class: normal_browser_return
+    fixture: normal_browser_return.yaml
+    covers:
+      - platform_deep_link_return
+      - loopback_http_return
+      - preserved_local_work_local_first
+  - case_class: stale_callback_return
+    fixture: stale_callback_return.yaml
+    covers:
+      - session_superseded_or_expired
+      - replay_denied
+      - reopen_required_reauth
+  - case_class: wrong_tenant_or_workspace_return
+    fixture: wrong_tenant_return_denied.yaml
+    covers:
+      - tenant_or_workspace_binding_enforced
+      - origin_validation_fail_closed
+  - case_class: proxy_denied
+    fixture: proxy_denied.yaml
+    covers:
+      - deny_proxy_resolution
+      - no_direct_origin_bypass
+      - settings_and_diagnostics_projection
+  - case_class: client_certificate_required
+    fixture: client_certificate_required.yaml
+    covers:
+      - client_certificate_required
+      - deny_trust_no_insecure_fallback
+  - case_class: credential_store_locked_on_startup
+    fixture: credential_store_locked_on_startup.yaml
+    covers:
+      - locked_store_unlock_path
+      - continue_local_without_sign_in
+  - case_class: trust_store_unavailable_on_claimed_profile
+    fixture: trust_store_unavailable.yaml
+    covers:
+      - trust_store_unavailable
+      - session_only_downgrade_visible
+      - typed_denial_for_protected_actions

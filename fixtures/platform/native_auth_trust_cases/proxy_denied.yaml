@@ -1,0 +1,48 @@
+# Proxy denied — typed proxy failure; no direct-origin bypass.
+#
+# Reviewer-side conformance case for:
+# - docs/platform/native_trust_and_auth_conformance.md §5–§7
+__fixture__:
+  name: proxy_denied
+  scenario: >
+    A networked follow-up action (token exchange, discovery, policy refresh, or
+    registry/update fetch) is denied because the effective proxy route is unavailable
+    or conflicting. The denial is typed (`deny_proxy_resolution`) and forbids direct
+    origin fallback. Local editing remains available; repair actions are limited to
+    review proxy settings, refresh policy, or retry within the same proxy posture.
+  drill_packet_ref: docs/platform/native_trust_and_auth_conformance.md
+  contract_sections:
+    - "§5 Proxy overrides"
+    - "§6 Settings and diagnostics"
+  exercised_axes:
+    transport_decision_code: deny_proxy_resolution
+    no_bypass_status: no_bypass_enforced
+
+case_id: native-auth-trust-case:proxy:denied:01
+case_class: proxy_denied
+applies_to_claimed_profiles:
+  - macos_15_plus_universal
+  - windows_11_23h2_plus_x86_64
+  - linux_ubuntu_24_04_gnome_wayland_x86_64
+  - linux_ubuntu_24_04_gnome_x11_x86_64
+  - linux_fedora_current_gnome_wayland_x86_64
+  - linux_debian_stable_gnome_x11_x86_64
+
+upstream_fixture_refs:
+  transport_remediation_example: fixtures/network/transport_remediation_cases/conflicting_proxy_state.yaml
+  audit_event_example: fixtures/network/audit_event_examples/vcs_network_enterprise_mirror_failed.yaml
+
+expected_records_emitted:
+  - transport_decision_record
+  - transport_denial_record
+
+expected_projection_surfaces:
+  - settings.transport: shows proxy mode + typed denial and offers review_proxy_settings
+  - diagnostics.transport_inspector: exports a metadata-safe denial packet
+  - support_bundle: includes denial ids and no-bypass projection, no raw URLs
+
+must_not_happen:
+  - retry direct origin after proxy denial without an exception/waiver
+  - collapse typed proxy denial into a generic "network error"
+  - block local editing because a networked surface failed
+
