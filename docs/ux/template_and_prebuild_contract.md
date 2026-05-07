@@ -1245,6 +1245,51 @@ listing the three unsuccessful items, and a
 `local_only_continuation_path_ref`. See
 [`post_create_handoff_partial_setup_failure.json`](../../fixtures/ux/template_and_prebuild_states/post_create_handoff_partial_setup_failure.json).
 
+### 13.9 Admin-policy-narrowed gallery
+
+An organization admin policy narrows the canonical gallery on this
+device. The gallery renders the surviving rows plus a
+`starter_policy_notice_record` with
+`policy_notice_class = admin_policy_notice` and
+`availability_narrowing_class = policy_narrowed_admin`. The notice cites
+typed `policy_narrowing_class_refs = [admin_policy]` and offers the
+resolution hook `continue_in_restricted_mode`. Bypass paths remain at
+equal weight. See
+[`template_gallery_admin_policy_narrowed.json`](../../fixtures/ux/template_and_prebuild_states/template_gallery_admin_policy_narrowed.json).
+
+### 13.10 Offline startup with no bundle
+
+Offline startup where no signed offline bundle and no usable mirror
+cache is available for the canonical gallery. The gallery renders only a
+local-safe row plus a `starter_policy_notice_record` with
+`policy_notice_class = mirror_or_airgap_policy_notice` and
+`availability_narrowing_class = offline_no_bundle`, offering resolution
+hooks `refresh_mirror`, `switch_to_live_origin`, and `set_up_later`. All
+four offline bypass paths render at equal weight. See
+[`template_gallery_offline_no_bundle.json`](../../fixtures/ux/template_and_prebuild_states/template_gallery_offline_no_bundle.json).
+
+### 13.11 Target-runtime-unavailable row
+
+First-run gallery where one starter requires a managed runtime that is
+unavailable. The row remains visible-but-disabled with
+`disabled_reason_code = target_runtime_unavailable` and carries an
+in-place `starter_policy_notice_record` with
+`policy_notice_class = target_runtime_unavailable_notice`. Resolution
+hooks `reconnect_required`, `continue_in_restricted_mode`, and
+`set_up_later` keep the state actionable, while bypass paths remain at
+equal weight. See
+[`template_gallery_target_runtime_unavailable.json`](../../fixtures/ux/template_and_prebuild_states/template_gallery_target_runtime_unavailable.json).
+
+### 13.12 Toolchain/OS compatibility health strip
+
+Gallery renders an inline health strip for a starter whose prerequisites
+are incompatible with this host. The strip includes
+`os_runtime_compatibility` with `result = fail` (`template_health_signal_class = live`)
+and `toolchain_compatibility` with `result = warn` (`template_health_signal_class = cached`,
+`last_validated_timestamp_class = older`) so the surface cannot
+over-claim compatibility. Bypass remains unblocked. See
+[`template_gallery_toolchain_os_incompatible.json`](../../fixtures/ux/template_and_prebuild_states/template_gallery_toolchain_os_incompatible.json).
+
 ## 14. Acceptance mapping
 
 - **Non-template, non-prebuild open path of equal weight.**
@@ -1252,8 +1297,9 @@ listing the three unsuccessful items, and a
   least one bypass path rendered at same zone, same weight,
   and same focus order on every gallery, picker,
   preflight summary, and resume-live card. Fixtures §13.1,
-  §13.2, §13.4, §13.5, §13.6, §13.7 all advertise the
-  bypass paths explicitly.
+  §13.2, §13.4, §13.5, §13.6, §13.7, §13.9, §13.10,
+  §13.11, and §13.12 all advertise the bypass paths
+  explicitly.
 - **No silent trust / extension install / setup run.**
   Surface rules §11.2, §11.3, §11.4, plus §6.2 rule 1
   (summary before commit) and §3.5 rule 2 (resume-live
@@ -1274,8 +1320,10 @@ listing the three unsuccessful items, and a
   the bypass paths still rendered at equal weight.
 - **Policy-narrowed or mirror-only fixture explains
   narrowing without external context.** Fixtures §13.5
-  (`fleet_policy_notice`) and §13.6
-  (`mirror_or_airgap_policy_notice`) both render the
+  (`fleet_policy_notice`), §13.6
+  (`mirror_or_airgap_policy_notice`), §13.9
+  (`admin_policy_notice`), and §13.10
+  (`mirror_or_airgap_policy_notice`) all render the
   `starter_policy_notice_record` in-place with the
   narrowing class and resolution hooks named verbatim.
 

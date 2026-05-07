@@ -447,6 +447,11 @@ code.
   [`/artifacts/product/task_success_corpus_seed.yaml`](../artifacts/product/task_success_corpus_seed.yaml);
   seed no-account switching scoreboard in
   [`/artifacts/product/no_account_switching_scoreboard_seed.yaml`](../artifacts/product/no_account_switching_scoreboard_seed.yaml).
+- [`product/template_badge_contract.md`](./product/template_badge_contract.md)
+  — badge and disclosure contract for template discovery surfaces that
+  binds template cards to the template/prebuild disclosure contract,
+  template registry truth, and template-health evidence so surfaces do
+  not over-claim certification, compatibility, or support posture.
 
 ## Managed services
 
