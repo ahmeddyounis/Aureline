@@ -1,0 +1,315 @@
+# Data ownership and export-risk taxonomy register.
+#
+# Companion to docs/state/data_ownership_and_risk_taxonomy.md and
+# schemas/support/data_risk_class.schema.json. This register exists so
+# support exports, migration/delete flows, managed record governance,
+# audit events, collaboration metadata, AI evidence, and settings sync
+# payloads cite one shared vocabulary rather than minting surface-local
+# class names.
+
+schema_version: 1
+artifact_id: aureline.state.data_classes
+title: Data ownership, export-risk, and redaction taxonomy register
+
+contract_source: docs/state/data_ownership_and_risk_taxonomy.md
+
+related_docs:
+  - docs/state/state_object_inventory.md
+  - docs/state/profile_and_state_map.md
+  - docs/support/support_bundle_contract.md
+  - docs/support/support_bundle_preview_contract.md
+  - docs/governance/storage_and_retention_vocabulary.md
+  - artifacts/governance/record_class_registry.yaml
+
+companion_refs:
+  data_risk_class_schema_ref: schemas/support/data_risk_class.schema.json
+  state_object_inventory_ref: artifacts/state/state_objects.yaml
+  support_bundle_schema_ref: schemas/support/support_bundle.schema.json
+  sync_scope_bundle_schema_ref: schemas/settings/sync_scope_bundle.schema.json
+  storage_modes_register_ref: artifacts/governance/storage_modes.yaml
+  record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+
+# --------------------------------------------------------------------------
+# Closed vocabularies.
+#
+# Adding a value is additive-minor and MUST bump schema_version.
+# Repurposing a value is breaking and requires a new decision row in
+# the governing contract.
+# --------------------------------------------------------------------------
+
+data_ownership_class_vocabulary:
+  # Re-exported from artifacts/state/state_objects.yaml object_category_vocabulary.
+  - user_authored_durable_state
+  - workspace_authored_durable_state
+  - derived_disposable_state
+  - recovery_journal_state
+  - audit_trust_security_state
+  - evidence_support_state
+
+authority_class_vocabulary:
+  # Re-exported verbatim from docs/state/profile_and_state_map.md §1.
+  - user_authored_durable_truth
+  - user_owned_recovery_state
+  - admin_or_control_artifact
+  - disposable_derived_cache
+
+data_risk_class_vocabulary:
+  # Re-exported verbatim from schemas/support/support_bundle.schema.json diagnostic_data_class.
+  - metadata_only
+  - environment_adjacent
+  - code_adjacent
+  - high_risk
+
+# --------------------------------------------------------------------------
+# Ownership-class definitions.
+#
+# These are defaults. Concrete objects may narrow posture (stricter
+# export or stronger backup) but must not silently widen it.
+# --------------------------------------------------------------------------
+
+ownership_classes:
+  - id: user_authored_durable_state
+    authoritative_owner_default: user
+    authority_class_default: user_authored_durable_truth
+    rebuildability_default: not_rebuildable
+    backup_before_migrate_default: required_before_destructive_migration
+    delete_implications_default: preview_and_checkpoint_before_destructive_change
+    export_implications_default: exportable_as_user_right_under_declared_redaction
+
+  - id: workspace_authored_durable_state
+    authoritative_owner_default: workspace
+    authority_class_default: user_authored_durable_truth
+    rebuildability_default: not_rebuildable
+    backup_before_migrate_default: required_before_destructive_migration
+    delete_implications_default: scoped_review_required_preserve_provenance
+    export_implications_default: exportable_only_in_workspace_scoped_packets
+
+  - id: derived_disposable_state
+    authoritative_owner_default: system_derived
+    authority_class_default: disposable_derived_cache
+    rebuildability_default: rebuildable
+    backup_before_migrate_default: not_applicable
+    delete_implications_default: clear_allowed_with_truthful_rebuild_posture
+    export_implications_default: summary_only_or_opt_in_only
+
+  - id: recovery_journal_state
+    authoritative_owner_default: user
+    authority_class_default: user_owned_recovery_state
+    rebuildability_default: partially_rebuildable_preserve_until_ack
+    backup_before_migrate_default: often_required_before_destructive_replace
+    delete_implications_default: preview_required_and_never_strand_recovery_promises
+    export_implications_default: opt_in_only_redaction_heavy_never_raw_secrets
+
+  - id: audit_trust_security_state
+    authoritative_owner_default: admin_or_control
+    authority_class_default: admin_or_control_artifact
+    rebuildability_default: not_rebuildable
+    backup_before_migrate_default: handled_by_authority
+    delete_implications_default: local_and_managed_delete_are_distinct_receipt_required
+    export_implications_default: policy_bound_manifested_exports_only
+
+  - id: evidence_support_state
+    authoritative_owner_default: user_local_then_case_or_tenant_on_promotion
+    authority_class_default: user_owned_recovery_state
+    rebuildability_default: not_rebuildable_policy_bounded
+    backup_before_migrate_default: required_when_evidence_would_be_lost
+    delete_implications_default: delete_by_retention_and_hold_posture_with_disclosures
+    export_implications_default: preview_by_manifest_required_high_risk_requires_high_friction
+
+# --------------------------------------------------------------------------
+# Risk-class definitions.
+#
+# Risk class applies to the representation that crosses the boundary,
+# not the underlying raw material referenced by an opaque id.
+# --------------------------------------------------------------------------
+
+risk_classes:
+  - id: metadata_only
+    required_controls:
+      preview: allowed_by_default
+      export: allowed_by_default
+      redaction: apply_boundary_redaction_contract
+      retention: bounded_by_record_class_or_local_expiry
+      policy: default_allow_unless_policy_blocks
+    examples:
+      - build_id_and_versions
+      - policy_fingerprints
+      - extension_ids_and_versions
+
+  - id: environment_adjacent
+    required_controls:
+      preview: required_before_export_or_promotion
+      export: allowed_after_preview
+      redaction: must_avoid_raw_hostnames_paths_tokens
+      retention: bounded_and_manifested
+      policy: consent_recorded_on_promotion
+    examples:
+      - toolchain_version_summaries
+      - route_and_proxy_posture_summaries
+      - connectivity_and_capability_fingerprints
+
+  - id: code_adjacent
+    required_controls:
+      preview: item_level_preview_required
+      export: opt_in_only_per_item
+      redaction: strong_redaction_or_omit
+      retention: bounded_and_manifested
+      policy: must_not_export_by_default
+    examples:
+      - stack_traces
+      - filenames_and_selected_snippets
+      - bounded_query_or_command_summaries
+
+  - id: high_risk
+    required_controls:
+      preview: high_friction_preview_required
+      export: prohibited_by_default
+      redaction: raw_secret_bytes_forbidden
+      retention: local_only_or_policy_held_only_after_explicit_promotion
+      policy: explicit_policy_gate_required
+    examples:
+      - raw_dump_or_core_bytes
+      - full_transcripts_or_raw_traces
+      - secret_bearing_payloads
+
+# --------------------------------------------------------------------------
+# Cross-surface mapping seeds.
+#
+# These are example rows intended for shared tooling and reviewers.
+# Surfaces may add additional rows in their own contracts, but MUST
+# reuse the same ids and class tokens.
+# --------------------------------------------------------------------------
+
+surface_mappings:
+  - id: settings_sync_scope_bundle_entry_preview
+    surface: settings_sync
+    ownership_class: derived_disposable_state
+    authority_class: disposable_derived_cache
+    risk_class: metadata_only
+    schema_refs:
+      - schemas/settings/sync_scope_bundle.schema.json
+    notes: >
+      Sync scope bundles carry redacted value previews and metadata.
+      Entries whose ADR-0007 redaction_class is exclude_from_export are
+      filtered out before the bundle is minted. Credentials cross as
+      alias handles only.
+
+  - id: crash_envelope
+    surface: crash_reporting
+    ownership_class: evidence_support_state
+    authority_class: user_owned_recovery_state
+    risk_class: metadata_only
+    record_class_id_ref: crash_diagnostic_payload
+    schema_refs:
+      - schemas/support/support_bundle.schema.json
+    notes: >
+      Crash envelopes export build identity, chronology, and references
+      to dumps/cores without embedding raw dump bytes.
+
+  - id: crash_dump_or_core
+    surface: crash_reporting
+    ownership_class: evidence_support_state
+    authority_class: user_owned_recovery_state
+    risk_class: high_risk
+    record_class_id_ref: crash_diagnostic_payload
+    schema_refs:
+      - artifacts/support/crash_artifact_retention_seed.json
+    notes: >
+      Raw dumps/cores are high risk. Default posture is local-only
+      retention with explicit opt-in for any promotion or export path.
+
+  - id: support_bundle_manifest
+    surface: support_export
+    ownership_class: evidence_support_state
+    authority_class: user_owned_recovery_state
+    risk_class: environment_adjacent
+    record_class_id_ref: support_bundle_archive
+    schema_refs:
+      - schemas/support/support_bundle_manifest.schema.json
+      - schemas/support/support_bundle_preview_item.schema.json
+    notes: >
+      The manifest is environment-adjacent: it enumerates what was
+      collected, what was omitted, and what was redacted. Item rows
+      carry their own risk classes; the manifest remains truthful even
+      when high-risk bodies are withheld.
+
+  - id: audit_event_row
+    surface: audit
+    ownership_class: audit_trust_security_state
+    authority_class: admin_or_control_artifact
+    risk_class: metadata_only
+    notes: >
+      Audit events are metadata-only representations: ids, decision
+      codes, and opaque refs. Raw secrets, raw payload bodies, and raw
+      user content never appear.
+
+  - id: collaboration_session_state
+    surface: collaboration
+    ownership_class: workspace_authored_durable_state
+    authority_class: user_authored_durable_truth
+    risk_class: metadata_only
+    schema_refs:
+      - schemas/collaboration/session_state.schema.json
+    notes: >
+      Session metadata is export-safe by design: the boundary schema
+      forbids raw buffer text, raw terminal bytes, and raw endpoint
+      payloads.
+
+  - id: ai_prompt_result_cache_metadata
+    surface: ai
+    ownership_class: derived_disposable_state
+    authority_class: disposable_derived_cache
+    risk_class: code_adjacent
+    notes: >
+      Prompt/result caches are code-adjacent; they are local-only by
+      default and bounded by TTL. Exports should prefer manifests and
+      evidence refs over raw bodies.
+
+  - id: ai_evidence_packet_manifest
+    surface: ai
+    ownership_class: evidence_support_state
+    authority_class: user_owned_recovery_state
+    risk_class: code_adjacent
+    schema_refs:
+      - schemas/ai/evidence_packet.schema.json
+      - schemas/ai/evidence_replay_packet.schema.json
+      - schemas/ai/audit_storage_manifest.schema.json
+    notes: >
+      AI evidence packets are exportable only through manifests plus
+      declared redaction posture. When the underlying evidence would be
+      high-risk, the packet exports refs and omission markers instead.
+
+  - id: extension_inventory_manifest
+    surface: extensions
+    ownership_class: derived_disposable_state
+    authority_class: disposable_derived_cache
+    risk_class: metadata_only
+    notes: >
+      Extension inventory is metadata-only (ids, versions, trust and
+      permission class labels). Extension private storage is excluded
+      from default exports.
+
+  - id: extension_install_review_case
+    surface: extensions
+    ownership_class: audit_trust_security_state
+    authority_class: admin_or_control_artifact
+    risk_class: environment_adjacent
+    schema_refs:
+      - schemas/extensions/effective_permission_review.schema.json
+    notes: >
+      Install review cases carry environment-adjacent posture (capability
+      and permission class summaries) and must avoid raw secrets or raw
+      endpoint payloads.
+
+  - id: managed_record_class_row
+    surface: managed_service_records
+    ownership_class: audit_trust_security_state
+    authority_class: admin_or_control_artifact
+    risk_class: metadata_only
+    schema_refs:
+      - artifacts/governance/record_class_registry.yaml
+    notes: >
+      Managed record governance exports should be metadata-only by
+      default: class ids, scope posture, retention posture, export
+      formats, and policy references. Content bytes are handled via
+      the per-record-class export path.
