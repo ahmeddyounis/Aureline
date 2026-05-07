@@ -1,0 +1,92 @@
+# Snippet freshness ledger.
+#
+# This artifact makes snippet/example freshness mechanically checkable
+# across docs packs, guided steps, migration examples, and provider /
+# browser-handoff guidance.
+#
+# The ledger is the stable place to declare:
+#   - which snippet ids are tracked;
+#   - what source/version/compatibility anchors must remain attached;
+#   - which command ids or handoff reasons a snippet is expected to cite;
+#   - which posture a snippet carries (verified, illustrative, retest_pending);
+#   - which exception windows (time-boxed) are approved for known drift.
+#
+# Planning identifiers (milestones, task ids) MUST NOT appear in user-facing
+# strings produced from this artifact.
+
+schema_version: 1
+artifact_id: aureline.docs.snippet_freshness_ledger
+status: seeded
+
+policy_document: docs/docs/stale_example_ci.md
+scanner_tool: tools/docs/stale_example_scan/scan_docs_freshness.py
+scanner_config: ci/check_docs_freshness.yml
+
+posture_classes:
+  - id: verified
+    meaning: >
+      Snippet/example is expected to be correct for the declared source
+      and version anchors. Drift fails CI unless covered by an explicit
+      exception window.
+  - id: illustrative
+    meaning: >
+      Snippet/example is permitted to be non-executable or non-verified,
+      but still must carry stable ids and traceable source/version anchors.
+  - id: retest_pending
+    meaning: >
+      Snippet/example requires re-verification. This posture blocks
+      promotion unless an exception window explicitly allows it.
+
+failure_classes:
+  - id: version_mismatch
+    meaning: Snippet targets a different build/version than expected.
+  - id: missing_source_anchor
+    meaning: Snippet lacks required citation/symbol/anchor linkage.
+  - id: drifted_command_id
+    meaning: Guided content references a different command id than expected.
+  - id: stale_screenshot_safe_copy
+    meaning: Screenshot-safe wording drifted without ledger update.
+  - id: stale_migration_example
+    meaning: Migration example drifted from its compatibility anchors.
+  - id: stale_provider_browser_handoff_guidance
+    meaning: Provider/browser-handoff guidance drifted (reason, pack rev, or version anchor).
+
+entries:
+  # Docs pack examples.
+  - snippet_id: example:workspace-trust:quick-tour
+    snippet_kind: docs_pack_example
+    posture_class: verified
+    source_path: fixtures/docs/docs_pack_examples/project_docs_fresh.json
+    expected_pack_revision_ref: pack-rev:project:aureline:2026.04.19-01
+
+  - snippet_id: example:format-on-save:default
+    snippet_kind: docs_pack_example
+    posture_class: verified
+    source_path: fixtures/docs/docs_pack_examples/project_docs_fresh.json
+    expected_pack_revision_ref: pack-rev:project:aureline:2026.04.19-01
+
+  # Guided step (learnability / onboarding).
+  - snippet_id: docs:learn:tour:command_backed_step:01:waypoint:01
+    snippet_kind: guided_step
+    posture_class: verified
+    source_path: fixtures/docs/learning_tour_cases/command_backed_action_guided_step.yaml
+    expected_command_id_ref: cmd:core:open_folder
+
+  # Migration example (compatibility anchored).
+  - snippet_id: rollback_checkpoint.example.checkpoint_created_pre_apply
+    snippet_kind: migration_example
+    posture_class: verified
+    source_path: artifacts/migration/rollback_checkpoint_examples/checkpoint_created_pre_apply.yaml
+    expected_compatibility_row_refs:
+      - compat_row:state.profile_layout_schema
+      - compat_row:command_plane.command_descriptor_schema
+
+  # Provider/browser-handoff guidance.
+  - snippet_id: assist-handoff:provider-native:http-client-get:01
+    snippet_kind: provider_handoff
+    posture_class: verified
+    source_path: fixtures/docs/assist_reference_cases/provider_native_browser_handoff.json
+    expected_pack_revision_ref: pack-rev:vendor:http-provider:2026.04.01-02
+    expected_browser_handoff_reason: external_docs_or_runbook
+    expected_version_match_state_at_mint: exact_build_match
+

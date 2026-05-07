@@ -1,0 +1,62 @@
+# Docs/snippet freshness gate.
+#
+# Runs the stale-example/snippet freshness scanner and uploads the
+# JSON report plus the captured summary output.
+
+name: check_docs_freshness
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_docs_freshness.yml"
+      - "ci/check_docs_freshness.*"
+      - "tools/docs/stale_example_scan/**"
+      - "artifacts/docs/snippet_freshness_ledger.yaml"
+      - "docs/docs/stale_example_ci.md"
+      - "fixtures/docs/**"
+      - "artifacts/migration/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-docs-freshness-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  docs_freshness:
+    name: Docs freshness
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run docs freshness gate
+        run: |
+          ./ci/check_docs_freshness.sh --out-dir target/docs-freshness
+
+      - name: Upload docs freshness artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-freshness-${{ github.run_id }}
+          path: target/docs-freshness
+          if-no-files-found: error
+          retention-days: 30
+
