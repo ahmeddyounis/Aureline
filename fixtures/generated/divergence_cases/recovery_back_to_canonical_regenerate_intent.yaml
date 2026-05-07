@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=../../../schemas/generated/divergence_record.schema.json
+__fixture__:
+  name: recovery_back_to_canonical_regenerate_intent
+  scenario: >-
+    A structured lockfile is a derived artifact. A user attempts to edit it as
+    raw text outside any declared round-trip-safe region. The write is refused
+    and the recovery path is made explicit: regenerate from canonical manifests
+    rather than preserving an ad hoc fork. This demonstrates the "recovery back
+    to canonical-controlled state" rule without implying the lockfile becomes
+    canonical after a direct write.
+  seed_section: Recovery via regeneration; refuse out-of-policy direct edit
+  linked_docs:
+    - docs/generated/diverged_from_generator_contract.md
+    - docs/architecture/generated_artifact_safe_edit_policy.md
+
+record_kind: divergence_record
+divergence_record_schema_version: 1
+divergence_id: div.override.lockfile.out_of_policy.refused.regenerate.v1
+
+artifact:
+  artifact_ref: aureline://Cargo.lock
+  artifact_label: Cargo.lock
+  artifact_class: structured_lockfile
+  artifact_origin_class: generated_artifact
+  artifact_posture_ref: posture.lockfile.safe_ranges_only.v1
+  generated_artifact_lineage_ref: lineage.lockfile.cargo_lock.v12
+  canonical_source_resolution:
+    resolution_state: multiple_known
+    display_refs:
+      - Cargo.toml
+      - crates/*/Cargo.toml
+  generator_or_upstream_ref:
+    owner_class: resolver
+    display_label: cargo_resolver
+    version_or_revision: "1.78.0"
+  pre_override_provenance_state: stale_inputs
+
+decision:
+  action_class: direct_text_edit
+  outcome_class: write_refused
+  refusal_reason_class: round_trip_not_proven
+  override_policy_snapshot:
+    policy_class: declared_safe_ranges_only
+    allowed_edit_region_summaries:
+      - Dependency selection preference region (structured-safe edit only)
+    safe_override_review:
+      review_requirement: required_per_override
+      review_ref: review.lockfile.structured_safe_edit_sheet.v1
+      reviewer_summary: Lockfile edits are only admissible through structured safe-edit ranges with review.
+    override_provenance_required: true
+  compare_requirement:
+    compare_before_write_required: true
+    compare_before_apply_required: true
+    evidence_state: not_required
+    summary: Raw direct edit refused; recovery routes through regeneration or structured-safe edit with compare-first review.
+  summary: Direct raw edit refused; regenerate from canonical manifests or use structured-safe edit ranges.
+
+rebuild_intent:
+  intent_class: regenerate_required_before_authoritative_claims
+  action_ref: resolver.regenerate_lockfile
+  cost_class: fast
+  summary: Re-resolve dependencies from canonical manifests to restore an authoritative lockfile.
+
+emitted_at: "2026-05-07T23:35:55Z"
+

@@ -11,6 +11,10 @@ Companion artifacts:
 - [`/schemas/generated/artifact_edit_posture.schema.json`](../../schemas/generated/artifact_edit_posture.schema.json)
   — boundary schema for the cross-surface posture record every
   non-owning surface reads.
+- [`/docs/generated/diverged_from_generator_contract.md`](../generated/diverged_from_generator_contract.md)
+  — contract for diverged-from-generator state, override review gating, and
+  rebuild-intent/recovery obligations when direct edits are attempted on
+  non-canonical artifacts.
 - [`/fixtures/generated/drift_regeneration_manifest.yaml`](../../fixtures/generated/drift_regeneration_manifest.yaml)
   — reviewer-facing corpus of drift, regeneration, divergence, mirror,
   and fallback cases.

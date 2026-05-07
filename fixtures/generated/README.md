@@ -11,6 +11,9 @@ The corpus is intentionally split:
 - `../../artifacts/generated/viewer_fallback_examples/`
   Concrete posture records showing how search/open/AI/export/support
   projections preserve the same tokens.
+- `divergence_cases/`
+  Worked divergence/override decision records for admitted overrides and refused
+  direct edits on non-canonical artifacts.
 - `lineage_hint_examples/`
   Row-level corpus projecting the posture record onto explorer, quick-
   open, full-search, symbol-jump, docs-search, cross-repo, graph-

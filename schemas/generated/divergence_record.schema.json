@@ -1,0 +1,345 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/generated/divergence_record.schema.json",
+  "title": "Aureline diverged-from-generator override and recovery record",
+  "description": "Boundary schema for divergence_record instances frozen in docs/generated/diverged_from_generator_contract.md. A divergence_record is emitted at the write boundary whenever a user, tool, or workflow attempts to directly edit a non-canonical artifact (generated output, mirrored artifact, preview projection, or imported artifact with incomplete lineage) and that attempt is either (a) admitted via an explicit override policy and forces a diverged_from_generator posture, or (b) refused because the artifact class/state does not allow direct edits, required review/compare evidence is missing, or the canonical basis cannot be proven. The record exists so explorer/search rows, open chrome, review/AI context builders, support bundles, and export packets can quote one machine-readable answer to: what was targeted, what policy applied, what review/compare evidence exists, what lineage fields must update, and what rebuild/recovery intent applies now. Raw artifact bytes, raw diffs, raw canonical source bodies, raw mirror payloads, raw URLs with credentials, raw absolute paths, and secret material MUST NOT appear; this record carries opaque refs, typed vocabulary, digests, and short reviewer-facing labels only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/divergence_record" }
+  ],
+  "$defs": {
+    "divergence_record_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for divergence_record payloads. Current value is 1. Bumped only on breaking payload changes; additive optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "divergence_record"
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "opaque_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque reference safe to log, export, or persist. Never a raw absolute path and never a credential-bearing URL."
+    },
+
+    "short_summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 480
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "seed_section": { "type": "string" },
+        "linked_docs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional fixture-only metadata carried by YAML/JSON examples. Producers MUST NOT rely on these fields at runtime."
+    },
+
+    "artifact_class": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/artifact_class"
+    },
+
+    "artifact_origin_class": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/artifact_origin_class"
+    },
+
+    "provenance_state": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/provenance_state"
+    },
+
+    "canonical_source_resolution": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/canonical_source_resolution"
+    },
+
+    "generator_or_upstream_ref": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/generator_or_upstream_ref"
+    },
+
+    "override_policy": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/override_policy"
+    },
+
+    "active_override_provenance": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/active_override_provenance"
+    },
+
+    "rebuild_intent": {
+      "$ref": "https://aureline.dev/schemas/generated/artifact_edit_posture.schema.json#/$defs/rebuild_intent"
+    },
+
+    "output_digest": {
+      "$ref": "https://aureline.dev/schemas/workspace/generated_artifact_lineage.schema.json#/$defs/output_digest"
+    },
+
+    "drift_state": {
+      "$ref": "https://aureline.dev/schemas/workspace/generated_artifact_lineage.schema.json#/$defs/drift_state"
+    },
+
+    "override_action_class": {
+      "type": "string",
+      "enum": [
+        "direct_text_edit",
+        "structured_safe_edit",
+        "apply_patch_or_refactor",
+        "external_rewrite_detected",
+        "mirror_controlled_path_edit_attempt",
+        "imported_artifact_edit"
+      ],
+      "description": "Coarse override/attempt classification used for analytics, support, and policy explanation. This is not a UI label."
+    },
+
+    "override_outcome_class": {
+      "type": "string",
+      "enum": [
+        "write_committed_diverged",
+        "write_refused"
+      ]
+    },
+
+    "refusal_reason_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "override_policy_not_available",
+        "mirror_promotion_only",
+        "canonical_source_unknown",
+        "review_required_missing",
+        "compare_required_missing",
+        "policy_blocks_write",
+        "round_trip_not_proven",
+        "basis_unavailable"
+      ],
+      "description": "Typed refusal reason emitted when outcome_class = write_refused."
+    },
+
+    "compare_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "compare_before_write_required",
+        "compare_before_apply_required",
+        "evidence_state",
+        "summary"
+      ],
+      "properties": {
+        "compare_before_write_required": {
+          "type": "boolean",
+          "description": "True when the write boundary requires compare-before-write posture (ADR-0006)."
+        },
+        "compare_before_apply_required": {
+          "type": "boolean",
+          "description": "True when the edit is a structured rewrite requiring compare-before-apply review."
+        },
+        "evidence_state": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "required_and_present",
+            "required_but_unavailable"
+          ],
+          "description": "Whether the required compare evidence exists for this attempt."
+        },
+        "compare_view_ref": {
+          "type": ["string", "null"],
+          "description": "Optional opaque pointer to the compare surface/view captured for review/export.",
+          "minLength": 1
+        },
+        "summary": {
+          "$ref": "#/$defs/short_summary"
+        }
+      }
+    },
+
+    "lineage_update_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lineage_ref",
+        "pre_drift_state",
+        "post_drift_state",
+        "pre_output_digest",
+        "post_output_digest"
+      ],
+      "properties": {
+        "lineage_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the generated_artifact_lineage_record when available."
+        },
+        "pre_drift_state": {
+          "$ref": "#/$defs/drift_state"
+        },
+        "post_drift_state": {
+          "$ref": "#/$defs/drift_state"
+        },
+        "pre_output_digest": {
+          "$ref": "#/$defs/output_digest"
+        },
+        "post_output_digest": {
+          "$ref": "#/$defs/output_digest"
+        }
+      },
+      "description": "Required when an admitted override commits a write and a lineage record exists; omitted when lineage is unavailable."
+    },
+
+    "artifact_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_ref",
+        "artifact_label",
+        "artifact_class",
+        "artifact_origin_class",
+        "artifact_posture_ref",
+        "canonical_source_resolution",
+        "generator_or_upstream_ref"
+      ],
+      "properties": {
+        "artifact_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque workspace reference for the artifact being edited (logical URI, tab id, or support-safe object ref)."
+        },
+        "artifact_label": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Redaction-safe label naming the artifact (file name or short logical label)."
+        },
+        "artifact_class": {
+          "$ref": "#/$defs/artifact_class"
+        },
+        "artifact_origin_class": {
+          "$ref": "#/$defs/artifact_origin_class"
+        },
+        "artifact_posture_ref": {
+          "$ref": "#/$defs/opaque_ref",
+          "description": "Opaque ref to the artifact_edit_posture_record that governs this artifact."
+        },
+        "generated_artifact_lineage_ref": {
+          "type": ["string", "null"],
+          "minLength": 1,
+          "description": "Optional opaque ref to the generated_artifact_lineage_record when available."
+        },
+        "canonical_source_resolution": {
+          "$ref": "#/$defs/canonical_source_resolution"
+        },
+        "generator_or_upstream_ref": {
+          "$ref": "#/$defs/generator_or_upstream_ref"
+        },
+        "pre_override_provenance_state": {
+          "$ref": "#/$defs/provenance_state"
+        }
+      }
+    },
+
+    "override_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_class",
+        "outcome_class",
+        "override_policy_snapshot",
+        "compare_requirement",
+        "summary"
+      ],
+      "properties": {
+        "action_class": {
+          "$ref": "#/$defs/override_action_class"
+        },
+        "outcome_class": {
+          "$ref": "#/$defs/override_outcome_class"
+        },
+        "refusal_reason_class": {
+          "$ref": "#/$defs/refusal_reason_class"
+        },
+        "override_policy_snapshot": {
+          "$ref": "#/$defs/override_policy"
+        },
+        "active_override_provenance": {
+          "$ref": "#/$defs/active_override_provenance"
+        },
+        "compare_requirement": {
+          "$ref": "#/$defs/compare_requirement"
+        },
+        "lineage_update": {
+          "$ref": "#/$defs/lineage_update_record"
+        },
+        "summary": {
+          "$ref": "#/$defs/short_summary"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome_class": { "const": "write_refused" } } },
+          "then": {
+            "required": [
+              "refusal_reason_class"
+            ]
+          }
+        },
+        {
+          "if": { "properties": { "outcome_class": { "const": "write_committed_diverged" } } },
+          "then": {
+            "required": [
+              "active_override_provenance"
+            ]
+          }
+        }
+      ]
+    },
+
+    "divergence_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "divergence_record_schema_version",
+        "divergence_id",
+        "artifact",
+        "decision",
+        "rebuild_intent",
+        "emitted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "$ref": "#/$defs/record_kind"
+        },
+        "divergence_record_schema_version": {
+          "$ref": "#/$defs/divergence_record_schema_version"
+        },
+        "divergence_id": {
+          "$ref": "#/$defs/non_empty_string"
+        },
+        "artifact": {
+          "$ref": "#/$defs/artifact_target"
+        },
+        "decision": {
+          "$ref": "#/$defs/override_decision"
+        },
+        "rebuild_intent": {
+          "$ref": "#/$defs/rebuild_intent"
+        },
+        "emitted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

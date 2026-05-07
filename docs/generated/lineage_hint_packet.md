@@ -23,6 +23,10 @@ Companion artifacts:
   token the row hint uses (`artifact_class`, `artifact_origin_class`,
   `provenance_state`, `default_edit_posture`, `rebuild_intent_class`)
   is the same enum the posture record defines.
+- [`/docs/generated/diverged_from_generator_contract.md`](./diverged_from_generator_contract.md)
+  — contract for diverged-from-generator state and override-review gating; row
+  hints rely on its invariants to forbid direct-edit offers on diverged,
+  unknown-lineage, and mirror-controlled rows.
 - [`/docs/architecture/generated_artifact_safe_edit_policy.md`](../architecture/generated_artifact_safe_edit_policy.md)
   — safe-edit policy, artifact-class policy matrix, and surface
   obligations this packet attaches to.
