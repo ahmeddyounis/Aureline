@@ -1,0 +1,339 @@
+# Capability inventory seed.
+#
+# Machine-readable register of capability inventory entries. The inventory
+# exists so capability state is first-class across:
+#   - in-product UI surfaces (settings rows, bundle cards, inspectors),
+#   - docs/help/about projections,
+#   - CLI/headless help,
+#   - support/export artifacts,
+#   - compatibility reports, and
+#   - release packets / release notes.
+#
+# Companion narrative contract:
+#   docs/governance/capability_inventory_contract.md
+#
+# Row schema:
+#   schemas/governance/capability_inventory_entry.schema.json
+#
+# Conformance:
+#   - Every entry conforms to the row schema.
+#   - capability_id is unique. Adding a row is additive-minor; removing a
+#     row is breaking. Narrow or retire using lifecycle_state and policy
+#     fields; do not delete.
+#   - Hidden/internal capabilities must not leak into public claims. Any
+#     row with public_claim_posture = forbidden must have claim_lanes = []
+#     and export_visibility = internal_redacted.
+#   - Milestone slugs and task ids MUST NOT appear in any id, path, label,
+#     or note field. Describe what the capability is, not which planning
+#     item it came from.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-07"
+
+contract_doc_ref: docs/governance/capability_inventory_contract.md
+entry_schema_ref: schemas/governance/capability_inventory_entry.schema.json
+capability_lifecycle_schema_ref: schemas/governance/capability_lifecycle.schema.json
+capability_projection_matrix_ref: docs/governance/capability_lifecycle_projection_matrix.md
+claim_manifest_contract_ref: docs/governance/claim_manifest_contract.md
+claim_propagation_rules_ref: artifacts/governance/claim_propagation_rules.yaml
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+experiments_register_ref: artifacts/governance/experiments_register.yaml
+boundary_manifest_ref: docs/product/boundary_manifest_strawman.md
+
+vocabulary:
+  lifecycle_states:
+    - labs
+    - preview
+    - beta
+    - stable
+    - lts_facing
+    - deprecated
+    - disabled_by_policy
+    - retired
+  surface_families:
+    - settings_row
+    - bundle_card
+    - command_palette_entry
+    - install_review_step
+    - docs_page
+    - help_or_about
+    - diagnostics_panel
+    - support_export_row
+    - policy_explainer_row
+    - cli_help
+    - compatibility_report
+    - release_packet
+    - release_notes
+  rollout_gate_kinds:
+    - feature_flag
+    - experiment
+    - rollout
+    - manual_gate
+  public_label_policy_values:
+    - public_label_required
+    - public_label_optional
+    - public_label_forbidden
+  public_claim_posture_values:
+    - claimable
+    - visible_but_nonclaimable
+    - forbidden
+  export_visibility_values:
+    - public_exportable
+    - support_export_only
+    - internal_redacted
+
+entries:
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: editor.inline_diagnostics
+    capability_kind: setting
+    surface_families:
+      - settings_row
+      - docs_page
+      - help_or_about
+      - cli_help
+      - support_export_row
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-buffer
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    dependency_marker_refs:
+      - cap:lifecycle:marker:structured_diagnostics_preview
+    rollout_gate:
+      gate_kind: feature_flag
+      gate_ref: flag:structured_diagnostics.preview
+      public_disclosure_required: true
+      notes: Opt-in preview gate; surfaces must disclose narrowing markers.
+    public_label: Inline diagnostics
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: workspace.symbol_index
+    capability_kind: workspace_capability
+    surface_families:
+      - diagnostics_panel
+      - docs_page
+      - support_export_row
+      - compatibility_report
+      - release_notes
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-vfs
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - compatibility_ecosystem_review
+      - release_evidence
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Workspace symbol index
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: bundle.dev_basics
+    capability_kind: bundle
+    surface_families:
+      - bundle_card
+      - install_review_step
+      - docs_page
+      - help_or_about
+      - release_notes
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-render
+    claim_lanes:
+      - docs_public_truth
+      - release_evidence
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Developer basics bundle
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: bundle.dev_basics.addon.ai_assist_preview
+    capability_kind: bundle
+    surface_families:
+      - bundle_card
+      - install_review_step
+      - docs_page
+      - release_notes
+    lifecycle_state: preview
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-render
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate:
+      gate_kind: manual_gate
+      gate_ref: policy_or_opt_in_required
+      public_disclosure_required: true
+      notes: Preview add-on must never read as stable-by-omission.
+    public_label: AI assist (preview)
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: ai.inline_completions
+    capability_kind: provider_linked_feature
+    surface_families:
+      - docs_page
+      - help_or_about
+      - settings_row
+      - support_export_row
+      - release_notes
+    lifecycle_state: beta
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-rpc
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+      - release_evidence
+    dependency_marker_refs:
+      - cap:lifecycle:marker:ai_provider_unknown_actor
+      - cap:lifecycle:marker:ai_provider_degraded
+    rollout_gate: null
+    public_label: Inline completions
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: telemetry.send_crash_dumps
+    capability_kind: setting
+    surface_families:
+      - settings_row
+      - docs_page
+      - help_or_about
+      - support_export_row
+    lifecycle_state: deprecated
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-telemetry
+    claim_lanes:
+      - support_export
+    dependency_marker_refs:
+      - cap:lifecycle:marker:policy_bundle_disables_crash_dump_send
+    rollout_gate:
+      gate_kind: manual_gate
+      gate_ref: admin_policy_bundle
+      public_disclosure_required: true
+      notes: Policy-disabled posture must remain explicit and export-safe.
+    public_label: Send crash dumps
+    public_label_policy: public_label_optional
+    public_claim_posture: visible_but_nonclaimable
+    export_visibility: support_export_only
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: bundle.enterprise_sso
+    capability_kind: bundle
+    surface_families:
+      - bundle_card
+      - policy_explainer_row
+      - docs_page
+      - support_export_row
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: release_evidence
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs:
+      - cap:lifecycle:marker:managed_control_plane_required
+    rollout_gate:
+      gate_kind: manual_gate
+      gate_ref: managed_only_channel_required
+      public_disclosure_required: true
+      notes: Managed-only posture must not collapse into generic unavailable.
+    public_label: Enterprise SSO
+    public_label_policy: public_label_optional
+    public_claim_posture: visible_but_nonclaimable
+    export_visibility: support_export_only
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: command.legacy_index_rebuild
+    capability_kind: command
+    surface_families:
+      - command_palette_entry
+      - cli_help
+      - docs_page
+      - release_notes
+      - support_export_row
+    lifecycle_state: deprecated
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-vfs
+    claim_lanes:
+      - docs_public_truth
+      - support_export
+    dependency_marker_refs: []
+    rollout_gate: null
+    public_label: Legacy index rebuild
+    public_label_policy: public_label_required
+    public_claim_posture: claimable
+    export_visibility: public_exportable
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: sdk.workspace_extension_binding
+    capability_kind: sdk_or_api_surface
+    surface_families:
+      - docs_page
+      - compatibility_report
+    lifecycle_state: labs
+    owner_dri: "@ahmeddyounis"
+    owning_lane: aureline-rpc
+    claim_lanes: []
+    dependency_marker_refs:
+      - cap:lifecycle:marker:sdk_extension_desktop_excluded
+    rollout_gate:
+      gate_kind: experiment
+      gate_ref: sdk.surface.opt_in
+      public_disclosure_required: true
+      notes: SDK surface is reserved; desktop/CLI projections must tombstone it.
+    public_label: null
+    public_label_policy: public_label_forbidden
+    public_claim_posture: forbidden
+    export_visibility: internal_redacted
+
+  - record_kind: capability_inventory_entry_record
+    capability_inventory_entry_schema_version: 1
+    capability_id: command.publish_release
+    capability_kind: command
+    surface_families:
+      - command_palette_entry
+      - install_review_step
+      - cli_help
+    lifecycle_state: stable
+    owner_dri: "@ahmeddyounis"
+    owning_lane: shell_command_system
+    claim_lanes: []
+    dependency_marker_refs:
+      - cap:lifecycle:marker:signing_attestation_preview
+      - cap:lifecycle:marker:release_publisher_narrowed
+    rollout_gate:
+      gate_kind: feature_flag
+      gate_ref: flag:signing_attestation.preview
+      public_disclosure_required: true
+      notes: Publish-release is a governed maintainer path; keep claims internal.
+    public_label: null
+    public_label_policy: public_label_forbidden
+    public_claim_posture: forbidden
+    export_visibility: internal_redacted

@@ -57,6 +57,11 @@ VERSION_SKEW_REGISTER_REL = "artifacts/compat/version_skew_register.yaml"
 CLAIM_MANIFEST_REL = "artifacts/governance/claim_manifest_seed.yaml"
 SOURCE_OF_TRUTH_MAP_REL = "artifacts/governance/source_of_truth_map.yaml"
 BOUNDARY_MANIFEST_REL = "docs/product/boundary_manifest_strawman.md"
+CAPABILITY_INVENTORY_SEED_REL = "artifacts/governance/capability_inventory_seed.yaml"
+CAPABILITY_INVENTORY_CONTRACT_REL = "docs/governance/capability_inventory_contract.md"
+CAPABILITY_INVENTORY_ENTRY_SCHEMA_REL = "schemas/governance/capability_inventory_entry.schema.json"
+CAPABILITY_PROJECTION_EXAMPLES_REL = "artifacts/governance/capability_projection_examples.yaml"
+DEPENDENCY_MARKER_EXAMPLES_REL = "artifacts/governance/dependency_marker_examples.yaml"
 REPO_TOPOLOGY_REL = "docs/repo/topology.md"
 DEPENDENCY_RULES_REL = "docs/repo/dependency_rules.md"
 ROOT_CARGO_TOML_REL = "Cargo.toml"
@@ -81,6 +86,7 @@ LAYER_ORDER = {"L0": 0, "L1": 1, "L2": 2, "L3": 3, "LX": 99}
 REQUIRED_CONTROL_ROWS = {
     "public_surface_truth_map": SOURCE_OF_TRUTH_MAP_REL,
     "boundary_manifest_strawman": BOUNDARY_MANIFEST_REL,
+    "capability_inventory_registry": CAPABILITY_INVENTORY_SEED_REL,
     "repository_package_inventory": PACKAGE_INVENTORY_REL,
     "service_topology_process_placement_policy": PROTECTED_DEPENDENCY_OVERVIEW_REL,
     "protected_path_dependency_rules": PROTECTED_DEPENDENCY_RULES_REL,
@@ -1783,6 +1789,217 @@ def validate_claim_manifest(repo: RepoView, deployment_profiles: list[str]) -> l
     return findings
 
 
+def validate_capability_inventory(repo: RepoView) -> list[Finding]:
+    findings: list[Finding] = []
+    inventory = repo.yaml(CAPABILITY_INVENTORY_SEED_REL)
+
+    contract_doc_ref = inventory.get("contract_doc_ref")
+    if isinstance(contract_doc_ref, str) and not existing_path_ref(repo, contract_doc_ref):
+        findings.append(
+            make_finding(
+                "error",
+                "capability_inventory.contract_doc_ref_exists",
+                CAPABILITY_INVENTORY_SEED_REL,
+                CAPABILITY_INVENTORY_SEED_REL,
+                f"capability inventory references missing contract_doc_ref '{contract_doc_ref}'",
+                "Keep contract_doc_ref pointed at the canonical capability-inventory contract doc.",
+                row_ref=contract_doc_ref,
+            )
+        )
+
+    entry_schema_ref = inventory.get("entry_schema_ref")
+    if isinstance(entry_schema_ref, str) and not existing_path_ref(repo, entry_schema_ref):
+        findings.append(
+            make_finding(
+                "error",
+                "capability_inventory.entry_schema_ref_exists",
+                CAPABILITY_INVENTORY_SEED_REL,
+                CAPABILITY_INVENTORY_SEED_REL,
+                f"capability inventory references missing entry_schema_ref '{entry_schema_ref}'",
+                "Keep entry_schema_ref pointed at the capability-inventory entry JSON Schema.",
+                row_ref=entry_schema_ref,
+            )
+        )
+
+    entries = inventory.get("entries", [])
+    if not isinstance(entries, list):
+        raise SystemExit(f"{CAPABILITY_INVENTORY_SEED_REL} must define a top-level entries list")
+    if not entries:
+        findings.append(
+            make_finding(
+                "error",
+                "capability_inventory.entries_present",
+                CAPABILITY_INVENTORY_SEED_REL,
+                CAPABILITY_INVENTORY_SEED_REL,
+                "capability inventory entries list is empty",
+                "Seed at least one capability inventory entry so projections can fail closed mechanically.",
+            )
+        )
+        return findings
+
+    capability_ids: list[str] = []
+    for row in entries:
+        capability_id = row.get("capability_id")
+        if not isinstance(capability_id, str) or not capability_id:
+            findings.append(
+                make_finding(
+                    "error",
+                    "capability_inventory.capability_id_required",
+                    CAPABILITY_INVENTORY_SEED_REL,
+                    CAPABILITY_INVENTORY_SEED_REL,
+                    "capability inventory entry is missing capability_id",
+                    "Every entry must carry a non-empty capability_id.",
+                )
+            )
+            continue
+        capability_ids.append(capability_id)
+
+        row_ref = item_ref(capability_id, CAPABILITY_INVENTORY_SEED_REL)
+        surface_families = row.get("surface_families")
+        if not isinstance(surface_families, list) or not surface_families:
+            findings.append(
+                make_finding(
+                    "error",
+                    "capability_inventory.surface_families_present",
+                    CAPABILITY_INVENTORY_SEED_REL,
+                    row_ref,
+                    f"capability inventory entry '{capability_id}' has an empty surface_families list",
+                    "Declare at least one surface family so downstream projection rules can be audited.",
+                    row_ref=capability_id,
+                )
+            )
+
+        marker_refs = row.get("dependency_marker_refs")
+        if not isinstance(marker_refs, list):
+            findings.append(
+                make_finding(
+                    "error",
+                    "capability_inventory.dependency_marker_refs_is_list",
+                    CAPABILITY_INVENTORY_SEED_REL,
+                    row_ref,
+                    f"capability inventory entry '{capability_id}' dependency_marker_refs is not a list",
+                    "Keep dependency_marker_refs as a list (may be empty) so consumers can treat markers as first-class.",
+                    row_ref=capability_id,
+                )
+            )
+
+        gate = row.get("rollout_gate")
+        if gate is not None and not isinstance(gate, dict):
+            findings.append(
+                make_finding(
+                    "error",
+                    "capability_inventory.rollout_gate_shape",
+                    CAPABILITY_INVENTORY_SEED_REL,
+                    row_ref,
+                    f"capability inventory entry '{capability_id}' rollout_gate must be null or an object",
+                    "Use null when there is no gate, otherwise provide gate_kind, gate_ref, and public_disclosure_required.",
+                    row_ref=capability_id,
+                )
+            )
+        if isinstance(gate, dict):
+            missing = [key for key in ("gate_kind", "gate_ref", "public_disclosure_required") if key not in gate]
+            if missing:
+                findings.append(
+                    make_finding(
+                        "error",
+                        "capability_inventory.rollout_gate_required_fields",
+                        CAPABILITY_INVENTORY_SEED_REL,
+                        row_ref,
+                        f"capability inventory entry '{capability_id}' rollout_gate is missing fields: {', '.join(missing)}",
+                        "Provide gate_kind, gate_ref, and public_disclosure_required on rollout_gate objects.",
+                        row_ref=capability_id,
+                    )
+                )
+
+        public_label_policy = row.get("public_label_policy")
+        if public_label_policy == "public_label_forbidden" and row.get("public_label") is not None:
+            findings.append(
+                make_finding(
+                    "error",
+                    "capability_inventory.public_label_forbidden_is_null",
+                    CAPABILITY_INVENTORY_SEED_REL,
+                    row_ref,
+                    f"capability inventory entry '{capability_id}' forbids public_label but public_label is non-null",
+                    "Set public_label to null when public_label_policy is public_label_forbidden.",
+                    row_ref=capability_id,
+                )
+            )
+
+        if row.get("public_claim_posture") == "forbidden":
+            claim_lanes = row.get("claim_lanes", [])
+            if claim_lanes:
+                findings.append(
+                    make_finding(
+                        "error",
+                        "capability_inventory.forbidden_claim_has_no_claim_lanes",
+                        CAPABILITY_INVENTORY_SEED_REL,
+                        row_ref,
+                        f"capability inventory entry '{capability_id}' is forbidden but has non-empty claim_lanes",
+                        "Set claim_lanes to an empty list when public_claim_posture is forbidden.",
+                        row_ref=capability_id,
+                    )
+                )
+            if row.get("export_visibility") != "internal_redacted":
+                findings.append(
+                    make_finding(
+                        "error",
+                        "capability_inventory.forbidden_claim_is_internal_redacted",
+                        CAPABILITY_INVENTORY_SEED_REL,
+                        row_ref,
+                        f"capability inventory entry '{capability_id}' is forbidden but export_visibility is not internal_redacted",
+                        "Set export_visibility to internal_redacted when public_claim_posture is forbidden.",
+                        row_ref=capability_id,
+                    )
+                )
+
+    for duplicate in register_duplicates(capability_ids):
+        findings.append(
+            make_finding(
+                "error",
+                "capability_inventory.unique_capability_ids",
+                CAPABILITY_INVENTORY_SEED_REL,
+                CAPABILITY_INVENTORY_SEED_REL,
+                f"capability inventory duplicates capability_id '{duplicate}'",
+                "Keep exactly one capability inventory entry per capability_id.",
+                row_ref=duplicate,
+            )
+        )
+
+    inventory_set = set(capability_ids)
+
+    def collect_capability_ids(payload: Any) -> set[str]:
+        found: set[str] = set()
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                if key == "capability_id" and isinstance(value, str) and value:
+                    found.add(value)
+                else:
+                    found |= collect_capability_ids(value)
+        elif isinstance(payload, list):
+            for value in payload:
+                found |= collect_capability_ids(value)
+        return found
+
+    referenced: set[str] = set()
+    referenced |= collect_capability_ids(repo.yaml(CAPABILITY_PROJECTION_EXAMPLES_REL))
+    referenced |= collect_capability_ids(repo.yaml(DEPENDENCY_MARKER_EXAMPLES_REL))
+
+    for missing in sorted(referenced - inventory_set):
+        findings.append(
+            make_finding(
+                "error",
+                "capability_inventory.coverage_for_seeded_projections",
+                CAPABILITY_INVENTORY_SEED_REL,
+                CAPABILITY_INVENTORY_SEED_REL,
+                f"capability inventory is missing capability_id '{missing}' referenced by seeded projection/marker examples",
+                "Add the missing capability to the capability inventory so example projections cannot drift from registry truth.",
+                row_ref=missing,
+            )
+        )
+
+    return findings
+
+
 def validate_command_parity(repo: RepoView) -> tuple[list[Finding], dict[str, Any] | None]:
     findings: list[Finding] = []
     tool_path = repo.rel(COMMAND_PARITY_TOOL_REL)
@@ -2710,6 +2927,7 @@ def main() -> int:
         ("compatibility_matrix", validate_compatibility_matrix(repo, boundary_profiles)),
         ("boundary_manifest", boundary_findings),
         ("claim_manifest", validate_claim_manifest(repo, boundary_profiles)),
+        ("capability_inventory", validate_capability_inventory(repo)),
     ]
     frozen_surface_findings, frozen_surface_analysis = validate_frozen_surface_manifest(repo.root, repo.scenario)
     checks.append(

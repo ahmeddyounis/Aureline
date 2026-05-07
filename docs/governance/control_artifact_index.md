@@ -54,6 +54,12 @@ Companion artifacts:
 - [`/artifacts/governance/labs_register.yaml`](../../artifacts/governance/labs_register.yaml)
   — contributor-visible Labs / prototype / preview inventory
   projected from the canonical register.
+- [`./capability_inventory_contract.md`](./capability_inventory_contract.md) and
+  [`/artifacts/governance/capability_inventory_seed.yaml`](../../artifacts/governance/capability_inventory_seed.yaml)
+  — capability inventory registry, lifecycle propagation, and public-claim
+  alignment contract. Prevents public-facing surfaces from claiming a
+  capability without an explicit registry row (owner, lifecycle posture,
+  gate disclosure, and export visibility).
 - [`/artifacts/governance/experiment_graduation_matrix.yaml`](../../artifacts/governance/experiment_graduation_matrix.yaml)
   and [`/fixtures/governance/experiment_edge_cases/`](../../fixtures/governance/experiment_edge_cases/)
   — lifecycle action packet requirements plus worked edge cases for

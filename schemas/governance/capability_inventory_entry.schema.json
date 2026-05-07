@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/capability_inventory_entry.schema.json",
+  "title": "Aureline capability-inventory registry entry",
+  "description": "Boundary schema for one capability_inventory_entry_record as published by the capability-inventory registry contract. Capability inventory entries make capability state first-class across product UI, docs, CLI/headless surfaces, support exports, compatibility reports, and release artifacts. Each entry binds one capability id to (1) the surface families it may appear on, (2) a declared lifecycle_state drawn from the canonical lifecycle vocabulary, (3) the claim lanes allowed to author public statements about the capability, (4) the rollout/flag gate (if any) that must be disclosed when the capability is not universally available, (5) a public-label policy that prevents hidden/internal capabilities from leaking into public claims, and (6) an export-visibility class that prevents internal-only capability surfaces from appearing in support bundles or compatibility artifacts without explicit approval. This schema is a registry entry contract, not a runtime evaluator: it does not compute effective lifecycle state, marker narrowing, or feature-flag resolution; it freezes the metadata needed so downstream projections can fail closed when a capability is missing, mislabeled, or overclaimed.",
+  "$ref": "#/$defs/capability_inventory_entry_record",
+  "$defs": {
+    "capability_inventory_entry_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for capability-inventory entries. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "capability_inventory_entry_record",
+      "description": "Discriminator for the record shape."
+    },
+    "capability_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Stable, machine-readable capability id. Lowercase dot/underscore/hyphen segments only so ids are safe to log, safe in support exports, and safe in release artifacts."
+    },
+    "capability_kind": {
+      "type": "string",
+      "enum": [
+        "setting",
+        "bundle",
+        "command",
+        "provider_linked_feature",
+        "workspace_capability",
+        "extension_capability",
+        "sdk_or_api_surface",
+        "docs_capability",
+        "support_capability"
+      ],
+      "description": "Which kind of capability this inventory entry describes. Mirrors schemas/governance/capability_lifecycle.schema.json capability_ref.capability_kind vocabulary."
+    },
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "settings_row",
+        "bundle_card",
+        "command_palette_entry",
+        "install_review_step",
+        "docs_page",
+        "help_or_about",
+        "diagnostics_panel",
+        "support_export_row",
+        "policy_explainer_row",
+        "cli_help",
+        "compatibility_report",
+        "release_packet",
+        "release_notes"
+      ],
+      "description": "Which surface family the capability may be projected onto. This is the inventory registry's surface-family vocabulary; it intentionally aligns with the capability projection surface classes, and extends them with CLI/help and release/compatibility destinations."
+    },
+    "lifecycle_state": {
+      "type": "string",
+      "enum": [
+        "labs",
+        "preview",
+        "beta",
+        "stable",
+        "lts_facing",
+        "deprecated",
+        "disabled_by_policy",
+        "retired"
+      ],
+      "description": "Frozen lifecycle-state vocabulary mirrored from schemas/governance/capability_lifecycle.schema.json."
+    },
+    "lane_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "description": "Lane id from artifacts/governance/ownership_matrix.yaml scorecard_lane_index."
+    },
+    "lane_id_set": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/lane_id" },
+      "uniqueItems": true
+    },
+    "owner_dri": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "description": "Named owner DRI for the capability."
+    },
+    "dependency_marker_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque dependency-marker ref (for example cap:lifecycle:marker:...). Consumers treat this as opaque text and do not parse it."
+    },
+    "dependency_marker_ref_set": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/dependency_marker_ref" },
+      "uniqueItems": true,
+      "description": "Declared dependency-marker refs that must be treated as first-class disclosures when the capability is projected."
+    },
+    "rollout_gate_kind": {
+      "type": "string",
+      "enum": [
+        "feature_flag",
+        "experiment",
+        "rollout",
+        "manual_gate"
+      ],
+      "description": "Kind of rollout gate that controls whether the capability is available or claimable on a given surface."
+    },
+    "nullable_rollout_gate": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gate_kind",
+            "gate_ref",
+            "public_disclosure_required"
+          ],
+          "properties": {
+            "gate_kind": { "$ref": "#/$defs/rollout_gate_kind" },
+            "gate_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512,
+              "description": "Opaque ref to the controlling rollout/flag row (for example a row id in artifacts/governance/experiments_register.yaml)."
+            },
+            "public_disclosure_required": {
+              "type": "boolean",
+              "description": "When true, any surface that lists or claims this capability MUST disclose the gate in a copy-safe way; hiding the gate behind generic wording is non-conforming."
+            },
+            "notes": {
+              "type": "string",
+              "description": "Optional short operator-reviewable note about the gate."
+            }
+          }
+        }
+      ]
+    },
+    "public_label_policy": {
+      "type": "string",
+      "enum": [
+        "public_label_required",
+        "public_label_optional",
+        "public_label_forbidden"
+      ],
+      "description": "Policy for whether the capability may have a public label (docs/help/release-note safe naming). public_label_forbidden is used for internal-only capabilities that must not leak into public claims."
+    },
+    "public_claim_posture": {
+      "type": "string",
+      "enum": [
+        "claimable",
+        "visible_but_nonclaimable",
+        "forbidden"
+      ],
+      "description": "Whether public-truth claim surfaces may cite this capability. claimable: may be named in public claim rows with its lifecycle/disclosure posture. visible_but_nonclaimable: may appear on in-product surfaces or docs as an inspected/internal detail but MUST NOT be used as a claim anchor. forbidden: must not appear in public claim channels; only internal inspection surfaces may reference it."
+    },
+    "export_visibility": {
+      "type": "string",
+      "enum": [
+        "public_exportable",
+        "support_export_only",
+        "internal_redacted"
+      ],
+      "description": "Whether the capability may appear in export artifacts. public_exportable means it may appear in public-proof packets and compatibility reports; support_export_only limits visibility to support bundles; internal_redacted means it must not appear in exports."
+    },
+    "capability_inventory_entry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "capability_inventory_entry_schema_version",
+        "capability_id",
+        "capability_kind",
+        "surface_families",
+        "lifecycle_state",
+        "owner_dri",
+        "owning_lane",
+        "claim_lanes",
+        "dependency_marker_refs",
+        "rollout_gate",
+        "public_label",
+        "public_label_policy",
+        "public_claim_posture",
+        "export_visibility"
+      ],
+      "properties": {
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "capability_inventory_entry_schema_version": {
+          "$ref": "#/$defs/capability_inventory_entry_schema_version"
+        },
+        "capability_id": { "$ref": "#/$defs/capability_id" },
+        "capability_kind": { "$ref": "#/$defs/capability_kind" },
+        "surface_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_family" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Surface families this capability may appear on."
+        },
+        "lifecycle_state": {
+          "$ref": "#/$defs/lifecycle_state",
+          "description": "Declared lifecycle posture for the capability inventory entry. Surfaces MUST NOT widen above the canonical effective lifecycle posture when it differs."
+        },
+        "owner_dri": { "$ref": "#/$defs/owner_dri" },
+        "owning_lane": { "$ref": "#/$defs/lane_id" },
+        "claim_lanes": {
+          "allOf": [
+            { "$ref": "#/$defs/lane_id_set" }
+          ],
+          "description": "Lane ids allowed to author public claims about this capability (docs/help/release/support). Empty when public_claim_posture = forbidden."
+        },
+        "dependency_marker_refs": { "$ref": "#/$defs/dependency_marker_ref_set" },
+        "rollout_gate": { "$ref": "#/$defs/nullable_rollout_gate" },
+        "public_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "minLength": 1, "maxLength": 256 }
+          ],
+          "description": "Public label used in docs/help/release-note copy when allowed. Null when public_label_policy = public_label_forbidden."
+        },
+        "public_label_policy": { "$ref": "#/$defs/public_label_policy" },
+        "public_claim_posture": { "$ref": "#/$defs/public_claim_posture" },
+        "export_visibility": { "$ref": "#/$defs/export_visibility" },
+        "notes": {
+          "type": "string",
+          "description": "Optional short reviewer-facing notes about the capability inventory entry."
+        }
+      },
+      "allOf": [
+        {
+          "description": "public_label_policy = public_label_forbidden forces public_label to null.",
+          "if": {
+            "properties": {
+              "public_label_policy": { "const": "public_label_forbidden" }
+            },
+            "required": ["public_label_policy"]
+          },
+          "then": {
+            "properties": {
+              "public_label": { "type": "null" }
+            },
+            "required": ["public_label"]
+          }
+        },
+        {
+          "description": "public_claim_posture = forbidden forces claim_lanes empty and export_visibility internal_redacted.",
+          "if": {
+            "properties": {
+              "public_claim_posture": { "const": "forbidden" }
+            },
+            "required": ["public_claim_posture"]
+          },
+          "then": {
+            "properties": {
+              "claim_lanes": { "maxItems": 0 },
+              "export_visibility": { "const": "internal_redacted" }
+            },
+            "required": ["claim_lanes", "export_visibility"]
+          }
+        }
+      ]
+    }
+  }
+}
