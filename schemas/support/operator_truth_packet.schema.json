@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/support/operator_truth_packet.schema.json",
+  "title": "Aureline operator-truth packet (route, target graph, lifecycle, approval lineage)",
+  "description": "Boundary schema for operator_truth_packet_record frozen in docs/support/operator_truth_packet.md. The packet is the export-safe operator-truth capsule support exports and headless diagnostics use to reconstruct what action ran (or was denied), which target/host boundary was in scope, which origin/target/route/exposure posture applied (and why it changed), what lifecycle/connectivity constraints shaped the action, which approval ticket and events admitted or blocked it, which install-review facts and capability posture were active, and which blocks were omitted or redacted. The packet MUST reuse frozen vocabularies from docs/runtime/target_graph_state_projection.md, docs/runtime/origin_target_route_taxonomy.md, docs/commands/command_descriptor_contract.md, docs/trust/approval_ticket_lifecycle_contract.md, and docs/trust/capability_sheet_contract.md; it MUST NOT mint surface-local alternatives. Raw secret bytes, raw provider payloads, raw URLs, raw hostnames, raw command lines, raw environment bodies, and raw content bodies never cross this boundary; only opaque refs, closed tokens, counts, and short reviewable sentences do. Missing or withheld blocks MUST be expressed explicitly via omitted_block_marker so absence is not mistaken for emptiness.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/operator_truth_packet_record" }
+  ],
+  "$defs": {
+    "operator_truth_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this operator-truth packet contract."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 900,
+      "description": "Short reviewer-facing sentence safe for UI, CLI/headless output, and support exports."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ],
+      "description": "Redaction class vocabulary shared across support/export packet families."
+    },
+    "packet_header": {
+      "allOf": [
+        {
+          "$ref": "https://aureline.dev/schemas/governance/evidence_packet_header.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "packet_family": { "const": "operator_truth_packet" }
+          },
+          "required": ["packet_family"]
+        }
+      ]
+    },
+    "omitted_block_marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "marker_kind",
+        "omission_reason_class",
+        "omission_marker_ref",
+        "summary"
+      ],
+      "properties": {
+        "marker_kind": { "type": "string", "const": "omitted_block_marker" },
+        "omission_reason_class": {
+          "$ref": "https://aureline.dev/schemas/support/support_bundle.schema.json#/$defs/omission_reason_class",
+          "description": "Typed omission reason aligned with the support-bundle omission vocabulary."
+        },
+        "omission_marker_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque id for the omission marker so support exports and previews can join omission receipts."
+        },
+        "summary": {
+          "$ref": "#/$defs/reviewable_sentence",
+          "description": "Reviewable explanation of what was withheld or missing."
+        },
+        "policy_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/non_empty_string" }
+          ],
+          "description": "Optional policy or rule ref that forced omission."
+        }
+      }
+    },
+    "governance_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_class_registry_ref",
+        "record_class_governance_ref",
+        "secret_redaction_adr_ref",
+        "evidence_id_conventions_ref",
+        "evidence_packet_header_schema_ref",
+        "command_descriptor_schema_ref",
+        "target_graph_state_schema_ref",
+        "origin_target_route_taxonomy_ref",
+        "approval_ticket_schema_ref",
+        "approval_event_schema_ref",
+        "capability_sheet_schema_ref",
+        "install_review_fact_grid_schema_ref",
+        "managed_workspace_lifecycle_state_schema_ref",
+        "connectivity_state_schema_ref"
+      ],
+      "properties": {
+        "record_class_registry_ref": { "$ref": "#/$defs/non_empty_string" },
+        "record_class_governance_ref": { "$ref": "#/$defs/non_empty_string" },
+        "secret_redaction_adr_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_id_conventions_ref": { "$ref": "#/$defs/non_empty_string" },
+        "evidence_packet_header_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "command_descriptor_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "target_graph_state_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "origin_target_route_taxonomy_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_ticket_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "approval_event_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "capability_sheet_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "install_review_fact_grid_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "managed_workspace_lifecycle_state_schema_ref": { "$ref": "#/$defs/non_empty_string" },
+        "connectivity_state_schema_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "command_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command_id",
+        "command_revision_ref",
+        "invocation_session_id",
+        "execution_context_id",
+        "exact_build_identity_ref",
+        "linkage_summary"
+      ],
+      "properties": {
+        "command_id": { "$ref": "#/$defs/opaque_id" },
+        "command_revision_ref": { "$ref": "#/$defs/opaque_id" },
+        "invocation_session_id": { "$ref": "#/$defs/opaque_id" },
+        "execution_context_id": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "exact_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "linkage_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "description": "Stable join keys that anchor the packet to canonical command, invocation-session, execution-context, and build identity records."
+    },
+    "approval_event_set_or_omitted": {
+      "oneOf": [
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "https://aureline.dev/schemas/trust/approval_event.schema.json" }
+        },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "approval_ticket_or_omitted": {
+      "oneOf": [
+        { "$ref": "https://aureline.dev/schemas/trust/approval_ticket.schema.json" },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "capability_sheet_or_omitted": {
+      "oneOf": [
+        { "$ref": "https://aureline.dev/schemas/trust/capability_sheet.schema.json" },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "install_review_fact_grid_or_omitted": {
+      "oneOf": [
+        {
+          "$ref": "https://aureline.dev/schemas/runtime/install_review_fact_grid.schema.json#/$defs/install_review_fact_grid_record"
+        },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "managed_workspace_lifecycle_or_omitted": {
+      "oneOf": [
+        { "$ref": "https://aureline.dev/schemas/managed/workspace_lifecycle_state.schema.json" },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "connectivity_state_snapshot_or_omitted": {
+      "oneOf": [
+        {
+          "$ref": "https://aureline.dev/schemas/runtime/connectivity_state.schema.json#/$defs/connectivity_state_snapshot_record"
+        },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "target_graph_state_or_omitted": {
+      "oneOf": [
+        { "$ref": "https://aureline.dev/schemas/runtime/target_graph_state.schema.json#/$defs/target_graph_state_record" },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "invocation_session_packet_or_omitted": {
+      "oneOf": [
+        {
+          "$ref": "https://aureline.dev/schemas/commands/command_descriptor.schema.json#/$defs/invocation_session_packet_record"
+        },
+        { "$ref": "#/$defs/omitted_block_marker" }
+      ]
+    },
+    "approval_lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "approval_ticket",
+        "approval_events",
+        "summary"
+      ],
+      "properties": {
+        "approval_ticket": { "$ref": "#/$defs/approval_ticket_or_omitted" },
+        "approval_events": { "$ref": "#/$defs/approval_event_set_or_omitted" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "lifecycle_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managed_workspace_lifecycle_state",
+        "connectivity_state_snapshot",
+        "summary"
+      ],
+      "properties": {
+        "managed_workspace_lifecycle_state": {
+          "$ref": "#/$defs/managed_workspace_lifecycle_or_omitted"
+        },
+        "connectivity_state_snapshot": {
+          "$ref": "#/$defs/connectivity_state_snapshot_or_omitted"
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "redaction_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "redaction_profile_ref",
+        "redaction_class",
+        "withheld_artifact_refs",
+        "omission_marker_refs",
+        "summary"
+      ],
+      "properties": {
+        "redaction_profile_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_dot_id" }
+          ]
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "withheld_artifact_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to withheld artifacts (for example terminal history handles, raw trace slices, or secret-class captures) that are intentionally not embedded."
+        },
+        "omission_marker_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque omission-marker ids referenced by omitted_block_marker instances."
+        },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "operator_truth_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "operator_truth_packet_schema_version",
+        "operator_truth_packet_id",
+        "record_class_id",
+        "packet_header",
+        "governance_bindings",
+        "command_linkage",
+        "route_truth",
+        "target_graph_state",
+        "invocation_session_packet",
+        "lifecycle_context",
+        "approval_lineage",
+        "install_review_facts",
+        "capability_state",
+        "redaction_context",
+        "captured_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "type": "object" },
+        "record_kind": { "type": "string", "const": "operator_truth_packet_record" },
+        "operator_truth_packet_schema_version": {
+          "$ref": "#/$defs/operator_truth_packet_schema_version"
+        },
+        "operator_truth_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "record_class_id": { "type": "string", "const": "operator_truth_packet" },
+        "packet_header": { "$ref": "#/$defs/packet_header" },
+        "governance_bindings": { "$ref": "#/$defs/governance_bindings" },
+        "command_linkage": { "$ref": "#/$defs/command_linkage" },
+        "route_truth": {
+          "$ref": "https://aureline.dev/schemas/contexts/host_identity_chip.schema.json#/$defs/route_truth"
+        },
+        "target_graph_state": { "$ref": "#/$defs/target_graph_state_or_omitted" },
+        "invocation_session_packet": {
+          "$ref": "#/$defs/invocation_session_packet_or_omitted"
+        },
+        "lifecycle_context": { "$ref": "#/$defs/lifecycle_context" },
+        "approval_lineage": { "$ref": "#/$defs/approval_lineage" },
+        "install_review_facts": { "$ref": "#/$defs/install_review_fact_grid_or_omitted" },
+        "capability_state": { "$ref": "#/$defs/capability_sheet_or_omitted" },
+        "redaction_context": { "$ref": "#/$defs/redaction_context" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+
