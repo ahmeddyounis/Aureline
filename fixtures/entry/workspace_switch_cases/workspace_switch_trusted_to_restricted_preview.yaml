@@ -1,0 +1,126 @@
+__fixture__:
+  name: workspace_switch_trusted_to_restricted_preview
+  scenario: >
+    The user switches from a trusted local workspace to an entry that will open
+    under restricted trust due to policy. The switch preview must show the
+    trust/profile/policy/capability deltas before commit and must preserve
+    unsaved buffers by default.
+  doc_sections:
+    - artifacts/entry/workspace_switch_preview_contract.md#3-required-delta-rows-the-switch-preview-table
+    - artifacts/entry/workspace_switch_preview_contract.md#4-unsaved-buffer-carry-contract-switching-with-dirty-work
+    - docs/ux/recent_work_and_restore_card_contract.md#6-workspace-switcher-row-anatomy
+
+record_kind: workspace_switch_preview_record
+workspace_switch_delta_schema_version: 1
+preview_id: switch-preview:entry:workspace_switch:trusted_to_restricted:001
+source_surface: workspace_switcher
+current_workspace_ref: workspace:open-window:current:ws-001
+target_workspace_ref: recent-work:example:restricted-workspace:rw-002
+current_target_kind: local_repo_root
+target_target_kind: local_repo_root
+current_trust_state: trusted
+target_trust_state: restricted
+cross_window_consequence:
+  consequence_class: open_in_new_window
+  affected_window_refs:
+    - window:current:001
+  dirty_buffer_count: 2
+  requires_confirmation: true
+  failure_recovery_actions:
+    - cancel_switch
+    - reopen_previous_workspace
+delta_rows:
+  - row_id: delta-row:root:001
+    row_kind: root_delta
+    materiality_class: informational_only
+    before_root_kind: local_repo_root
+    after_root_kind: local_repo_root
+    before_root_count: 1
+    after_root_count: 1
+    summary: No root boundary change.
+  - row_id: delta-row:profile:001
+    row_kind: profile_delta
+    materiality_class: material_execution_behavior_change
+    before_profile_ref: profile:dev:default:001
+    after_profile_ref: profile:restricted:policy:001
+    before_profile_lock: unlocked
+    after_profile_lock: locked_by_policy
+    override_affordance: false
+    summary: Profile changes and becomes policy-locked under restricted mode.
+  - row_id: delta-row:target:001
+    row_kind: target_delta
+    materiality_class: informational_only
+    before_target_kind: local_repo_root
+    after_target_kind: local_repo_root
+    before_environment_mode: local_only
+    after_environment_mode: local_only
+    summary: Target kind remains local.
+  - row_id: delta-row:trust:001
+    row_kind: trust_delta
+    materiality_class: material_security_or_trust_change
+    before_trust_state: trusted
+    after_trust_state: restricted
+    trust_change_class: narrowed
+    trust_prompt_expected: true
+    summary: Trust narrows to restricted; execution and sensitive capabilities remain gated.
+  - row_id: delta-row:capability:001
+    row_kind: capability_delta
+    materiality_class: material_execution_behavior_change
+    changed_capabilities:
+      - capability_class: run_tests
+        change_kind: narrowed
+        before_availability: ready
+        after_availability: policy_blocked
+        summary: Test execution is blocked until trust/policy review admits it.
+      - capability_class: run_debug_session
+        change_kind: narrowed
+        before_availability: ready
+        after_availability: policy_blocked
+        summary: Debug execution is blocked under restricted trust.
+      - capability_class: ai_assist_apply
+        change_kind: narrowed
+        before_availability: ready_with_caveats
+        after_availability: policy_blocked
+        summary: Apply actions are blocked; inspection-only flows may remain.
+    summary: Execution capabilities narrow under restricted mode.
+  - row_id: delta-row:policy:001
+    row_kind: policy_delta
+    materiality_class: material_policy_restriction_change
+    before_policy_epoch_ref: policy-epoch:current:001
+    after_policy_epoch_ref: policy-epoch:restricted:002
+    authority_delta: trust_narrowing
+    required_reviews:
+      - trust_review_required
+      - policy_review_required
+    blocked_capabilities:
+      - run_tests
+      - run_debug_session
+      - ai_assist_apply
+    summary: Policy/trust boundary requires review; execution remains blocked until admitted.
+unsaved_buffer_summary:
+  dirty_buffer_count: 2
+  pinned_dirty_buffer_count: 1
+  requires_user_choice_before_switch: true
+  summary: 2 unsaved buffers (1 pinned) will be preserved unless explicitly discarded.
+unsaved_buffer_choices:
+  - choice_id: carry-choice:open-new-window:001
+    handling_class: open_target_in_new_window_keep_current_open
+    enabled: true
+    requires_confirmation: false
+    summary: Open the target in a new window and keep the current workspace (and unsaved buffers) open.
+  - choice_id: carry-choice:suspend-current:001
+    handling_class: suspend_current_workspace_reopenable
+    enabled: true
+    requires_confirmation: true
+    summary: Suspend the current workspace as reopenable and switch in-place.
+  - choice_id: carry-choice:discard:001
+    handling_class: discard_unsaved_buffers
+    enabled: true
+    requires_confirmation: true
+    summary: Discard unsaved buffers (requires explicit confirmation).
+default_unsaved_buffer_choice_id: carry-choice:open-new-window:001
+fallback_actions:
+  - cancel_switch
+  - reopen_previous_workspace
+emitted_at: t+0100
+

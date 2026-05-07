@@ -1,0 +1,567 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/entry/workspace_switch_delta.schema.json",
+  "title": "Aureline workspace-switch preview delta, unsaved-buffer carry, and decision/outcome contract",
+  "description": "Boundary schema for exportable workspace-switch preview, decision, and outcome records used by Start Center, workspace switcher, recent-work reentry, and protocol/deep-link entry flows. The contract ensures material deltas (root/profile/target/trust/capability/policy) are surfaced BEFORE commit and that unsaved buffers remain preserved until the user chooses otherwise, with that choice auditably recorded. See artifacts/entry/workspace_switch_preview_contract.md. Raw paths, raw file contents, raw hostnames, raw credentials, and raw policy bundle bodies never appear here; the record carries opaque refs, closed vocabularies, counts, and short redaction-aware summaries only.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/workspace_switch_preview_record" },
+    { "$ref": "#/$defs/workspace_switch_decision_record" },
+    { "$ref": "#/$defs/workspace_switch_outcome_record" }
+  ],
+  "$defs": {
+    "workspace_switch_delta_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this workspace-switch delta + audit contract."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional worked-example prelude carried on fixtures under __fixture__. Production consumers ignore this object."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque id safe for logs, support bundles, and exports. Raw paths, raw hostnames, raw URLs with credentials, and secrets never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Producer-local monotonic timestamp. Consumers do not infer ordering beyond producer ordering."
+    },
+    "redaction_aware_text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short redaction-aware summary text."
+    },
+
+    "source_surface": {
+      "$ref": "../workspace/entry_and_restore_result.schema.json#/$defs/source_surface",
+      "description": "Re-exported source_surface from schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "target_kind": {
+      "$ref": "../workspace/entry_and_restore_result.schema.json#/$defs/target_kind",
+      "description": "Re-exported target_kind from schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "root_kind": {
+      "$ref": "../ux/recent_work_row.schema.json#/$defs/root_kind",
+      "description": "Re-exported root_kind from schemas/ux/recent_work_row.schema.json."
+    },
+    "trust_state": {
+      "$ref": "../workspace/entry_and_restore_result.schema.json#/$defs/trust_state",
+      "description": "Re-exported trust_state from schemas/workspace/entry_and_restore_result.schema.json."
+    },
+    "authority_delta_class": {
+      "$ref": "../workspace/entry_route.schema.json#/$defs/authority_delta_class",
+      "description": "Re-exported authority_delta_class from schemas/workspace/entry_route.schema.json."
+    },
+    "workflow_capability_class": {
+      "$ref": "../ux/feature_availability_row.schema.json#/$defs/workflow_capability_class",
+      "description": "Re-exported workflow_capability_class from schemas/ux/feature_availability_row.schema.json."
+    },
+    "availability_state_class": {
+      "$ref": "../ux/feature_availability_row.schema.json#/$defs/availability_state_class",
+      "description": "Re-exported availability_state_class from schemas/ux/feature_availability_row.schema.json."
+    },
+    "environment_mode_class": {
+      "$ref": "../ux/feature_availability_row.schema.json#/$defs/environment_mode_class",
+      "description": "Re-exported environment_mode_class from schemas/ux/feature_availability_row.schema.json."
+    },
+    "recovery_action_id": {
+      "$ref": "../ux/recent_work_row.schema.json#/$defs/recovery_action_id",
+      "description": "Re-exported recovery_action_id from schemas/ux/recent_work_row.schema.json."
+    },
+    "cross_window_consequence": {
+      "$ref": "../ux/recent_work_row.schema.json#/$defs/cross_window_consequence",
+      "description": "Re-exported cross-window consequence disclosure from schemas/ux/recent_work_row.schema.json."
+    },
+
+    "delta_materiality_class": {
+      "type": "string",
+      "enum": [
+        "informational_only",
+        "material_execution_behavior_change",
+        "material_support_expectation_change",
+        "material_security_or_trust_change",
+        "material_policy_restriction_change"
+      ],
+      "description": "Materiality class for a switch delta row."
+    },
+    "switch_delta_row_kind": {
+      "type": "string",
+      "enum": [
+        "root_delta",
+        "profile_delta",
+        "target_delta",
+        "trust_delta",
+        "capability_delta",
+        "policy_delta"
+      ],
+      "description": "Closed set of delta rows required on every workspace-switch preview."
+    },
+
+    "profile_lock_class": {
+      "type": "string",
+      "enum": [
+        "unlocked",
+        "locked_profile_required",
+        "locked_by_policy",
+        "locked_by_managed_envelope",
+        "unknown"
+      ],
+      "description": "Whether the active profile is overrideable or locked by policy/managed constraints."
+    },
+
+    "trust_change_class": {
+      "type": "string",
+      "enum": ["unchanged", "narrowed", "widening_requested", "pending_evaluation", "changed_other", "unknown"],
+      "description": "Compact trust delta classification for switch previews."
+    },
+
+    "review_requirement": {
+      "type": "string",
+      "enum": [
+        "no_review_required",
+        "trust_review_required",
+        "policy_review_required",
+        "tenant_review_required",
+        "deep_link_intent_review_required",
+        "migration_review_required",
+        "rollback_checkpoint_review_required"
+      ],
+      "description": "Review requirement tokens aligned with the open-flow sheet policy-restrictions disclosure."
+    },
+
+    "root_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_kind",
+        "materiality_class",
+        "before_root_kind",
+        "after_root_kind",
+        "before_root_count",
+        "after_root_count",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "const": "root_delta" },
+        "materiality_class": { "$ref": "#/$defs/delta_materiality_class" },
+        "before_root_kind": { "$ref": "#/$defs/root_kind" },
+        "after_root_kind": { "$ref": "#/$defs/root_kind" },
+        "before_root_count": { "type": "integer", "minimum": 0 },
+        "after_root_count": { "type": "integer", "minimum": 0 },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Root boundary delta row."
+    },
+
+    "profile_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_kind",
+        "materiality_class",
+        "before_profile_ref",
+        "after_profile_ref",
+        "before_profile_lock",
+        "after_profile_lock",
+        "override_affordance",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "const": "profile_delta" },
+        "materiality_class": { "$ref": "#/$defs/delta_materiality_class" },
+        "before_profile_ref": { "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }] },
+        "after_profile_ref": { "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }] },
+        "before_profile_lock": { "$ref": "#/$defs/profile_lock_class" },
+        "after_profile_lock": { "$ref": "#/$defs/profile_lock_class" },
+        "override_affordance": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Active-profile delta row."
+    },
+
+    "target_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_kind",
+        "materiality_class",
+        "before_target_kind",
+        "after_target_kind",
+        "before_environment_mode",
+        "after_environment_mode",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "const": "target_delta" },
+        "materiality_class": { "$ref": "#/$defs/delta_materiality_class" },
+        "before_target_kind": { "$ref": "#/$defs/target_kind" },
+        "after_target_kind": { "$ref": "#/$defs/target_kind" },
+        "before_environment_mode": { "$ref": "#/$defs/environment_mode_class" },
+        "after_environment_mode": { "$ref": "#/$defs/environment_mode_class" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Target kind/environment delta row."
+    },
+
+    "trust_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_kind",
+        "materiality_class",
+        "before_trust_state",
+        "after_trust_state",
+        "trust_change_class",
+        "trust_prompt_expected",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "const": "trust_delta" },
+        "materiality_class": { "$ref": "#/$defs/delta_materiality_class" },
+        "before_trust_state": { "$ref": "#/$defs/trust_state" },
+        "after_trust_state": { "$ref": "#/$defs/trust_state" },
+        "trust_change_class": { "$ref": "#/$defs/trust_change_class" },
+        "trust_prompt_expected": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Trust delta row."
+    },
+
+    "capability_change_kind": {
+      "type": "string",
+      "enum": ["gained", "lost", "widened", "narrowed", "degraded", "unchanged", "unknown"],
+      "description": "How the capability availability changes across the switch."
+    },
+    "capability_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_class",
+        "change_kind",
+        "before_availability",
+        "after_availability"
+      ],
+      "properties": {
+        "capability_class": { "$ref": "#/$defs/workflow_capability_class" },
+        "change_kind": { "$ref": "#/$defs/capability_change_kind" },
+        "before_availability": { "$ref": "#/$defs/availability_state_class" },
+        "after_availability": { "$ref": "#/$defs/availability_state_class" },
+        "summary": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] }
+      },
+      "description": "One capability-class delta row entry."
+    },
+    "capability_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["row_id", "row_kind", "materiality_class", "changed_capabilities", "summary"],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "const": "capability_delta" },
+        "materiality_class": { "$ref": "#/$defs/delta_materiality_class" },
+        "changed_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capability_change" },
+          "uniqueItems": false,
+          "description": "Ordered list of capability changes. May be empty when no capability deltas are material in this preview."
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Capability delta row."
+    },
+
+    "policy_delta_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "row_kind",
+        "materiality_class",
+        "before_policy_epoch_ref",
+        "after_policy_epoch_ref",
+        "authority_delta",
+        "required_reviews",
+        "summary"
+      ],
+      "properties": {
+        "row_id": { "$ref": "#/$defs/opaque_id" },
+        "row_kind": { "const": "policy_delta" },
+        "materiality_class": { "$ref": "#/$defs/delta_materiality_class" },
+        "before_policy_epoch_ref": { "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }] },
+        "after_policy_epoch_ref": { "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }] },
+        "authority_delta": { "$ref": "#/$defs/authority_delta_class" },
+        "required_reviews": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/review_requirement" },
+          "uniqueItems": true
+        },
+        "blocked_capabilities": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/workflow_capability_class" },
+          "uniqueItems": true
+        },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Policy/authority delta row."
+    },
+
+    "switch_delta_row": {
+      "oneOf": [
+        { "$ref": "#/$defs/root_delta_row" },
+        { "$ref": "#/$defs/profile_delta_row" },
+        { "$ref": "#/$defs/target_delta_row" },
+        { "$ref": "#/$defs/trust_delta_row" },
+        { "$ref": "#/$defs/capability_delta_row" },
+        { "$ref": "#/$defs/policy_delta_row" }
+      ]
+    },
+
+    "unsaved_buffer_handling_class": {
+      "type": "string",
+      "enum": [
+        "open_target_in_new_window_keep_current_open",
+        "focus_existing_window_keep_current_open",
+        "suspend_current_workspace_reopenable",
+        "discard_unsaved_buffers"
+      ],
+      "description": "Closed unsaved-buffer handling choice set for workspace switching."
+    },
+    "unsaved_buffer_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dirty_buffer_count",
+        "pinned_dirty_buffer_count",
+        "requires_user_choice_before_switch",
+        "summary"
+      ],
+      "properties": {
+        "dirty_buffer_count": { "type": "integer", "minimum": 0 },
+        "pinned_dirty_buffer_count": { "type": "integer", "minimum": 0 },
+        "requires_user_choice_before_switch": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "Summary of unsaved buffer posture at the time of the switch preview."
+    },
+    "unsaved_buffer_choice": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["choice_id", "handling_class", "enabled", "requires_confirmation", "summary"],
+      "properties": {
+        "choice_id": { "$ref": "#/$defs/opaque_id" },
+        "handling_class": { "$ref": "#/$defs/unsaved_buffer_handling_class" },
+        "enabled": { "type": "boolean" },
+        "requires_confirmation": { "type": "boolean" },
+        "summary": { "$ref": "#/$defs/redaction_aware_text" }
+      },
+      "description": "One unsaved-buffer handling option offered on the switch preview."
+    },
+
+    "workspace_switch_preview_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_switch_delta_schema_version",
+        "preview_id",
+        "source_surface",
+        "current_workspace_ref",
+        "target_workspace_ref",
+        "current_target_kind",
+        "target_target_kind",
+        "current_trust_state",
+        "target_trust_state",
+        "cross_window_consequence",
+        "delta_rows",
+        "unsaved_buffer_summary",
+        "unsaved_buffer_choices",
+        "default_unsaved_buffer_choice_id",
+        "fallback_actions",
+        "emitted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "workspace_switch_preview_record" },
+        "workspace_switch_delta_schema_version": { "$ref": "#/$defs/workspace_switch_delta_schema_version" },
+        "preview_id": { "$ref": "#/$defs/opaque_id" },
+        "source_surface": { "$ref": "#/$defs/source_surface" },
+        "current_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "target_workspace_ref": { "$ref": "#/$defs/opaque_id" },
+        "current_target_kind": { "$ref": "#/$defs/target_kind" },
+        "target_target_kind": { "$ref": "#/$defs/target_kind" },
+        "current_trust_state": { "$ref": "#/$defs/trust_state" },
+        "target_trust_state": { "$ref": "#/$defs/trust_state" },
+        "cross_window_consequence": { "$ref": "#/$defs/cross_window_consequence" },
+        "delta_rows": {
+          "type": "array",
+          "minItems": 6,
+          "items": { "$ref": "#/$defs/switch_delta_row" }
+        },
+        "unsaved_buffer_summary": { "$ref": "#/$defs/unsaved_buffer_summary" },
+        "unsaved_buffer_choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/unsaved_buffer_choice" },
+          "uniqueItems": true
+        },
+        "default_unsaved_buffer_choice_id": { "$ref": "#/$defs/opaque_id" },
+        "fallback_actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/recovery_action_id" },
+          "uniqueItems": true
+        },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "properties": {
+            "delta_rows": {
+              "contains": { "type": "object", "properties": { "row_kind": { "const": "root_delta" } }, "required": ["row_kind"] },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "delta_rows": {
+              "contains": { "type": "object", "properties": { "row_kind": { "const": "profile_delta" } }, "required": ["row_kind"] },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "delta_rows": {
+              "contains": { "type": "object", "properties": { "row_kind": { "const": "target_delta" } }, "required": ["row_kind"] },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "delta_rows": {
+              "contains": { "type": "object", "properties": { "row_kind": { "const": "trust_delta" } }, "required": ["row_kind"] },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "delta_rows": {
+              "contains": { "type": "object", "properties": { "row_kind": { "const": "capability_delta" } }, "required": ["row_kind"] },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "delta_rows": {
+              "contains": { "type": "object", "properties": { "row_kind": { "const": "policy_delta" } }, "required": ["row_kind"] },
+              "minContains": 1
+            }
+          }
+        }
+      ],
+      "description": "One exported workspace-switch preview record emitted BEFORE switch commit."
+    },
+
+    "decision_actor_class": {
+      "type": "string",
+      "enum": ["user", "system_default", "policy_enforced", "other"],
+      "description": "Who selected the switch route and unsaved-buffer handling choice."
+    },
+    "workspace_switch_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_switch_delta_schema_version",
+        "decision_id",
+        "preview_ref",
+        "chosen_action_id",
+        "chosen_unsaved_buffer_choice_id",
+        "actor_class",
+        "decision_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "workspace_switch_decision_record" },
+        "workspace_switch_delta_schema_version": { "$ref": "#/$defs/workspace_switch_delta_schema_version" },
+        "decision_id": { "$ref": "#/$defs/opaque_id" },
+        "preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "chosen_action_id": { "$ref": "#/$defs/recovery_action_id" },
+        "chosen_unsaved_buffer_choice_id": { "anyOf": [{ "$ref": "#/$defs/opaque_id" }, { "type": "null" }] },
+        "actor_class": { "$ref": "#/$defs/decision_actor_class" },
+        "decision_context_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        },
+        "decision_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One exported decision record indicating which switch action and unsaved-buffer handling choice was selected."
+    },
+
+    "workspace_switch_outcome_class": {
+      "type": "string",
+      "enum": [
+        "succeeded_switched",
+        "succeeded_focused_existing_window",
+        "canceled_no_change",
+        "failed_target_unavailable",
+        "failed_policy_blocked",
+        "failed_trust_denied",
+        "failed_other"
+      ],
+      "description": "Outcome class for the attempted switch."
+    },
+    "workspace_switch_outcome_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "workspace_switch_delta_schema_version",
+        "outcome_id",
+        "decision_ref",
+        "preview_ref",
+        "outcome_class",
+        "observed_target_kind",
+        "observed_trust_state",
+        "unsaved_buffers_preserved",
+        "carried_dirty_buffer_count",
+        "emitted_at"
+      ],
+      "properties": {
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "workspace_switch_outcome_record" },
+        "workspace_switch_delta_schema_version": { "$ref": "#/$defs/workspace_switch_delta_schema_version" },
+        "outcome_id": { "$ref": "#/$defs/opaque_id" },
+        "decision_ref": { "$ref": "#/$defs/opaque_id" },
+        "preview_ref": { "$ref": "#/$defs/opaque_id" },
+        "outcome_class": { "$ref": "#/$defs/workspace_switch_outcome_class" },
+        "observed_target_kind": { "$ref": "#/$defs/target_kind" },
+        "observed_trust_state": { "$ref": "#/$defs/trust_state" },
+        "unsaved_buffers_preserved": { "type": "boolean" },
+        "carried_dirty_buffer_count": { "type": "integer", "minimum": 0 },
+        "notes": { "anyOf": [{ "$ref": "#/$defs/redaction_aware_text" }, { "type": "null" }] },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One exported outcome record indicating what happened after the switch attempt."
+    }
+  }
+}
+

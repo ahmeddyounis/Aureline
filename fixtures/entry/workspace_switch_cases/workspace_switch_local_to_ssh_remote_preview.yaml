@@ -1,0 +1,101 @@
+__fixture__:
+  name: workspace_switch_local_to_ssh_remote_preview
+  scenario: >
+    The user switches from a local repo root to an SSH-attached workspace. The preview
+    must disclose target/environment changes and remote authority rebind before commit.
+  doc_sections:
+    - artifacts/entry/workspace_switch_preview_contract.md#3-required-delta-rows-the-switch-preview-table
+
+record_kind: workspace_switch_preview_record
+workspace_switch_delta_schema_version: 1
+preview_id: switch-preview:entry:workspace_switch:local_to_ssh:001
+source_surface: recent_work_activation
+current_workspace_ref: workspace:open-window:current:ws-010
+target_workspace_ref: recent-work:example:ssh-workspace:rw-011
+current_target_kind: local_repo_root
+target_target_kind: ssh_workspace
+current_trust_state: trusted
+target_trust_state: pending_evaluation
+cross_window_consequence:
+  consequence_class: replace_current_workspace
+  dirty_buffer_count: 0
+  requires_confirmation: true
+  failure_recovery_actions:
+    - cancel_switch
+    - reopen_previous_workspace
+delta_rows:
+  - row_id: delta-row:root:010
+    row_kind: root_delta
+    materiality_class: material_execution_behavior_change
+    before_root_kind: local_repo_root
+    after_root_kind: ssh_remote_root
+    before_root_count: 1
+    after_root_count: 1
+    summary: Root changes from local to SSH remote root.
+  - row_id: delta-row:profile:010
+    row_kind: profile_delta
+    materiality_class: informational_only
+    before_profile_ref: profile:dev:default:001
+    after_profile_ref: profile:dev:default:001
+    before_profile_lock: unlocked
+    after_profile_lock: unlocked
+    override_affordance: true
+    summary: Profile remains unchanged.
+  - row_id: delta-row:target:010
+    row_kind: target_delta
+    materiality_class: material_execution_behavior_change
+    before_target_kind: local_repo_root
+    after_target_kind: ssh_workspace
+    before_environment_mode: local_only
+    after_environment_mode: remote_attach
+    summary: Execution target switches to a remote attach session.
+  - row_id: delta-row:trust:010
+    row_kind: trust_delta
+    materiality_class: material_security_or_trust_change
+    before_trust_state: trusted
+    after_trust_state: pending_evaluation
+    trust_change_class: pending_evaluation
+    trust_prompt_expected: true
+    summary: Trust must be re-evaluated for remote attach.
+  - row_id: delta-row:capability:010
+    row_kind: capability_delta
+    materiality_class: material_execution_behavior_change
+    changed_capabilities:
+      - capability_class: remote_session_attach
+        change_kind: gained
+        before_availability: not_supported
+        after_availability: ready_with_caveats
+        summary: Remote attach becomes active; reconnect/reauth may be required.
+      - capability_class: run_debug_session
+        change_kind: degraded
+        before_availability: ready
+        after_availability: not_configured
+        summary: Debugging depends on remote toolchain and may require setup.
+    summary: Capabilities shift to remote attach posture.
+  - row_id: delta-row:policy:010
+    row_kind: policy_delta
+    materiality_class: material_policy_restriction_change
+    before_policy_epoch_ref: policy-epoch:current:010
+    after_policy_epoch_ref: policy-epoch:remote:011
+    authority_delta: remote_authority_rebind
+    required_reviews:
+      - trust_review_required
+    blocked_capabilities: []
+    summary: Remote attach requires authority rebind and trust review.
+unsaved_buffer_summary:
+  dirty_buffer_count: 0
+  pinned_dirty_buffer_count: 0
+  requires_user_choice_before_switch: false
+  summary: No unsaved buffers.
+unsaved_buffer_choices:
+  - choice_id: carry-choice:replace-in-place:010
+    handling_class: suspend_current_workspace_reopenable
+    enabled: true
+    requires_confirmation: false
+    summary: Switch in-place; prior workspace remains reopenable if the open fails.
+default_unsaved_buffer_choice_id: carry-choice:replace-in-place:010
+fallback_actions:
+  - cancel_switch
+  - reopen_previous_workspace
+emitted_at: t+0200
+

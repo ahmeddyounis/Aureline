@@ -1,0 +1,107 @@
+__fixture__:
+  name: workspace_switch_managed_to_local_fallback_preview
+  scenario: >
+    The user switches from a managed workspace session to a local fallback entry.
+    The preview must disclose the target/environment change and resulting capability
+    differences before commit, while preserving unsaved buffers by default.
+  doc_sections:
+    - artifacts/entry/workspace_switch_preview_contract.md#43-switching-across-localremotemanagedcontainermulti-root
+
+record_kind: workspace_switch_preview_record
+workspace_switch_delta_schema_version: 1
+preview_id: switch-preview:entry:workspace_switch:managed_to_local_fallback:001
+source_surface: workspace_switcher
+current_workspace_ref: workspace:open-window:managed:ws-020
+target_workspace_ref: recent-work:example:local-fallback:rw-021
+current_target_kind: managed_cloud_workspace
+target_target_kind: local_repo_root
+current_trust_state: trusted
+target_trust_state: pending_evaluation
+cross_window_consequence:
+  consequence_class: open_in_new_window
+  dirty_buffer_count: 1
+  requires_confirmation: true
+  failure_recovery_actions:
+    - cancel_switch
+    - reopen_previous_workspace
+delta_rows:
+  - row_id: delta-row:root:020
+    row_kind: root_delta
+    materiality_class: material_execution_behavior_change
+    before_root_kind: managed_cloud_workspace
+    after_root_kind: local_repo_root
+    before_root_count: 1
+    after_root_count: 1
+    summary: Root changes from managed workspace to local fallback root.
+  - row_id: delta-row:profile:020
+    row_kind: profile_delta
+    materiality_class: material_support_expectation_change
+    before_profile_ref: profile:managed:locked:020
+    after_profile_ref: profile:dev:default:001
+    before_profile_lock: locked_by_managed_envelope
+    after_profile_lock: unlocked
+    override_affordance: true
+    summary: Profile lock lifts on local fallback; settings may differ.
+  - row_id: delta-row:target:020
+    row_kind: target_delta
+    materiality_class: material_execution_behavior_change
+    before_target_kind: managed_cloud_workspace
+    after_target_kind: local_repo_root
+    before_environment_mode: managed_workspace
+    after_environment_mode: local_only
+    summary: Execution target downgrades from managed session to local-only.
+  - row_id: delta-row:trust:020
+    row_kind: trust_delta
+    materiality_class: material_security_or_trust_change
+    before_trust_state: trusted
+    after_trust_state: pending_evaluation
+    trust_change_class: pending_evaluation
+    trust_prompt_expected: true
+    summary: Trust must be re-evaluated for the fallback target boundary.
+  - row_id: delta-row:capability:020
+    row_kind: capability_delta
+    materiality_class: material_execution_behavior_change
+    changed_capabilities:
+      - capability_class: managed_workspace_session
+        change_kind: lost
+        before_availability: ready
+        after_availability: not_supported
+        summary: Managed session features are no longer active on local fallback.
+      - capability_class: run_task
+        change_kind: gained
+        before_availability: policy_blocked
+        after_availability: ready_with_caveats
+        summary: Local tasks may run, but remote-managed guarantees no longer apply.
+    summary: Capability posture changes due to managed → local fallback.
+  - row_id: delta-row:policy:020
+    row_kind: policy_delta
+    materiality_class: material_policy_restriction_change
+    before_policy_epoch_ref: policy-epoch:managed:020
+    after_policy_epoch_ref: policy-epoch:local:021
+    authority_delta: policy_boundary_review
+    required_reviews:
+      - policy_review_required
+    blocked_capabilities: []
+    summary: Policy boundary changes; review is required before commit.
+unsaved_buffer_summary:
+  dirty_buffer_count: 1
+  pinned_dirty_buffer_count: 0
+  requires_user_choice_before_switch: true
+  summary: 1 unsaved buffer will be preserved unless explicitly discarded.
+unsaved_buffer_choices:
+  - choice_id: carry-choice:open-new-window:020
+    handling_class: open_target_in_new_window_keep_current_open
+    enabled: true
+    requires_confirmation: false
+    summary: Open the fallback in a new window and keep current managed session open.
+  - choice_id: carry-choice:discard:020
+    handling_class: discard_unsaved_buffers
+    enabled: true
+    requires_confirmation: true
+    summary: Discard unsaved buffer (requires explicit confirmation).
+default_unsaved_buffer_choice_id: carry-choice:open-new-window:020
+fallback_actions:
+  - cancel_switch
+  - reopen_previous_workspace
+emitted_at: t+0300
+
