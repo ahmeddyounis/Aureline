@@ -1,0 +1,90 @@
+__fixture__:
+  name: provider_offline_local_continuation
+  scenario: >
+    Provider-offline posture for a managed-workspace-backed wedge: the
+    managed control plane is unreachable due to a service outage. The
+    operator card must (1) show the managed-workspace lifecycle record's
+    local-only continuation posture, (2) keep notebook trust axes visible
+    (kernel unavailable; outputs treated as evidence), and (3) make
+    install-review facts explicit, including what remains usable without
+    the managed binding or any provider-backed component.
+  wedge_ref: launch_bundle:python_service_or_data_app.seed
+  exercises:
+    lifecycle_phase_class: degraded
+    posture_class: workspace_unavailable_local_only_continuation
+    local_only_continuation_reason_class: managed_control_plane_unreachable
+    notebook_trust_rung: fully_trusted_user
+    kernel_trust_state: kernel_trust_unavailable_no_kernel
+    compatibility_label_state: compatibility_unknown_pending_probe
+    activation_budget_class: budget_unknown_pending_refresh
+    continuation_without_component: local_only_continues
+  quoted_artifacts:
+    - fixtures/managed/workspace_lifecycle_cases/local_only_continuation_after_service_outage.yaml
+    - fixtures/notebooks/roundtrip_preview_cases/mixed_local_remote_kernel_trust_axes_distinct.yaml
+    - docs/managed/managed_workspace_lifecycle_contract.md
+    - docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+    - docs/verification/install_review_packet.md
+    - schemas/runtime/install_review_fact_grid.schema.json
+
+record_kind: operator_card_case_record
+operator_card_case_schema_version: 1
+case_id: operator_card.provider_offline.local_only_continuation
+
+wedge:
+  wedge_ref: launch_bundle:python_service_or_data_app.seed
+  wedge_label: Python service or data app
+  source_ref: artifacts/product/language_bundle_rows.yaml
+
+entry:
+  host_boundary_cue_stack: [local_host_boundary, managed_workspace_boundary, notebook_kernel_boundary]
+  action_route_class: managed_control_plane_route
+  action_exposure_class: workspace_visible_mutation
+  route_source_ref: docs/runtime/origin_target_route_taxonomy.md
+  cue_source_ref: docs/runtime/target_discovery_and_install_review_taxonomy.md
+
+managed_workspace:
+  in_play: true
+  managed_workspace_lifecycle_record_ref: fixtures/managed/workspace_lifecycle_cases/local_only_continuation_after_service_outage.yaml
+  lifecycle_phase_class: degraded
+  posture_class: workspace_unavailable_local_only_continuation
+  local_only_continuation_reason_class: managed_control_plane_unreachable
+  summary: Control plane outage; editor continues locally with managed actions blocked by typed reason.
+  source_ref: docs/managed/managed_workspace_lifecycle_contract.md
+
+notebook_trust:
+  preview_sheet_fixture_ref: fixtures/notebooks/roundtrip_preview_cases/mixed_local_remote_kernel_trust_axes_distinct.yaml
+  notebook_trust_rung: fully_trusted_user
+  kernel_trust_state: kernel_trust_unavailable_no_kernel
+  output_trust_state: output_trust_captured_from_prior_session
+  structured_round_trip_risk_class: lossless_roundtrip
+  source_ref: docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+
+install_review_fact_grid:
+  record_kind: install_review_fact_grid_record
+  install_review_fact_grid_schema_version: 1
+  grid_id: irfg:provider_offline:0001
+  grid_subject:
+    install_review_subject_class: managed_workspace_binding_install
+    install_review_disposition_class: deferred_pending_freshness
+    subject_ref: mw_binding:python_data_app:mw:alpha:0001
+    subject_label: Managed workspace binding (provider offline; local-only continuation)
+  rows:
+    - component_ref: mw_binding:python_data_app:mw:alpha:0001
+      component_label: Managed workspace binding
+      activation_budget_class: budget_unknown_pending_refresh
+      activation_budget_summary_ref: abs:mw:alpha:0001:last_known:20260504T180500Z:0001
+      compatibility_label_state: compatibility_unknown_pending_probe
+      compatibility_label_packet_ref: compat:label:managed_binding:python_data_app:0001
+      dependency_source:
+        registry_source_class: mirror
+        catalog_truth_state: mirror_replicated_current
+        catalog_snapshot_revision_ref: catalog:mirror:managed_channel:2026-05-04T15:20:00Z
+        signature_reverify_state: reverify_passed_authoritative
+        source_summary: Mirror snapshot is available; provider reachability is the blocking factor for live validation.
+      rollback_checkpoint_ref: null
+      rollback_posture_class: no_rollback_required
+      quarantine_posture_class: no_quarantine_active
+      continuation_without_component:
+        degraded_capability_class: local_only_continues
+        summary: Local edit/save/search/Git/tasks/BYOK AI remain usable while the managed binding is unreachable.
+  created_at: "2026-05-07T07:30:00Z"

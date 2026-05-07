@@ -1,0 +1,82 @@
+__fixture__:
+  name: activation_budget_exceeded
+  scenario: >
+    Activation-budget exceeded posture on a managed-workspace binding:
+    the managed workspace is warming and the warming_seconds slice has
+    crossed budget, emitting a typed degradation marker. The operator
+    card shows how this surfaces as (1) a managed-workspace lifecycle
+    label, (2) an activation-budget class in the install-review fact
+    grid, and (3) an explicit "awaiting admin confirmation" review
+    disposition rather than a silent install.
+  wedge_ref: launch_bundle:python_service_or_data_app.seed
+  exercises:
+    activation_budget_class: slice_exceeded_with_degradation_marker
+    managed_workspace_lifecycle_state: warming
+    install_review_disposition_class: awaiting_admin_confirmation
+    continuation_without_component: local_only_continues
+  quoted_artifacts:
+    - artifacts/ecosystem/activation_budget_examples/slice_exceeded_with_degradation_marker_warming.yaml
+    - docs/runtime/target_discovery_and_install_review_taxonomy.md
+    - docs/verification/install_review_packet.md
+    - schemas/runtime/install_review_fact_grid.schema.json
+
+record_kind: operator_card_case_record
+operator_card_case_schema_version: 1
+case_id: operator_card.activation_budget.exceeded.managed_warming
+
+wedge:
+  wedge_ref: launch_bundle:python_service_or_data_app.seed
+  wedge_label: Python service or data app
+  source_ref: artifacts/product/language_bundle_rows.yaml
+
+entry:
+  host_boundary_cue_stack: [local_host_boundary, managed_workspace_boundary]
+  action_route_class: managed_control_plane_route
+  action_exposure_class: workspace_visible_mutation
+  route_source_ref: docs/runtime/origin_target_route_taxonomy.md
+  cue_source_ref: docs/runtime/target_discovery_and_install_review_taxonomy.md
+
+managed_workspace:
+  in_play: true
+  lifecycle_label: warming
+  managed_workspace_instance_ref: mw:alpha-0303
+  activation_budget_example_ref: artifacts/ecosystem/activation_budget_examples/slice_exceeded_with_degradation_marker_warming.yaml
+  summary: Warming slice exceeded; binding review must defer to admin confirmation.
+  source_ref: artifacts/runtime/managed_workspace_lifecycle.yaml
+
+notebook_trust:
+  in_play: false
+  preview_sheet_fixture_ref: null
+  summary: Notebook trust not exercised in this budget-only install-review scenario.
+  source_ref: docs/notebooks/notebook_trust_and_roundtrip_preview_contract.md
+
+install_review_fact_grid:
+  record_kind: install_review_fact_grid_record
+  install_review_fact_grid_schema_version: 1
+  grid_id: irfg:activation_budget_exceeded:0001
+  grid_subject:
+    install_review_subject_class: managed_workspace_binding_install
+    install_review_disposition_class: awaiting_admin_confirmation
+    subject_ref: mw_binding:python_data_app:mw:alpha-0303
+    subject_label: Managed workspace binding (budget exceeded; admin review required)
+  rows:
+    - component_ref: mw_binding:python_data_app:mw:alpha-0303
+      component_label: Managed workspace binding
+      activation_budget_class: slice_exceeded_with_degradation_marker
+      activation_budget_summary_ref: abs:mw:alpha-0303:20260423T112200Z:0001
+      compatibility_label_state: degraded_compatible
+      compatibility_label_packet_ref: compat:label:managed_binding:python_data_app:alpha-0303
+      dependency_source:
+        registry_source_class: mirror
+        catalog_truth_state: mirror_replicated_current
+        catalog_snapshot_revision_ref: catalog:mirror:managed_channel:2026-04-23T11:20:00Z
+        signature_reverify_state: reverify_passed_authoritative
+        source_summary: Managed channel mirror is current; activation-budget overage is the blocking constraint.
+      rollback_checkpoint_ref: null
+      rollback_posture_class: no_rollback_required
+      quarantine_posture_class: no_quarantine_active
+      continuation_without_component:
+        degraded_capability_class: local_only_continues
+        summary: Local edit/search/Git/tasks continue while managed binding is held pending admin confirmation.
+  created_at: "2026-05-07T07:28:00Z"
+

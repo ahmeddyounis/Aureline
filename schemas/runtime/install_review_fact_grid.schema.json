@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/runtime/install_review_fact_grid.schema.json",
+  "title": "Aureline install-review fact grid record",
+  "description": "Boundary schema for the install-review fact-grid projection used by install/update review sheets and operator-truth composites when they need one compact, reviewer-facing summary of: activation-budget posture, compatibility label, dependency source, rollback path, quarantine state, and whether the current workflow remains usable without the component. This record is a projection surface: it MUST reuse (and MUST NOT mint alternatives to) the vocabularies frozen in docs/runtime/target_discovery_and_install_review_taxonomy.md (install-review subject/disposition; host-boundary cues; notebook trust rung; structured round-trip risk class; activation-budget summary shape), docs/verification/install_review_packet.md (compatibility label state; activation-budget class; rollback/quarantine posture classes; catalog truth), docs/trust/capability_sheet_contract.md (reduced-mode / degraded capability classes), and docs/managed/managed_workspace_lifecycle_contract.md (local-only continuation admissible-surface meaning). Raw package bytes, raw URLs, raw repo paths, raw notebook contents, raw secrets, and raw provider payloads MUST NOT appear; the grid carries opaque refs, closed tokens, counts, and short reviewable sentences only. Adding a new enum member is additive-minor and bumps install_review_fact_grid_schema_version; repurposing an existing member is breaking and requires a governance decision.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/install_review_fact_grid_record" }
+  ],
+  "$defs": {
+    "install_review_fact_grid_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this fact-grid projection record family. Current value is 1."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "install_review_fact_grid_record",
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable identifier safe to log and export. Raw secrets, raw absolute paths, raw URLs, and raw payload bytes never appear here."
+    },
+
+    "nullable_opaque_id": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/opaque_id" }
+      ]
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 / RFC 3339 UTC timestamp captured from an authoritative or monotonic clock source."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600,
+      "description": "Short reviewer-facing sentence safe for UI, CLI, docs/help, support exports, and audit evidence. Raw secrets, raw URLs, and raw file bodies MUST NOT appear."
+    },
+
+    "install_review_subject_class": {
+      "type": "string",
+      "enum": [
+        "extension_install",
+        "extension_update",
+        "extension_downgrade",
+        "bundle_install",
+        "bundle_update",
+        "mirror_adapter_install",
+        "managed_workspace_binding_install",
+        "emergency_disable_apply",
+        "publisher_continuity_migration"
+      ],
+      "description": "Install-review subject class vocabulary re-exported from docs/runtime/target_discovery_and_install_review_taxonomy.md."
+    },
+
+    "install_review_disposition_class": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "awaiting_user_confirmation",
+        "awaiting_admin_confirmation",
+        "approved",
+        "denied",
+        "deferred_pending_freshness",
+        "deferred_pending_provider_link",
+        "expired_superseded"
+      ],
+      "description": "Install-review disposition class vocabulary re-exported from docs/runtime/target_discovery_and_install_review_taxonomy.md."
+    },
+
+    "activation_budget_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "healthy_under_budget",
+        "approaching_slice_ceiling",
+        "slice_exceeded_with_degradation_marker",
+        "multi_slice_exhausted",
+        "budget_frozen_on_quarantine",
+        "budget_frozen_on_retiring_or_retired",
+        "budget_unknown_pending_refresh"
+      ],
+      "description": "Activation-budget class vocabulary projected onto activation_budget_summary_record slice accounting; aligned with docs/verification/install_review_packet.md and artifacts/ecosystem/activation_budget_examples/."
+    },
+
+    "compatibility_label_state": {
+      "type": "string",
+      "enum": [
+        "fully_supported",
+        "best_effort_supported",
+        "beta_supported",
+        "degraded_compatible",
+        "compatibility_bridge_required",
+        "unsupported_on_target",
+        "unclaimed_ecosystem_row",
+        "compatibility_unknown_pending_probe"
+      ],
+      "description": "Compatibility label state vocabulary aligned with docs/verification/install_review_packet.md and artifacts/ecosystem/compatibility_label_audit.yaml."
+    },
+
+    "registry_source_class": {
+      "type": "string",
+      "enum": [
+        "public_registry",
+        "private_registry",
+        "mirror",
+        "offline_bundle",
+        "vendored_local"
+      ],
+      "description": "Registry/dependency source vocabulary aligned with docs/verification/install_review_packet.md and fixtures/ecosystem/install_review_manifest.yaml."
+    },
+
+    "catalog_truth_state": {
+      "type": "string",
+      "enum": [
+        "live_registry_authoritative",
+        "mirror_replicated_current",
+        "mirror_replicated_stale",
+        "mirror_continuity_broken",
+        "offline_bundle_pinned",
+        "vendored_local_pinned",
+        "catalog_truth_unknown_pending_reverify"
+      ],
+      "description": "Catalog truth state vocabulary projected alongside registry_source_class on install-review surfaces."
+    },
+
+    "signature_reverify_state": {
+      "type": "string",
+      "enum": [
+        "reverify_passed_authoritative",
+        "reverify_passed_warm_cached",
+        "reverify_pending",
+        "reverify_failed",
+        "reverify_unavailable"
+      ],
+      "description": "Signature reverify state vocabulary for mirror/offline catalog verification projections."
+    },
+
+    "rollback_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_rollback_required",
+        "rollback_pending_user_confirmation",
+        "rollback_pending_admin_confirmation",
+        "rollback_in_flight",
+        "rollback_completed_verified",
+        "rollback_failed_manual_repair_required"
+      ],
+      "description": "Rollback posture class projected on install-review surfaces; aligned with docs/verification/install_review_packet.md."
+    },
+
+    "quarantine_posture_class": {
+      "type": "string",
+      "enum": [
+        "no_quarantine_active",
+        "quarantined_by_policy_pack",
+        "quarantined_by_kill_switch",
+        "quarantined_publisher",
+        "quarantine_lifted_pending_reverify"
+      ],
+      "description": "Quarantine posture class projected on install-review surfaces; aligned with docs/verification/install_review_packet.md and docs/extensions/extension_lifecycle_and_quarantine_sequence.md."
+    },
+
+    "degraded_capability_class": {
+      "type": "string",
+      "enum": [
+        "no_degrade_available",
+        "local_only_continues",
+        "read_only_inspection_continues",
+        "draft_saved_locally",
+        "preview_only_continues",
+        "metadata_only_export",
+        "open_in_browser_or_provider",
+        "request_admin_change",
+        "install_disabled_capability_removed"
+      ],
+      "description": "Reduced-mode / degrade vocabulary aligned with schemas/trust/capability_sheet.schema.json#/$defs/degraded_capability_class."
+    },
+
+    "install_review_fact_grid_subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["install_review_subject_class", "install_review_disposition_class", "subject_ref", "subject_label"],
+      "properties": {
+        "install_review_subject_class": { "$ref": "#/$defs/install_review_subject_class" },
+        "install_review_disposition_class": { "$ref": "#/$defs/install_review_disposition_class" },
+        "subject_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the subject under review (extension id, bundle id, managed binding id, etc.)."
+        },
+        "subject_label": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "dependency_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_source_class",
+        "catalog_truth_state",
+        "catalog_snapshot_revision_ref",
+        "signature_reverify_state"
+      ],
+      "properties": {
+        "registry_source_class": { "$ref": "#/$defs/registry_source_class" },
+        "catalog_truth_state": { "$ref": "#/$defs/catalog_truth_state" },
+        "catalog_snapshot_revision_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the catalog snapshot/revision the review is quoting (mirror snapshot, offline bundle manifest revision, etc.). Null is admissible only when registry_source_class is public_registry or private_registry and the review is quoting a live registry view."
+        },
+        "signature_reverify_state": { "$ref": "#/$defs/signature_reverify_state" },
+        "source_summary": {
+          "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/reviewable_sentence" }],
+          "description": "Optional short sentence explaining the dependency source posture (for example: mirror is stale; offline bundle pinned; vendored local path pinned)."
+        }
+      }
+    },
+
+    "continuation_without_component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["degraded_capability_class", "summary"],
+      "properties": {
+        "degraded_capability_class": { "$ref": "#/$defs/degraded_capability_class" },
+        "summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+
+    "install_review_fact_grid_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_ref",
+        "component_label",
+        "activation_budget_class",
+        "compatibility_label_state",
+        "dependency_source",
+        "rollback_checkpoint_ref",
+        "rollback_posture_class",
+        "quarantine_posture_class",
+        "continuation_without_component"
+      ],
+      "properties": {
+        "component_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the component this row describes (extension id, bundle member id, managed binding id, etc.)."
+        },
+        "component_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "activation_budget_class": { "$ref": "#/$defs/activation_budget_class" },
+        "activation_budget_summary_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the activation_budget_summary_record for managed-workspace contexts. Null is admissible only when activation_budget_class = not_applicable."
+        },
+        "compatibility_label_state": { "$ref": "#/$defs/compatibility_label_state" },
+        "compatibility_label_packet_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the compatibility_label_packet_record quoted by the review. Null is admissible only when compatibility_label_state is unclaimed_ecosystem_row or compatibility_unknown_pending_probe."
+        },
+        "dependency_source": { "$ref": "#/$defs/dependency_source" },
+        "rollback_checkpoint_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Opaque ref to the rollback checkpoint retained for this component. Null admissible only when rollback_posture_class = no_rollback_required."
+        },
+        "rollback_posture_class": { "$ref": "#/$defs/rollback_posture_class" },
+        "quarantine_posture_class": { "$ref": "#/$defs/quarantine_posture_class" },
+        "continuation_without_component": { "$ref": "#/$defs/continuation_without_component" }
+      },
+      "allOf": [
+        {
+          "description": "When activation_budget_class = not_applicable, activation_budget_summary_ref MUST be null.",
+          "if": {
+            "properties": { "activation_budget_class": { "const": "not_applicable" } },
+            "required": ["activation_budget_class"]
+          },
+          "then": {
+            "properties": { "activation_budget_summary_ref": { "type": "null" } },
+            "required": ["activation_budget_summary_ref"]
+          }
+        },
+        {
+          "description": "A row that claims no rollback is required MUST set rollback_checkpoint_ref = null.",
+          "if": {
+            "properties": { "rollback_posture_class": { "const": "no_rollback_required" } },
+            "required": ["rollback_posture_class"]
+          },
+          "then": {
+            "properties": { "rollback_checkpoint_ref": { "type": "null" } },
+            "required": ["rollback_checkpoint_ref"]
+          }
+        }
+      ]
+    },
+
+    "install_review_fact_grid_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "install_review_fact_grid_schema_version",
+        "grid_id",
+        "grid_subject",
+        "rows",
+        "created_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "install_review_fact_grid_schema_version": { "$ref": "#/$defs/install_review_fact_grid_schema_version" },
+        "grid_id": { "$ref": "#/$defs/opaque_id" },
+        "grid_subject": { "$ref": "#/$defs/install_review_fact_grid_subject" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/install_review_fact_grid_row" }
+        },
+        "created_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      }
+    }
+  }
+}
+
