@@ -32,6 +32,9 @@ Companion artifacts:
 - [`/artifacts/governance/upstream_health_scorecard.yaml`](../../artifacts/governance/upstream_health_scorecard.yaml)
   — canonical health-score or provisional-risk register keyed by
   dependency row id for critical upstreams.
+- [`/docs/governance/dependency_automation_and_release_notice.md`](./dependency_automation_and_release_notice.md)
+  — automation contract for upstream ingest and release-notice generation that
+  keeps stable ids, evidence markers, and human review checkpoints aligned.
 - [`/docs/governance/provenance_and_compliance_baseline.md`](./provenance_and_compliance_baseline.md)
   — the broader DCO, REUSE/SPDX, and placeholder SBOM/provenance
   baseline this policy composes with.

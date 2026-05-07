@@ -1,0 +1,64 @@
+# Dependency-health gate.
+#
+# Validates the canonical dependency/import registers, upstream-health scorecard,
+# and release-notice seed remain internally consistent.
+
+name: check_dependency_health
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_dependency_health.yml"
+      - "ci/check_dependency_health.*"
+      - "tools/governance/dependency_ingest/**"
+      - "artifacts/governance/dependency_register.yaml"
+      - "artifacts/governance/third_party_import_register.yaml"
+      - "artifacts/governance/upstream_health_scorecard.yaml"
+      - "artifacts/governance/release_notice_seed.yaml"
+      - "docs/governance/dependency_review_policy.md"
+      - "docs/governance/dependency_automation_and_release_notice.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-dependency-health-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dependency_health:
+    name: Dependency health
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run dependency health gate
+        run: |
+          ./ci/check_dependency_health.sh --out-dir target/dependency-health
+
+      - name: Upload dependency health artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-health-${{ github.run_id }}
+          path: target/dependency-health
+          if-no-files-found: error
+          retention-days: 30
+
