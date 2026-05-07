@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/offboarding_exit_packet.schema.json",
+  "title": "Aureline offboarding exit packet record",
+  "description": "Boundary schema for one offboarding_exit_packet_record frozen in docs/governance/usage_export_and_offboarding_contract.md. The exit packet inventories what was exported, what remained held or policy-retained, what was outside platform scope, and which open-format packets and manifests (usage export, portability export, support bundles, destruction receipts) the user or admin can retrieve without a support ticket during the access-end window. The packet references sibling export families by opaque id; it does not embed raw payloads. Raw prompts, raw code, raw user emails, raw tenant names, raw billing ids, raw invoice ids, raw URLs, and provider account identifiers never cross this boundary. Adding a new export-family reference, disposition class, or caveat class is additive-minor and bumps offboarding_exit_packet_schema_version; repurposing an existing value is breaking.",
+  "$ref": "#/$defs/offboarding_exit_packet_record",
+  "$defs": {
+    "offboarding_exit_packet_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "offboarding_exit_packet_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, exports, and support packets. Raw customer, billing, provider, URL, prompt, and code identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from an authoritative or monotonic timestamp source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-safe sentence. Must not contain raw prompts, raw code, raw emails, raw tenant names, raw billing ids, raw invoice ids, raw URLs, or provider account identifiers."
+    },
+    "build_flavor": {
+      "$ref": "schema_registry_entry.schema.json#/$defs/build_flavor"
+    },
+    "deployment_profile_class": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/deployment_profile_class"
+    },
+    "policy_context": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/policy_context"
+    },
+    "scope": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/scope"
+    },
+    "access_end_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_opened_at",
+        "window_closes_at",
+        "window_summary"
+      ],
+      "properties": {
+        "window_opened_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "window_closes_at": { "$ref": "#/$defs/nullable_timestamp" },
+        "window_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "linked_exports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usage_export_packet_refs",
+        "portability_record_refs",
+        "support_bundle_manifest_refs",
+        "destruction_receipt_refs",
+        "export_delete_request_summary_refs"
+      ],
+      "properties": {
+        "usage_export_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "portability_record_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "support_bundle_manifest_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "destruction_receipt_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "export_delete_request_summary_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "held_data_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note_class",
+        "note_summary"
+      ],
+      "properties": {
+        "note_class": {
+          "type": "string",
+          "enum": [
+            "blocked_by_hold",
+            "policy_retained",
+            "manual_local_capture_required",
+            "outside_platform_scope",
+            "omitted_by_redaction"
+          ]
+        },
+        "note_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "linked_record_class_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        }
+      }
+    },
+    "honesty_assertions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "held_or_retained_not_reported_destroyed",
+        "siblings_not_embedded"
+      ],
+      "properties": {
+        "held_or_retained_not_reported_destroyed": {
+          "type": "boolean",
+          "const": true
+        },
+        "siblings_not_embedded": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governance_contract_ref",
+        "schema_registry_entry_ref",
+        "record_class_ref",
+        "usage_export_linkage_ref",
+        "portability_matrix_ref"
+      ],
+      "properties": {
+        "governance_contract_ref": {
+          "type": "string",
+          "const": "docs/governance/usage_export_and_offboarding_contract.md"
+        },
+        "schema_registry_entry_ref": {
+          "type": "string",
+          "const": "artifacts/governance/consent_ledger_seed.yaml#offboarding.exit_packet"
+        },
+        "record_class_ref": {
+          "type": "string",
+          "const": "artifacts/governance/record_class_registry.yaml#offboarding_exit_packet"
+        },
+        "usage_export_linkage_ref": {
+          "type": "string",
+          "const": "artifacts/governance/consent_ledger_seed.yaml#linkage.usage_export_offboarding"
+        },
+        "portability_matrix_ref": {
+          "type": "string",
+          "const": "docs/governance/data_portability_and_exit_matrix.md"
+        }
+      }
+    },
+    "offboarding_exit_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "offboarding_exit_packet_schema_version",
+        "record_kind",
+        "offboarding_exit_packet_id",
+        "build_flavor",
+        "deployment_profile_class",
+        "subject_scope",
+        "policy_context",
+        "access_end_window",
+        "generated_at",
+        "linked_exports",
+        "held_data_notes",
+        "packet_summary",
+        "honesty_assertions",
+        "links"
+      ],
+      "properties": {
+        "offboarding_exit_packet_schema_version": { "$ref": "#/$defs/offboarding_exit_packet_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "offboarding_exit_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "build_flavor": { "$ref": "#/$defs/build_flavor" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "subject_scope": { "$ref": "#/$defs/scope" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "access_end_window": { "$ref": "#/$defs/access_end_window" },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "linked_exports": { "$ref": "#/$defs/linked_exports" },
+        "held_data_notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/held_data_note" }
+        },
+        "packet_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "honesty_assertions": { "$ref": "#/$defs/honesty_assertions" },
+        "links": { "$ref": "#/$defs/links" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      }
+    }
+  }
+}
+

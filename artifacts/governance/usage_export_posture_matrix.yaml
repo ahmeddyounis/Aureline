@@ -1,0 +1,446 @@
+# Usage-export default posture matrix.
+#
+# Purpose:
+#   Make it mechanically answerable whether a given build flavor and
+#   deployment profile:
+#     - emits a usage-export packet,
+#     - stores it locally, in a customer-operated control plane, or in a
+#       vendor-operated managed plane,
+#     - makes the packet customer-visible, and
+#     - includes it in offboarding exit packets.
+#
+# Companion contract:
+#   docs/governance/usage_export_and_offboarding_contract.md
+#
+# Notes:
+#   - This matrix is a posture register, not a billing engine.
+#   - Rows describe default behavior. Policy may narrow visibility, but
+#     MUST NOT widen a lane to start uploading silently.
+#   - Milestone slugs MUST NOT appear in any id, path, or description
+#     field. Describe what the row covers, not which planning item it
+#     came from.
+
+schema_version: 1
+
+contract_ref: docs/governance/usage_export_and_offboarding_contract.md
+usage_export_packet_schema_ref: schemas/governance/usage_export_record.schema.json
+usage_export_row_schema_ref: schemas/managed/usage_export_row.schema.json
+offboarding_exit_packet_schema_ref: schemas/governance/offboarding_exit_packet.schema.json
+consent_ledger_entry_ref: artifacts/governance/consent_ledger_seed.yaml#usage.metering_export_packet
+offboarding_ledger_entry_ref: artifacts/governance/consent_ledger_seed.yaml#offboarding.exit_packet
+linkage_contract_ref: artifacts/governance/consent_ledger_seed.yaml#linkage.usage_export_offboarding
+deployment_profile_registry_ref: artifacts/governance/deployment_profiles.yaml
+record_class_registry_ref: artifacts/governance/record_class_registry.yaml
+
+vocab:
+  build_flavors:
+    source: schemas/governance/schema_registry_entry.schema.json#/$defs/build_flavor
+    values:
+      - dev_local
+      - nightly
+      - preview
+      - beta
+      - stable
+      - lts
+      - hotfix
+      - portable_stable
+      - portable_preview
+      - managed_enterprise
+  deployment_profiles:
+    source: artifacts/governance/deployment_profiles.yaml#deployment_profile_vocabulary
+    values:
+      - individual_local
+      - self_hosted
+      - enterprise_online
+      - air_gapped
+      - managed_cloud
+  emission_class:
+    description: >
+      Where the packet is emitted and stored by default. export_only is
+      a local or customer-bound export path; vendor_managed is a
+      vendor-operated managed plane; customer_managed is a customer-
+      operated control plane.
+    values:
+      - absent_not_emitted
+      - export_only_user_initiated
+      - customer_managed_packet_when_enabled
+      - vendor_managed_packet_when_enabled
+  customer_visibility_class:
+    description: >
+      Whether the packet is customer-visible by default when emitted.
+      A lane that emits usage export must make the packet customer-
+      visible; hiding it behind support is non-conforming.
+    values:
+      - not_applicable_absent
+      - customer_visible
+  offboarding_inclusion_class:
+    description: >
+      Whether offboarding exit packets include a reference to the last
+      contractual usage-export packet on the lane.
+    values:
+      - not_applicable_absent
+      - referenced_by_exit_packet_when_offboarding
+
+rows:
+  # Dev/nightly/preview/beta/hotfix/portable flavors: no billing/usage-export packet surface is claimed.
+  - posture_row_id: usage_export_posture.dev_local.individual_local
+    build_flavor: dev_local
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Developer local-only builds do not emit usage export packets.
+  - posture_row_id: usage_export_posture.dev_local.self_hosted
+    build_flavor: dev_local
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Developer builds do not claim an entitlement usage-export packet surface.
+  - posture_row_id: usage_export_posture.dev_local.enterprise_online
+    build_flavor: dev_local
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Developer builds do not claim usage export across hybrid services.
+  - posture_row_id: usage_export_posture.dev_local.air_gapped
+    build_flavor: dev_local
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Air-gapped developer builds do not emit usage export packets.
+  - posture_row_id: usage_export_posture.dev_local.managed_cloud
+    build_flavor: dev_local
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Developer builds do not ship a managed usage export surface.
+
+  - posture_row_id: usage_export_posture.nightly.individual_local
+    build_flavor: nightly
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Nightly does not claim a billing/usage export packet surface on local-only lanes.
+  - posture_row_id: usage_export_posture.nightly.self_hosted
+    build_flavor: nightly
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Nightly does not claim a usage-export packet surface.
+  - posture_row_id: usage_export_posture.nightly.enterprise_online
+    build_flavor: nightly
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Nightly does not claim a usage-export packet surface.
+  - posture_row_id: usage_export_posture.nightly.air_gapped
+    build_flavor: nightly
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Nightly does not emit usage export packets in air-gapped lanes.
+  - posture_row_id: usage_export_posture.nightly.managed_cloud
+    build_flavor: nightly
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Nightly does not claim a managed usage-export packet surface.
+
+  - posture_row_id: usage_export_posture.preview.individual_local
+    build_flavor: preview
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Preview does not emit usage export packets on local-only lanes.
+  - posture_row_id: usage_export_posture.preview.self_hosted
+    build_flavor: preview
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Preview does not claim a usage-export packet surface.
+  - posture_row_id: usage_export_posture.preview.enterprise_online
+    build_flavor: preview
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Preview does not claim usage export across hybrid services.
+  - posture_row_id: usage_export_posture.preview.air_gapped
+    build_flavor: preview
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Preview does not emit usage export packets in air-gapped lanes.
+  - posture_row_id: usage_export_posture.preview.managed_cloud
+    build_flavor: preview
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Preview does not claim a managed usage-export packet surface.
+
+  - posture_row_id: usage_export_posture.beta.individual_local
+    build_flavor: beta
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Beta does not emit usage export packets on local-only lanes.
+  - posture_row_id: usage_export_posture.beta.self_hosted
+    build_flavor: beta
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Beta does not claim a usage-export packet surface.
+  - posture_row_id: usage_export_posture.beta.enterprise_online
+    build_flavor: beta
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Beta does not claim usage export across hybrid services.
+  - posture_row_id: usage_export_posture.beta.air_gapped
+    build_flavor: beta
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Beta does not emit usage export packets in air-gapped lanes.
+  - posture_row_id: usage_export_posture.beta.managed_cloud
+    build_flavor: beta
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Beta does not claim a managed usage-export packet surface.
+
+  # Stable/LTS: usage export is available only when the lane enables a managed or customer-operated entitlement/metering plane.
+  - posture_row_id: usage_export_posture.stable.individual_local
+    build_flavor: stable
+    deployment_profile_id: individual_local
+    emission_class: export_only_user_initiated
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: not_applicable_absent
+    note: Local-only stable installs may emit an explicit export packet that declares availability_class=absent_no_applicable_metering; no managed rows are implied or uploaded.
+  - posture_row_id: usage_export_posture.stable.air_gapped
+    build_flavor: stable
+    deployment_profile_id: air_gapped
+    emission_class: export_only_user_initiated
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Air-gapped stable deployments may export usage packets to local files or internal customer-controlled destinations; no vendor upload is implied.
+  - posture_row_id: usage_export_posture.stable.self_hosted
+    build_flavor: stable
+    deployment_profile_id: self_hosted
+    emission_class: customer_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Self-hosted stable deployments emit usage export packets only when the customer enables the entitlement/metering surface; packets remain customer-visible and do not imply vendor upload.
+  - posture_row_id: usage_export_posture.stable.enterprise_online
+    build_flavor: stable
+    deployment_profile_id: enterprise_online
+    emission_class: vendor_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Enterprise-online stable deployments emit usage export packets only when a managed tier is enabled; packets are customer-visible and remain distinct from billing engines.
+  - posture_row_id: usage_export_posture.stable.managed_cloud
+    build_flavor: stable
+    deployment_profile_id: managed_cloud
+    emission_class: vendor_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Managed-cloud stable deployments emit usage export packets only when a managed tier is active; offboarding exit packets reference the last contractual export.
+
+  - posture_row_id: usage_export_posture.lts.individual_local
+    build_flavor: lts
+    deployment_profile_id: individual_local
+    emission_class: export_only_user_initiated
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: not_applicable_absent
+    note: Local-only LTS installs may emit an explicit export packet that declares availability_class=absent_no_applicable_metering; no managed rows are implied or uploaded.
+  - posture_row_id: usage_export_posture.lts.air_gapped
+    build_flavor: lts
+    deployment_profile_id: air_gapped
+    emission_class: export_only_user_initiated
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Air-gapped LTS deployments may export usage packets to local files or internal customer-controlled destinations; no vendor upload is implied.
+  - posture_row_id: usage_export_posture.lts.self_hosted
+    build_flavor: lts
+    deployment_profile_id: self_hosted
+    emission_class: customer_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Self-hosted LTS deployments emit usage export packets only when enabled; packets remain customer-visible and customer-controlled.
+  - posture_row_id: usage_export_posture.lts.enterprise_online
+    build_flavor: lts
+    deployment_profile_id: enterprise_online
+    emission_class: vendor_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Enterprise-online LTS deployments emit usage export packets only when enabled; packets remain customer-visible and referenced by exit packets.
+  - posture_row_id: usage_export_posture.lts.managed_cloud
+    build_flavor: lts
+    deployment_profile_id: managed_cloud
+    emission_class: vendor_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Managed-cloud LTS deployments emit usage export packets only when enabled; exit packets reference the last export.
+
+  - posture_row_id: usage_export_posture.hotfix.individual_local
+    build_flavor: hotfix
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Hotfix builds do not manufacture usage-export packets.
+  - posture_row_id: usage_export_posture.hotfix.self_hosted
+    build_flavor: hotfix
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Hotfix builds do not manufacture usage-export packets.
+  - posture_row_id: usage_export_posture.hotfix.enterprise_online
+    build_flavor: hotfix
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Hotfix builds do not manufacture usage-export packets.
+  - posture_row_id: usage_export_posture.hotfix.air_gapped
+    build_flavor: hotfix
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Hotfix builds do not manufacture usage-export packets.
+  - posture_row_id: usage_export_posture.hotfix.managed_cloud
+    build_flavor: hotfix
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Hotfix builds do not manufacture usage-export packets.
+
+  - posture_row_id: usage_export_posture.portable_stable.individual_local
+    build_flavor: portable_stable
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable stable flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_stable.self_hosted
+    build_flavor: portable_stable
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable stable flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_stable.enterprise_online
+    build_flavor: portable_stable
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable stable flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_stable.air_gapped
+    build_flavor: portable_stable
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable stable flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_stable.managed_cloud
+    build_flavor: portable_stable
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable stable flavors do not emit usage-export packets.
+
+  - posture_row_id: usage_export_posture.portable_preview.individual_local
+    build_flavor: portable_preview
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable preview flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_preview.self_hosted
+    build_flavor: portable_preview
+    deployment_profile_id: self_hosted
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable preview flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_preview.enterprise_online
+    build_flavor: portable_preview
+    deployment_profile_id: enterprise_online
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable preview flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_preview.air_gapped
+    build_flavor: portable_preview
+    deployment_profile_id: air_gapped
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable preview flavors do not emit usage-export packets.
+  - posture_row_id: usage_export_posture.portable_preview.managed_cloud
+    build_flavor: portable_preview
+    deployment_profile_id: managed_cloud
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Portable preview flavors do not emit usage-export packets.
+
+  # Managed enterprise: admins expect a usable usage-export packet on managed/corporate lanes.
+  - posture_row_id: usage_export_posture.managed_enterprise.individual_local
+    build_flavor: managed_enterprise
+    deployment_profile_id: individual_local
+    emission_class: absent_not_emitted
+    customer_visibility_class: not_applicable_absent
+    offboarding_inclusion_class: not_applicable_absent
+    note: Managed enterprise builds do not claim a managed usage-export packet surface on individual-local lanes.
+  - posture_row_id: usage_export_posture.managed_enterprise.air_gapped
+    build_flavor: managed_enterprise
+    deployment_profile_id: air_gapped
+    emission_class: export_only_user_initiated
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Managed enterprise air-gapped deployments export packets to customer-controlled destinations; vendor upload is out of window.
+  - posture_row_id: usage_export_posture.managed_enterprise.self_hosted
+    build_flavor: managed_enterprise
+    deployment_profile_id: self_hosted
+    emission_class: customer_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Managed enterprise self-hosted deployments emit usage export packets under customer control and make them customer-visible.
+  - posture_row_id: usage_export_posture.managed_enterprise.enterprise_online
+    build_flavor: managed_enterprise
+    deployment_profile_id: enterprise_online
+    emission_class: vendor_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Managed enterprise hybrid deployments emit customer-visible usage export packets and reference them from exit packets.
+  - posture_row_id: usage_export_posture.managed_enterprise.managed_cloud
+    build_flavor: managed_enterprise
+    deployment_profile_id: managed_cloud
+    emission_class: vendor_managed_packet_when_enabled
+    customer_visibility_class: customer_visible
+    offboarding_inclusion_class: referenced_by_exit_packet_when_offboarding
+    note: Managed enterprise managed-cloud deployments emit customer-visible usage export packets and reference them from exit packets.

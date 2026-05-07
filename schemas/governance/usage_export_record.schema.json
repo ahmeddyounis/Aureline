@@ -1,0 +1,404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/governance/usage_export_record.schema.json",
+  "title": "Aureline usage-export packet record",
+  "description": "Boundary schema for one usage_export_packet_record frozen in docs/governance/usage_export_and_offboarding_contract.md. The packet is the customer-visible, scriptable summary of usage and entitlement-adjacent export rows used by finance, support, admin review, and offboarding flows. It is intentionally not a billing engine: scope, time-basis, quota-family, authority class, caveats, and any policy suppression are explicit, and absence is represented as an explicit availability state rather than as silent omission. Raw prompts, raw code payloads, raw user emails, raw tenant names, raw billing ids, raw invoice ids, raw provider URLs, and provider account identifiers never cross this boundary. Adding an availability class, packet-format class, link ref, or optional compatibility hook is additive-minor and bumps usage_export_record_schema_version; repurposing an existing value is breaking.",
+  "$ref": "#/$defs/usage_export_packet_record",
+  "$defs": {
+    "usage_export_record_schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "record_kind": {
+      "type": "string",
+      "const": "usage_export_packet_record"
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, exports, support packets, and offboarding packets. Raw customer, billing, provider, URL, prompt, and code identifiers never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp produced from an authoritative or monotonic timestamp source."
+    },
+    "nullable_timestamp": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/monotonic_timestamp" }
+      ]
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short product-safe sentence. Must not contain raw prompts, raw code, raw emails, raw tenant names, raw billing ids, raw invoice ids, raw URLs, or provider account identifiers."
+    },
+    "build_flavor": {
+      "$ref": "schema_registry_entry.schema.json#/$defs/build_flavor"
+    },
+    "deployment_profile_class": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/deployment_profile_class"
+    },
+    "time_basis": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/time_basis"
+    },
+    "quota_family_class": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/quota_family_class"
+    },
+    "quota_unit_class": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/quota_unit_class"
+    },
+    "trust_state": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/trust_state"
+    },
+    "redaction_class": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/redaction_class"
+    },
+    "policy_context": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/policy_context"
+    },
+    "export_visibility": {
+      "$ref": "../managed/usage_export_row.schema.json#/$defs/export_visibility"
+    },
+    "availability_class": {
+      "type": "string",
+      "enum": [
+        "present",
+        "absent_no_applicable_metering",
+        "policy_withheld"
+      ],
+      "description": "Whether the packet contains usable rows. absent_no_applicable_metering is the honest local-only / no-metering posture; policy_withheld is used when a policy forbids emitting rows and the packet can only disclose the withholding."
+    },
+    "availability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availability_class",
+        "availability_summary"
+      ],
+      "properties": {
+        "availability_class": { "$ref": "#/$defs/availability_class" },
+        "availability_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "posture_matrix_row_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the matching row in artifacts/governance/usage_export_posture_matrix.yaml."
+        }
+      }
+    },
+    "schema_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet_schema_uri",
+        "packet_schema_version",
+        "row_schema_uri",
+        "row_schema_version"
+      ],
+      "properties": {
+        "packet_schema_uri": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/governance/usage_export_record.schema.json",
+          "description": "Customer-visible schema URI for this packet shape."
+        },
+        "packet_schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Customer-visible schema version for this packet shape."
+        },
+        "row_schema_uri": {
+          "type": "string",
+          "const": "https://aureline.dev/schemas/managed/usage_export_row.schema.json",
+          "description": "Customer-visible schema URI for the embedded row shape."
+        },
+        "row_schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Customer-visible schema version for the embedded row shape."
+        }
+      }
+    },
+    "packet_format_class": {
+      "type": "string",
+      "enum": [
+        "json_rows",
+        "csv_rows",
+        "signed_json_rows"
+      ],
+      "description": "Declared packet serialization class. json_rows is the canonical boundary; csv_rows requires a mapping manifest."
+    },
+    "traceability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "export_job_ref",
+        "generated_at",
+        "packet_format_class",
+        "row_count",
+        "traceability_summary"
+      ],
+      "properties": {
+        "export_job_ref": { "$ref": "#/$defs/opaque_id" },
+        "export_manifest_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "generated_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_format_class": { "$ref": "#/$defs/packet_format_class" },
+        "row_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "audit_event_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" }
+        },
+        "traceability_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "quota_family_unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quota_family_class",
+        "quota_unit_class"
+      ],
+      "properties": {
+        "quota_family_class": { "$ref": "#/$defs/quota_family_class" },
+        "quota_unit_class": { "$ref": "#/$defs/quota_unit_class" },
+        "unit_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "availability_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available_from",
+        "available_until",
+        "window_summary"
+      ],
+      "properties": {
+        "available_from": { "$ref": "#/$defs/monotonic_timestamp" },
+        "available_until": { "$ref": "#/$defs/nullable_timestamp" },
+        "window_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "offboarding_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included_in_offboarding_packet",
+        "available_after_access_end",
+        "support_ticket_required",
+        "availability_window",
+        "offboarding_summary"
+      ],
+      "properties": {
+        "included_in_offboarding_packet": { "type": "boolean" },
+        "available_after_access_end": { "type": "boolean" },
+        "support_ticket_required": {
+          "type": "boolean",
+          "const": false
+        },
+        "availability_window": { "$ref": "#/$defs/availability_window" },
+        "offboarding_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "compatibility_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entitlement_snapshot_refs",
+        "account_exit_packet_refs",
+        "offboarding_exit_packet_refs",
+        "export_delete_request_summary_refs",
+        "compatibility_summary"
+      ],
+      "properties": {
+        "entitlement_snapshot_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to entitlement snapshots that explain entitlement-loss or downgrade posture when the packet is used for review."
+        },
+        "account_exit_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to managed account-exit packets when an exit or access-end flow is in scope."
+        },
+        "offboarding_exit_packet_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to offboarding exit packets when the packet is produced during an offboarding flow."
+        },
+        "export_delete_request_summary_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to export/delete request summaries when the packet is part of a delete or export-before-delete flow."
+        },
+        "compatibility_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "governance_contract_ref",
+        "metering_contract_ref",
+        "posture_matrix_ref",
+        "schema_registry_entry_ref",
+        "record_class_ref",
+        "offboarding_linkage_ref"
+      ],
+      "properties": {
+        "governance_contract_ref": {
+          "type": "string",
+          "const": "docs/governance/usage_export_and_offboarding_contract.md"
+        },
+        "metering_contract_ref": {
+          "type": "string",
+          "const": "docs/managed/metering_and_usage_export_contract.md"
+        },
+        "posture_matrix_ref": {
+          "type": "string",
+          "const": "artifacts/governance/usage_export_posture_matrix.yaml"
+        },
+        "schema_registry_entry_ref": {
+          "type": "string",
+          "const": "artifacts/governance/consent_ledger_seed.yaml#usage.metering_export_packet"
+        },
+        "record_class_ref": {
+          "type": "string",
+          "const": "artifacts/governance/record_class_registry.yaml#entitlement_usage_export_packet"
+        },
+        "offboarding_linkage_ref": {
+          "type": "string",
+          "const": "artifacts/governance/consent_ledger_seed.yaml#linkage.usage_export_offboarding"
+        },
+        "portability_matrix_ref": {
+          "type": "string",
+          "const": "docs/governance/data_portability_and_exit_matrix.md"
+        }
+      }
+    },
+    "usage_export_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usage_export_record_schema_version",
+        "record_kind",
+        "usage_export_packet_id",
+        "schema_identity",
+        "availability",
+        "build_flavor",
+        "deployment_profile_class",
+        "policy_context",
+        "time_basis",
+        "traceability",
+        "export_visibility",
+        "offboarding_posture",
+        "quota_families",
+        "rows",
+        "packet_summary",
+        "compatibility_links",
+        "links"
+      ],
+      "properties": {
+        "usage_export_record_schema_version": { "$ref": "#/$defs/usage_export_record_schema_version" },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "usage_export_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "schema_identity": { "$ref": "#/$defs/schema_identity" },
+        "availability": { "$ref": "#/$defs/availability" },
+        "build_flavor": { "$ref": "#/$defs/build_flavor" },
+        "deployment_profile_class": { "$ref": "#/$defs/deployment_profile_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "time_basis": { "$ref": "#/$defs/time_basis" },
+        "traceability": { "$ref": "#/$defs/traceability" },
+        "export_visibility": { "$ref": "#/$defs/export_visibility" },
+        "offboarding_posture": { "$ref": "#/$defs/offboarding_posture" },
+        "quota_families": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quota_family_unit" }
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "../managed/usage_export_row.schema.json" }
+        },
+        "packet_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "compatibility_links": { "$ref": "#/$defs/compatibility_links" },
+        "links": { "$ref": "#/$defs/links" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional fixture annotation block; never part of the runtime record."
+        }
+      },
+      "allOf": [
+        {
+          "description": "availability_class=present requires at least one quota family and at least one row.",
+          "if": {
+            "properties": {
+              "availability": {
+                "properties": {
+                  "availability_class": { "const": "present" }
+                },
+                "required": ["availability_class"]
+              }
+            },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": {
+              "quota_families": { "minItems": 1 },
+              "rows": { "minItems": 1 },
+              "traceability": {
+                "properties": {
+                  "row_count": { "minimum": 1 }
+                }
+              }
+            }
+          }
+        },
+        {
+          "description": "availability_class!=present requires zero rows and zero quota families.",
+          "if": {
+            "properties": {
+              "availability": {
+                "properties": {
+                  "availability_class": {
+                    "enum": [
+                      "absent_no_applicable_metering",
+                      "policy_withheld"
+                    ]
+                  }
+                },
+                "required": ["availability_class"]
+              }
+            },
+            "required": ["availability"]
+          },
+          "then": {
+            "properties": {
+              "quota_families": { "maxItems": 0 },
+              "rows": { "maxItems": 0 },
+              "traceability": {
+                "properties": {
+                  "row_count": { "maximum": 0 }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+

@@ -19,12 +19,20 @@ Companion artifacts:
 - [`/schemas/managed/quota_state.schema.json`](../../schemas/managed/quota_state.schema.json)
   - boundary schema for one `quota_state_record`, the object every
   quota or usage display reads before claiming a current amount.
+- [`/schemas/governance/usage_export_record.schema.json`](../../schemas/governance/usage_export_record.schema.json)
+  - boundary schema for one `usage_export_packet_record`, the packet
+  envelope that carries one export window's rows plus explicit
+  availability and offboarding posture.
 - [`/schemas/managed/usage_export_row.schema.json`](../../schemas/managed/usage_export_row.schema.json)
   - boundary schema for one `usage_export_row_record`, the row shape
   for monthly or bounded customer exports.
 - [`/fixtures/managed/metering_cases/`](../../fixtures/managed/metering_cases/)
   - worked cases covering authoritative, cached, estimated,
   unavailable, and policy-suppressed usage states plus export rows.
+- [`/fixtures/governance/usage_export_cases/`](../../fixtures/governance/usage_export_cases/)
+  - worked cases covering packet-level export availability, entitlement-loss
+  review, renewal-window posture, local-only absence, and non-coercive
+  downgrade narrowing.
 
 Inherited contracts:
 
@@ -42,6 +50,10 @@ Inherited contracts:
 - [`/docs/governance/record_class_governance.md`](../governance/record_class_governance.md)
   and [`/artifacts/governance/record_class_registry.yaml`](../../artifacts/governance/record_class_registry.yaml)
   define the `entitlement_usage_export_packet` record class.
+- [`/docs/governance/usage_export_and_offboarding_contract.md`](../governance/usage_export_and_offboarding_contract.md)
+  defines the packet-level usage export envelope, default posture matrix,
+  and the reference-without-embedding rule between usage export and
+  offboarding exit packets.
 - [`/docs/governance/time_semantics.md`](../governance/time_semantics.md)
   and [`/docs/governance/truth_and_degraded_state_vocabulary.md`](../governance/truth_and_degraded_state_vocabulary.md)
   provide shared timestamp, freshness, and degraded-state language.
