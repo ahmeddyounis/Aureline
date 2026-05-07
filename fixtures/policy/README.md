@@ -12,6 +12,10 @@ Files:
   — machine-readable case roster covering grant-to-deny, narrower-
   scope carry-forward, expired remembered decisions, future-effective
   policy changes, legal-hold interception, and audit-export chronology.
+- [`permission_prompt_cases/`](./permission_prompt_cases/)
+  — worked permission prompt event cases covering remembered decision
+  expiry, reapproval triggers, destructive local workflows, publish
+  workflows, and embedded-surface escalation.
 - [`chronology_bar_cases/`](./chronology_bar_cases/)
   — reviewer-facing chronology-bar rows preserving effective time,
   display timezone, actor identity, and ordering keys for later support
@@ -31,3 +35,6 @@ Companion documentation:
 - [`/docs/policy/admin_policy_and_bundle_cache_contract.md`](../../docs/policy/admin_policy_and_bundle_cache_contract.md)
   — local admin-policy artifact, signed bundle-cache, precedence,
   safe-default, and explain/export contract.
+- [`/docs/policy/permission_prompt_state_machine.md`](../../docs/policy/permission_prompt_state_machine.md)
+  — typed permission prompt state machine, remembered decision expiry,
+  and reapproval trigger packet.

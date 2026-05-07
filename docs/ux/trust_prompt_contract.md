@@ -24,6 +24,10 @@ This contract composes with, and does not replace:
 - [`/docs/ux/shell_interaction_safety_contract.md`](./shell_interaction_safety_contract.md)
   for consequence class, permission grant scope, representation class,
   required visible fields, and prompt event lineage.
+- [`/docs/policy/permission_prompt_state_machine.md`](../policy/permission_prompt_state_machine.md)
+  and [`/schemas/policy/permission_prompt_event.schema.json`](../../schemas/policy/permission_prompt_event.schema.json)
+  for the prompt lifecycle state machine, remembered decision expiry, and
+  reapproval trigger packet.
 - [`/docs/adr/0018-workspace-trust-and-restricted-mode.md`](../adr/0018-workspace-trust-and-restricted-mode.md)
   for trust states, remembered-decision scope, restricted-mode
   continuity, and escalation cues.

@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/policy/permission_prompt_event.schema.json",
+  "title": "Aureline permission prompt event and reapproval trigger packet",
+  "description": "Boundary schema for one permission_prompt_event_record frozen in docs/policy/permission_prompt_state_machine.md. The record is an export-safe, cross-surface event packet describing why a permission prompt appeared, what authority class and consequence it covered, whether a decision was remembered, and which reapproval triggers forced reprompt. The packet is designed to work unchanged across desktop UI, headless/automation review, and support exports. It composes with the prompt request contract (schemas/trust/prompt_request.schema.json), the shell interaction-safety contract (schemas/ux/interaction_safety.schema.json), runtime authority tickets (schemas/governance/authority_ticket.schema.json), provider approval tickets and browser handoffs (schemas/integration/*), network transport decisions (schemas/network/transport_decision.schema.json), embedded-surface action partitions (schemas/ux/embedded_boundary_card.schema.json), and waiver/remembered-decision expiry records (schemas/governance/waiver_expiry.schema.json). Raw prompt bodies, raw policy payloads, raw URLs, raw hostnames, raw filesystem paths, raw secret material, and raw provider payloads MUST NOT appear; the packet carries opaque refs and typed vocabulary only.",
+  "$ref": "#/$defs/permission_prompt_event_record",
+  "$defs": {
+    "permission_prompt_event_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this permission-prompt event packet family. Additive optional fields and additive enum values bump this const; repurposing an existing value is breaking."
+    },
+
+    "opaque_id": { "$ref": "../trust/prompt_request.schema.json#/$defs/opaque_id" },
+    "nullable_opaque_id": { "$ref": "../trust/prompt_request.schema.json#/$defs/nullable_opaque_id" },
+    "monotonic_timestamp": { "$ref": "../trust/prompt_request.schema.json#/$defs/monotonic_timestamp" },
+    "reviewable_sentence": { "$ref": "../trust/prompt_request.schema.json#/$defs/reviewable_sentence" },
+
+    "prompt_surface_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/surface_class" },
+    "prompt_purpose_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/prompt_purpose_class" },
+    "scope_filter_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/scope_filter_class" },
+    "permission_grant_scope": { "$ref": "../trust/prompt_request.schema.json#/$defs/permission_grant_scope" },
+    "capability_group_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/capability_group_class" },
+    "risk_group_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/risk_group_class" },
+    "side_effect_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/side_effect_class" },
+    "consequence_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/consequence_class" },
+    "policy_context": { "$ref": "../trust/prompt_request.schema.json#/$defs/policy_context" },
+
+    "permission_decision_outcome": { "$ref": "../ux/interaction_safety.schema.json#/$defs/permission_decision_outcome" },
+    "authority_renewal_trigger": { "$ref": "../ux/interaction_safety.schema.json#/$defs/authority_renewal_trigger" },
+
+    "host_boundary_cue_class": { "$ref": "../contexts/host_identity_chip.schema.json#/$defs/host_boundary_cue_class" },
+    "action_route_class": { "$ref": "../contexts/host_identity_chip.schema.json#/$defs/action_route_class" },
+    "action_exposure_class": { "$ref": "../contexts/host_identity_chip.schema.json#/$defs/action_exposure_class" },
+
+    "embedded_action_partition_role": {
+      "$ref": "../ux/embedded_boundary_card.schema.json#/$defs/action_partition_role",
+      "description": "When the request originates inside an embedded surface, this describes whether the embedded body is inspect-only or request-only. Native-reserved approvals must be escalated to product-owned native prompts."
+    },
+
+    "network_permission_class": { "$ref": "../network/transport_decision.schema.json#/$defs/network_permission_class" },
+
+    "prompt_class": {
+      "type": "string",
+      "enum": [
+        "local_mutation",
+        "external_mutation",
+        "credential_projection",
+        "privileged_debug_or_attach",
+        "network_egress",
+        "provider_publish",
+        "browser_handoff"
+      ],
+      "description": "Frozen prompt-class vocabulary. Each permission prompt must be classifiable into exactly one class for audit, support export, and headless review."
+    },
+
+    "prompt_render_posture_class": {
+      "type": "string",
+      "enum": [
+        "shell_native_prompt",
+        "headless_review_prompt",
+        "embedded_request_escalated_to_shell",
+        "platform_mandated_host_prompt",
+        "browser_handoff_only"
+      ],
+      "description": "Frozen render-posture vocabulary. embedded_request_escalated_to_shell indicates an embedded surface requested an action but the approval UI was escalated to a host-native prompt."
+    },
+
+    "reapproval_trigger_extra": {
+      "type": "string",
+      "enum": [
+        "host_boundary_changed",
+        "side_effect_class_widened",
+        "consequence_class_widened"
+      ],
+      "description": "Additional reapproval triggers that are not covered by the interaction-safety authority_renewal_trigger set but are required for reconstructable permission prompts."
+    },
+
+    "route_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_route_class",
+        "action_exposure_class",
+        "host_boundary_cue_stack"
+      ],
+      "properties": {
+        "action_route_class": { "$ref": "#/$defs/action_route_class" },
+        "action_exposure_class": { "$ref": "#/$defs/action_exposure_class" },
+        "host_boundary_cue_stack": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/host_boundary_cue_class" },
+          "description": "Ordered outermost-to-innermost host-boundary cue stack. Consumers compare this stack when deciding whether host_boundary_changed should fire."
+        }
+      }
+    },
+
+    "permission_prompt_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "permission_prompt_opened",
+        "permission_prompt_granted",
+        "permission_prompt_denied",
+        "permission_prompt_cancelled",
+        "permission_prompt_expired",
+        "permission_prompt_revoked_before_commit",
+        "permission_prompt_reprompt_required"
+      ],
+      "description": "Frozen audit-event ids for permission prompt lifecycle. Decision events must carry decision_outcome; reprompt-required must carry the reapproval trigger set."
+    },
+
+    "permission_prompt_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "permission_prompt_event_schema_version",
+        "audit_event_id",
+        "event_id",
+        "captured_at",
+        "permission_prompt_id",
+        "prompt_surface_class",
+        "prompt_purpose_class",
+        "prompt_class",
+        "render_posture_class",
+        "embedded_action_partition_role",
+        "requester_identity_ref",
+        "authority_owner_ref",
+        "scope_target_ref",
+        "scope_filter_class",
+        "grant_scope_requested",
+        "capability_group_classes",
+        "risk_groups",
+        "side_effect_class",
+        "consequence_class",
+        "route_context",
+        "network_permission_class",
+        "prior_grant_ref",
+        "prior_grant_delta_label",
+        "authority_renewal_triggers_observed",
+        "reapproval_trigger_extras",
+        "remembered_decision_ref",
+        "remembered_decision_expiry_ref",
+        "decision_outcome",
+        "decision_at",
+        "authority_ticket_ref",
+        "approval_ticket_ref",
+        "browser_handoff_packet_ref",
+        "transport_decision_ref",
+        "policy_context",
+        "redaction_class"
+      ],
+      "properties": {
+        "record_kind": { "const": "permission_prompt_event_record" },
+        "permission_prompt_event_schema_version": { "$ref": "#/$defs/permission_prompt_event_schema_version" },
+        "audit_event_id": { "$ref": "#/$defs/permission_prompt_audit_event_id" },
+        "event_id": { "$ref": "#/$defs/opaque_id" },
+        "captured_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "permission_prompt_id": { "$ref": "#/$defs/opaque_id" },
+        "prompt_surface_class": { "$ref": "#/$defs/prompt_surface_class" },
+        "prompt_purpose_class": { "$ref": "#/$defs/prompt_purpose_class" },
+        "prompt_class": { "$ref": "#/$defs/prompt_class" },
+        "render_posture_class": { "$ref": "#/$defs/prompt_render_posture_class" },
+
+        "embedded_action_partition_role": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/embedded_action_partition_role" }
+          ],
+          "description": "Null when the request did not originate in an embedded surface. Non-null when the request did; embedded_request_only requires escalation to a host-native prompt posture."
+        },
+
+        "requester_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "authority_owner_ref": { "$ref": "#/$defs/opaque_id" },
+
+        "scope_target_ref": { "$ref": "#/$defs/opaque_id" },
+        "scope_filter_class": { "$ref": "#/$defs/scope_filter_class" },
+        "grant_scope_requested": { "$ref": "#/$defs/permission_grant_scope" },
+
+        "capability_group_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/capability_group_class" }
+        },
+        "risk_groups": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/risk_group_class" }
+        },
+
+        "side_effect_class": { "$ref": "#/$defs/side_effect_class" },
+        "consequence_class": { "$ref": "#/$defs/consequence_class" },
+        "route_context": { "$ref": "#/$defs/route_context" },
+
+        "network_permission_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/network_permission_class" }
+          ],
+          "description": "Non-null when prompt_class = network_egress or when the prompt is tightly coupled to a transport permission class (e.g. browser handoff launch)."
+        },
+
+        "prior_grant_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "prior_grant_delta_label": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/reviewable_sentence" }
+          ],
+          "description": "Non-null when the prompt widens or renews an existing remembered decision; names the delta, not the full envelope."
+        },
+
+        "authority_renewal_triggers_observed": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/authority_renewal_trigger" },
+          "uniqueItems": true,
+          "description": "Re-exported interaction-safety authority-renewal trigger set. Non-empty on renewals; empty on initial grants."
+        },
+        "reapproval_trigger_extras": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reapproval_trigger_extra" },
+          "uniqueItems": true,
+          "description": "Additional trigger set for host-boundary and side-effect widening that must be tracked explicitly for reconstructable reprompts."
+        },
+
+        "remembered_decision_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque id of the remembered_decision_record when the decision is remembered (approval memory or denial memory). Null when the decision is once-only or not remembered."
+        },
+        "remembered_decision_expiry_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Opaque id of the waiver_expiry_record that bounds the remembered decision. Null only when the remembered decision is a permitted narrow opt-out with an explicit non-global scope."
+        },
+
+        "decision_outcome": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/permission_decision_outcome" }
+          ]
+        },
+        "decision_at": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/monotonic_timestamp" }
+          ]
+        },
+
+        "authority_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "approval_ticket_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "browser_handoff_packet_ref": { "$ref": "#/$defs/nullable_opaque_id" },
+        "transport_decision_ref": {
+          "$ref": "#/$defs/nullable_opaque_id",
+          "description": "Optional link to a transport_decision_record when the prompt was triggered by (or results in) an egress decision."
+        },
+
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "../trust/prompt_request.schema.json#/$defs/redaction_class" }
+      },
+      "allOf": [
+        {
+          "description": "Open and reprompt-required events MUST NOT carry a decision_outcome.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "permission_prompt_opened",
+                  "permission_prompt_reprompt_required"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "properties": {
+              "decision_outcome": { "type": "null" },
+              "decision_at": { "type": "null" }
+            }
+          }
+        },
+        {
+          "description": "Decision events MUST carry non-null decision_outcome and decision_at.",
+          "if": {
+            "properties": {
+              "audit_event_id": {
+                "enum": [
+                  "permission_prompt_granted",
+                  "permission_prompt_denied",
+                  "permission_prompt_cancelled",
+                  "permission_prompt_expired",
+                  "permission_prompt_revoked_before_commit"
+                ]
+              }
+            },
+            "required": ["audit_event_id"]
+          },
+          "then": {
+            "required": ["decision_outcome", "decision_at"],
+            "properties": {
+              "decision_outcome": { "not": { "type": "null" } },
+              "decision_at": { "not": { "type": "null" } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
+
