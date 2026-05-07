@@ -1,0 +1,159 @@
+# Startup admission order (cold-start ordering seed).
+#
+# Machine-readable companion to artifacts/startup/cold_start_ordering_packet.md.
+#
+# This file is a review contract: it freezes which startup work is allowed to
+# block the shell-ready threshold, which work is protected (runs early but must
+# yield), and which work is explicitly deferred behind first-useful navigation
+# and edit.
+#
+# Planning identifiers MUST NOT appear in ids, titles, or notes.
+
+schema_version: 1
+record_kind: startup_admission_order_packet
+packet_id: aureline.startup_admission_order
+status: seeded
+
+packet_document_ref: artifacts/startup/cold_start_ordering_packet.md
+
+source_refs:
+  critical_sequence_tad_ref: .t2/docs/Aureline_Technical_Architecture_Document.md
+  critical_sequence_tdd_ref: .t2/docs/Aureline_Technical_Design_Document.md
+  prd_latency_table_ref: .t2/docs/Aureline_PRD.md
+  restore_hydration_contract_ref: docs/recovery/restore_hydration_phases_contract.md
+  hydration_phase_event_schema_ref: schemas/recovery/hydration_phase_event.schema.json
+  queue_contract_ref: docs/runtime/background_queue_contract.md
+  queue_lane_matrix_ref: artifacts/runtime/queue_lane_matrix.yaml
+  journey_segment_ids_ref: artifacts/benchmarks/journey_segment_ids.yaml
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  search_shard_rows_ref: artifacts/search/shard_rows.yaml
+  filesystem_truth_packet_ref: docs/fs/path_truth_packet.md
+
+# --------------------------------------------------------------------------
+# Interactive threshold (cold-start).
+# --------------------------------------------------------------------------
+
+interactive_threshold:
+  segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+  required_ready_cues_emitted_live:
+    - shell_ready
+    - command_entry_ready
+  encouraged_ready_cues_emitted_live:
+    - quick_open_ready
+  allowed_ready_cues_to_be_degraded:
+    - search_ready
+    - semantic_ready
+  must_not_require_completion_of_job_kinds:
+    - knowledge.graph_warmup
+    - knowledge.workspace_index_full
+    - knowledge.workspace_graph_rebuild
+    - provider.overlay_refresh
+    - extension.background_timer
+    - ai.model_warmup
+
+# --------------------------------------------------------------------------
+# Work ordering: what blocks vs. yields vs. defers.
+# --------------------------------------------------------------------------
+
+blocking_foreground_segments_before_shell_ready:
+  - seg.startup.ui_dispatch.boot
+  - seg.startup.service_hop.runtime_init
+  - seg.startup.renderer_work.first_paint_compose
+  - seg.startup.ui_dispatch.first_useful_chrome_ready
+
+# "Protected" means: may begin early, expected to produce useful partial output,
+# but MUST NOT block shell_ready and MUST NOT consume hot-path interactive budget.
+protected_background_job_kinds_allowed_to_enqueue_pre_shell_ready:
+  - startup.workspace_restore
+  - startup.workset_rehydrate
+  - startup.layout_restore
+  - startup.index_resume
+  - knowledge.hot_set_scan
+  - knowledge.open_file_freshness
+  - knowledge.visible_symbol_refresh
+
+explicitly_deferred_background_job_kinds:
+  - knowledge.graph_warmup
+  - knowledge.references_catalog
+  - knowledge.cross_file_link_resolve
+  - knowledge.workspace_index_full
+  - knowledge.workspace_graph_rebuild
+  - provider.overlay_refresh
+  - provider.tenant_policy_refresh
+  - provider.feature_flag_refresh
+  - provider.docs_model_catalog_refresh
+  - extension.background_timer
+  - extension.polling_refresh
+  - extension.hidden_preview_warmup
+  - ai.context_expansion
+  - ai.embeddings_refresh
+  - ai.marketplace_refresh
+  - ai.model_warmup
+
+# --------------------------------------------------------------------------
+# Admission ordering guidance (ties into artifacts/runtime/queue_lane_matrix.yaml).
+# --------------------------------------------------------------------------
+
+startup_admission_ordering:
+  - phase_id: startup_phase.before_shell_ready
+    description: >
+      Shell boot + first paint + first useful chrome. Only the foreground
+      startup segments may block. Background jobs may enqueue but must yield and
+      must not contend for hot-path interactive budget.
+    must_complete_segments:
+      - seg.startup.ui_dispatch.boot
+      - seg.startup.service_hop.runtime_init
+      - seg.startup.renderer_work.first_paint_compose
+      - seg.startup.ui_dispatch.first_useful_chrome_ready
+    may_enqueue_background_job_kinds:
+      - startup.workspace_restore
+      - startup.layout_restore
+      - knowledge.hot_set_scan
+    must_not_block_shell_ready_on_job_kinds:
+      - knowledge.graph_warmup
+      - knowledge.workspace_index_full
+      - provider.overlay_refresh
+    required_ready_cues_emitted_live_by_phase_end:
+      - shell_ready
+      - command_entry_ready
+
+  - phase_id: startup_phase.shell_ready_to_first_editor_ready
+    description: >
+      Post-shell-ready protected restore and hot-set scan continue. First file
+      open and quick open must stay responsive; search may remain degraded.
+    admission_priority_within_allowed_background_work:
+      - startup_restore
+      - hot_set_scan
+      - restore_rebind
+      - provider_refresh
+    must_not_starve_foreground: true
+    allowed_ready_cues_to_remain_degraded:
+      - search_ready
+      - semantic_ready
+
+  - phase_id: startup_phase.after_first_editor_ready
+    description: >
+      Deep semantic warm-up and full-workspace indexing may proceed, subject to
+      governor state and efficiency policy. These workloads remain deferrable
+      and cancellable; they never become a hidden prerequisite for editing.
+    may_admit_deferred_workload_lanes:
+      - graph_warmup
+      - workspace_index_full
+      - extension_timer
+      - ai_context_expansion
+
+# --------------------------------------------------------------------------
+# Proof packet linkage: fixtures that exercise this ordering.
+# --------------------------------------------------------------------------
+
+trace_case_fixtures:
+  - fixture_ref: fixtures/startup/cold_start_trace_cases/cold_launch.yaml
+    scenario_class: cold_launch
+  - fixture_ref: fixtures/startup/cold_start_trace_cases/reopen_last_workspace.yaml
+    scenario_class: reopen_last_workspace
+  - fixture_ref: fixtures/startup/cold_start_trace_cases/open_recent_workspace.yaml
+    scenario_class: open_recent
+  - fixture_ref: fixtures/startup/cold_start_trace_cases/start_center_open_folder.yaml
+    scenario_class: start_center_open_folder
+

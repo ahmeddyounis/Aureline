@@ -17,7 +17,7 @@ to change, update this map in the same change.
 | `fixtures/`    | Reusable test inputs and golden artifacts. Subtrees grow per protected-path corpus.                  |
 | `tools/`       | Repository-local tooling (lint helpers, codegen scripts, governance checkers).                       |
 | `ci/`          | CI configuration shared across pipelines (job definitions, gate scripts).                            |
-| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `architecture/`, `governance/`, `compat/`, `evidence/`, `io/`, `release/`, `platform/`, `qa/`, `ux/`, `accessibility/`, `support/`.  |
+| `artifacts/`   | Checked-in evidence and governance outputs. Subtrees: `architecture/`, `governance/`, `compat/`, `evidence/`, `io/`, `release/`, `platform/`, `qa/`, `ux/`, `accessibility/`, `support/`, `startup/`.  |
 
 ## Reserved subtrees inside `artifacts/`
 
@@ -34,6 +34,7 @@ to change, update this map in the same change.
 | `artifacts/ux/`        | Design-system snapshots and UX review packets.                    |
 | `artifacts/accessibility/` | Accessibility and platform-input matrices, shell-conformance checklists, and accessibility-tree coverage rows. |
 | `artifacts/support/`   | Support-bundle templates, recovery drill outputs, Project Doctor seeded scenarios.   |
+| `artifacts/startup/`   | Startup ordering packets, admission-order seeds, and shell-ready-before-full-graph proof inputs. |
 
 The `artifacts/compat/` subtree is the pre-release compatibility seed
 home. Later release-time compatibility reports still land under

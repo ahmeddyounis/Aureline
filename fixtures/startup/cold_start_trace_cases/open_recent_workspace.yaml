@@ -1,0 +1,65 @@
+__fixture__:
+  name: open_recent_workspace
+  scenario: >
+    From the Start Center, the user opens a workspace from the recent-work list.
+    Recent-state restore and hot-set scan are protected; the shell becomes
+    interactive before graph warm-up completes. Stale recent-work metadata is
+    disclosed explicitly.
+  related_entry_example_refs:
+    - fixtures/workspace/entry_restore_examples/recent_work_missing_target.json
+  primary_contracts:
+    - artifacts/startup/cold_start_ordering_packet.md
+    - artifacts/startup/startup_admission_order.yaml
+
+record_kind: startup_trace_case_record
+startup_trace_case_schema_version: 1
+scenario_class: open_recent
+entry_route_id: er.recent_work_reopen
+startup_state_token: startup_state:partial_startup
+
+protected_path_refs:
+  - path.shell.first_useful_chrome
+  - path.onboarding.start_center_first_useful_edit
+
+expected_trace:
+  must_complete_before_shell_ready:
+    - seg.startup.ui_dispatch.boot
+    - seg.startup.service_hop.runtime_init
+    - seg.startup.renderer_work.first_paint_compose
+    - seg.startup.ui_dispatch.first_useful_chrome_ready
+  must_not_be_required_before_shell_ready_job_kinds:
+    - knowledge.graph_warmup
+    - provider.overlay_refresh
+
+interactive_threshold:
+  segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+  required_ready_cues_emitted_live:
+    - shell_ready
+    - command_entry_ready
+    - quick_open_ready
+  allowed_ready_cues_to_be_degraded:
+    - search_ready
+    - semantic_ready
+
+stale_state_disclosures:
+  recent_work_row_truth_state: stale_metadata
+  required_disclosure_summary: >
+    Recent-work rows may be stale (moved/renamed roots, missing tooling, or
+    changed trust/policy). The Start Center must disclose staleness rather than
+    implying the target is already live.
+
+background_admission:
+  protected_job_kinds_expected:
+    - startup.workspace_restore
+    - knowledge.hot_set_scan
+  deferred_job_kinds_must_not_gate_interactivity:
+    - knowledge.graph_warmup
+    - provider.overlay_refresh
+
+degraded_behavior:
+  indexes_unavailable_or_cold:
+    required_ready_cue_posture:
+      search_ready: emitted_degraded
+    required_partiality_classes:
+      - pending_index_warmup
+

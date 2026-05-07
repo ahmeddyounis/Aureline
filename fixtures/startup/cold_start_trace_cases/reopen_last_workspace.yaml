@@ -1,0 +1,77 @@
+__fixture__:
+  name: reopen_last_workspace
+  scenario: >
+    Cold process start with an existing prior workspace and window topology.
+    The shell becomes interactive before full graph warm-up; restore and hot-set
+    work are admitted early and protected ahead of deep background jobs.
+  related_entry_example_refs:
+    - fixtures/workspace/entry_restore_examples/restore_last_session.json
+  primary_contracts:
+    - artifacts/startup/cold_start_ordering_packet.md
+    - artifacts/startup/startup_admission_order.yaml
+
+record_kind: startup_trace_case_record
+startup_trace_case_schema_version: 1
+scenario_class: reopen_last_workspace
+entry_route_id: er.warm_start
+startup_state_token: startup_state:warming_startup
+
+protected_path_refs:
+  - path.shell.first_useful_chrome
+  - path.workspace.restore
+
+expected_trace:
+  must_complete_before_shell_ready:
+    - seg.startup.ui_dispatch.boot
+    - seg.startup.service_hop.runtime_init
+    - seg.startup.renderer_work.first_paint_compose
+    - seg.startup.ui_dispatch.first_useful_chrome_ready
+  allowed_in_flight_at_shell_ready:
+    - seg.startup.adapter_layer.vfs_root_enumeration
+  must_not_be_required_before_shell_ready_job_kinds:
+    - knowledge.graph_warmup
+    - knowledge.workspace_index_full
+    - provider.overlay_refresh
+
+interactive_threshold:
+  segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+  required_ready_cues_emitted_live:
+    - shell_ready
+    - command_entry_ready
+  encouraged_ready_cues_emitted_live:
+    - quick_open_ready
+    - first_editor_ready
+  allowed_ready_cues_to_be_degraded:
+    - search_ready
+    - semantic_ready
+  required_partiality_classes_when_degraded:
+    - pending_index_warmup
+
+background_admission:
+  protected_job_kinds_expected:
+    - startup.workspace_restore
+    - startup.layout_restore
+    - startup.index_resume
+    - knowledge.hot_set_scan
+  explicitly_deferred_job_kinds_expected:
+    - knowledge.graph_warmup
+    - knowledge.workspace_index_full
+    - provider.overlay_refresh
+  ordering_assertion: >
+    recent-state restore and hot-set scan are protected ahead of deep graph
+    warm-up and provider refresh.
+
+degraded_behavior:
+  watchers_unavailable_or_degraded:
+    watcher_assertion_state: degraded
+    required_disclosure_summary: >
+      Watcher health is degraded (polling or limited mode). File open and text
+      editing remain available; surfaces disclose watcher posture using the
+      filesystem truth packet vocabulary (watcher_assertion_state and hint codes
+      including watcher_degraded).
+  graph_shards_unavailable:
+    required_ready_cue_posture:
+      semantic_ready: not_yet_emitted
+    required_disclosure_summary: >
+      Graph shard reuse is best-effort; missing or invalid shards trigger
+      background rebuild without blocking shell-ready or first edit.

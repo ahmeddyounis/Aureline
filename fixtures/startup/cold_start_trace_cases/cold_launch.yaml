@@ -1,0 +1,67 @@
+__fixture__:
+  name: cold_launch
+  scenario: >
+    Cold process start into Start Center / shell chrome without immediately
+    opening a workspace. The shell becomes interactive (shell_ready +
+    command_entry_ready) before any deep knowledge work (graph warm-up, full
+    indexing, provider overlays) is required.
+  primary_contracts:
+    - artifacts/startup/cold_start_ordering_packet.md
+    - artifacts/startup/startup_admission_order.yaml
+
+record_kind: startup_trace_case_record
+startup_trace_case_schema_version: 1
+scenario_class: cold_launch
+entry_route_id: er.start_center
+startup_state_token: startup_state:first_run
+
+protected_path_refs:
+  - path.shell.launch
+  - path.shell.first_useful_chrome
+
+expected_trace:
+  must_complete_before_shell_ready:
+    - seg.startup.ui_dispatch.boot
+    - seg.startup.service_hop.runtime_init
+    - seg.startup.renderer_work.first_paint_compose
+    - seg.startup.ui_dispatch.first_useful_chrome_ready
+  allowed_in_flight_at_shell_ready:
+    - seg.startup.adapter_layer.vfs_root_enumeration
+  must_not_be_required_before_shell_ready_job_kinds:
+    - knowledge.graph_warmup
+    - knowledge.workspace_index_full
+    - provider.overlay_refresh
+
+interactive_threshold:
+  segment_id: seg.startup.ui_dispatch.first_useful_chrome_ready
+  required_ready_cues_emitted_live:
+    - shell_ready
+    - command_entry_ready
+  encouraged_ready_cues_emitted_live:
+    - quick_open_ready
+  allowed_ready_cues_to_be_degraded:
+    - search_ready
+    - semantic_ready
+  allowed_partiality_classes:
+    - pending_index_warmup
+    - pending_provider_overlay
+
+background_admission:
+  protected_job_kinds_expected:
+    - startup.workspace_restore
+    - startup.layout_restore
+  deferred_job_kinds_must_not_gate_interactivity:
+    - knowledge.graph_warmup
+    - knowledge.workspace_index_full
+    - provider.overlay_refresh
+
+degraded_behavior:
+  indexes_unavailable_or_cold:
+    required_ready_cue_posture:
+      search_ready: emitted_degraded
+      semantic_ready: not_yet_emitted
+    required_partiality_classes:
+      - pending_index_warmup
+    required_disclosure_summary: >
+      Search may be name-only while the index warms; the shell must not imply
+      full readiness.
