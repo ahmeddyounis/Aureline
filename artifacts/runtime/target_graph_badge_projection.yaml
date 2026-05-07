@@ -1,0 +1,161 @@
+# Target-graph state badge/chip projection vocabulary.
+#
+# This artifact pins the label vocabulary that run/test/build/debug pickers,
+# target-graph panels, inspectors, command diagnostics, and support exports
+# use when projecting target-graph state.
+#
+# Companion to:
+# - docs/runtime/target_graph_state_projection.md
+# - schemas/runtime/target_graph_state.schema.json
+#
+# Rules:
+# - Tokens are closed: consumers MUST NOT mint synonyms.
+# - If this file and the boundary schema disagree, the schema wins for tooling
+#   and this file MUST update in the same change.
+
+schema_version: 1
+
+sources:
+  projection_doc: docs/runtime/target_graph_state_projection.md
+  boundary_schema: schemas/runtime/target_graph_state.schema.json
+  host_boundary_taxonomy: docs/runtime/target_discovery_and_install_review_taxonomy.md
+  route_taxonomy: docs/runtime/origin_target_route_taxonomy.md
+  adapter_and_snapshot_contract: docs/tooling/target_graph_and_adapter_contract.md
+
+axes:
+  operator_truth_projection_class:
+    description: >
+      Frozen operator-truth class. exact/imported/heuristic/hybrid are shared
+      across product surfaces; target-graph state MUST reuse them and must not
+      invent build-only synonyms.
+    values:
+      - exact
+      - imported
+      - heuristic
+      - hybrid
+    label_text:
+      exact: Exact
+      imported: Imported
+      heuristic: Heuristic
+      hybrid: Hybrid
+
+  target_graph_availability_state:
+    description: >
+      Frozen graph availability/lifecycle state. Every consumer surface must
+      render these explicitly (no collapse into a generic error).
+    values:
+      - current
+      - warming
+      - stale
+      - partial
+      - unavailable
+    label_text:
+      current: Current
+      warming: Warming
+      stale: Stale
+      partial: Partial
+      unavailable: Unavailable
+
+  confidence_chip_class:
+    description: >
+      Frozen confidence chip ladder for human-facing surfaces. These labels are
+      used verbatim in UI chrome and CLI/support projections.
+    values:
+      - high
+      - medium_high
+      - medium
+      - low
+    label_text:
+      high: High
+      medium_high: Medium-high
+      medium: Medium
+      low: Low
+
+  host_boundary_cue_class:
+    description: >
+      Frozen host-boundary cue labels. These project the canonical tokens from
+      docs/runtime/target_discovery_and_install_review_taxonomy.md.
+    values:
+      - local_host_boundary
+      - user_mode_sandbox_boundary
+      - container_kernel_boundary
+      - devcontainer_boundary
+      - remote_ssh_boundary
+      - remote_agent_boundary
+      - managed_workspace_boundary
+      - notebook_kernel_boundary
+      - ai_sandbox_boundary
+      - browser_handoff_return_boundary
+      - bridged_host_boundary
+    label_text:
+      local_host_boundary: Local
+      user_mode_sandbox_boundary: Sandbox
+      container_kernel_boundary: Container
+      devcontainer_boundary: Devcontainer
+      remote_ssh_boundary: SSH Remote
+      remote_agent_boundary: Remote Agent
+      managed_workspace_boundary: Managed Workspace
+      notebook_kernel_boundary: Notebook Kernel
+      ai_sandbox_boundary: AI Sandbox
+      browser_handoff_return_boundary: Browser Return
+      bridged_host_boundary: Bridged Host
+
+projection_rules:
+  chip_order:
+    - target_truth
+    - confidence
+    - host_boundary
+  target_truth_chip:
+    format: "{truth_label} · {availability_label}"
+    example: "Exact · Current"
+  confidence_chip:
+    format: "{confidence_label}"
+    example: "Medium-high"
+  host_boundary_chip:
+    format: "{boundary_label}"
+    example: "Managed Workspace"
+
+worked_examples:
+  - id: exact_local_current
+    record_ref: fixtures/runtime/target_graph_cases/exact_local_current.json
+    expected_chips:
+      target_truth_chip: "Exact · Current"
+      confidence_chip: "High"
+      host_boundary_chip: "Local"
+  - id: imported_replay_stale
+    record_ref: fixtures/runtime/target_graph_cases/imported_support_bundle_replay_stale.json
+    expected_chips:
+      target_truth_chip: "Imported · Stale"
+      confidence_chip: "Medium"
+      host_boundary_chip: "Local"
+  - id: heuristic_partial_degraded
+    record_ref: fixtures/runtime/target_graph_cases/heuristic_partial_graph.json
+    expected_chips:
+      target_truth_chip: "Heuristic · Partial"
+      confidence_chip: "Low"
+      host_boundary_chip: "Local"
+  - id: wrong_target_recovery_requires_reapproval
+    record_ref: fixtures/runtime/target_graph_cases/wrong_target_recovery_requires_reapproval.json
+    expected_chips:
+      target_truth_chip: "Exact · Current"
+      confidence_chip: "Medium-high"
+      host_boundary_chip: "Local"
+  - id: provider_routed_external_handoff
+    record_ref: fixtures/runtime/target_graph_cases/provider_routed_external_handoff.json
+    expected_chips:
+      target_truth_chip: "Exact · Current"
+      confidence_chip: "High"
+      host_boundary_chip: "Browser Return"
+  - id: remote_attach_non_local_boundary
+    record_ref: fixtures/runtime/target_graph_cases/remote_attach_target_graph.json
+    expected_chips:
+      target_truth_chip: "Exact · Current"
+      confidence_chip: "High"
+      host_boundary_chip: "Remote Agent"
+  - id: local_fallback_after_provider_loss
+    record_ref: fixtures/runtime/target_graph_cases/local_fallback_after_provider_loss.json
+    expected_chips:
+      target_truth_chip: "Hybrid · Partial"
+      confidence_chip: "Medium"
+      host_boundary_chip: "Local"
+
