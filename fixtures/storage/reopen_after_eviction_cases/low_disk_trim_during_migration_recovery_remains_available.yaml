@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../../../schemas/storage/reopen_after_eviction_packet.schema.json
+$schema: "https://aureline.dev/schemas/storage/reopen_after_eviction_packet.schema.json"
+__fixture__:
+  name: low_disk_trim_during_migration_recovery_remains_available
+  scenario: >
+    Disk pressure occurs during a migration/restore window. Disposable and rebuildable caches
+    may be trimmed, but migration recovery remains available because user_owned_recovery_state
+    is a protected continuity class and is not eligible for automatic eviction. The packet ties
+    the claim to the storage class vocabulary so the guarantee is supportable.
+  contract_sections:
+    - "§3 The reopen-after-eviction packet record"
+    - "§4 Per-class impact rows"
+    - "§5 Cross-surface impacts"
+    - "§6 Honesty invariants"
+record_kind: reopen_after_eviction_packet_record
+reopen_after_eviction_packet_schema_version: 1
+packet_id: "packet.reopen_after_eviction.profile.migration.lowdisk.001"
+emitted_at: "2026-05-06T23:10:00Z"
+packet_scope:
+  scope_class: profile_only
+  scope_ref: "profile.local.primary"
+  scope_label: "Profile: primary local"
+triggering_cleanup_event_class: automatic_low_disk_governor_eviction
+triggering_cleanup_event_ref: "event.cleanup.profile.lowdisk.011"
+triggering_low_disk_banner_ref: "banner.lowdisk.profile.degraded.004"
+triggering_clear_data_review_ref: null
+class_rows:
+  - class_row_id: "row.migration.lowdisk.knowledge_cache"
+    storage_class_id: knowledge_cache
+    observed_posture_on_reopen: pressure_trimmed
+    removal_class: trimmed_or_evicted
+    estimated_removed_bytes: 188743680
+    estimated_removed_entries: 1
+    preserved_pin_sources: []
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: medium_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: slower_first_query_until_reindexed
+      provenance_continuity_class: provenance_preserved_rebuild_from_local_truth
+      rebuild_inputs_required:
+        - local_workspace_source
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+      rebuild_explanation: >
+        Index shards can be trimmed under pressure and rebuilt from local workspace truth.
+        Migration recovery does not depend on knowledge-cache availability.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Knowledge cache was trimmed under pressure and will rebuild from local workspace truth.
+  - class_row_id: "row.migration.lowdisk.user_owned_recovery_state"
+    storage_class_id: user_owned_recovery_state
+    observed_posture_on_reopen: healthy
+    removal_class: not_removed
+    estimated_removed_bytes: 0
+    estimated_removed_entries: 0
+    preserved_pin_sources:
+      - retention_window_ref
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: authoritative_no_rebuild
+      offline_rebuild_risk_class: not_rebuildable_after_removal
+      startup_impact_class: not_applicable_authoritative_state
+      provenance_continuity_class: authoritative_provenance_irreplaceable
+      rebuild_inputs_required:
+        - no_input_authoritative_state
+      rebuild_safety_summary_class: dangerous_to_delete_authoritative
+      rebuild_explanation: >
+        Migration checkpoints and recovery journals live in user-owned recovery state.
+        The class is protected from automatic eviction during disk pressure.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Migration checkpoints and recovery journals remain preserved; low-disk trimming does not
+      evict user-owned recovery state without explicit review.
+surface_impacts:
+  - impact_row_id: "impact.profile.migration_recovery"
+    surface_class: migration_recovery
+    impact_class: unaffected
+    impact_sentence: >
+      Migration recovery remains available because checkpoints and recovery journals are preserved
+      in protected user-owned recovery state. Cache trimming may slow rebuildable indexes but does
+      not remove migration anchors.
+    driver_storage_class_ids:
+      - user_owned_recovery_state
+redaction_class: metadata_safe_default
+export_safe: true
+note: >
+  Disk pressure during migration trims rebuildable caches only. Migration recovery remains supportable
+  because its anchors live in protected user_owned_recovery_state.
+

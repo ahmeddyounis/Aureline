@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../../../schemas/storage/reopen_after_eviction_packet.schema.json
+$schema: "https://aureline.dev/schemas/storage/reopen_after_eviction_packet.schema.json"
+__fixture__:
+  name: low_disk_trim_then_exact_build_support_lookup_requires_refetch
+  scenario: >
+    Low-disk trimming removed unpinned artifact_cache entries that include symbol bundles.
+    When support tooling attempts an exact-build lookup, the required local symbol bundle is
+    missing and must be refetched. The packet discloses the dependency and the storage class
+    that caused it so supportability never depends on an unspoken cache.
+  contract_sections:
+    - "§3 The reopen-after-eviction packet record"
+    - "§4 Per-class impact rows"
+    - "§5 Cross-surface impacts"
+    - "§6 Honesty invariants"
+record_kind: reopen_after_eviction_packet_record
+reopen_after_eviction_packet_schema_version: 1
+packet_id: "packet.reopen_after_eviction.device.lowdisk.support_lookup.001"
+emitted_at: "2026-05-06T22:30:00Z"
+packet_scope:
+  scope_class: device_total
+  scope_ref: null
+  scope_label: "Device: local profile (all workspaces)"
+triggering_cleanup_event_class: automatic_low_disk_governor_eviction
+triggering_cleanup_event_ref: "event.cleanup.device.lowdisk.007"
+triggering_low_disk_banner_ref: "banner.lowdisk.device.degraded.003"
+triggering_clear_data_review_ref: null
+class_rows:
+  - class_row_id: "row.reopen.device.artifact_cache"
+    storage_class_id: artifact_cache
+    observed_posture_on_reopen: pressure_trimmed
+    removal_class: trimmed_or_evicted
+    estimated_removed_bytes: 268435456
+    estimated_removed_entries: 4
+    preserved_pin_sources: []
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: medium_rebuild_cost
+      offline_rebuild_risk_class: rebuild_requires_network_resync
+      startup_impact_class: no_user_visible_impact
+      provenance_continuity_class: provenance_preserved_rebuild_from_signed_source
+      rebuild_inputs_required:
+        - signed_release_or_template_pack
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+      rebuild_explanation: >
+        Symbol bundles live in artifact_cache and are reacquired from signed release
+        sources. If removed and not pinned, exact-build support lookup requires a refetch
+        before symbolication can proceed.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Unpinned artifact-cache entries were trimmed under low-disk pressure. Exact-build
+      support lookup may require refetch of symbol bundles from signed release sources.
+surface_impacts:
+  - impact_row_id: "impact.device.exact_build_support_lookup"
+    surface_class: exact_build_support_lookup
+    impact_class: blocked_requires_network_or_mirror
+    impact_sentence: >
+      Exact-build support lookup cannot complete because the required symbol bundle is not
+      present locally after trimming. Refetch the bundle from an allowed signed release or
+      mirror route, then retry lookup.
+    driver_storage_class_ids:
+      - artifact_cache
+redaction_class: metadata_safe_default
+export_safe: true
+note: >
+  Supportability consequences are tied to artifact_cache trimming. The packet ensures the
+  missing-local-artifact condition is explainable and export-safe.
+

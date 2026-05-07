@@ -1,0 +1,94 @@
+# yaml-language-server: $schema=../../../schemas/storage/reopen_after_eviction_packet.schema.json
+$schema: "https://aureline.dev/schemas/storage/reopen_after_eviction_packet.schema.json"
+__fixture__:
+  name: post_update_invalidation_then_restore_rebuilds_knowledge_cache
+  scenario: >
+    After an update, producing-schema fingerprints invalidate one workspace's
+    knowledge_cache entries (schema drift), requiring rebuild on restore. The packet
+    discloses restore-time rebuild pending for indexes while explicitly showing that
+    authoritative user_owned_recovery_state remains preserved.
+  contract_sections:
+    - "§3 The reopen-after-eviction packet record"
+    - "§4 Per-class impact rows"
+    - "§5 Cross-surface impacts"
+    - "§6 Honesty invariants"
+record_kind: reopen_after_eviction_packet_record
+reopen_after_eviction_packet_schema_version: 1
+packet_id: "packet.reopen_after_eviction.ws.aurelia_web.schema_drift.001"
+emitted_at: "2026-05-06T21:05:00Z"
+packet_scope:
+  scope_class: workspace_only
+  scope_ref: "ws.local.aurelia_web"
+  scope_label: "Workspace: aurelia/web (local)"
+triggering_cleanup_event_class: automatic_schema_drift_invalidation
+triggering_cleanup_event_ref: "event.cleanup.ws.aurelia_web.schema_drift.001"
+triggering_low_disk_banner_ref: null
+triggering_clear_data_review_ref: null
+class_rows:
+  - class_row_id: "row.restore.ws.aurelia_web.knowledge_cache"
+    storage_class_id: knowledge_cache
+    observed_posture_on_reopen: rebuild_pending
+    removal_class: invalidated_requires_rebuild
+    estimated_removed_bytes: 314572800
+    estimated_removed_entries: 2
+    preserved_pin_sources: []
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: high_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: slower_first_query_until_reindexed
+      provenance_continuity_class: provenance_preserved_rebuild_from_local_truth
+      rebuild_inputs_required:
+        - local_workspace_source
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+      rebuild_explanation: >
+        Index entries are invalid due to producing-schema drift. Rebuild from local
+        workspace source is safe, but first query/graph navigation is slower until
+        rehydration completes.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Index entries were invalidated by a producing-schema change. Restore proceeds,
+      but search and graph rebuild from local workspace source before results are fresh.
+  - class_row_id: "row.restore.ws.aurelia_web.user_owned_recovery_state"
+    storage_class_id: user_owned_recovery_state
+    observed_posture_on_reopen: healthy
+    removal_class: not_removed
+    estimated_removed_bytes: 0
+    estimated_removed_entries: 0
+    preserved_pin_sources:
+      - retention_window_ref
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: authoritative_no_rebuild
+      offline_rebuild_risk_class: not_rebuildable_after_removal
+      startup_impact_class: not_applicable_authoritative_state
+      provenance_continuity_class: authoritative_provenance_irreplaceable
+      rebuild_inputs_required:
+        - no_input_authoritative_state
+      rebuild_safety_summary_class: dangerous_to_delete_authoritative
+      rebuild_explanation: >
+        Recovery state is authoritative user-owned continuity. It is preserved across
+        restore and is not eligible for automatic eviction.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Authoritative recovery state remains preserved; restore fidelity is not reduced
+      by post-update cache invalidation.
+surface_impacts:
+  - impact_row_id: "impact.restore.ws.aurelia_web.restore_flow"
+    surface_class: restore_flow
+    impact_class: degraded_rebuild_pending
+    impact_sentence: >
+      Restore completes, but search and graph indexes rebuild due to schema drift; first
+      query/graph navigation may be slower until rehydration finishes.
+    driver_storage_class_ids:
+      - knowledge_cache
+redaction_class: metadata_safe_default
+export_safe: true
+note: >
+  Post-update invalidation is surfaced as a restore-time rebuild requirement for
+  knowledge_cache, while user_owned_recovery_state remains protected and preserved.
+

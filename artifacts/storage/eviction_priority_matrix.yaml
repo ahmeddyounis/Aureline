@@ -1,0 +1,178 @@
+# Eviction priority and reopen consequence matrix.
+#
+# This artifact is a human-meaningful mapping layer over the already-frozen
+# runtime storage-class vocabulary. It does not mint new storage_class_id,
+# pin_source_class, gc_policy_class, clear_cache_protection_class, or
+# low_disk_ladder_step values.
+
+schema_version: 1
+artifact_id: aureline.storage.eviction_priority_matrix
+title: Storage eviction priority matrix and reopen consequence mapping
+
+contract_source: artifacts/storage/eviction_policy.md
+
+related_artifacts:
+  runtime_storage_classes_ref: artifacts/runtime/storage_classes.yaml
+  low_disk_drills_ref: artifacts/runtime/low_disk_drills.yaml
+  clear_data_and_low_disk_contract_ref: docs/storage/clear_data_and_low_disk_contract.md
+  cleanup_history_contract_ref: docs/storage/pin_retention_cleanup_history_contract.md
+  reopen_after_eviction_contract_ref: docs/storage/reopen_after_eviction_contract.md
+
+# Ordered by the default low-disk ladder (early → late), with protected classes
+# called out explicitly. These rows are not closed vocabulary; they are stable
+# explanatory mappings back to the frozen storage_class_id set.
+matrix_rows:
+  - data_family_id: temp_outputs_and_previews
+    data_family_label: "Temp outputs and previews"
+    storage_class_id: interactive_hot_cache
+    low_disk_ladder_step: trim_interactive_hot_cache
+    clear_cache_protection_class: generic_clear_always_allowed
+    protected_continuity_class: false
+    pin_source_classes_preserved_by_default: []
+    typical_reopen_consequence:
+      rebuild_cost_class: low_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: slower_first_open_until_warm
+      provenance_continuity_class: not_applicable_disposable_no_provenance
+      rebuild_safety_summary_class: cheap_to_rebuild_safe_to_remove
+    notes: >
+      Disposable derived shards. Trim first under pressure; no correctness or
+      evidence continuity is at stake.
+
+  - data_family_id: indexes_and_graph_shards
+    data_family_label: "Indexes and graph shards"
+    storage_class_id: knowledge_cache
+    low_disk_ladder_step: trim_knowledge_cache_rebuildable
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    protected_continuity_class: false
+    pin_source_classes_preserved_by_default:
+      - offline_bundle_ref
+      - certified_archetype_or_template_ref
+    typical_reopen_consequence:
+      rebuild_cost_class: high_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: slower_first_query_until_reindexed
+      provenance_continuity_class: provenance_preserved_rebuild_from_local_truth
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    notes: >
+      Derived but correctness-relevant. Trimming is admissible when unpinned; the
+      reopen path must disclose rebuild pending and slower first query/graph.
+
+  - data_family_id: language_snapshots_and_embeddings
+    data_family_label: "Language snapshots and embeddings"
+    storage_class_id: knowledge_cache
+    low_disk_ladder_step: trim_knowledge_cache_rebuildable
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    protected_continuity_class: false
+    pin_source_classes_preserved_by_default:
+      - offline_bundle_ref
+    typical_reopen_consequence:
+      rebuild_cost_class: medium_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: feature_unavailable_until_rebuilt
+      provenance_continuity_class: provenance_preserved_rebuild_from_local_truth
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    notes: >
+      Some knowledge-cache entries gate advanced features; reopen disclosure must
+      name the feature impact until rebuild completes.
+
+  - data_family_id: cached_docs_packs
+    data_family_label: "Cached docs (docs packs)"
+    storage_class_id: artifact_cache
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    protected_continuity_class: false
+    pin_source_classes_preserved_by_default:
+      - offline_bundle_ref
+      - release_artifact_graph_ref
+    typical_reopen_consequence:
+      rebuild_cost_class: medium_rebuild_cost
+      offline_rebuild_risk_class: rebuild_requires_mirror_or_offline_bundle
+      startup_impact_class: feature_unavailable_until_rebuilt
+      provenance_continuity_class: provenance_preserved_rebuild_from_signed_source
+      rebuild_safety_summary_class: impossible_to_rebuild_offline
+    notes: >
+      Offline continuity relies on pins. If docs packs are not pinned, eviction
+      may force a mirror/offline-bundle or network refetch; the reopen packet must
+      surface that dependency explicitly.
+
+  - data_family_id: exact_build_support_lookup_artifacts
+    data_family_label: "Exact-build support lookup artifacts (symbol bundles)"
+    storage_class_id: artifact_cache
+    low_disk_ladder_step: trim_artifact_cache_unpinned
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    protected_continuity_class: false
+    pin_source_classes_preserved_by_default:
+      - release_artifact_graph_ref
+      - case_reference_ref
+    typical_reopen_consequence:
+      rebuild_cost_class: medium_rebuild_cost
+      offline_rebuild_risk_class: rebuild_requires_network_resync
+      startup_impact_class: no_user_visible_impact
+      provenance_continuity_class: provenance_preserved_rebuild_from_signed_source
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    notes: >
+      Exact-build supportability must not depend on an unspoken local cache.
+      Release/case refs pin the artifacts when required; otherwise support lookup
+      may require refetch with an explicit “missing local artifact” disclosure.
+
+  - data_family_id: prebuild_layers_and_toolchain_packs
+    data_family_label: "Prebuild layers and toolchain packs"
+    storage_class_id: prebuild_environment_cache
+    low_disk_ladder_step: trim_prebuild_environment_unpinned
+    clear_cache_protection_class: generic_clear_with_pin_exclusions
+    protected_continuity_class: false
+    pin_source_classes_preserved_by_default:
+      - offline_bundle_ref
+      - certified_archetype_or_template_ref
+      - release_artifact_graph_ref
+    typical_reopen_consequence:
+      rebuild_cost_class: high_rebuild_cost
+      offline_rebuild_risk_class: rebuild_requires_network_resync
+      startup_impact_class: slower_first_build_until_prebuilt
+      provenance_continuity_class: provenance_preserved_rebuild_from_local_truth
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+    notes: >
+      Trimming widens startup/build cost and may require network/mirror to
+      reacquire. Pins preserve offline continuity.
+
+  - data_family_id: evidence_artifacts
+    data_family_label: "Evidence artifacts (crash envelopes, traces, support exports)"
+    storage_class_id: evidence_support_cache
+    low_disk_ladder_step: expire_unpinned_evidence_past_retention
+    clear_cache_protection_class: protected_requires_class_specific_review
+    protected_continuity_class: true
+    pin_source_classes_preserved_by_default:
+      - case_reference_ref
+      - support_export_assembly_ref
+      - retention_window_ref
+    typical_reopen_consequence:
+      rebuild_cost_class: authoritative_no_rebuild
+      offline_rebuild_risk_class: not_rebuildable_after_removal
+      startup_impact_class: not_applicable_authoritative_state
+      provenance_continuity_class: authoritative_provenance_irreplaceable
+      rebuild_safety_summary_class: dangerous_to_delete_authoritative
+    notes: >
+      Protected continuity class. Generic clear-cache is refused; removal requires
+      class-specific review with export-before-delete for authoritative entries.
+      Unpinned evidence past retention may expire as a documented exception.
+
+  - data_family_id: local_history_checkpoints_and_session_restore
+    data_family_label: "Local history, checkpoints, and session restore metadata"
+    storage_class_id: user_owned_recovery_state
+    low_disk_ladder_step: user_owned_recovery_state_only_under_explicit_review
+    clear_cache_protection_class: protected_never_generic_clear
+    protected_continuity_class: true
+    pin_source_classes_preserved_by_default:
+      - retention_window_ref
+      - explicit_user_pin
+    typical_reopen_consequence:
+      rebuild_cost_class: authoritative_no_rebuild
+      offline_rebuild_risk_class: not_rebuildable_after_removal
+      startup_impact_class: not_applicable_authoritative_state
+      provenance_continuity_class: authoritative_provenance_irreplaceable
+      rebuild_safety_summary_class: dangerous_to_delete_authoritative
+    notes: >
+      Authoritative user-owned state. Never trimmed by default; never eligible for
+      generic clear. Any removal is explicit, reviewed, and export-before-delete.
+

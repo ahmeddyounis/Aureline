@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/storage/reopen_after_eviction_packet.schema.json",
+  "title": "Aureline reopen-after-eviction packet record",
+  "description": "Boundary schema for the reopen_after_eviction_packet_record frozen in docs/storage/reopen_after_eviction_contract.md. The record is the reopen-time disclosure packet that binds one reopened scope (workspace/profile/tenant/etc) to (a) the cleanup path that trimmed or invalidated storage-class data (low-disk governor, quota enforcement, manual clear, schema-drift invalidation, corrupt-cache repair), (b) the per-storage-class impact rows (what was removed, what was preserved by pins/protection, and what rebuild/offline/network consequences follow), and (c) the cross-surface impact rows (reopen, restore, offline docs access, exact-build support lookup, migration recovery). The schema mints no new storage_class_id or pin_source_class values; those re-export verbatim from artifacts/runtime/storage_classes.yaml. Adding a value to a closed vocabulary is additive-minor and bumps reopen_after_eviction_packet_schema_version; repurposing a value or weakening the protected-class invariants is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/reopen_after_eviction_packet_record",
+  "$defs": {
+    "reopen_after_eviction_packet_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for the reopen-after-eviction packet payload shape. Current value is 1."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable identifier safe to log, safe on RPC, safe in manifests, support bundles, and admin exports. Raw URLs, raw hostnames, raw absolute paths, raw policy rule bodies, raw command lines, and raw secret material never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp from a producer-local monotonic clock."
+    },
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Bounded, redaction-aware display label."
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "description": "Short reviewable sentence. Raw payload bytes, raw paths, raw URLs, raw secret material MUST NOT appear."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario", "contract_sections"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "contract_sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_axes": { "type": "object", "additionalProperties": true }
+      },
+      "description": "Optional worked-example prelude carried on fixtures; never part of the runtime record."
+    },
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "metadata_safe_default",
+        "operator_only_restricted",
+        "internal_support_restricted",
+        "signing_evidence_only"
+      ]
+    },
+    "storage_class_id": {
+      "type": "string",
+      "enum": [
+        "interactive_hot_cache",
+        "knowledge_cache",
+        "artifact_cache",
+        "prebuild_environment_cache",
+        "evidence_support_cache",
+        "user_owned_recovery_state"
+      ]
+    },
+    "pin_source_class": {
+      "type": "string",
+      "enum": [
+        "explicit_user_pin",
+        "explicit_admin_policy_pin",
+        "release_artifact_graph_ref",
+        "case_reference_ref",
+        "review_pack_ref",
+        "offline_bundle_ref",
+        "certified_archetype_or_template_ref",
+        "policy_bundle_last_known_good_ref",
+        "support_export_assembly_ref",
+        "retention_window_ref"
+      ]
+    },
+    "storage_posture_class": {
+      "type": "string",
+      "enum": [
+        "healthy",
+        "rebuild_pending",
+        "pressure_trimmed",
+        "reset_candidate",
+        "retained_for_evidence",
+        "missing"
+      ]
+    },
+    "event_class": {
+      "type": "string",
+      "enum": [
+        "user_clear_data_committed",
+        "admin_policy_clear_committed",
+        "automatic_low_disk_governor_eviction",
+        "automatic_retention_policy_expiry",
+        "automatic_schema_drift_invalidation",
+        "automatic_corrupt_cache_repair",
+        "support_export_assembly_drained",
+        "cleanup_blocked_pinned_or_protected",
+        "cleanup_blocked_managed_policy_throttle"
+      ],
+      "description": "Re-export of the cleanup-history event_class vocabulary. The packet uses this to name which cleanup path led to the reopen consequences."
+    },
+    "inspector_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_total",
+        "workspace_only",
+        "workset_only",
+        "profile_only",
+        "tenant_only",
+        "slice_only"
+      ]
+    },
+    "scope_block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_class", "scope_ref", "scope_label"],
+      "properties": {
+        "scope_class": { "$ref": "#/$defs/inspector_scope_class" },
+        "scope_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "scope_label": { "$ref": "#/$defs/reviewable_label" }
+      },
+      "allOf": [
+        {
+          "description": "device_total scope carries a null scope_ref; every other scope class carries a non-null ref.",
+          "if": {
+            "properties": { "scope_class": { "const": "device_total" } },
+            "required": ["scope_class"]
+          },
+          "then": {
+            "properties": { "scope_ref": { "type": "null" } }
+          },
+          "else": {
+            "properties": { "scope_ref": { "not": { "type": "null" } } }
+          }
+        }
+      ]
+    },
+    "rebuild_cost_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_no_rebuild",
+        "high_rebuild_cost",
+        "medium_rebuild_cost",
+        "low_rebuild_cost"
+      ]
+    },
+    "offline_rebuild_risk_class": {
+      "type": "string",
+      "enum": [
+        "safe_to_remove_offline",
+        "rebuild_requires_network_resync",
+        "rebuild_requires_mirror_or_offline_bundle",
+        "rebuild_requires_admin_or_policy_signed_pack",
+        "not_rebuildable_after_removal"
+      ]
+    },
+    "startup_impact_class": {
+      "type": "string",
+      "enum": [
+        "no_user_visible_impact",
+        "slower_first_open_until_warm",
+        "slower_first_query_until_reindexed",
+        "slower_first_build_until_prebuilt",
+        "feature_unavailable_until_rebuilt",
+        "not_applicable_authoritative_state"
+      ]
+    },
+    "provenance_continuity_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable_disposable_no_provenance",
+        "provenance_preserved_rebuild_from_local_truth",
+        "provenance_preserved_rebuild_from_signed_source",
+        "provenance_breaks_until_resynced",
+        "authoritative_provenance_irreplaceable"
+      ]
+    },
+    "rebuild_input_class": {
+      "type": "string",
+      "enum": [
+        "local_workspace_source",
+        "local_profile_state",
+        "signed_release_or_template_pack",
+        "mirror_or_offline_bundle",
+        "admin_or_policy_signed_pack",
+        "no_input_authoritative_state"
+      ]
+    },
+    "rebuild_safety_summary_class": {
+      "type": "string",
+      "enum": [
+        "cheap_to_rebuild_safe_to_remove",
+        "expensive_to_rebuild_but_safe",
+        "impossible_to_rebuild_offline",
+        "dangerous_to_delete_authoritative"
+      ]
+    },
+    "rebuild_cost_hint_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "rebuild_cost_hint_schema_version",
+        "rebuild_cost_class",
+        "offline_rebuild_risk_class",
+        "startup_impact_class",
+        "provenance_continuity_class",
+        "rebuild_inputs_required",
+        "rebuild_safety_summary_class",
+        "rebuild_explanation"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "rebuild_cost_hint_record" },
+        "rebuild_cost_hint_schema_version": { "type": "integer", "const": 1 },
+        "rebuild_cost_class": { "$ref": "#/$defs/rebuild_cost_class" },
+        "offline_rebuild_risk_class": { "$ref": "#/$defs/offline_rebuild_risk_class" },
+        "startup_impact_class": { "$ref": "#/$defs/startup_impact_class" },
+        "provenance_continuity_class": { "$ref": "#/$defs/provenance_continuity_class" },
+        "rebuild_inputs_required": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/rebuild_input_class" },
+          "uniqueItems": true
+        },
+        "rebuild_safety_summary_class": { "$ref": "#/$defs/rebuild_safety_summary_class" },
+        "rebuild_explanation": { "$ref": "#/$defs/reviewable_sentence" },
+        "notes": { "type": "string" }
+      }
+    },
+    "removal_class": {
+      "type": "string",
+      "enum": [
+        "not_removed",
+        "trimmed_or_evicted",
+        "invalidated_requires_rebuild",
+        "missing_unknown"
+      ],
+      "description": "Coarse classification of whether a storage class was removed/invalidated vs preserved. Used to drive reopen disclosure without implying implementation details."
+    },
+    "removal_exception_class": {
+      "type": "string",
+      "enum": [
+        "not_applicable",
+        "retention_expired_unpinned_evidence"
+      ],
+      "description": "Documented exception set for protected classes. retention_expired_unpinned_evidence is the only non-review exception for evidence_support_cache."
+    },
+    "surface_class": {
+      "type": "string",
+      "enum": [
+        "workspace_reopen",
+        "restore_flow",
+        "offline_docs_access",
+        "exact_build_support_lookup",
+        "migration_recovery"
+      ]
+    },
+    "impact_class": {
+      "type": "string",
+      "enum": [
+        "unaffected",
+        "degraded_rebuild_pending",
+        "degraded_requires_network_or_mirror",
+        "blocked_requires_explicit_review",
+        "blocked_requires_network_or_mirror",
+        "blocked_requires_external_recovery_action"
+      ]
+    },
+    "surface_impact_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "impact_row_id",
+        "surface_class",
+        "impact_class",
+        "impact_sentence",
+        "driver_storage_class_ids"
+      ],
+      "properties": {
+        "impact_row_id": { "$ref": "#/$defs/opaque_id" },
+        "surface_class": { "$ref": "#/$defs/surface_class" },
+        "impact_class": { "$ref": "#/$defs/impact_class" },
+        "impact_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "driver_storage_class_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/storage_class_id" },
+          "uniqueItems": true,
+          "description": "At least one storage_class_id that explains why this impact exists."
+        },
+        "linked_packet_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to related packets (restore provenance, support bundle preview, migration session packet, etc.)."
+        }
+      }
+    },
+    "class_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "class_row_id",
+        "storage_class_id",
+        "observed_posture_on_reopen",
+        "removal_class",
+        "preserved_pin_sources",
+        "rebuild_cost_hint",
+        "explicit_review_ref",
+        "exception_class",
+        "consequence_sentence"
+      ],
+      "properties": {
+        "class_row_id": { "$ref": "#/$defs/opaque_id" },
+        "storage_class_id": { "$ref": "#/$defs/storage_class_id" },
+        "observed_posture_on_reopen": { "$ref": "#/$defs/storage_posture_class" },
+        "removal_class": { "$ref": "#/$defs/removal_class" },
+        "estimated_removed_bytes": { "type": "integer", "minimum": 0 },
+        "estimated_removed_entries": { "type": "integer", "minimum": 0 },
+        "preserved_pin_sources": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/pin_source_class" },
+          "uniqueItems": true
+        },
+        "rebuild_cost_hint": { "$ref": "#/$defs/rebuild_cost_hint_record" },
+        "explicit_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "exception_class": { "$ref": "#/$defs/removal_exception_class" },
+        "consequence_sentence": { "$ref": "#/$defs/reviewable_sentence" }
+      },
+      "allOf": [
+        {
+          "description": "user_owned_recovery_state cannot be marked removed/evicted/unknown-missing without an explicit review ref.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "user_owned_recovery_state" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "if": {
+              "properties": {
+                "removal_class": {
+                  "enum": ["trimmed_or_evicted", "missing_unknown", "invalidated_requires_rebuild"]
+                }
+              },
+              "required": ["removal_class"]
+            },
+            "then": {
+              "properties": { "explicit_review_ref": { "not": { "type": "null" } } }
+            }
+          }
+        },
+        {
+          "description": "evidence_support_cache can only be marked removed without explicit review under the retention-expiry exception.",
+          "if": {
+            "properties": { "storage_class_id": { "const": "evidence_support_cache" } },
+            "required": ["storage_class_id"]
+          },
+          "then": {
+            "if": {
+              "properties": {
+                "removal_class": { "enum": ["trimmed_or_evicted", "missing_unknown"] },
+                "explicit_review_ref": { "type": "null" }
+              },
+              "required": ["removal_class", "explicit_review_ref"]
+            },
+            "then": {
+              "properties": { "exception_class": { "const": "retention_expired_unpinned_evidence" } }
+            }
+          }
+        }
+      ]
+    },
+    "reopen_after_eviction_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "reopen_after_eviction_packet_schema_version",
+        "packet_id",
+        "emitted_at",
+        "packet_scope",
+        "triggering_cleanup_event_class",
+        "triggering_cleanup_event_ref",
+        "triggering_low_disk_banner_ref",
+        "triggering_clear_data_review_ref",
+        "class_rows",
+        "surface_impacts",
+        "redaction_class",
+        "export_safe"
+      ],
+      "properties": {
+        "record_kind": { "type": "string", "const": "reopen_after_eviction_packet_record" },
+        "reopen_after_eviction_packet_schema_version": {
+          "$ref": "#/$defs/reopen_after_eviction_packet_schema_version"
+        },
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "packet_id": { "$ref": "#/$defs/opaque_id" },
+        "emitted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+        "packet_scope": { "$ref": "#/$defs/scope_block" },
+        "triggering_cleanup_event_class": { "$ref": "#/$defs/event_class" },
+        "triggering_cleanup_event_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "triggering_low_disk_banner_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "triggering_clear_data_review_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ]
+        },
+        "class_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/class_row" },
+          "description": "Per-storage-class impact rows for this reopen."
+        },
+        "surface_impacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/surface_impact_row" },
+          "description": "Typed cross-surface impacts the reopen experience must disclose."
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "export_safe": { "type": "boolean" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}
+

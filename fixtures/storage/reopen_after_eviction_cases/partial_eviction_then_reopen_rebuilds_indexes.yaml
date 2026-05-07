@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../../../schemas/storage/reopen_after_eviction_packet.schema.json
+$schema: "https://aureline.dev/schemas/storage/reopen_after_eviction_packet.schema.json"
+__fixture__:
+  name: partial_eviction_then_reopen_rebuilds_indexes
+  scenario: >
+    Device disk pressure trimmed disposable and rebuildable cache for one workspace.
+    On reopen, interactive_hot_cache is pressure-trimmed and knowledge_cache is missing
+    and scheduled for rebuild. The packet discloses the slower-first-open/query effects
+    without implying that authoritative recovery state or evidence were evicted.
+  contract_sections:
+    - "§3 The reopen-after-eviction packet record"
+    - "§4 Per-class impact rows"
+    - "§5 Cross-surface impacts"
+    - "§6 Honesty invariants"
+record_kind: reopen_after_eviction_packet_record
+reopen_after_eviction_packet_schema_version: 1
+packet_id: "packet.reopen_after_eviction.ws.aurelia_web.lowdisk.001"
+emitted_at: "2026-05-06T20:10:00Z"
+packet_scope:
+  scope_class: workspace_only
+  scope_ref: "ws.local.aurelia_web"
+  scope_label: "Workspace: aurelia/web (local)"
+triggering_cleanup_event_class: automatic_low_disk_governor_eviction
+triggering_cleanup_event_ref: "event.cleanup.ws.aurelia_web.lowdisk.004"
+triggering_low_disk_banner_ref: "banner.lowdisk.ws.aurelia_web.degraded.002"
+triggering_clear_data_review_ref: null
+class_rows:
+  - class_row_id: "row.reopen.ws.aurelia_web.interactive_hot_cache"
+    storage_class_id: interactive_hot_cache
+    observed_posture_on_reopen: pressure_trimmed
+    removal_class: trimmed_or_evicted
+    estimated_removed_bytes: 25165824
+    estimated_removed_entries: 12
+    preserved_pin_sources: []
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: low_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: slower_first_open_until_warm
+      provenance_continuity_class: not_applicable_disposable_no_provenance
+      rebuild_inputs_required:
+        - local_workspace_source
+      rebuild_safety_summary_class: cheap_to_rebuild_safe_to_remove
+      rebuild_explanation: >
+        Hot-cache shards rebuild on-demand from local workspace source. The first
+        open after trimming may feel slower until the cache rewarms.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Interactive hot cache was trimmed under disk pressure. Reopen remains
+      correct; first open may feel slower until hot shards rewarm.
+  - class_row_id: "row.reopen.ws.aurelia_web.knowledge_cache"
+    storage_class_id: knowledge_cache
+    observed_posture_on_reopen: rebuild_pending
+    removal_class: trimmed_or_evicted
+    estimated_removed_bytes: 402653184
+    estimated_removed_entries: 3
+    preserved_pin_sources: []
+    rebuild_cost_hint:
+      record_kind: rebuild_cost_hint_record
+      rebuild_cost_hint_schema_version: 1
+      rebuild_cost_class: high_rebuild_cost
+      offline_rebuild_risk_class: safe_to_remove_offline
+      startup_impact_class: slower_first_query_until_reindexed
+      provenance_continuity_class: provenance_preserved_rebuild_from_local_truth
+      rebuild_inputs_required:
+        - local_workspace_source
+      rebuild_safety_summary_class: expensive_to_rebuild_but_safe
+      rebuild_explanation: >
+        Search and graph indexes rebuild from on-device workspace source. First
+        query feels slower until the indexer finishes; provenance is preserved.
+    explicit_review_ref: null
+    exception_class: not_applicable
+    consequence_sentence: >
+      Knowledge cache was trimmed under disk pressure. Search/graph results rebuild
+      on demand from local workspace source; first query may be slower.
+surface_impacts:
+  - impact_row_id: "impact.reopen.ws.aurelia_web.workspace_reopen"
+    surface_class: workspace_reopen
+    impact_class: degraded_rebuild_pending
+    impact_sentence: >
+      Workspace reopened with rebuild pending for search/graph indexes; editing stays
+      available but first query and graph navigation may be slower until rehydration.
+    driver_storage_class_ids:
+      - knowledge_cache
+redaction_class: metadata_safe_default
+export_safe: true
+note: >
+  Partial eviction of disposable and rebuildable caches under disk pressure. The
+  reopen packet discloses rebuild pending for knowledge_cache and warmup cost for
+  interactive_hot_cache, while preserving protected continuity classes.
+
