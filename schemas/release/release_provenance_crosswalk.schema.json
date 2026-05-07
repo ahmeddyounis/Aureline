@@ -1,0 +1,319 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/release/release_provenance_crosswalk.schema.json",
+  "title": "Aureline release provenance crosswalk",
+  "description": "Boundary schema for release_provenance_crosswalk_record and release_center_linkage_case_record frozen in docs/release/release_center_provenance_linkage.md. The crosswalk defines how release-center rows, exact-build identities, About/provenance surfaces, service-health disclosures, update/rollback manifests, advisories, rollback metadata, and support bundles refer to one shipped build without relying on internal paths or per-surface version strings.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/release_provenance_crosswalk_record" },
+    { "$ref": "#/$defs/release_center_linkage_case_record" }
+  ],
+  "$defs": {
+    "release_provenance_crosswalk_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for the release provenance crosswalk contract."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable opaque id safe for manifests, logs, support bundles, and release evidence. Raw URLs, raw file paths, and secret material never appear here."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Short human-readable sentence intended for previews, manifests, and audit surfaces."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*$"
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$"
+    },
+    "ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/non_empty_string" },
+      "uniqueItems": true
+    },
+    "non_empty_ref_array": {
+      "allOf": [
+        { "$ref": "#/$defs/ref_array" },
+        { "minItems": 1 }
+      ]
+    },
+    "release_channel_class": {
+      "type": "string",
+      "enum": [
+        "dev_local",
+        "nightly",
+        "preview",
+        "beta",
+        "stable",
+        "lts",
+        "hotfix"
+      ],
+      "description": "Release-channel vocabulary aligned with schemas/build/exact_build_identity.schema.json."
+    },
+    "artifact_family_class": {
+      "type": "string",
+      "enum": [
+        "ide_binary",
+        "ide_debug_symbols",
+        "cli_binary",
+        "cli_debug_symbols",
+        "sdk_library",
+        "source_map_bundle",
+        "docs_pack",
+        "schema_export",
+        "reference_pack",
+        "sbom_document",
+        "signed_attestation",
+        "source_bundle",
+        "crash_symbols_archive",
+        "reproducibility_pack",
+        "support_runbook_bundle",
+        "release_evidence_packet",
+        "update_metadata",
+        "revocation_manifest",
+        "policy_bundle",
+        "extension_package",
+        "marketplace_metadata"
+      ],
+      "description": "Artifact-family vocabulary aligned with schemas/release/release_center_object.schema.json and schemas/build/exact_build_identity.schema.json."
+    },
+    "linkage_scenario_class": {
+      "type": "string",
+      "enum": [
+        "normal_release",
+        "mirrored_release",
+        "hotfix_symbol_update",
+        "revoked_artifact",
+        "rollback_candidate",
+        "support_bundle_docs_stale_or_unavailable"
+      ]
+    },
+    "surface_field_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_center",
+        "publish_target",
+        "update_manifest",
+        "about",
+        "service_health",
+        "support_bundle",
+        "support_bundle_manifest",
+        "advisory",
+        "rollback"
+      ],
+      "properties": {
+        "release_center": { "$ref": "#/$defs/non_empty_ref_array" },
+        "publish_target": { "$ref": "#/$defs/non_empty_ref_array" },
+        "update_manifest": { "$ref": "#/$defs/non_empty_ref_array" },
+        "about": { "$ref": "#/$defs/non_empty_ref_array" },
+        "service_health": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_bundle": { "$ref": "#/$defs/non_empty_ref_array" },
+        "support_bundle_manifest": { "$ref": "#/$defs/non_empty_ref_array" },
+        "advisory": { "$ref": "#/$defs/non_empty_ref_array" },
+        "rollback": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "join_key_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key_name",
+        "surface_field_paths",
+        "rule_summary"
+      ],
+      "properties": {
+        "key_name": { "$ref": "#/$defs/stable_token" },
+        "surface_field_paths": { "$ref": "#/$defs/surface_field_paths" },
+        "rule_summary": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "crosswalk_status_class": {
+      "type": "string",
+      "enum": [
+        "seeded",
+        "active",
+        "deprecated"
+      ]
+    },
+    "release_provenance_crosswalk_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_provenance_crosswalk_schema_version",
+        "record_kind",
+        "crosswalk_id",
+        "status",
+        "overview_doc_ref",
+        "boundary_schema_refs",
+        "join_key_rules",
+        "provenance_string_rule",
+        "support_bundle_summary_rule",
+        "case_fixture_refs"
+      ],
+      "properties": {
+        "release_provenance_crosswalk_schema_version": {
+          "$ref": "#/$defs/release_provenance_crosswalk_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "release_provenance_crosswalk_record"
+        },
+        "crosswalk_id": { "$ref": "#/$defs/stable_dot_id" },
+        "status": { "$ref": "#/$defs/crosswalk_status_class" },
+        "overview_doc_ref": { "$ref": "#/$defs/non_empty_string" },
+        "boundary_schema_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        },
+        "join_key_rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/join_key_rule" }
+        },
+        "provenance_string_rule": { "$ref": "#/$defs/reviewable_sentence" },
+        "support_bundle_summary_rule": { "$ref": "#/$defs/reviewable_sentence" },
+        "case_fixture_refs": { "$ref": "#/$defs/non_empty_ref_array" }
+      }
+    },
+    "exact_build_backreference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_family_class",
+        "artifact_ref",
+        "exact_build_identity_ref",
+        "build_id",
+        "digest_refs",
+        "provenance_row_refs",
+        "about_provenance_row_refs",
+        "support_bundle_refs"
+      ],
+      "properties": {
+        "artifact_family_class": { "$ref": "#/$defs/artifact_family_class" },
+        "artifact_ref": { "$ref": "#/$defs/opaque_id" },
+        "exact_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "build_id": { "$ref": "#/$defs/opaque_id" },
+        "digest_refs": { "$ref": "#/$defs/ref_array" },
+        "provenance_row_refs": { "$ref": "#/$defs/ref_array" },
+        "about_provenance_row_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "release_center_linkage_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_candidate_ref",
+        "release_center_event_ref",
+        "publish_target_ref",
+        "update_manifest_ref"
+      ],
+      "properties": {
+        "release_candidate_ref": { "$ref": "#/$defs/non_empty_string" },
+        "release_center_event_ref": { "$ref": "#/$defs/non_empty_string" },
+        "publish_target_ref": { "$ref": "#/$defs/non_empty_string" },
+        "update_manifest_ref": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "surface_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "about_card_ref",
+        "service_health_card_ref",
+        "advisory_refs",
+        "rollback_record_refs",
+        "support_bundle_refs"
+      ],
+      "properties": {
+        "about_card_ref": { "$ref": "#/$defs/non_empty_string" },
+        "service_health_card_ref": { "$ref": "#/$defs/non_empty_string" },
+        "advisory_refs": { "$ref": "#/$defs/ref_array" },
+        "rollback_record_refs": { "$ref": "#/$defs/ref_array" },
+        "support_bundle_refs": { "$ref": "#/$defs/ref_array" }
+      }
+    },
+    "exact_build_identity_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_exact_build_identity_ref",
+        "related_exact_build_identity_refs"
+      ],
+      "properties": {
+        "primary_exact_build_identity_ref": { "$ref": "#/$defs/opaque_id" },
+        "related_exact_build_identity_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "provenance_strings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "public_provenance_line",
+        "support_bundle_build_truth_note"
+      ],
+      "properties": {
+        "public_provenance_line": { "$ref": "#/$defs/reviewable_sentence" },
+        "support_bundle_build_truth_note": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    },
+    "release_center_linkage_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_provenance_crosswalk_schema_version",
+        "record_kind",
+        "case_id",
+        "scenario_class",
+        "scenario_summary",
+        "channel_class",
+        "exact_build_identity_set",
+        "release_center_linkage_refs",
+        "surface_refs",
+        "exact_build_backreferences",
+        "provenance_strings"
+      ],
+      "properties": {
+        "release_provenance_crosswalk_schema_version": {
+          "$ref": "#/$defs/release_provenance_crosswalk_schema_version"
+        },
+        "record_kind": {
+          "type": "string",
+          "const": "release_center_linkage_case_record"
+        },
+        "case_id": { "$ref": "#/$defs/stable_dot_id" },
+        "scenario_class": { "$ref": "#/$defs/linkage_scenario_class" },
+        "scenario_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "channel_class": { "$ref": "#/$defs/release_channel_class" },
+        "exact_build_identity_set": { "$ref": "#/$defs/exact_build_identity_set" },
+        "release_center_linkage_refs": { "$ref": "#/$defs/release_center_linkage_refs" },
+        "surface_refs": { "$ref": "#/$defs/surface_refs" },
+        "exact_build_backreferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/exact_build_backreference" }
+        },
+        "provenance_strings": { "$ref": "#/$defs/provenance_strings" }
+      }
+    }
+  }
+}
+

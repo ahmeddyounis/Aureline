@@ -1,0 +1,102 @@
+# yaml-language-server: $schema=../../schemas/release/release_provenance_crosswalk.schema.json
+release_provenance_crosswalk_schema_version: 1
+record_kind: release_provenance_crosswalk_record
+crosswalk_id: aureline.release_support_crosswalk
+status: seeded
+
+overview_doc_ref: docs/release/release_center_provenance_linkage.md
+
+boundary_schema_refs:
+  - schemas/build/exact_build_identity.schema.json
+  - schemas/release/release_center_object.schema.json
+  - schemas/release/publish_target.schema.json
+  - schemas/release/update_manifest.schema.json
+  - schemas/about/about_card.schema.json
+  - schemas/release/whats_new_card.schema.json
+  - schemas/support/support_bundle.schema.json
+  - schemas/support/support_bundle_manifest.schema.json
+  - schemas/security/advisory_record.schema.json
+  - schemas/release/rollback_revocation_panel.schema.json
+
+join_key_rules:
+  - key_name: exact_build_identity_ref
+    surface_field_paths:
+      release_center:
+        - exact_build_backreferences[].exact_build_identity_ref
+      publish_target:
+        - exact_build_backreferences[].exact_build_identity_ref
+      update_manifest:
+        - update_manifest_artifact_record.exact_build_identity_ref
+        - update_manifest_reconstruction_links.exact_build_identity_refs[]
+      about:
+        - build_identity.exact_build_identity_ref
+      service_health:
+        - subject.exact_build_identity_ref
+      support_bundle:
+        - build_and_install_context.primary_exact_build_identity_ref
+        - build_and_install_context.related_exact_build_identity_refs[]
+      support_bundle_manifest:
+        - build_identity.exact_build_refs[]
+      advisory:
+        - affected_install_linkage.exact_build_identity_refs[]
+      rollback:
+        - rollback_atom.exact_build_identity_ref
+    rule_summary: >
+      exact_build_identity_ref is the canonical join key. Any surface that
+      makes a claim about a shipped build MUST carry an exact-build ref,
+      and all cross-surface parity audits join on that ref before using
+      version labels or build_id strings.
+
+  - key_name: support_bundle_ref
+    surface_field_paths:
+      release_center:
+        - exact_build_backreferences[].support_bundle_refs[]
+        - surface_parity_links.support_bundle_refs[]
+        - support_bundle_linkage.support_bundle_refs[]
+      publish_target:
+        - exact_build_backreferences[].support_bundle_refs[]
+        - surface_parity_links.support_bundle_refs[]
+      update_manifest:
+        - update_manifest_reconstruction_links.support_packet_refs[]
+        - update_manifest_artifact_record.support_refs[]
+      about:
+        - support_actions.support_bundle_export_ref
+      service_health:
+        - entries[].support_refs[]
+      support_bundle:
+        - support_bundle_id
+      support_bundle_manifest:
+        - manifest_id
+      advisory:
+        - linked_support_packet_refs[]
+      rollback:
+        - support_bundle_refs[]
+    rule_summary: >
+      Release-center and publish-target rows reference support exports by
+      stable ids. These ids MUST be opaque and MUST NOT encode internal
+      storage paths. Support exports MAY be referenced indirectly through
+      update manifests or advisory records, but the stable id MUST remain
+      usable for reconstruction.
+
+provenance_string_rule: >
+  Public provenance lines (release center, About/provenance, service
+  health, support-bundle preview) MUST share the same semantic content:
+  product+version, channel class, origin posture (official/mirrored/side
+  loaded), and an exact-build join key. The line MUST NOT include
+  internal hostnames, internal storage paths, or secret-bearing ids.
+
+support_bundle_summary_rule: >
+  Support bundle build_truth_note and support-bundle manifest build
+  identity fields MUST NOT contradict release-center and About/provenance
+  provenance for the same exact-build identity. When docs packs are stale
+  or unavailable, wording narrows by stating the docs limitation; the
+  identity anchor does not change.
+
+case_fixture_refs:
+  - fixtures/release/release_center_linkage_cases/normal_release.yaml
+  - fixtures/release/release_center_linkage_cases/mirrored_release.yaml
+  - fixtures/release/release_center_linkage_cases/hotfix_symbol_update.yaml
+  - fixtures/release/release_center_linkage_cases/revoked_artifact.yaml
+  - fixtures/release/release_center_linkage_cases/rollback_candidate.yaml
+  - fixtures/release/release_center_linkage_cases/support_bundle_docs_stale.yaml
+

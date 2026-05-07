@@ -32,6 +32,13 @@ Companion artifacts:
   [`/schemas/build/exact_build_identity.schema.json`](../../schemas/build/exact_build_identity.schema.json)
   - exact-build identity model every release-bearing row resolves
   through.
+- [`/docs/release/release_center_provenance_linkage.md`](./release_center_provenance_linkage.md),
+  [`/schemas/release/release_provenance_crosswalk.schema.json`](../../schemas/release/release_provenance_crosswalk.schema.json),
+  and
+  [`/artifacts/release/release_support_crosswalk.yaml`](../../artifacts/release/release_support_crosswalk.yaml)
+  - cross-surface linkage rules that keep release-center rows,
+  About/provenance, service health, update/rollback, advisories, and
+  support bundles aligned on one exact-build identity.
 - [`/docs/security/high_risk_control_quorum.md`](../security/high_risk_control_quorum.md),
   [`/schemas/security/break_glass_event.schema.json`](../../schemas/security/break_glass_event.schema.json),
   [`/docs/security/emergency_action_model.md`](../security/emergency_action_model.md),
