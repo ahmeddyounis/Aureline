@@ -1,0 +1,338 @@
+# yaml-language-server: $schema=../../schemas/security/key_state.schema.json
+#
+# Key-scope rows.
+#
+# Machine-readable companion to:
+#   docs/security/key_hierarchy_and_tenant_encryption_contract.md
+#
+# The goal is one explicit key hierarchy and failure posture vocabulary so
+# "tenant encryption", "customer-managed keys", "offline trust roots", and
+# "artifact signing" claims reference a concrete scope row rather than vague
+# "encrypted at rest" wording.
+
+schema_version: 1
+catalog_id: aureline.security.key_scopes
+status: seeded
+as_of: "2026-05-07"
+
+overview_document: docs/security/key_hierarchy_and_tenant_encryption_contract.md
+schema_ref: schemas/security/key_state.schema.json
+fixtures_ref: fixtures/security/key_hierarchy_cases/
+
+rows:
+  - record_kind: key_scope_row
+    key_schema_version: 1
+    key_scope: device_session_secret_material
+    title: Device session secret material
+    description: >
+      Refresh tokens, session tokens, and other managed-session secret material
+      that lives on a user device. This scope is about the protection boundary
+      for those secrets at rest (OS store / enterprise vault), not about cloud
+      tenant storage.
+    authority_variants:
+      - key_mode: os_store
+        authority_owner_class: user_device_os
+        storage_backend_class: os_keychain_backed_store
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: not_applicable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - OS-managed protection keys are never exported by the product.
+      - key_mode: customer_managed
+        authority_owner_class: customer_operator
+        storage_backend_class: enterprise_vault_adapter
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: not_applicable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Enterprise vault adapters may provide device-session storage under customer administration.
+        notes:
+          - Customer-managed here refers to the secret store authority, not to tenant managed-data encryption.
+    required_key_metadata_fields:
+      - key_scope
+      - key_mode
+      - key_state_class
+      - key_epoch
+      - rotation_planned_at
+      - rotation_completed_at
+      - audit_refs
+    audit_linkage:
+      audit_surface_refs:
+        - docs/auth/managed_auth_and_session_continuity_contract.md
+        - docs/security/secret_class_matrix.md
+        - docs/security/threat_model_and_audit_stream_contract.md
+        - docs/admin/admin_audit_export_contract.md
+      audit_stream_family_hints:
+        - support_export
+      notes:
+        - Secret material remains handle/alias-based in exports; raw bytes never export.
+    outage_posture:
+      local_editing_continues: true
+      affected_action_families:
+        - identity_refresh_action_family
+      fail_posture: fail_open_local_safe_with_label
+      notes:
+        - If the OS store or vault is locked/unavailable, managed features re-authenticate or degrade; local edit/save/search/Git remain available.
+    surface_contract_refs:
+      - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+      - docs/auth/managed_auth_and_session_continuity_contract.md
+      - docs/security/secret_class_matrix.md
+      - docs/service/operating_mode_and_capacity_contract.md
+
+  - record_kind: key_scope_row
+    key_schema_version: 1
+    key_scope: short_lived_delegated_credentials
+    title: Short-lived delegated credentials
+    description: >
+      Keys used to mint and verify short-lived delegated credentials (tokens,
+      signed assertions) for remote attach, collaboration relay, AI gateways,
+      registry/mirror access, and other scoped managed operations. This scope
+      exists to prevent long-lived refresh credentials from being reused
+      directly on every managed call.
+    authority_variants:
+      - key_mode: vendor_managed
+        authority_owner_class: vendor_operator
+        storage_backend_class: token_service_signing_store
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: public_verification_material_exportable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Verification keys may be distributed as public material; private issuer material is never exported.
+      - key_mode: customer_managed
+        authority_owner_class: customer_operator
+        storage_backend_class: cloud_kms_hsm
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: public_verification_material_exportable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Self-hosted deployments may store issuer keys in customer-operated KMS/HSM; private bytes are still non-exportable.
+    required_key_metadata_fields:
+      - key_scope
+      - key_mode
+      - key_state_class
+      - key_epoch
+      - rotation_planned_at
+      - rotation_started_at
+      - rotation_completed_at
+      - issuer_key_id
+      - audit_refs
+    audit_linkage:
+      audit_surface_refs:
+        - docs/security/threat_model_and_audit_stream_contract.md
+        - docs/remote/attach_tunnel_port_forward_contract.md
+        - docs/service/operating_mode_and_capacity_contract.md
+        - docs/admin/admin_audit_export_contract.md
+      audit_stream_family_hints:
+        - remote_session_join
+        - remote_session_leave
+      notes:
+        - Delegated tokens are time-bounded and revocable; revoke events must be attributable and export-safe.
+    outage_posture:
+      local_editing_continues: true
+      affected_action_families:
+        - remote_attach_action_family
+        - remote_execute_action_family
+        - collaboration_publish_action_family
+        - ai_inference_action_family
+      fail_posture: fail_closed_managed_only
+      notes:
+        - Delegated-credential issuance failures fail closed for the specific managed operation; local workflows continue.
+    surface_contract_refs:
+      - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+      - docs/service/operating_mode_and_capacity_contract.md
+      - docs/remote/attach_tunnel_port_forward_contract.md
+
+  - record_kind: key_scope_row
+    key_schema_version: 1
+    key_scope: tenant_org_managed_data_keys
+    title: Tenant/org managed-data keys
+    description: >
+      Key-encryption keys used to envelope-encrypt tenant/org managed data such
+      as policy bundles, sync payloads, audit records, and managed artifacts.
+      Ciphertext is tenant-scoped and carries key-epoch metadata so reviewers
+      can reason about rotation, revoke, restore, and export behavior.
+    authority_variants:
+      - key_mode: vendor_managed
+        authority_owner_class: vendor_operator
+        storage_backend_class: cloud_kms_hsm
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: not_applicable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Vendor-managed tenant keys are never exported; customers may receive proofs and metadata, not key bytes.
+      - key_mode: customer_managed
+        authority_owner_class: customer_operator
+        storage_backend_class: cloud_kms_hsm
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: not_applicable
+          wrapped_material_exportability: wrapped_export_customer_only
+          notes:
+            - Any customer export posture applies to customer-operated KMS workflows; the product does not emit private key bytes.
+    required_key_metadata_fields:
+      - key_scope
+      - key_mode
+      - key_state_class
+      - key_epoch
+      - rotation_planned_at
+      - rotation_started_at
+      - rotation_completed_at
+      - algorithm_family
+      - wrapped_dek_ref
+      - tenant_ref
+      - audit_refs
+    audit_linkage:
+      audit_surface_refs:
+        - docs/service/operating_mode_and_capacity_contract.md
+        - docs/policy/admin_policy_and_bundle_cache_contract.md
+        - docs/security/threat_model_and_audit_stream_contract.md
+        - docs/release/assurance_center_and_regulated_claim_contract.md
+        - docs/admin/admin_audit_export_contract.md
+      audit_stream_family_hints:
+        - policy_bundle_change
+        - support_export
+      notes:
+        - Key outages and mismatches must bound only protected managed data; local editing remains available.
+    outage_posture:
+      local_editing_continues: true
+      affected_action_families:
+        - sync_action_family
+        - policy_distribution_action_family
+        - ai_evidence_retention_action_family
+        - offboarding_export_action_family
+        - support_export_action_family
+      fail_posture: boundary_recheck_required
+      notes:
+        - Unavailability blocks only managed data protected by this key path; local files and local exports remain available.
+    surface_contract_refs:
+      - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+      - docs/service/operating_mode_and_capacity_contract.md
+      - docs/release/assurance_center_and_regulated_claim_contract.md
+      - docs/policy/admin_policy_and_bundle_cache_contract.md
+
+  - record_kind: key_scope_row
+    key_schema_version: 1
+    key_scope: artifact_signing_and_release_keys
+    title: Artifact signing and release keys
+    description: >
+      High-assurance signing authorities for official release artifacts (binaries,
+      update metadata, emergency bundles, policy roots) and for customer-operated
+      publication flows in self-hosted deployments. Signing keys are service-
+      mediated and are never exported as private bytes.
+    authority_variants:
+      - key_mode: vendor_managed
+        authority_owner_class: vendor_operator
+        storage_backend_class: dedicated_signing_service_or_hsm
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: public_verification_material_exportable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Public verification material may ship with artifacts or in trust-root bundles; private bytes never export.
+      - key_mode: customer_managed
+        authority_owner_class: customer_operator
+        storage_backend_class: dedicated_signing_service_or_hsm
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: public_verification_material_exportable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Customer-operated signing services or HSM paths are permitted in self-hosted deployments; private bytes remain non-exportable.
+    required_key_metadata_fields:
+      - key_scope
+      - key_mode
+      - key_state_class
+      - key_epoch
+      - signer_identity_ref
+      - algorithm_family
+      - audit_refs
+    audit_linkage:
+      audit_surface_refs:
+        - docs/build/exact_build_identity_model.md
+        - docs/release/channel_and_branch_contract.md
+        - docs/release/mirror_integrity_and_offline_verification_contract.md
+        - docs/security/threat_model_and_audit_stream_contract.md
+        - docs/admin/admin_audit_export_contract.md
+      audit_stream_family_hints:
+        - emergency_action
+        - advisory_incident_linkage
+      notes:
+        - Signing authority loss halts publication; it must not silently downgrade trust or omit signatures.
+    outage_posture:
+      local_editing_continues: true
+      affected_action_families:
+        - marketplace_publish_action_family
+        - policy_distribution_action_family
+      fail_posture: fail_closed_managed_only
+      notes:
+        - Publication actions fail closed; installed artifacts remain inspectable and local editing continues.
+    surface_contract_refs:
+      - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+      - docs/build/exact_build_identity_model.md
+      - docs/release/channel_and_branch_contract.md
+      - docs/release/mirror_integrity_and_offline_verification_contract.md
+
+  - record_kind: key_scope_row
+    key_schema_version: 1
+    key_scope: mirror_and_sovereign_import_roots
+    title: Mirror and sovereign import roots
+    description: >
+      Trust roots and mirror identity anchors used to verify imports from
+      customer-managed mirrors, offline bundles, and air-gapped media. These
+      roots define what the local verifier treats as an admitted origin when
+      the public internet is absent.
+    authority_variants:
+      - key_mode: customer_managed
+        authority_owner_class: customer_operator
+        storage_backend_class: cloud_kms_hsm
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: public_verification_material_exportable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Customer-managed mirror identities rely on export-safe verification material and pinned mirror identity state.
+      - key_mode: offline_trust_root
+        authority_owner_class: customer_offline_operator
+        storage_backend_class: offline_trust_root_store
+        exportability:
+          private_material_exportability: never_export_private_material
+          public_material_exportability: public_verification_material_exportable
+          wrapped_material_exportability: not_applicable
+          notes:
+            - Offline trust roots are customer-operated; the product stores verification material and refuses unknown roots by default.
+    required_key_metadata_fields:
+      - key_scope
+      - key_mode
+      - key_state_class
+      - key_epoch
+      - mirror_identity_ref
+      - trust_root_ref
+      - audit_refs
+    audit_linkage:
+      audit_surface_refs:
+        - docs/release/mirror_integrity_and_offline_verification_contract.md
+        - docs/network/transport_governance_seed.md
+        - docs/security/threat_model_and_audit_stream_contract.md
+        - docs/admin/admin_audit_export_contract.md
+      audit_stream_family_hints:
+        - support_export
+        - emergency_action
+      notes:
+        - Trust-root changes and mirror identity mismatches are refusal states that require explicit recheck/import review.
+    outage_posture:
+      local_editing_continues: true
+      affected_action_families:
+        - marketplace_install_action_family
+        - policy_distribution_action_family
+      fail_posture: boundary_recheck_required
+      notes:
+        - Offline/mirror imports fail closed under unknown/mismatched roots; local workflows remain available.
+    surface_contract_refs:
+      - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+      - docs/release/mirror_integrity_and_offline_verification_contract.md
+      - docs/network/transport_governance_seed.md

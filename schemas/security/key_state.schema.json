@@ -1,0 +1,569 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/security/key_state.schema.json",
+  "title": "Aureline key-scope, tenant-encryption, and signing-authority vocabulary",
+  "description": "Boundary schema for the key hierarchy and tenant-encryption contract artifacts. This schema defines (1) the key-scope catalog published in artifacts/security/key_scopes.yaml, (2) the per-scope rows that declare authority owner, storage backend class, required key metadata, audit linkage, exportability posture, and outage posture, and (3) key-state and case records used as worked fixtures. The contract is designed to prevent vague 'encrypted at rest' statements from drifting into packaging, assurance, or marketing language without an explicit key family, ownership mode, and failure posture. Raw key bytes, raw tenant names, raw KMS identifiers, raw certificates, and raw private signing material never cross this boundary; records carry only controlled vocabulary, opaque refs, and reviewable summaries.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/key_scope_catalog_record" },
+    { "$ref": "#/$defs/key_scope_row" },
+    { "$ref": "#/$defs/key_state_record" },
+    { "$ref": "#/$defs/key_hierarchy_case_record" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "description": "Opaque, redaction-safe token. Raw tenant names, raw key bytes, and raw provider identifiers MUST NOT appear."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable dot-id identifier."
+    },
+    "utc_date_time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "nullable_utc_date_time": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/utc_date_time" }
+      ]
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference; treated as opaque text."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional fixture metadata carried by YAML fixtures to explain scenario intent."
+    },
+
+    "key_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version for key-scope and key-state records in this contract."
+    },
+
+    "key_scope_class": {
+      "type": "string",
+      "enum": [
+        "device_session_secret_material",
+        "short_lived_delegated_credentials",
+        "tenant_org_managed_data_keys",
+        "artifact_signing_and_release_keys",
+        "mirror_and_sovereign_import_roots"
+      ],
+      "description": "Closed key-scope vocabulary. Each scope names one authority family with explicit storage, metadata, and outage posture."
+    },
+
+    "key_mode_class": {
+      "type": "string",
+      "enum": ["os_store", "vendor_managed", "customer_managed", "offline_trust_root", "not_applicable"],
+      "description": "Key ownership mode aligned with artifacts/governance/deployment_profiles.yaml#key_mode_class_vocabulary."
+    },
+
+    "authority_owner_class": {
+      "type": "string",
+      "enum": ["user_device_os", "vendor_operator", "customer_operator", "customer_offline_operator"],
+      "description": "Who owns the authority boundary for the key material and its policy/rotation/revoke decisions."
+    },
+
+    "storage_backend_class": {
+      "type": "string",
+      "enum": [
+        "os_keychain_backed_store",
+        "enterprise_vault_adapter",
+        "session_memory_cache",
+        "token_service_signing_store",
+        "cloud_kms_hsm",
+        "dedicated_signing_service_or_hsm",
+        "offline_trust_root_store"
+      ],
+      "description": "Closed storage-backend class vocabulary for key material."
+    },
+
+    "exportability_class": {
+      "type": "string",
+      "enum": [
+        "never_export_private_material",
+        "public_verification_material_exportable",
+        "wrapped_export_customer_only",
+        "not_applicable"
+      ],
+      "description": "Exportability posture for key material. 'public_verification_material_exportable' covers public keys/certs/fingerprints; private bytes are never exported."
+    },
+
+    "exportability_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "private_material_exportability",
+        "public_material_exportability",
+        "wrapped_material_exportability"
+      ],
+      "properties": {
+        "private_material_exportability": { "$ref": "#/$defs/exportability_class" },
+        "public_material_exportability": { "$ref": "#/$defs/exportability_class" },
+        "wrapped_material_exportability": { "$ref": "#/$defs/exportability_class" },
+        "notes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reviewable_sentence" },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "audit_stream_family_hint": {
+      "type": "string",
+      "enum": [
+        "extension_lifecycle",
+        "policy_bundle_change",
+        "workspace_trust_change",
+        "ai_tool_action",
+        "ai_apply_action",
+        "collaboration_control_grant",
+        "collaboration_control_revocation",
+        "remote_session_join",
+        "remote_session_leave",
+        "advisory_incident_linkage",
+        "support_export",
+        "emergency_action"
+      ],
+      "description": "Hint-only reuse of schemas/security/audit_stream_record.schema.json stream_family vocabulary."
+    },
+
+    "audit_linkage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["audit_surface_refs"],
+      "properties": {
+        "audit_surface_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" }
+        },
+        "audit_stream_family_hints": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/audit_stream_family_hint" }
+        },
+        "notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+
+    "affected_action_family_class": {
+      "type": "string",
+      "enum": [
+        "sync_action_family",
+        "marketplace_publish_action_family",
+        "marketplace_install_action_family",
+        "collaboration_publish_action_family",
+        "remote_attach_action_family",
+        "remote_execute_action_family",
+        "ai_inference_action_family",
+        "ai_evidence_retention_action_family",
+        "telemetry_export_action_family",
+        "support_export_action_family",
+        "offboarding_export_action_family",
+        "policy_distribution_action_family",
+        "identity_refresh_action_family"
+      ],
+      "description": "Closed affected-action-family vocabulary aligned with schemas/service/region_key_state.schema.json."
+    },
+
+    "fail_posture_class": {
+      "type": "string",
+      "enum": [
+        "fail_closed_managed_only",
+        "fail_open_local_safe",
+        "fail_open_local_safe_with_label",
+        "boundary_recheck_required",
+        "not_applicable"
+      ],
+      "description": "Fail posture aligned with schemas/service/region_key_state.schema.json."
+    },
+
+    "key_state_class": {
+      "type": "string",
+      "enum": [
+        "bound_and_current",
+        "bound_pending_rotation",
+        "rotation_in_progress",
+        "rotation_completed_recheck_required",
+        "revoked_recheck_required",
+        "mismatch_recheck_required",
+        "customer_managed_unreachable",
+        "authority_unreachable",
+        "not_applicable"
+      ],
+      "description": "Key-state vocabulary for a specific key scope. customer_managed_unreachable is reserved for customer-managed KMS/HSM paths; authority_unreachable covers vendor-managed services, OS stores, or signing services that are unreachable."
+    },
+
+    "outage_posture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_editing_continues",
+        "affected_action_families",
+        "fail_posture",
+        "notes"
+      ],
+      "properties": {
+        "local_editing_continues": {
+          "type": "boolean",
+          "const": true,
+          "description": "All key-scope outages are scoped; local editing must remain available."
+        },
+        "affected_action_families": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/affected_action_family_class" },
+          "description": "Minimum set of action families bounded by this key scope when its key path is unavailable, revoked, or mismatched."
+        },
+        "fail_posture": { "$ref": "#/$defs/fail_posture_class" },
+        "notes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+
+    "key_authority_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key_mode",
+        "authority_owner_class",
+        "storage_backend_class",
+        "exportability"
+      ],
+      "properties": {
+        "key_mode": { "$ref": "#/$defs/key_mode_class" },
+        "authority_owner_class": { "$ref": "#/$defs/authority_owner_class" },
+        "storage_backend_class": { "$ref": "#/$defs/storage_backend_class" },
+        "exportability": { "$ref": "#/$defs/exportability_profile" },
+        "notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+
+    "key_scope_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "key_schema_version",
+        "key_scope",
+        "title",
+        "description",
+        "authority_variants",
+        "required_key_metadata_fields",
+        "audit_linkage",
+        "outage_posture",
+        "surface_contract_refs"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "key_scope_row"
+        },
+        "key_schema_version": { "$ref": "#/$defs/key_schema_version" },
+        "key_scope": { "$ref": "#/$defs/key_scope_class" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/non_empty_string" },
+        "authority_variants": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/key_authority_variant" }
+        },
+        "required_key_metadata_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" },
+          "description": "Closed-by-convention list of required metadata keys that any key-state or envelope record must carry for this scope (e.g., key_epoch, key_state_class, rotation state timestamps, audit refs)."
+        },
+        "audit_linkage": { "$ref": "#/$defs/audit_linkage" },
+        "outage_posture": { "$ref": "#/$defs/outage_posture" },
+        "surface_contract_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" }
+        }
+      }
+    },
+
+    "key_scope_catalog_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "catalog_id",
+        "status",
+        "overview_document",
+        "schema_ref",
+        "fixtures_ref",
+        "rows"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "catalog_id": { "$ref": "#/$defs/stable_dot_id" },
+        "status": {
+          "type": "string",
+          "enum": ["seeded", "active", "deprecated"]
+        },
+        "as_of": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "overview_document": { "$ref": "#/$defs/path_ref" },
+        "schema_ref": { "$ref": "#/$defs/path_ref" },
+        "fixtures_ref": { "$ref": "#/$defs/path_ref" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/key_scope_row" }
+        }
+      }
+    },
+
+    "key_state_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "key_schema_version",
+        "record_id",
+        "key_scope",
+        "key_mode",
+        "key_state_class",
+        "key_state_summary",
+        "local_editing_continues",
+        "affected_action_families",
+        "fail_posture"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "key_state_record"
+        },
+        "key_schema_version": { "$ref": "#/$defs/key_schema_version" },
+        "record_id": { "$ref": "#/$defs/stable_token" },
+        "key_scope": { "$ref": "#/$defs/key_scope_class" },
+        "key_mode": { "$ref": "#/$defs/key_mode_class" },
+        "key_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_token" }
+          ],
+          "description": "Opaque key ref. Raw key bytes and raw KMS identifiers never appear."
+        },
+        "key_epoch": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/stable_token" }
+          ],
+          "description": "Opaque key-epoch token. Consumers treat it as an ordering label only."
+        },
+        "key_state_class": { "$ref": "#/$defs/key_state_class" },
+        "key_state_summary": { "$ref": "#/$defs/reviewable_sentence" },
+        "rotation_planned_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "rotation_started_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "rotation_completed_at": { "$ref": "#/$defs/nullable_utc_date_time" },
+        "local_editing_continues": {
+          "type": "boolean",
+          "const": true
+        },
+        "affected_action_families": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/affected_action_family_class" }
+        },
+        "fail_posture": { "$ref": "#/$defs/fail_posture_class" },
+        "notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Only bound_and_current and not_applicable may carry an empty affected_action_families list; every other key_state_class must bound at least one action family.",
+          "if": {
+            "properties": {
+              "key_state_class": {
+                "not": {
+                  "enum": ["bound_and_current", "not_applicable"]
+                }
+              }
+            },
+            "required": ["key_state_class"]
+          },
+          "then": {
+            "properties": {
+              "affected_action_families": { "minItems": 1 }
+            }
+          }
+        }
+      ]
+    },
+
+    "tenant_encryption_envelope_example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "example_id",
+        "envelope_version",
+        "tenant_ref",
+        "object_class",
+        "key_scope",
+        "key_epoch",
+        "algorithm_family",
+        "wrapped_dek_ref",
+        "ciphertext_ref"
+      ],
+      "properties": {
+        "example_id": { "$ref": "#/$defs/stable_token" },
+        "envelope_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "tenant_ref": { "$ref": "#/$defs/stable_token" },
+        "object_class": { "$ref": "#/$defs/stable_token" },
+        "key_scope": { "$ref": "#/$defs/key_scope_class" },
+        "key_epoch": { "$ref": "#/$defs/stable_token" },
+        "algorithm_family": {
+          "type": "string",
+          "enum": ["aes256_gcm", "chacha20_poly1305", "not_applicable"]
+        },
+        "wrapped_dek_ref": { "$ref": "#/$defs/stable_token" },
+        "ciphertext_ref": { "$ref": "#/$defs/stable_token" },
+        "required_metadata_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/stable_token" }
+        },
+        "notes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+
+    "key_scope_state_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_editing_continues",
+        "retained_local_safe_capabilities",
+        "blocked_or_degraded_capabilities"
+      ],
+      "properties": {
+        "local_editing_continues": {
+          "type": "boolean",
+          "const": true
+        },
+        "retained_local_safe_capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        },
+        "blocked_or_degraded_capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reviewable_sentence" }
+        }
+      }
+    },
+
+    "key_hierarchy_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "key_schema_version",
+        "case_id",
+        "title",
+        "scenario",
+        "key_states",
+        "continuity_summary",
+        "narrative_refs"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "key_hierarchy_case_record"
+        },
+        "key_schema_version": { "$ref": "#/$defs/key_schema_version" },
+        "case_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/reviewable_sentence" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "key_states": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/key_state_record" }
+        },
+        "envelope_examples": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tenant_encryption_envelope_example" }
+        },
+        "continuity_summary": { "$ref": "#/$defs/key_scope_state_summary" },
+        "narrative_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/path_ref" }
+        },
+        "notes": { "$ref": "#/$defs/reviewable_sentence" }
+      }
+    }
+  }
+}
+

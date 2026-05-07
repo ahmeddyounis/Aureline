@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=../../../schemas/security/key_state.schema.json
+__fixture__:
+  name: tenant_managed_key_unreachable_blocks_managed_data_only
+  scenario: >
+    A tenant/org managed-data key path is unreachable. Managed features that
+    require decrypting protected managed data (sync, policy distribution, audit
+    retention/export) pause or degrade, but local editing and local exports
+    remain available. The ciphertext envelope metadata remains exportable even
+    when plaintext export is not.
+  contract_sections:
+    - Tenant-scoped envelope encryption (managed data)
+    - Customer-managed key outage posture
+    - Local-first degradation rules
+
+record_kind: key_hierarchy_case_record
+key_schema_version: 1
+case_id: key_hierarchy_case.tenant_managed_key_unreachable
+title: Tenant managed-data key unreachable; protected managed data blocks only
+scenario: >
+  Customer-managed KMS path is unreachable for tenant/org managed-data keys.
+  Local editing continues; only protected managed-data action families pause
+  pending recheck.
+
+key_states:
+  - record_kind: key_state_record
+    key_schema_version: 1
+    record_id: key_state.tenant_org_managed_data_keys.unreachable
+    key_scope: tenant_org_managed_data_keys
+    key_mode: customer_managed
+    key_ref: key.ref.tenant.kek.primary
+    key_epoch: epoch.0007
+    key_state_class: customer_managed_unreachable
+    key_state_summary: >
+      Customer-managed KMS/HSM path is unreachable; decrypting protected managed
+      data is blocked until recheck completes.
+    rotation_planned_at: null
+    rotation_started_at: null
+    rotation_completed_at: null
+    local_editing_continues: true
+    affected_action_families:
+      - sync_action_family
+      - policy_distribution_action_family
+      - ai_evidence_retention_action_family
+      - offboarding_export_action_family
+      - support_export_action_family
+    fail_posture: boundary_recheck_required
+    notes:
+      - Ciphertext and metadata-only exports remain admissible; plaintext export is blocked.
+
+envelope_examples:
+  - example_id: envelope_example.policy_bundle_cache_entry
+    envelope_version: 1
+    tenant_ref: tenant.ref.enterprise.platform
+    object_class: managed_object.policy_bundle_cache_entry
+    key_scope: tenant_org_managed_data_keys
+    key_epoch: epoch.0007
+    algorithm_family: aes256_gcm
+    wrapped_dek_ref: wrapped_dek.ref.policy_bundle.0142
+    ciphertext_ref: ciphertext.ref.policy_bundle.0142
+    required_metadata_fields:
+      - tenant_ref
+      - key_scope
+      - key_epoch
+      - algorithm_family
+      - wrapped_dek_ref
+      - ciphertext_ref
+    notes:
+      - Envelope metadata is export-safe; it carries no key bytes and no raw tenant names.
+
+continuity_summary:
+  local_editing_continues: true
+  retained_local_safe_capabilities:
+    - Continue local edit, save, undo, search, Git, and local export of local files.
+    - Inspect last-known-good managed state as cached metadata-only records where available.
+  blocked_or_degraded_capabilities:
+    - Managed sync of protected payloads pauses until key reachability returns.
+    - Policy distribution pauses if the newest policy bundle cannot be decrypted.
+    - Offboarding export of plaintext managed data is blocked; ciphertext/metadata exports remain available.
+
+narrative_refs:
+  - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/policy/admin_policy_and_bundle_cache_contract.md
+

@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=../../../schemas/security/key_state.schema.json
+__fixture__:
+  name: customer_managed_rotation_completed_recheck_required
+  scenario: >
+    A customer-managed tenant/org managed-data key rotates out of band. The new
+    epoch is recorded as rotation_completed_recheck_required until the boundary
+    recheck completes. Only the minimum action families that depend on the
+    protected managed data are bounded.
+  contract_sections:
+    - Customer-managed key rotation promises
+    - Required key metadata (epoch + rotation state)
+    - Bounded action-family failure posture
+
+record_kind: key_hierarchy_case_record
+key_schema_version: 1
+case_id: key_hierarchy_case.customer_managed_rotation_completed_recheck_required
+title: Customer-managed key rotation requires recheck before resuming protected managed data
+scenario: >
+  Customer rotates the tenant managed-data key out of band. Writes are paused
+  on protected managed data until recheck verifies the new epoch binding.
+
+key_states:
+  - record_kind: key_state_record
+    key_schema_version: 1
+    record_id: key_state.tenant_org_managed_data_keys.rotation_completed_recheck
+    key_scope: tenant_org_managed_data_keys
+    key_mode: customer_managed
+    key_ref: key.ref.tenant.kek.rotated
+    key_epoch: epoch.0008
+    key_state_class: rotation_completed_recheck_required
+    key_state_summary: >
+      Rotation completed out of band; recheck is required before decrypting and
+      re-wrapping protected managed data under the new epoch.
+    rotation_planned_at: "2026-05-01T00:00:00Z"
+    rotation_started_at: "2026-05-06T18:00:00Z"
+    rotation_completed_at: "2026-05-07T18:30:00Z"
+    local_editing_continues: true
+    affected_action_families:
+      - sync_action_family
+      - policy_distribution_action_family
+    fail_posture: boundary_recheck_required
+    notes:
+      - Local editing continues; only protected managed-data actions pause pending recheck.
+
+continuity_summary:
+  local_editing_continues: true
+  retained_local_safe_capabilities:
+    - Continue local edit, save, undo, search, Git, and local export.
+    - Use non-keyed local tooling normally.
+  blocked_or_degraded_capabilities:
+    - Protected managed sync/policy actions pause until the rotation recheck completes.
+
+narrative_refs:
+  - docs/security/key_hierarchy_and_tenant_encryption_contract.md
+  - docs/service/operating_mode_and_capacity_contract.md
+  - docs/release/assurance_center_and_regulated_claim_contract.md
+
