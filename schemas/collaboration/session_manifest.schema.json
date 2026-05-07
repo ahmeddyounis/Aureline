@@ -1,0 +1,651 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/collaboration/session_manifest.schema.json",
+  "title": "Aureline collaboration join-manifest and guest-visible session-manifest boundary",
+  "description": "Boundary schema for the collaboration_session_join_request_record, collaboration_session_join_decision_record, collaboration_session_manifest_record, and collaboration_session_manifest_audit_event_record frozen in artifacts/collaboration/join_shared_debug_sequence.md. This schema publishes the guest-visible join disclosure rows and the post-admit session manifest that MUST keep retention/recording posture and control posture legible before entry and reconstructable in audit/export/support artifacts. Guests MUST remain view-first: joining a session or following a presenter/debug focus MUST NOT imply shared terminal/debug control; mutating authority over terminal/debug lanes is admitted only by an explicit control_grant_record (schemas/collaboration/control_grant.schema.json) and can be revoked immediately and non-replayably. Retention and recording disclosure MUST be visible pre-join (join_dialog_inline_disclosure_pre_admit) and stays reconstructable by binding this manifest to one collaboration_session_policy_manifest_record and its visible recorded-artifact rows (schemas/collaboration/session_policy_manifest.schema.json and schemas/collaboration/recorded_artifact_row.schema.json). Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw endpoint hostnames, raw absolute paths, raw user identifiers, raw billing-account ids, raw API keys, raw OAuth tokens, raw mTLS material, raw model weights, raw pack bytes, and raw provider payloads never cross this boundary; the manifest carries opaque refs, typed vocabularies, and short reviewable labels only. Adding a new manifest_phase_class, join_policy_result_class, host_approval_class, join_outcome_class, join_denial_reason, publish_row_kind_class, required_badge_class, or session_manifest_audit_event_id value is additive-minor and requires a session_manifest_schema_version bump; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/collaboration_session_join_request_record" },
+    { "$ref": "#/$defs/collaboration_session_join_decision_record" },
+    { "$ref": "#/$defs/collaboration_session_manifest_record" },
+    { "$ref": "#/$defs/collaboration_session_manifest_audit_event_record" }
+  ],
+  "$defs": {
+    "session_manifest_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this collaboration join/session-manifest vocabulary export. Current value is 1. Bumped only on breaking payload changes; additive-optional fields do not bump this version."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "collaboration_session_join_request_record",
+        "collaboration_session_join_decision_record",
+        "collaboration_session_manifest_record",
+        "collaboration_session_manifest_audit_event_record"
+      ],
+      "description": "Discriminator for the concrete payload shape. Every record carries exactly one kind."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque, stable id safe to log, safe on RPC, safe in manifests / journal entries / support bundles / evidence packets / claim manifests / admin-collaboration consoles. Raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw absolute paths, raw user identifiers, raw API keys, raw OAuth tokens, raw mTLS material, and raw provider payloads never appear here."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp produced from a monotonic clock source. Cross-surface joins embed the timestamp_envelope_record (schemas/governance/timestamp_envelope.schema.json) instead of comparing this field across runtimes."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Short human-readable sentence safe to show on join dialogs, session strips, retention badges, control badges, audit trays, and support artifacts. Never contains raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "freshness_class": {
+      "type": "string",
+      "enum": [
+        "authoritative_live",
+        "warm_cached",
+        "degraded_cached",
+        "stale",
+        "unverified"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "client_scope": {
+      "type": "string",
+      "enum": [
+        "desktop_product",
+        "cli",
+        "companion_surface",
+        "remote_agent",
+        "sdk_or_api",
+        "managed_admin_surface"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "redaction_class": {
+      "type": "string",
+      "enum": [
+        "logs_local",
+        "logs_remote",
+        "support_bundle",
+        "evidence_packet_signature",
+        "session_only_fallback",
+        "clipboard_projection"
+      ],
+      "description": "Re-exported from schemas/governance/capability_lifecycle.schema.json without modification (ADR-0011)."
+    },
+
+    "policy_context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "policy_bundle_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_epoch_ref": { "$ref": "#/$defs/opaque_id" },
+        "deployment_profile_class": {
+          "type": "string",
+          "enum": [
+            "individual_local",
+            "self_hosted",
+            "enterprise_online",
+            "managed_cloud",
+            "air_gapped"
+          ],
+          "description": "Re-exported from schemas/identity/policy_bundle.schema.json without modification."
+        },
+        "workspace_trust_state_class": {
+          "type": "string",
+          "enum": [
+            "trusted",
+            "restricted",
+            "policy_degraded",
+            "session_only_temporary_grant",
+            "extension_quarantine_restricted",
+            "recovery_ladder_restricted",
+            "untrusted_unknown"
+          ],
+          "description": "Re-exported from ADR-0018 vocabulary. A session inherits the joining workspace's trust posture; widening trust through a join is forbidden."
+        }
+      },
+      "description": "Optional policy-context envelope so downstream surfaces can resolve which policy bundle / epoch admitted the join/session and which workspace-trust posture each side held when the row was minted."
+    },
+
+    "manifest_phase_class": {
+      "type": "string",
+      "enum": [
+        "pre_join_disclosure",
+        "post_join_admitted"
+      ],
+      "description": "Frozen manifest-phase vocabulary. pre_join_disclosure is the join-dialog / link-preview payload shown before admission; post_join_admitted is the guest-visible manifest after admission. Both phases MUST be view-first and MUST carry retention/recording disclosure."
+    },
+
+    "join_policy_result_class": {
+      "type": "string",
+      "enum": [
+        "policy_admitted_host_approval_required",
+        "policy_admitted_auto",
+        "policy_denied"
+      ],
+      "description": "Frozen join policy-result vocabulary. policy_admitted_host_approval_required is the default: the host must explicitly approve admission. policy_admitted_auto is admitted only for strictly bounded cases where policy permits automatic admission and still requires a join-manifest disclosure. policy_denied fails closed."
+    },
+
+    "host_approval_class": {
+      "type": "string",
+      "enum": [
+        "host_approved",
+        "host_denied",
+        "host_no_response_expired"
+      ],
+      "description": "Frozen host-approval vocabulary."
+    },
+
+    "join_outcome_class": {
+      "type": "string",
+      "enum": [
+        "join_denied",
+        "join_admitted_view_only"
+      ],
+      "description": "Frozen join-outcome vocabulary. Admitted guests are view-only by default; mutating authority requires an explicit control_grant_record (schemas/collaboration/control_grant.schema.json)."
+    },
+
+    "join_denial_reason": {
+      "type": "string",
+      "enum": [
+        "denied_by_policy_guest_policy",
+        "denied_by_policy_trust_posture",
+        "denied_by_policy_tenant_scope",
+        "denied_by_host",
+        "denied_by_expiry"
+      ],
+      "description": "Frozen denial-reason vocabulary for join denial. Denials are explicit and reconstructable; they are never implied by silence."
+    },
+
+    "participant_role_class": {
+      "type": "string",
+      "enum": [
+        "owner",
+        "observer",
+        "commenter",
+        "editor",
+        "navigator",
+        "driver",
+        "presenter",
+        "co_presenter",
+        "approver",
+        "support_agent"
+      ],
+      "description": "Frozen role vocabulary for join request and admission. Roles do not by themselves widen workspace trust, terminal/debug authority, or filesystem write authority."
+    },
+
+    "role_matrix_profile_class": {
+      "type": "string",
+      "enum": [
+        "solo_owner_only",
+        "owner_plus_named_editors",
+        "owner_plus_editors_plus_reviewers",
+        "presenter_driven_observers_only",
+        "interview_or_teaching_presenter_plus_observers",
+        "support_session_host_plus_support_agent",
+        "regulated_review_with_approver_gate"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "retention_mode_class": {
+      "type": "string",
+      "enum": [
+        "live_only_no_retention",
+        "metadata_audited_no_payload_retention",
+        "replayable_review_or_teaching",
+        "support_or_regulated_retention_with_hold_eligibility"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "guest_policy_class": {
+      "type": "string",
+      "enum": [
+        "no_guests_admitted_org_members_only",
+        "named_guests_by_invite_only",
+        "approved_guests_with_approval_ticket",
+        "public_link_read_only_with_watermark",
+        "public_link_forbidden_by_policy"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "route_share_policy_class": {
+      "type": "string",
+      "enum": [
+        "route_share_disabled_private_route_labels_only",
+        "route_share_enabled_metadata_labels_only",
+        "route_share_enabled_within_org_boundary",
+        "route_share_enabled_with_audit_trail_required"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "residency_scope_class": {
+      "type": "string",
+      "enum": [
+        "local_device_only",
+        "org_region_pinned",
+        "multi_region_org_scope",
+        "cross_org_with_residency_check_required",
+        "air_gapped_no_egress"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "audit_level_class": {
+      "type": "string",
+      "enum": [
+        "audit_minimum_session_lifecycle_only",
+        "audit_standard_lifecycle_plus_consent_plus_retention",
+        "audit_full_lifecycle_plus_consent_plus_retention_plus_route_selection",
+        "audit_regulated_admin_signed"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "visible_consent_cue_class": {
+      "type": "string",
+      "enum": [
+        "join_dialog_inline_disclosure_pre_admit",
+        "participant_badge_persistent_during_session",
+        "mid_session_banner_with_typed_change_summary",
+        "mid_session_modal_block_until_acknowledged",
+        "host_initiated_per_guest_consent_prompt",
+        "admin_forced_consent_cue_admin_signed"
+      ],
+      "description": "Re-exported from schemas/collaboration/session_policy_manifest.schema.json without modification."
+    },
+
+    "required_badge_class": {
+      "type": "string",
+      "enum": [
+        "approval_ticket_required",
+        "admin_signed_required",
+        "workspace_trust_trusted_only_admitted",
+        "workspace_trust_session_only_temporary_grant_admitted",
+        "none_session_owner_admitted_only",
+        "owner_explicit_admission_without_ticket_for_view_only_grants"
+      ],
+      "description": "Re-exported from schemas/collaboration/control_grant.schema.json without modification. These badges are what must be shown to a guest before they assume they can request or receive control."
+    },
+
+    "publish_row_kind_class": {
+      "type": "string",
+      "enum": [
+        "roles_row",
+        "tenant_or_policy_scope_row",
+        "retention_envelope_row",
+        "recording_mode_row",
+        "follow_and_presenter_capabilities_row",
+        "shared_debug_view_stream_row",
+        "control_capabilities_row",
+        "required_badges_row"
+      ],
+      "description": "Frozen join disclosure publish-row kind vocabulary. A join manifest renders these rows (or an equivalent disclosure UI) before admission so the guest sees retention and control posture prior to entry."
+    },
+
+    "publish_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_kind_class",
+        "summary_label"
+      ],
+      "properties": {
+        "row_kind_class": { "$ref": "#/$defs/publish_row_kind_class" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "row_detail_ref": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/opaque_id" }
+          ],
+          "description": "Optional opaque ref to the authoritative record that backs the row (policy manifest, recorded-artifact row, control grant, follow target, debug session)."
+        }
+      },
+      "description": "One row of the join/session manifest disclosure surface. Rows are intentionally minimal and point to authoritative records by opaque ref when deeper inspection is needed."
+    },
+
+    "session_manifest_audit_event_id": {
+      "type": "string",
+      "enum": [
+        "collaboration_session_join_request_received",
+        "collaboration_session_join_policy_validated",
+        "collaboration_session_join_denied",
+        "collaboration_session_join_approved_view_only",
+        "collaboration_session_manifest_published_pre_join",
+        "collaboration_session_manifest_published_post_join",
+        "collaboration_session_manifest_audit_denial_emitted",
+        "collaboration_session_manifest_schema_version_bumped"
+      ],
+      "description": "Frozen audit-event ids on the collaboration_session_manifest audit stream. Events MUST NOT carry raw buffer text, raw terminal bytes, raw debug payloads, raw URLs, raw paths, or raw credential material."
+    },
+
+    "session_manifest_denial_reason": {
+      "type": "string",
+      "enum": [
+        "manifest_phase_class_unresolved",
+        "join_policy_result_class_unresolved",
+        "host_approval_class_unresolved",
+        "join_outcome_class_unresolved",
+        "join_denial_reason_unresolved",
+        "required_badge_class_unresolved",
+        "visible_consent_cue_missing_pre_join",
+        "retention_disclosure_missing",
+        "session_manifest_schema_version_lagging"
+      ],
+      "description": "Frozen denial-reason vocabulary. Denials fail closed; a pre-join manifest missing disclosure cues, a manifest without retention disclosure, or an unresolved required-badge class denies explicitly rather than admit silent drift."
+    },
+
+    "collaboration_session_join_request_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "session_manifest_schema_version",
+        "join_request_id",
+        "session_ref",
+        "guest_actor_ref",
+        "requested_role_class",
+        "requested_publish_rows",
+        "summary_label",
+        "freshness_class",
+        "client_scopes",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_join_request_record" },
+        "session_manifest_schema_version": { "$ref": "#/$defs/session_manifest_schema_version" },
+        "join_request_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "guest_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "requested_role_class": { "$ref": "#/$defs/participant_role_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "requested_publish_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publish_row_kind_class" },
+          "description": "Row kinds the guest requests to be disclosed (or re-disclosed) before admission. The join dialog MUST at least disclose retention and required badges regardless of guest request."
+        },
+        "requested_retention_disclosure_required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Invariant field: retention/recording disclosure MUST be visible before join. This is always true; the const prevents a silent downgrade."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "description": "One join request from a guest. This request does not grant control; it records intent and requested role only."
+    },
+
+    "collaboration_session_join_decision_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "session_manifest_schema_version",
+        "join_decision_id",
+        "session_ref",
+        "join_request_ref",
+        "join_policy_result_class",
+        "host_approval_class",
+        "join_outcome_class",
+        "denial_reason",
+        "policy_manifest_ref",
+        "visible_consent_cue_classes",
+        "required_badge_classes",
+        "summary_label",
+        "freshness_class",
+        "client_scopes",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_join_decision_record" },
+        "session_manifest_schema_version": { "$ref": "#/$defs/session_manifest_schema_version" },
+        "join_decision_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "join_request_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "join_policy_result_class": { "$ref": "#/$defs/join_policy_result_class" },
+        "host_approval_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/host_approval_class" }
+          ],
+          "description": "Host approval posture. Null when policy denied the join or when policy admitted auto without host involvement."
+        },
+        "join_outcome_class": { "$ref": "#/$defs/join_outcome_class" },
+        "admitted_role_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/participant_role_class" }
+          ],
+          "description": "Non-null only when join_outcome_class is join_admitted_view_only."
+        },
+        "denial_reason": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/join_denial_reason" }
+          ],
+          "description": "Non-null only when join_outcome_class is join_denied."
+        },
+        "policy_manifest_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Opaque ref to the collaboration_session_policy_manifest_record that backs retention and guest-policy disclosure."
+        },
+        "recorded_artifact_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to collaboration_recorded_artifact_row_record rows that are visible on the join dialog."
+        },
+        "visible_consent_cue_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/visible_consent_cue_class" },
+          "description": "Consent cues that MUST be visible for this decision. join_dialog_inline_disclosure_pre_admit MUST be present for any decision that admits a join dialog flow."
+        },
+        "required_badge_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/required_badge_class" },
+          "description": "Admission badges that MUST be rendered before the guest assumes control can be requested or granted."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "join_policy_result_class": { "enum": ["policy_denied", "policy_admitted_auto"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "host_approval_class": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "join_policy_result_class": { "const": "policy_admitted_host_approval_required" } } },
+          "then": { "properties": { "host_approval_class": { "$ref": "#/$defs/host_approval_class" } } }
+        },
+        {
+          "if": { "properties": { "join_outcome_class": { "const": "join_admitted_view_only" } } },
+          "then": { "required": ["admitted_role_class"] }
+        },
+        {
+          "if": { "properties": { "join_outcome_class": { "const": "join_denied" } } },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "One join decision. The decision MUST keep retention/recording and control posture visible even when the join is denied."
+    },
+
+    "collaboration_session_manifest_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "session_manifest_schema_version",
+        "session_manifest_id",
+        "session_ref",
+        "manifest_phase_class",
+        "policy_manifest_ref",
+        "role_matrix_profile_class",
+        "retention_mode_class",
+        "guest_policy_class",
+        "route_share_policy_class",
+        "residency_scope_class",
+        "audit_level_class",
+        "visible_consent_cue_classes",
+        "required_badge_classes",
+        "publish_rows",
+        "summary_label",
+        "freshness_class",
+        "client_scopes",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_manifest_record" },
+        "session_manifest_schema_version": { "$ref": "#/$defs/session_manifest_schema_version" },
+        "session_manifest_id": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "manifest_phase_class": { "$ref": "#/$defs/manifest_phase_class" },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "host_actor_ref": { "$ref": "#/$defs/opaque_id" },
+        "tenant_or_org_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "role_matrix_profile_class": { "$ref": "#/$defs/role_matrix_profile_class" },
+        "retention_mode_class": { "$ref": "#/$defs/retention_mode_class" },
+        "guest_policy_class": { "$ref": "#/$defs/guest_policy_class" },
+        "route_share_policy_class": { "$ref": "#/$defs/route_share_policy_class" },
+        "residency_scope_class": { "$ref": "#/$defs/residency_scope_class" },
+        "audit_level_class": { "$ref": "#/$defs/audit_level_class" },
+        "visible_consent_cue_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/visible_consent_cue_class" }
+        },
+        "recorded_artifact_row_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "description": "Opaque refs to visible recorded-artifact rows backing the recording/retention badge and join dialog disclosure."
+        },
+        "required_badge_classes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/required_badge_class" }
+        },
+        "publish_rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/publish_row" },
+          "description": "The publish rows that make the join/session manifest readable in compact UIs before and during admission."
+        },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "manifest_phase_class": { "const": "pre_join_disclosure" } } },
+          "then": {
+            "properties": {
+              "visible_consent_cue_classes": {
+                "type": "array",
+                "contains": { "const": "join_dialog_inline_disclosure_pre_admit" }
+              }
+            }
+          }
+        }
+      ],
+      "description": "Guest-visible join/session manifest record. It is used as the pre-join disclosure payload and as the post-join session manifest. This record never grants control; control is admitted only by control_grant_record rows."
+    },
+
+    "collaboration_session_manifest_audit_event_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "session_manifest_schema_version",
+        "audit_event_id_value",
+        "session_ref",
+        "audit_event_id",
+        "summary_label",
+        "freshness_class",
+        "client_scopes",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "record_kind": { "const": "collaboration_session_manifest_audit_event_record" },
+        "session_manifest_schema_version": { "$ref": "#/$defs/session_manifest_schema_version" },
+        "audit_event_id_value": { "$ref": "#/$defs/opaque_id" },
+        "session_ref": { "$ref": "#/$defs/opaque_id" },
+        "join_request_ref": { "$ref": "#/$defs/opaque_id" },
+        "join_decision_ref": { "$ref": "#/$defs/opaque_id" },
+        "session_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "policy_manifest_ref": { "$ref": "#/$defs/opaque_id" },
+        "audit_event_id": { "$ref": "#/$defs/session_manifest_audit_event_id" },
+        "denial_reason": { "$ref": "#/$defs/session_manifest_denial_reason" },
+        "summary_label": { "$ref": "#/$defs/reviewable_sentence" },
+        "freshness_class": { "$ref": "#/$defs/freshness_class" },
+        "client_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/client_scope" }
+        },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "audit_event_id": { "const": "collaboration_session_manifest_audit_denial_emitted" } } },
+          "then": { "required": ["denial_reason"] }
+        }
+      ],
+      "description": "Audit-event row on the collaboration_session_manifest audit stream. Covers join request receipt, policy validation, join approval/denial, and manifest publication."
+    }
+  }
+}

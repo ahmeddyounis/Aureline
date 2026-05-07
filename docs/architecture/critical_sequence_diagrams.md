@@ -315,6 +315,8 @@ anchor relocation, and shared debug mutation without a control grant.
 
 Evidence links: `docs/collaboration/session_authority_contract.md`,
 `docs/collaboration/shared_control_contract.md`,
+`artifacts/collaboration/join_shared_debug_sequence.md`,
+`schemas/collaboration/session_manifest.schema.json`,
 `docs/execution/debug_truth_contract.md`, `FIT-COLLAB-001`,
 `FIT-COLLAB-002`, `FIT-COLLAB-003`, and `FIT-JOUR-001`.
 
@@ -323,6 +325,7 @@ grant, and shared-debug inspect-only overlays must map to
 `fixtures/collaboration/session_cases/relay_loss_local_editing_continues.yaml`,
 `fixtures/collaboration/shared_control/degraded_follow_no_input_injection.yaml`,
 `fixtures/collaboration/shared_control/debug_grant_admin_signed_retained.yaml`,
+`fixtures/collaboration/join_follow_cases/`,
 or `fixtures/execution/debug_cases/shared_debug_overlay.yaml`.
 Support reconstruction uses `support_hook.collab.shared_debug_follow`
 with the `wrong_target_or_degraded_state_action` scenario class when
