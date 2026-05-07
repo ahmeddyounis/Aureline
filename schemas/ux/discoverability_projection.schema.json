@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/discoverability_projection.schema.json",
+  "title": "Aureline help-search, keymap-bridge, and migration discoverability projection packets",
+  "description": "Boundary schema for the discoverability projection packet used by help search, imported-keymap bridge surfaces, migration hints, glossary cards, and contextual tips to project canonical command identity and shortcut truth without minting surface-specific command names or shortcuts. The packet carries stable refs to canonical command surface-projection packets, optional keybinding_import_bridge_record rows for imported shortcut mapping honesty, and optional locale_fallback_state_record disclosure for source-language fallback. The schema carries only stable ids, controlled vocabulary, and typed policy context; raw URLs, raw absolute paths, raw docs bodies, and raw user content are forbidden at this boundary. See docs/ux/help_search_and_keymap_bridge_projection.md.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/discoverability_projection_packet_record" },
+    { "$ref": "#/$defs/discoverability_projection_case_record" }
+  ],
+  "$defs": {
+    "discoverability_projection_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for discoverability projection packets."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for logs, fixtures, support export, and cross-surface linkage."
+    },
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_axes": { "type": "object", "additionalProperties": true },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "monotonic_timestamp": {
+      "$ref": "../commands/command_descriptor.schema.json#/$defs/monotonic_timestamp"
+    },
+    "policy_context": {
+      "$ref": "../commands/command_descriptor.schema.json#/$defs/policy_context"
+    },
+    "redaction_class": {
+      "$ref": "../commands/command_descriptor.schema.json#/$defs/redaction_class"
+    },
+    "platform_class": {
+      "$ref": "../commands/command_registry_entry.schema.json#/$defs/platform_class"
+    },
+    "bcp47_locale_tag": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+    "discoverability_surface_class": {
+      "type": "string",
+      "enum": [
+        "help_search",
+        "migration_hint",
+        "keymap_bridge",
+        "contextual_tip",
+        "glossary_card",
+        "source_language_fallback"
+      ],
+      "description": "Surface families that may consume the projection packet. This vocabulary is usage metadata only; it does not replace upstream surface_kind vocabularies."
+    },
+    "command_projection_packet_ref_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "projection_packet_ref",
+        "registry_entry_id",
+        "command_id",
+        "command_revision_ref"
+      ],
+      "properties": {
+        "projection_packet_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable id of the referenced command_surface_projection_packet_record."
+        },
+        "registry_entry_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Stable registry entry id the projection packet resolves against."
+        },
+        "command_id": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Canonical command id the projection packet projects."
+        },
+        "command_revision_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Canonical revision ref for the projected command id."
+        }
+      },
+      "description": "Reference-only binding to an upstream command surface-projection packet. Surfaces resolve labels, docs anchors, alias history, lifecycle/capability cues, and current shortcut display from the referenced packet rather than copying."
+    },
+    "command_projection_packet_or_ref": {
+      "oneOf": [
+        {
+          "$ref": "../commands/command_projection.schema.json#/$defs/command_surface_projection_packet_record"
+        },
+        { "$ref": "#/$defs/command_projection_packet_ref_record" }
+      ]
+    },
+    "keybinding_import_bridge_record": {
+      "$ref": "../commands/keybinding_resolver.schema.json#/$defs/keybinding_import_bridge_record"
+    },
+    "locale_fallback_state_record": {
+      "$ref": "locale_fallback_state.schema.json#/$defs/locale_fallback_state_record"
+    },
+    "discoverability_projection_packet_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "discoverability_projection_schema_version",
+        "projection_packet_id",
+        "usage_surfaces",
+        "command_projection_packets",
+        "keymap_bridge_records",
+        "locale_fallback_state",
+        "policy_context",
+        "redaction_class",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "discoverability_projection_packet_record" },
+        "discoverability_projection_schema_version": {
+          "$ref": "#/$defs/discoverability_projection_schema_version"
+        },
+        "projection_packet_id": { "$ref": "#/$defs/opaque_id" },
+        "usage_surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/discoverability_surface_class" },
+          "description": "Which surfaces this packet instance is intended to support."
+        },
+        "command_projection_packets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command_projection_packet_or_ref" },
+          "description": "One or more canonical command projection packets (or stable refs) that this discoverability packet can project to surfaces."
+        },
+        "keymap_bridge_records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/keybinding_import_bridge_record" },
+          "description": "Optional imported-keymap bridge rows. When present, surfaces MUST quote bridge_outcome_class and behavior_change_axes from these rows."
+        },
+        "locale_fallback_state": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/locale_fallback_state_record" }
+          ],
+          "description": "Optional locale fallback disclosure when a surface renders source-language fallback or otherwise deviates from requested locale."
+        },
+        "policy_context": { "$ref": "#/$defs/policy_context" },
+        "redaction_class": { "$ref": "#/$defs/redaction_class" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "A packet must carry at least one command projection packet or at least one bridge row.",
+          "anyOf": [
+            {
+              "properties": {
+                "command_projection_packets": { "minItems": 1 }
+              },
+              "required": ["command_projection_packets"]
+            },
+            {
+              "properties": {
+                "keymap_bridge_records": { "minItems": 1 }
+              },
+              "required": ["keymap_bridge_records"]
+            }
+          ]
+        }
+      ]
+    },
+    "discoverability_projection_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "discoverability_projection_schema_version",
+        "case_id",
+        "case_summary",
+        "context",
+        "expected_packet"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "discoverability_projection_case_record" },
+        "discoverability_projection_schema_version": {
+          "$ref": "#/$defs/discoverability_projection_schema_version"
+        },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "case_summary": { "$ref": "#/$defs/non_empty_string" },
+        "context": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["platform_class", "requested_locale", "surface_focus"],
+          "properties": {
+            "platform_class": { "$ref": "#/$defs/platform_class" },
+            "requested_locale": { "$ref": "#/$defs/bcp47_locale_tag" },
+            "surface_focus": { "$ref": "#/$defs/discoverability_surface_class" },
+            "source_tool_ref": {
+              "oneOf": [
+                { "type": "null" },
+                { "$ref": "#/$defs/opaque_id" }
+              ]
+            }
+          }
+        },
+        "expected_packet": { "$ref": "#/$defs/discoverability_projection_packet_record" }
+      }
+    }
+  }
+}
+

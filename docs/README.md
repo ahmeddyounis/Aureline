@@ -365,6 +365,13 @@ code.
   [`/schemas/commands/keybinding_resolver.schema.json`](../schemas/commands/keybinding_resolver.schema.json);
   worked fixtures in
   [`/fixtures/commands/keybinding_conflict_examples/`](../fixtures/commands/keybinding_conflict_examples/).
+- [`ux/help_search_and_keymap_bridge_projection.md`](./ux/help_search_and_keymap_bridge_projection.md)
+  — discoverability projection contract ensuring help search, migration hints,
+  keymap bridges, contextual tips, and glossary cards project canonical command
+  IDs and shortcut truth from the same stable sources. Boundary schema in
+  [`/schemas/ux/discoverability_projection.schema.json`](../schemas/ux/discoverability_projection.schema.json);
+  worked fixtures in
+  [`/fixtures/ux/help_search_keymap_bridge_cases/`](../fixtures/ux/help_search_keymap_bridge_cases/).
 - [`../schemas/commands/command_registry_entry.schema.json`](../schemas/commands/command_registry_entry.schema.json),
   [`../fixtures/commands/seed_commands/`](../fixtures/commands/seed_commands/),
   and
