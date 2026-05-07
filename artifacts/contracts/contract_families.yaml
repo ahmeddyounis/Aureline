@@ -1,0 +1,794 @@
+# Contract-family registry.
+#
+# This registry groups Aureline's contract-bearing packets, envelopes, and
+# registries into a governed family map. The goal is to prevent parallel
+# naming, versioning, and minimum-envelope conventions from drifting across
+# command, runtime, tooling, support, design, policy, and export surfaces.
+#
+# The registry is descriptive and cross-cutting:
+# - It does not replace per-family schemas or contract docs.
+# - It does provide the "family selection" index every new packet or record
+#   should consult before minting a new envelope shape or version dialect.
+#
+# Companion artifacts:
+# - docs/contracts/contract_family_registry.md
+# - schemas/contracts/contract_family_registry.schema.json
+# - fixtures/contracts/contract_family_examples/
+#
+# Adding a new contract family:
+# - Add a new `contract_family_row` below.
+# - Link it to the relevant schema homes, primary docs, and at least one
+#   example source.
+# - If the family participates in compatibility review, cite the relevant
+#   surface ids and/or compat_row ids so later CI and deprecation work can
+#   reuse the same mapping.
+
+schema_version: 1
+registry_id: aureline.contract_family_registry
+status: seeded
+as_of: "2026-05-07"
+
+overview_page: docs/contracts/contract_family_registry.md
+schema_ref: schemas/contracts/contract_family_registry.schema.json
+ownership_matrix_ref: artifacts/governance/ownership_matrix.yaml
+schema_family_registry_ref: artifacts/governance/schema_families.yaml
+compatibility_surface_inventory_ref: artifacts/governance/compatibility_surfaces.yaml
+qualification_matrix_ref: artifacts/compat/qualification_matrix_seed.yaml
+
+minimum_envelope_ledger:
+  - rule_id: stable_object_id
+    title: Stable object identity
+    description: >
+      A family that claims machine-readable stability MUST name stable ids
+      for its primary objects (packet id, event id, bundle id, record id).
+      IDs are opaque tokens; they must be safe to log, safe to export, and
+      safe to reference across CLI/headless output, desktop export, support
+      bundles, and release packets.
+
+  - rule_id: schema_identity
+    title: Schema identity and version fields
+    description: >
+      A family that claims machine-readable stability MUST expose schema
+      identity in-band: record kind and explicit schema version fields.
+      Readers must be able to reject unknown or mismatched versions without
+      inspecting free-form prose.
+
+  - rule_id: target_context
+    title: Target/context binding
+    description: >
+      A family that claims machine-readable stability MUST bind each payload
+      to its target context (workspace, scope, execution context, provider
+      scope, or other canonical target identity) so exports and replays do
+      not invent ad-hoc provenance labels.
+
+  - rule_id: actor_or_route_identity
+    title: Actor and route identity (when relevant)
+    description: >
+      Consequence-bearing payloads MUST preserve who acted (actor identity)
+      and/or how the action was routed (issuing surface, authority class,
+      destination class, queue class) so surfaces do not infer intent from
+      UI copy or transport details.
+
+  - rule_id: build_or_bundle_refs
+    title: Build, bundle, and release linkage (when relevant)
+    description: >
+      Families that participate in export, support, or release evidence MUST
+      preserve exact-build linkage and/or bundle identity references when
+      the consumer would otherwise be unable to reproduce or audit the
+      payload honestly.
+
+  - rule_id: lifecycle_or_support_class
+    title: Lifecycle, support, and confidence posture
+    description: >
+      Families that can be quoted beyond their immediate producer MUST
+      preserve lifecycle/support/confidence posture as typed fields so
+      consumers do not overclaim certainty (for example, heuristic best-effort
+      outputs masquerading as authoritative results).
+
+  - rule_id: source_language_fallback
+    title: Source-language fallback and message-key bindings (when relevant)
+    description: >
+      When a family carries user-facing labels or message-bearing fields, it
+      MUST preserve message keys and source-language fallback posture as
+      typed vocabulary. Export and support flows must remain interpretable
+      without assuming a single UI locale.
+
+  - rule_id: redaction_and_export
+    title: Redaction, omission, and export posture
+    description: >
+      Families intended for support export, desktop export, CLI structured
+      output, or release evidence MUST preserve redaction posture explicitly
+      (redaction class, safe-preview trust class, omission summaries, and/or
+      retention-by-reference stubs). Raw secrets and raw payloads never cross
+      these boundaries.
+
+rows:
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: command_descriptors
+    title: Command descriptors and invocation sessions
+    summary: >
+      Command descriptors, UI-slot taxonomy, and invocation-session envelopes
+      used by the command palette, menus, keybinding help, CLI help, automation,
+      and invocation evidence.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: shell_command_system
+    maturity_lane: beta
+    schema_homes:
+      - schemas/commands/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - command_descriptor_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - command_id
+        - command_revision_ref
+        - invocation_session_id
+      schema_identity_fields:
+        - record_kind
+        - command_descriptor_schema_version
+      target_context_fields:
+        - context_snapshot
+        - policy_context
+      actor_or_route_identity_fields:
+        - issuing_surface
+        - authority_class
+      lifecycle_or_support_fields:
+        - enablement_decision
+        - preview_posture
+        - approval_posture
+        - execution_intent
+        - outcome
+      redaction_and_export_fields:
+        - redaction_class
+    primary_doc_refs:
+      - docs/commands/command_descriptor_contract.md
+      - docs/automation/cli_surface_contract.md
+    example_source_refs:
+      - fixtures/commands/command_descriptor_examples/
+      - fixtures/contracts/contract_family_examples/command_descriptors.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - command_plane.command_graph_and_ui_slot_schema
+      stable_surface_inventory_row_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#command_plane.command_descriptor_and_invocation_session
+      qualification_row_refs:
+        - compat_row:command_plane.command_descriptor_schema
+        - compat_row:automation.cli_headless_contract
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: internal_rpc
+    title: Internal RPC envelopes and method manifests
+    summary: >
+      Internal RPC request/response/subscription envelopes plus method
+      manifest rows used by local processes, helpers, and remote agents.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: aureline-rpc
+    maturity_lane: internal
+    schema_homes:
+      - schemas/rpc/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - envelope_schema_version
+      - contract_version
+    minimum_envelope:
+      required_identifier_fields:
+        - request_id
+      schema_identity_fields:
+        - frame_kind
+        - envelope_schema_version
+        - contract_version
+      target_context_fields:
+        - workspace_scope
+      actor_or_route_identity_fields:
+        - actor_class
+        - method
+      redaction_and_export_fields:
+        - trace
+        - baggage
+    primary_doc_refs:
+      - docs/adr/0004-rpc-transport-and-schema-toolchain.md
+      - docs/adr/0005-subscription-envelope-and-invalidation-semantics.md
+    example_source_refs:
+      - fixtures/governance/artifact_class_examples/stable_settings_envelope_release_chain.yaml
+      - fixtures/contracts/contract_family_examples/internal_rpc.yaml
+    compatibility_links:
+      compatibility_surface_ids: []
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: task_event_envelope
+    title: Task/test/debug event envelopes
+    summary: >
+      Canonical task-event envelopes, adapter maps, and replay bundles used by
+      build/test/run/debug, notebook, automation, support export, and replay
+      consumers.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: support_export
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/tooling/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - task_event_envelope_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - event_id
+        - trace_id
+      schema_identity_fields:
+        - record_kind
+        - task_event_envelope_schema_version
+      target_context_fields:
+        - execution_context_id
+        - workspace_or_target_identity
+      actor_or_route_identity_fields:
+        - source_kind
+        - provenance
+      lifecycle_or_support_fields:
+        - confidence_class
+        - event_kind
+        - payload_kind
+      redaction_and_export_fields:
+        - raw_payload_retention
+    primary_doc_refs:
+      - docs/tooling/task_event_contract_seed.md
+      - docs/execution/context_inspector_packet.md
+    example_source_refs:
+      - fixtures/tooling/task_event_replay/
+      - fixtures/contracts/contract_family_examples/task_event_envelope.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - tooling.task_event_envelope
+      stable_surface_inventory_row_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#tooling.task_event_envelope
+      qualification_row_refs:
+        - compat_row:tooling.task_event_envelope
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: diagnostic_records
+    title: Diagnostic records and evidence chains
+    summary: >
+      Diagnostic/problem evidence-chain records and heuristic confidence
+      disclosures used by the editor, CLI, support export, and hosted review.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: governance_packets
+    maturity_lane: internal
+    schema_homes:
+      - schemas/diagnostics/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - problem_evidence_chain_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - problem_chain_id
+      schema_identity_fields:
+        - record_kind
+        - problem_evidence_chain_schema_version
+      target_context_fields:
+        - target_context
+      lifecycle_or_support_fields:
+        - chain_state_class
+        - confidence
+        - freshness
+      redaction_and_export_fields:
+        - redaction_class
+        - export_projection
+        - export_safe_summary
+    primary_doc_refs:
+      - docs/diagnostics/problem_output_evidence_chain_contract.md
+    example_source_refs:
+      - fixtures/diagnostics/problem_evidence_cases/
+      - fixtures/contracts/contract_family_examples/diagnostic_records.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - diagnostics.suppression_summary_and_severity
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: execution_context_provenance
+    title: Execution-context and provenance records
+    summary: >
+      Execution-context records, environment capsules, scope descriptors, and
+      degraded-field disclosures shared across terminal, task, debug, notebook,
+      AI, support export, and replay surfaces.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: governance_packets
+    maturity_lane: beta
+    schema_homes:
+      - schemas/runtime/
+      - schemas/execution/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - execution_context_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - execution_context_id
+      schema_identity_fields:
+        - record_kind
+        - execution_context_schema_version
+      target_context_fields:
+        - target_identity
+        - toolchain_identity
+        - environment_capsule_ref
+        - workset_scope
+      actor_or_route_identity_fields:
+        - identity_mode
+        - authority_envelope
+      lifecycle_or_support_fields:
+        - trust_state
+        - cache_disposition
+      redaction_and_export_fields:
+        - degraded_fields
+    primary_doc_refs:
+      - docs/runtime/execution_context_vocabulary.md
+      - docs/execution/context_inspector_packet.md
+    example_source_refs:
+      - fixtures/execution/context_diff_cases/
+      - fixtures/contracts/contract_family_examples/execution_context_provenance.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - runtime.execution_context_and_provenance
+      stable_surface_inventory_row_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#runtime.execution_context_records
+      qualification_row_refs:
+        - compat_row:tooling.task_event_envelope
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: project_doctor_findings
+    title: Project Doctor findings and probe/explanation packets
+    summary: >
+      Project Doctor findings, probe catalog entries, explanation packets, and
+      escalation routes used by Support Center and recovery surfaces.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: support_export
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/support/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - doctor_finding_schema_version
+      - doctor_explanation_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - finding_id
+        - finding_code
+      schema_identity_fields:
+        - record_kind
+        - doctor_finding_schema_version
+      target_context_fields:
+        - affected_scope
+        - context_availability
+      actor_or_route_identity_fields:
+        - probe_family_class
+        - rule_id
+      lifecycle_or_support_fields:
+        - severity_class
+        - confidence_class
+        - latency_class
+        - state
+      redaction_and_export_fields:
+        - redaction
+    primary_doc_refs:
+      - docs/support/project_doctor_packet.md
+      - docs/support/project_doctor_probe_contract.md
+    example_source_refs:
+      - fixtures/support/scenario_matrix.yaml
+      - fixtures/contracts/contract_family_examples/project_doctor_findings.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - workspace.project_doctor_packet
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: repair_transactions
+    alias_ids:
+      - repair_transactions
+    title: Repair transactions and recovery ledger
+    summary: >
+      Repair-transaction preview/apply/rollback records and recovery-action
+      ledger entries used by Support Center, recovery ladders, and exports.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: support_export
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/support/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - repair_transaction_schema_version
+      - repair_preview_schema_version
+      - repair_outcome_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - repair_transaction_id
+      schema_identity_fields:
+        - record_kind
+        - repair_transaction_schema_version
+      target_context_fields:
+        - target_identity_ref
+      actor_or_route_identity_fields:
+        - initiating_finding_refs
+        - approved_repair_class
+      lifecycle_or_support_fields:
+        - reversal_class
+        - outcome
+      redaction_and_export_fields:
+        - redaction_class
+    primary_doc_refs:
+      - docs/support/repair_transaction_contract.md
+      - docs/support/recovery_ladder_packet.md
+    example_source_refs:
+      - fixtures/support/repair_cases/
+      - fixtures/contracts/contract_family_examples/repair_transactions.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - support.repair_transaction_and_recovery_ledger
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: support_bundles_and_handoff
+    title: Evidence/support bundles and object-handoff packets
+    summary: >
+      Support bundles, support packet index rows, object handoff packets, and
+      recovery-action records used by support export, offboarding, and
+      release-evidence surfaces.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: support_export
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/support/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - support_bundle_schema_version
+      - schema_version
+      - object_handoff_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - support_bundle_id
+      schema_identity_fields:
+        - record_kind
+        - support_bundle_schema_version
+      target_context_fields:
+        - build_and_install_context
+        - route_and_execution_context
+        - recovery_context
+      redaction_and_export_fields:
+        - redaction_profile_ref
+        - bundle_redaction_class
+        - waived_fields
+    primary_doc_refs:
+      - docs/support/support_bundle_contract.md
+      - docs/support/object_handoff_packet.md
+    example_source_refs:
+      - fixtures/support/object_handoff_examples/
+      - fixtures/contracts/contract_family_examples/support_bundles_and_handoff.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - support.bundle_and_evidence_packets
+      stable_surface_inventory_row_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#governance.record_class_registry_rows
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: appearance_sessions_and_theme_assets
+    alias_ids:
+      - theme_icon_motion_packages
+    title: Appearance sessions, theme assets, and design-token packages
+    summary: >
+      Appearance checkpoints, theme packages, token export manifests, component
+      contracts, and import reports used by UI, export, and theme portability
+      flows.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: design_system_seeds
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/ux/
+      - schemas/design/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - theme_asset_schema_version
+      - appearance_schema_version
+      - design_token_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - package_id
+        - checkpoint_ref
+        - session_ref
+      schema_identity_fields:
+        - record_kind
+        - theme_asset_schema_version
+        - appearance_schema_version
+      target_context_fields:
+        - policy_context
+      lifecycle_or_support_fields:
+        - version_match_state
+      redaction_and_export_fields:
+        - redaction_class
+    primary_doc_refs:
+      - docs/ux/theme_and_visual_asset_contract.md
+      - docs/ux/appearance_import_and_checkpoint_contract.md
+    example_source_refs:
+      - fixtures/ux/appearance_cases/
+      - fixtures/contracts/contract_family_examples/appearance_sessions_and_theme_assets.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - design.appearance_session_theme_package_and_token_overlay
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: teaching_tour_and_learning_packets
+    alias_ids:
+      - onboarding_presentation_voice_surfaces
+    title: Tour/teaching contracts and learning evidence packets
+    summary: >
+      Guided-tour objects, teaching surfaces, presentation/learning evidence
+      packets, and progress state used by onboarding, docs/help, and teaching
+      workflows.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: docs_public_truth
+    maturity_lane: internal
+    schema_homes:
+      - schemas/ux/
+      - schemas/learning/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - guided_tour_schema_version
+      - learning_presentation_packet_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - learning_presentation_packet_id
+      schema_identity_fields:
+        - record_kind
+        - learning_presentation_packet_schema_version
+      target_context_fields:
+        - policy_context
+      lifecycle_or_support_fields:
+        - change_significance_summary
+      source_language_fallback_fields:
+        - source_language_fallback_class
+      redaction_and_export_fields:
+        - redaction_profile_class
+    primary_doc_refs:
+      - docs/learning/learning_presentation_evidence_packet.md
+    example_source_refs:
+      - fixtures/learning/learning_presentation_cases/
+      - fixtures/contracts/contract_family_examples/teaching_tour_and_learning_packets.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - docs.tour_glossary_and_teaching_session
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: policy_bundles
+    title: Policy bundles, caches, and permission prompt events
+    summary: >
+      Admin policy bundles, policy cache entries, and permission prompt events
+      used by admin, runtime, and support/export projections.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: governance_packets
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/policy/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - admin_policy_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - artifact_id
+      schema_identity_fields:
+        - record_kind
+        - admin_policy_schema_version
+      target_context_fields:
+        - tenant_scope
+        - policy_epoch
+      build_or_bundle_ref_fields:
+        - bundle_version
+      redaction_and_export_fields:
+        - redaction_class
+    primary_doc_refs:
+      - docs/policy/admin_policy_and_bundle_cache_contract.md
+    example_source_refs:
+      - fixtures/policy/explain_and_diff_cases/
+      - fixtures/contracts/contract_family_examples/policy_bundles.yaml
+    compatibility_links:
+      compatibility_surface_ids: []
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: capability_records
+    title: Capability inventory entries and lifecycle vocabulary
+    summary: >
+      Capability inventory entries used by UI, docs, CLI/headless, support
+      exports, and release artifacts to avoid capability drift.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: governance_packets
+    maturity_lane: beta
+    schema_homes:
+      - schemas/governance/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - capability_inventory_entry_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - capability_id
+      schema_identity_fields:
+        - record_kind
+        - capability_inventory_entry_schema_version
+      target_context_fields:
+        - surface_families
+      lifecycle_or_support_fields:
+        - lifecycle_state
+        - export_visibility_class
+      redaction_and_export_fields:
+        - export_visibility_class
+    primary_doc_refs:
+      - docs/governance/capability_inventory_contract.md
+    example_source_refs:
+      - artifacts/governance/capability_inventory_seed.yaml
+      - fixtures/contracts/contract_family_examples/capability_records.yaml
+    compatibility_links:
+      compatibility_surface_ids: []
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: notification_and_chronology_primitives
+    title: Notification envelopes and chronology primitives
+    summary: >
+      Activity-event envelopes, attention taxonomy, and chronology primitives
+      used by shell notifications, start center, support/export, and timeline
+      surfaces.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: shell_command_system
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/ux/
+      - schemas/governance/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - activity_event_envelope_schema_version
+      - record_state_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - canonical_event_id
+      schema_identity_fields:
+        - record_kind
+        - activity_event_envelope_schema_version
+      target_context_fields:
+        - target_identity_ref
+        - policy_context
+      actor_or_route_identity_fields:
+        - actor_identity_ref
+        - delivery_surface_class
+      lifecycle_or_support_fields:
+        - attention_class
+        - interruptibility_tier
+        - suppression_reasons
+      redaction_and_export_fields:
+        - privacy_payload_class
+    primary_doc_refs:
+      - docs/ux/attention_activity_taxonomy.md
+      - docs/governance/record_state_and_policy_simulation_models.md
+    example_source_refs:
+      - fixtures/governance/chronology_context_cases/
+      - fixtures/contracts/contract_family_examples/notification_and_chronology_primitives.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - notification.attention_and_activity_envelope
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs:
+        - compat_row:attention.notification_and_chronology_primitives
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: replay_and_trace_evidence
+    title: Profiling/trace/replay captures and regression evidence
+    summary: >
+      Capture-session manifests, trace/replay bundles, and regression baseline
+      records used by performance, observability, support export, and release
+      evidence surfaces.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: benchmark_lab
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/performance/
+      - schemas/observability/
+      - schemas/traces/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - capture_session_schema_version
+      - trace_bundle_schema_version
+      - schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - capture_session_id
+      schema_identity_fields:
+        - record_kind
+        - capture_session_schema_version
+      target_context_fields:
+        - target_context
+      build_or_bundle_ref_fields:
+        - exact_build_identity_ref
+      lifecycle_or_support_fields:
+        - replay_capability
+      redaction_and_export_fields:
+        - redaction
+    primary_doc_refs:
+      - docs/performance/profiling_trace_replay_contract.md
+      - docs/observability/replay_and_trace_bundle_contract.md
+    example_source_refs:
+      - fixtures/performance/capture_cases/
+      - fixtures/contracts/contract_family_examples/replay_and_trace_evidence.yaml
+    compatibility_links:
+      compatibility_surface_ids: []
+      stable_surface_inventory_row_refs: []
+      qualification_row_refs: []
+
+  - record_kind: contract_family_row
+    contract_family_schema_version: 1
+    family_id: browser_handoff_packets
+    title: Browser handoff and external-system links
+    summary: >
+      Browser-handoff packets and callback envelopes that preserve external
+      provider identity, reason codes, and return anchors across desktop, CLI,
+      support export, and managed/service surfaces.
+    owner_dri: "@ahmeddyounis"
+    owner_lane: release_evidence
+    maturity_lane: experimental
+    schema_homes:
+      - schemas/integration/
+      - schemas/providers/
+      - schemas/service/
+    version_field_rule: document_const_schema_version_bump_on_additive_minor
+    version_field_names:
+      - provider_handoff_schema_version
+      - packet_schema_version
+    minimum_envelope:
+      required_identifier_fields:
+        - packet_id
+      schema_identity_fields:
+        - record_kind
+        - provider_handoff_schema_version
+        - packet_schema_version
+      target_context_fields:
+        - object_identity
+        - policy_context
+      actor_or_route_identity_fields:
+        - destination_class
+        - reason_code
+      lifecycle_or_support_fields:
+        - expires_at
+        - replay_posture
+      redaction_and_export_fields:
+        - disclosure_summary
+        - redaction_class
+    primary_doc_refs:
+      - docs/adr/0010-connected-provider-browser-handoff-approval-ticket.md
+    example_source_refs:
+      - fixtures/remote/attach_cases/provider_unavailable_browser_handoff.yaml
+      - fixtures/contracts/contract_family_examples/browser_handoff_packets.yaml
+    compatibility_links:
+      compatibility_surface_ids:
+        - service.optional_api_family
+      stable_surface_inventory_row_refs:
+        - artifacts/governance/stable_surface_inventory.yaml#provider.service_api_family
+      qualification_row_refs:
+        - compat_row:provider.service_api_and_browser_handoff

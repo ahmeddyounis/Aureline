@@ -1,0 +1,373 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/contracts/contract_family_registry.schema.json",
+  "title": "Aureline contract-family registry",
+  "description": "Boundary schema for Aureline's contract-family registry artifact (artifacts/contracts/contract_families.yaml) and worked contract-family example fixtures (fixtures/contracts/contract_family_examples/). The registry gives every contract-bearing workstream one shared family map so packet, envelope, and registry surfaces do not invent local naming, versioning, or minimum-envelope conventions. Every family row names its schema home(s), owner lane, maturity lane, version-field rule, minimum required identifiers, required target/context fields, redaction/export posture, example sources, and compatibility inventory linkages. The minimum-envelope ledger enumerates the field categories that must be present before a family may claim machine-readable stability.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/contract_family_registry_record" },
+    { "$ref": "#/$defs/contract_family_row" },
+    { "$ref": "#/$defs/contract_family_example_record" }
+  ],
+  "$defs": {
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "contract_sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional fixture metadata carried by YAML fixtures to explain scenario intent."
+    },
+    "stable_token": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Stable lower_snake identifier."
+    },
+    "stable_dot_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[_-][a-z0-9]+)*(?:\\.[a-z0-9]+(?:[_-][a-z0-9]+)*)*$",
+      "description": "Stable dot-id identifier."
+    },
+    "path_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repo-relative path or document reference. Consumers treat it as opaque text."
+    },
+    "path_ref_array": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path_ref" },
+      "uniqueItems": true
+    },
+    "owner_lane_value": {
+      "type": "string",
+      "enum": [
+        "aureline-render",
+        "aureline-buffer",
+        "aureline-vfs",
+        "aureline-text",
+        "aureline-rpc",
+        "aureline-telemetry",
+        "aureline-shell-spike",
+        "aureline-bench",
+        "shell_command_system",
+        "benchmark_lab",
+        "release_evidence",
+        "compatibility_ecosystem_review",
+        "docs_public_truth",
+        "support_export",
+        "design_system_seeds",
+        "accessibility_input_review",
+        "governance_packets"
+      ],
+      "description": "Owner lane drawn from artifacts/governance/ownership_matrix.yaml scorecard_lane_index."
+    },
+    "maturity_lane_value": {
+      "type": "string",
+      "enum": ["stable", "beta", "experimental", "internal"],
+      "description": "Maturity lane: stable and beta are claim-bearing targets; experimental is seeded but not yet stable; internal is reserved for internal-only machine-readable surfaces."
+    },
+    "version_field_rule": {
+      "type": "string",
+      "enum": [
+        "document_const_schema_version_bump_on_breaking",
+        "document_const_schema_version_bump_on_additive_minor",
+        "inherited_from_parent_packet_header",
+        "single_record_no_version_field",
+        "generated_artifact_versioning_follows_generator"
+      ],
+      "description": "How versioning is expressed for the family."
+    },
+    "minimum_envelope_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "title", "description"],
+      "properties": {
+        "rule_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "description": { "$ref": "#/$defs/non_empty_string" },
+        "required_for_machine_readable_stability": {
+          "type": "boolean",
+          "default": true
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "minimum_envelope_rule_array": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/minimum_envelope_rule" }
+    },
+    "minimum_envelope_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_identifier_fields",
+        "schema_identity_fields",
+        "target_context_fields",
+        "redaction_and_export_fields"
+      ],
+      "properties": {
+        "required_identifier_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that identify the primary object(s) in the family (for example event_id, command_id, bundle_id)."
+        },
+        "schema_identity_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that bind the payload to a schema identity (schema version consts, schema_version fields, record_kind fields)."
+        },
+        "target_context_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that bind the payload to a target/context identity (execution_context_id, target_context_ref, workspace_ref, etc)."
+        },
+        "actor_or_route_identity_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that capture actor identity or route identity when relevant."
+        },
+        "build_or_bundle_ref_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that capture exact-build, bundle, or release graph references when relevant."
+        },
+        "lifecycle_or_support_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that capture lifecycle, support class, confidence, or posture fields when relevant."
+        },
+        "source_language_fallback_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that capture source-language fallback and message-key bindings when user-facing strings appear."
+        },
+        "redaction_and_export_fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names that capture redaction posture, export posture, omission summaries, and safe-preview classes."
+        }
+      }
+    },
+    "compatibility_links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compatibility_surface_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_dot_id" },
+          "uniqueItems": true,
+          "description": "Surface ids from artifacts/governance/compatibility_surfaces.yaml that fall under this family."
+        },
+        "stable_surface_inventory_row_refs": {
+          "$ref": "#/$defs/path_ref_array",
+          "description": "Optional refs to stable_surface_inventory rows (artifacts/governance/stable_surface_inventory.yaml#...)."
+        },
+        "qualification_row_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^compat_row:[a-z0-9]+(?:[._-][a-z0-9]+)*$"
+          },
+          "uniqueItems": true,
+          "description": "Optional compat_row references into artifacts/compat/qualification_matrix_seed.yaml."
+        }
+      }
+    },
+    "contract_family_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "contract_family_schema_version",
+        "family_id",
+        "title",
+        "summary",
+        "owner_dri",
+        "owner_lane",
+        "maturity_lane",
+        "schema_homes",
+        "version_field_rule",
+        "version_field_names",
+        "minimum_envelope",
+        "primary_doc_refs",
+        "example_source_refs",
+        "compatibility_links"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "contract_family_row"
+        },
+        "contract_family_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "family_id": { "$ref": "#/$defs/stable_token" },
+        "alias_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Optional alias identifiers used elsewhere in the repository for the same conceptual family."
+        },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "summary": { "$ref": "#/$defs/non_empty_string" },
+        "owner_dri": {
+          "type": "string",
+          "minLength": 2,
+          "description": "Human owner DRI handle (e.g., @name)."
+        },
+        "owner_lane": { "$ref": "#/$defs/owner_lane_value" },
+        "maturity_lane": { "$ref": "#/$defs/maturity_lane_value" },
+        "schema_homes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "uniqueItems": true,
+          "description": "Repo-relative schema directories that define the family."
+        },
+        "version_field_rule": { "$ref": "#/$defs/version_field_rule" },
+        "version_field_names": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/stable_token" },
+          "uniqueItems": true,
+          "description": "Field names used as schema version identity within the family."
+        },
+        "minimum_envelope": { "$ref": "#/$defs/minimum_envelope_requirements" },
+        "primary_doc_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "uniqueItems": true
+        },
+        "example_source_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/path_ref" },
+          "uniqueItems": true
+        },
+        "compatibility_links": { "$ref": "#/$defs/compatibility_links" },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    },
+    "contract_family_registry_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "registry_id",
+        "status",
+        "overview_page",
+        "schema_ref",
+        "ownership_matrix_ref",
+        "schema_family_registry_ref",
+        "compatibility_surface_inventory_ref",
+        "qualification_matrix_ref",
+        "minimum_envelope_ledger",
+        "rows"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "registry_id": { "$ref": "#/$defs/stable_dot_id" },
+        "status": {
+          "type": "string",
+          "enum": ["seeded", "active", "deprecated"]
+        },
+        "as_of": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "overview_page": { "$ref": "#/$defs/path_ref" },
+        "schema_ref": { "$ref": "#/$defs/path_ref" },
+        "ownership_matrix_ref": { "$ref": "#/$defs/path_ref" },
+        "schema_family_registry_ref": { "$ref": "#/$defs/path_ref" },
+        "compatibility_surface_inventory_ref": { "$ref": "#/$defs/path_ref" },
+        "qualification_matrix_ref": { "$ref": "#/$defs/path_ref" },
+        "minimum_envelope_ledger": { "$ref": "#/$defs/minimum_envelope_rule_array" },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/contract_family_row" }
+        }
+      }
+    },
+    "contract_family_example_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "contract_family_example_schema_version",
+        "example_id",
+        "family_id",
+        "title",
+        "scenario",
+        "surface_bindings"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": {
+          "type": "string",
+          "const": "contract_family_example_record"
+        },
+        "contract_family_example_schema_version": {
+          "type": "integer",
+          "const": 1
+        },
+        "example_id": { "$ref": "#/$defs/stable_token" },
+        "family_id": { "$ref": "#/$defs/stable_token" },
+        "title": { "$ref": "#/$defs/non_empty_string" },
+        "scenario": { "$ref": "#/$defs/non_empty_string" },
+        "surface_bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "cli_headless_output_refs",
+            "desktop_export_refs",
+            "support_bundle_refs",
+            "release_packet_refs",
+            "provider_browser_handoff_refs"
+          ],
+          "properties": {
+            "cli_headless_output_refs": { "$ref": "#/$defs/path_ref_array" },
+            "desktop_export_refs": { "$ref": "#/$defs/path_ref_array" },
+            "support_bundle_refs": { "$ref": "#/$defs/path_ref_array" },
+            "release_packet_refs": { "$ref": "#/$defs/path_ref_array" },
+            "provider_browser_handoff_refs": { "$ref": "#/$defs/path_ref_array" }
+          }
+        },
+        "notes": { "$ref": "#/$defs/non_empty_string" }
+      }
+    }
+  }
+}
