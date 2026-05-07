@@ -1,0 +1,79 @@
+__fixture__:
+  name: protocol_handler_revoked_permission
+  scenario: >
+    A protocol-handler reentry resolves to a target that is now policy-blocked.
+    The handler must preserve user intent, offer cached read-only inspection when
+    permitted, and must not imply writes are supported.
+  doc_sections:
+    - artifacts/entry/unavailable_target_actions.md#27-revoked-permission-policytrustadmin-revocation
+    - artifacts/platform/system_affordance_route_audit.md#36-fallback-classes
+
+record_kind: entry_recovery_choice_set_record
+entry_recovery_choice_schema_version: 1
+choice_set_id: choice-set:entry:protocol_handler:revoked_permission:001
+surface_class: protocol_handler
+situation_class: revoked_permission
+target_kind: remote_repository
+root_kind: remote_repository
+target_state: policy_blocked
+unavailable_reason: policy_blocked
+trust_state: trusted
+freshness_class: cached_with_timestamp
+write_safety_badge: writes_blocked_policy
+source_record_refs:
+  - deep-link:intent:example:revoked-permission:dl-001
+choices:
+  - choice_id: choice:revoked-permission:cached-view:001
+    action_id: open_read_only_cached_view
+    action_role: primary
+    enabled: true
+    badges:
+      identity_disclosure_class: identity_stale_cache_only
+      trust_state: trusted
+      freshness_class: cached_with_timestamp
+      write_safety_badge: writes_blocked_cached_view_only
+      summary: Policy permits cached inspection only; no live mutation routes.
+  - choice_id: choice:revoked-permission:open-restricted:001
+    action_id: open_restricted
+    action_role: secondary
+    enabled: true
+    requires_target_revalidation: true
+    badges:
+      identity_disclosure_class: identity_known
+      trust_state: restricted
+      freshness_class: cached_with_timestamp
+      write_safety_badge: writes_blocked_policy
+      summary: Restricted mode may allow local-only navigation without policy-prohibited writes.
+  - choice_id: choice:revoked-permission:export-evidence:001
+    action_id: export_evidence
+    action_role: recovery
+    enabled: true
+    badges:
+      identity_disclosure_class: identity_known
+      trust_state: trusted
+      freshness_class: cached_with_timestamp
+      write_safety_badge: writes_blocked_policy
+      summary: Exportable evidence path for support/escalation.
+  - choice_id: choice:revoked-permission:retry-later:001
+    action_id: retry_later
+    action_role: secondary
+    enabled: true
+    badges:
+      identity_disclosure_class: identity_known
+      trust_state: trusted
+      freshness_class: cached_with_timestamp
+      write_safety_badge: writes_blocked_policy
+      summary: Preserve intent; user may retry after policy/trust review.
+  - choice_id: choice:revoked-permission:remove:001
+    action_id: remove_from_recents
+    action_role: destructive
+    enabled: true
+    requires_confirmation: true
+    badges:
+      identity_disclosure_class: identity_known
+      trust_state: trusted
+      freshness_class: cached_with_timestamp
+      write_safety_badge: writes_blocked_policy
+      summary: Removes only recent-work metadata; does not change policy state.
+emitted_at: t+0060
+

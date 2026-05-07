@@ -1,0 +1,80 @@
+__fixture__:
+  name: workspace_switcher_offline_ssh_host
+  scenario: >
+    A workspace switcher entry points to an SSH workspace whose host is offline.
+    The switcher must not render it as an ordinary local folder. It offers Reconnect
+    and Reauth, plus cached read-only inspection, retry-later, and removal.
+  doc_sections:
+    - artifacts/entry/unavailable_target_actions.md#25-offline-ssh-host-remote-root-unreachable
+    - docs/ux/recent_work_and_restore_card_contract.md#33-recovery-actions
+
+record_kind: entry_recovery_choice_set_record
+entry_recovery_choice_schema_version: 1
+choice_set_id: choice-set:entry:switcher:offline_ssh_host:001
+surface_class: workspace_switcher
+situation_class: offline_ssh_host
+target_kind: ssh_workspace
+root_kind: ssh_remote_root
+target_state: remote_unreachable
+unavailable_reason: remote_disconnected
+trust_state: trusted
+freshness_class: stale_offline
+write_safety_badge: writes_unsafe_stale_or_disconnected
+source_record_refs:
+  - switcher-row:example:ssh-offline:sw-001
+choices:
+  - choice_id: choice:ssh-offline:reconnect:001
+    action_id: reconnect
+    action_role: primary
+    enabled: true
+    requires_target_revalidation: true
+    badges:
+      identity_disclosure_class: identity_remote_requires_reconnect
+      trust_state: trusted
+      freshness_class: stale_offline
+      write_safety_badge: writes_require_revalidation
+      summary: Reconnect required; writes remain blocked until revalidation completes.
+  - choice_id: choice:ssh-offline:reauth:001
+    action_id: reauth
+    action_role: secondary
+    enabled: true
+    requires_target_revalidation: true
+    badges:
+      identity_disclosure_class: identity_remote_requires_reconnect
+      trust_state: trusted
+      freshness_class: stale_offline
+      write_safety_badge: writes_require_revalidation
+      summary: Reauth may be required before reconnect can succeed.
+  - choice_id: choice:ssh-offline:cached-view:001
+    action_id: open_read_only_cached_view
+    action_role: secondary
+    enabled: true
+    badges:
+      identity_disclosure_class: identity_stale_cache_only
+      trust_state: trusted
+      freshness_class: stale_offline
+      write_safety_badge: writes_blocked_cached_view_only
+      summary: Cached inspection only; does not imply live remote parity.
+  - choice_id: choice:ssh-offline:retry-later:001
+    action_id: retry_later
+    action_role: secondary
+    enabled: true
+    badges:
+      identity_disclosure_class: identity_known
+      trust_state: trusted
+      freshness_class: stale_offline
+      write_safety_badge: writes_unsafe_stale_or_disconnected
+      summary: Keep the entry; retry when the host is reachable.
+  - choice_id: choice:ssh-offline:remove:001
+    action_id: remove_from_recents
+    action_role: destructive
+    enabled: true
+    requires_confirmation: true
+    badges:
+      identity_disclosure_class: identity_known
+      trust_state: trusted
+      freshness_class: stale_offline
+      write_safety_badge: writes_unsafe_stale_or_disconnected
+      summary: Removes only recent-work metadata; does not affect the remote host.
+emitted_at: t+0040
+
