@@ -35,6 +35,12 @@ The companion artifacts are:
 - [`/fixtures/platform/network_share_alias_cases/`](../../fixtures/platform/network_share_alias_cases/)
   - worked fixtures covering network-share alias disclosure, case-variant
   collisions, and disconnected-share placeholder recovery.
+- [`/docs/ux/native_file_affordance_contract.md`](./native_file_affordance_contract.md),
+  [`/schemas/platform/native_file_affordance.schema.json`](../../schemas/platform/native_file_affordance.schema.json),
+  and
+  [`/fixtures/platform/native_file_affordance_cases/`](../../fixtures/platform/native_file_affordance_cases/)
+  - focused contract cases for native open/save dialogs, reveal-in-shell, and
+  file-affordance identity/write-safety/safe-preview preservation.
 
 This contract rides alongside and does not re-mint the vocabularies
 already frozen in:

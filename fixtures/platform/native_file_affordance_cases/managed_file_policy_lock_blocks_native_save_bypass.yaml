@@ -1,0 +1,69 @@
+$schema: ../../../schemas/platform/native_file_affordance.schema.json
+__fixture__:
+  name: managed_file_policy_lock_blocks_native_save_bypass
+  scenario: >
+    A managed or policy-locked file is opened and edited, then a native save dialog
+    is invoked. The native dialog must not become a bypass around policy and write
+    review; the product must block or route through approval/retargeting.
+  exercised_axes:
+    affordance_class: native_save_dialog
+    target_kind: managed_file
+    availability_class: blocked_by_policy
+    trust_state: trusted
+    write_posture: blocked_policy_or_read_only
+  contract_sections:
+    - "3.2 Save: pick destination vs prove write safety"
+    - "2.1 Native dialogs are selectors, not admissions"
+
+record_kind: native_file_affordance_case_record
+native_file_affordance_schema_version: 1
+case_id: platform:native-file-affordance:save-dialog:managed-policy-locked:01
+affordance_class: native_save_dialog
+target_kind: managed_file
+scenario_summary: Policy-locked or managed files cannot be written through a native save dialog; the flow must preserve identity and require approval or safe alternate destination selection.
+
+canonical_backing_refs:
+  command_id_ref: "cmd:filesystem.save"
+  object_identity_ref: "obj:vfs:file:managed:01"
+  system_open_target_packet_ref: null
+  deep_link_intent_ref: null
+  browser_handoff_packet_ref: null
+  save_target_token_ref: "save_token:managed-policy-locked:01"
+  write_review_sheet_ref: "write_review:managed-policy-locked:save:01"
+  suspicious_content_ref: null
+  decode_recovery_review_ref: null
+
+literal_input:
+  literal: "/Users/dev/work/managed/locked.toml"
+  format_class: posix_path
+  display_label: "locked.toml"
+
+binding:
+  availability_class: blocked_by_policy
+  external_path_classes:
+    - local_volume
+  trust_state: trusted
+  safe_preview_trust_class: null
+  suspicious_content_classes: []
+  outside_expected_scope: false
+  alias_disclosure_required: false
+  write_posture: blocked_policy_or_read_only
+
+expected_behavior:
+  review_surface_class: write_review_sheet
+  save_token_posture: unavailable_blocks_write
+  must_preserve_identity: true
+  must_preserve_safe_preview_status: false
+  must_not_write_without_token: true
+
+must_not_happen:
+  - "native save dialog proceeds with a policy-blocked write"
+  - "save flow degrades into a silent best-effort overwrite or silent retarget"
+
+evidence_hooks:
+  - "docs/ux/file_state_badge_and_write_review_contract.md"
+  - "docs/policy/permission_prompt_state_machine.md"
+  - "docs/ux/native_file_affordance_contract.md"
+
+audit_event_id: platform.system_affordance_case_exercised
+

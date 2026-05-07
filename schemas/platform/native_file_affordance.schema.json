@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/platform/native_file_affordance.schema.json",
+  "title": "Aureline native file-affordance contract cases",
+  "description": "Boundary schema for worked native-file-affordance cases frozen in docs/ux/native_file_affordance_contract.md. These case records exist to keep native open/save dialogs, reveal-in-system-shell, open-from-terminal, file association entry, drag/drop, clipboard, and browser-originated open flows from becoming per-platform side effects. Each case must make target identity, trust scope, write posture, and safe-preview status inspectable and traceable to canonical object identity and command/intent refs. Raw file bodies, secrets, credentials, raw provider payloads, raw deep-link bodies, and raw browser URLs never cross this boundary; cases carry typed vocabulary and opaque refs only. Literal OS targets may be included as input strings solely to exercise identity binding and wrong-target prevention behavior.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/native_file_affordance_case_record" }
+  ],
+  "$defs": {
+    "native_file_affordance_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this native-file-affordance case export. Bumped only on breaking payload changes."
+    },
+
+    "non_empty_string": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "nullable_string": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/non_empty_string" }
+      ]
+    },
+
+    "record_kind": {
+      "type": "string",
+      "const": "native_file_affordance_case_record",
+      "description": "Discriminator for this contract's fixture record."
+    },
+
+    "affordance_class": {
+      "type": "string",
+      "enum": [
+        "native_open_dialog",
+        "native_save_dialog",
+        "reveal_in_system_shell",
+        "open_from_terminal",
+        "file_association",
+        "drag_drop",
+        "clipboard",
+        "browser_originated_open_request"
+      ],
+      "description": "Primary native affordance being exercised by the case."
+    },
+
+    "target_kind": {
+      "type": "string",
+      "enum": [
+        "local_file",
+        "network_share",
+        "removable_volume",
+        "generated_artifact",
+        "managed_file",
+        "external_uri_or_out_of_scope",
+        "unknown"
+      ],
+      "description": "High-level target kind for case grouping. Detailed path classes live in external_path_classes."
+    },
+
+    "review_surface_class": {
+      "type": "string",
+      "enum": [
+        "none",
+        "target_review_sheet",
+        "write_review_sheet",
+        "deep_link_interstitial",
+        "placeholder_recovery_surface"
+      ]
+    },
+
+    "save_token_posture": {
+      "type": "string",
+      "enum": [
+        "deferred_until_write",
+        "minted_for_open_or_entry",
+        "minted_for_save_or_overwrite",
+        "unavailable_blocks_write"
+      ],
+      "description": "Whether a save-target token is minted now, deferred until first write, or unavailable (which blocks writes)."
+    },
+
+    "trust_state": {
+      "$ref": "system_open_target_packet.schema.json#/$defs/trust_state"
+    },
+
+    "target_availability_class": {
+      "$ref": "system_open_target_packet.schema.json#/$defs/target_availability_class"
+    },
+
+    "write_posture_class": {
+      "$ref": "system_open_target_packet.schema.json#/$defs/write_posture_class"
+    },
+
+    "literal_target": {
+      "$ref": "system_open_target_packet.schema.json#/$defs/literal_target"
+    },
+
+    "external_path_classes": {
+      "$ref": "system_open_target_packet.schema.json#/$defs/external_path_classes"
+    },
+
+    "safe_preview_trust_class": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "../security/trust_class.schema.json#/$defs/trust_class" }
+      ],
+      "description": "Optional safe-preview trust class when the case involves preview/copy/export semantics."
+    },
+
+    "suspicious_content_class": {
+      "$ref": "../security/trust_class.schema.json#/$defs/suspicious_content_class"
+    },
+
+    "canonical_backing_refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id_ref", "object_identity_ref"],
+      "properties": {
+        "command_id_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Stable command id ref backing the affordance path (e.g. cmd:workspace.open_file)."
+        },
+        "object_identity_ref": {
+          "$ref": "#/$defs/non_empty_string",
+          "description": "Opaque canonical object identity ref the product binds to after resolution."
+        },
+        "system_open_target_packet_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a system_open_target_packet record (by packet id) that captures literal vs canonical binding."
+        },
+        "deep_link_intent_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a deep_link_intent_record when the affordance originates from a link/URI entry path."
+        },
+        "browser_handoff_packet_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a browser_handoff_packet_record when the affordance leaves/returns from a system browser."
+        },
+        "save_target_token_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a save_target_token_packet (by packet id or token id) backing write posture disclosure."
+        },
+        "write_review_sheet_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a write_review_sheet_record when a write-like action requires review/retargeting."
+        },
+        "suspicious_content_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a suspicious-content case/packet that drives safe-preview and copy/export labeling."
+        },
+        "decode_recovery_review_ref": {
+          "$ref": "#/$defs/nullable_string",
+          "description": "Optional ref to a decode-recovery review record when text fidelity affects preview/copy/save semantics."
+        }
+      }
+    },
+
+    "binding_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability_class", "trust_state", "write_posture"],
+      "properties": {
+        "availability_class": { "$ref": "#/$defs/target_availability_class" },
+        "external_path_classes": { "$ref": "#/$defs/external_path_classes" },
+        "trust_state": { "$ref": "#/$defs/trust_state" },
+        "safe_preview_trust_class": { "$ref": "#/$defs/safe_preview_trust_class" },
+        "suspicious_content_classes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/suspicious_content_class" },
+          "uniqueItems": true
+        },
+        "outside_expected_scope": {
+          "type": "boolean",
+          "description": "True when the literal target resolves outside the expected workspace/profile/trust scope and requires review before admission."
+        },
+        "alias_disclosure_required": {
+          "type": "boolean",
+          "description": "True when aliases/collisions must be disclosed (UNC vs mapped drive, case variants, normalization variants, symlink/junction chains) before a write-like action."
+        },
+        "write_posture": { "$ref": "#/$defs/write_posture_class" }
+      }
+    },
+
+    "expected_behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "review_surface_class",
+        "save_token_posture",
+        "must_preserve_identity",
+        "must_preserve_safe_preview_status"
+      ],
+      "properties": {
+        "review_surface_class": { "$ref": "#/$defs/review_surface_class" },
+        "save_token_posture": { "$ref": "#/$defs/save_token_posture" },
+        "must_preserve_identity": {
+          "type": "boolean",
+          "const": true,
+          "description": "All cases are about identity preservation; this is pinned true as an invariant."
+        },
+        "must_preserve_safe_preview_status": {
+          "type": "boolean",
+          "description": "True when the affordance must keep safe-preview/suspicious-content posture inspectable across handoff."
+        },
+        "must_not_write_without_token": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, the case asserts a save-target token (or an explicit token-unavailable posture) exists before any durable write."
+        }
+      }
+    },
+
+    "native_file_affordance_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "native_file_affordance_schema_version",
+        "case_id",
+        "affordance_class",
+        "target_kind",
+        "scenario_summary",
+        "canonical_backing_refs",
+        "literal_input",
+        "binding",
+        "expected_behavior",
+        "must_not_happen",
+        "evidence_hooks",
+        "audit_event_id"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/non_empty_string" },
+        "__fixture__": {
+          "type": "object",
+          "description": "Optional metadata for human review tooling; not used by runtime consumers."
+        },
+        "record_kind": { "$ref": "#/$defs/record_kind" },
+        "native_file_affordance_schema_version": { "$ref": "#/$defs/native_file_affordance_schema_version" },
+        "case_id": { "$ref": "#/$defs/non_empty_string" },
+        "affordance_class": { "$ref": "#/$defs/affordance_class" },
+        "target_kind": { "$ref": "#/$defs/target_kind" },
+        "scenario_summary": { "$ref": "#/$defs/non_empty_string" },
+        "canonical_backing_refs": { "$ref": "#/$defs/canonical_backing_refs" },
+        "literal_input": { "$ref": "#/$defs/literal_target" },
+        "binding": { "$ref": "#/$defs/binding_summary" },
+        "expected_behavior": { "$ref": "#/$defs/expected_behavior" },
+        "must_not_happen": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "evidence_hooks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/non_empty_string" },
+          "minItems": 1
+        },
+        "audit_event_id": {
+          "$ref": "deep_link_intent.schema.json#/$defs/audit_event_id",
+          "description": "Reuse of the platform audit-event vocabulary for affordance-driven case evidence."
+        }
+      }
+    }
+  }
+}
+
