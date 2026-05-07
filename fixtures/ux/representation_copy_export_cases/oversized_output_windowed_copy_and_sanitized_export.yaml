@@ -1,0 +1,86 @@
+# yaml-language-server: $schema=../../../schemas/ux/representation_copy_export.schema.json
+record_kind: representation_copy_export_case_record
+representation_copy_export_schema_version: 1
+case_id: case:rep:output_viewer:oversized_windowed_log
+content_class: oversized_or_streamed
+title: Oversized output windowing parity
+scenario: >
+  A log/output viewer is windowed and buffered. Copy/export must state the
+  scope (visible-only vs loaded set vs snapshot) and disclose that unseen or
+  truncated segments were omitted. Support export defaults to a sanitized
+  snapshot (or metadata-only if policy blocks the body).
+surfaces: [output_viewer, support_export]
+metadata_record_ids:
+  - meta:rep:output_viewer:copy_raw:visible_window:01
+  - meta:rep:support_export:export_sanitized_snapshot:log_tail:01
+
+---
+
+record_kind: copy_export_metadata_record
+representation_copy_export_schema_version: 1
+metadata_id: meta:rep:output_viewer:copy_raw:visible_window:01
+case_id_ref: case:rep:output_viewer:oversized_windowed_log
+action_kind: copy
+action_id: copy_raw
+source_surface_family: output_viewer
+source_trust_class: RawText
+source_subject_ref: output:run:build:stdout_tail
+origin_class: user_authored_or_imported
+representation_class: raw
+scope_class: visible_rows_or_events
+transforms_applied:
+  - truncated_or_windowed
+  - buffered_unseen_excluded
+omission_summary:
+  reasons: [size_budget, buffered_unrevealed]
+  omitted_bytes_estimate: 10485760
+  omitted_line_count_estimate: 50000
+  omitted_member_count_estimate: null
+required_disclosure_fields:
+  - representation_label
+  - trust_class_badge
+  - scope_label
+  - transform_summary
+  - omission_summary
+share_safety:
+  safe_for_issue_report: false
+  safe_for_support_bundle: false
+notes: Copy is limited to the visible window; buffered/unseen and truncated segments are explicitly disclosed.
+minted_at: "2026-05-07T01:30:00Z"
+
+---
+
+record_kind: copy_export_metadata_record
+representation_copy_export_schema_version: 1
+metadata_id: meta:rep:support_export:export_sanitized_snapshot:log_tail:01
+case_id_ref: case:rep:output_viewer:oversized_windowed_log
+action_kind: export
+action_id: export_sanitized_snapshot
+source_surface_family: support_export
+source_trust_class: SanitizedRich
+source_subject_ref: support:item:output_log:tail_snapshot
+origin_class: user_authored_or_imported
+representation_class: sanitized
+scope_class: named_snapshot_only
+transforms_applied:
+  - sanitized_active_content_removed
+  - truncated_or_windowed
+  - redacted_high_risk_segments
+omission_summary:
+  reasons: [size_budget, redaction]
+  omitted_bytes_estimate: 2097152
+  omitted_line_count_estimate: 10000
+  omitted_member_count_estimate: null
+required_disclosure_fields:
+  - representation_label
+  - trust_class_badge
+  - scope_label
+  - transform_summary
+  - omission_summary
+share_safety:
+  safe_for_issue_report: false
+  safe_for_support_bundle: true
+redaction_class: metadata_safe_default
+notes: Support export ships a sanitized snapshot with explicit truncation and redaction disclosure; raw log bodies do not become the default export.
+minted_at: "2026-05-07T01:30:01Z"
+

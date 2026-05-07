@@ -1,0 +1,416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/ux/representation_copy_export.schema.json",
+  "title": "Aureline copy/preview/export representation parity cases",
+  "description": "Boundary schema for representation_copy_export_case_record and copy_export_metadata_record fixtures frozen in docs/ux/copy_export_representation_parity.md. The schema exists to keep preview, copy, and export semantics consistent across surfaces for raw, rendered, escaped, sanitized, binary, oversized/windowed, and generated content classes. Fixtures carry controlled vocabulary and review-safe labels; they must not require carrying raw secrets, raw credential material, or full raw artifact bodies.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/representation_copy_export_case_record" },
+    { "$ref": "#/$defs/copy_export_metadata_record" }
+  ],
+  "$defs": {
+    "representation_copy_export_schema_version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Integer schema version for this parity contract export. Current value is 1. Bumped only on breaking payload changes."
+    },
+
+    "record_kind": {
+      "type": "string",
+      "enum": [
+        "representation_copy_export_case_record",
+        "copy_export_metadata_record"
+      ],
+      "description": "Discriminator for the concrete payload shape."
+    },
+
+    "instance_schema_hint": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Optional schema hint carried on worked fixtures."
+    },
+
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercised_surfaces": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "exercised_classes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional worked-example summary of vocabulary values exercised by the fixture."
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "description": "Optional worked-example prelude carried on fixtures."
+    },
+
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^[a-z0-9]+(?:[_.:-][a-z0-9]+)*$",
+      "description": "Stable opaque id safe for fixtures, logs, and support exports."
+    },
+
+    "reviewable_label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "description": "Short reviewer-facing label that must remain redaction-aware."
+    },
+
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1600,
+      "description": "Reviewer-facing scenario text. Must not embed raw secrets or forbidden raw payloads."
+    },
+
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp."
+    },
+
+    "surface_family": {
+      "type": "string",
+      "enum": [
+        "editor",
+        "diff",
+        "docs_preview",
+        "install_review",
+        "rich_preview",
+        "notebook_output",
+        "output_viewer",
+        "terminal_transcript",
+        "support_export",
+        "security_review"
+      ],
+      "description": "Closed surface-family vocabulary for representation parity cases."
+    },
+
+    "content_class": {
+      "type": "string",
+      "enum": [
+        "plain_text",
+        "suspicious_text",
+        "rich_markup_source",
+        "binary_or_mixed_bytes",
+        "oversized_or_streamed",
+        "generated_content"
+      ],
+      "description": "High-level content class used for parity fixtures. This is not a MIME type; it exists to drive representation and disclosure expectations."
+    },
+
+    "trust_class": {
+      "$ref": "../security/trust_class.schema.json#/$defs/trust_class"
+    },
+
+    "representation_action_id": {
+      "$ref": "../security/text_representation_policy.schema.json#/$defs/representation_action_id"
+    },
+
+    "representation_class": {
+      "$ref": "../security/text_representation_policy.schema.json#/$defs/representation_class"
+    },
+
+    "copy_export_action_kind": {
+      "type": "string",
+      "enum": ["copy", "export"],
+      "description": "Copy/export action kind. Mirrors the shell interaction-safety action_kind vocabulary."
+    },
+
+    "scope_class": {
+      "type": "string",
+      "enum": [
+        "anchored_selection",
+        "visible_rows_or_events",
+        "loaded_materialized_set",
+        "named_snapshot_only",
+        "provider_raw_download",
+        "metadata_only"
+      ],
+      "description": "What subset of the subject is included in the copied/exported payload."
+    },
+
+    "transform_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "sanitized_active_content_removed",
+        "escaped_controls_or_metacharacters",
+        "truncated_or_windowed",
+        "buffered_unseen_excluded",
+        "decoded_with_replacement",
+        "normalized_newlines",
+        "stripped_ansi_or_control_sequences",
+        "excerpted_from_binary",
+        "redacted_high_risk_segments",
+        "summarized_or_sampled"
+      ],
+      "description": "Closed transform vocabulary. Any transform that changes what a reviewer can infer from the payload must be disclosed."
+    },
+
+    "omission_reason": {
+      "type": "string",
+      "enum": [
+        "none",
+        "size_budget",
+        "streaming_window",
+        "buffered_unrevealed",
+        "policy",
+        "redaction",
+        "source_missing",
+        "unsupported_type",
+        "binary_excerpt_only"
+      ],
+      "description": "Closed omission-reason vocabulary naming why content is hidden/omitted from the transferred payload."
+    },
+
+    "disclosure_field": {
+      "type": "string",
+      "enum": [
+        "representation_label",
+        "trust_class_badge",
+        "source_surface",
+        "scope_label",
+        "transform_summary",
+        "omission_summary",
+        "origin_or_provenance",
+        "citation_anchors",
+        "metadata_only_reason"
+      ],
+      "description": "Disclosure fields that must remain visible where the transfer is offered or reviewed."
+    },
+
+    "origin_class": {
+      "type": "string",
+      "enum": [
+        "user_authored_or_imported",
+        "generated",
+        "unknown"
+      ],
+      "description": "Origin/provenance class for the subject being transferred. Generated origin never implies raw source identity."
+    },
+
+    "citation_anchor_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 720,
+      "description": "Opaque citation anchor id backing copied/exported bytes when attribution is required."
+    },
+
+    "omission_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reasons"],
+      "properties": {
+        "reasons": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/omission_reason" },
+          "uniqueItems": true,
+          "description": "Empty or [none] means no omissions."
+        },
+        "omitted_bytes_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "omitted_line_count_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "omitted_member_count_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        }
+      }
+    },
+
+    "share_safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["safe_for_issue_report", "safe_for_support_bundle"],
+      "properties": {
+        "safe_for_issue_report": {
+          "type": "boolean",
+          "description": "True when the payload is safe to paste into a public issue report under default redaction posture."
+        },
+        "safe_for_support_bundle": {
+          "type": "boolean",
+          "description": "True when the payload is safe to embed in a support bundle under the default support redaction posture."
+        }
+      }
+    },
+
+    "representation_copy_export_case_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "representation_copy_export_schema_version",
+        "case_id",
+        "content_class",
+        "title",
+        "scenario",
+        "surfaces",
+        "metadata_record_ids"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "representation_copy_export_case_record" },
+        "representation_copy_export_schema_version": {
+          "$ref": "#/$defs/representation_copy_export_schema_version"
+        },
+        "case_id": { "$ref": "#/$defs/opaque_id" },
+        "content_class": { "$ref": "#/$defs/content_class" },
+        "title": { "$ref": "#/$defs/reviewable_label" },
+        "scenario": { "$ref": "#/$defs/reviewable_sentence" },
+        "surfaces": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/surface_family" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "metadata_record_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/opaque_id" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Opaque ids of copy_export_metadata_record rows that belong to this case (typically emitted in the same fixture file)."
+        },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 2000 }
+      }
+    },
+
+    "copy_export_metadata_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "representation_copy_export_schema_version",
+        "metadata_id",
+        "case_id_ref",
+        "action_kind",
+        "action_id",
+        "source_surface_family",
+        "source_trust_class",
+        "source_subject_ref",
+        "origin_class",
+        "representation_class",
+        "scope_class",
+        "transforms_applied",
+        "omission_summary",
+        "required_disclosure_fields",
+        "share_safety",
+        "minted_at"
+      ],
+      "properties": {
+        "$schema": { "$ref": "#/$defs/instance_schema_hint" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+        "record_kind": { "const": "copy_export_metadata_record" },
+        "representation_copy_export_schema_version": {
+          "$ref": "#/$defs/representation_copy_export_schema_version"
+        },
+        "metadata_id": { "$ref": "#/$defs/opaque_id" },
+        "case_id_ref": { "$ref": "#/$defs/opaque_id" },
+        "action_kind": { "$ref": "#/$defs/copy_export_action_kind" },
+        "action_id": { "$ref": "#/$defs/representation_action_id" },
+        "source_surface_family": { "$ref": "#/$defs/surface_family" },
+        "source_trust_class": { "$ref": "#/$defs/trust_class" },
+        "source_subject_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 720,
+          "description": "Opaque subject locator (file/buffer/output/notebook/support-item ref). Raw bodies, secrets, and raw URLs are forbidden."
+        },
+        "origin_class": { "$ref": "#/$defs/origin_class" },
+        "representation_class": { "$ref": "#/$defs/representation_class" },
+        "scope_class": { "$ref": "#/$defs/scope_class" },
+        "transforms_applied": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/transform_kind" },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "omission_summary": { "$ref": "#/$defs/omission_summary" },
+        "citation_anchor_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/citation_anchor_ref" },
+          "uniqueItems": true,
+          "description": "Optional citation anchors backing the transferred bytes. Required when attribution is promised by the surface (e.g. docs/help citations or generated quoted material)."
+        },
+        "required_disclosure_fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/disclosure_field" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "representation_label" }
+        },
+        "share_safety": { "$ref": "#/$defs/share_safety" },
+        "redaction_class": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "../ux/interaction_safety.schema.json#/$defs/redaction_class" }
+          ]
+        },
+        "notes": { "type": ["string", "null"], "minLength": 1, "maxLength": 2000 },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" }
+      },
+      "allOf": [
+        {
+          "description": "action_kind must match action_id semantics.",
+          "if": {
+            "properties": { "action_id": { "enum": ["copy_raw", "copy_rendered", "copy_escaped"] } },
+            "required": ["action_id"]
+          },
+          "then": { "properties": { "action_kind": { "const": "copy" } } }
+        },
+        {
+          "if": {
+            "properties": { "action_id": { "enum": ["export_sanitized_snapshot", "export_metadata_only"] } },
+            "required": ["action_id"]
+          },
+          "then": { "properties": { "action_kind": { "const": "export" } } }
+        }
+        ,
+        {
+          "description": "citation_anchor_refs must be non-empty when the surface claims citation_anchors disclosure.",
+          "if": {
+            "properties": {
+              "required_disclosure_fields": {
+                "type": "array",
+                "contains": { "const": "citation_anchors" }
+              }
+            },
+            "required": ["required_disclosure_fields"]
+          },
+          "then": {
+            "properties": {
+              "citation_anchor_refs": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/$defs/citation_anchor_ref" },
+                "uniqueItems": true
+              }
+            },
+            "required": ["citation_anchor_refs"]
+          }
+        }
+      ],
+      "description": "Parity metadata emitted whenever bytes or metadata leave a surface via copy/export. Captures representation used, transforms applied, trust posture, omissions, and share-safety."
+    }
+  }
+}
