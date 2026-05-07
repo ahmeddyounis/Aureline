@@ -1,0 +1,236 @@
+# Zone-priority and collapse rules for responsive fallback.
+#
+# Companion to docs/ux/shell_responsive_fallback_contract.md.
+# This file freezes the cue-level priority ladder and collapse ladder
+# used when shell zones compress, sheet, overflow, or reflow.
+#
+# Rules:
+#   - This file MUST reuse the canonical vocabularies from
+#     artifacts/ux/shell_metrics.yaml and the shell interaction-safety
+#     contract. It MUST NOT re-mint zone ids, adaptive classes,
+#     responsive-fallback modes, or required-visible-field classes.
+#   - If this file and docs/ux/shell_responsive_fallback_contract.md
+#     disagree, the contract doc wins and this file MUST update in the
+#     same change.
+#   - If this file and artifacts/ux/shell_metrics.yaml disagree on
+#     vocabulary ids, artifacts/ux/shell_metrics.yaml wins.
+#
+# Notes:
+#   - “Activity strips” (compact ongoing-work summaries) are treated as a
+#     presentation of status indicators and durable work. They collapse into
+#     the same status overflow + durable work routes rather than inventing
+#     a second collapse language.
+
+zone_priority_rules_schema_version: 1
+
+sources:
+  contract_doc_ref: docs/ux/shell_responsive_fallback_contract.md
+  shell_zone_and_density_contract_ref: docs/ux/shell_zone_and_density_contract.md
+  shell_metrics_ref: artifacts/ux/shell_metrics.yaml
+  interaction_safety_contract_ref: docs/ux/shell_interaction_safety_contract.md
+  interaction_safety_schema_ref: schemas/ux/interaction_safety.schema.json
+  component_contract_refs:
+    - docs/ux/breadcrumb_contract.md
+    - docs/ux/tabs_editor_groups_contract.md
+    - docs/ux/status_bar_contract.md
+    - docs/ux/title_context_bar_contract.md
+    - docs/ux/durable_work_contract.md
+  ui_ux_spec_sections:
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.5
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#6.6
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#23.74
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#EP.2
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#7.6
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#10.3
+    - .t2/docs/Aureline_UI_UX_Spec_Document.md#EU.5
+  ux_style_guide_sections:
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#12.6
+    - .t2/docs/Aureline_UX_Design_System_Style_Guide.md#22.20
+
+vocabulary_refs:
+  identity_cue_vocabulary_ref: artifacts/ux/shell_metrics.yaml#identity_cue_id_vocabulary
+  fallback_surface_vocabulary_ref: artifacts/ux/shell_metrics.yaml#fallback_surface_id_vocabulary
+  responsive_fallback_mode_vocabulary_ref: artifacts/ux/shell_metrics.yaml#responsive_fallback_mode_vocabulary
+  required_visible_field_class_vocabulary_ref: artifacts/ux/shell_metrics.yaml#required_visible_field_class_vocabulary
+  adaptive_class_vocabulary_ref: artifacts/ux/shell_metrics.yaml#adaptive_class_vocabulary
+  density_mode_vocabulary_ref: artifacts/ux/shell_metrics.yaml#density_mode_vocabulary
+
+# ---------------------------------------------------------------------------
+# Priority ladders
+# ---------------------------------------------------------------------------
+
+priority_ladders:
+  - ladder_id: ladder.compact_width_default
+    applies_under_responsive_fallback_modes:
+      - compact_shell
+      - narrow_width_sheet
+      - zoom_400_overflow
+    preserve_order:
+      - cue.trust_policy_recovery_state
+      - cue.status_indicators
+      - cue.terminal_headers
+      - cue.tabs
+      - cue.breadcrumbs
+      - cue.inspector_headers
+      - cue.collaboration_presentation_role_badges
+      - cue.command_palette_entry
+    statement: >
+      When width, zoom, or split pressure forces cue collapse, preserve recovery-
+      critical state and active context truth first, then execution/terminal boundary
+      identity, then working-set identity (tabs + breadcrumbs), then contextual detail
+      (inspector), then role badges. Palette entry remains reachable by keyboard.
+
+  - ladder_id: ladder.split_pressure_default
+    applies_under_responsive_fallback_modes:
+      - split_shell
+      - very_narrow_compare
+    preserve_order:
+      - cue.trust_policy_recovery_state
+      - cue.tabs
+      - cue.breadcrumbs
+      - cue.status_indicators
+      - cue.terminal_headers
+      - cue.inspector_headers
+      - cue.collaboration_presentation_role_badges
+      - cue.command_palette_entry
+    statement: >
+      Under stacked splits/compare pressure, preserve per-group working-set identity
+      (active/dirty/pinned tabs and current breadcrumbs) before preserving secondary
+      chrome. When a new split would violate minimum widths, fall back to tabbed compare,
+      staged peek, or an explicit choice rather than unusable panes.
+
+# ---------------------------------------------------------------------------
+# Collapse ladders (per cue)
+# ---------------------------------------------------------------------------
+
+cue_collapse_ladders:
+
+  - identity_cue_id: cue.breadcrumbs
+    protected_truth:
+      - root_segment
+      - current_file_or_item_segment
+      - current_symbol_segment_when_present
+      - stale_or_unavailable_symbol_state_labeled
+    collapse_steps_in_order:
+      - step_id: breadcrumbs.truncate_intermediate_segments
+        allows: [label_truncation]
+        forbids: [ellipsis_without_menu]
+      - step_id: breadcrumbs.overflow_intermediate_segments
+        fallback_surfaces:
+          - fallback.overflow_menu
+        keyboard_reachable: true
+      - step_id: breadcrumbs.debounce_cursor_driven_symbol_updates
+        allows: [reduced_churn]
+        forbids: [masking_location_truth]
+
+  - identity_cue_id: cue.tabs
+    protected_truth:
+      - active_tab_identity
+      - dirty_tab_badge
+      - pinned_tab_identity
+      - compare_fallback_decision_visible_when_triggered
+    collapse_steps_in_order:
+      - step_id: tabs.truncate_labels_with_title_recovery
+        requires: [full_title_recoverable]
+      - step_id: tabs.scroll_then_overflow_inactive
+        fallback_surfaces:
+          - fallback.overflow_menu
+        keyboard_reachable: true
+      - step_id: tabs.compare_fallback_instead_of_unusable_split
+        allows: [tabbed_compare, staged_peek, explicit_choice]
+        forbids: [unusable_narrow_panes]
+
+  - identity_cue_id: cue.status_indicators
+    protected_truth:
+      - recovery_critical_state_visible_or_aggregated
+      - active_context_truth_visible_or_condensed
+      - blocked_or_suppressed_counts_preserved
+      - basis_snapshot_freshness_preserved_when_action_safety_depends_on_it
+    collapse_steps_in_order:
+      - step_id: status.aggregate_ongoing_work_first
+        fallback_surfaces:
+          - fallback.status_bar_aggregate
+      - step_id: status.overflow_ambient_metadata_first
+        fallback_surfaces:
+          - fallback.compact_shell_menu
+      - step_id: status.route_deep_detail_to_durable_work
+        fallback_surfaces:
+          - fallback.drawer
+        notes:
+          - Durable ongoing-work “strips” collapse into the same overflow + durable work routes.
+
+  - identity_cue_id: cue.terminal_headers
+    protected_truth:
+      - session_label
+      - boundary_and_host_identity
+      - transcript_state
+      - exit_or_degraded_state
+    collapse_steps_in_order:
+      - step_id: terminal_header.condense_label_preserve_boundary
+      - step_id: terminal_header.overflow_long_titles_keep_boundary_visible
+        fallback_surfaces:
+          - fallback.overflow_menu
+      - step_id: terminal_header.route_full_header_to_sheet
+        fallback_surfaces:
+          - fallback.sheet
+
+  - identity_cue_id: cue.inspector_headers
+    protected_truth:
+      - target_pane_ref
+      - inspector_kind
+      - freshness_or_degraded_state_when_present
+      - pin_back_to_docked_reachable
+    collapse_steps_in_order:
+      - step_id: inspector.sheet_on_demand
+        fallback_surfaces:
+          - fallback.sheet
+      - step_id: inspector.overflow_secondary_actions_inside_sheet
+        fallback_surfaces:
+          - fallback.overflow_menu
+
+  - identity_cue_id: cue.trust_policy_recovery_state
+    protected_truth:
+      - workspace_identity
+      - trust_class
+      - policy_source_label_when_present
+      - recovery_critical_state
+      - remote_or_host_boundary_when_it_changes_command_meaning
+    collapse_steps_in_order:
+      - step_id: trust.condense_into_summary_chip
+        fallback_surfaces:
+          - fallback.summary_chip
+      - step_id: trust.mirror_into_status_recovery_slot
+        fallback_surfaces:
+          - fallback.status_bar_aggregate
+
+  - identity_cue_id: cue.collaboration_presentation_role_badges
+    protected_truth:
+      - role_badge_visible
+      - shared_control_posture_visible
+    collapse_steps_in_order:
+      - step_id: collab.condense_badges_not_remove
+        fallback_surfaces:
+          - fallback.summary_chip
+
+  - identity_cue_id: cue.command_palette_entry
+    protected_truth:
+      - keyboard_shortcut
+    collapse_steps_in_order:
+      - step_id: palette.keyboard_entry_survives_every_fallback
+        fallback_surfaces:
+          - fallback.keyboard_shortcut
+
+# ---------------------------------------------------------------------------
+# Accessibility rules (applies to every cue + fallback surface)
+# ---------------------------------------------------------------------------
+
+accessibility_rules:
+  - rule_id: a11y.keyboard_reentry_required
+    statement: Every collapsed cue has a keyboard-reachable re-entry surface (overflow menu, sheet, drawer, or durable owner surface).
+  - rule_id: a11y.focus_return_stable
+    statement: Closing a fallback surface returns focus to the invoking control or nearest still-valid owner; focus must not drop to the document body.
+  - rule_id: a11y.overflow_triggers_named
+    statement: Overflow triggers announce hidden counts and preserve the accessible name of recovered content (no unlabeled “…” triggers).
+  - rule_id: a11y.no_required_truth_hidden_from_sr
+    statement: Required-visible-field classes for the active consequence class must remain available to assistive tech in the commit surface; if responsive fallback would hide them, the surface denies with chrome_hid_required_field.
+

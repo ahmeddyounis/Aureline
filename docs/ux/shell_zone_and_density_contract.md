@@ -13,10 +13,15 @@ and a worked-example corpus:
 - [`/artifacts/ux/shell_metrics.yaml`](../../artifacts/ux/shell_metrics.yaml)
   — the canonical zone map, minimum widths, density modes,
   adaptive window classes, collapse order, and restore rules.
+- [`/artifacts/ux/zone_priority_rules.yaml`](../../artifacts/ux/zone_priority_rules.yaml)
+  — cue-level priority ladders and collapse ladders for responsive fallback.
 - [`/fixtures/ux/shell_layout_classes/`](../../fixtures/ux/shell_layout_classes/)
   — reviewable scenario fixtures for compact, standard,
   expanded, split-heavy, and multi-window states plus an
   off-screen-restore recovery fixture.
+- [`/fixtures/ux/responsive_fallback_cases/`](../../fixtures/ux/responsive_fallback_cases/)
+  — cue-focused stress cases for narrow width, split pressure, density/zoom,
+  restore, and long-title/long-path conditions.
 - [`/artifacts/ux/desktop_shell_boundary_matrix.yaml`](../../artifacts/ux/desktop_shell_boundary_matrix.yaml)
   — the ADR-0016 boundary rows this contract composes with.
 
