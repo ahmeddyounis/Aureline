@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aureline.dev/schemas/entry/starter_action_diff.schema.json",
+  "title": "Aureline starter side-effect diff: plain-open baseline vs starter-added actions",
+  "description": "Boundary schema for starter_preflight_action_record as frozen in docs/workflow/starter_side_effect_envelope.md and artifacts/entry/environment_starter_summary_contract.md. The record captures starter behavior as a diff between a same-weight plain-open lane (open/clone/create without starter) and the starter-assisted lane. It classifies every immediate and deferred side effect using a closed starter_preflight_action_class taxonomy (file generation, dependency restore, package install, extension install, remote provisioning, secret/auth request, trust grant, port exposure, script/task execution) and requires an explicit partition into actions_run_now vs actions_deferred, plus a reapproval posture for deferred actions. Raw absolute paths, raw repository URLs with embedded credentials, raw secrets, raw tokens, raw package-manager command lines, raw scripts, raw extension marketplace URLs, raw hostnames, raw URLs, and raw port numbers never cross this boundary; instances carry opaque ids, closed vocabulary, and short reviewable sentences only. Adding a new starter_preflight_action_class, execution_commitment_class, timing_class, reapproval_posture_class, bypass_path_id, or side_effect_scope_class value is additive-minor and bumps starter_preflight_action_schema_version; repurposing an existing value is breaking and requires a new decision row.",
+  "type": "object",
+  "$ref": "#/$defs/starter_preflight_action_record",
+  "$defs": {
+    "starter_preflight_action_schema_version": {
+      "type": "integer",
+      "const": 2,
+      "description": "Integer schema version. Current value is 2."
+    },
+    "opaque_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque stable id safe for previews, fixtures, support exports, and logs. Raw paths, raw URLs, hostnames, port numbers, and secrets never appear here."
+    },
+    "monotonic_timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewable_sentence": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Short reviewer-facing sentence already scrubbed by the producer. Must not contain raw secrets, raw command lines, raw absolute paths, raw URLs, raw hostnames, or raw port numbers."
+    },
+    "fixture_metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name", "scenario"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "scenario": { "type": "string", "minLength": 1 },
+        "exercises": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "contract_sections": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+
+    "bypass_path_id": {
+      "type": "string",
+      "enum": [
+        "bypass.open_folder_without_starter",
+        "bypass.open_workspace_without_starter",
+        "bypass.clone_repository_without_starter",
+        "bypass.create_empty_workspace",
+        "bypass.open_prebuild_minimal",
+        "bypass.set_up_later",
+        "bypass.continue_without_starter"
+      ],
+      "description": "Bypass (open-without-starter) path id. The bypass is required to be same-weight wherever a starter lane is offered."
+    },
+
+    "side_effect_scope_class": {
+      "type": "string",
+      "enum": [
+        "user_scope",
+        "profile_scope",
+        "workspace_scope",
+        "fleet_managed_scope",
+        "external_provider_scope",
+        "device_scope"
+      ],
+      "description": "Closed set naming the scope an action mutates."
+    },
+
+    "starter_preflight_action_class": {
+      "type": "string",
+      "enum": [
+        "file_generation",
+        "dependency_restore",
+        "package_install",
+        "extension_install",
+        "remote_provisioning",
+        "secret_or_auth_request",
+        "trust_grant",
+        "port_exposure",
+        "script_or_task_execution"
+      ],
+      "description": "Closed starter preflight action taxonomy. The class is the user-facing category; fine-grained details belong to specialized scaffold, bootstrap, execution, trust, secret, and port-forward contracts."
+    },
+
+    "execution_commitment_class": {
+      "type": "string",
+      "enum": [
+        "aureline_will_execute",
+        "aureline_will_offer_user_initiated",
+        "aureline_will_only_recommend"
+      ],
+      "description": "Whether Aureline will execute the action, will offer a user-initiated action later, or will only recommend an external/manual step."
+    },
+
+    "timing_class": {
+      "type": "string",
+      "enum": [
+        "immediate_action_runs_on_apply",
+        "immediate_action_blocks_apply_until_done",
+        "deferred_action_runs_after_open",
+        "deferred_action_user_must_invoke",
+        "deferred_action_set_up_later_path",
+        "skipped_under_bypass_path",
+        "timing_class_unknown_requires_review"
+      ],
+      "description": "Closed timing classification for action execution."
+    },
+
+    "reapproval_posture_class": {
+      "type": "string",
+      "enum": [
+        "commit_covers_execution",
+        "requires_later_user_reapproval",
+        "requires_admin_or_policy_reapproval",
+        "reapproval_posture_unknown_requires_review"
+      ],
+      "description": "Whether deferred execution requires reapproval later (trust, secrets/auth, provider scope, privileged execution, or policy-gated execution)."
+    },
+
+    "starter_preflight_action_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action_id",
+        "action_class",
+        "action_sentence",
+        "side_effect_scope_class",
+        "execution_commitment_class",
+        "timing_class",
+        "reapproval_posture_class",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "action_id": { "$ref": "#/$defs/opaque_id" },
+        "action_class": { "$ref": "#/$defs/starter_preflight_action_class" },
+        "action_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "side_effect_scope_class": { "$ref": "#/$defs/side_effect_scope_class" },
+        "execution_commitment_class": { "$ref": "#/$defs/execution_commitment_class" },
+        "timing_class": { "$ref": "#/$defs/timing_class" },
+        "reapproval_posture_class": { "$ref": "#/$defs/reapproval_posture_class" },
+        "bound_ref": {
+          "$ref": "#/$defs/opaque_id",
+          "description": "Optional opaque ref to the underlying record that supplies detailed disclosure (e.g., a bootstrap_queue_item_record id, a declared_setup_task id, a hook id, a forwarded_endpoint_record id, a policy ticket ref)."
+        },
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "description": "One preflight action row. A surface that collapses an action into free-form copy is non-conforming."
+    },
+
+    "starter_lane_claim_class": {
+      "type": "string",
+      "enum": ["plain_open_only", "starter_assisted_open"],
+      "description": "Whether the record represents a plain-open lane only, or a starter-assisted lane that adds delta actions."
+    },
+
+    "lane_action_partition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actions_run_now", "actions_deferred"],
+      "properties": {
+        "actions_run_now": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/starter_preflight_action_row" }
+        },
+        "actions_deferred": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/starter_preflight_action_row" }
+        }
+      }
+    },
+
+    "plain_open_baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bypass_path_id", "summary_sentence", "partition"],
+      "properties": {
+        "bypass_path_id": { "$ref": "#/$defs/bypass_path_id" },
+        "summary_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "partition": { "$ref": "#/$defs/lane_action_partition" }
+      },
+      "description": "Baseline disclosure for the same-weight open-without-starter lane."
+    },
+
+    "starter_added_delta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary_sentence", "partition"],
+      "properties": {
+        "summary_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+        "partition": { "$ref": "#/$defs/lane_action_partition" }
+      },
+      "description": "Delta disclosure: actions the starter lane adds beyond the plain-open baseline."
+    },
+
+    "starter_preflight_action_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_kind",
+        "starter_preflight_action_schema_version",
+        "preflight_id",
+        "minted_at",
+        "starter_lane_claim_class",
+        "plain_open_baseline",
+        "starter_added_delta",
+        "bypass_path_ids",
+        "recovery_path_sentence",
+        "keyboard_reachable"
+      ],
+      "properties": {
+        "$schema": { "type": "string" },
+        "__fixture__": { "$ref": "#/$defs/fixture_metadata" },
+
+        "record_kind": { "const": "starter_preflight_action_record" },
+        "starter_preflight_action_schema_version": { "$ref": "#/$defs/starter_preflight_action_schema_version" },
+        "preflight_id": { "$ref": "#/$defs/opaque_id" },
+        "minted_at": { "$ref": "#/$defs/monotonic_timestamp" },
+
+        "starter_lane_claim_class": { "$ref": "#/$defs/starter_lane_claim_class" },
+
+        "plain_open_baseline": { "$ref": "#/$defs/plain_open_baseline" },
+        "starter_added_delta": { "$ref": "#/$defs/starter_added_delta" },
+
+        "bypass_path_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/bypass_path_id" },
+          "description": "Bypass paths advertised at the same weight as the starter lane on the surface that renders this record."
+        },
+
+        "recovery_path_sentence": { "$ref": "#/$defs/reviewable_sentence" },
+
+        "keyboard_reachable": { "type": "boolean", "const": true }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "starter_lane_claim_class": { "const": "starter_assisted_open" }
+            },
+            "required": ["starter_lane_claim_class"]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "properties": {
+                  "starter_added_delta": {
+                    "properties": {
+                      "partition": {
+                        "properties": {
+                          "actions_run_now": { "minItems": 1 }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "starter_added_delta": {
+                    "properties": {
+                      "partition": {
+                        "properties": {
+                          "actions_deferred": { "minItems": 1 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "description": "Starter preflight action envelope record. Surfaces render this before commit; it is the contract that prevents hidden side effects behind a generic Create or Continue action."
+    }
+  }
+}
+

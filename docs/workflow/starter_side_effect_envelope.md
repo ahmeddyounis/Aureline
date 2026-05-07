@@ -9,6 +9,7 @@ open lane) MUST satisfy **before** any action mutates:
 - extensions,
 - trust / admission posture,
 - secrets / authentication state, or
+- ports / port exposure (forwards, tunnels, shareable routes), or
 - remote / managed state (remote images, managed workspaces, hosted
   services).
 
@@ -19,11 +20,13 @@ it will **defer** or only **recommend**, and which steps will require
 
 Companion schema:
 
-- [`/schemas/workflow/starter_preflight_action.schema.json`](../../schemas/workflow/starter_preflight_action.schema.json)
+- Canonical (entry surfaces): [`/schemas/entry/starter_action_diff.schema.json`](../../schemas/entry/starter_action_diff.schema.json)
+- Back-compat alias: [`/schemas/workflow/starter_preflight_action.schema.json`](../../schemas/workflow/starter_preflight_action.schema.json)
 
 Companion fixtures:
 
-- [`/fixtures/workflow/starter_preflight_cases/`](../../fixtures/workflow/starter_preflight_cases/)
+- Canonical (entry surfaces): [`/fixtures/entry/starter_side_effect_cases/`](../../fixtures/entry/starter_side_effect_cases/)
+- Back-compat seed corpus: [`/fixtures/workflow/starter_preflight_cases/`](../../fixtures/workflow/starter_preflight_cases/)
 
 Parity audit:
 
@@ -70,6 +73,7 @@ starter behavior classifies actions using the closed set
 | `remote_provisioning` | creating/attaching remote images, containers/devcontainers, or managed-workspace resources | remote/managed behavior appears only after commit |
 | `secret_or_auth_request` | requesting secret-broker handles, browser sign-in, auth callbacks, or credential projection | secrets/auth are requested without pre-commit disclosure |
 | `trust_grant` | widening workspace trust, admission, or permission scope | trust is implicitly granted as part of Create |
+| `port_exposure` | exposing/forwarding ports, creating forwarded endpoints, or minting shareable routes | ports are forwarded or exposed without pre-commit disclosure |
 | `script_or_task_execution` | running tasks/scripts/hooks/recipes/macros that execute code or mutate external state | shown as “run setup tasks” without naming execution |
 
 Rules (frozen):
@@ -77,8 +81,8 @@ Rules (frozen):
 1. **No collapsed Create.** If a starter lane will run any action whose
    class is one of `dependency_restore`, `package_install`,
    `extension_install`, `remote_provisioning`, `secret_or_auth_request`,
-   `trust_grant`, or `script_or_task_execution`, the preflight MUST list
-   an explicit action row for it.
+   `trust_grant`, `port_exposure`, or `script_or_task_execution`, the
+   preflight MUST list an explicit action row for it.
 2. **File writes are never implied.** A starter that writes files MUST
    include at least one `file_generation` row even when the generator is
    “first-party”.
@@ -201,4 +205,3 @@ provides seeded starter-preflight rows that exercise:
   template manifest and preview-first rules.
 - `.t2/docs/Aureline_Milestones_Document.md` — authority governance and
   external-effect preview requirements.
-

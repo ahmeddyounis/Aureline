@@ -17,11 +17,14 @@ This audit is normative for:
 Companion contract and schema:
 
 - [`/docs/workflow/starter_side_effect_envelope.md`](../../docs/workflow/starter_side_effect_envelope.md)
-- [`/schemas/workflow/starter_preflight_action.schema.json`](../../schemas/workflow/starter_preflight_action.schema.json)
+- [`/artifacts/entry/environment_starter_summary_contract.md`](../../artifacts/entry/environment_starter_summary_contract.md)
+- canonical: [`/schemas/entry/starter_action_diff.schema.json`](../../schemas/entry/starter_action_diff.schema.json)
+- alias: [`/schemas/workflow/starter_preflight_action.schema.json`](../../schemas/workflow/starter_preflight_action.schema.json)
 
 Seed fixtures:
 
-- [`/fixtures/workflow/starter_preflight_cases/`](../../fixtures/workflow/starter_preflight_cases/)
+- canonical: [`/fixtures/entry/starter_side_effect_cases/`](../../fixtures/entry/starter_side_effect_cases/)
+- legacy seed corpus: [`/fixtures/workflow/starter_preflight_cases/`](../../fixtures/workflow/starter_preflight_cases/)
 
 ## 1. Parity objective
 
@@ -118,4 +121,3 @@ The fixture corpus proves the must-pass cases:
 - starter-assisted lane adding explicit action rows
 - deferred actions marked as requiring later reapproval
 - continue-without-starter recovery path present
-

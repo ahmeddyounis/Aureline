@@ -2,8 +2,10 @@
 
 Seed corpus for the contract frozen in
 [`/docs/workflow/starter_side_effect_envelope.md`](../../../docs/workflow/starter_side_effect_envelope.md)
-and the schema at
-[`/schemas/workflow/starter_preflight_action.schema.json`](../../../schemas/workflow/starter_preflight_action.schema.json).
+and the schema at:
+
+- canonical: [`/schemas/entry/starter_action_diff.schema.json`](../../../schemas/entry/starter_action_diff.schema.json)
+- alias: [`/schemas/workflow/starter_preflight_action.schema.json`](../../../schemas/workflow/starter_preflight_action.schema.json)
 
 Each file is a single YAML `starter_preflight_action_record` that:
 
@@ -15,4 +17,3 @@ Each file is a single YAML `starter_preflight_action_record` that:
 
 The case-index manifest at [`./manifest.yaml`](./manifest.yaml) maps each
 fixture to the contract sections it exercises.
-
