@@ -46,7 +46,7 @@ use aureline_commands::invocation::{
     ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock,
     EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
     InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock, InvocationSessionPacketRecord,
-    NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
+    NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock, now_rfc3339,
 };
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{
@@ -58,6 +58,7 @@ use aureline_input::keybindings::{
     Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
 };
 use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapPresetId};
+use aureline_ui::themes::{AppearanceSessionRecord, LiveFollowSystemPolicyRecord};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
 };
@@ -175,43 +176,6 @@ impl ShellRenderStyle {
             status_success_border: registry.require_color("status.success.border")?,
             status_success_fill: registry.require_color("status.success.fill")?,
         })
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ShellAppearanceState {
-    theme: ThemeClass,
-}
-
-impl Default for ShellAppearanceState {
-    fn default() -> Self {
-        Self {
-            theme: ThemeClass::DarkReference,
-        }
-    }
-}
-
-impl ShellAppearanceState {
-    const fn theme(self) -> ThemeClass {
-        self.theme
-    }
-
-    fn toggle_light_dark(&mut self) {
-        self.theme = match self.theme {
-            ThemeClass::DarkReference => ThemeClass::LightParity,
-            ThemeClass::LightParity => ThemeClass::DarkReference,
-            ThemeClass::HighContrastDark => ThemeClass::HighContrastLight,
-            ThemeClass::HighContrastLight => ThemeClass::HighContrastDark,
-        };
-    }
-
-    fn toggle_high_contrast(&mut self) {
-        self.theme = match self.theme {
-            ThemeClass::DarkReference => ThemeClass::HighContrastDark,
-            ThemeClass::LightParity => ThemeClass::HighContrastLight,
-            ThemeClass::HighContrastDark => ThemeClass::DarkReference,
-            ThemeClass::HighContrastLight => ThemeClass::LightParity,
-        };
     }
 }
 
@@ -347,7 +311,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
     let mut recent_work = RecentWorkRuntimeState::load();
     let mut clipboard = ClipboardState::new(!args.disable_clipboard);
-    let mut appearance = ShellAppearanceState::default();
+    let mut appearance = AppearanceRuntimeState::load();
     let docs_help_boundary_card =
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
 
@@ -356,6 +320,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(err) = recent_work.last_error.as_deref() {
         command_runtime
             .note_non_command_action(format!("recent work registry unavailable — {err}"));
+    }
+    if let Some(err) = appearance.last_error.as_deref() {
+        command_runtime.note_non_command_action(format!("appearance session unavailable — {err}"));
     }
 
     scheduler.invalidate(DamageEvent::new(
@@ -823,6 +790,128 @@ impl RecentWorkRuntimeState {
         }
         self.active_recent_work_id = Some(entry.recent_work_id.clone());
         self.active_workspace_label = Some(entry.presentation_label.clone());
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AppearanceRuntimeState {
+    store_path: PathBuf,
+    policy_path: PathBuf,
+    session: AppearanceSessionRecord,
+    policy: LiveFollowSystemPolicyRecord,
+    last_error: Option<String>,
+}
+
+impl AppearanceRuntimeState {
+    fn load() -> Self {
+        let store_path = PathBuf::from(".logs")
+            .join("appearance")
+            .join("appearance_session.json");
+        let policy_path = PathBuf::from(".logs")
+            .join("appearance")
+            .join("live_follow_system_policy.json");
+
+        let mut last_error: Option<String> = None;
+        let mut needs_persist = false;
+
+        let session = match std::fs::read_to_string(&store_path) {
+            Ok(payload) => serde_json::from_str(&payload).unwrap_or_else(|err| {
+                last_error = Some(format!("appearance session parse failed: {err}"));
+                needs_persist = true;
+                AppearanceSessionRecord::first_party_default(now_rfc3339())
+            }),
+            Err(err) => {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    last_error = Some(format!("appearance session read failed: {err}"));
+                } else {
+                    needs_persist = true;
+                }
+                AppearanceSessionRecord::first_party_default(now_rfc3339())
+            }
+        };
+
+        let policy = match std::fs::read_to_string(&policy_path) {
+            Ok(payload) => serde_json::from_str(&payload).unwrap_or_else(|err| {
+                last_error = Some(format!("appearance policy parse failed: {err}"));
+                needs_persist = true;
+                LiveFollowSystemPolicyRecord::first_party_default(
+                    session.appearance_session_id.clone(),
+                    now_rfc3339(),
+                )
+            }),
+            Err(err) => {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    last_error = Some(format!("appearance policy read failed: {err}"));
+                } else {
+                    needs_persist = true;
+                }
+                LiveFollowSystemPolicyRecord::first_party_default(
+                    session.appearance_session_id.clone(),
+                    now_rfc3339(),
+                )
+            }
+        };
+
+        let mut state = Self {
+            store_path,
+            policy_path,
+            session,
+            policy,
+            last_error,
+        };
+
+        if needs_persist {
+            state.persist();
+        }
+
+        state
+    }
+
+    const fn theme_class(&self) -> ThemeClass {
+        self.session.theme_class()
+    }
+
+    fn toggle_light_dark(&mut self) {
+        let minted_at = now_rfc3339();
+        self.session.toggle_light_dark(minted_at);
+        self.persist();
+    }
+
+    fn toggle_high_contrast(&mut self) {
+        let minted_at = now_rfc3339();
+        self.session.toggle_high_contrast(minted_at);
+        self.persist();
+    }
+
+    fn persist(&mut self) {
+        if let Some(parent) = self.store_path.parent() {
+            if let Err(err) = std::fs::create_dir_all(parent) {
+                self.last_error = Some(format!("appearance session dir create failed: {err}"));
+                return;
+            }
+        }
+
+        match serde_json::to_string_pretty(&self.session) {
+            Ok(payload) => {
+                if let Err(err) = std::fs::write(&self.store_path, payload) {
+                    self.last_error = Some(format!("appearance session write failed: {err}"));
+                }
+            }
+            Err(err) => {
+                self.last_error = Some(format!("appearance session serialize failed: {err}"));
+            }
+        }
+
+        match serde_json::to_string_pretty(&self.policy) {
+            Ok(payload) => {
+                if let Err(err) = std::fs::write(&self.policy_path, payload) {
+                    self.last_error = Some(format!("appearance policy write failed: {err}"));
+                }
+            }
+            Err(err) => {
+                self.last_error = Some(format!("appearance policy serialize failed: {err}"));
+            }
+        }
     }
 }
 
@@ -2160,7 +2249,7 @@ fn handle_key_event(
     enablement_runtime: &mut CommandEnablementRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
     clipboard: &mut ClipboardState,
-    appearance: &mut ShellAppearanceState,
+    appearance: &mut AppearanceRuntimeState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -2723,7 +2812,7 @@ fn draw(
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
     recent_work: &RecentWorkRuntimeState,
-    appearance: &ShellAppearanceState,
+    appearance: &AppearanceRuntimeState,
     held_modifiers: &HeldModifiers,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
@@ -2733,7 +2822,7 @@ fn draw(
     let width = physical.width;
     let height = physical.height;
 
-    let token_registry = seeded_token_registry(appearance.theme())?;
+    let token_registry = seeded_token_registry(appearance.theme_class())?;
     let style = ShellRenderStyle::load(token_registry)?;
 
     match backend {
@@ -2821,7 +2910,7 @@ fn rasterize_shell(
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
     recent_work: &RecentWorkRuntimeState,
-    appearance: &ShellAppearanceState,
+    appearance: &AppearanceRuntimeState,
     style: &ShellRenderStyle,
     held_modifiers: &HeldModifiers,
 ) {
@@ -3030,7 +3119,7 @@ fn rasterize_shell(
         let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
         let docs_keys = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
         let trust_state = enablement_runtime.workspace_trust_state.as_str();
-        let theme_label = appearance.theme().token();
+        let theme_label = appearance.theme_class().token();
         let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
         let recent_work_store = recent_work.store_path.display();
         let text = format!(

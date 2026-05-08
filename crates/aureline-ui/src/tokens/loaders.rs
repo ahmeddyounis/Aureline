@@ -10,14 +10,14 @@ pub(super) fn load_color_tokens(theme: ThemeClass) -> Result<HashMap<String, Col
     let mut colors: HashMap<String, ColorRgba> = HashMap::new();
     match theme {
         ThemeClass::HighContrastDark => {
-            load_theme_support_semantic_tokens(ThemeClass::DarkReference, &mut colors)?;
-            load_theme_support_semantic_tokens(theme, &mut colors)?;
+            load_theme_pack_semantic_tokens(ThemeClass::DarkReference, &mut colors)?;
+            load_theme_pack_semantic_tokens(theme, &mut colors)?;
         }
         ThemeClass::HighContrastLight => {
-            load_theme_support_semantic_tokens(ThemeClass::LightParity, &mut colors)?;
-            load_theme_support_semantic_tokens(theme, &mut colors)?;
+            load_theme_pack_semantic_tokens(ThemeClass::LightParity, &mut colors)?;
+            load_theme_pack_semantic_tokens(theme, &mut colors)?;
         }
-        _ => load_theme_support_semantic_tokens(theme, &mut colors)?,
+        _ => load_theme_pack_semantic_tokens(theme, &mut colors)?,
     }
     load_semantic_domain_tokens(theme, &mut colors)?;
     Ok(colors)
@@ -52,32 +52,13 @@ pub(super) fn load_motion_tokens() -> Result<MotionTokenLedger, String> {
     Ok(MotionTokenLedger { durations_ms })
 }
 
-fn load_theme_support_semantic_tokens(
+fn load_theme_pack_semantic_tokens(
     theme: ThemeClass,
     colors: &mut HashMap<String, ColorRgba>,
 ) -> Result<(), String> {
-    let doc: ThemeSupportDoc = serde_yaml::from_str(include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../artifacts/design/theme_support_rows.yaml"
-    )))
-    .map_err(|err| format!("failed to parse theme support rows: {err}"))?;
-
-    for row in doc.theme_support_rows {
-        if row.theme_class.as_deref() != Some(theme.token()) {
-            continue;
-        }
-        let Some(tokens) = row.example_semantic_tokens else {
-            continue;
-        };
-        for token in tokens {
-            let Some(value) = token.value_literal.as_deref() else {
-                continue;
-            };
-            let Some(color) = ColorRgba::parse(value) else {
-                continue;
-            };
-            colors.insert(token.token_name, color);
-        }
+    let pack = crate::themes::load_first_party_theme_pack(theme).map_err(|err| err.to_string())?;
+    for (token_name, value) in pack.semantic_tokens() {
+        colors.insert(token_name.clone(), *value);
     }
     Ok(())
 }
@@ -150,25 +131,6 @@ pub(super) struct GeometryTokenLedger {
 #[derive(Debug, Clone)]
 pub(super) struct MotionTokenLedger {
     pub(super) durations_ms: HashMap<String, u32>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ThemeSupportDoc {
-    #[serde(default)]
-    theme_support_rows: Vec<ThemeSupportRow>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ThemeSupportRow {
-    theme_class: Option<String>,
-    #[serde(default)]
-    example_semantic_tokens: Option<Vec<ThemeSupportToken>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ThemeSupportToken {
-    token_name: String,
-    value_literal: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

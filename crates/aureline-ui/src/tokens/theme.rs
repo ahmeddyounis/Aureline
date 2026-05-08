@@ -1,5 +1,6 @@
 /// Supported first-party theme classes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ThemeClass {
     DarkReference,
     LightParity,
