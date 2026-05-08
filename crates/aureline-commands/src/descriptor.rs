@@ -14,7 +14,8 @@ pub type CommandRevisionRef = String;
 pub struct PolicyContext {
     pub policy_epoch: String,
     pub trust_state: String,
-    pub execution_context_id: String,
+    #[serde(default)]
+    pub execution_context_id: Option<String>,
 }
 
 /// Structured repair hook reference attached to a disabled reason.

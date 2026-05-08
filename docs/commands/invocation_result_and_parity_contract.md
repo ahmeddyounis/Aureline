@@ -11,6 +11,8 @@ Machine-readable companions:
 
 - [`/schemas/commands/result_packet.schema.json`](../../schemas/commands/result_packet.schema.json)
   defines `command_result_packet_record`.
+- [`/schemas/commands/command_result.schema.json`](../../schemas/commands/command_result.schema.json)
+  is an alias entry point to the same result-packet contract.
 - [`/schemas/commands/rollback_handle.schema.json`](../../schemas/commands/rollback_handle.schema.json)
   defines `command_rollback_handle_record`.
 - [`/schemas/commands/parity_expectation.schema.json`](../../schemas/commands/parity_expectation.schema.json)
@@ -249,4 +251,3 @@ The invocation-result fixture corpus exercises:
 - a companion mutation attempt that denies with the same policy/trust
   result semantics as desktop; and
 - a parity expectation row covering all four required surface families.
-

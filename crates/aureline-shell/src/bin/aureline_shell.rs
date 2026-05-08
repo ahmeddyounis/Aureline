@@ -2,9 +2,19 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 
 use aureline_build_info as build_info;
+use aureline_commands::invocation::{
+    mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
+    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock, ArgumentProvenanceEntry,
+    ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock,
+    EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
+    InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock, InvocationSessionPacketRecord,
+    NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
+};
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
-use aureline_shell::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
+use aureline_shell::app_frame::desktop_frame::{
+    DesktopFrame, NewEditorGroupOutcome, SplitViolation,
+};
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
 
@@ -38,50 +48,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut held_modifiers = HeldModifiers::default();
     let mut palette = CommandPaletteState::new(registry);
     let mut overlay: Option<ShellOverlayState> = None;
+    let mut command_runtime = CommandRuntimeState::default();
 
     window.request_redraw();
 
-    event_loop.run(move |event, elwt| {
-        match event {
-            Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
-                WindowEvent::CloseRequested => elwt.exit(),
-                WindowEvent::Resized(_) => {
-                    relayout_and_redraw(&window, &mut surface, &mut frame);
+    event_loop.run(move |event, elwt| match event {
+        Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
+            WindowEvent::CloseRequested => elwt.exit(),
+            WindowEvent::Resized(_) => {
+                relayout_and_redraw(&window, &mut surface, &mut frame);
+            }
+            WindowEvent::ScaleFactorChanged { .. } => {
+                relayout_and_redraw(&window, &mut surface, &mut frame);
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                held_modifiers.update_from_key_event(&event);
+                if handle_key_event(
+                    &window,
+                    registry,
+                    &mut frame,
+                    &mut palette,
+                    &mut overlay,
+                    &mut command_runtime,
+                    &held_modifiers,
+                    event,
+                ) {
+                    window.request_redraw();
                 }
-                WindowEvent::ScaleFactorChanged { .. } => {
-                    relayout_and_redraw(&window, &mut surface, &mut frame);
+            }
+            WindowEvent::RedrawRequested => {
+                if let Err(err) = draw(
+                    &window,
+                    &mut surface,
+                    registry,
+                    &frame,
+                    &palette,
+                    overlay.as_ref(),
+                    &command_runtime,
+                ) {
+                    eprintln!("aureline_shell: draw failed: {err}");
+                    elwt.exit();
                 }
-                WindowEvent::KeyboardInput { event, .. } => {
-                    held_modifiers.update_from_key_event(&event);
-                    if handle_key_event(
-                        &window,
-                        registry,
-                        &mut frame,
-                        &mut palette,
-                        &mut overlay,
-                        &held_modifiers,
-                        event,
-                    ) {
-                        window.request_redraw();
-                    }
-                }
-                WindowEvent::RedrawRequested => {
-                    if let Err(err) = draw(&window, &mut surface, registry, &frame, &palette, overlay.as_ref()) {
-                        eprintln!("aureline_shell: draw failed: {err}");
-                        elwt.exit();
-                    }
-                }
-                _ => {}
-            },
+            }
             _ => {}
-        }
+        },
+        _ => {}
     })?;
     Ok(())
 }
 
-fn window_title(focused: Option<ShellZoneId>, palette_selected: Option<&CommandRegistryEntryRecord>) -> String {
+fn window_title(
+    focused: Option<ShellZoneId>,
+    palette_selected: Option<&CommandRegistryEntryRecord>,
+) -> String {
     let identity = build_info::build_identity();
-    let focus_suffix = focused.map(|z| format!(" — focus: {}", z.name())).unwrap_or_default();
+    let focus_suffix = focused
+        .map(|z| format!(" — focus: {}", z.name()))
+        .unwrap_or_default();
     let palette_suffix = palette_selected
         .map(|entry| format!(" — cmd: {}", entry.command_id()))
         .unwrap_or_default();
@@ -93,12 +116,859 @@ fn window_title(focused: Option<ShellZoneId>, palette_selected: Option<&CommandR
     )
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DispatchOrigin {
+    CommandPalette,
+    KeybindingChord,
+}
+
+impl DispatchOrigin {
+    const fn issuing_surface(self) -> &'static str {
+        match self {
+            Self::CommandPalette => "command_palette",
+            Self::KeybindingChord => "keybinding_chord",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RecordedCommandInvocation {
+    session_packet: InvocationSessionPacketRecord,
+    result_packet: CommandResultPacketRecord,
+}
+
+#[derive(Debug, Default)]
+struct CommandRuntimeState {
+    records: Vec<RecordedCommandInvocation>,
+    last_command_label: Option<String>,
+}
+
+impl CommandRuntimeState {
+    fn record(&mut self, invocation: RecordedCommandInvocation) {
+        self.last_command_label = Some(format!(
+            "{} — {}",
+            invocation.result_packet.result.outcome_code,
+            invocation.result_packet.invocation.canonical_command_id
+        ));
+        self.write_packets(&invocation);
+        self.records.push(invocation);
+        if self.records.len() > 64 {
+            self.records.drain(0..(self.records.len() - 64));
+        }
+    }
+
+    fn recent_lines(&self, limit: usize) -> Vec<String> {
+        self.records
+            .iter()
+            .rev()
+            .take(limit)
+            .map(|row| {
+                format!(
+                    "{}  {}  ({})",
+                    row.result_packet.result.outcome_code,
+                    row.result_packet.invocation.canonical_command_id,
+                    row.result_packet.invocation.issuing_surface
+                )
+            })
+            .collect()
+    }
+
+    fn packet_root_dir() -> std::path::PathBuf {
+        std::path::PathBuf::from(".logs").join("command_packets")
+    }
+
+    fn sanitize_filename(value: &str) -> String {
+        value
+            .chars()
+            .map(|ch| match ch {
+                ':' | '/' | '\\' | ' ' | '\t' | '\n' | '\r' => '_',
+                other => other,
+            })
+            .collect()
+    }
+
+    fn write_packets(&self, invocation: &RecordedCommandInvocation) {
+        let root = Self::packet_root_dir();
+        if std::fs::create_dir_all(&root).is_err() {
+            return;
+        }
+
+        let session_name = format!(
+            "{}.invocation.json",
+            Self::sanitize_filename(&invocation.session_packet.invocation_session_id)
+        );
+        if let Ok(json) = invocation.session_packet.to_pretty_json() {
+            let _ = std::fs::write(root.join(session_name), json);
+        }
+
+        let result_name = format!(
+            "{}.result.json",
+            Self::sanitize_filename(&invocation.result_packet.result_packet_id)
+        );
+        if let Ok(json) = invocation.result_packet.to_pretty_json() {
+            let _ = std::fs::write(root.join(result_name), json);
+        }
+    }
+}
+
+fn alias_used_for(entry: &CommandRegistryEntryRecord, origin: DispatchOrigin) -> AliasUsedBlock {
+    match origin {
+        DispatchOrigin::CommandPalette => AliasUsedBlock {
+            alias_kind: "canonical".to_string(),
+            alias_id: None,
+            alias_state: "not_applicable".to_string(),
+            resolves_to_canonical_command_id: entry.descriptor.command_id.clone(),
+            migration_trace_ref: None,
+            support_window_ref: None,
+        },
+        DispatchOrigin::KeybindingChord => {
+            let key_alias = entry
+                .descriptor
+                .aliases
+                .iter()
+                .find(|alias| alias.alias_kind == "keybinding_target")
+                .map(|alias| alias.alias_id.clone());
+            match key_alias {
+                Some(alias_id) => AliasUsedBlock {
+                    alias_kind: "keybinding_target".to_string(),
+                    alias_id: Some(alias_id),
+                    alias_state: "active".to_string(),
+                    resolves_to_canonical_command_id: entry.descriptor.command_id.clone(),
+                    migration_trace_ref: None,
+                    support_window_ref: None,
+                },
+                None => AliasUsedBlock {
+                    alias_kind: "canonical".to_string(),
+                    alias_id: None,
+                    alias_state: "not_applicable".to_string(),
+                    resolves_to_canonical_command_id: entry.descriptor.command_id.clone(),
+                    migration_trace_ref: None,
+                    support_window_ref: None,
+                },
+            }
+        }
+    }
+}
+
+fn argument_provenance_map_for(entry: &CommandRegistryEntryRecord) -> Vec<ArgumentProvenanceEntry> {
+    match entry.descriptor.command_id.as_str() {
+        "cmd:workspace.open_folder" => vec![
+            ArgumentProvenanceEntry {
+                argument_name: "workspace_scope_ref".to_string(),
+                provenance: "user_selected_from_palette_suggestion".to_string(),
+                resolved_value_ref: Some("workspace-scope:folder:recent:01".to_string()),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "add_to_workspace".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: Some("value:bool:false".to_string()),
+            },
+        ],
+        "cmd:workspace.import_profile" => vec![
+            ArgumentProvenanceEntry {
+                argument_name: "import_source_ref".to_string(),
+                provenance: "user_selected_from_palette_suggestion".to_string(),
+                resolved_value_ref: Some("import-source:placeholder:01".to_string()),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "apply_scope".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: Some("enum:workspace.import_profile:profile_only".to_string()),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "create_restore_checkpoint".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: Some("value:bool:true".to_string()),
+            },
+        ],
+        _ => entry
+            .descriptor
+            .typed_arguments
+            .iter()
+            .map(|slot| ArgumentProvenanceEntry {
+                argument_name: slot.argument_name.clone(),
+                provenance: slot
+                    .default_provenance_when_omitted
+                    .clone()
+                    .unwrap_or_else(|| "user_typed".to_string()),
+                resolved_value_ref: None,
+            })
+            .collect(),
+    }
+}
+
+fn make_session(
+    frame: &DesktopFrame,
+    entry: &CommandRegistryEntryRecord,
+    origin: DispatchOrigin,
+    execution_intent: &str,
+    preview_shown: bool,
+    preview_record_ref: Option<String>,
+    approval_state: &str,
+    approval_ticket_ref: Option<String>,
+) -> CommandInvocationSession {
+    let canonical_verb = entry.descriptor.canonical_verb.clone();
+    let basis_snapshot_ref = mint_basis_snapshot_ref(&canonical_verb);
+    let focused = Some(format!("shell-zone:{}", frame.focused_zone().name()));
+
+    let enablement = EnablementDecisionBlock {
+        decision_class: entry.seed_enablement_snapshot.decision_class.clone(),
+        disabled_reason_code: entry.seed_enablement_snapshot.disabled_reason_code.clone(),
+        repair_hook_ref: entry.seed_enablement_snapshot.repair_hook_ref.clone(),
+    };
+
+    CommandInvocationSession {
+        invocation_session_id: mint_invocation_session_id(&canonical_verb),
+        canonical_command_id: entry.descriptor.command_id.clone(),
+        command_revision_ref: entry.descriptor.command_revision_ref.clone(),
+        canonical_verb,
+        issuing_surface: origin.issuing_surface().to_string(),
+        authority_class: "user_initiated_local".to_string(),
+        alias_used: alias_used_for(entry, origin),
+        argument_provenance_map: argument_provenance_map_for(entry),
+        context_snapshot: InvocationContextSnapshot {
+            focused_entity_ref: focused.clone(),
+            selection_ref: None,
+            workspace_trust_state: "trusted".to_string(),
+            execution_context_id: entry.descriptor.policy_context.execution_context_id.clone(),
+            scope_filter_class_ref: None,
+            basis_snapshot_ref: basis_snapshot_ref.clone(),
+        },
+        context_refs: ContextRefsBlock {
+            focused_entity_ref: focused,
+            selection_ref: None,
+            workspace_ref: None,
+            workspace_trust_state: "trusted".to_string(),
+            execution_context_id: entry.descriptor.policy_context.execution_context_id.clone(),
+            scope_filter_class_ref: None,
+            basis_snapshot_ref,
+            context_object_refs: vec![format!(
+                "policy-epoch:{}",
+                entry.descriptor.policy_context.policy_epoch
+            )],
+        },
+        enablement_decision: enablement,
+        preview_posture: aureline_commands::invocation::PreviewPostureBlock {
+            preview_class_declared: entry.descriptor.preview_class.clone(),
+            preview_shown,
+            preview_record_ref,
+        },
+        approval_posture: ApprovalPostureBlock {
+            approval_posture_class_declared: entry.descriptor.approval_posture_class.clone(),
+            approval_state: approval_state.to_string(),
+            approval_ticket_ref: approval_ticket_ref.map(|v| v.to_string()),
+        },
+        execution_intent: execution_intent.to_string(),
+        policy_context: entry.descriptor.policy_context.clone(),
+        redaction_class: entry.descriptor.redaction_class.clone(),
+    }
+}
+
+fn dispatch_command_id(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    palette: &mut CommandPaletteState,
+    overlay: &mut Option<ShellOverlayState>,
+    command_id: &str,
+    origin: DispatchOrigin,
+) -> bool {
+    let Some(entry) = registry.get(command_id).cloned() else {
+        return false;
+    };
+    dispatch_registry_entry(
+        command_runtime,
+        registry,
+        frame,
+        palette,
+        overlay,
+        &entry,
+        origin,
+    )
+}
+
+fn dispatch_registry_entry(
+    command_runtime: &mut CommandRuntimeState,
+    _registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    palette: &mut CommandPaletteState,
+    overlay: &mut Option<ShellOverlayState>,
+    entry: &CommandRegistryEntryRecord,
+    origin: DispatchOrigin,
+) -> bool {
+    let preview_record_ref: Option<String> = None;
+    let preview_shown = false;
+    let mut approval_state = "not_required".to_string();
+    let mut approval_ticket_ref: Option<String> = None;
+
+    if entry.descriptor.approval_posture_class != "no_approval_required" {
+        approval_state = "approval_pending".to_string();
+        approval_ticket_ref = Some(mint_approval_ticket_ref(&entry.descriptor.canonical_verb));
+    }
+
+    let execution_intent = match entry.descriptor.command_id.as_str() {
+        "cmd:workspace.open_folder" => "apply_direct_trusted_path",
+        "cmd:workspace.import_profile" => "apply_after_preview",
+        _ => "query_only_no_mutation",
+    };
+
+    let mut session = make_session(
+        frame,
+        entry,
+        origin,
+        execution_intent,
+        preview_shown,
+        preview_record_ref.clone(),
+        &approval_state,
+        approval_ticket_ref.clone(),
+    );
+
+    let unresolved_required = entry
+        .descriptor
+        .typed_arguments
+        .iter()
+        .filter(|slot| slot.is_required)
+        .any(|slot| {
+            session
+                .argument_provenance_map
+                .iter()
+                .find(|row| row.argument_name == slot.argument_name)
+                .and_then(|row| row.resolved_value_ref.as_ref())
+                .is_none()
+        });
+
+    if unresolved_required {
+        session.enablement_decision = EnablementDecisionBlock {
+            decision_class: "disabled_with_reason".to_string(),
+            disabled_reason_code: Some("required_argument_unresolved".to_string()),
+            repair_hook_ref: None,
+        };
+        let invocation = invocation_and_result_denied(&session, "required_argument_unresolved");
+        command_runtime.record(invocation);
+        return true;
+    }
+
+    if session.enablement_decision.decision_class != "enabled" {
+        let denied_code = session
+            .enablement_decision
+            .disabled_reason_code
+            .clone()
+            .unwrap_or_else(|| "policy_blocked_in_context".to_string());
+        let invocation = invocation_and_result_denied(&session, &denied_code);
+        command_runtime.record(invocation);
+        return true;
+    }
+
+    match entry.descriptor.command_id.as_str() {
+        "cmd:command_palette.open" => {
+            palette.open();
+            let invocation = invocation_and_result_simple_success(&session, "succeeded");
+            command_runtime.record(invocation);
+            true
+        }
+        "cmd:labs.open_command_trace" => {
+            let lines = command_runtime.recent_lines(18);
+            *overlay = Some(ShellOverlayState::command_trace(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                lines,
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            let invocation = invocation_and_result_simple_success(&session, "succeeded");
+            command_runtime.record(invocation);
+            true
+        }
+        "cmd:workspace.open_folder" => {
+            let invocation = invocation_and_result_open_folder_succeeded(&session);
+            command_runtime.record(invocation);
+            true
+        }
+        "cmd:workspace.import_profile" => {
+            session.preview_posture.preview_shown = true;
+            session.preview_posture.preview_record_ref =
+                Some(mint_preview_record_ref(&entry.descriptor.canonical_verb));
+            *overlay = Some(ShellOverlayState::command_preview(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                entry.clone(),
+                session,
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            true
+        }
+        _ => {
+            let invocation = invocation_and_result_unimplemented(&session);
+            command_runtime.record(invocation);
+            true
+        }
+    }
+}
+
+fn invocation_and_result_denied(
+    session: &CommandInvocationSession,
+    disabled_reason_code: &str,
+) -> RecordedCommandInvocation {
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "denied_by_enablement".to_string(),
+        disabled_reason_code: Some(disabled_reason_code.to_string()),
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(outcome, Vec::new(), Vec::new());
+
+    let result = ResultBodyBlock {
+        outcome_code: "denied_by_enablement".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: vec![disabled_reason_code.to_string()],
+        created_artifact_refs: Vec::new(),
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: Vec::new(),
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        format!(
+            "parity-expectation:{}:result-contract:01",
+            session.canonical_verb
+        ),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_simple_success(
+    session: &CommandInvocationSession,
+    outcome_code: &str,
+) -> RecordedCommandInvocation {
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: outcome_code.to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(outcome, Vec::new(), Vec::new());
+
+    let result = ResultBodyBlock {
+        outcome_code: outcome_code.to_string(),
+        warning_codes: Vec::new(),
+        error_codes: Vec::new(),
+        created_artifact_refs: Vec::new(),
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: Vec::new(),
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_metadata_default".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        format!(
+            "parity-expectation:{}:result-contract:01",
+            session.canonical_verb
+        ),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_open_folder_succeeded(
+    session: &CommandInvocationSession,
+) -> RecordedCommandInvocation {
+    let journal_entry_ref = session
+        .invocation_session_id
+        .replacen("inv:", "journal-entry:", 1);
+    let audit_event_ref = session.invocation_session_id.replacen("inv:", "audit:", 1);
+
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "succeeded".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        vec![InvocationCreatedArtifactRefEntry {
+            result_contract_class: "journal_entry_appended_ref".to_string(),
+            artifact_ref: journal_entry_ref.clone(),
+        }],
+        vec![
+            EvidenceRefEntry {
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+                evidence_id: journal_entry_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "audit_event_ref".to_string(),
+                evidence_id: audit_event_ref.clone(),
+            },
+        ],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "succeeded".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: Vec::new(),
+        created_artifact_refs: vec![ArtifactRefEntry {
+            result_contract_class: "journal_entry_appended_ref".to_string(),
+            artifact_ref: journal_entry_ref.clone(),
+            artifact_role: "side_effect_record".to_string(),
+        }],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_reversible_by_contract".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+            evidence_id: journal_entry_ref,
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        format!(
+            "parity-expectation:{}:result-contract:01",
+            session.canonical_verb
+        ),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_unimplemented(
+    session: &CommandInvocationSession,
+) -> RecordedCommandInvocation {
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "failed_with_typed_error".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(outcome, Vec::new(), Vec::new());
+
+    let result = ResultBodyBlock {
+        outcome_code: "failed_with_typed_error".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: vec!["typed_runtime_failure".to_string()],
+        created_artifact_refs: Vec::new(),
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_reversible_by_contract".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: Vec::new(),
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        format!(
+            "parity-expectation:{}:result-contract:01",
+            session.canonical_verb
+        ),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn finalize_command_overlay_decision(
+    command_runtime: &mut CommandRuntimeState,
+    _registry: &CommandRegistry,
+    decision: CommandOverlayDecision,
+) {
+    match decision {
+        CommandOverlayDecision::PreviewApproved { entry, session } => {
+            let invocation = match entry.descriptor.command_id.as_str() {
+                "cmd:workspace.import_profile" => {
+                    invocation_and_result_import_profile_succeeded(&session)
+                }
+                _ => invocation_and_result_unimplemented(&session),
+            };
+            command_runtime.record(invocation);
+        }
+        CommandOverlayDecision::PreviewCancelled { entry, session } => {
+            let invocation = match entry.descriptor.command_id.as_str() {
+                "cmd:workspace.import_profile" => {
+                    invocation_and_result_import_profile_cancelled(&session)
+                }
+                _ => invocation_and_result_unimplemented(&session),
+            };
+            command_runtime.record(invocation);
+        }
+    }
+}
+
+fn invocation_and_result_import_profile_cancelled(
+    session: &CommandInvocationSession,
+) -> RecordedCommandInvocation {
+    let preview_ref = session
+        .preview_posture
+        .preview_record_ref
+        .clone()
+        .unwrap_or_else(|| mint_preview_record_ref(&session.canonical_verb));
+
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "cancelled_by_user".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        vec![InvocationCreatedArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview_ref.clone(),
+        }],
+        vec![EvidenceRefEntry {
+            evidence_ref_class: "preview_record_ref".to_string(),
+            evidence_id: preview_ref.clone(),
+        }],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "cancelled_by_user".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: Vec::new(),
+        created_artifact_refs: vec![ArtifactRefEntry {
+            result_contract_class: "preview_record_emitted_ref".to_string(),
+            artifact_ref: preview_ref.clone(),
+            artifact_role: "preview_record".to_string(),
+        }],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "preview_record_ref".to_string(),
+            evidence_id: preview_ref,
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.import_profile:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_import_profile_succeeded(
+    session: &CommandInvocationSession,
+) -> RecordedCommandInvocation {
+    let preview_ref = session
+        .preview_posture
+        .preview_record_ref
+        .clone()
+        .unwrap_or_else(|| mint_preview_record_ref(&session.canonical_verb));
+    let journal_entry_ref = session
+        .invocation_session_id
+        .replacen("inv:", "journal-entry:", 1);
+    let rollback_handle_id = session
+        .invocation_session_id
+        .replacen("inv:", "rollback-handle:", 1);
+    let audit_event_ref = session.invocation_session_id.replacen("inv:", "audit:", 1);
+
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "succeeded".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        vec![
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "preview_record_emitted_ref".to_string(),
+                artifact_ref: preview_ref.clone(),
+            },
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "journal_entry_appended_ref".to_string(),
+                artifact_ref: journal_entry_ref.clone(),
+            },
+            InvocationCreatedArtifactRefEntry {
+                result_contract_class: "rollback_ticket_emitted_ref".to_string(),
+                artifact_ref: rollback_handle_id.clone(),
+            },
+        ],
+        vec![
+            EvidenceRefEntry {
+                evidence_ref_class: "preview_record_ref".to_string(),
+                evidence_id: preview_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+                evidence_id: journal_entry_ref.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "rollback_ticket_ref".to_string(),
+                evidence_id: rollback_handle_id.clone(),
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "audit_event_ref".to_string(),
+                evidence_id: audit_event_ref.clone(),
+            },
+        ],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "succeeded".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: Vec::new(),
+        created_artifact_refs: vec![
+            ArtifactRefEntry {
+                result_contract_class: "preview_record_emitted_ref".to_string(),
+                artifact_ref: preview_ref.clone(),
+                artifact_role: "preview_record".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "journal_entry_appended_ref".to_string(),
+                artifact_ref: journal_entry_ref.clone(),
+                artifact_role: "side_effect_record".to_string(),
+            },
+            ArtifactRefEntry {
+                result_contract_class: "rollback_ticket_emitted_ref".to_string(),
+                artifact_ref: rollback_handle_id.clone(),
+                artifact_role: "rollback_ticket".to_string(),
+            },
+        ],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "handle_available".to_string(),
+            rollback_handle_id: Some(rollback_handle_id.clone()),
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![
+            EvidenceRefEntry {
+                evidence_ref_class: "preview_record_ref".to_string(),
+                evidence_id: preview_ref,
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "mutation_journal_entry_ref".to_string(),
+                evidence_id: journal_entry_ref,
+            },
+            EvidenceRefEntry {
+                evidence_ref_class: "rollback_ticket_ref".to_string(),
+                evidence_id: rollback_handle_id,
+            },
+        ],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        "parity-expectation:workspace.import_profile:result-contract:01".to_string(),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
 fn handle_key_event(
     window: &winit::window::Window,
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
     overlay: &mut Option<ShellOverlayState>,
+    command_runtime: &mut CommandRuntimeState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -111,6 +981,25 @@ fn handle_key_event(
     };
 
     if palette.is_open() {
+        if code == KeyCode::Enter {
+            let selected = palette.selected_entry(registry).cloned();
+            palette.close();
+            if let Some(entry) = selected {
+                let changed = dispatch_registry_entry(
+                    command_runtime,
+                    registry,
+                    frame,
+                    palette,
+                    overlay,
+                    &entry,
+                    DispatchOrigin::CommandPalette,
+                );
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                return changed;
+            }
+            window.set_title(&window_title(Some(frame.focused_zone()), None));
+            return true;
+        }
         if palette.handle_key(code) {
             window.set_title(&window_title(
                 Some(frame.focused_zone()),
@@ -125,7 +1014,11 @@ fn handle_key_event(
     }
 
     if let Some(state) = overlay.as_mut() {
-        if state.handle_key(code, frame) {
+        let outcome = state.handle_key(code, frame);
+        if let Some(decision) = outcome.command_decision {
+            finalize_command_overlay_decision(command_runtime, registry, decision);
+        }
+        if outcome.handled {
             if state.closed {
                 *overlay = None;
             }
@@ -143,12 +1036,23 @@ fn handle_key_event(
         }
         KeyCode::KeyP => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
-                palette.open();
+                let changed = dispatch_command_id(
+                    command_runtime,
+                    registry,
+                    frame,
+                    palette,
+                    overlay,
+                    "cmd:command_palette.open",
+                    DispatchOrigin::KeybindingChord,
+                );
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
-                    palette.selected_entry(registry),
+                    palette
+                        .is_open()
+                        .then(|| palette.selected_entry(registry))
+                        .flatten(),
                 ));
-                true
+                changed
             } else {
                 false
             }
@@ -236,8 +1140,10 @@ fn relayout_and_redraw(
     let logical = physical.to_logical::<u32>(window.scale_factor());
     frame.relayout(logical.width, logical.height);
 
-    if let (Some(w), Some(h)) = (NonZeroU32::new(physical.width), NonZeroU32::new(physical.height))
-    {
+    if let (Some(w), Some(h)) = (
+        NonZeroU32::new(physical.width),
+        NonZeroU32::new(physical.height),
+    ) {
         let _ = surface.resize(w, h);
     }
     window.request_redraw();
@@ -250,6 +1156,7 @@ fn draw(
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
     overlay: Option<&ShellOverlayState>,
+    command_runtime: &CommandRuntimeState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -295,7 +1202,9 @@ fn draw(
                         group_rect,
                         group_color,
                     );
-                    if group.group_id == frame.focused_editor_group() && frame.focused_zone() == ShellZoneId::MainWorkspace {
+                    if group.group_id == frame.focused_editor_group()
+                        && frame.focused_zone() == ShellZoneId::MainWorkspace
+                    {
                         stroke_rect(
                             &mut buffer,
                             physical.width,
@@ -310,7 +1219,11 @@ fn draw(
                         "group:{}  tabs:{}{}",
                         group.group_id.value(),
                         group.tab_count,
-                        if group.tabbed_compare_active { "  [tabbed compare]" } else { "" }
+                        if group.tabbed_compare_active {
+                            "  [tabbed compare]"
+                        } else {
+                            ""
+                        }
                     );
                     draw_text(
                         &mut buffer,
@@ -328,13 +1241,26 @@ fn draw(
                 for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
                     let slot_rect = to_physical_rect(slot_rect, scale);
                     let slot_color = slot_color(slot_id);
-                    fill_rect(&mut buffer, physical.width, physical.height, slot_rect, slot_color);
+                    fill_rect(
+                        &mut buffer,
+                        physical.width,
+                        physical.height,
+                        slot_rect,
+                        slot_color,
+                    );
                 }
             }
         }
 
         if zone == frame.focused_zone() {
-            stroke_rect(&mut buffer, physical.width, physical.height, rect, 2, 0x00ffffff);
+            stroke_rect(
+                &mut buffer,
+                physical.width,
+                physical.height,
+                rect,
+                2,
+                0x00ffffff,
+            );
         }
 
         let zone_label = format!("zone: {}", zone.name());
@@ -363,7 +1289,14 @@ fn draw(
     }
 
     if let Some(overlay) = overlay {
-        draw_shell_overlay(&mut buffer, physical.width, physical.height, window.scale_factor(), frame, overlay);
+        draw_shell_overlay(
+            &mut buffer,
+            physical.width,
+            physical.height,
+            window.scale_factor(),
+            frame,
+            overlay,
+        );
     }
 
     let modes = frame
@@ -374,7 +1307,11 @@ fn draw(
         .join(", ");
     let status = to_physical_rect(frame.layout().status_bar, scale);
     if !status.is_empty() {
-        let text = format!("fallback_modes: [{}]   keys: Ctrl+\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)", modes);
+        let last = command_runtime
+            .last_command_label
+            .as_deref()
+            .unwrap_or("no recent command");
+        let text = format!("fallback_modes: [{}]   last_cmd: {}   keys: Ctrl+Shift+P palette, Enter run, Ctrl+\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)   packets: .logs/command_packets", modes, last);
         draw_text(
             &mut buffer,
             physical.width,
@@ -392,10 +1329,44 @@ fn draw(
 }
 
 #[derive(Debug, Clone)]
+struct CommandPreviewOverlay {
+    entry: CommandRegistryEntryRecord,
+    session: CommandInvocationSession,
+}
+
+#[derive(Debug, Clone)]
+struct CommandTraceOverlay {
+    lines: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+enum CommandOverlayDecision {
+    PreviewApproved {
+        entry: CommandRegistryEntryRecord,
+        session: CommandInvocationSession,
+    },
+    PreviewCancelled {
+        entry: CommandRegistryEntryRecord,
+        session: CommandInvocationSession,
+    },
+}
+
+#[derive(Debug)]
+struct OverlayKeyOutcome {
+    handled: bool,
+    command_decision: Option<CommandOverlayDecision>,
+}
+
+#[derive(Debug, Clone)]
 enum ShellOverlayKind {
     InspectorSheet,
-    SplitChoice { violation: SplitViolation, selection: usize },
+    SplitChoice {
+        violation: SplitViolation,
+        selection: usize,
+    },
     StagedPeek,
+    CommandPreview(CommandPreviewOverlay),
+    CommandTrace(CommandTraceOverlay),
 }
 
 #[derive(Debug, Clone)]
@@ -432,6 +1403,33 @@ impl ShellOverlayState {
         }
     }
 
+    fn command_preview(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        entry: CommandRegistryEntryRecord,
+        session: CommandInvocationSession,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::CommandPreview(CommandPreviewOverlay { entry, session }),
+            focus_return_zone,
+            focus_return_group,
+            closed: false,
+        }
+    }
+
+    fn command_trace(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        lines: Vec<String>,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::CommandTrace(CommandTraceOverlay { lines }),
+            focus_return_zone,
+            focus_return_group,
+            closed: false,
+        }
+    }
+
     fn close(&mut self, frame: &mut DesktopFrame) {
         self.closed = true;
         frame.focus_zone(self.focus_return_zone);
@@ -440,9 +1438,40 @@ impl ShellOverlayState {
         }
     }
 
-    fn handle_key(&mut self, code: KeyCode, frame: &mut DesktopFrame) -> bool {
-        match (&mut self.kind, code) {
+    fn handle_key(&mut self, code: KeyCode, frame: &mut DesktopFrame) -> OverlayKeyOutcome {
+        let mut command_decision = None;
+        let handled = match (&mut self.kind, code) {
             (_, KeyCode::Escape) => {
+                if let ShellOverlayKind::CommandPreview(preview) = &mut self.kind {
+                    preview.session.approval_posture.approval_state = "approval_denied".to_string();
+                    command_decision = Some(CommandOverlayDecision::PreviewCancelled {
+                        entry: preview.entry.clone(),
+                        session: preview.session.clone(),
+                    });
+                }
+                self.close(frame);
+                true
+            }
+            (ShellOverlayKind::CommandPreview(preview), KeyCode::Enter) => {
+                preview.session.approval_posture.approval_state = "approval_granted".to_string();
+                if preview
+                    .session
+                    .approval_posture
+                    .approval_ticket_ref
+                    .is_none()
+                    && preview
+                        .session
+                        .approval_posture
+                        .approval_posture_class_declared
+                        != "no_approval_required"
+                {
+                    preview.session.approval_posture.approval_ticket_ref =
+                        Some(mint_approval_ticket_ref(&preview.session.canonical_verb));
+                }
+                command_decision = Some(CommandOverlayDecision::PreviewApproved {
+                    entry: preview.entry.clone(),
+                    session: preview.session.clone(),
+                });
                 self.close(frame);
                 true
             }
@@ -470,6 +1499,11 @@ impl ShellOverlayState {
                 true
             }
             _ => false,
+        };
+
+        OverlayKeyOutcome {
+            handled,
+            command_decision,
         }
     }
 }
@@ -526,7 +1560,133 @@ fn draw_shell_overlay(
                 0x00c9d3de,
             );
         }
-        ShellOverlayKind::SplitChoice { violation, selection } => {
+        ShellOverlayKind::CommandPreview(preview) => {
+            let header = format!(
+                "Preview — {}  (Esc cancel, Enter apply)",
+                preview.entry.title
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(12),
+                1,
+                &header,
+                0x00ffffff,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(28),
+                1,
+                &format!("command_id: {}", preview.entry.command_id()),
+                0x00c9d3de,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(44),
+                1,
+                &format!(
+                    "preview_class: {}",
+                    preview.session.preview_posture.preview_class_declared
+                ),
+                0x00c9d3de,
+            );
+            if let Some(preview_ref) = preview.session.preview_posture.preview_record_ref.as_ref() {
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    sheet_rect.x.saturating_add(12),
+                    sheet_rect.y.saturating_add(60),
+                    1,
+                    &format!("preview_ref: {}", preview_ref),
+                    0x00c9d3de,
+                );
+            }
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(78),
+                1,
+                "Decision mints an invocation session + result packet.",
+                0x00c9d3de,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(94),
+                1,
+                "Packets: .logs/command_packets",
+                0x00c9d3de,
+            );
+        }
+        ShellOverlayKind::CommandTrace(trace) => {
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(12),
+                1,
+                "Command Trace — Esc closes",
+                0x00ffffff,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(28),
+                1,
+                "Packets: .logs/command_packets",
+                0x00c9d3de,
+            );
+
+            let mut y = sheet_rect.y.saturating_add(48);
+            for line in &trace.lines {
+                if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(12) {
+                    break;
+                }
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    sheet_rect.x.saturating_add(12),
+                    y,
+                    1,
+                    line,
+                    0x00c9d3de,
+                );
+                y = y.saturating_add(14);
+            }
+            if trace.lines.is_empty() {
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    sheet_rect.x.saturating_add(12),
+                    y,
+                    1,
+                    "No invocations recorded yet.",
+                    0x00c9d3de,
+                );
+            }
+        }
+        ShellOverlayKind::SplitChoice {
+            violation,
+            selection,
+        } => {
             let header = format!(
                 "Split would violate min group width (min {}px, attempted {}px).",
                 violation.main_workspace_minimum_width, violation.attempted_per_group_width
@@ -572,7 +1732,11 @@ fn draw_shell_overlay(
                     y,
                     1,
                     label,
-                    if idx == *selection { 0x00ffffff } else { 0x00c9d3de },
+                    if idx == *selection {
+                        0x00ffffff
+                    } else {
+                        0x00c9d3de
+                    },
                 );
             }
         }
@@ -630,11 +1794,14 @@ impl CommandPaletteState {
                     .client_scopes
                     .iter()
                     .any(|scope| scope == "desktop_product");
-                let visible_in_palette = entry.descriptor.palette_visibility != "hidden_palette_callable_only";
+                let visible_in_palette =
+                    entry.descriptor.palette_visibility != "hidden_palette_callable_only";
                 (desktop_ok && visible_in_palette).then_some(idx)
             })
             .collect();
-        self.selection = self.selection.min(self.visible_entry_indices.len().saturating_sub(1));
+        self.selection = self
+            .selection
+            .min(self.visible_entry_indices.len().saturating_sub(1));
     }
 
     fn is_open(&self) -> bool {
@@ -643,14 +1810,19 @@ impl CommandPaletteState {
 
     fn open(&mut self) {
         self.open = true;
-        self.selection = self.selection.min(self.visible_entry_indices.len().saturating_sub(1));
+        self.selection = self
+            .selection
+            .min(self.visible_entry_indices.len().saturating_sub(1));
     }
 
     fn close(&mut self) {
         self.open = false;
     }
 
-    fn selected_entry<'a>(&self, registry: &'a CommandRegistry) -> Option<&'a CommandRegistryEntryRecord> {
+    fn selected_entry<'a>(
+        &self,
+        registry: &'a CommandRegistry,
+    ) -> Option<&'a CommandRegistryEntryRecord> {
         let idx = *self.visible_entry_indices.get(self.selection)?;
         registry.entries().get(idx)
     }
@@ -681,7 +1853,12 @@ impl CommandPaletteState {
 
 fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {
     let scale = |v: u32| -> u32 { ((v as f64) * scale_factor).round().max(0.0) as u32 };
-    Rect::new(scale(rect.x), scale(rect.y), scale(rect.width), scale(rect.height))
+    Rect::new(
+        scale(rect.x),
+        scale(rect.y),
+        scale(rect.width),
+        scale(rect.height),
+    )
 }
 
 fn zone_color(zone: ShellZoneId) -> u32 {
@@ -761,13 +1938,7 @@ fn draw_command_palette_overlay(
     let slot_physical = to_physical_rect(slot, scale_factor);
 
     // Dim the entire window.
-    fill_rect(
-        buffer,
-        width,
-        height,
-        overlay_physical,
-        0x00101010,
-    );
+    fill_rect(buffer, width, height, overlay_physical, 0x00101010);
 
     // Panel inside the slot.
     let panel_padding = 16u32;
@@ -808,7 +1979,7 @@ fn draw_command_palette_overlay(
         cursor_x,
         cursor_y,
         text_scale,
-        "Up/Down: select   Esc: close",
+        "Up/Down: select   Enter: run   Esc: close",
         0x00aab7c4,
     );
     cursor_y = cursor_y.saturating_add(line_h + 6);
@@ -819,7 +1990,12 @@ fn draw_command_palette_overlay(
         }
         let selected = row == palette.selection;
         if selected {
-            let highlight = Rect::new(panel.x.saturating_add(6), cursor_y.saturating_sub(2), panel.width.saturating_sub(12), line_h);
+            let highlight = Rect::new(
+                panel.x.saturating_add(6),
+                cursor_y.saturating_sub(2),
+                panel.width.saturating_sub(12),
+                line_h,
+            );
             fill_rect(buffer, width, height, highlight, 0x00202a35);
         }
 
@@ -851,7 +2027,11 @@ fn palette_rows<'a>(registry: &'a CommandRegistry) -> Vec<&'a CommandRegistryEnt
         .entries()
         .iter()
         .filter(|entry| {
-            entry.descriptor.client_scopes.iter().any(|scope| scope == "desktop_product")
+            entry
+                .descriptor
+                .client_scopes
+                .iter()
+                .any(|scope| scope == "desktop_product")
                 && entry.descriptor.palette_visibility != "hidden_palette_callable_only"
         })
         .collect()

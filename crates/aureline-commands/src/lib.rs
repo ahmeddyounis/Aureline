@@ -14,14 +14,16 @@
 #![doc(html_root_url = "https://docs.rs/aureline-commands/0.0.0")]
 
 pub mod descriptor;
+pub mod invocation;
 pub mod registry;
 
 pub use descriptor::{
-    CommandDescriptorRecord, CommandId, CommandRevisionRef, OpaqueId, PolicyContext,
-    RepairHookRef,
+    CommandDescriptorRecord, CommandId, CommandRevisionRef, OpaqueId, PolicyContext, RepairHookRef,
+};
+pub use invocation::{
+    CommandInvocationSession, CommandResultPacketRecord, InvocationSessionPacketRecord,
 };
 pub use registry::{
     CommandRegistry, CommandRegistryEntryRecord, CommandRegistrySeedRecord, EnablementSnapshot,
     RegistryError,
 };
-
