@@ -98,20 +98,20 @@ impl SyntheticRoot {
     /// the URI is unknown or the target canonical object is
     /// missing; both are prototype / fixture bugs rather than
     /// real-world conditions.
-    pub fn resolve(
-        &self,
-        presentation_uri: &str,
-    ) -> Result<ResolvedPresentation<'_>, String> {
+    pub fn resolve(&self, presentation_uri: &str) -> Result<ResolvedPresentation<'_>, String> {
         let binding = self
             .presentations
             .get(presentation_uri)
             .ok_or_else(|| format!("unknown presentation uri: {presentation_uri}"))?;
-        let object = self.canonical_objects.get(&binding.canonical_uri).ok_or_else(|| {
-            format!(
-                "presentation {presentation_uri} points at missing canonical {}",
-                binding.canonical_uri
-            )
-        })?;
+        let object = self
+            .canonical_objects
+            .get(&binding.canonical_uri)
+            .ok_or_else(|| {
+                format!(
+                    "presentation {presentation_uri} points at missing canonical {}",
+                    binding.canonical_uri
+                )
+            })?;
         Ok(ResolvedPresentation { binding, object })
     }
 
@@ -134,7 +134,10 @@ impl SyntheticRoot {
     /// Return the identity-record layers (1-4) for the opened
     /// presentation URI. Layer 5 is the save-target token issued
     /// by [`crate::save`].
-    pub fn identity_record(&self, presentation_uri: &str) -> Result<crate::identity::IdentityRecord, String> {
+    pub fn identity_record(
+        &self,
+        presentation_uri: &str,
+    ) -> Result<crate::identity::IdentityRecord, String> {
         let resolved = self.resolve(presentation_uri)?;
         let presentation_path = PresentationPath {
             uri: presentation_uri.to_owned(),
@@ -142,11 +145,17 @@ impl SyntheticRoot {
             root_badge: self.root_badge.clone(),
         };
         let logical = LogicalWorkspaceIdentity {
-            workspace_id: self.logical_workspace_identity_template.workspace_id.clone(),
+            workspace_id: self
+                .logical_workspace_identity_template
+                .workspace_id
+                .clone(),
             root_id: self.envelope.root_id.clone(),
             logical_uri: resolved.object.logical_uri.clone(),
             trust_state: self.logical_workspace_identity_template.trust_state,
-            policy_scope: self.logical_workspace_identity_template.policy_scope.clone(),
+            policy_scope: self
+                .logical_workspace_identity_template
+                .policy_scope
+                .clone(),
         };
         let canonical = CanonicalFilesystemObject {
             canonical_uri: resolved.object.canonical_uri.clone(),
@@ -278,17 +287,18 @@ impl SyntheticRootBuilder {
                 crate::watcher::WatcherSource::PollingFallback
             }
         };
-        let preferred_save_mode = if capability_flags.read_only || capability_flags.policy_constrained {
-            crate::capabilities::AtomicWriteMode::Blocked
-        } else if capability_flags.supports_atomic_replace {
-            crate::capabilities::AtomicWriteMode::AtomicReplace
-        } else if capability_flags.supports_conditional_remote_write {
-            crate::capabilities::AtomicWriteMode::ConditionalRemoteWrite
-        } else if capability_flags.supports_in_place_write {
-            crate::capabilities::AtomicWriteMode::InPlaceWrite
-        } else {
-            crate::capabilities::AtomicWriteMode::Blocked
-        };
+        let preferred_save_mode =
+            if capability_flags.read_only || capability_flags.policy_constrained {
+                crate::capabilities::AtomicWriteMode::Blocked
+            } else if capability_flags.supports_atomic_replace {
+                crate::capabilities::AtomicWriteMode::AtomicReplace
+            } else if capability_flags.supports_conditional_remote_write {
+                crate::capabilities::AtomicWriteMode::ConditionalRemoteWrite
+            } else if capability_flags.supports_in_place_write {
+                crate::capabilities::AtomicWriteMode::InPlaceWrite
+            } else {
+                crate::capabilities::AtomicWriteMode::Blocked
+            };
         let mut permitted = Vec::new();
         if capability_flags.supports_atomic_replace {
             permitted.push(crate::capabilities::AtomicWriteMode::AtomicReplace);
@@ -486,26 +496,27 @@ mod tests {
 
     #[test]
     fn apply_external_change_bumps_generation() {
-        let mut root = SyntheticRootBuilder::new("root-1", RootClass::LocalPosixLike, posix_flags())
-            .add_canonical_object(
-                "file:///ws/lib.rs",
-                "aureline-ws://ws-aureline-primary/root-1/lib.rs",
-                NormalizationForm::MixedObserved,
-                "dev:1/ino:2",
-                3,
-                vec![],
-                PermissionSnapshot::writable_default(),
-                vec![],
-                b"fn main() {}".to_vec(),
-            )
-            .add_presentation(
-                "file:///ws/lib.rs",
-                "lib.rs",
-                "file:///ws/lib.rs",
-                None,
-                vec!["-> canonical".to_owned()],
-            )
-            .build();
+        let mut root =
+            SyntheticRootBuilder::new("root-1", RootClass::LocalPosixLike, posix_flags())
+                .add_canonical_object(
+                    "file:///ws/lib.rs",
+                    "aureline-ws://ws-aureline-primary/root-1/lib.rs",
+                    NormalizationForm::MixedObserved,
+                    "dev:1/ino:2",
+                    3,
+                    vec![],
+                    PermissionSnapshot::writable_default(),
+                    vec![],
+                    b"fn main() {}".to_vec(),
+                )
+                .add_presentation(
+                    "file:///ws/lib.rs",
+                    "lib.rs",
+                    "file:///ws/lib.rs",
+                    None,
+                    vec!["-> canonical".to_owned()],
+                )
+                .build();
         let before = root.read_strongest_token("file:///ws/lib.rs").unwrap();
         let after_gen = root.apply_external_change("file:///ws/lib.rs").unwrap();
         let after = root.read_strongest_token("file:///ws/lib.rs").unwrap();

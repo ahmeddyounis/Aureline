@@ -36,14 +36,15 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
         match arg.as_str() {
             "--emit" => {
                 out.emit = Some(PathBuf::from(
-                    iter.next().ok_or_else(|| "--emit requires a path".to_owned())?,
+                    iter.next()
+                        .ok_or_else(|| "--emit requires a path".to_owned())?,
                 ));
             }
             "--emit-undo-examples" => {
-                out.emit_undo_examples = Some(PathBuf::from(
-                    iter.next()
-                        .ok_or_else(|| "--emit-undo-examples requires a directory".to_owned())?,
-                ));
+                out.emit_undo_examples =
+                    Some(PathBuf::from(iter.next().ok_or_else(|| {
+                        "--emit-undo-examples requires a directory".to_owned()
+                    })?));
             }
             "--help" | "-h" => return Err(usage()),
             other => return Err(format!("unknown argument: {other}\n\n{}", usage())),
@@ -84,8 +85,9 @@ fn run(args: &Args) -> Result<(), String> {
     let report = run_harness();
     let json = report_to_json(&report);
     match &args.emit {
-        Some(path) => write_file(path, json.as_bytes())
-            .map_err(|e| format!("writing {:?}: {e}", path))?,
+        Some(path) => {
+            write_file(path, json.as_bytes()).map_err(|e| format!("writing {:?}: {e}", path))?
+        }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
@@ -99,8 +101,7 @@ fn run(args: &Args) -> Result<(), String> {
             let text = render_undo_example(label)
                 .ok_or_else(|| format!("unknown undo-example label {label:?}"))?;
             let path = dir.join(format!("{label}.txt"));
-            write_file(&path, text.as_bytes())
-                .map_err(|e| format!("writing {:?}: {e}", path))?;
+            write_file(&path, text.as_bytes()).map_err(|e| format!("writing {:?}: {e}", path))?;
         }
     }
     Ok(())

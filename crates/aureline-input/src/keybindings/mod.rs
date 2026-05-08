@@ -486,14 +486,21 @@ impl KeybindingResolver {
             publisher_or_provider_ref: None,
             scope_note,
         };
-        self.layers.entry(layer).or_default().push(BindingCandidate {
-            record,
-            sequence,
-            context,
-        });
+        self.layers
+            .entry(layer)
+            .or_default()
+            .push(BindingCandidate {
+                record,
+                sequence,
+                context,
+            });
     }
 
-    pub fn resolve(&self, inspected: &KeySequence, scope: &InspectionScope) -> KeybindingResolutionPacketRecord {
+    pub fn resolve(
+        &self,
+        inspected: &KeySequence,
+        scope: &InspectionScope,
+    ) -> KeybindingResolutionPacketRecord {
         let inspected_descriptor = inspected.to_descriptor();
         let mut precedence_trace: Vec<PrecedenceTraceRow> = Vec::with_capacity(8);
         let mut losing_candidates: Vec<LosingCandidateRecord> = Vec::new();
@@ -530,10 +537,7 @@ impl KeybindingResolver {
             }
         }
 
-        let reserved_match = self
-            .reserved_sequences
-            .iter()
-            .any(|seq| seq == inspected);
+        let reserved_match = self.reserved_sequences.iter().any(|seq| seq == inspected);
         let admin_locked_match = self
             .admin_locked_sequences
             .iter()
@@ -585,7 +589,10 @@ impl KeybindingResolver {
                 note: Some("Sequence is a prefix of a longer binding.".to_string()),
             };
         } else if let Some(layer) = first_exact_layer {
-            let candidates = exact_candidates_by_layer.get(&layer).cloned().unwrap_or_default();
+            let candidates = exact_candidates_by_layer
+                .get(&layer)
+                .cloned()
+                .unwrap_or_default();
             let selection = select_winning_candidate(candidates, scope);
             match selection {
                 SelectedCandidate::Winner(winning, losers_same_layer) => {
@@ -604,7 +611,9 @@ impl KeybindingResolver {
                         resolver_layer: Some(layer),
                         command_candidate: Some(winning.record.clone()),
                         reason_code,
-                        note: Some("Resolved to the highest-precedence matching binding.".to_string()),
+                        note: Some(
+                            "Resolved to the highest-precedence matching binding.".to_string(),
+                        ),
                     };
                     for losing in losers_same_layer {
                         losing_candidates.push(LosingCandidateRecord {
@@ -622,7 +631,10 @@ impl KeybindingResolver {
                     sequence_state = SequenceResolutionState::Unbound;
                     conflict_review_ref = Some(format!(
                         "keybinding-conflict-review:{}:{}",
-                        inspected_descriptor.literal_sequence.replace(' ', "_").replace('+', "-"),
+                        inspected_descriptor
+                            .literal_sequence
+                            .replace(' ', "_")
+                            .replace('+', "-"),
                         layer.precedence_rank()
                     ));
                     winner = WinningResolution {
@@ -630,7 +642,10 @@ impl KeybindingResolver {
                         resolver_layer: Some(layer),
                         command_candidate: None,
                         reason_code: ResolutionReasonCode::SameLayerCollisionRequiresReview,
-                        note: Some("Multiple equally-specific candidates exist; review required.".to_string()),
+                        note: Some(
+                            "Multiple equally-specific candidates exist; review required."
+                                .to_string(),
+                        ),
                     };
                 }
             }
@@ -657,7 +672,9 @@ impl KeybindingResolver {
                 });
                 continue;
             }
-            if layer == ResolverLayerClass::EmergencySecurityHardBlock && self.emergency_block_active {
+            if layer == ResolverLayerClass::EmergencySecurityHardBlock
+                && self.emergency_block_active
+            {
                 precedence_trace.push(PrecedenceTraceRow {
                     resolver_layer: layer,
                     precedence_rank: rank,
@@ -678,11 +695,14 @@ impl KeybindingResolver {
                 continue;
             }
 
-            let exact = exact_candidates_by_layer.get(&layer).cloned().unwrap_or_default();
+            let exact = exact_candidates_by_layer
+                .get(&layer)
+                .cloned()
+                .unwrap_or_default();
             let has_prefix = prefix_layers.contains(&layer);
-            let layer_won = winner
-                .resolver_layer
-                .is_some_and(|w| w == layer && matches!(winner.winner_kind, WinningResolutionKind::CommandCandidate));
+            let layer_won = winner.resolver_layer.is_some_and(|w| {
+                w == layer && matches!(winner.winner_kind, WinningResolutionKind::CommandCandidate)
+            });
             let disposition = if layer_won {
                 PrecedenceDisposition::CandidateVisible
             } else if has_prefix && first_exact_layer.is_none() {
@@ -718,11 +738,13 @@ impl KeybindingResolver {
             WinningResolutionKind::PlatformReserved
                 | WinningResolutionKind::EmergencySecurityHardBlock
                 | WinningResolutionKind::AdminPolicyLock
-        )
-            || matches!(winner.winner_kind, WinningResolutionKind::CommandCandidate)
+        ) || matches!(winner.winner_kind, WinningResolutionKind::CommandCandidate)
         {
             for layer in ResolverLayerClass::in_precedence_order() {
-                let exact = exact_candidates_by_layer.get(&layer).cloned().unwrap_or_default();
+                let exact = exact_candidates_by_layer
+                    .get(&layer)
+                    .cloned()
+                    .unwrap_or_default();
                 if exact.is_empty() {
                     continue;
                 }
@@ -751,8 +773,10 @@ impl KeybindingResolver {
                         candidate: candidate.record.clone(),
                         loss_reason_code: loss_reason,
                         what_changes_outcome: vec![OutcomeChangeCondition {
-                            condition_class: OutcomeChangeConditionClass::RemoveHigherPrecedenceBinding,
-                            explanation: "Remove or rebind the higher-precedence binding.".to_string(),
+                            condition_class:
+                                OutcomeChangeConditionClass::RemoveHigherPrecedenceBinding,
+                            explanation: "Remove or rebind the higher-precedence binding."
+                                .to_string(),
                             resulting_layer: Some(layer),
                         }],
                     });
@@ -766,11 +790,14 @@ impl KeybindingResolver {
                 explanation: "Bind this sequence to a command.".to_string(),
                 resulting_layer: Some(ResolverLayerClass::UserProfileBinding),
             }],
-            ResolutionReasonCode::SameLayerCollisionRequiresReview => vec![OutcomeChangeCondition {
-                condition_class: OutcomeChangeConditionClass::ChooseDifferentImportMapping,
-                explanation: "Resolve the collision by rebinding or scoping one candidate.".to_string(),
-                resulting_layer: winner.resolver_layer,
-            }],
+            ResolutionReasonCode::SameLayerCollisionRequiresReview => {
+                vec![OutcomeChangeCondition {
+                    condition_class: OutcomeChangeConditionClass::ChooseDifferentImportMapping,
+                    explanation: "Resolve the collision by rebinding or scoping one candidate."
+                        .to_string(),
+                    resulting_layer: winner.resolver_layer,
+                }]
+            }
             _ => Vec::new(),
         };
 
@@ -836,7 +863,9 @@ fn is_modifier_token(token: &str, canonical: &str, aliases: &[&str]) -> bool {
     if token.eq_ignore_ascii_case(canonical) {
         return true;
     }
-    aliases.iter().any(|alias| token.eq_ignore_ascii_case(alias))
+    aliases
+        .iter()
+        .any(|alias| token.eq_ignore_ascii_case(alias))
 }
 
 fn candidate_applies(candidate: &BindingCandidate, scope: &InspectionScope) -> bool {
@@ -893,7 +922,10 @@ fn select_winning_candidate<'a>(
     SelectedCandidate::Winner(best, losers)
 }
 
-fn candidate_specificity(candidate: &BindingCandidate, scope: &InspectionScope) -> (u8, u8, u8, u8, u8) {
+fn candidate_specificity(
+    candidate: &BindingCandidate,
+    scope: &InspectionScope,
+) -> (u8, u8, u8, u8, u8) {
     let surface = candidate
         .context
         .surface_ref

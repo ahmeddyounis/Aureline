@@ -7,9 +7,8 @@
 use crate::vocab::{
     AnchorKind, CitationClass, ConfidenceLevel, EdgeClass, EdgeEvidenceState, EnvironmentClass,
     Freshness, ImpactReasonClass, InvalidationProducerTag, MissingReason, NodeClass,
-    ProvenanceClass, QueryFamilyTag, ReachabilityState, ShardAffinityTag, SourceClass,
-    StaleReason, SymbolVisibility, TopologyKind, TrustState, Visibility, WarmingProgressHint,
-    WorksetScopeClass,
+    ProvenanceClass, QueryFamilyTag, ReachabilityState, ShardAffinityTag, SourceClass, StaleReason,
+    SymbolVisibility, TopologyKind, TrustState, Visibility, WarmingProgressHint, WorksetScopeClass,
 };
 
 /// ADR-0006 five-layer filesystem-identity record. The graph seed

@@ -64,15 +64,39 @@ impl CapabilityManifest {
     pub fn to_json(&self) -> String {
         let mut out = String::new();
         out.push_str("{\n");
-        writeln_kv(&mut out, 1, "schema_version", &self.schema_version.to_string(), false);
+        writeln_kv(
+            &mut out,
+            1,
+            "schema_version",
+            &self.schema_version.to_string(),
+            false,
+        );
         writeln_kv(&mut out, 1, "scene_id", &quote(self.scene_id), false);
 
         // build block
         writeln_key(&mut out, 1, "build");
         out.push_str(" {\n");
-        writeln_kv(&mut out, 2, "crate_name", &quote(self.build.crate_name), false);
-        writeln_kv(&mut out, 2, "crate_version", &quote(self.build.crate_version), false);
-        writeln_kv(&mut out, 2, "rustc_target_triple", &quote(self.build.rustc_target_triple), true);
+        writeln_kv(
+            &mut out,
+            2,
+            "crate_name",
+            &quote(self.build.crate_name),
+            false,
+        );
+        writeln_kv(
+            &mut out,
+            2,
+            "crate_version",
+            &quote(self.build.crate_version),
+            false,
+        );
+        writeln_kv(
+            &mut out,
+            2,
+            "rustc_target_triple",
+            &quote(self.build.rustc_target_triple),
+            true,
+        );
         indent(&mut out, 1);
         out.push_str("},\n");
 

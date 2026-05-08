@@ -55,13 +55,13 @@ pub mod scenarios;
 pub mod validator;
 pub mod vocab;
 
+pub use harness::{run_harness, Report, ScenarioReport};
 pub use hooks::HookCounters;
 pub use model::{
     ConfidenceRollup, EdgeBody, EdgeEvidence, ExplainerCitation, FilesystemIdentity,
     FreshnessFrame, GraphEdge, GraphNode, ImpactReason, NodeBody, ProvenanceStamp, SourceAnchor,
-    TopologyEdgeSlot, WorkspaceGraph, WorksetScopeRef,
+    TopologyEdgeSlot, WorksetScopeRef, WorkspaceGraph,
 };
-pub use harness::{run_harness, Report, ScenarioReport};
 pub use render::{graph_to_json, report_to_json, scenario_to_json};
 pub use scenarios::{all_scenarios, Scenario};
 pub use validator::{validate_graph, ValidationError};

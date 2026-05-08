@@ -97,7 +97,10 @@ mod tests {
     fn names_match_adr_vocabulary() {
         assert_eq!(Hook::FrameSubmit.name(), "frame_submit");
         assert_eq!(Hook::CaretMove.name(), "caret_move");
-        assert_eq!(Hook::WarmStartToFirstPaint.name(), "warm_start_to_first_paint");
+        assert_eq!(
+            Hook::WarmStartToFirstPaint.name(),
+            "warm_start_to_first_paint"
+        );
     }
 
     #[test]

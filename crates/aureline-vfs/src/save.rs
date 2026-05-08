@@ -335,7 +335,11 @@ pub fn attempt_save(
 ) -> SaveManifest {
     counters.vfs_save_stage += 1;
     let token = &request.token;
-    let canonical_uri = token.identity.canonical_filesystem_object.canonical_uri.clone();
+    let canonical_uri = token
+        .identity
+        .canonical_filesystem_object
+        .canonical_uri
+        .clone();
     let presentation_path = token.identity.presentation_path.clone();
 
     // Policy / read-only / review gates short-circuit before any
@@ -354,7 +358,9 @@ pub fn attempt_save(
             request.checkpoint_ref,
             request.committed_at,
             SaveOutcome::ReadOnlyOrPolicyBlocked,
-            Some("root advertises read_only or policy_constrained; save_mode is blocked".to_owned()),
+            Some(
+                "root advertises read_only or policy_constrained; save_mode is blocked".to_owned(),
+            ),
         );
     }
     if token.review_required_before_save {
@@ -369,7 +375,9 @@ pub fn attempt_save(
             request.checkpoint_ref,
             request.committed_at,
             SaveOutcome::ReviewRequiredBeforeSave,
-            Some("root advertises review_required_before_save; pipeline halts at stage 3".to_owned()),
+            Some(
+                "root advertises review_required_before_save; pipeline halts at stage 3".to_owned(),
+            ),
         );
     }
     if token.atomic_write_mode == AtomicWriteMode::Blocked {
@@ -507,19 +515,21 @@ fn make_manifest(
     outcome: SaveOutcome,
     failure_detail: Option<String>,
 ) -> SaveManifest {
-    let strongest = root.read_strongest_token(canonical_uri).unwrap_or_else(|| IdentityToken {
-        kind: token
-            .identity
-            .canonical_filesystem_object
-            .strongest_identity_token
-            .kind,
-        value: token
-            .identity
-            .canonical_filesystem_object
-            .strongest_identity_token
-            .value
-            .clone(),
-    });
+    let strongest = root
+        .read_strongest_token(canonical_uri)
+        .unwrap_or_else(|| IdentityToken {
+            kind: token
+                .identity
+                .canonical_filesystem_object
+                .strongest_identity_token
+                .kind,
+            value: token
+                .identity
+                .canonical_filesystem_object
+                .strongest_identity_token
+                .value
+                .clone(),
+        });
     let canonical_object = CanonicalFilesystemObject {
         canonical_uri: canonical_uri.to_owned(),
         normalization_form: token

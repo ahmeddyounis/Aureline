@@ -17,7 +17,12 @@ use crate::vocab::WORKSPACE_GRAPH_SCHEMA_VERSION;
 pub fn report_to_json(report: &Report) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    field_raw(&mut out, 1, "bench_version", &json_str("aureline-graph-proto/0"));
+    field_raw(
+        &mut out,
+        1,
+        "bench_version",
+        &json_str("aureline-graph-proto/0"),
+    );
     comma(&mut out);
     field_raw(
         &mut out,
@@ -26,7 +31,12 @@ pub fn report_to_json(report: &Report) -> String {
         &WORKSPACE_GRAPH_SCHEMA_VERSION.to_string(),
     );
     comma(&mut out);
-    field_raw(&mut out, 1, "scenario_count", &report.scenarios.len().to_string());
+    field_raw(
+        &mut out,
+        1,
+        "scenario_count",
+        &report.scenarios.len().to_string(),
+    );
     comma(&mut out);
     field_raw(
         &mut out,
@@ -64,11 +74,26 @@ fn scenario_json(out: &mut String, depth: usize, scenario: &ScenarioReport) {
     out.push_str("{\n");
     field_raw(out, depth + 1, "label", &json_str(scenario.label));
     comma(out);
-    field_raw(out, depth + 1, "doc_section", &json_str(scenario.doc_section));
+    field_raw(
+        out,
+        depth + 1,
+        "doc_section",
+        &json_str(scenario.doc_section),
+    );
     comma(out);
-    field_raw(out, depth + 1, "node_count", &scenario.node_count.to_string());
+    field_raw(
+        out,
+        depth + 1,
+        "node_count",
+        &scenario.node_count.to_string(),
+    );
     comma(out);
-    field_raw(out, depth + 1, "edge_count", &scenario.edge_count.to_string());
+    field_raw(
+        out,
+        depth + 1,
+        "edge_count",
+        &scenario.edge_count.to_string(),
+    );
     comma(out);
     field_raw(
         out,
@@ -170,7 +195,12 @@ pub fn scenario_to_json(scenario: &ScenarioReport) -> String {
 pub fn graph_to_json(graph: &WorkspaceGraph) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    field_raw(&mut out, 1, "record_kind", &json_str("workspace_graph_record"));
+    field_raw(
+        &mut out,
+        1,
+        "record_kind",
+        &json_str("workspace_graph_record"),
+    );
     comma(&mut out);
     field_raw(
         &mut out,
@@ -190,19 +220,9 @@ pub fn graph_to_json(graph: &WorkspaceGraph) -> String {
     comma(&mut out);
     field_raw(&mut out, 1, "recorded_at", &json_str(&graph.recorded_at));
     comma(&mut out);
-    field_raw(
-        &mut out,
-        1,
-        "node_count",
-        &graph.nodes.len().to_string(),
-    );
+    field_raw(&mut out, 1, "node_count", &graph.nodes.len().to_string());
     comma(&mut out);
-    field_raw(
-        &mut out,
-        1,
-        "edge_count",
-        &graph.edges.len().to_string(),
-    );
+    field_raw(&mut out, 1, "edge_count", &graph.edges.len().to_string());
     comma(&mut out);
     indent(&mut out, 1);
     out.push_str("\"node_ids\": ");

@@ -63,10 +63,22 @@ pub const NORMAL_MODE_CAPABILITIES: &[CapabilityRow] = &[
     row("rich_refactor_multi_file", CapabilityState::Allowed, None),
     row("ai_apply_range", CapabilityState::Allowed, None),
     row("ai_apply_whole_file", CapabilityState::Allowed, None),
-    row("save_participant_range_only", CapabilityState::Allowed, None),
-    row("save_participant_whole_file", CapabilityState::Allowed, None),
+    row(
+        "save_participant_range_only",
+        CapabilityState::Allowed,
+        None,
+    ),
+    row(
+        "save_participant_whole_file",
+        CapabilityState::Allowed,
+        None,
+    ),
     row("undo_redo_history_full", CapabilityState::Allowed, None),
-    row("accessibility_tree_viewport", CapabilityState::Allowed, None),
+    row(
+        "accessibility_tree_viewport",
+        CapabilityState::Allowed,
+        None,
+    ),
 ];
 
 /// Limited mode: the ADR-frozen reduced-or-denied list.
@@ -200,7 +212,11 @@ pub const LIMITED_MODE_CAPABILITIES: &[CapabilityRow] = &[
     ),
 ];
 
-const fn row(id: &'static str, state: CapabilityState, note: Option<&'static str>) -> CapabilityRow {
+const fn row(
+    id: &'static str,
+    state: CapabilityState,
+    note: Option<&'static str>,
+) -> CapabilityRow {
     CapabilityRow { id, state, note }
 }
 
@@ -208,10 +224,7 @@ const fn row(id: &'static str, state: CapabilityState, note: Option<&'static str
 /// the id is not present in either table — that means the lane
 /// is asking about a capability the ADR table never named, which
 /// is a contract bug.
-pub fn lookup<'a>(
-    table: &'a [CapabilityRow],
-    id: &str,
-) -> Option<&'a CapabilityRow> {
+pub fn lookup<'a>(table: &'a [CapabilityRow], id: &str) -> Option<&'a CapabilityRow> {
     table.iter().find(|r| r.id == id)
 }
 

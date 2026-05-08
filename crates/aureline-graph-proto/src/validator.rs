@@ -38,10 +38,7 @@ pub enum ValidationError {
     },
     /// Rule 4: every node / edge carries ≥1 query-family,
     /// shard-affinity, and invalidation-producer tag.
-    EmptyTagList {
-        subject: Subject,
-        which: TagList,
-    },
+    EmptyTagList { subject: Subject, which: TagList },
     /// Rule 4: every node / edge carries ≥1 scope ref.
     EmptyScopeRefs { subject: Subject },
     /// Rule 5: non-authoritative freshness frame MUST carry a
@@ -375,7 +372,10 @@ fn validate_edge(
             edge_id: edge.edge_id.clone(),
         },
         &edge.evidence.provenance_stamp.provenance_class,
-        edge.evidence.provenance_stamp.imported_bundle_ref.as_deref(),
+        edge.evidence
+            .provenance_stamp
+            .imported_bundle_ref
+            .as_deref(),
         edge.evidence.provenance_stamp.replay_capture_ref.as_deref(),
         errors,
     );
@@ -384,7 +384,10 @@ fn validate_edge(
     check_imported_evidence_framing(edge, errors);
 
     // Rule 9: missing-anchor edge must touch a missing-anchor node.
-    if matches!(edge.evidence.evidence_state, EdgeEvidenceState::MissingAnchor) {
+    if matches!(
+        edge.evidence.evidence_state,
+        EdgeEvidenceState::MissingAnchor
+    ) {
         let from_is_missing = matches!(
             node_class_by_id.get(edge.from_node_id.as_str()),
             Some(NodeClass::MissingAnchorNode)
@@ -510,16 +513,16 @@ fn check_imported_evidence_framing(edge: &GraphEdge, errors: &mut Vec<Validation
         edge.evidence.evidence_state,
         EdgeEvidenceState::ImportedEvidence
     );
-    let has_imported_framing = matches!(
-        edge.evidence.freshness_frame.freshness,
-        Freshness::Imported
-    ) || matches!(
-        edge.evidence.freshness_frame.stale_reason,
-        Some(StaleReason::ImportedFromExternal)
-    ) || matches!(
-        edge.evidence.provenance_stamp.provenance_class,
-        ProvenanceClass::ImportedExternal
-    );
+    let has_imported_framing =
+        matches!(edge.evidence.freshness_frame.freshness, Freshness::Imported)
+            || matches!(
+                edge.evidence.freshness_frame.stale_reason,
+                Some(StaleReason::ImportedFromExternal)
+            )
+            || matches!(
+                edge.evidence.provenance_stamp.provenance_class,
+                ProvenanceClass::ImportedExternal
+            );
     if is_imported_evidence != has_imported_framing {
         errors.push(ValidationError::ImportedEvidenceFramingMismatch {
             edge_id: edge.edge_id.clone(),

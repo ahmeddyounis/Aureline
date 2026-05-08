@@ -4,7 +4,9 @@ fn main() {
     let registry = seeded_registry();
 
     let mut out = String::new();
-    out.push_str("{\n  \"record_kind\": \"command_registry_enumeration\",\n  \"schema_version\": 1,\n");
+    out.push_str(
+        "{\n  \"record_kind\": \"command_registry_enumeration\",\n  \"schema_version\": 1,\n",
+    );
     out.push_str("  \"entries\": [\n");
     for (idx, entry) in registry.entries().iter().enumerate() {
         out.push_str("    {\n");
@@ -27,10 +29,13 @@ fn main() {
         out.push_str(",\n      \"lifecycle_state\": ");
         push_json_string(&mut out, &entry.descriptor.lifecycle_state);
         out.push_str(",\n      \"enablement\": {\n        \"decision_class\": ");
-        push_json_string(&mut out, &entry.seed_enablement_snapshot.decision_class);
+        push_json_string(
+            &mut out,
+            entry.seed_enablement_snapshot.decision_class.as_str(),
+        );
         out.push_str(",\n        \"disabled_reason_code\": ");
         match &entry.seed_enablement_snapshot.disabled_reason_code {
-            Some(code) => push_json_string(&mut out, code),
+            Some(code) => push_json_string(&mut out, code.as_str()),
             None => out.push_str("null"),
         }
         out.push_str("\n      }\n");

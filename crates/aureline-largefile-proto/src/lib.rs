@@ -60,15 +60,13 @@ pub mod paged;
 mod buffer;
 
 pub use buffer::{
-    EditOutcome, EditRequest, LargeFileBuffer, LargeFileConfig, OpenError, SaveOutcome,
-    SaveRequest,
+    EditOutcome, EditRequest, LargeFileBuffer, LargeFileConfig, OpenError, SaveOutcome, SaveRequest,
 };
 pub use capabilities::{
     CapabilityRow, CapabilityState, LIMITED_MODE_CAPABILITIES, NORMAL_MODE_CAPABILITIES,
 };
 pub use classification::{
-    BomKind, ClassificationDecision, ClassificationPolicy, FileMode, LargeFileTrigger,
-    SniffSummary,
+    BomKind, ClassificationDecision, ClassificationPolicy, FileMode, LargeFileTrigger, SniffSummary,
 };
 pub use hooks::HookCounters;
 pub use paged::{PagedReader, ReaderMetrics};

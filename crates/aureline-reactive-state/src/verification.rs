@@ -284,8 +284,7 @@ fn diagnostics_summary_parity_case() -> SnapshotDeltaParityCase {
                 warnings: 1,
             },
             DiagnosticsDeltaOp::AdvanceUpstreamDigest {
-                digest:
-                    "sha256:111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
+                digest: "sha256:111122223333444455556666777788889999aaaabbbbccccddddeeeeffff0000",
             },
         ],
         vec![
@@ -296,8 +295,7 @@ fn diagnostics_summary_parity_case() -> SnapshotDeltaParityCase {
                 warnings: 0,
             },
             DiagnosticsDeltaOp::AdvanceUpstreamDigest {
-                digest:
-                    "sha256:9999aaaabbbbccccddddeeeeffff000011112222333344445555666677778888",
+                digest: "sha256:9999aaaabbbbccccddddeeeeffff000011112222333344445555666677778888",
             },
         ],
     ];
@@ -339,9 +337,7 @@ fn diagnostics_summary_parity_case() -> SnapshotDeltaParityCase {
     }
 }
 
-fn materialize_diagnostics_summary(
-    state: &DiagnosticsProjectionState,
-) -> DiagnosticsSummaryView {
+fn materialize_diagnostics_summary(state: &DiagnosticsProjectionState) -> DiagnosticsSummaryView {
     let mut affected_files = state
         .files
         .iter()
@@ -637,24 +633,12 @@ fn write_key(out: &mut String, key: &str, indent: usize, leading_comma: bool) {
     out.push_str(": ");
 }
 
-fn write_kv_str(
-    out: &mut String,
-    key: &str,
-    value: &str,
-    indent: usize,
-    leading_comma: bool,
-) {
+fn write_kv_str(out: &mut String, key: &str, value: &str, indent: usize, leading_comma: bool) {
     write_key(out, key, indent, leading_comma);
     write_json_string(out, value);
 }
 
-fn write_kv_u64(
-    out: &mut String,
-    key: &str,
-    value: u64,
-    indent: usize,
-    leading_comma: bool,
-) {
+fn write_kv_u64(out: &mut String, key: &str, value: u64, indent: usize, leading_comma: bool) {
     write_key(out, key, indent, leading_comma);
     let _ = write!(out, "{value}");
 }
@@ -725,13 +709,7 @@ fn write_order_contract(out: &mut String, steps: &[InvalidationOrderStep], inden
             indent + 2,
             true,
         );
-        write_kv_optional_u64(
-            out,
-            "snapshot_epoch",
-            step.snapshot_epoch,
-            indent + 2,
-            true,
-        );
+        write_kv_optional_u64(out, "snapshot_epoch", step.snapshot_epoch, indent + 2, true);
         write_kv_optional_u64(out, "delta_seq", step.delta_seq, indent + 2, true);
         write_kv_optional_string(
             out,
@@ -754,13 +732,7 @@ fn write_order_contract(out: &mut String, steps: &[InvalidationOrderStep], inden
             indent + 2,
             true,
         );
-        write_kv_optional_string(
-            out,
-            "message",
-            step.message.as_deref(),
-            indent + 2,
-            true,
-        );
+        write_kv_optional_string(out, "message", step.message.as_deref(), indent + 2, true);
         write_kv_str(out, "expectation", step.expectation, indent + 2, true);
         push_indent(out, indent + 1);
         out.push('}');
@@ -808,7 +780,11 @@ mod tests {
         assert_eq!(final_view.total_warnings, 1);
         assert_eq!(
             final_view.affected_files,
-            vec!["src/bin/reactive_proto.rs", "src/harness.rs", "src/store.rs"]
+            vec![
+                "src/bin/reactive_proto.rs",
+                "src/harness.rs",
+                "src/store.rs"
+            ]
         );
     }
 
@@ -840,7 +816,10 @@ mod tests {
     #[test]
     fn invalidation_order_audits_cover_required_paths() {
         let audits = run_invalidation_order_audits();
-        let ids = audits.iter().map(|audit| audit.audit_id).collect::<Vec<_>>();
+        let ids = audits
+            .iter()
+            .map(|audit| audit.audit_id)
+            .collect::<Vec<_>>();
         assert!(ids.contains(&"state.invalidation_order.authority_before_derived_refresh"));
         assert!(ids.contains(&"state.invalidation_order.delta_gap_requires_resync"));
         assert!(ids.contains(&"state.invalidation_order.snapshot_required_switch"));

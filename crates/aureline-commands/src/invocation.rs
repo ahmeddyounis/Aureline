@@ -5,6 +5,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
 use crate::descriptor::{CommandId, CommandRevisionRef, OpaqueId, PolicyContext, RepairHookRef};
+use crate::enablement::{DisabledReasonCode, EnablementDecisionClass};
 
 static SESSION_SEQ: AtomicUsize = AtomicUsize::new(1);
 static ATTEMPT_SEQ: AtomicUsize = AtomicUsize::new(1);
@@ -96,8 +97,8 @@ pub fn mint_basis_snapshot_ref(canonical_verb: &str) -> OpaqueId {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnablementDecisionBlock {
-    pub decision_class: String,
-    pub disabled_reason_code: Option<String>,
+    pub decision_class: EnablementDecisionClass,
+    pub disabled_reason_code: Option<DisabledReasonCode>,
     pub repair_hook_ref: Option<RepairHookRef>,
 }
 
@@ -135,7 +136,7 @@ pub struct InvocationContextSnapshot {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InvocationOutcomeBlock {
     pub outcome_class: String,
-    pub disabled_reason_code: Option<String>,
+    pub disabled_reason_code: Option<DisabledReasonCode>,
     pub warnings_summary_refs: Vec<OpaqueId>,
     pub partially_applied_artifact_refs: Vec<OpaqueId>,
     pub unapplied_artifact_refs: Vec<OpaqueId>,

@@ -67,8 +67,8 @@ pub use envelope::{
 };
 pub use hooks::HookCounters;
 pub use producers::{
-    derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health,
-    window, workspace, workspace_readiness,
+    derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health, window,
+    workspace, workspace_readiness,
 };
 pub use store::{
     freshness_is_downgrade, ConsumerProjection, Emission, Producer, ReactiveStore, SamplePayload,

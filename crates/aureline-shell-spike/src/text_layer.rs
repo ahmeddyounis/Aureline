@@ -100,11 +100,41 @@ pub fn summary_to_json(summary: &SmokeRunSummary) -> String {
     let mut out = String::new();
     out.push_str("{\n");
     kv_u64(&mut out, 1, "total_clusters", summary.total_clusters, false);
-    kv_u64(&mut out, 1, "shape_cache_hits", summary.shape_cache_hits, false);
-    kv_u64(&mut out, 1, "shape_cache_misses", summary.shape_cache_misses, false);
-    kv_u64(&mut out, 1, "raster_cache_hits", summary.raster_cache_hits, false);
-    kv_u64(&mut out, 1, "raster_cache_misses", summary.raster_cache_misses, false);
-    kv_u64(&mut out, 1, "missing_glyph_count", summary.missing_glyph_count, false);
+    kv_u64(
+        &mut out,
+        1,
+        "shape_cache_hits",
+        summary.shape_cache_hits,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        1,
+        "shape_cache_misses",
+        summary.shape_cache_misses,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        1,
+        "raster_cache_hits",
+        summary.raster_cache_hits,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        1,
+        "raster_cache_misses",
+        summary.raster_cache_misses,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        1,
+        "missing_glyph_count",
+        summary.missing_glyph_count,
+        false,
+    );
     kv_u64(
         &mut out,
         1,
@@ -119,7 +149,13 @@ pub fn summary_to_json(summary: &SmokeRunSummary) -> String {
         indent(&mut out, 2);
         out.push_str("{\n");
         kv_str(&mut out, 3, "label", &case.label, false);
-        kv_u64(&mut out, 3, "cluster_count", case.cluster_count as u64, false);
+        kv_u64(
+            &mut out,
+            3,
+            "cluster_count",
+            case.cluster_count as u64,
+            false,
+        );
         kv_u64(
             &mut out,
             3,
@@ -139,7 +175,13 @@ pub fn summary_to_json(summary: &SmokeRunSummary) -> String {
         for (si, stage) in FallbackStage::ALL.iter().enumerate() {
             let stage_last = si + 1 == FallbackStage::ALL.len();
             let idx = (stage.stage_number() - 1) as usize;
-            kv_u64(&mut out, 4, stage.name(), case.fallback_stage_counts[idx], stage_last);
+            kv_u64(
+                &mut out,
+                4,
+                stage.name(),
+                case.fallback_stage_counts[idx],
+                stage_last,
+            );
         }
         indent(&mut out, 3);
         out.push_str("}\n");

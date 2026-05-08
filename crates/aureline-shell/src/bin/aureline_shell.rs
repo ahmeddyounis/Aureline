@@ -11,16 +11,19 @@ use aureline_commands::invocation::{
     NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
 };
 use aureline_commands::registry::seeded_registry;
-use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
+use aureline_commands::{
+    CommandEnablementContext, CommandRegistry, CommandRegistryEntryRecord, DisabledReasonCode,
+    EnablementDecisionClass,
+};
+use aureline_input::keybindings::{
+    seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, Modifiers, PlatformClass,
+    SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
+};
 use aureline_shell::app_frame::desktop_frame::{
     DesktopFrame, NewEditorGroupOutcome, SplitViolation,
 };
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
-use aureline_input::keybindings::{
-    seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, Modifiers, PlatformClass,
-    SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
-};
 
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use softbuffer::{Context, Surface};
@@ -54,6 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut overlay: Option<ShellOverlayState> = None;
     let mut command_runtime = CommandRuntimeState::default();
     let mut keybinding_runtime = KeybindingRuntimeState::default();
+    let mut enablement_runtime = CommandEnablementRuntimeState::default();
 
     window.request_redraw();
 
@@ -76,6 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut overlay,
                     &mut command_runtime,
                     &mut keybinding_runtime,
+                    &mut enablement_runtime,
                     &held_modifiers,
                     event,
                 ) {
@@ -92,6 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     overlay.as_ref(),
                     &command_runtime,
                     &keybinding_runtime,
+                    &enablement_runtime,
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
                     elwt.exit();
@@ -218,6 +224,47 @@ impl CommandRuntimeState {
     }
 }
 
+#[derive(Debug, Clone)]
+struct CommandEnablementRuntimeState {
+    workspace_trust_state: String,
+    execution_context_available: bool,
+    provider_linked: Option<bool>,
+    credential_available: Option<bool>,
+    policy_disabled: bool,
+    policy_blocked_in_context: bool,
+}
+
+impl Default for CommandEnablementRuntimeState {
+    fn default() -> Self {
+        Self {
+            workspace_trust_state: "trusted".to_string(),
+            execution_context_available: true,
+            provider_linked: None,
+            credential_available: None,
+            policy_disabled: false,
+            policy_blocked_in_context: false,
+        }
+    }
+}
+
+impl CommandEnablementRuntimeState {
+    fn toggle_trust_state(&mut self) {
+        self.workspace_trust_state = if self.workspace_trust_state == "trusted" {
+            "restricted".to_string()
+        } else {
+            "trusted".to_string()
+        };
+    }
+
+    fn toggle_execution_context(&mut self) {
+        self.execution_context_available = !self.execution_context_available;
+    }
+
+    fn toggle_policy_blocked(&mut self) {
+        self.policy_blocked_in_context = !self.policy_blocked_in_context;
+    }
+}
+
 fn alias_used_for(entry: &CommandRegistryEntryRecord, origin: DispatchOrigin) -> AliasUsedBlock {
     match origin {
         DispatchOrigin::CommandPalette => AliasUsedBlock {
@@ -309,6 +356,7 @@ fn make_session(
     entry: &CommandRegistryEntryRecord,
     origin: DispatchOrigin,
     execution_intent: &str,
+    workspace_trust_state: &str,
     preview_shown: bool,
     preview_record_ref: Option<String>,
     approval_state: &str,
@@ -319,9 +367,9 @@ fn make_session(
     let focused = Some(format!("shell-zone:{}", frame.focused_zone().name()));
 
     let enablement = EnablementDecisionBlock {
-        decision_class: entry.seed_enablement_snapshot.decision_class.clone(),
-        disabled_reason_code: entry.seed_enablement_snapshot.disabled_reason_code.clone(),
-        repair_hook_ref: entry.seed_enablement_snapshot.repair_hook_ref.clone(),
+        decision_class: EnablementDecisionClass::Enabled,
+        disabled_reason_code: None,
+        repair_hook_ref: None,
     };
 
     CommandInvocationSession {
@@ -336,7 +384,7 @@ fn make_session(
         context_snapshot: InvocationContextSnapshot {
             focused_entity_ref: focused.clone(),
             selection_ref: None,
-            workspace_trust_state: "trusted".to_string(),
+            workspace_trust_state: workspace_trust_state.to_string(),
             execution_context_id: entry.descriptor.policy_context.execution_context_id.clone(),
             scope_filter_class_ref: None,
             basis_snapshot_ref: basis_snapshot_ref.clone(),
@@ -345,7 +393,7 @@ fn make_session(
             focused_entity_ref: focused,
             selection_ref: None,
             workspace_ref: None,
-            workspace_trust_state: "trusted".to_string(),
+            workspace_trust_state: workspace_trust_state.to_string(),
             execution_context_id: entry.descriptor.policy_context.execution_context_id.clone(),
             scope_filter_class_ref: None,
             basis_snapshot_ref,
@@ -379,6 +427,7 @@ fn dispatch_command_id(
     overlay: &mut Option<ShellOverlayState>,
     command_id: &str,
     origin: DispatchOrigin,
+    enablement_runtime: &CommandEnablementRuntimeState,
 ) -> bool {
     let Some(entry) = registry.get(command_id).cloned() else {
         return false;
@@ -391,6 +440,7 @@ fn dispatch_command_id(
         overlay,
         &entry,
         origin,
+        enablement_runtime,
     )
 }
 
@@ -402,6 +452,7 @@ fn dispatch_registry_entry(
     overlay: &mut Option<ShellOverlayState>,
     entry: &CommandRegistryEntryRecord,
     origin: DispatchOrigin,
+    enablement_runtime: &CommandEnablementRuntimeState,
 ) -> bool {
     let preview_record_ref: Option<String> = None;
     let preview_shown = false;
@@ -424,44 +475,36 @@ fn dispatch_registry_entry(
         entry,
         origin,
         execution_intent,
+        enablement_runtime.workspace_trust_state.as_str(),
         preview_shown,
         preview_record_ref.clone(),
         &approval_state,
         approval_ticket_ref.clone(),
     );
 
-    let unresolved_required = entry
-        .descriptor
-        .typed_arguments
-        .iter()
-        .filter(|slot| slot.is_required)
-        .any(|slot| {
-            session
-                .argument_provenance_map
-                .iter()
-                .find(|row| row.argument_name == slot.argument_name)
-                .and_then(|row| row.resolved_value_ref.as_ref())
-                .is_none()
-        });
+    let enablement_context = CommandEnablementContext {
+        client_scope: "desktop_product".to_string(),
+        workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
+        execution_context_available: enablement_runtime.execution_context_available,
+        provider_linked: enablement_runtime.provider_linked,
+        credential_available: enablement_runtime.credential_available,
+        policy_disabled: enablement_runtime.policy_disabled,
+        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        argument_provenance_map: session.argument_provenance_map.clone(),
+    };
+    let enablement_snapshot = entry.evaluate_enablement(&enablement_context);
+    session.enablement_decision = EnablementDecisionBlock {
+        decision_class: enablement_snapshot.decision_class,
+        disabled_reason_code: enablement_snapshot.disabled_reason_code,
+        repair_hook_ref: enablement_snapshot.repair_hook_ref,
+    };
 
-    if unresolved_required {
-        session.enablement_decision = EnablementDecisionBlock {
-            decision_class: "disabled_with_reason".to_string(),
-            disabled_reason_code: Some("required_argument_unresolved".to_string()),
-            repair_hook_ref: None,
-        };
-        let invocation = invocation_and_result_denied(&session, "required_argument_unresolved");
-        command_runtime.record(invocation);
-        return true;
-    }
-
-    if session.enablement_decision.decision_class != "enabled" {
+    if session.enablement_decision.decision_class != EnablementDecisionClass::Enabled {
         let denied_code = session
             .enablement_decision
             .disabled_reason_code
-            .clone()
-            .unwrap_or_else(|| "policy_blocked_in_context".to_string());
-        let invocation = invocation_and_result_denied(&session, &denied_code);
+            .unwrap_or(DisabledReasonCode::PolicyBlockedInContext);
+        let invocation = invocation_and_result_denied(&session, denied_code);
         command_runtime.record(invocation);
         return true;
     }
@@ -513,11 +556,11 @@ fn dispatch_registry_entry(
 
 fn invocation_and_result_denied(
     session: &CommandInvocationSession,
-    disabled_reason_code: &str,
+    disabled_reason_code: DisabledReasonCode,
 ) -> RecordedCommandInvocation {
     let outcome = InvocationOutcomeBlock {
         outcome_class: "denied_by_enablement".to_string(),
-        disabled_reason_code: Some(disabled_reason_code.to_string()),
+        disabled_reason_code: Some(disabled_reason_code),
         warnings_summary_refs: Vec::new(),
         partially_applied_artifact_refs: Vec::new(),
         unapplied_artifact_refs: Vec::new(),
@@ -527,7 +570,7 @@ fn invocation_and_result_denied(
     let result = ResultBodyBlock {
         outcome_code: "denied_by_enablement".to_string(),
         warning_codes: Vec::new(),
-        error_codes: vec![disabled_reason_code.to_string()],
+        error_codes: vec![disabled_reason_code.as_str().to_string()],
         created_artifact_refs: Vec::new(),
         notification_refs: Vec::new(),
         activity_refs: Vec::new(),
@@ -977,6 +1020,7 @@ fn handle_key_event(
     overlay: &mut Option<ShellOverlayState>,
     command_runtime: &mut CommandRuntimeState,
     keybinding_runtime: &mut KeybindingRuntimeState,
+    enablement_runtime: &mut CommandEnablementRuntimeState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -1001,6 +1045,7 @@ fn handle_key_event(
                     overlay,
                     &entry,
                     DispatchOrigin::CommandPalette,
+                    enablement_runtime,
                 );
                 window.set_title(&window_title(Some(frame.focused_zone()), None));
                 return changed;
@@ -1054,6 +1099,7 @@ fn handle_key_event(
                     overlay,
                     candidate.command.command_id.as_str(),
                     DispatchOrigin::KeybindingChord,
+                    enablement_runtime,
                 );
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
@@ -1140,6 +1186,30 @@ fn handle_key_event(
                 false
             }
         }
+        KeyCode::KeyT => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                enablement_runtime.toggle_trust_state();
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyE => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                enablement_runtime.toggle_execution_context();
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyB => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                enablement_runtime.toggle_policy_blocked();
+                true
+            } else {
+                false
+            }
+        }
         _ => false,
     }
 }
@@ -1174,6 +1244,7 @@ fn draw(
     overlay: Option<&ShellOverlayState>,
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
+    enablement_runtime: &CommandEnablementRuntimeState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -1302,6 +1373,7 @@ fn draw(
             registry,
             frame,
             palette,
+            enablement_runtime,
         );
     }
 
@@ -1332,7 +1404,25 @@ fn draw(
             .last_summary
             .as_deref()
             .unwrap_or("no recent keybinding resolution");
-        let text = format!("fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   keys: Cmd/Ctrl+Shift+P palette (resolver), Enter run, Ctrl+\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)   packets: .logs/command_packets", modes, last, last_keybinding);
+        let exec_ctx = if enablement_runtime.execution_context_available {
+            "available"
+        } else {
+            "unavailable"
+        };
+        let policy = if enablement_runtime.policy_blocked_in_context {
+            "blocked"
+        } else {
+            "allow"
+        };
+        let text = format!(
+            "fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keys: Cmd/Ctrl+Shift+P palette (resolver), Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy   packets: .logs/command_packets",
+            modes,
+            last,
+            last_keybinding,
+            enablement_runtime.workspace_trust_state.as_str(),
+            exec_ctx,
+            policy
+        );
         draw_text(
             &mut buffer,
             physical.width,
@@ -1945,6 +2035,7 @@ fn draw_command_palette_overlay(
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
+    enablement_runtime: &CommandEnablementRuntimeState,
 ) {
     let Some(overlay_logical) = frame.layout().zone(ShellZoneId::TransientOverlay) else {
         return;
@@ -2020,11 +2111,23 @@ fn draw_command_palette_overlay(
             fill_rect(buffer, width, height, highlight, 0x00202a35);
         }
 
+        let enablement_context = CommandEnablementContext {
+            client_scope: "desktop_product".to_string(),
+            workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
+            execution_context_available: enablement_runtime.execution_context_available,
+            provider_linked: enablement_runtime.provider_linked,
+            credential_available: enablement_runtime.credential_available,
+            policy_disabled: enablement_runtime.policy_disabled,
+            policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+            argument_provenance_map: argument_provenance_map_for(entry),
+        };
+        let enablement_snapshot = entry.evaluate_enablement(&enablement_context);
+
         let mut line = format!("{}  —  {}", entry.title, entry.command_id());
-        if entry.seed_enablement_snapshot.decision_class != "enabled" {
-            if let Some(code) = &entry.seed_enablement_snapshot.disabled_reason_code {
+        if enablement_snapshot.decision_class != EnablementDecisionClass::Enabled {
+            if let Some(code) = enablement_snapshot.disabled_reason_code {
                 line.push_str("  [");
-                line.push_str(code);
+                line.push_str(code.as_str());
                 line.push(']');
             }
         }

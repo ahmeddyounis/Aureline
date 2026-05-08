@@ -194,7 +194,10 @@ impl ZoneRegistry {
             .main_workspace_min_width_override
             .unwrap_or(self.defaults.main_workspace_min_width);
 
-        let title_h = self.defaults.title_context_bar_height.min(input.window_height);
+        let title_h = self
+            .defaults
+            .title_context_bar_height
+            .min(input.window_height);
         let status_h = self
             .defaults
             .status_bar_height
@@ -212,23 +215,30 @@ impl ZoneRegistry {
             activity_rail_width = input.window_width;
         }
 
-        let mut left_sidebar_visible =
-            matches!(adaptive_class, AdaptiveClass::StandardDesktop | AdaptiveClass::ExpandedDesktop);
+        let mut left_sidebar_visible = matches!(
+            adaptive_class,
+            AdaptiveClass::StandardDesktop | AdaptiveClass::ExpandedDesktop
+        );
         let mut right_inspector_visible = matches!(adaptive_class, AdaptiveClass::ExpandedDesktop);
-        let mut bottom_panel_visible =
-            matches!(adaptive_class, AdaptiveClass::StandardDesktop | AdaptiveClass::ExpandedDesktop);
+        let mut bottom_panel_visible = matches!(
+            adaptive_class,
+            AdaptiveClass::StandardDesktop | AdaptiveClass::ExpandedDesktop
+        );
 
         // In split-heavy posture, collapse optional side chrome earlier on
         // constrained widths so editor groups retain minimum useful width.
-        if input.split_heavy && matches!(adaptive_class, AdaptiveClass::StandardDesktop | AdaptiveClass::CompactDesktop) {
+        if input.split_heavy
+            && matches!(
+                adaptive_class,
+                AdaptiveClass::StandardDesktop | AdaptiveClass::CompactDesktop
+            )
+        {
             left_sidebar_visible = false;
             right_inspector_visible = false;
         }
 
         let mut bottom_panel_height = if bottom_panel_visible {
-            self.defaults
-                .bottom_panel_height
-                .min(content_height)
+            self.defaults.bottom_panel_height.min(content_height)
         } else {
             0
         };
@@ -239,26 +249,44 @@ impl ZoneRegistry {
         //
         // Order: inspector -> sidebar -> shrink rail to minimum.
         let workspace_available = |rail_w: u32, sidebar: bool, inspector: bool| -> u32 {
-            input.window_width
+            input
+                .window_width
                 .saturating_sub(rail_w)
-                .saturating_sub(if sidebar { self.defaults.left_sidebar_width } else { 0 })
-                .saturating_sub(if inspector { self.defaults.right_inspector_width } else { 0 })
+                .saturating_sub(if sidebar {
+                    self.defaults.left_sidebar_width
+                } else {
+                    0
+                })
+                .saturating_sub(if inspector {
+                    self.defaults.right_inspector_width
+                } else {
+                    0
+                })
         };
 
-        if workspace_available(activity_rail_width, left_sidebar_visible, right_inspector_visible)
-            < main_workspace_min_width
+        if workspace_available(
+            activity_rail_width,
+            left_sidebar_visible,
+            right_inspector_visible,
+        ) < main_workspace_min_width
         {
             right_inspector_visible = false;
         }
 
-        if workspace_available(activity_rail_width, left_sidebar_visible, right_inspector_visible)
-            < main_workspace_min_width
+        if workspace_available(
+            activity_rail_width,
+            left_sidebar_visible,
+            right_inspector_visible,
+        ) < main_workspace_min_width
         {
             left_sidebar_visible = false;
         }
 
-        if workspace_available(activity_rail_width, left_sidebar_visible, right_inspector_visible)
-            < main_workspace_min_width
+        if workspace_available(
+            activity_rail_width,
+            left_sidebar_visible,
+            right_inspector_visible,
+        ) < main_workspace_min_width
         {
             activity_rail_width = activity_rail_width.min(self.defaults.activity_rail_min_width);
         }
@@ -370,10 +398,7 @@ mod tests {
             ShellZoneId::BottomPanel,
             ShellZoneId::StatusBar,
         ] {
-            assert!(
-                layout.zone(zone).is_some(),
-                "missing zone {zone}"
-            );
+            assert!(layout.zone(zone).is_some(), "missing zone {zone}");
         }
     }
 
@@ -389,19 +414,10 @@ mod tests {
 
         assert_eq!(layout.title_context_bar, Rect::new(0, 0, 1920, 32));
         assert_eq!(layout.activity_rail, Rect::new(0, 32, 48, 1024));
-        assert_eq!(
-            layout.left_sidebar,
-            Some(Rect::new(48, 32, 280, 744))
-        );
+        assert_eq!(layout.left_sidebar, Some(Rect::new(48, 32, 280, 744)));
         assert_eq!(layout.main_workspace, Rect::new(328, 32, 1232, 744));
-        assert_eq!(
-            layout.right_inspector,
-            Some(Rect::new(1560, 32, 360, 744))
-        );
-        assert_eq!(
-            layout.bottom_panel,
-            Some(Rect::new(48, 776, 1872, 280))
-        );
+        assert_eq!(layout.right_inspector, Some(Rect::new(1560, 32, 360, 744)));
+        assert_eq!(layout.bottom_panel, Some(Rect::new(48, 776, 1872, 280)));
         assert_eq!(layout.status_bar, Rect::new(0, 1056, 1920, 24));
         assert_eq!(layout.transient_overlay, Rect::new(0, 0, 1920, 1080));
     }

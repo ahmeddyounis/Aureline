@@ -93,13 +93,7 @@ fn report_for_scenario(scenario: &Scenario) -> ScenarioReport {
         freshness_seen.push(node.freshness_frame.freshness.as_str().to_string());
     }
     for edge in &scenario.graph.edges {
-        freshness_seen.push(
-            edge.evidence
-                .freshness_frame
-                .freshness
-                .as_str()
-                .to_string(),
-        );
+        freshness_seen.push(edge.evidence.freshness_frame.freshness.as_str().to_string());
     }
     dedup_sorted(&mut freshness_seen);
 

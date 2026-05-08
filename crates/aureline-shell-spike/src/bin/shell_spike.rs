@@ -80,9 +80,9 @@ fn parse_mode(args: &[String]) -> Result<Mode, String> {
                 mode = Mode::EmitArtifacts(PathBuf::from(dir.as_str()));
             }
             "--emit-timing-traces" => {
-                let dir = iter.next().ok_or_else(|| {
-                    "--emit-timing-traces requires a directory path".to_owned()
-                })?;
+                let dir = iter
+                    .next()
+                    .ok_or_else(|| "--emit-timing-traces requires a directory path".to_owned())?;
                 mode = Mode::EmitTimingTraces(PathBuf::from(dir.as_str()));
             }
             "--text-stack-smoke" => {
@@ -210,7 +210,10 @@ fn write_support_bundle_stub(dir: &Path) -> io::Result<()> {
     Ok(())
 }
 
-fn render_support_bundle_manifest_stub(identity: &build_info::BuildIdentityRecord, exact_ref: &str) -> String {
+fn render_support_bundle_manifest_stub(
+    identity: &build_info::BuildIdentityRecord,
+    exact_ref: &str,
+) -> String {
     // This is a stub manifest: it preserves the build identity and exact-build
     // ref join so later support-bundle work can replace it with a fully
     // schema-conforming support_bundle_manifest_record without changing the
@@ -255,14 +258,9 @@ fn parse_corpus_lines(contents: &str) -> Result<Vec<(String, String)>, String> {
     Ok(cases)
 }
 
-fn write_artifacts(
-    dir: &Path,
-    frame: &ShellFrame,
-    result: &FixtureRunResult,
-) -> io::Result<()> {
+fn write_artifacts(dir: &Path, frame: &ShellFrame, result: &FixtureRunResult) -> io::Result<()> {
     fs::create_dir_all(dir)?;
-    let manifest =
-        CapabilityManifest::new(Backend::Headless, frame.clone(), FIXTURE_SCENE_ID);
+    let manifest = CapabilityManifest::new(Backend::Headless, frame.clone(), FIXTURE_SCENE_ID);
     let manifest_path = dir.join("spike_capabilities.json");
     fs::write(&manifest_path, manifest.to_json())?;
 

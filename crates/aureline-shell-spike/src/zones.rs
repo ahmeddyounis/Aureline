@@ -180,7 +180,11 @@ mod tests {
     #[test]
     fn zones_paint_in_adr_order() {
         let frame = ShellFrame::fixture();
-        let order: Vec<_> = frame.zones_in_paint_order().iter().map(|(id, _)| *id).collect();
+        let order: Vec<_> = frame
+            .zones_in_paint_order()
+            .iter()
+            .map(|(id, _)| *id)
+            .collect();
         assert_eq!(
             order,
             vec![

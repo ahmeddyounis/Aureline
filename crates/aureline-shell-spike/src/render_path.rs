@@ -74,19 +74,14 @@ impl SurfaceOwnership {
 /// Classify an action into the layer it damages and the zone it targets.
 /// This is the single function that encodes the ADR's overlay-separation
 /// rule; the renderer crate may replace it but may not contradict it.
-pub fn classify(
-    frame: &ShellFrame,
-    action: &InputAction,
-) -> Option<DamageRecord> {
+pub fn classify(frame: &ShellFrame, action: &InputAction) -> Option<DamageRecord> {
     let (zone, layer, hook) = match action {
         InputAction::InsertText(_) => (
             ZoneId::EditorViewport,
             Layer::TextAndDecoration,
             Hook::ReflowLineRange,
         ),
-        InputAction::MoveCaret(_) => {
-            (ZoneId::EditorViewport, Layer::Overlay, Hook::CaretMove)
-        }
+        InputAction::MoveCaret(_) => (ZoneId::EditorViewport, Layer::Overlay, Hook::CaretMove),
         InputAction::ChangeSelection(delta) => match delta {
             SelectionDelta::Cleared
             | SelectionDelta::ExtendedLeft
@@ -178,8 +173,7 @@ mod tests {
 
     #[test]
     fn text_insertion_rides_text_layer() {
-        let record =
-            classify(&frame(), &InputAction::InsertText("x".to_owned())).unwrap();
+        let record = classify(&frame(), &InputAction::InsertText("x".to_owned())).unwrap();
         assert_eq!(record.layer, Layer::TextAndDecoration);
         assert_eq!(record.hook, Hook::ReflowLineRange);
     }

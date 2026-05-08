@@ -12,8 +12,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::capabilities::{
-    lookup, CapabilityRow, CapabilityState, LIMITED_MODE_CAPABILITIES,
-    NORMAL_MODE_CAPABILITIES,
+    lookup, CapabilityRow, CapabilityState, LIMITED_MODE_CAPABILITIES, NORMAL_MODE_CAPABILITIES,
 };
 use crate::classification::{
     classify_file, ClassificationDecision, ClassificationPolicy, ClassifyError, FileMode,
@@ -320,7 +319,8 @@ impl LargeFileBuffer {
     pub fn attempt_save(&self, request: SaveRequest) -> SaveOutcome {
         match (self.decision.mode, request) {
             (FileMode::LargeFile, SaveRequest::WithWholeFileParticipants) => SaveOutcome::Denied {
-                reason: "save participants that rewrite the whole file are denied in large-file mode",
+                reason:
+                    "save participants that rewrite the whole file are denied in large-file mode",
             },
             (_, SaveRequest::EditedRangeOnly) => SaveOutcome::Accepted {
                 reason: "edited-range-only save is allowed in any mode",
@@ -341,11 +341,7 @@ impl LargeFileBuffer {
             path: self.decision.path.clone(),
             len: self.decision.bytes_on_disk,
             mode: self.decision.mode,
-            trigger: self
-                .decision
-                .trigger
-                .map(|t| t.as_str())
-                .unwrap_or("none"),
+            trigger: self.decision.trigger.map(|t| t.as_str()).unwrap_or("none"),
             page_size: self.reader.page_size() as u64,
             max_resident_pages: self.reader.max_resident_pages() as u64,
             page_count: self.reader.page_count(),
@@ -436,10 +432,18 @@ mod tests {
         let cfg = LargeFileConfig::default();
         let buf = LargeFileBuffer::open(&path, &cfg).unwrap();
         assert_eq!(buf.mode(), FileMode::LargeFile);
-        assert!(buf.attempt_edit(EditRequest::WholeFileMultiCursor).is_denied());
-        assert!(buf.attempt_edit(EditRequest::ViewportMultiCursor).is_accepted());
-        assert!(buf.attempt_edit(EditRequest::FullFileFormatOnSave).is_denied());
-        assert!(buf.attempt_edit(EditRequest::RangeFormatOnSave).is_accepted());
+        assert!(buf
+            .attempt_edit(EditRequest::WholeFileMultiCursor)
+            .is_denied());
+        assert!(buf
+            .attempt_edit(EditRequest::ViewportMultiCursor)
+            .is_accepted());
+        assert!(buf
+            .attempt_edit(EditRequest::FullFileFormatOnSave)
+            .is_denied());
+        assert!(buf
+            .attempt_edit(EditRequest::RangeFormatOnSave)
+            .is_accepted());
         assert!(buf.attempt_edit(EditRequest::SearchViewport).is_accepted());
         let so = buf.attempt_edit(EditRequest::SearchWholeFile);
         assert!(so.is_downgraded());

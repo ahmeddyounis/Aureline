@@ -89,12 +89,24 @@ impl HookCounters {
             ("vfs_canonicalize", self.vfs_canonicalize),
             ("vfs_alias_converge", self.vfs_alias_converge),
             ("vfs_watcher_event", self.vfs_watcher_event),
-            ("vfs_watcher_health_changed", self.vfs_watcher_health_changed),
-            ("vfs_external_change_detected", self.vfs_external_change_detected),
+            (
+                "vfs_watcher_health_changed",
+                self.vfs_watcher_health_changed,
+            ),
+            (
+                "vfs_external_change_detected",
+                self.vfs_external_change_detected,
+            ),
             ("vfs_save_stage", self.vfs_save_stage),
             ("vfs_save_participant_run", self.vfs_save_participant_run),
-            ("vfs_save_participant_failed", self.vfs_save_participant_failed),
-            ("vfs_save_compare_before_write", self.vfs_save_compare_before_write),
+            (
+                "vfs_save_participant_failed",
+                self.vfs_save_participant_failed,
+            ),
+            (
+                "vfs_save_compare_before_write",
+                self.vfs_save_compare_before_write,
+            ),
             ("vfs_save_conflict", self.vfs_save_conflict),
             ("vfs_save_atomic_commit", self.vfs_save_atomic_commit),
             ("vfs_save_in_place_commit", self.vfs_save_in_place_commit),

@@ -41,10 +41,10 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
                 ));
             }
             "--emit-scenarios" => {
-                out.emit_scenarios = Some(PathBuf::from(
-                    iter.next()
-                        .ok_or_else(|| "--emit-scenarios requires a directory".to_owned())?,
-                ));
+                out.emit_scenarios =
+                    Some(PathBuf::from(iter.next().ok_or_else(|| {
+                        "--emit-scenarios requires a directory".to_owned()
+                    })?));
             }
             "--help" | "-h" => return Err(usage()),
             other => return Err(format!("unknown argument: {other}\n\n{}", usage())),
@@ -90,8 +90,7 @@ fn run(args: &Args) -> Result<(), String> {
         for scenario in &report.scenarios {
             let path = dir.join(format!("{}.json", scenario.label));
             let json = scenario_to_json(scenario);
-            write_file(&path, json.as_bytes())
-                .map_err(|e| format!("writing {path:?}: {e}"))?;
+            write_file(&path, json.as_bytes()).map_err(|e| format!("writing {path:?}: {e}"))?;
         }
         let agg_path = dir.join("aggregate.json");
         write_file(&agg_path, aggregate_json.as_bytes())

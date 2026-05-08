@@ -317,11 +317,7 @@ mod configs {
 mod scripts {
     use super::*;
 
-    fn record_edit(
-        buf: &LargeFileBuffer,
-        steps: &mut Vec<ScriptedStep>,
-        request: EditRequest,
-    ) {
+    fn record_edit(buf: &LargeFileBuffer, steps: &mut Vec<ScriptedStep>, request: EditRequest) {
         let outcome = buf.attempt_edit(request);
         let outcome_str = match outcome {
             EditOutcome::Accepted { .. } => "accepted".to_owned(),
@@ -431,7 +427,13 @@ mod scripts {
 pub fn report_to_json(report: &HarnessReport) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    kv_u64(&mut out, 1, "schema_version", u64::from(report.schema_version), false);
+    kv_u64(
+        &mut out,
+        1,
+        "schema_version",
+        u64::from(report.schema_version),
+        false,
+    );
     kv_str(&mut out, 1, "corpus_id", report.corpus_id, false);
 
     key(&mut out, 1, "aggregate");
@@ -445,7 +447,13 @@ pub fn report_to_json(report: &HarnessReport) -> String {
         agg.total_large_file_mode_enter,
         false,
     );
-    kv_u64(&mut out, 2, "total_paged_reads", agg.total_paged_reads, false);
+    kv_u64(
+        &mut out,
+        2,
+        "total_paged_reads",
+        agg.total_paged_reads,
+        false,
+    );
     kv_u64(
         &mut out,
         2,
@@ -453,7 +461,13 @@ pub fn report_to_json(report: &HarnessReport) -> String {
         agg.total_pages_read_from_disk,
         false,
     );
-    kv_u64(&mut out, 2, "total_pages_evicted", agg.total_pages_evicted, false);
+    kv_u64(
+        &mut out,
+        2,
+        "total_pages_evicted",
+        agg.total_pages_evicted,
+        false,
+    );
     kv_u64(
         &mut out,
         2,
@@ -461,7 +475,13 @@ pub fn report_to_json(report: &HarnessReport) -> String {
         agg.total_bytes_read_from_disk,
         false,
     );
-    kv_u64(&mut out, 2, "total_edits_denied", agg.total_edits_denied, false);
+    kv_u64(
+        &mut out,
+        2,
+        "total_edits_denied",
+        agg.total_edits_denied,
+        false,
+    );
     kv_u64(
         &mut out,
         2,
@@ -469,7 +489,13 @@ pub fn report_to_json(report: &HarnessReport) -> String {
         agg.total_edits_downgraded,
         false,
     );
-    kv_u64(&mut out, 2, "total_saves_denied", agg.total_saves_denied, true);
+    kv_u64(
+        &mut out,
+        2,
+        "total_saves_denied",
+        agg.total_saves_denied,
+        true,
+    );
     indent(&mut out, 1);
     out.push_str("},\n");
 
@@ -501,7 +527,13 @@ fn write_scenario(out: &mut String, depth: usize, s: &ScenarioReport, last: bool
     );
     kv_str(out, depth + 1, "reason", &s.reason, false);
     kv_u64(out, depth + 1, "page_size", s.page_size, false);
-    kv_u64(out, depth + 1, "max_resident_pages", s.max_resident_pages, false);
+    kv_u64(
+        out,
+        depth + 1,
+        "max_resident_pages",
+        s.max_resident_pages,
+        false,
+    );
     kv_u64(out, depth + 1, "page_count", s.page_count, false);
 
     write_steps(out, depth + 1, &s.steps);
@@ -690,7 +722,10 @@ mod tests {
         assert_eq!(report_a.scenarios.len(), SCENARIOS.len());
         let json_a = report_to_json(&report_a);
         let json_b = report_to_json(&report_b);
-        assert_eq!(json_a, json_b, "harness output must be byte-stable across runs");
+        assert_eq!(
+            json_a, json_b,
+            "harness output must be byte-stable across runs"
+        );
         cleanup(dir_a);
         cleanup(dir_b);
     }

@@ -36,8 +36,8 @@
 
 use crate::envelope::{
     AuthorityClass, BackpressureMode, Completeness, DerivationClass, FrameClass, Freshness,
-    InputDigest, Invalidation, JsonValue, ProducerRef, ScopeRef, StaleReason,
-    SubscriptionEnvelope, TerminalReason, ViewClass, SUBSCRIPTION_SCHEMA_VERSION,
+    InputDigest, Invalidation, JsonValue, ProducerRef, ScopeRef, StaleReason, SubscriptionEnvelope,
+    TerminalReason, ViewClass, SUBSCRIPTION_SCHEMA_VERSION,
 };
 use crate::hooks::HookCounters;
 use crate::trace::{ConsumerObservation, TraceEvent};
@@ -582,12 +582,7 @@ impl ReactiveStore {
             .iter()
             .any(|r| r.source.is_some())
         {
-            if let Some(first) = self
-                .producers[idx]
-                .producer
-                .producer_refs
-                .first_mut()
-            {
+            if let Some(first) = self.producers[idx].producer.producer_refs.first_mut() {
                 first.source = Some(source.clone());
             }
         }
@@ -719,14 +714,12 @@ impl ReactiveStore {
     // Internals.
     // -----------------------------------------------------------------
 
-    fn find_producer(
-        &self,
-        query_family: &str,
-        scope_ref: &ScopeRef,
-    ) -> Result<usize, StoreError> {
+    fn find_producer(&self, query_family: &str, scope_ref: &ScopeRef) -> Result<usize, StoreError> {
         self.producers
             .iter()
-            .position(|p| p.producer.query_family == query_family && &p.producer.scope_ref == scope_ref)
+            .position(|p| {
+                p.producer.query_family == query_family && &p.producer.scope_ref == scope_ref
+            })
             .ok_or(StoreError::ProducerNotRegistered)
     }
 
@@ -864,9 +857,10 @@ impl ReactiveStore {
                     // Strict monotonicity within epoch.
                     let expected = consumer.last_delta_seq + 1;
                     if envelope.snapshot_epoch != consumer.last_snapshot_epoch {
-                        observation
-                            .reviewer_notes
-                            .push("delta arrived on a different snapshot_epoch; projection is stale".to_owned());
+                        observation.reviewer_notes.push(
+                            "delta arrived on a different snapshot_epoch; projection is stale"
+                                .to_owned(),
+                        );
                         consumer.is_stale = true;
                     } else if envelope.delta_seq != expected {
                         observation.reviewer_notes.push(format!(
@@ -893,23 +887,19 @@ impl ReactiveStore {
         // Observability hook firings.
         if freshness_is_downgrade(prior_freshness, envelope.freshness) {
             self.hooks.subscription_freshness_downgrade += 1;
-            observation
-                .reviewer_notes
-                .push(format!(
-                    "freshness downgrade: {} -> {}",
-                    prior_freshness.as_str(),
-                    envelope.freshness.as_str()
-                ));
+            observation.reviewer_notes.push(format!(
+                "freshness downgrade: {} -> {}",
+                prior_freshness.as_str(),
+                envelope.freshness.as_str()
+            ));
         }
         if prior_completeness != envelope.completeness {
             self.hooks.subscription_completeness_changed += 1;
-            observation
-                .reviewer_notes
-                .push(format!(
-                    "completeness changed: {} -> {}",
-                    prior_completeness.as_str(),
-                    envelope.completeness.as_str()
-                ));
+            observation.reviewer_notes.push(format!(
+                "completeness changed: {} -> {}",
+                prior_completeness.as_str(),
+                envelope.completeness.as_str()
+            ));
         }
 
         Ok(observation)
@@ -1067,7 +1057,10 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(snap.envelope.subscription_schema_version, SUBSCRIPTION_SCHEMA_VERSION);
+        assert_eq!(
+            snap.envelope.subscription_schema_version,
+            SUBSCRIPTION_SCHEMA_VERSION
+        );
         assert_eq!(snap.envelope.snapshot_epoch, 1);
         assert_eq!(snap.envelope.delta_seq, 0);
         assert_eq!(snap.envelope.frame_class.as_str(), "snapshot");
@@ -1133,7 +1126,12 @@ mod tests {
             )
             .unwrap();
         store
-            .emit_resync_required(sid, StaleReason::WatcherDropped, None, Completeness::Partial)
+            .emit_resync_required(
+                sid,
+                StaleReason::WatcherDropped,
+                None,
+                Completeness::Partial,
+            )
             .unwrap();
         assert!(store.consumers()[0].is_stale);
         // Next snapshot bumps epoch.

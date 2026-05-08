@@ -22,7 +22,8 @@ use crate::manifest::{Idempotency, MethodEntry, MethodManifest};
 /// Service-side handler closure. Returns either a terminal payload or
 /// a typed error; deadline and cancellation are enforced by the
 /// transport around the handler.
-pub type ServiceHandler = Arc<dyn Fn(&RequestEnvelope) -> Result<Vec<u8>, ErrorPayload> + Send + Sync>;
+pub type ServiceHandler =
+    Arc<dyn Fn(&RequestEnvelope) -> Result<Vec<u8>, ErrorPayload> + Send + Sync>;
 
 /// Registration wrapper coupling a method entry in the manifest with
 /// its handler.
@@ -146,10 +147,7 @@ impl InProcessTransport {
             HookId::RpcHandshakeComplete,
             vec![
                 ("server".into(), self.server_manifest.service.clone()),
-                (
-                    "digest".into(),
-                    self.server_manifest.digest.0.clone(),
-                ),
+                ("digest".into(), self.server_manifest.digest.0.clone()),
             ],
         );
         if intersected {
@@ -169,10 +167,7 @@ impl InProcessTransport {
         if newly_marked {
             self.hooks.emit(
                 HookId::RpcCancelObserved,
-                vec![(
-                    "reason".into(),
-                    frame.reason.as_str().to_string(),
-                )],
+                vec![("reason".into(), frame.reason.as_str().to_string())],
             );
         }
     }
@@ -288,10 +283,7 @@ impl InProcessTransport {
             let err = ErrorPayload::new(
                 ErrorClass::Local,
                 "rpc.idempotency_key_required",
-                format!(
-                    "method {} requires an idempotency_key",
-                    req.method.as_str()
-                ),
+                format!("method {} requires an idempotency_key", req.method.as_str()),
                 RetryHint::No,
             );
             return self.dispatch_err(req, err);

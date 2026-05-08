@@ -189,19 +189,9 @@ mod tests {
             "mono:0".to_owned(),
             None,
         );
-        assert!(reg.transition(
-            "root-1",
-            WatcherHealth::Healthy,
-            "mono:1".to_owned(),
-            None,
-        ));
+        assert!(reg.transition("root-1", WatcherHealth::Healthy, "mono:1".to_owned(), None,));
         // Same health — no frame.
-        assert!(!reg.transition(
-            "root-1",
-            WatcherHealth::Healthy,
-            "mono:2".to_owned(),
-            None,
-        ));
+        assert!(!reg.transition("root-1", WatcherHealth::Healthy, "mono:2".to_owned(), None,));
         assert!(reg.transition(
             "root-1",
             WatcherHealth::Degraded,
@@ -217,12 +207,7 @@ mod tests {
     #[test]
     fn unknown_root_transition_is_a_noop() {
         let mut reg = WatcherRegistry::new();
-        assert!(!reg.transition(
-            "ghost",
-            WatcherHealth::Degraded,
-            "mono:0".to_owned(),
-            None,
-        ));
+        assert!(!reg.transition("ghost", WatcherHealth::Degraded, "mono:0".to_owned(), None,));
         assert!(reg.record_event("ghost").is_none());
     }
 }

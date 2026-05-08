@@ -107,8 +107,9 @@ fn run(args: &Args) -> Result<(), String> {
     let report = run_harness(&cases, args.iterations);
     let json = report_to_json(&report);
     match &args.emit {
-        Some(path) => write_file(path, json.as_bytes())
-            .map_err(|e| format!("writing {:?}: {e}", path)),
+        Some(path) => {
+            write_file(path, json.as_bytes()).map_err(|e| format!("writing {:?}: {e}", path))
+        }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();

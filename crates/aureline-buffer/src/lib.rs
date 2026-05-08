@@ -18,9 +18,8 @@
 pub mod prototype;
 
 pub use prototype::buffer::{
-    Buffer, BufferConfig, BufferError, CheckpointHandle, CommittedInfo, JournalEntry,
-    JournalView, Snapshot, SnapshotId, Transaction, TransactionId, TransactionSpec, UndoGroupId,
-    UndoOutcome,
+    Buffer, BufferConfig, BufferError, CheckpointHandle, CommittedInfo, JournalEntry, JournalView,
+    Snapshot, SnapshotId, Transaction, TransactionId, TransactionSpec, UndoGroupId, UndoOutcome,
 };
 pub use prototype::class::{CompensationPosture, UndoClass};
 pub use prototype::hooks::HookCounters;

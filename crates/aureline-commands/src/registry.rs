@@ -4,13 +4,20 @@ use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
 
-use crate::descriptor::{CommandDescriptorRecord, CommandId, PolicyContext, RepairHookRef};
+use crate::descriptor::{CommandDescriptorRecord, CommandId, PolicyContext};
+use crate::enablement::{
+    evaluate_enablement as evaluate_enablement_impl, preflight as preflight_impl,
+    CommandEnablementContext, DisabledReasonRecord, EnablementSnapshot, PreflightDecision,
+};
 
 #[derive(Debug)]
 pub enum RegistryError {
     Json(serde_json::Error),
     InvalidSeed(&'static str),
-    InvalidEntry { command_id: String, detail: &'static str },
+    InvalidEntry {
+        command_id: String,
+        detail: &'static str,
+    },
     DuplicateCommandId(String),
 }
 
@@ -35,14 +42,6 @@ impl From<serde_json::Error> for RegistryError {
     }
 }
 
-/// The seed-level enablement snapshot embedded in registry entries.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EnablementSnapshot {
-    pub decision_class: String,
-    pub disabled_reason_code: Option<String>,
-    pub repair_hook_ref: Option<RepairHookRef>,
-}
-
 /// One command registry entry that embeds a command descriptor and adds registry-owned
 /// metadata for discoverability, alias lifecycle, and cross-surface projections.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,7 +60,7 @@ pub struct CommandRegistryEntryRecord {
     pub automation_labels: Vec<String>,
     pub dominant_side_effect_class: String,
     pub current_keybinding_refs: Vec<serde_json::Value>,
-    pub disabled_reason_records: Vec<serde_json::Value>,
+    pub disabled_reason_records: Vec<DisabledReasonRecord>,
     pub origin_badge: serde_json::Value,
     pub target_badges: Vec<serde_json::Value>,
     pub diagnostic_projection_refs: serde_json::Value,
@@ -89,6 +88,34 @@ impl CommandRegistryEntryRecord {
 
     pub fn command_id(&self) -> &CommandId {
         &self.descriptor.command_id
+    }
+
+    /// Evaluates the enablement snapshot for this command entry.
+    pub fn evaluate_enablement(&self, context: &CommandEnablementContext) -> EnablementSnapshot {
+        evaluate_enablement_impl(
+            &self.descriptor.client_scopes,
+            &self.descriptor.lifecycle_state,
+            self.descriptor.default_enablement_repair_hook_ref.as_ref(),
+            &self.descriptor.typed_arguments,
+            &self.seed_enablement_snapshot,
+            &self.disabled_reason_records,
+            context,
+        )
+    }
+
+    /// Computes the preflight decision a surface should use before dispatch.
+    pub fn preflight(&self, context: &CommandEnablementContext) -> PreflightDecision {
+        preflight_impl(
+            &self.descriptor.client_scopes,
+            &self.descriptor.lifecycle_state,
+            self.descriptor.default_enablement_repair_hook_ref.as_ref(),
+            &self.descriptor.typed_arguments,
+            &self.descriptor.preview_class,
+            &self.descriptor.approval_posture_class,
+            &self.seed_enablement_snapshot,
+            &self.disabled_reason_records,
+            context,
+        )
     }
 }
 
@@ -124,7 +151,8 @@ pub struct CommandRegistry {
 
 impl CommandRegistry {
     pub fn from_seed(seed: CommandRegistrySeedRecord) -> Result<Self, RegistryError> {
-        seed.validate_minimal().map_err(RegistryError::InvalidSeed)?;
+        seed.validate_minimal()
+            .map_err(RegistryError::InvalidSeed)?;
 
         let mut by_command_id: HashMap<CommandId, usize> = HashMap::new();
         let mut entries: Vec<CommandRegistryEntryRecord> = Vec::with_capacity(seed.entries.len());

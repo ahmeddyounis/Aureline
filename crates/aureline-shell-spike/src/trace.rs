@@ -75,10 +75,7 @@ pub fn per_label_samples(run: &FixtureRunResult) -> Vec<(String, TraceSample)> {
             out.push((filename, sample));
         }
     }
-    out.push((
-        "full_scene.json".to_owned(),
-        TraceSample::from_run(run),
-    ));
+    out.push(("full_scene.json".to_owned(), TraceSample::from_run(run)));
     out
 }
 

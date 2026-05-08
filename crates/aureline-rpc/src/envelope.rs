@@ -449,7 +449,9 @@ fn is_semver(s: &str) -> bool {
         None => (s, None),
     };
     let mut parts = core.split('.');
-    let (Some(a), Some(b), Some(c), None) = (parts.next(), parts.next(), parts.next(), parts.next()) else {
+    let (Some(a), Some(b), Some(c), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
         return false;
     };
     if !is_ascii_digits(a) || !is_ascii_digits(b) || !is_ascii_digits(c) {
@@ -461,9 +463,8 @@ fn is_semver(s: &str) -> bool {
             if p.is_empty() {
                 return false;
             }
-            p.chars().all(|ch| {
-                ch.is_ascii_alphanumeric() || ch == '.' || ch == '-'
-            })
+            p.chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '.' || ch == '-')
         }
     }
 }

@@ -24,7 +24,9 @@ impl SplitAxis {
 
 #[derive(Debug, Clone)]
 enum Node {
-    Leaf { pane_id: PaneId },
+    Leaf {
+        pane_id: PaneId,
+    },
     Split {
         axis: SplitAxis,
         first_weight: u16,
@@ -55,7 +57,9 @@ impl Node {
     fn contains_leaf(&self, leaf: PaneId) -> bool {
         match self {
             Self::Leaf { pane_id } => *pane_id == leaf,
-            Self::Split { first, second, .. } => first.contains_leaf(leaf) || second.contains_leaf(leaf),
+            Self::Split { first, second, .. } => {
+                first.contains_leaf(leaf) || second.contains_leaf(leaf)
+            }
         }
     }
 
@@ -88,21 +92,21 @@ impl Node {
     fn remove_leaf(&mut self, leaf: PaneId) -> bool {
         match self {
             Self::Leaf { .. } => false,
-            Self::Split { first, second, .. } => {
-                match (&mut **first, &mut **second) {
-                    (Node::Leaf { pane_id }, _) if *pane_id == leaf => {
-                        let replacement = core::mem::replace(&mut **second, Node::Leaf { pane_id: PaneId(0) });
-                        *self = replacement;
-                        true
-                    }
-                    (_, Node::Leaf { pane_id }) if *pane_id == leaf => {
-                        let replacement = core::mem::replace(&mut **first, Node::Leaf { pane_id: PaneId(0) });
-                        *self = replacement;
-                        true
-                    }
-                    _ => first.remove_leaf(leaf) || second.remove_leaf(leaf),
+            Self::Split { first, second, .. } => match (&mut **first, &mut **second) {
+                (Node::Leaf { pane_id }, _) if *pane_id == leaf => {
+                    let replacement =
+                        core::mem::replace(&mut **second, Node::Leaf { pane_id: PaneId(0) });
+                    *self = replacement;
+                    true
                 }
-            }
+                (_, Node::Leaf { pane_id }) if *pane_id == leaf => {
+                    let replacement =
+                        core::mem::replace(&mut **first, Node::Leaf { pane_id: PaneId(0) });
+                    *self = replacement;
+                    true
+                }
+                _ => first.remove_leaf(leaf) || second.remove_leaf(leaf),
+            },
         }
     }
 
@@ -126,7 +130,8 @@ impl Node {
             } => match axis {
                 SplitAxis::Vertical => {
                     let first_required = (first.leaf_count() as u32).saturating_mul(min_leaf_width);
-                    let second_required = (second.leaf_count() as u32).saturating_mul(min_leaf_width);
+                    let second_required =
+                        (second.leaf_count() as u32).saturating_mul(min_leaf_width);
                     let required_total = first_required.saturating_add(second_required);
                     if container.width < required_total {
                         return Err(SplitLayoutError::TooNarrow {
@@ -135,11 +140,11 @@ impl Node {
                         });
                     }
 
-                    let weight_total = (*first_weight as u32).saturating_add(*second_weight as u32).max(1);
-                    let mut first_width = container
-                        .width
-                        .saturating_mul(*first_weight as u32)
-                        / weight_total;
+                    let weight_total = (*first_weight as u32)
+                        .saturating_add(*second_weight as u32)
+                        .max(1);
+                    let mut first_width =
+                        container.width.saturating_mul(*first_weight as u32) / weight_total;
                     let mut second_width = container.width.saturating_sub(first_width);
 
                     if first_width < first_required {
@@ -158,7 +163,8 @@ impl Node {
                         });
                     }
 
-                    let first_rect = Rect::new(container.x, container.y, first_width, container.height);
+                    let first_rect =
+                        Rect::new(container.x, container.y, first_width, container.height);
                     let second_rect = Rect::new(
                         container.x.saturating_add(first_width),
                         container.y,
@@ -176,7 +182,10 @@ impl Node {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitLayoutError {
-    TooNarrow { required_width: u32, available_width: u32 },
+    TooNarrow {
+        required_width: u32,
+        available_width: u32,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -244,7 +253,8 @@ impl SplitTree {
         min_leaf_width: u32,
     ) -> Result<Vec<(PaneId, Rect)>, SplitLayoutError> {
         let mut out = Vec::with_capacity(self.leaf_count());
-        self.root.layout_with_min_width(container, min_leaf_width, &mut out)?;
+        self.root
+            .layout_with_min_width(container, min_leaf_width, &mut out)?;
         Ok(out)
     }
 }
@@ -257,7 +267,9 @@ mod tests {
     fn split_tree_mints_stable_leaf_ids() {
         let mut tree = SplitTree::single();
         let root = tree.root_leaf();
-        let second = tree.split_leaf(root, SplitAxis::Vertical).expect("split should succeed");
+        let second = tree
+            .split_leaf(root, SplitAxis::Vertical)
+            .expect("split should succeed");
         assert_eq!(root.value(), 1);
         assert_eq!(second.value(), 2);
         assert_eq!(tree.leaf_count(), 2);

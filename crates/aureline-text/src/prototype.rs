@@ -475,12 +475,7 @@ impl ShapingMetrics {
 /// or a platform-native engine.
 pub trait Shaper {
     fn policy(&self) -> ShaperPolicy;
-    fn shape(
-        &mut self,
-        text: &str,
-        chain: &FallbackChain,
-        features: FeatureSet,
-    ) -> ShapedRun;
+    fn shape(&mut self, text: &str, chain: &FallbackChain, features: FeatureSet) -> ShapedRun;
     fn shape_metrics(&self) -> &ShapingMetrics;
 }
 
@@ -525,12 +520,7 @@ impl Shaper for StubShaper {
         self.policy
     }
 
-    fn shape(
-        &mut self,
-        text: &str,
-        chain: &FallbackChain,
-        features: FeatureSet,
-    ) -> ShapedRun {
+    fn shape(&mut self, text: &str, chain: &FallbackChain, features: FeatureSet) -> ShapedRun {
         self.metrics.shape_calls += 1;
         let clusters = segment_graphemes(text);
         let mut shaped = Vec::with_capacity(clusters.len());
@@ -744,10 +734,7 @@ mod tests {
         let run = layer.render("漢字", FeatureSet::plain());
         assert_eq!(run.clusters.len(), 2);
         for cluster in &run.clusters {
-            assert_eq!(
-                cluster.fallback_stage,
-                FallbackStage::ScriptPreferenceGroup
-            );
+            assert_eq!(cluster.fallback_stage, FallbackStage::ScriptPreferenceGroup);
             assert_eq!(cluster.font, FontHandle::HanFallback);
             assert_eq!(cluster.script, Script::Han);
         }
@@ -759,7 +746,10 @@ mod tests {
         let mut layer = TextLayer::new_default();
         let run = layer.render("مرحبا", FeatureSet::plain());
         assert!(run.clusters.iter().all(|c| c.is_rtl));
-        assert!(run.clusters.iter().all(|c| c.font == FontHandle::ArabicFallback));
+        assert!(run
+            .clusters
+            .iter()
+            .all(|c| c.font == FontHandle::ArabicFallback));
         assert!(run.fired_fallback_hook());
     }
 

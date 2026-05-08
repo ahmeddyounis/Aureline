@@ -209,9 +209,21 @@ pub fn run_harness(cases: &[CorpusCase], iterations: u32) -> HarnessReport {
 pub fn report_to_json(report: &HarnessReport) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    kv_u64(&mut out, 1, "schema_version", u64::from(report.schema_version), false);
+    kv_u64(
+        &mut out,
+        1,
+        "schema_version",
+        u64::from(report.schema_version),
+        false,
+    );
     kv_str(&mut out, 1, "corpus_id", report.corpus_id, false);
-    kv_u64(&mut out, 1, "iterations", u64::from(report.iterations), false);
+    kv_u64(
+        &mut out,
+        1,
+        "iterations",
+        u64::from(report.iterations),
+        false,
+    );
     kv_str(&mut out, 1, "shaper_policy", report.shaper_policy, false);
 
     key(&mut out, 1, "aggregate");
@@ -222,10 +234,34 @@ pub fn report_to_json(report: &HarnessReport) -> String {
     kv_u64(&mut out, 2, "total_clusters", agg.total_clusters, false);
     kv_u64(&mut out, 2, "shape_calls", agg.shape_calls, false);
     kv_u64(&mut out, 2, "shape_cache_hits", agg.shape_cache_hits, false);
-    kv_u64(&mut out, 2, "shape_cache_misses", agg.shape_cache_misses, false);
-    kv_u64(&mut out, 2, "raster_cache_hits", agg.raster_cache_hits, false);
-    kv_u64(&mut out, 2, "raster_cache_misses", agg.raster_cache_misses, false);
-    kv_u64(&mut out, 2, "missing_glyph_count", agg.missing_glyph_count, false);
+    kv_u64(
+        &mut out,
+        2,
+        "shape_cache_misses",
+        agg.shape_cache_misses,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        2,
+        "raster_cache_hits",
+        agg.raster_cache_hits,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        2,
+        "raster_cache_misses",
+        agg.raster_cache_misses,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        2,
+        "missing_glyph_count",
+        agg.missing_glyph_count,
+        false,
+    );
     kv_u64(
         &mut out,
         2,
@@ -247,8 +283,20 @@ pub fn report_to_json(report: &HarnessReport) -> String {
         kv_u64(&mut out, 3, "byte_count", case.byte_count, false);
         kv_u64(&mut out, 3, "codepoint_count", case.codepoint_count, false);
         kv_u64(&mut out, 3, "cluster_count", case.cluster_count, false);
-        kv_u64(&mut out, 3, "missing_glyph_count", case.missing_glyph_count, false);
-        kv_bool(&mut out, 3, "fired_fallback_hook", case.fired_fallback_hook, false);
+        kv_u64(
+            &mut out,
+            3,
+            "missing_glyph_count",
+            case.missing_glyph_count,
+            false,
+        );
+        kv_bool(
+            &mut out,
+            3,
+            "fired_fallback_hook",
+            case.fired_fallback_hook,
+            false,
+        );
         write_fallback_histogram(&mut out, 3, &case.fallback_stage_counts, false);
         write_scripts(&mut out, 3, &case.scripts, true);
         indent(&mut out, 2);
@@ -381,7 +429,10 @@ arabic_plain\tمرحبا
     #[test]
     fn rejects_missing_tab() {
         let err = parse_corpus("bad_line_no_tab").unwrap_err();
-        assert!(matches!(err, CorpusParseError::MissingTab { line_number: 1 }));
+        assert!(matches!(
+            err,
+            CorpusParseError::MissingTab { line_number: 1 }
+        ));
     }
 
     #[test]
@@ -435,10 +486,8 @@ arabic_plain\tمرحبا
     /// same change.
     #[test]
     fn committed_seed_matches_harness_output() {
-        const CORPUS: &str =
-            include_str!("../../../fixtures/text/shaping_smoke_cases.txt");
-        const SEED: &str =
-            include_str!("../../../artifacts/bench/text_stack_metrics_seed.json");
+        const CORPUS: &str = include_str!("../../../fixtures/text/shaping_smoke_cases.txt");
+        const SEED: &str = include_str!("../../../artifacts/bench/text_stack_metrics_seed.json");
         let cases = parse_corpus(CORPUS).expect("committed corpus must parse");
         let report = run_harness(&cases, 2);
         let produced = report_to_json(&report);

@@ -219,18 +219,48 @@ pub fn run_harness() -> HarnessReport {
 pub fn report_to_json(report: &HarnessReport) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    kv_u64(&mut out, 1, "schema_version", u64::from(report.schema_version), false);
+    kv_u64(
+        &mut out,
+        1,
+        "schema_version",
+        u64::from(report.schema_version),
+        false,
+    );
     kv_str(&mut out, 1, "corpus_id", report.corpus_id, false);
     key(&mut out, 1, "aggregate");
     out.push_str(" {\n");
     let agg = &report.aggregate;
     kv_u64(&mut out, 2, "total_scenarios", agg.total_scenarios, false);
-    kv_u64(&mut out, 2, "total_transactions", agg.total_transactions, false);
-    kv_u64(&mut out, 2, "total_text_edit_apply", agg.total_text_edit_apply, false);
+    kv_u64(
+        &mut out,
+        2,
+        "total_transactions",
+        agg.total_transactions,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        2,
+        "total_text_edit_apply",
+        agg.total_text_edit_apply,
+        false,
+    );
     kv_u64(&mut out, 2, "total_undo_apply", agg.total_undo_apply, false);
     kv_u64(&mut out, 2, "total_redo_apply", agg.total_redo_apply, false);
-    kv_u64(&mut out, 2, "total_snapshot_create", agg.total_snapshot_create, false);
-    kv_u64(&mut out, 2, "total_checkpoint_create", agg.total_checkpoint_create, false);
+    kv_u64(
+        &mut out,
+        2,
+        "total_snapshot_create",
+        agg.total_snapshot_create,
+        false,
+    );
+    kv_u64(
+        &mut out,
+        2,
+        "total_checkpoint_create",
+        agg.total_checkpoint_create,
+        false,
+    );
     kv_u64(
         &mut out,
         2,
@@ -477,11 +507,8 @@ pub mod scenarios {
         let _ck = b.create_checkpoint();
         let mut tx = b
             .begin(
-                TransactionSpec::new(
-                    UndoClass::MachineGeneratedChange,
-                    "ai_apply:quickfix",
-                )
-                .with_label("Apply AI suggestion: widen return type"),
+                TransactionSpec::new(UndoClass::MachineGeneratedChange, "ai_apply:quickfix")
+                    .with_label("Apply AI suggestion: widen return type"),
             )
             .unwrap();
         tx.replace(16..19, "u64").unwrap();
@@ -517,7 +544,8 @@ pub mod scenarios {
                 "decode_recovery:user_override_encoding",
             ))
             .unwrap();
-        tx.insert(0, "decoded as CP1252 per user override\n").unwrap();
+        tx.insert(0, "decoded as CP1252 per user override\n")
+            .unwrap();
         tx.commit().unwrap();
     }
 
@@ -529,11 +557,8 @@ pub mod scenarios {
         {
             let mut tx = b
                 .begin(
-                    TransactionSpec::new(
-                        UndoClass::RefactorSingleFile,
-                        "command:rename_local",
-                    )
-                    .with_label("Rename `A` to `B`"),
+                    TransactionSpec::new(UndoClass::RefactorSingleFile, "command:rename_local")
+                        .with_label("Rename `A` to `B`"),
                 )
                 .unwrap();
             tx.replace(5..6, "B").unwrap();
@@ -545,11 +570,8 @@ pub mod scenarios {
         {
             let mut tx = b
                 .begin(
-                    TransactionSpec::new(
-                        UndoClass::MachineGeneratedChange,
-                        "ai_apply:codemod",
-                    )
-                    .with_label("Apply codemod: append marker"),
+                    TransactionSpec::new(UndoClass::MachineGeneratedChange, "ai_apply:codemod")
+                        .with_label("Apply codemod: append marker"),
                 )
                 .unwrap();
             tx.insert(7, "// edited by AI\n").unwrap();
@@ -597,9 +619,7 @@ pub fn render_undo_example(label: &str) -> Option<String> {
         "refactor_multi_file_rename" => Some(render_refactor_multi_file_rename()),
         "save_participant_group_pipeline" => Some(render_save_participant_group_pipeline()),
         "only_revertible_redo_drop" => Some(render_only_revertible_redo_drop()),
-        "compensatable_redo_after_divergence" => {
-            Some(render_compensatable_redo_after_divergence())
-        }
+        "compensatable_redo_after_divergence" => Some(render_compensatable_redo_after_divergence()),
         _ => None,
     }
 }
@@ -877,11 +897,7 @@ mod tests {
     fn scenario_labels_are_unique_and_well_formed() {
         let mut seen = std::collections::BTreeSet::new();
         for s in SCENARIOS {
-            assert!(
-                seen.insert(s.label),
-                "duplicate scenario label {}",
-                s.label
-            );
+            assert!(seen.insert(s.label), "duplicate scenario label {}", s.label);
             assert!(
                 s.label
                     .chars()
@@ -932,7 +948,9 @@ mod tests {
                 inverse_cap_bytes: 2,
             },
         );
-        let err = b.insert(4, "longer than cap", "user_keystroke").unwrap_err();
+        let err = b
+            .insert(4, "longer than cap", "user_keystroke")
+            .unwrap_err();
         assert!(matches!(
             err,
             aureline_buffer::BufferError::InverseTooLarge { .. }

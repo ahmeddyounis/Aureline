@@ -332,7 +332,8 @@ pub fn classify_bytes(
         .get(..policy.sniff_bytes.min(bytes_on_disk) as usize)
         .unwrap_or(bytes);
     let mut sniff = sniff_bytes_summary(sniff_window, policy);
-    sniff.heuristics.matches_pack_suffix = matches_pack_suffix(path, &policy.large_file_pack_suffixes);
+    sniff.heuristics.matches_pack_suffix =
+        matches_pack_suffix(path, &policy.large_file_pack_suffixes);
     decide(path, bytes_on_disk, sniff, policy)
 }
 
@@ -350,11 +351,7 @@ pub fn classify_file(
     Ok(decide(path, bytes_on_disk, sniff, policy))
 }
 
-fn read_sniff_prefix(
-    path: &Path,
-    bytes_on_disk: u64,
-    sniff_cap: u64,
-) -> std::io::Result<Vec<u8>> {
+fn read_sniff_prefix(path: &Path, bytes_on_disk: u64, sniff_cap: u64) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
     let cap = sniff_cap.min(bytes_on_disk) as usize;
     if cap == 0 {
@@ -466,9 +463,8 @@ fn decide(
             bytes_on_disk,
             mode: FileMode::LargeFile,
             trigger: Some(LargeFileTrigger::DecodePosture),
-            reason:
-                "decode recovery resolved with 'open in large-file mode' from the user surface"
-                    .to_owned(),
+            reason: "decode recovery resolved with 'open in large-file mode' from the user surface"
+                .to_owned(),
             sniff,
         };
     }
@@ -532,11 +528,7 @@ mod tests {
         // Bytes are also "binary" (NUL inside) and would trip
         // classification, but size_threshold MUST win because it
         // is evaluated first.
-        let d = classify_bytes(
-            &PathBuf::from("blob.bin"),
-            b"abcdefghij\0klmnop",
-            &p,
-        );
+        let d = classify_bytes(&PathBuf::from("blob.bin"), b"abcdefghij\0klmnop", &p);
         assert_eq!(d.mode, FileMode::LargeFile);
         assert_eq!(d.trigger, Some(LargeFileTrigger::SizeThreshold));
     }
@@ -633,7 +625,10 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
             .unwrap_or(0);
-        p.push(format!("aureline-largefile-proto-{nanos}-{}", std::process::id()));
+        p.push(format!(
+            "aureline-largefile-proto-{nanos}-{}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&p).unwrap();
         p
     }

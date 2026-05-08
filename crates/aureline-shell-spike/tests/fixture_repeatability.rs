@@ -46,16 +46,8 @@ fn per_label_samples_are_byte_stable() {
 
 #[test]
 fn capability_manifest_is_byte_stable() {
-    let a = CapabilityManifest::new(
-        Backend::Headless,
-        ShellFrame::fixture(),
-        FIXTURE_SCENE_ID,
-    );
-    let b = CapabilityManifest::new(
-        Backend::Headless,
-        ShellFrame::fixture(),
-        FIXTURE_SCENE_ID,
-    );
+    let a = CapabilityManifest::new(Backend::Headless, ShellFrame::fixture(), FIXTURE_SCENE_ID);
+    let b = CapabilityManifest::new(Backend::Headless, ShellFrame::fixture(), FIXTURE_SCENE_ID);
     assert_eq!(a.to_json(), b.to_json());
 }
 

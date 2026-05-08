@@ -264,7 +264,9 @@ impl PagedReader {
     fn evict_to_make_room_for(&mut self, _new_page_bytes: u64) {
         while self.lru.len() >= self.max_resident_pages {
             if let Some(victim) = self.lru.pop_front() {
-                self.bytes_resident = self.bytes_resident.saturating_sub(victim.bytes.len() as u64);
+                self.bytes_resident = self
+                    .bytes_resident
+                    .saturating_sub(victim.bytes.len() as u64);
                 self.metrics.pages_evicted += 1;
             } else {
                 break;

@@ -28,15 +28,39 @@ impl BuildIdentityRecord {
         push_json_kv_str(&mut out, "commit", &self.commit, true, 2);
         push_json_kv_str(&mut out, "commit_short", &self.commit_short, true, 2);
         push_json_kv_bool(&mut out, "dirty", self.dirty, true, 2);
-        push_json_kv_str(&mut out, "toolchain_channel", &self.toolchain_channel, true, 2);
+        push_json_kv_str(
+            &mut out,
+            "toolchain_channel",
+            &self.toolchain_channel,
+            true,
+            2,
+        );
         push_json_kv_str(&mut out, "rustc_version", &self.rustc_version, true, 2);
         push_json_kv_str(&mut out, "cargo_version", &self.cargo_version, true, 2);
         push_json_kv_str(&mut out, "host_triple", &self.host_triple, true, 2);
         push_json_kv_str(&mut out, "target_triple", &self.target_triple, true, 2);
         push_json_kv_str(&mut out, "profile", &self.profile, true, 2);
-        push_json_kv_str(&mut out, "workspace_version", &self.workspace_version, true, 2);
-        push_json_kv_i64(&mut out, "source_date_epoch", self.source_date_epoch, true, 2);
-        push_json_kv_str(&mut out, "build_timestamp_utc", &self.build_timestamp_utc, false, 2);
+        push_json_kv_str(
+            &mut out,
+            "workspace_version",
+            &self.workspace_version,
+            true,
+            2,
+        );
+        push_json_kv_i64(
+            &mut out,
+            "source_date_epoch",
+            self.source_date_epoch,
+            true,
+            2,
+        );
+        push_json_kv_str(
+            &mut out,
+            "build_timestamp_utc",
+            &self.build_timestamp_utc,
+            false,
+            2,
+        );
         out.push_str("}\n");
         out
     }

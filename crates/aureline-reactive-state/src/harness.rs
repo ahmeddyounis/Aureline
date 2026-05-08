@@ -492,9 +492,7 @@ mod scenarios {
         // seq=3 never arrives on the wire; the consumer sees
         // seq=4 and reports a gap. The store escalates to
         // resync_required with causality_lost.
-        let resync = store
-            .report_delta_gap(sid, 4, 3)
-            .expect("report_delta_gap");
+        let resync = store.report_delta_gap(sid, 4, 3).expect("report_delta_gap");
         let fresh = store
             .emit_snapshot(
                 sid,
@@ -725,9 +723,7 @@ mod scenarios {
                 }),
             )
             .unwrap();
-        let authority_tick_v1 = authority_snap_v1
-            .consumer_observation
-            .snapshot_epoch;
+        let authority_tick_v1 = authority_snap_v1.consumer_observation.snapshot_epoch;
         let _ = derived_snap_v1;
 
         // Authority publishes a new snapshot first.
@@ -929,7 +925,10 @@ mod scenarios {
         let imported = store
             .attach_imported_snapshot(
                 sid,
-                base_payload("imported lsif: 63 nodes anchored on aureline_rpc::EventEnvelope", 63),
+                base_payload(
+                    "imported lsif: 63 nodes anchored on aureline_rpc::EventEnvelope",
+                    63,
+                ),
                 "imported-lsif:ws-aureline-primary/2026-04-18.lsif".to_owned(),
             )
             .unwrap();
@@ -1494,8 +1493,7 @@ mod tests {
                         "replay must not advance live epoch"
                     );
                 } else {
-                    live_epoch_high_water =
-                        live_epoch_high_water.max(envelope.snapshot_epoch);
+                    live_epoch_high_water = live_epoch_high_water.max(envelope.snapshot_epoch);
                 }
             }
         }

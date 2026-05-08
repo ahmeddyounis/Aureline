@@ -133,7 +133,10 @@ impl DesktopFrame {
 
         let rects = if visible.len() == groups_in_order.len() {
             self.editor_splits
-                .layout_with_min_width(self.layout.main_workspace, self.registry.defaults().main_workspace_min_width)
+                .layout_with_min_width(
+                    self.layout.main_workspace,
+                    self.registry.defaults().main_workspace_min_width,
+                )
                 .unwrap_or_else(|_| equal_vertical_slices(self.layout.main_workspace, &visible))
         } else {
             equal_vertical_slices(self.layout.main_workspace, &visible)
@@ -196,7 +199,9 @@ impl DesktopFrame {
         if visible.is_empty() {
             return;
         }
-        let current = visible.iter().position(|id| *id == self.focused_editor_group);
+        let current = visible
+            .iter()
+            .position(|id| *id == self.focused_editor_group);
         let next = match current {
             Some(i) => visible[(i + 1) % visible.len()],
             None => visible[0],
@@ -345,12 +350,22 @@ impl DesktopFrame {
             ],
             ShellZoneId::RightInspector => &["slot.right_inspector.contextual_detail"],
             ShellZoneId::BottomPanel => &["slot.bottom_panel.tool_panels"],
-            ShellZoneId::StatusBar => &["status.slot.recovery.primary", "status.slot.extension.scoped"],
-            ShellZoneId::TransientOverlay => &["slot.overlay.command_palette", "slot.overlay.dialog_or_sheet"],
+            ShellZoneId::StatusBar => &[
+                "status.slot.recovery.primary",
+                "status.slot.extension.scoped",
+            ],
+            ShellZoneId::TransientOverlay => &[
+                "slot.overlay.command_palette",
+                "slot.overlay.dialog_or_sheet",
+            ],
         }
     }
 
-    pub fn slot_rects_within_zone(&self, zone: ShellZoneId, zone_rect: Rect) -> Vec<(&'static str, Rect)> {
+    pub fn slot_rects_within_zone(
+        &self,
+        zone: ShellZoneId,
+        zone_rect: Rect,
+    ) -> Vec<(&'static str, Rect)> {
         let slots = self.slot_ids_for_zone(zone);
         if slots.is_empty() || zone_rect.is_empty() {
             return Vec::new();
@@ -463,7 +478,10 @@ mod tests {
         );
         assert_eq!(
             frame.slot_ids_for_zone(ShellZoneId::StatusBar),
-            &["status.slot.recovery.primary", "status.slot.extension.scoped"]
+            &[
+                "status.slot.recovery.primary",
+                "status.slot.extension.scoped"
+            ]
         );
     }
 }

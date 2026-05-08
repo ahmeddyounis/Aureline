@@ -98,9 +98,9 @@ pub const fn protected_path_for(hook: Hook) -> ProtectedPath {
         | Hook::ScrollFrame
         | Hook::MultiMonitorScaleChange => ProtectedPath::InputToPaint,
         Hook::FrameSubmit => ProtectedPath::RenderSubmission,
-        Hook::FallbackGlyphResolution
-        | Hook::AtlasShardRebind
-        | Hook::AtlasEviction => ProtectedPath::FallbackResolution,
+        Hook::FallbackGlyphResolution | Hook::AtlasShardRebind | Hook::AtlasEviction => {
+            ProtectedPath::FallbackResolution
+        }
         Hook::DegradedRendererBanner | Hook::AccessibilityTreeUpdate => {
             ProtectedPath::Observability
         }
@@ -170,11 +170,8 @@ pub struct SpikeTimingTrace {
 impl SpikeTimingTrace {
     /// Build the aggregate "full_scene" trace for a fixture run.
     pub fn from_full_run(run: &FixtureRunResult, backend: Backend) -> Self {
-        let damage: Vec<DamageRecord> = run
-            .frames
-            .iter()
-            .filter_map(|f| f.damage.clone())
-            .collect();
+        let damage: Vec<DamageRecord> =
+            run.frames.iter().filter_map(|f| f.damage.clone()).collect();
         let marks = build_marks(run, "full_scene");
         let counters = compute_counters(&marks, &damage);
         Self {
@@ -260,7 +257,13 @@ impl SpikeTimingTrace {
         // build block
         writeln_key(&mut out, 1, "build");
         out.push_str(" {\n");
-        writeln_kv(&mut out, 2, "crate_name", &quote(self.build.crate_name), false);
+        writeln_kv(
+            &mut out,
+            2,
+            "crate_name",
+            &quote(self.build.crate_name),
+            false,
+        );
         writeln_kv(
             &mut out,
             2,
@@ -298,13 +301,7 @@ impl SpikeTimingTrace {
             c.paint_count_by_zone_editor_viewport,
             false,
         );
-        writeln_num(
-            &mut out,
-            3,
-            "sidebar",
-            c.paint_count_by_zone_sidebar,
-            false,
-        );
+        writeln_num(&mut out, 3, "sidebar", c.paint_count_by_zone_sidebar, false);
         writeln_num(
             &mut out,
             3,
@@ -331,13 +328,7 @@ impl SpikeTimingTrace {
             c.paint_count_by_layer_text_and_decoration,
             false,
         );
-        writeln_num(
-            &mut out,
-            3,
-            "overlay",
-            c.paint_count_by_layer_overlay,
-            true,
-        );
+        writeln_num(&mut out, 3, "overlay", c.paint_count_by_layer_overlay, true);
         indent(&mut out, 2);
         out.push_str("},\n");
 
@@ -421,7 +412,11 @@ impl SpikeTimingTrace {
                 &mut out,
                 3,
                 "protected_hot_path",
-                if mark.protected_hot_path { "true" } else { "false" },
+                if mark.protected_hot_path {
+                    "true"
+                } else {
+                    "false"
+                },
                 false,
             );
             writeln_kv(&mut out, 3, "path_id", &quote(mark.path_id), false);
@@ -455,10 +450,7 @@ fn build_marks(run: &FixtureRunResult, journey_label: &'static str) -> Vec<Spike
     // are synthesized from the scene's note field.
     let mut marks = Vec::new();
     for raw in &run.marks {
-        let scenario = raw
-            .note
-            .clone()
-            .unwrap_or_else(|| journey_label.to_owned());
+        let scenario = raw.note.clone().unwrap_or_else(|| journey_label.to_owned());
         let scenario_id = match scenario.as_str() {
             "scene.begin" => "scene.begin".to_owned(),
             "scene.first_paint" => "scene.first_paint".to_owned(),
@@ -666,7 +658,10 @@ mod tests {
             protected_path_for(Hook::WarmStartToFirstPaint),
             ProtectedPath::Startup
         );
-        assert_eq!(protected_path_for(Hook::FirstPaint), ProtectedPath::FirstPaint);
+        assert_eq!(
+            protected_path_for(Hook::FirstPaint),
+            ProtectedPath::FirstPaint
+        );
         assert_eq!(
             protected_path_for(Hook::FrameSubmit),
             ProtectedPath::RenderSubmission

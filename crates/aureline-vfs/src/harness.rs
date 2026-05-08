@@ -847,8 +847,7 @@ mod scenarios {
             new_content: b"cafe notes\nupdated\n".to_vec(),
             reviewer_prologue: vec![
                 "root advertises unicode_normalization=mixed_observed".to_owned(),
-                "presentation (nfd) resolves to canonical (nfc); no case-only variant"
-                    .to_owned(),
+                "presentation (nfd) resolves to canonical (nfc); no case-only variant".to_owned(),
             ],
         }
     }
@@ -1003,10 +1002,8 @@ mod scenarios {
             checkpoint_ref: Some("checkpoint:open".to_owned()),
             new_content: b"/* edited */\n".to_vec(),
             reviewer_prologue: vec![
-                "archive-like view; read-only overlay; select_save_mode returns blocked"
-                    .to_owned(),
-                "surface MUST route to save-as on a writable root, not attempt in-place"
-                    .to_owned(),
+                "archive-like view; read-only overlay; select_save_mode returns blocked".to_owned(),
+                "surface MUST route to save-as on a writable root, not attempt in-place".to_owned(),
             ],
         }
     }
@@ -1195,7 +1192,13 @@ mod scenarios {
 pub fn report_to_json(report: &HarnessReport) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    kv_u64(&mut out, 1, "schema_version", u64::from(report.schema_version), false);
+    kv_u64(
+        &mut out,
+        1,
+        "schema_version",
+        u64::from(report.schema_version),
+        false,
+    );
     kv_str(&mut out, 1, "corpus_id", report.corpus_id, false);
     write_aggregate(&mut out, 1, &report.aggregate);
     key(&mut out, 1, "scenarios");
@@ -1216,7 +1219,13 @@ pub fn report_to_json(report: &HarnessReport) -> String {
 pub fn scenario_to_json(report: &ScenarioReport) -> String {
     let mut out = String::new();
     out.push_str("{\n");
-    kv_u64(&mut out, 1, "schema_version", u64::from(SCHEMA_VERSION), false);
+    kv_u64(
+        &mut out,
+        1,
+        "schema_version",
+        u64::from(SCHEMA_VERSION),
+        false,
+    );
     kv_str(&mut out, 1, "corpus_id", CORPUS_ID, false);
     kv_str(&mut out, 1, "label", report.label, false);
     kv_str(&mut out, 1, "corpus_case_id", report.corpus_case_id, false);
@@ -1235,7 +1244,13 @@ pub fn scenario_to_json(report: &ScenarioReport) -> String {
         &report.rename_matrix_row_refs,
         false,
     );
-    kv_str(&mut out, 1, "scenario_summary", report.scenario_summary, false);
+    kv_str(
+        &mut out,
+        1,
+        "scenario_summary",
+        report.scenario_summary,
+        false,
+    );
     kv_str(
         &mut out,
         1,
@@ -1252,8 +1267,20 @@ pub fn scenario_to_json(report: &ScenarioReport) -> String {
 fn write_aggregate(out: &mut String, depth: usize, agg: &AggregateReport) {
     key(out, depth, "aggregate");
     out.push_str(" {\n");
-    kv_u64(out, depth + 1, "total_scenarios", agg.total_scenarios, false);
-    kv_u64(out, depth + 1, "total_committed", agg.total_committed, false);
+    kv_u64(
+        out,
+        depth + 1,
+        "total_scenarios",
+        agg.total_scenarios,
+        false,
+    );
+    kv_u64(
+        out,
+        depth + 1,
+        "total_committed",
+        agg.total_committed,
+        false,
+    );
     kv_u64(
         out,
         depth + 1,
@@ -1341,7 +1368,13 @@ fn write_scenario(out: &mut String, depth: usize, s: &ScenarioReport, last: bool
         &s.rename_matrix_row_refs,
         false,
     );
-    kv_str(out, depth + 1, "scenario_summary", s.scenario_summary, false);
+    kv_str(
+        out,
+        depth + 1,
+        "scenario_summary",
+        s.scenario_summary,
+        false,
+    );
     kv_str(
         out,
         depth + 1,
@@ -1404,7 +1437,13 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
         logical.trust_state.as_str(),
         false,
     );
-    kv_str_opt(out, depth + 2, "policy_scope", logical.policy_scope.as_deref(), true);
+    kv_str_opt(
+        out,
+        depth + 2,
+        "policy_scope",
+        logical.policy_scope.as_deref(),
+        true,
+    );
     indent(out, depth + 1);
     out.push_str("},\n");
     // canonical
@@ -1772,7 +1811,13 @@ fn write_watcher_frames(out: &mut String, depth: usize, frames: &[WatcherHealthF
             f.watcher_health.as_str(),
             false,
         );
-        kv_str_opt(out, depth + 2, "reason_code", f.reason_code.as_deref(), false);
+        kv_str_opt(
+            out,
+            depth + 2,
+            "reason_code",
+            f.reason_code.as_deref(),
+            false,
+        );
         kv_str(out, depth + 2, "observed_at", &f.observed_at, true);
         indent(out, depth + 1);
         if last {
@@ -1947,12 +1992,9 @@ mod tests {
         let report = run_harness();
         for scenario in &report.scenarios {
             assert_eq!(
-                scenario.plan.save_manifest.outcome,
-                scenario.expected_outcome,
+                scenario.plan.save_manifest.outcome, scenario.expected_outcome,
                 "{} reached {:?} but expected {:?}",
-                scenario.label,
-                scenario.plan.save_manifest.outcome,
-                scenario.expected_outcome,
+                scenario.label, scenario.plan.save_manifest.outcome, scenario.expected_outcome,
             );
         }
     }
@@ -2063,7 +2105,11 @@ mod tests {
     #[test]
     fn scenario_labels_are_unique() {
         let labels: BTreeSet<&'static str> = SCENARIOS.iter().map(|s| s.label).collect();
-        assert_eq!(labels.len(), SCENARIOS.len(), "scenario labels must be unique");
+        assert_eq!(
+            labels.len(),
+            SCENARIOS.len(),
+            "scenario labels must be unique"
+        );
     }
 
     #[test]

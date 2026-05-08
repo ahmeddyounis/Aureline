@@ -20,9 +20,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use aureline_largefile_proto::harness::{
-    report_to_json, run_harness, write_fixtures,
-};
+use aureline_largefile_proto::harness::{report_to_json, run_harness, write_fixtures};
 
 #[derive(Debug, Default)]
 struct Args {
@@ -42,10 +40,10 @@ fn parse_args(raw: &[String]) -> Result<Args, String> {
                 ));
             }
             "--scratch-dir" => {
-                out.scratch_dir = Some(PathBuf::from(
-                    iter.next()
-                        .ok_or_else(|| "--scratch-dir requires a directory".to_owned())?,
-                ));
+                out.scratch_dir =
+                    Some(PathBuf::from(iter.next().ok_or_else(|| {
+                        "--scratch-dir requires a directory".to_owned()
+                    })?));
             }
             "--help" | "-h" => return Err(usage()),
             other => return Err(format!("unknown argument: {other}\n\n{}", usage())),

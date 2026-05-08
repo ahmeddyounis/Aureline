@@ -47,15 +47,9 @@ pub struct CheckpointHandle(pub u64);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BufferError {
     /// The offset or range fell outside the buffer.
-    OutOfBounds {
-        offset: usize,
-        len: usize,
-    },
+    OutOfBounds { offset: usize, len: usize },
     /// Range end precedes start.
-    InvertedRange {
-        start: usize,
-        end: usize,
-    },
+    InvertedRange { start: usize, end: usize },
     /// A mutation was attempted outside an open transaction when the
     /// caller asked the buffer to refuse the auto-wrap.
     NoOpenTransaction,
@@ -64,16 +58,11 @@ pub enum BufferError {
     TransactionAlreadyOpen,
     /// A named-group class was begun without the label the ADR
     /// requires.
-    MissingLabelForNamedGroup {
-        class_id: &'static str,
-    },
+    MissingLabelForNamedGroup { class_id: &'static str },
     /// The journal refused to store this transaction's inverse
     /// because it exceeded the per-buffer cap. Fires the
     /// `journal_inverse_rejected` hook.
-    InverseTooLarge {
-        bytes: usize,
-        cap: usize,
-    },
+    InverseTooLarge { bytes: usize, cap: usize },
 }
 
 impl std::fmt::Display for BufferError {
@@ -713,10 +702,7 @@ impl Buffer {
         // the commit, we restore the rollback state captured at
         // begin and leave version/ids unchanged.
         let (inverse_bytes, would_produce_parent_snap_copy) = {
-            let open = self
-                .open
-                .as_ref()
-                .ok_or(BufferError::NoOpenTransaction)?;
+            let open = self.open.as_ref().ok_or(BufferError::NoOpenTransaction)?;
             let op_bytes: usize = open
                 .operations
                 .iter()
@@ -728,7 +714,10 @@ impl Buffer {
             } else {
                 0
             };
-            (op_bytes + snap_bytes, posture == CompensationPosture::OnlyRevertible)
+            (
+                op_bytes + snap_bytes,
+                posture == CompensationPosture::OnlyRevertible,
+            )
         };
         if inverse_bytes > self.config.inverse_cap_bytes {
             self.counters.journal_inverse_rejected += 1;
@@ -808,10 +797,7 @@ impl Buffer {
     }
 
     fn abort_open(&mut self) -> Result<(), BufferError> {
-        let open = self
-            .open
-            .take()
-            .ok_or(BufferError::NoOpenTransaction)?;
+        let open = self.open.take().ok_or(BufferError::NoOpenTransaction)?;
         // Restore pieces, total_len, append buffer.
         self.pieces = open.rollback_pieces;
         self.total_len = open.rollback_total_len;
@@ -1159,15 +1145,15 @@ mod tests {
         b.undo().unwrap(); // undoes commit 2 -> redo stack [commit2]
         assert_eq!(b.contents(), b"abcX");
         b.insert(4, "Z", "user_keystroke").unwrap(); // divergent commit 3, compensatable
-        // Per ADR: compensatable classes MAY be redone after a
-        // divergent edit. The prototype preserves the redo entry.
+                                                     // Per ADR: compensatable classes MAY be redone after a
+                                                     // divergent edit. The prototype preserves the redo entry.
         assert_eq!(b.redo_len(), 1);
         b.redo().unwrap(); // replay commit 2 at its recorded offset
-        // The redo reinserts "Y" at offset 4 on top of the divergent
-        // state "abcXZ", producing "abcXYZ". Exact byte-by-byte
-        // reconstruction of the pre-undo state is not promised for
-        // compensatable redo-after-divergence; the contract is that
-        // the recorded operation is reapplied.
+                           // The redo reinserts "Y" at offset 4 on top of the divergent
+                           // state "abcXZ", producing "abcXYZ". Exact byte-by-byte
+                           // reconstruction of the pre-undo state is not promised for
+                           // compensatable redo-after-divergence; the contract is that
+                           // the recorded operation is reapplied.
         assert_eq!(b.contents(), b"abcXYZ");
         assert_eq!(b.hook_counters().redo_apply, 1);
     }
@@ -1297,11 +1283,8 @@ mod tests {
         let mut b = Buffer::from_str("a=1\nb=2\n");
         let mut tx = b
             .begin(
-                TransactionSpec::new(
-                    UndoClass::SaveParticipantGroup,
-                    "command:save",
-                )
-                .with_label("Save + format + organise imports"),
+                TransactionSpec::new(UndoClass::SaveParticipantGroup, "command:save")
+                    .with_label("Save + format + organise imports"),
             )
             .unwrap();
         tx.replace(0..3, "a = 1").unwrap();
@@ -1314,4 +1297,3 @@ mod tests {
         assert_eq!(c.text_edit_apply, 0); // save_participant_group does not fire it
     }
 }
-

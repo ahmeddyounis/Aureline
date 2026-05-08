@@ -7,7 +7,9 @@
 //! because the token binds a capability-mode + generation token
 //! and is only issuable through the save pipeline.
 
-use crate::capabilities::{FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind};
+use crate::capabilities::{
+    FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind,
+};
 
 /// Layer 1: the path the user opened, verbatim. Tabs, breadcrumbs,
 /// copy / paste, and CLI output preserve `uri` where safe.

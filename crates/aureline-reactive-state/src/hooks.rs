@@ -61,11 +61,7 @@ impl HookCounters {
     /// byte-stable across hosts.
     pub fn entries(&self) -> [(&'static str, bool, u64); 13] {
         [
-            (
-                "subscription_subscribe",
-                true,
-                self.subscription_subscribe,
-            ),
+            ("subscription_subscribe", true, self.subscription_subscribe),
             (
                 "subscription_snapshot_emit",
                 true,
