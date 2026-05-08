@@ -146,50 +146,7 @@ fn sanitize_filename(value: &str) -> String {
 pub fn argument_provenance_map_for(
     entry: &CommandRegistryEntryRecord,
 ) -> Vec<ArgumentProvenanceEntry> {
-    match entry.descriptor.command_id.as_str() {
-        "cmd:workspace.open_folder" => vec![
-            ArgumentProvenanceEntry {
-                argument_name: "workspace_scope_ref".to_string(),
-                provenance: "user_selected_from_palette_suggestion".to_string(),
-                resolved_value_ref: Some("workspace-scope:folder:recent:01".to_string()),
-            },
-            ArgumentProvenanceEntry {
-                argument_name: "add_to_workspace".to_string(),
-                provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("value:bool:false".to_string()),
-            },
-        ],
-        "cmd:workspace.import_profile" => vec![
-            ArgumentProvenanceEntry {
-                argument_name: "import_source_ref".to_string(),
-                provenance: "user_selected_from_palette_suggestion".to_string(),
-                resolved_value_ref: Some("import-source:placeholder:01".to_string()),
-            },
-            ArgumentProvenanceEntry {
-                argument_name: "apply_scope".to_string(),
-                provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("enum:workspace.import_profile:profile_only".to_string()),
-            },
-            ArgumentProvenanceEntry {
-                argument_name: "create_restore_checkpoint".to_string(),
-                provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("value:bool:true".to_string()),
-            },
-        ],
-        _ => entry
-            .descriptor
-            .typed_arguments
-            .iter()
-            .map(|slot| ArgumentProvenanceEntry {
-                argument_name: slot.argument_name.clone(),
-                provenance: slot
-                    .default_provenance_when_omitted
-                    .clone()
-                    .unwrap_or_else(|| "user_typed".to_string()),
-                resolved_value_ref: None,
-            })
-            .collect(),
-    }
+    crate::commands::argument_provenance_map_for(entry)
 }
 
 /// Builds a non-executable CLI/headless skeleton for the command.

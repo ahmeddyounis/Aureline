@@ -7,6 +7,8 @@
 #![doc(html_root_url = "https://docs.rs/aureline-shell/0.0.0")]
 
 pub mod app_frame;
+/// Command review-sheet projections for diagnostics and invocation previews.
+pub mod commands;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
 pub mod layout;

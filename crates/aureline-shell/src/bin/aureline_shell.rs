@@ -15,7 +15,7 @@ use aureline_commands::invocation::{
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{
     CommandEnablementContext, CommandRegistry, CommandRegistryEntryRecord, DisabledReasonCode,
-    EnablementDecisionClass,
+    EnablementDecisionClass, PreflightDecisionClass,
 };
 use aureline_input::keybindings::{
     seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, KeybindingResolver,
@@ -25,6 +25,15 @@ use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapP
 use aureline_shell::app_frame::desktop_frame::{
     DesktopFrame, NewEditorGroupOutcome, SplitViolation,
 };
+use aureline_shell::commands::diagnostics_sheet::{
+    diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
+    write_diagnostics_sheet_log, CommandDiagnosticsSheetRecord,
+};
+use aureline_shell::commands::invocation_preview::{
+    invocation_preview_sheet_lines, materialize_command_invocation_preview_sheet_record,
+    write_invocation_preview_sheet_log, CommandInvocationPreviewSheetRecord,
+};
+use aureline_shell::commands::CommandReviewRuntimeInputs;
 use aureline_shell::help::keybinding_inspector::build_inspector_lines;
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
@@ -505,24 +514,69 @@ fn dispatch_registry_entry(
         policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
         argument_provenance_map: session.argument_provenance_map.clone(),
     };
-    let enablement_snapshot = entry.evaluate_enablement(&enablement_context);
+    let preflight = entry.preflight(&enablement_context);
+    let enablement_snapshot = preflight.enablement_snapshot.clone();
     session.enablement_decision = EnablementDecisionBlock {
         decision_class: enablement_snapshot.decision_class,
         disabled_reason_code: enablement_snapshot.disabled_reason_code,
         repair_hook_ref: enablement_snapshot.repair_hook_ref,
     };
 
-    if session.enablement_decision.decision_class != EnablementDecisionClass::Enabled {
+    let review_runtime = CommandReviewRuntimeInputs {
+        client_scope: "desktop_product",
+        workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+        execution_context_available: enablement_runtime.execution_context_available,
+        provider_linked: enablement_runtime.provider_linked,
+        credential_available: enablement_runtime.credential_available,
+        policy_disabled: enablement_runtime.policy_disabled,
+        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+    };
+
+    if matches!(
+        preflight.decision_class,
+        PreflightDecisionClass::BlockedByPolicy | PreflightDecisionClass::DisabledWithReason
+    ) {
         let denied_code = session
             .enablement_decision
             .disabled_reason_code
             .unwrap_or(DisabledReasonCode::PolicyBlockedInContext);
         let invocation = invocation_and_result_denied(&session, denied_code);
         command_runtime.record(invocation);
+
+        let record = materialize_command_diagnostics_sheet_record(entry, review_runtime);
+        write_diagnostics_sheet_log(&record);
+        *overlay = Some(ShellOverlayState::command_diagnostics(
+            frame.focused_zone(),
+            frame.focused_editor_group(),
+            record,
+        ));
+        frame.focus_zone(ShellZoneId::TransientOverlay);
         return true;
     }
 
     palette.note_command_invoked(entry.command_id());
+
+    if matches!(
+        preflight.decision_class,
+        PreflightDecisionClass::PreviewRequired | PreflightDecisionClass::ApprovalRequired
+    ) {
+        session.preview_posture.preview_shown = true;
+        if session.preview_posture.preview_record_ref.is_none() {
+            session.preview_posture.preview_record_ref =
+                Some(mint_preview_record_ref(&entry.descriptor.canonical_verb));
+        }
+        let record =
+            materialize_command_invocation_preview_sheet_record(entry, &session, review_runtime);
+        write_invocation_preview_sheet_log(&record);
+        *overlay = Some(ShellOverlayState::invocation_preview(
+            frame.focused_zone(),
+            frame.focused_editor_group(),
+            entry.clone(),
+            record,
+        ));
+        frame.focus_zone(ShellZoneId::TransientOverlay);
+        return true;
+    }
 
     match entry.descriptor.command_id.as_str() {
         "cmd:command_palette.open" => {
@@ -550,16 +604,8 @@ fn dispatch_registry_entry(
             true
         }
         "cmd:workspace.import_profile" => {
-            session.preview_posture.preview_shown = true;
-            session.preview_posture.preview_record_ref =
-                Some(mint_preview_record_ref(&entry.descriptor.canonical_verb));
-            *overlay = Some(ShellOverlayState::command_preview(
-                frame.focused_zone(),
-                frame.focused_editor_group(),
-                entry.clone(),
-                session,
-            ));
-            frame.focus_zone(ShellZoneId::TransientOverlay);
+            let invocation = invocation_and_result_unimplemented(&session);
+            command_runtime.record(invocation);
             true
         }
         _ => {
@@ -1111,6 +1157,41 @@ fn handle_key_event(
                     }
                 }
             }
+            KeyCode::KeyD if modifiers.ctrl_or_logo() => {
+                let Some(entry) = palette.selected_entry(registry) else {
+                    command_runtime.note_non_command_action("diagnostics: no command selected");
+                    return true;
+                };
+
+                let runtime = CommandReviewRuntimeInputs {
+                    client_scope: "desktop_product",
+                    workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+                    execution_context_available: enablement_runtime.execution_context_available,
+                    provider_linked: enablement_runtime.provider_linked,
+                    credential_available: enablement_runtime.credential_available,
+                    policy_disabled: enablement_runtime.policy_disabled,
+                    policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                };
+                let record = materialize_command_diagnostics_sheet_record(entry, runtime);
+                write_diagnostics_sheet_log(&record);
+
+                palette
+                    .write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
+                palette.close();
+
+                *overlay = Some(ShellOverlayState::command_diagnostics(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                    record,
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+                command_runtime.note_non_command_action(format!(
+                    "diagnostics — {}",
+                    entry.command_id()
+                ));
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                true
+            }
             KeyCode::Enter => {
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 let commit = palette.commit(registry);
@@ -1585,9 +1666,14 @@ fn draw(
 }
 
 #[derive(Debug, Clone)]
-struct CommandPreviewOverlay {
+struct CommandDiagnosticsOverlay {
+    record: CommandDiagnosticsSheetRecord,
+}
+
+#[derive(Debug, Clone)]
+struct CommandInvocationPreviewOverlay {
     entry: CommandRegistryEntryRecord,
-    session: CommandInvocationSession,
+    record: CommandInvocationPreviewSheetRecord,
 }
 
 #[derive(Debug, Clone)]
@@ -1621,7 +1707,8 @@ enum ShellOverlayKind {
         selection: usize,
     },
     StagedPeek,
-    CommandPreview(CommandPreviewOverlay),
+    CommandDiagnostics(CommandDiagnosticsOverlay),
+    InvocationPreview(CommandInvocationPreviewOverlay),
     CommandTrace(CommandTraceOverlay),
 }
 
@@ -1659,14 +1746,30 @@ impl ShellOverlayState {
         }
     }
 
-    fn command_preview(
+    fn command_diagnostics(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        record: CommandDiagnosticsSheetRecord,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::CommandDiagnostics(CommandDiagnosticsOverlay { record }),
+            focus_return_zone,
+            focus_return_group,
+            closed: false,
+        }
+    }
+
+    fn invocation_preview(
         focus_return_zone: ShellZoneId,
         focus_return_group: PaneId,
         entry: CommandRegistryEntryRecord,
-        session: CommandInvocationSession,
+        record: CommandInvocationPreviewSheetRecord,
     ) -> Self {
         Self {
-            kind: ShellOverlayKind::CommandPreview(CommandPreviewOverlay { entry, session }),
+            kind: ShellOverlayKind::InvocationPreview(CommandInvocationPreviewOverlay {
+                entry,
+                record,
+            }),
             focus_return_zone,
             focus_return_group,
             closed: false,
@@ -1703,11 +1806,12 @@ impl ShellOverlayState {
         let mut command_decision = None;
         let handled = match (&mut self.kind, code) {
             (_, KeyCode::Escape) => {
-                if let ShellOverlayKind::CommandPreview(preview) = &mut self.kind {
-                    preview.session.approval_posture.approval_state = "approval_denied".to_string();
+                if let ShellOverlayKind::InvocationPreview(preview) = &mut self.kind {
+                    preview.record.invocation_session.approval_posture.approval_state =
+                        "approval_denied".to_string();
                     command_decision = Some(CommandOverlayDecision::PreviewCancelled {
                         entry: preview.entry.clone(),
-                        session: preview.session.clone(),
+                        session: preview.record.invocation_session.clone(),
                     });
                 }
                 self.close(frame);
@@ -1721,25 +1825,32 @@ impl ShellOverlayState {
                 keybinding_runtime.cycle_preset(1);
                 true
             }
-            (ShellOverlayKind::CommandPreview(preview), KeyCode::Enter) => {
-                preview.session.approval_posture.approval_state = "approval_granted".to_string();
+            (ShellOverlayKind::InvocationPreview(preview), KeyCode::Enter) => {
+                preview
+                    .record
+                    .invocation_session
+                    .approval_posture
+                    .approval_state = "approval_granted".to_string();
                 if preview
-                    .session
+                    .record
+                    .invocation_session
                     .approval_posture
                     .approval_ticket_ref
                     .is_none()
                     && preview
-                        .session
+                        .record
+                        .invocation_session
                         .approval_posture
                         .approval_posture_class_declared
                         != "no_approval_required"
                 {
-                    preview.session.approval_posture.approval_ticket_ref =
-                        Some(mint_approval_ticket_ref(&preview.session.canonical_verb));
+                    preview.record.invocation_session.approval_posture.approval_ticket_ref = Some(
+                        mint_approval_ticket_ref(&preview.record.invocation_session.canonical_verb),
+                    );
                 }
                 command_decision = Some(CommandOverlayDecision::PreviewApproved {
                     entry: preview.entry.clone(),
-                    session: preview.session.clone(),
+                    session: preview.record.invocation_session.clone(),
                 });
                 self.close(frame);
                 true
@@ -1828,76 +1939,41 @@ fn draw_shell_overlay(
                 cursor_y = cursor_y.saturating_add(line_h);
             }
         }
-        ShellOverlayKind::CommandPreview(preview) => {
-            let header = format!(
-                "Preview — {}  (Esc cancel, Enter apply)",
-                preview.entry.title
-            );
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(12),
-                1,
-                &header,
-                0x00ffffff,
-            );
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(28),
-                1,
-                &format!("command_id: {}", preview.entry.command_id()),
-                0x00c9d3de,
-            );
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(44),
-                1,
-                &format!(
-                    "preview_class: {}",
-                    preview.session.preview_posture.preview_class_declared
-                ),
-                0x00c9d3de,
-            );
-            if let Some(preview_ref) = preview.session.preview_posture.preview_record_ref.as_ref() {
-                draw_text(
-                    buffer,
-                    width,
-                    height,
-                    sheet_rect.x.saturating_add(12),
-                    sheet_rect.y.saturating_add(60),
-                    1,
-                    &format!("preview_ref: {}", preview_ref),
-                    0x00c9d3de,
-                );
+        ShellOverlayKind::CommandDiagnostics(sheet) => {
+            let lines = diagnostics_sheet_lines(&sheet.record);
+            let mut cursor_y = sheet_rect.y.saturating_add(12);
+            let cursor_x = sheet_rect.x.saturating_add(12);
+            let line_h = 14u32;
+            for (idx, line) in lines.into_iter().enumerate() {
+                if cursor_y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(12) {
+                    break;
+                }
+                let color = match idx {
+                    0 => 0x00ffffff,
+                    1 => 0x00aab7c4,
+                    _ => 0x00c9d3de,
+                };
+                draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
+                cursor_y = cursor_y.saturating_add(line_h);
             }
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(78),
-                1,
-                "Decision mints an invocation session + result packet.",
-                0x00c9d3de,
-            );
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(94),
-                1,
-                "Packets: .logs/command_packets",
-                0x00c9d3de,
-            );
+        }
+        ShellOverlayKind::InvocationPreview(preview) => {
+            let lines = invocation_preview_sheet_lines(&preview.record);
+            let mut cursor_y = sheet_rect.y.saturating_add(12);
+            let cursor_x = sheet_rect.x.saturating_add(12);
+            let line_h = 14u32;
+            for (idx, line) in lines.into_iter().enumerate() {
+                if cursor_y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(12) {
+                    break;
+                }
+                let color = match idx {
+                    0 => 0x00ffffff,
+                    1 => 0x00aab7c4,
+                    _ => 0x00c9d3de,
+                };
+                draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
+                cursor_y = cursor_y.saturating_add(line_h);
+            }
         }
         ShellOverlayKind::CommandTrace(trace) => {
             draw_text(
@@ -2396,11 +2472,13 @@ fn draw_command_palette_overlay(
             } else {
                 "Cmd/Ctrl+C: copy id"
             };
+            let diagnostics_hint = if held_modifiers.ctrl_or_logo() {
+                "D: diagnostics"
+            } else {
+                "Cmd/Ctrl+D: diagnostics"
+            };
             (
-                format!(
-                    "Enter: invoke   {}   ({})",
-                    copy_hint, cli_hint
-                ),
+                format!("Enter: invoke   {}   {}   ({})", copy_hint, diagnostics_hint, cli_hint),
                 format!(
                     "Preview: {}   Approval: {}   Side-effects: {}",
                     command.preview_class,
