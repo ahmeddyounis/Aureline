@@ -6,7 +6,7 @@ use std::time::Instant;
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
-    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock, ArgumentProvenanceEntry,
+    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock,
     ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock,
     EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
     InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock, InvocationSessionPacketRecord,
@@ -28,10 +28,15 @@ use aureline_shell::app_frame::desktop_frame::{
 use aureline_shell::help::keybinding_inspector::build_inspector_lines;
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
+use aureline_shell::palette::preview::{
+    argument_provenance_map_for, copy_payload_for, materialize_palette_preview_record,
+    write_preview_log, PaletteCopyIntent, PalettePreviewRuntimeInputs, PalettePreviewSelection,
+};
 use aureline_shell::palette::results_view::palette_view_rows;
 use aureline_shell::palette::{CommandPaletteCommit, CommandPaletteState};
 
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
+use arboard::Clipboard;
 use softbuffer::{Context, Surface};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -64,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut command_runtime = CommandRuntimeState::default();
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
+    let mut clipboard = ClipboardState::new();
 
     window.request_redraw();
 
@@ -92,7 +98,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 relayout_and_redraw(&window, &mut surface, &mut frame);
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                let before_modifiers = held_modifiers;
                 held_modifiers.update_from_key_event(&event);
+                let modifiers_changed = before_modifiers != held_modifiers;
                 if handle_key_event(
                     &window,
                     registry,
@@ -102,9 +110,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut command_runtime,
                     &mut keybinding_runtime,
                     &mut enablement_runtime,
+                    &mut clipboard,
                     &held_modifiers,
                     event,
-                ) {
+                ) || (palette.is_open() && modifiers_changed) {
                     window.request_redraw();
                 }
             }
@@ -119,6 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &command_runtime,
                     &keybinding_runtime,
                     &enablement_runtime,
+                    &held_modifiers,
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
                     elwt.exit();
@@ -249,6 +259,31 @@ impl CommandRuntimeState {
     }
 }
 
+#[derive(Default)]
+struct ClipboardState {
+    clipboard: Option<Clipboard>,
+}
+
+impl ClipboardState {
+    fn new() -> Self {
+        Self {
+            clipboard: Clipboard::new().ok(),
+        }
+    }
+
+    fn set_text(&mut self, text: &str) -> Result<(), String> {
+        if self.clipboard.is_none() {
+            self.clipboard = Clipboard::new().ok();
+        }
+        let Some(clipboard) = self.clipboard.as_mut() else {
+            return Err("clipboard unavailable".to_string());
+        };
+        clipboard
+            .set_text(text.to_string())
+            .map_err(|err| err.to_string())
+    }
+}
+
 #[derive(Debug, Clone)]
 struct CommandEnablementRuntimeState {
     workspace_trust_state: String,
@@ -326,53 +361,6 @@ fn alias_used_for(entry: &CommandRegistryEntryRecord, origin: DispatchOrigin) ->
                 },
             }
         }
-    }
-}
-
-fn argument_provenance_map_for(entry: &CommandRegistryEntryRecord) -> Vec<ArgumentProvenanceEntry> {
-    match entry.descriptor.command_id.as_str() {
-        "cmd:workspace.open_folder" => vec![
-            ArgumentProvenanceEntry {
-                argument_name: "workspace_scope_ref".to_string(),
-                provenance: "user_selected_from_palette_suggestion".to_string(),
-                resolved_value_ref: Some("workspace-scope:folder:recent:01".to_string()),
-            },
-            ArgumentProvenanceEntry {
-                argument_name: "add_to_workspace".to_string(),
-                provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("value:bool:false".to_string()),
-            },
-        ],
-        "cmd:workspace.import_profile" => vec![
-            ArgumentProvenanceEntry {
-                argument_name: "import_source_ref".to_string(),
-                provenance: "user_selected_from_palette_suggestion".to_string(),
-                resolved_value_ref: Some("import-source:placeholder:01".to_string()),
-            },
-            ArgumentProvenanceEntry {
-                argument_name: "apply_scope".to_string(),
-                provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("enum:workspace.import_profile:profile_only".to_string()),
-            },
-            ArgumentProvenanceEntry {
-                argument_name: "create_restore_checkpoint".to_string(),
-                provenance: "default_from_descriptor".to_string(),
-                resolved_value_ref: Some("value:bool:true".to_string()),
-            },
-        ],
-        _ => entry
-            .descriptor
-            .typed_arguments
-            .iter()
-            .map(|slot| ArgumentProvenanceEntry {
-                argument_name: slot.argument_name.clone(),
-                provenance: slot
-                    .default_provenance_when_omitted
-                    .clone()
-                    .unwrap_or_else(|| "user_typed".to_string()),
-                resolved_value_ref: None,
-            })
-            .collect(),
     }
 }
 
@@ -1049,6 +1037,7 @@ fn handle_key_event(
     command_runtime: &mut CommandRuntimeState,
     keybinding_runtime: &mut KeybindingRuntimeState,
     enablement_runtime: &mut CommandEnablementRuntimeState,
+    clipboard: &mut ClipboardState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -1062,6 +1051,66 @@ fn handle_key_event(
 
     if palette.is_open() {
         return match code {
+            KeyCode::KeyC if modifiers.ctrl_or_logo() => {
+                let runtime = PalettePreviewRuntimeInputs {
+                    client_scope: "desktop_product",
+                    workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+                    execution_context_available: enablement_runtime.execution_context_available,
+                    provider_linked: enablement_runtime.provider_linked,
+                    credential_available: enablement_runtime.credential_available,
+                    policy_disabled: enablement_runtime.policy_disabled,
+                    policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                };
+                let preview = materialize_palette_preview_record(
+                    palette.selected_key(),
+                    registry,
+                    &keybinding_runtime.shortcuts_by_command_id,
+                    runtime,
+                );
+                let PalettePreviewSelection::Command(command) = &preview.selection else {
+                    command_runtime.note_non_command_action("copy: no command selected");
+                    return true;
+                };
+
+                let preferred_intent = if modifiers.shift {
+                    PaletteCopyIntent::CliSkeleton
+                } else {
+                    PaletteCopyIntent::CommandId
+                };
+                let payload = copy_payload_for(command, preferred_intent)
+                    .or_else(|| copy_payload_for(command, PaletteCopyIntent::CommandId));
+                let Some(payload) = payload else {
+                    command_runtime.note_non_command_action(format!(
+                        "copy: unavailable — {}",
+                        command.command_id
+                    ));
+                    return true;
+                };
+
+                match clipboard.set_text(payload) {
+                    Ok(()) => {
+                        write_preview_log(&preview);
+                        let label = match preferred_intent {
+                            PaletteCopyIntent::CliSkeleton if command.copy.cli_skeleton.is_some() => {
+                                "copied cli skeleton"
+                            }
+                            _ => "copied command id",
+                        };
+                        command_runtime.note_non_command_action(format!(
+                            "{label} — {}",
+                            command.command_id
+                        ));
+                        true
+                    }
+                    Err(err) => {
+                        command_runtime.note_non_command_action(format!(
+                            "copy failed — {} ({})",
+                            command.command_id, err
+                        ));
+                        true
+                    }
+                }
+            }
             KeyCode::Enter => {
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 let commit = palette.commit(registry);
@@ -1332,6 +1381,7 @@ fn draw(
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    held_modifiers: &HeldModifiers,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -1462,6 +1512,7 @@ fn draw(
             palette,
             keybinding_runtime,
             enablement_runtime,
+            held_modifiers,
         );
     }
 
@@ -2057,6 +2108,7 @@ fn draw_command_palette_overlay(
     palette: &CommandPaletteState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    held_modifiers: &HeldModifiers,
 ) {
     let Some(overlay_logical) = frame.layout().zone(ShellZoneId::TransientOverlay) else {
         return;
@@ -2117,6 +2169,22 @@ fn draw_command_palette_overlay(
     );
     cursor_y = cursor_y.saturating_add(line_h + 6);
 
+    let preview_runtime = PalettePreviewRuntimeInputs {
+        client_scope: "desktop_product",
+        workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+        execution_context_available: enablement_runtime.execution_context_available,
+        provider_linked: enablement_runtime.provider_linked,
+        credential_available: enablement_runtime.credential_available,
+        policy_disabled: enablement_runtime.policy_disabled,
+        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+    };
+    let preview = materialize_palette_preview_record(
+        palette.selected_key(),
+        registry,
+        &keybinding_runtime.shortcuts_by_command_id,
+        preview_runtime,
+    );
+
     let selected_key = palette.selected_key().cloned();
     let view_rows = palette_view_rows(
         palette,
@@ -2138,8 +2206,63 @@ fn draw_command_palette_overlay(
         },
     );
 
+    let inner_padding = 12u32;
+    let footer_lines = 2u32;
+    let footer_height = footer_lines.saturating_mul(line_h).saturating_add(12);
+    let footer = Rect::new(
+        panel.x.saturating_add(inner_padding),
+        panel.bottom()
+            .saturating_sub(inner_padding)
+            .saturating_sub(footer_height),
+        panel.width.saturating_sub(inner_padding.saturating_mul(2)),
+        footer_height,
+    );
+    if footer.is_empty() {
+        return;
+    }
+
+    let content_height = footer
+        .y
+        .saturating_sub(cursor_y)
+        .saturating_sub(8);
+    let content = Rect::new(
+        panel.x.saturating_add(inner_padding),
+        cursor_y,
+        panel.width.saturating_sub(inner_padding.saturating_mul(2)),
+        content_height,
+    );
+    if content.is_empty() {
+        return;
+    }
+
+    let gap = 14u32;
+    let char_w = 8u32.saturating_mul(text_scale);
+    let min_list_w = char_w.saturating_mul(48);
+    let min_preview_w = char_w.saturating_mul(36);
+    let (list_rect, preview_rect) = if content.width > min_list_w + gap + min_preview_w {
+        let max_list_w = content.width.saturating_sub(gap).saturating_sub(min_preview_w);
+        let list_w = (content.width.saturating_mul(3) / 5)
+            .max(min_list_w)
+            .min(max_list_w);
+        let preview_w = content.width.saturating_sub(list_w).saturating_sub(gap);
+        (
+            Rect::new(content.x, content.y, list_w, content.height),
+            Rect::new(
+                content.x.saturating_add(list_w).saturating_add(gap),
+                content.y,
+                preview_w,
+                content.height,
+            ),
+        )
+    } else {
+        (content, Rect::new(0, 0, 0, 0))
+    };
+
+    let max_list_cols = (list_rect.width / char_w).saturating_sub(1) as usize;
+    let mut list_y = list_rect.y;
+    let list_x = list_rect.x;
     for row in view_rows.iter() {
-        if cursor_y.saturating_add(line_h) > panel.bottom().saturating_sub(12) {
+        if list_y.saturating_add(line_h) > list_rect.bottom() {
             break;
         }
         let selected = row
@@ -2149,23 +2272,23 @@ fn draw_command_palette_overlay(
             .map(|(k, s)| k == s)
             .unwrap_or(false);
         if selected && !row.is_group_header {
-            let highlight = Rect::new(
-                panel.x.saturating_add(6),
-                cursor_y.saturating_sub(2),
-                panel.width.saturating_sub(12),
-                line_h,
-            );
+            let highlight = Rect::new(list_rect.x, list_y.saturating_sub(2), list_rect.width, line_h);
             fill_rect(buffer, width, height, highlight, 0x00202a35);
         }
 
+        let line = if max_list_cols == 0 {
+            String::new()
+        } else {
+            row.text.chars().take(max_list_cols).collect::<String>()
+        };
         draw_text(
             buffer,
             width,
             height,
-            cursor_x,
-            cursor_y,
+            list_x,
+            list_y,
             text_scale,
-            &row.text,
+            &line,
             if selected && !row.is_group_header {
                 0x00ffffff
             } else if row.is_group_header {
@@ -2174,7 +2297,148 @@ fn draw_command_palette_overlay(
                 0x00c9d3de
             },
         );
-        cursor_y = cursor_y.saturating_add(line_h);
+        list_y = list_y.saturating_add(line_h);
+    }
+
+    if !preview_rect.is_empty() {
+        fill_rect(buffer, width, height, preview_rect, 0x00141a22);
+        stroke_rect(buffer, width, height, preview_rect, 1, 0x0032455a);
+
+        let max_preview_cols = (preview_rect.width / char_w).saturating_sub(1) as usize;
+        let mut preview_y = preview_rect.y.saturating_add(8);
+        let preview_x = preview_rect.x.saturating_add(8);
+
+        let mut preview_lines: Vec<String> = Vec::new();
+        match &preview.selection {
+            PalettePreviewSelection::None => {
+                preview_lines.push("No selection".to_string());
+            }
+            PalettePreviewSelection::File(file) => {
+                preview_lines.push("File".to_string());
+                preview_lines.push(file.relative_path.clone());
+            }
+            PalettePreviewSelection::Command(command) => {
+                preview_lines.push("Command".to_string());
+                preview_lines.push(command.title.clone());
+                preview_lines.push(command.command_id.clone());
+                if !command.shortcuts.is_empty() {
+                    preview_lines.push(format!("Keys: {}", command.shortcuts.join(", ")));
+                }
+                preview_lines.push(format!("Verb: {}", command.canonical_verb));
+                preview_lines.push(format!("Preflight: {}", command.preflight.decision_class));
+                if command.preflight.enablement_snapshot.decision_class
+                    != EnablementDecisionClass::Enabled
+                {
+                    let code = command
+                        .preflight
+                        .enablement_snapshot
+                        .disabled_reason_code
+                        .map(|c| c.as_str())
+                        .unwrap_or("unknown");
+                    preview_lines.push(format!("Disabled: {}", code));
+                }
+                if !command.typed_arguments.is_empty() {
+                    preview_lines.push("Args:".to_string());
+                    for arg in &command.typed_arguments {
+                        let required = if arg.is_required { "required" } else { "optional" };
+                        preview_lines.push(format!(
+                            "- {} ({}, {})",
+                            arg.argument_name, arg.argument_kind, required
+                        ));
+                    }
+                }
+            }
+        }
+
+        for line in preview_lines {
+            if preview_y.saturating_add(line_h) > preview_rect.bottom().saturating_sub(8) {
+                break;
+            }
+            let clipped = if max_preview_cols == 0 {
+                String::new()
+            } else {
+                line.chars().take(max_preview_cols).collect::<String>()
+            };
+            draw_text(
+                buffer,
+                width,
+                height,
+                preview_x,
+                preview_y,
+                text_scale,
+                &clipped,
+                0x00c9d3de,
+            );
+            preview_y = preview_y.saturating_add(line_h);
+        }
+    }
+
+    fill_rect(buffer, width, height, footer, 0x00101922);
+    stroke_rect(buffer, width, height, footer, 1, 0x0032455a);
+
+    let footer_x = footer.x.saturating_add(8);
+    let mut footer_y = footer.y.saturating_add(8);
+    let footer_cols = (footer.width / char_w).saturating_sub(1) as usize;
+
+    let (footer_line_1, footer_line_2) = match &preview.selection {
+        PalettePreviewSelection::Command(command) => {
+            let cli_hint = if command.copy.cli_skeleton.is_some() {
+                "Shift: cli skeleton"
+            } else {
+                "Shift: (no cli)"
+            };
+            let copy_hint = if held_modifiers.ctrl_or_logo() {
+                if held_modifiers.shift && command.copy.cli_skeleton.is_some() {
+                    "C: copy cli skeleton"
+                } else {
+                    "C: copy id"
+                }
+            } else {
+                "Cmd/Ctrl+C: copy id"
+            };
+            (
+                format!(
+                    "Enter: invoke   {}   ({})",
+                    copy_hint, cli_hint
+                ),
+                format!(
+                    "Preview: {}   Approval: {}   Side-effects: {}",
+                    command.preview_class,
+                    command.approval_posture_class,
+                    command.dominant_side_effect_class
+                ),
+            )
+        }
+        PalettePreviewSelection::File(_) => (
+            "Enter: open   Esc: close".to_string(),
+            "Up/Down: select".to_string(),
+        ),
+        PalettePreviewSelection::None => (
+            "Type to search. Esc: close".to_string(),
+            String::new(),
+        ),
+    };
+
+    for line in [footer_line_1, footer_line_2] {
+        if footer_y.saturating_add(line_h) > footer.bottom().saturating_sub(8) {
+            break;
+        }
+        let clipped = if footer_cols == 0 {
+            String::new()
+        } else {
+            line.chars().take(footer_cols).collect::<String>()
+        };
+        draw_text(
+            buffer,
+            width,
+            height,
+            footer_x,
+            footer_y,
+            text_scale,
+            &clipped,
+            0x00aab7c4,
+        );
+        footer_y = footer_y.saturating_add(line_h);
     }
 }
 
@@ -2221,7 +2485,7 @@ fn draw_glyph(
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 struct HeldModifiers {
     ctrl: bool,
     alt: bool,
