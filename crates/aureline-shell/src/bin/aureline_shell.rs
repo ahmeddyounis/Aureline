@@ -6,9 +6,9 @@ use std::time::Instant;
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
-    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock,
-    ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock,
-    EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
+    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock, ArtifactRefEntry,
+    CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock, EnablementDecisionBlock,
+    EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
     InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock, InvocationSessionPacketRecord,
     NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
 };
@@ -43,9 +43,12 @@ use aureline_shell::palette::preview::{
 };
 use aureline_shell::palette::results_view::palette_view_rows;
 use aureline_shell::palette::{CommandPaletteCommit, CommandPaletteState};
+use aureline_ui::tokens::{
+    seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
+};
 
-use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use arboard::Clipboard;
+use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use softbuffer::{Context, Surface};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -54,6 +57,140 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::WindowBuilder;
 
 type SoftbufferSurface = Surface<Arc<winit::window::Window>, Arc<winit::window::Window>>;
+
+#[derive(Debug, Clone)]
+struct ShellRenderTokens {
+    bg_canvas: ColorRgba,
+    bg_subtle: ColorRgba,
+    bg_surface: ColorRgba,
+    bg_raised: ColorRgba,
+    bg_hover: ColorRgba,
+    bg_active: ColorRgba,
+    bg_overlay: ColorRgba,
+    text_primary: ColorRgba,
+    text_secondary: ColorRgba,
+    text_muted: ColorRgba,
+    text_inverse: ColorRgba,
+    border_default: ColorRgba,
+    border_strong: ColorRgba,
+    icon_default: ColorRgba,
+    icon_muted: ColorRgba,
+    focus_ring: ColorRgba,
+    accent_brand: ColorRgba,
+    accent_interactive: ColorRgba,
+}
+
+impl ShellRenderTokens {
+    fn load(registry: &TokenRegistry) -> Result<Self, TokenRegistryError> {
+        Ok(Self {
+            bg_canvas: registry.require_color("al.color.bg.canvas")?,
+            bg_subtle: registry.require_color("al.color.bg.subtle")?,
+            bg_surface: registry.require_color("al.color.bg.surface")?,
+            bg_raised: registry.require_color("al.color.bg.raised")?,
+            bg_hover: registry.require_color("al.color.bg.hover")?,
+            bg_active: registry.require_color("al.color.bg.active")?,
+            bg_overlay: registry.require_color("al.color.bg.overlay")?,
+            text_primary: registry.require_color("al.color.text.primary")?,
+            text_secondary: registry.require_color("al.color.text.secondary")?,
+            text_muted: registry.require_color("al.color.text.muted")?,
+            text_inverse: registry.require_color("al.color.text.inverse")?,
+            border_default: registry.require_color("al.color.border.default")?,
+            border_strong: registry.require_color("al.color.border.strong")?,
+            focus_ring: registry.require_color("al.color.focus.ring")?,
+            icon_default: registry.require_color("al.color.icon.default")?,
+            icon_muted: registry.require_color("al.color.icon.muted")?,
+            accent_brand: registry.require_color("al.color.accent.brand")?,
+            accent_interactive: registry.require_color("al.color.accent.interactive")?,
+        })
+    }
+
+    const fn zone_background(&self, zone: ShellZoneId) -> ColorRgba {
+        match zone {
+            ShellZoneId::TitleContextBar => self.bg_raised,
+            ShellZoneId::ActivityRail => self.bg_subtle,
+            ShellZoneId::LeftSidebar => self.bg_surface,
+            ShellZoneId::MainWorkspace => self.bg_canvas,
+            ShellZoneId::RightInspector => self.bg_surface,
+            ShellZoneId::BottomPanel => self.bg_surface,
+            ShellZoneId::StatusBar => self.bg_raised,
+            ShellZoneId::TransientOverlay => self.bg_overlay,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ShellRenderStyle {
+    tokens: ShellRenderTokens,
+    stroke_default: u32,
+    stroke_focus: u32,
+    space_2: u32,
+    space_3: u32,
+    space_4: u32,
+    space_6: u32,
+    status_warning: ColorRgba,
+    status_warning_border: ColorRgba,
+    status_warning_fill: ColorRgba,
+    status_success: ColorRgba,
+    status_success_border: ColorRgba,
+    status_success_fill: ColorRgba,
+}
+
+impl ShellRenderStyle {
+    fn load(registry: &TokenRegistry) -> Result<Self, TokenRegistryError> {
+        Ok(Self {
+            tokens: ShellRenderTokens::load(registry)?,
+            stroke_default: registry.require_stroke_px("stroke.border.default")?,
+            stroke_focus: registry.require_stroke_px("stroke.focus.ring")?,
+            space_2: registry.require_space_px("space.2")?,
+            space_3: registry.require_space_px("space.3")?,
+            space_4: registry.require_space_px("space.4")?,
+            space_6: registry.require_space_px("space.6")?,
+            status_warning: registry.require_color("status.warning")?,
+            status_warning_border: registry.require_color("status.warning.border")?,
+            status_warning_fill: registry.require_color("status.warning.fill")?,
+            status_success: registry.require_color("status.success")?,
+            status_success_border: registry.require_color("status.success.border")?,
+            status_success_fill: registry.require_color("status.success.fill")?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ShellAppearanceState {
+    theme: ThemeClass,
+}
+
+impl Default for ShellAppearanceState {
+    fn default() -> Self {
+        Self {
+            theme: ThemeClass::DarkReference,
+        }
+    }
+}
+
+impl ShellAppearanceState {
+    const fn theme(self) -> ThemeClass {
+        self.theme
+    }
+
+    fn toggle_light_dark(&mut self) {
+        self.theme = match self.theme {
+            ThemeClass::DarkReference => ThemeClass::LightParity,
+            ThemeClass::LightParity => ThemeClass::DarkReference,
+            ThemeClass::HighContrastDark => ThemeClass::HighContrastLight,
+            ThemeClass::HighContrastLight => ThemeClass::HighContrastDark,
+        };
+    }
+
+    fn toggle_high_contrast(&mut self) {
+        self.theme = match self.theme {
+            ThemeClass::DarkReference => ThemeClass::HighContrastDark,
+            ThemeClass::LightParity => ThemeClass::HighContrastLight,
+            ThemeClass::HighContrastDark => ThemeClass::DarkReference,
+            ThemeClass::HighContrastLight => ThemeClass::LightParity,
+        };
+    }
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
@@ -79,6 +216,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
     let mut clipboard = ClipboardState::new();
+    let mut appearance = ShellAppearanceState::default();
 
     window.request_redraw();
 
@@ -120,9 +258,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut keybinding_runtime,
                     &mut enablement_runtime,
                     &mut clipboard,
+                    &mut appearance,
                     &held_modifiers,
                     event,
-                ) || (palette.is_open() && modifiers_changed) {
+                ) || (palette.is_open() && modifiers_changed)
+                {
                     window.request_redraw();
                 }
             }
@@ -137,6 +277,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &command_runtime,
                     &keybinding_runtime,
                     &enablement_runtime,
+                    &appearance,
                     &held_modifiers,
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
@@ -1084,6 +1225,7 @@ fn handle_key_event(
     keybinding_runtime: &mut KeybindingRuntimeState,
     enablement_runtime: &mut CommandEnablementRuntimeState,
     clipboard: &mut ClipboardState,
+    appearance: &mut ShellAppearanceState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -1137,15 +1279,15 @@ fn handle_key_event(
                     Ok(()) => {
                         write_preview_log(&preview);
                         let label = match preferred_intent {
-                            PaletteCopyIntent::CliSkeleton if command.copy.cli_skeleton.is_some() => {
+                            PaletteCopyIntent::CliSkeleton
+                                if command.copy.cli_skeleton.is_some() =>
+                            {
                                 "copied cli skeleton"
                             }
                             _ => "copied command id",
                         };
-                        command_runtime.note_non_command_action(format!(
-                            "{label} — {}",
-                            command.command_id
-                        ));
+                        command_runtime
+                            .note_non_command_action(format!("{label} — {}", command.command_id));
                         true
                     }
                     Err(err) => {
@@ -1175,8 +1317,7 @@ fn handle_key_event(
                 let record = materialize_command_diagnostics_sheet_record(entry, runtime);
                 write_diagnostics_sheet_log(&record);
 
-                palette
-                    .write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
+                palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 palette.close();
 
                 *overlay = Some(ShellOverlayState::command_diagnostics(
@@ -1185,10 +1326,8 @@ fn handle_key_event(
                     record,
                 ));
                 frame.focus_zone(ShellZoneId::TransientOverlay);
-                command_runtime.note_non_command_action(format!(
-                    "diagnostics — {}",
-                    entry.command_id()
-                ));
+                command_runtime
+                    .note_non_command_action(format!("diagnostics — {}", entry.command_id()));
                 window.set_title(&window_title(Some(frame.focused_zone()), None));
                 true
             }
@@ -1212,10 +1351,8 @@ fn handle_key_event(
                     }
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
                         frame.open_placeholder_tab();
-                        command_runtime.note_non_command_action(format!(
-                            "opened file — {}",
-                            relative_path
-                        ));
+                        command_runtime
+                            .note_non_command_action(format!("opened file — {}", relative_path));
                         window.set_title(&window_title(Some(frame.focused_zone()), None));
                         true
                     }
@@ -1427,6 +1564,22 @@ fn handle_key_event(
                 false
             }
         }
+        KeyCode::KeyL => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                appearance.toggle_light_dark();
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyH => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                appearance.toggle_high_contrast();
+                true
+            } else {
+                false
+            }
+        }
         _ => false,
     }
 }
@@ -1462,6 +1615,7 @@ fn draw(
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    appearance: &ShellAppearanceState,
     held_modifiers: &HeldModifiers,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
@@ -1480,8 +1634,11 @@ fn draw(
         return Ok(());
     }
 
+    let token_registry = seeded_token_registry(appearance.theme())?;
+    let style = ShellRenderStyle::load(token_registry)?;
+
     // Background.
-    fill(&mut buffer, 0x0012171c);
+    fill(&mut buffer, style.tokens.bg_canvas);
 
     let scale = window.scale_factor();
     for zone in ShellZoneId::ALL {
@@ -1493,20 +1650,27 @@ fn draw(
             continue;
         };
         let rect = to_physical_rect(logical_rect, scale);
-        let color = zone_color(zone);
+        let color = style.tokens.zone_background(zone);
         fill_rect(&mut buffer, physical.width, physical.height, rect, color);
 
         match zone {
             ShellZoneId::MainWorkspace => {
                 for group in frame.editor_group_layouts() {
                     let group_rect = to_physical_rect(group.rect, scale);
-                    let group_color = editor_group_color(group.group_id);
                     fill_rect(
                         &mut buffer,
                         physical.width,
                         physical.height,
                         group_rect,
-                        group_color,
+                        style.tokens.bg_surface,
+                    );
+                    stroke_rect(
+                        &mut buffer,
+                        physical.width,
+                        physical.height,
+                        group_rect,
+                        style.stroke_default,
+                        style.tokens.border_default,
                     );
                     if group.group_id == frame.focused_editor_group()
                         && frame.focused_zone() == ShellZoneId::MainWorkspace
@@ -1516,43 +1680,70 @@ fn draw(
                             physical.width,
                             physical.height,
                             group_rect,
-                            2,
-                            0x00ffffff,
+                            style.stroke_focus,
+                            style.tokens.focus_ring,
                         );
                     }
 
-                    let label = format!(
-                        "group:{}  tabs:{}{}",
-                        group.group_id.value(),
-                        group.tab_count,
-                        if group.tabbed_compare_active {
-                            "  [tabbed compare]"
-                        } else {
-                            ""
-                        }
-                    );
-                    draw_text(
-                        &mut buffer,
-                        physical.width,
-                        physical.height,
-                        group_rect.x.saturating_add(6),
-                        group_rect.y.saturating_add(6),
-                        1,
-                        &label,
-                        0x00e6edf3,
-                    );
+                    if group.tab_count == 0 {
+                        draw_start_center_placeholder(
+                            &mut buffer,
+                            physical.width,
+                            physical.height,
+                            group_rect,
+                            &style,
+                        );
+                    } else {
+                        let label = format!(
+                            "editor group {}   tabs: {}{}",
+                            group.group_id.value(),
+                            group.tab_count,
+                            if group.tabbed_compare_active {
+                                "   compare: tabbed"
+                            } else {
+                                ""
+                            }
+                        );
+                        draw_text(
+                            &mut buffer,
+                            physical.width,
+                            physical.height,
+                            group_rect.x.saturating_add(style.space_2),
+                            group_rect.y.saturating_add(style.space_2),
+                            1,
+                            &label,
+                            style.tokens.text_secondary,
+                        );
+                    }
                 }
             }
             _ => {
                 for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
                     let slot_rect = to_physical_rect(slot_rect, scale);
-                    let slot_color = slot_color(slot_id);
                     fill_rect(
                         &mut buffer,
                         physical.width,
                         physical.height,
                         slot_rect,
-                        slot_color,
+                        style.tokens.bg_surface,
+                    );
+                    stroke_rect(
+                        &mut buffer,
+                        physical.width,
+                        physical.height,
+                        slot_rect,
+                        style.stroke_default,
+                        style.tokens.border_default,
+                    );
+                    draw_text(
+                        &mut buffer,
+                        physical.width,
+                        physical.height,
+                        slot_rect.x.saturating_add(style.space_2),
+                        slot_rect.y.saturating_add(style.space_2),
+                        1,
+                        slot_id,
+                        style.tokens.text_muted,
                     );
                 }
             }
@@ -1564,8 +1755,8 @@ fn draw(
                 physical.width,
                 physical.height,
                 rect,
-                2,
-                0x00ffffff,
+                style.stroke_focus,
+                style.tokens.focus_ring,
             );
         }
 
@@ -1574,11 +1765,11 @@ fn draw(
             &mut buffer,
             physical.width,
             physical.height,
-            rect.x.saturating_add(6),
-            rect.y.saturating_add(2),
+            rect.x.saturating_add(style.space_2),
+            rect.y.saturating_add(style.space_2 / 2),
             1,
             &zone_label,
-            0x00aab7c4,
+            style.tokens.text_muted,
         );
     }
 
@@ -1593,6 +1784,7 @@ fn draw(
             palette,
             keybinding_runtime,
             enablement_runtime,
+            &style,
             held_modifiers,
         );
     }
@@ -1607,6 +1799,7 @@ fn draw(
             frame,
             overlay,
             keybinding_runtime,
+            &style,
         );
     }
 
@@ -1637,27 +1830,92 @@ fn draw(
             "allow"
         };
         let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
+        let trust_state = enablement_runtime.workspace_trust_state.as_str();
+        let theme_label = appearance.theme().token();
         let text = format!(
-            "fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver), Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy   packets: .logs/command_packets",
+            "theme: {}   fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver), Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Cmd/Ctrl+Shift+H high contrast   packets: .logs/command_packets",
+            theme_label,
             modes,
             last,
             last_keybinding,
-            enablement_runtime.workspace_trust_state.as_str(),
+            trust_state,
             exec_ctx,
             policy,
             keybinding_runtime.active_preset.display_name(),
             keybinding_runtime.active_preset.preset_ref(),
             palette_keys
         );
+
+        let badge_text = match trust_state {
+            "restricted" => "Restricted",
+            _ => "Trusted",
+        };
+        let (badge_fg, badge_border, badge_fill) = match trust_state {
+            "restricted" => (
+                style.status_warning,
+                style.status_warning_border,
+                style.status_warning_fill,
+            ),
+            _ => (
+                style.status_success,
+                style.status_success_border,
+                style.status_success_fill,
+            ),
+        };
+        let badge_scale = 1u32;
+        let badge_char_w = 8u32.saturating_mul(badge_scale);
+        let badge_padding = style.space_2 / 2;
+        let badge_w = badge_char_w
+            .saturating_mul(badge_text.len() as u32)
+            .saturating_add(badge_padding.saturating_mul(2));
+        let badge_h = 8u32
+            .saturating_mul(badge_scale)
+            .saturating_add(badge_padding.saturating_mul(2));
+        let badge_rect = Rect::new(
+            status.x.saturating_add(style.space_2),
+            status.y.saturating_add(style.space_2 / 2),
+            badge_w,
+            badge_h.min(status.height.saturating_sub(1)),
+        );
+        fill_rect(
+            &mut buffer,
+            physical.width,
+            physical.height,
+            badge_rect,
+            badge_fill,
+        );
+        stroke_rect(
+            &mut buffer,
+            physical.width,
+            physical.height,
+            badge_rect,
+            style.stroke_default,
+            badge_border,
+        );
         draw_text(
             &mut buffer,
             physical.width,
             physical.height,
-            status.x.saturating_add(6),
-            status.y.saturating_add(6),
+            badge_rect.x.saturating_add(badge_padding),
+            badge_rect.y.saturating_add(badge_padding),
+            badge_scale,
+            badge_text,
+            badge_fg,
+        );
+
+        draw_text(
+            &mut buffer,
+            physical.width,
+            physical.height,
+            status
+                .x
+                .saturating_add(style.space_2)
+                .saturating_add(badge_rect.width)
+                .saturating_add(style.space_2),
+            status.y.saturating_add(style.space_2 / 2),
             1,
             &text,
-            0x00c9d3de,
+            style.tokens.text_muted,
         );
     }
 
@@ -1807,8 +2065,11 @@ impl ShellOverlayState {
         let handled = match (&mut self.kind, code) {
             (_, KeyCode::Escape) => {
                 if let ShellOverlayKind::InvocationPreview(preview) = &mut self.kind {
-                    preview.record.invocation_session.approval_posture.approval_state =
-                        "approval_denied".to_string();
+                    preview
+                        .record
+                        .invocation_session
+                        .approval_posture
+                        .approval_state = "approval_denied".to_string();
                     command_decision = Some(CommandOverlayDecision::PreviewCancelled {
                         entry: preview.entry.clone(),
                         session: preview.record.invocation_session.clone(),
@@ -1844,9 +2105,13 @@ impl ShellOverlayState {
                         .approval_posture_class_declared
                         != "no_approval_required"
                 {
-                    preview.record.invocation_session.approval_posture.approval_ticket_ref = Some(
-                        mint_approval_ticket_ref(&preview.record.invocation_session.canonical_verb),
-                    );
+                    preview
+                        .record
+                        .invocation_session
+                        .approval_posture
+                        .approval_ticket_ref = Some(mint_approval_ticket_ref(
+                        &preview.record.invocation_session.canonical_verb,
+                    ));
                 }
                 command_decision = Some(CommandOverlayDecision::PreviewApproved {
                     entry: preview.entry.clone(),
@@ -1888,14 +2153,6 @@ impl ShellOverlayState {
     }
 }
 
-fn editor_group_color(group_id: PaneId) -> u32 {
-    let hash = group_id.value().wrapping_mul(2654435761) as u32;
-    let r = (hash & 0xff) as u32;
-    let g = ((hash >> 8) & 0xff) as u32;
-    let b = ((hash >> 16) & 0xff) as u32;
-    0x00000000 | (r << 16) | (g << 8) | b
-}
-
 fn draw_shell_overlay(
     buffer: &mut [u32],
     width: u32,
@@ -1905,19 +2162,33 @@ fn draw_shell_overlay(
     frame: &DesktopFrame,
     overlay: &ShellOverlayState,
     keybinding_runtime: &KeybindingRuntimeState,
+    style: &ShellRenderStyle,
 ) {
     let overlay_rect = to_physical_rect(frame.layout().transient_overlay, scale_factor);
     let sheet_w = (overlay_rect.width / 2).max(260);
+    let sheet_margin_y = style
+        .space_6
+        .saturating_mul(2)
+        .saturating_add(style.space_3);
     let sheet_rect = Rect::new(
         overlay_rect.right().saturating_sub(sheet_w),
-        overlay_rect.y.saturating_add(60),
+        overlay_rect.y.saturating_add(sheet_margin_y),
         sheet_w,
-        overlay_rect.height.saturating_sub(120),
+        overlay_rect
+            .height
+            .saturating_sub(sheet_margin_y.saturating_mul(2)),
     );
 
-    fill_rect(buffer, width, height, overlay_rect, 0x88000000);
-    fill_rect(buffer, width, height, sheet_rect, 0x00202a35);
-    stroke_rect(buffer, width, height, sheet_rect, 2, 0x00ffffff);
+    fill_rect(buffer, width, height, overlay_rect, style.tokens.bg_overlay);
+    fill_rect(buffer, width, height, sheet_rect, style.tokens.bg_raised);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        sheet_rect,
+        style.stroke_default,
+        style.tokens.border_strong,
+    );
 
     match &overlay.kind {
         ShellOverlayKind::InspectorSheet => {
@@ -1926,32 +2197,43 @@ fn draw_shell_overlay(
                 keybinding_runtime.active_preset,
                 keybinding_runtime.platform_class,
             );
-            let mut cursor_y = sheet_rect.y.saturating_add(12);
-            let cursor_x = sheet_rect.x.saturating_add(12);
-            let line_h = 14u32;
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+            let line_h = 8u32.saturating_add(style.space_2.saturating_mul(3) / 4);
             for line in lines {
-                if cursor_y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(12) {
+                if cursor_y.saturating_add(line_h)
+                    > sheet_rect.bottom().saturating_sub(style.space_3)
+                {
                     break;
                 }
                 draw_text(
-                    buffer, width, height, cursor_x, cursor_y, 1, &line, 0x00c9d3de,
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    &line,
+                    style.tokens.text_muted,
                 );
                 cursor_y = cursor_y.saturating_add(line_h);
             }
         }
         ShellOverlayKind::CommandDiagnostics(sheet) => {
             let lines = diagnostics_sheet_lines(&sheet.record);
-            let mut cursor_y = sheet_rect.y.saturating_add(12);
-            let cursor_x = sheet_rect.x.saturating_add(12);
-            let line_h = 14u32;
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+            let line_h = 8u32.saturating_add(style.space_2.saturating_mul(3) / 4);
             for (idx, line) in lines.into_iter().enumerate() {
-                if cursor_y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(12) {
+                if cursor_y.saturating_add(line_h)
+                    > sheet_rect.bottom().saturating_sub(style.space_3)
+                {
                     break;
                 }
                 let color = match idx {
-                    0 => 0x00ffffff,
-                    1 => 0x00aab7c4,
-                    _ => 0x00c9d3de,
+                    0 => style.tokens.text_primary,
+                    1 => style.tokens.text_secondary,
+                    _ => style.tokens.text_muted,
                 };
                 draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
                 cursor_y = cursor_y.saturating_add(line_h);
@@ -1959,17 +2241,19 @@ fn draw_shell_overlay(
         }
         ShellOverlayKind::InvocationPreview(preview) => {
             let lines = invocation_preview_sheet_lines(&preview.record);
-            let mut cursor_y = sheet_rect.y.saturating_add(12);
-            let cursor_x = sheet_rect.x.saturating_add(12);
-            let line_h = 14u32;
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+            let line_h = 8u32.saturating_add(style.space_2.saturating_mul(3) / 4);
             for (idx, line) in lines.into_iter().enumerate() {
-                if cursor_y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(12) {
+                if cursor_y.saturating_add(line_h)
+                    > sheet_rect.bottom().saturating_sub(style.space_3)
+                {
                     break;
                 }
                 let color = match idx {
-                    0 => 0x00ffffff,
-                    1 => 0x00aab7c4,
-                    _ => 0x00c9d3de,
+                    0 => style.tokens.text_primary,
+                    1 => style.tokens.text_secondary,
+                    _ => style.tokens.text_muted,
                 };
                 draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
                 cursor_y = cursor_y.saturating_add(line_h);
@@ -1980,37 +2264,43 @@ fn draw_shell_overlay(
                 buffer,
                 width,
                 height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(12),
+                sheet_rect.x.saturating_add(style.space_3),
+                sheet_rect.y.saturating_add(style.space_3),
                 1,
                 "Command Trace — Esc closes",
-                0x00ffffff,
+                style.tokens.text_primary,
             );
             draw_text(
                 buffer,
                 width,
                 height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(28),
+                sheet_rect.x.saturating_add(style.space_3),
+                sheet_rect
+                    .y
+                    .saturating_add(style.space_3)
+                    .saturating_add(16),
                 1,
                 "Packets: .logs/command_packets",
-                0x00c9d3de,
+                style.tokens.text_muted,
             );
 
-            let mut y = sheet_rect.y.saturating_add(48);
+            let mut y = sheet_rect
+                .y
+                .saturating_add(style.space_3)
+                .saturating_add(32);
             for line in &trace.lines {
-                if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(12) {
+                if y.saturating_add(14) > sheet_rect.bottom().saturating_sub(style.space_3) {
                     break;
                 }
                 draw_text(
                     buffer,
                     width,
                     height,
-                    sheet_rect.x.saturating_add(12),
+                    sheet_rect.x.saturating_add(style.space_3),
                     y,
                     1,
                     line,
-                    0x00c9d3de,
+                    style.tokens.text_muted,
                 );
                 y = y.saturating_add(14);
             }
@@ -2019,11 +2309,11 @@ fn draw_shell_overlay(
                     buffer,
                     width,
                     height,
-                    sheet_rect.x.saturating_add(12),
+                    sheet_rect.x.saturating_add(style.space_3),
                     y,
                     1,
                     "No invocations recorded yet.",
-                    0x00c9d3de,
+                    style.tokens.text_muted,
                 );
             }
         }
@@ -2039,47 +2329,53 @@ fn draw_shell_overlay(
                 buffer,
                 width,
                 height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(12),
+                sheet_rect.x.saturating_add(style.space_3),
+                sheet_rect.y.saturating_add(style.space_3),
                 1,
                 &header,
-                0x00ffffff,
+                style.tokens.text_primary,
             );
             draw_text(
                 buffer,
                 width,
                 height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(28),
+                sheet_rect.x.saturating_add(style.space_3),
+                sheet_rect
+                    .y
+                    .saturating_add(style.space_3)
+                    .saturating_add(16),
                 1,
                 "Choose fallback: Up/Down, Enter confirm, Esc cancel",
-                0x00aab7c4,
+                style.tokens.text_secondary,
             );
 
             let options = ["Tabbed compare (recommended)", "Staged peek", "Cancel"];
             for (idx, label) in options.iter().enumerate() {
-                let y = sheet_rect.y.saturating_add(52 + (idx as u32) * 18);
+                let y = sheet_rect
+                    .y
+                    .saturating_add(style.space_6.saturating_mul(2))
+                    .saturating_add((idx as u32) * 18);
                 if idx == *selection {
                     let highlight = Rect::new(
-                        sheet_rect.x.saturating_add(8),
+                        sheet_rect.x.saturating_add(style.space_2),
                         y.saturating_sub(2),
-                        sheet_rect.width.saturating_sub(16),
+                        sheet_rect.width.saturating_sub(style.space_4),
                         16,
                     );
-                    fill_rect(buffer, width, height, highlight, 0x002d3b4a);
+                    fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
                 }
                 draw_text(
                     buffer,
                     width,
                     height,
-                    sheet_rect.x.saturating_add(14),
+                    sheet_rect.x.saturating_add(style.space_3),
                     y,
                     1,
                     label,
                     if idx == *selection {
-                        0x00ffffff
+                        style.tokens.text_primary
                     } else {
-                        0x00c9d3de
+                        style.tokens.text_muted
                     },
                 );
             }
@@ -2089,21 +2385,24 @@ fn draw_shell_overlay(
                 buffer,
                 width,
                 height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(12),
+                sheet_rect.x.saturating_add(style.space_3),
+                sheet_rect.y.saturating_add(style.space_3),
                 1,
                 "Staged peek (sheet) — Esc closes",
-                0x00ffffff,
+                style.tokens.text_primary,
             );
             draw_text(
                 buffer,
                 width,
                 height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(28),
+                sheet_rect.x.saturating_add(style.space_3),
+                sheet_rect
+                    .y
+                    .saturating_add(style.space_3)
+                    .saturating_add(16),
                 1,
                 "This placeholder represents a temporary narrow-width compare peek with focus return.",
-                0x00c9d3de,
+                style.tokens.text_muted,
             );
         }
     }
@@ -2119,40 +2418,12 @@ fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {
     )
 }
 
-fn zone_color(zone: ShellZoneId) -> u32 {
-    match zone {
-        ShellZoneId::TitleContextBar => 0x0023303b,
-        ShellZoneId::ActivityRail => 0x001c2a36,
-        ShellZoneId::LeftSidebar => 0x001d3230,
-        ShellZoneId::MainWorkspace => 0x001f2730,
-        ShellZoneId::RightInspector => 0x002d2634,
-        ShellZoneId::BottomPanel => 0x00221f2a,
-        ShellZoneId::StatusBar => 0x001a2b1f,
-        ShellZoneId::TransientOverlay => 0x00000000,
-    }
+fn fill(buffer: &mut [u32], color: ColorRgba) {
+    let rgb = color.to_u32_rgb();
+    buffer.fill(rgb);
 }
 
-fn slot_color(slot_id: &str) -> u32 {
-    // Deterministic hash-to-color so placeholder slots remain visually distinct
-    // without needing text rendering yet.
-    let mut hash: u32 = 2166136261;
-    for b in slot_id.as_bytes() {
-        hash ^= u32::from(*b);
-        hash = hash.wrapping_mul(16777619);
-    }
-    let r = (hash & 0xff) as u32;
-    let g = ((hash >> 8) & 0xff) as u32;
-    let b = ((hash >> 16) & 0xff) as u32;
-    0x00000000 | (r << 16) | (g << 8) | b
-}
-
-fn fill(buffer: &mut [u32], color: u32) {
-    for px in buffer {
-        *px = color;
-    }
-}
-
-fn fill_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: u32) {
+fn fill_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: ColorRgba) {
     if rect.is_empty() || width == 0 || height == 0 {
         return;
     }
@@ -2168,9 +2439,87 @@ fn fill_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: u32
         for x in x0..x1 {
             let idx = row.saturating_add(x as usize);
             if let Some(px) = buffer.get_mut(idx) {
-                *px = color;
+                if color.a == 255 {
+                    *px = color.to_u32_rgb();
+                } else {
+                    *px = color.blend_over_u32(*px);
+                }
             }
         }
+    }
+}
+
+fn draw_start_center_placeholder(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    style: &ShellRenderStyle,
+) {
+    let padding = style.space_4;
+    let card = Rect::new(
+        rect.x.saturating_add(padding),
+        rect.y.saturating_add(padding),
+        rect.width.saturating_sub(padding.saturating_mul(2)),
+        rect.height.saturating_sub(padding.saturating_mul(2)),
+    );
+    if card.is_empty() {
+        return;
+    }
+
+    fill_rect(buffer, width, height, card, style.tokens.bg_raised);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        card,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
+
+    let header_x = card.x.saturating_add(style.space_3);
+    let mut y = card.y.saturating_add(style.space_3);
+
+    draw_text(
+        buffer,
+        width,
+        height,
+        header_x,
+        y,
+        2,
+        "Start Center",
+        style.tokens.text_primary,
+    );
+    y = y
+        .saturating_add(8u32.saturating_mul(2))
+        .saturating_add(style.space_2);
+
+    let body = [
+        "This editor group has no tabs yet.",
+        "Use Cmd/Ctrl+Shift+P to open the command palette.",
+        "Use Cmd/Ctrl+Shift+L to toggle light/dark theme.",
+        "Use Cmd/Ctrl+Shift+H to toggle high contrast.",
+    ];
+    for line in body {
+        if y.saturating_add(12) > card.bottom().saturating_sub(style.space_3) {
+            break;
+        }
+        draw_text(
+            buffer,
+            width,
+            height,
+            header_x,
+            y,
+            1,
+            line,
+            style.tokens.text_secondary,
+        );
+        y = y.saturating_add(14);
+    }
+
+    if card.height > style.space_6.saturating_mul(4) {
+        let accent = Rect::new(card.x, card.y, style.stroke_focus.max(2), card.height);
+        fill_rect(buffer, width, height, accent, style.tokens.accent_brand);
     }
 }
 
@@ -2184,6 +2533,7 @@ fn draw_command_palette_overlay(
     palette: &CommandPaletteState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    style: &ShellRenderStyle,
     held_modifiers: &HeldModifiers,
 ) {
     let Some(overlay_logical) = frame.layout().zone(ShellZoneId::TransientOverlay) else {
@@ -2199,10 +2549,16 @@ fn draw_command_palette_overlay(
     let slot_physical = to_physical_rect(slot, scale_factor);
 
     // Dim the entire window.
-    fill_rect(buffer, width, height, overlay_physical, 0x00101010);
+    fill_rect(
+        buffer,
+        width,
+        height,
+        overlay_physical,
+        style.tokens.bg_overlay,
+    );
 
     // Panel inside the slot.
-    let panel_padding = 16u32;
+    let panel_padding = style.space_4;
     let panel = Rect::new(
         slot_physical.x.saturating_add(panel_padding),
         slot_physical.y.saturating_add(panel_padding),
@@ -2213,13 +2569,20 @@ fn draw_command_palette_overlay(
         return;
     }
 
-    fill_rect(buffer, width, height, panel, 0x00161b22);
-    stroke_rect(buffer, width, height, panel, 2, 0x0041556b);
+    fill_rect(buffer, width, height, panel, style.tokens.bg_raised);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        panel,
+        style.stroke_default,
+        style.tokens.border_strong,
+    );
 
     let text_scale = 2u32;
-    let line_h = 8 * text_scale + 6;
-    let mut cursor_y = panel.y.saturating_add(12);
-    let cursor_x = panel.x.saturating_add(12);
+    let line_h = (8u32.saturating_mul(text_scale)).saturating_add(style.space_2);
+    let mut cursor_y = panel.y.saturating_add(style.space_3);
+    let cursor_x = panel.x.saturating_add(style.space_3);
 
     draw_text(
         buffer,
@@ -2229,7 +2592,7 @@ fn draw_command_palette_overlay(
         cursor_y,
         text_scale,
         "Command Palette (Cmd/Ctrl+Shift+P)",
-        0x00e6edf3,
+        style.tokens.text_primary,
     );
     cursor_y = cursor_y.saturating_add(line_h);
 
@@ -2241,9 +2604,11 @@ fn draw_command_palette_overlay(
         cursor_y,
         text_scale,
         "Type to search. Up/Down: select   Enter: run   Esc: close",
-        0x00aab7c4,
+        style.tokens.text_secondary,
     );
-    cursor_y = cursor_y.saturating_add(line_h + 6);
+    cursor_y = cursor_y
+        .saturating_add(line_h)
+        .saturating_add(style.space_2 / 2);
 
     let preview_runtime = PalettePreviewRuntimeInputs {
         client_scope: "desktop_product",
@@ -2282,12 +2647,15 @@ fn draw_command_palette_overlay(
         },
     );
 
-    let inner_padding = 12u32;
+    let inner_padding = style.space_3;
     let footer_lines = 2u32;
-    let footer_height = footer_lines.saturating_mul(line_h).saturating_add(12);
+    let footer_height = footer_lines
+        .saturating_mul(line_h)
+        .saturating_add(style.space_3);
     let footer = Rect::new(
         panel.x.saturating_add(inner_padding),
-        panel.bottom()
+        panel
+            .bottom()
             .saturating_sub(inner_padding)
             .saturating_sub(footer_height),
         panel.width.saturating_sub(inner_padding.saturating_mul(2)),
@@ -2300,7 +2668,7 @@ fn draw_command_palette_overlay(
     let content_height = footer
         .y
         .saturating_sub(cursor_y)
-        .saturating_sub(8);
+        .saturating_sub(style.space_2);
     let content = Rect::new(
         panel.x.saturating_add(inner_padding),
         cursor_y,
@@ -2311,12 +2679,15 @@ fn draw_command_palette_overlay(
         return;
     }
 
-    let gap = 14u32;
+    let gap = style.space_3;
     let char_w = 8u32.saturating_mul(text_scale);
     let min_list_w = char_w.saturating_mul(48);
     let min_preview_w = char_w.saturating_mul(36);
     let (list_rect, preview_rect) = if content.width > min_list_w + gap + min_preview_w {
-        let max_list_w = content.width.saturating_sub(gap).saturating_sub(min_preview_w);
+        let max_list_w = content
+            .width
+            .saturating_sub(gap)
+            .saturating_sub(min_preview_w);
         let list_w = (content.width.saturating_mul(3) / 5)
             .max(min_list_w)
             .min(max_list_w);
@@ -2348,8 +2719,13 @@ fn draw_command_palette_overlay(
             .map(|(k, s)| k == s)
             .unwrap_or(false);
         if selected && !row.is_group_header {
-            let highlight = Rect::new(list_rect.x, list_y.saturating_sub(2), list_rect.width, line_h);
-            fill_rect(buffer, width, height, highlight, 0x00202a35);
+            let highlight = Rect::new(
+                list_rect.x,
+                list_y.saturating_sub(style.space_2 / 4),
+                list_rect.width,
+                line_h,
+            );
+            fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
         }
 
         let line = if max_list_cols == 0 {
@@ -2366,23 +2742,30 @@ fn draw_command_palette_overlay(
             text_scale,
             &line,
             if selected && !row.is_group_header {
-                0x00ffffff
+                style.tokens.text_primary
             } else if row.is_group_header {
-                0x00aab7c4
+                style.tokens.text_secondary
             } else {
-                0x00c9d3de
+                style.tokens.text_muted
             },
         );
         list_y = list_y.saturating_add(line_h);
     }
 
     if !preview_rect.is_empty() {
-        fill_rect(buffer, width, height, preview_rect, 0x00141a22);
-        stroke_rect(buffer, width, height, preview_rect, 1, 0x0032455a);
+        fill_rect(buffer, width, height, preview_rect, style.tokens.bg_surface);
+        stroke_rect(
+            buffer,
+            width,
+            height,
+            preview_rect,
+            style.stroke_default,
+            style.tokens.border_default,
+        );
 
         let max_preview_cols = (preview_rect.width / char_w).saturating_sub(1) as usize;
-        let mut preview_y = preview_rect.y.saturating_add(8);
-        let preview_x = preview_rect.x.saturating_add(8);
+        let mut preview_y = preview_rect.y.saturating_add(style.space_2);
+        let preview_x = preview_rect.x.saturating_add(style.space_2);
 
         let mut preview_lines: Vec<String> = Vec::new();
         match &preview.selection {
@@ -2416,7 +2799,11 @@ fn draw_command_palette_overlay(
                 if !command.typed_arguments.is_empty() {
                     preview_lines.push("Args:".to_string());
                     for arg in &command.typed_arguments {
-                        let required = if arg.is_required { "required" } else { "optional" };
+                        let required = if arg.is_required {
+                            "required"
+                        } else {
+                            "optional"
+                        };
                         preview_lines.push(format!(
                             "- {} ({}, {})",
                             arg.argument_name, arg.argument_kind, required
@@ -2427,7 +2814,9 @@ fn draw_command_palette_overlay(
         }
 
         for line in preview_lines {
-            if preview_y.saturating_add(line_h) > preview_rect.bottom().saturating_sub(8) {
+            if preview_y.saturating_add(line_h)
+                > preview_rect.bottom().saturating_sub(style.space_2)
+            {
                 break;
             }
             let clipped = if max_preview_cols == 0 {
@@ -2443,17 +2832,24 @@ fn draw_command_palette_overlay(
                 preview_y,
                 text_scale,
                 &clipped,
-                0x00c9d3de,
+                style.tokens.text_secondary,
             );
             preview_y = preview_y.saturating_add(line_h);
         }
     }
 
-    fill_rect(buffer, width, height, footer, 0x00101922);
-    stroke_rect(buffer, width, height, footer, 1, 0x0032455a);
+    fill_rect(buffer, width, height, footer, style.tokens.bg_subtle);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        footer,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
 
-    let footer_x = footer.x.saturating_add(8);
-    let mut footer_y = footer.y.saturating_add(8);
+    let footer_x = footer.x.saturating_add(style.space_2);
+    let mut footer_y = footer.y.saturating_add(style.space_2);
     let footer_cols = (footer.width / char_w).saturating_sub(1) as usize;
 
     let (footer_line_1, footer_line_2) = match &preview.selection {
@@ -2478,7 +2874,10 @@ fn draw_command_palette_overlay(
                 "Cmd/Ctrl+D: diagnostics"
             };
             (
-                format!("Enter: invoke   {}   {}   ({})", copy_hint, diagnostics_hint, cli_hint),
+                format!(
+                    "Enter: invoke   {}   {}   ({})",
+                    copy_hint, diagnostics_hint, cli_hint
+                ),
                 format!(
                     "Preview: {}   Approval: {}   Side-effects: {}",
                     command.preview_class,
@@ -2491,14 +2890,11 @@ fn draw_command_palette_overlay(
             "Enter: open   Esc: close".to_string(),
             "Up/Down: select".to_string(),
         ),
-        PalettePreviewSelection::None => (
-            "Type to search. Esc: close".to_string(),
-            String::new(),
-        ),
+        PalettePreviewSelection::None => ("Type to search. Esc: close".to_string(), String::new()),
     };
 
     for line in [footer_line_1, footer_line_2] {
-        if footer_y.saturating_add(line_h) > footer.bottom().saturating_sub(8) {
+        if footer_y.saturating_add(line_h) > footer.bottom().saturating_sub(style.space_2) {
             break;
         }
         let clipped = if footer_cols == 0 {
@@ -2514,7 +2910,7 @@ fn draw_command_palette_overlay(
             footer_y,
             text_scale,
             &clipped,
-            0x00aab7c4,
+            style.tokens.text_secondary,
         );
         footer_y = footer_y.saturating_add(line_h);
     }
@@ -2528,7 +2924,7 @@ fn draw_text(
     y: u32,
     scale: u32,
     text: &str,
-    color: u32,
+    color: ColorRgba,
 ) {
     for ch in text.chars() {
         draw_glyph(buffer, width, height, x, y, scale, ch, color);
@@ -2544,7 +2940,7 @@ fn draw_glyph(
     y: u32,
     scale: u32,
     ch: char,
-    color: u32,
+    color: ColorRgba,
 ) {
     let glyph = BASIC_FONTS.get(ch).or_else(|| BASIC_FONTS.get('?'));
     let Some(rows) = glyph else {
@@ -2768,7 +3164,7 @@ fn draw_scaled_pixel(
     x: u32,
     y: u32,
     scale: u32,
-    color: u32,
+    color: ColorRgba,
 ) {
     if scale == 0 || x >= width || y >= height {
         return;
@@ -2782,7 +3178,11 @@ fn draw_scaled_pixel(
         for xx in x..x1 {
             let idx = row.saturating_add(xx as usize);
             if let Some(px) = buffer.get_mut(idx) {
-                *px = color;
+                if color.a == 255 {
+                    *px = color.to_u32_rgb();
+                } else {
+                    *px = color.blend_over_u32(*px);
+                }
             }
         }
     }
@@ -2794,7 +3194,7 @@ fn stroke_rect(
     height: u32,
     rect: Rect,
     thickness: u32,
-    color: u32,
+    color: ColorRgba,
 ) {
     if rect.is_empty() || thickness == 0 {
         return;
