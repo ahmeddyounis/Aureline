@@ -1,0 +1,64 @@
+# Late public-truth freeze pack gate.
+#
+# Validates the canonical checkpoint pack and uploads a machine-readable report
+# for review.
+
+name: check_m1_late_freeze_pack
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m1_late_freeze_pack.yml"
+      - "ci/check_m1_late_freeze_pack.py"
+      - "docs/milestones/m1/late_freeze_pack.md"
+      - "docs/review/m1_public_truth_packet.md"
+      - "docs/release/deprecation_packet_template.md"
+      - "artifacts/milestones/m1/late_freeze_pack.yaml"
+      - "artifacts/milestones/m1/proof_packets/late_freeze_pack.md"
+      - "artifacts/milestones/m1/artifact_index.yaml"
+      - "artifacts/milestones/m1/captures/late_freeze_pack_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m1-late-freeze-pack-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  late_freeze_pack:
+    name: Late public-truth freeze pack
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run freeze-pack validator
+        run: |
+          python3 ci/check_m1_late_freeze_pack.py --repo-root . --report target/m1-late-freeze-pack/report.json
+
+      - name: Upload freeze-pack report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-late-freeze-pack-${{ github.run_id }}
+          path: target/m1-late-freeze-pack
+          if-no-files-found: error
+          retention-days: 30
+
