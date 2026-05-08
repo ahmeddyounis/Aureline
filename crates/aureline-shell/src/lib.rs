@@ -7,6 +7,8 @@
 #![doc(html_root_url = "https://docs.rs/aureline-shell/0.0.0")]
 
 pub mod app_frame;
+/// Native desktop shell bootstrap (window creation, event loop, input dispatch).
+pub mod bootstrap;
 /// Command review-sheet projections for diagnostics and invocation previews.
 pub mod commands;
 /// Help and inspection projections used by shell surfaces.
@@ -16,5 +18,7 @@ pub mod layout;
 pub mod palette;
 /// Start Center quick-action surface and entry projections.
 pub mod start_center;
+/// Platform windowing adapters used by the native desktop shell.
+pub mod windowing;
 /// Workspace switcher projections for recent-work entries and workspace transitions.
 pub mod workspace_switcher;
