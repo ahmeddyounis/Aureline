@@ -1,0 +1,275 @@
+# Standards deviation burden ledger.
+#
+# This file makes deviations from preferred standards audit-visible as operational
+# commitments rather than implicit architecture prose.
+#
+# The standards matrix (artifacts/governance/standards_matrix.yaml) is the
+# canonical register of *preferred* standards and their intended posture. This
+# companion ledger records the *burden* when Aureline narrows, extends, wraps,
+# bridges, or otherwise does not meet the preferred standard verbatim.
+#
+# Each row MUST name an owner, a reason, a migration-impact summary, and the
+# concrete work required to return to the preferred standard posture later. The
+# evidence bundle(s) that justify the current claim ceiling (and the proof needed
+# to lift that ceiling) live under fixtures/governance/standards_evidence_cases/.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-08"
+
+overview_page: docs/governance/standards_adoption_evidence_gate.md
+
+authoritative_inputs:
+  standards_matrix_ref: artifacts/governance/standards_matrix.yaml
+  deviation_adr_template_ref: docs/governance/deviation_adr_template.md
+  decision_index_ref: artifacts/governance/decision_index.yaml
+
+vocabulary:
+  status_classes:
+    - declared
+    - implemented
+    - retired
+  deviation_kind_classes:
+    - narrow
+    - extend
+    - wrap
+    - custom_contract
+    - bridge
+    - temporarily_diverge
+    - deferred_placeholder
+  migration_impact_classes:
+    - none
+    - low
+    - moderate
+    - high
+    - unknown
+
+rows:
+  - deviation_id: standards_deviation.opentelemetry_otlp_export_reserved
+    standard_row_id: standard.opentelemetry
+    status: declared
+    deviation_kind: bridge
+    owner:
+      lane: telemetry_foundation
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      Telemetry payload governance is centered on the schema registry and consent
+      ledger. An OTLP export lane exists only as a reserved interface; it is not
+      yet a live “OTLP-conformant exporter” claim.
+    migration_impact_class: moderate
+    migration_impact_summary: >
+      Consumers expecting direct OpenTelemetry interoperability must treat OTLP
+      export as a planned bridge surface until a validator-proven exporter lands.
+      Internal telemetry contracts remain the primary truth source.
+    current_claim_ceiling: >
+      Allowed: “OTLP export lane reserved” / “OpenTelemetry-shaped bridge planned”.
+      Forbidden without the proof bundle: “exports OTLP traces/metrics/logs”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - example_export_fixture
+        - upstream_validator_harness
+        - compatibility_note
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/opentelemetry_otlp_minimum.yaml
+    re_adoption_requirements:
+      - Implement OTLP/HTTP and/or OTLP/gRPC export for the declared signal set.
+      - Pin the OTLP version + semantic conventions and publish a compatibility note.
+      - Capture a validator-grade pass report and commit a representative export fixture.
+    linked_decision_ids: []
+    linked_adr_refs: []
+
+  - deviation_id: standards_deviation.spdx_sbom_placeholder_not_conformant
+    standard_row_id: standard.spdx
+    status: declared
+    deviation_kind: temporarily_diverge
+    owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      The workspace currently ships a deterministic SBOM stub generator used to
+      keep the lane observable. The stub explicitly does not claim SPDX
+      conformance; it is a structural placeholder.
+    migration_impact_class: moderate
+    migration_impact_summary: >
+      Any SBOM-related wording must remain narrow (stub/placeholder) until a real
+      SPDX generator lands. Downstream tooling must not treat the stub as
+      standards-grade evidence.
+    current_claim_ceiling: >
+      Allowed: “SBOM stub emitted for observability” / “SPDX planned”.
+      Forbidden without the proof bundle: “SPDX SBOM export (conformant)”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - example_export_fixture
+        - upstream_validator_harness
+        - conformance_report_artifact
+        - compatibility_note
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/spdx_sbom_minimum.yaml
+    re_adoption_requirements:
+      - Replace the stub generator with a real SPDX 2.3 SBOM exporter.
+      - Validate emitted documents with an upstream SPDX validator/tooling pass.
+      - Commit a representative SPDX SBOM fixture and cite it from the standards matrix row.
+      - Publish a compatibility note (pinned SPDX version + migration expectations).
+    linked_decision_ids: []
+    linked_adr_refs: []
+
+  - deviation_id: standards_deviation.cyclonedx_export_deferred
+    standard_row_id: standard.cyclonedx
+    status: declared
+    deviation_kind: deferred_placeholder
+    owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      CycloneDX is reserved as an alternate SBOM serialisation but is not yet a
+      committed export surface.
+    migration_impact_class: low
+    migration_impact_summary: >
+      Consumers must not expect CycloneDX output; any mention remains a “reserved
+      seat” note until adoption evidence exists.
+    current_claim_ceiling: >
+      Allowed: “CycloneDX reserved / planned if required by consumers”.
+      Forbidden without the proof bundle: “CycloneDX export supported”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - example_export_fixture
+        - upstream_validator_harness
+        - compatibility_note
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/cyclonedx_minimum.yaml
+    re_adoption_requirements:
+      - Implement CycloneDX JSON export alongside SPDX.
+      - Validate emitted documents with upstream CycloneDX tooling.
+      - Commit a representative CycloneDX fixture and publish a pinned-version compatibility note.
+    linked_decision_ids: []
+    linked_adr_refs: []
+
+  - deviation_id: standards_deviation.openapi_service_description_deferred
+    standard_row_id: standard.openapi_3_2
+    status: declared
+    deviation_kind: deferred_placeholder
+    owner:
+      lane: automation_and_cli
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      No hosted HTTP API surface is currently published; the OpenAPI row reserves
+      the publication contract so later services do not invent an ad-hoc
+      description format.
+    migration_impact_class: low
+    migration_impact_summary: >
+      Service/API surfaces must not claim OpenAPI publication until a real
+      document exists and passes validation.
+    current_claim_ceiling: >
+      Allowed: “OpenAPI-described service reserved”.
+      Forbidden without the proof bundle: “OpenAPI document published”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - example_export_fixture
+        - upstream_validator_harness
+        - compatibility_note
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/openapi_minimum.yaml
+    re_adoption_requirements:
+      - Publish an OpenAPI document for the service surface at the pinned version.
+      - Validate the document with an upstream OpenAPI validator.
+      - Commit a representative OpenAPI fixture and cite it from the standards matrix row.
+    linked_decision_ids: []
+    linked_adr_refs: []
+
+  - deviation_id: standards_deviation.oci_distribution_transport_deferred
+    standard_row_id: standard.oci_distribution
+    status: declared
+    deviation_kind: deferred_placeholder
+    owner:
+      lane: release_evidence
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      OCI distribution is a candidate transport for artifact publication and
+      registry sync, but it is not yet the committed transport for any release
+      surface.
+    migration_impact_class: moderate
+    migration_impact_summary: >
+      Tooling and docs must avoid implying OCI push/pull compatibility until the
+      transport is implemented and proven against a real registry.
+    current_claim_ceiling: >
+      Allowed: “OCI transport candidate / reserved”.
+      Forbidden without the proof bundle: “OCI distribution supported for artifacts”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - example_export_fixture
+        - import_round_trip_fixture
+        - conformance_report_artifact
+        - compatibility_note
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/oci_distribution_minimum.yaml
+    re_adoption_requirements:
+      - Implement registry push/pull using OCI distribution-spec semantics.
+      - Prove push → pull round-trip with digest equality against at least one registry implementation.
+      - Capture a conformance/compat report artifact and publish a pinned-version compatibility note.
+    linked_decision_ids: []
+    linked_adr_refs: []
+
+  - deviation_id: standards_deviation.openfeature_bridge_only
+    standard_row_id: standard.openfeature
+    status: declared
+    deviation_kind: bridge
+    owner:
+      lane: governance_and_policy
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      Feature-flag evaluation uses the internal governance contract; OpenFeature
+      is the ecosystem reference shape and a reserved bridge seam rather than the
+      primary contract.
+    migration_impact_class: low
+    migration_impact_summary: >
+      External consumers must not assume a native OpenFeature runtime. Any
+      OpenFeature compatibility claim requires explicit bridge disclosure.
+    current_claim_ceiling: >
+      Allowed: “OpenFeature-shaped bridge reserved”.
+      Forbidden without the proof bundle: “OpenFeature API supported”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - bridge_disclaimer_doc
+        - compatibility_note
+        - example_export_fixture
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/openfeature_bridge_minimum.yaml
+    re_adoption_requirements:
+      - Define the adapter surface and its fidelity posture (lossy/lossless, one-way/two-way).
+      - Publish a bridge disclaimer doc that states what is and is not claimed.
+      - Provide a conformance harness or compile-time contract proof for the adopted API surface.
+    linked_decision_ids: []
+    linked_adr_refs: []
+
+  - deviation_id: standards_deviation.opa_rego_bridge_only
+    standard_row_id: standard.opa_rego
+    status: declared
+    deviation_kind: bridge
+    owner:
+      lane: governance_and_policy
+      dri: "@ahmeddyounis"
+    reason_summary: >
+      Policy bundles and evaluation are governed by the internal policy-bundle
+      contract; OPA/Rego remains an ecosystem reference point and a bridge target
+      rather than the in-product policy language.
+    migration_impact_class: low
+    migration_impact_summary: >
+      Consumers must not assume Rego evaluation or OPA bundle-service semantics
+      are supported unless a bridge is explicitly proven.
+    current_claim_ceiling: >
+      Allowed: “OPA/Rego-shaped bridge reserved”.
+      Forbidden without the proof bundle: “Rego/OPA bundle compatibility supported”.
+    minimum_proof_to_lift_claim_ceiling:
+      evidence_path_classes:
+        - bridge_disclaimer_doc
+        - compatibility_note
+        - example_export_fixture
+      evidence_case_refs:
+        - fixtures/governance/standards_evidence_cases/opa_rego_bridge_minimum.yaml
+    re_adoption_requirements:
+      - Define the mapping between policy-bundle contracts and OPA bundle/service semantics.
+      - Publish a bridge disclaimer doc that states fidelity and non-goals.
+      - Validate the bridge payloads with OPA tooling and commit representative fixtures.
+    linked_decision_ids: []
+    linked_adr_refs: []
+

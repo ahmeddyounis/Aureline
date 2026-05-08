@@ -19,6 +19,13 @@ Companion artifacts:
 
 - [`/artifacts/governance/standards_matrix.yaml`](../../artifacts/governance/standards_matrix.yaml)
   — canonical machine-readable register.
+- [`/docs/governance/standards_adoption_evidence_gate.md`](../governance/standards_adoption_evidence_gate.md)
+  — standards-adoption evidence gate and conformance minimums for standards-based
+  claims.
+- [`/artifacts/governance/standards_deviation_ledger.yaml`](../../artifacts/governance/standards_deviation_ledger.yaml)
+  — deviation burden ledger (owner, reason, migration impact, re-adoption plan).
+- [`/fixtures/governance/standards_evidence_cases/`](../../fixtures/governance/standards_evidence_cases/)
+  — worked “minimum evidence bundle” fixtures reviewers can cite.
 - [`/docs/governance/deviation_adr_template.md`](../governance/deviation_adr_template.md)
   — narrative template used whenever Aureline narrows, extends,
   bridges, or temporarily diverges from a preferred standard.
