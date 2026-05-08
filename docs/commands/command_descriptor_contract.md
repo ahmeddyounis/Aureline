@@ -54,11 +54,11 @@ colon-style command parity lives in
 and
 [`/fixtures/commands/sequence_help_examples/`](../../fixtures/commands/sequence_help_examples/).
 
-The eventual command-registry / invocation-session crates' Rust
-types are the schema of record. This document and the JSON Schema
-export are the cross-tool boundary every non-owning surface reads;
-if this document and a neighbouring ADR disagree, the ADR wins and
-this document MUST be updated in the same change.
+The `crates/aureline-commands` Rust types are the schema of record.
+This document and the JSON Schema export remain the cross-tool
+boundary every non-owning surface reads; if this document and a
+neighbouring ADR disagree, the ADR wins and this document MUST be
+updated in the same change.
 
 ## Why freeze this now
 
