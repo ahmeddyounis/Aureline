@@ -48,6 +48,7 @@ than relocating it.
 
 | Crate                     | Path                                  | Role                                                                  |
 |---------------------------|---------------------------------------|-----------------------------------------------------------------------|
+| `aureline-shell`          | `crates/aureline-shell/`              | Live desktop shell (canonical zone registry + frame).                 |
 | `aureline-shell-spike`    | `crates/aureline-shell-spike/`        | Throwaway end-to-end spike for the shell.                             |
 | `aureline-render`         | `crates/aureline-render/`             | GPU-accelerated rendering primitives.                                 |
 | `aureline-text`           | `crates/aureline-text/`               | Foundational text encoding and segmentation.                          |
@@ -63,6 +64,7 @@ than relocating it.
 ## Layering at a glance
 
 ```
+                aureline-shell            (protected)
                 aureline-shell-spike      (spike, not protected)
                        |
                        v

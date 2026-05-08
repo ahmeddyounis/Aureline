@@ -132,7 +132,7 @@ done < <(awk '
   printf '  },\n'
   printf '  "workspace_license": "Apache-2.0",\n'
   printf '  "external_dependencies": [],\n'
-  printf '  "external_dependencies_note": "Workspace currently has zero external Cargo dependencies; broader third-party selections, imports, and notice classes live in artifacts/governance/dependency_register.yaml, artifacts/governance/third_party_import_register.yaml, and artifacts/governance/release_notice_seed.yaml.",\n'
+  printf '  "external_dependencies_note": "Placeholder. The workspace now includes external Cargo dependencies, but this stub does not enumerate them yet; authoritative selections, imports, and notice classes live in artifacts/governance/dependency_register.yaml, artifacts/governance/third_party_import_register.yaml, and artifacts/governance/release_notice_seed.yaml.",\n'
   printf '  "workspace_members": [\n'
   total="${#WORKSPACE_MEMBERS[@]}"
   i=0

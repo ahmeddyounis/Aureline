@@ -24,22 +24,24 @@ in a strictly lower layer, with the explicit exemptions noted below.
 
 | Layer | Crates                                                  |
 |-------|---------------------------------------------------------|
-| L0    | `aureline-text`, `aureline-telemetry`                   |
+| L0    | `aureline-build-info`, `aureline-text`, `aureline-telemetry` |
 | L1    | `aureline-rpc`                                          |
 | L2    | `aureline-render`, `aureline-buffer`, `aureline-vfs`    |
-| L3    | `aureline-shell-spike`                                  |
+| L3    | `aureline-shell`, `aureline-shell-spike`                |
 | LX    | `aureline-bench`, `aureline-largefile-proto`, `aureline-reactive-state`, `aureline-graph-proto` (off the cone; explicit allowances listed below) |
 
 ## Allowed edges
 
 | From                    | May depend on                                               |
 |-------------------------|-------------------------------------------------------------|
+| `aureline-build-info`   | (no internal deps)                                          |
 | `aureline-text`         | (no internal deps)                                          |
 | `aureline-telemetry`    | (no internal deps)                                          |
 | `aureline-rpc`          | `aureline-telemetry`                                        |
 | `aureline-render`       | `aureline-text`, `aureline-telemetry`                       |
 | `aureline-buffer`       | `aureline-text`, `aureline-telemetry`                       |
 | `aureline-vfs`          | `aureline-text`, `aureline-telemetry`                       |
+| `aureline-shell`        | `aureline-build-info`, `aureline-render`, `aureline-text`, `aureline-buffer`, `aureline-vfs`, `aureline-rpc`, `aureline-telemetry` |
 | `aureline-shell-spike`  | any seeded crate                                            |
 | `aureline-bench`        | any seeded crate                                            |
 | `aureline-largefile-proto` | (no internal deps today; experimental/off-cone)         |

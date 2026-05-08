@@ -52,9 +52,9 @@ is a deliberate act and must update this document in the same change.
 | File                                             | What it pins                                                                                |
 |--------------------------------------------------|---------------------------------------------------------------------------------------------|
 | [`rust-toolchain.toml`](../../rust-toolchain.toml) | Rust channel, profile, components (`rustfmt`, `clippy`, `rust-src`), and target matrix.     |
-| [`.cargo/config.toml`](../../.cargo/config.toml)   | Workspace-level rustflags, net retry/fetch behavior, and future-incompatibility reporting.  |
+| [`.cargo/config.toml`](../../.cargo/config.toml)   | Workspace-level rustflags, net retry/fetch behavior, future-incompatibility reporting, and MSRV-aware resolver policy. |
 | [`Cargo.toml`](../../Cargo.toml)                   | Workspace topology, `rust-version` (MSRV), lint profile, and release profile settings.      |
-| [`Cargo.lock`](../../Cargo.lock)                   | Resolved dependency graph. Committed even while the workspace has no external deps.         |
+| [`Cargo.lock`](../../Cargo.lock)                   | Resolved dependency graph. Always committed; builds run `--locked` and must not regenerate it. |
 
 Format and lint tool versions are pinned transitively: `rustfmt` and
 `clippy` ship with the pinned toolchain channel, so bumping the channel is
@@ -82,8 +82,9 @@ This script:
    (`rustfmt`, `clippy`, `rust-src`).
 3. Checks that the active `rustc --version` matches the pin.
 4. Runs `cargo fetch --locked` so the dependency graph in `Cargo.lock` is
-   materialized. With no external deps today this is effectively a no-op,
-   but it becomes load-bearing the moment a dependency is added.
+   materialized (falling back to `cargo fetch` when `Cargo.lock` is stale).
+   This is load-bearing for deterministic rebuilds and for keeping the lock
+   compatible with the pinned toolchain.
 5. Runs `cargo metadata --no-deps` as a smoke check that every seeded crate
    is resolvable and that the workspace manifest is well-formed.
 

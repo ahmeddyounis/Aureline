@@ -106,8 +106,7 @@ closing the backup waiver.
 - **Telemetry foundation** — `crates/aureline-telemetry`. Leaf L0 foundation
   for hot-path instrumentation, tracing, and metrics.
 - **Shell / command system** — command identity, action routing, and the
-  shell contract layer. Currently hosted in `crates/aureline-shell-spike`
-  while a non-throwaway home is chosen; the lane persists regardless.
+  shell contract layer. Hosted in `crates/aureline-shell`.
 - **Shell spike (throwaway)** — the spike crate itself
   (`crates/aureline-shell-spike`). Unprotected and time-boxed.
 - **Benchmark lab** — `crates/aureline-bench`, `/fixtures/`, and the
