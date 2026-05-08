@@ -12,10 +12,13 @@ pub mod backend;
 pub mod draw_queue;
 /// Frame scheduling and trace-facing timing marks.
 pub mod frame_scheduler;
+/// Glyph atlas and raster-cache management.
+pub mod glyph_atlas;
 /// Trace hook vocabulary used by the renderer hot path.
 pub mod hooks;
 
 pub use backend::WgpuBlitRenderer;
 pub use draw_queue::{CompositedFrame, CompositionLayerId, DamageClassId, DamageEvent, DrawQueue};
 pub use frame_scheduler::{FrameScheduler, FrameSchedulerDecision, FrameSchedulerStats};
+pub use glyph_atlas::{EvictionReason, GlyphAtlas, GlyphAtlasStats, GlyphEntry, GlyphKey};
 pub use hooks::{Clock, Hook, Tick, TimingMark, TimingRecorder, WallClock};

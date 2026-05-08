@@ -77,8 +77,9 @@ use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_render::{
     CompositionLayerId, DamageClassId, DamageEvent, FrameScheduler, FrameSchedulerDecision,
-    WgpuBlitRenderer, WallClock,
+    GlyphAtlas, GlyphKey, WgpuBlitRenderer, WallClock,
 };
+use aureline_text::shaping::{FontFallbackConfig, FontSystem, FeatureSet, TextShaper};
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -343,6 +344,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut appearance = AppearanceRuntimeState::load();
     let docs_help_boundary_card =
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
+    let mut text_runtime = ShellTextRuntime::new();
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
 
@@ -462,6 +464,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 if let Err(err) = draw(
                     &window,
                     &mut render_backend,
+                    &mut text_runtime,
                     registry,
                     &frame,
                     &palette,
@@ -646,6 +649,26 @@ impl ClipboardState {
         clipboard
             .set_text(text.to_string())
             .map_err(|err| err.to_string())
+    }
+}
+
+struct ShellTextRuntime {
+    font_system: FontSystem,
+    shaper: TextShaper,
+    atlas: GlyphAtlas,
+    ui_fallback: FontFallbackConfig,
+    ui_features: FeatureSet,
+}
+
+impl ShellTextRuntime {
+    fn new() -> Self {
+        Self {
+            font_system: FontSystem::with_system_fonts(),
+            shaper: TextShaper::new(),
+            atlas: GlyphAtlas::default(),
+            ui_fallback: FontFallbackConfig::ui_sans(),
+            ui_features: FeatureSet::ui_default(),
+        }
     }
 }
 
@@ -2855,6 +2878,7 @@ fn relayout_and_redraw(
 fn draw(
     window: &winit::window::Window,
     backend: &mut ShellRenderBackend,
+    text_runtime: &mut ShellTextRuntime,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
@@ -2893,6 +2917,7 @@ fn draw(
                 &mut buffer,
                 width,
                 height,
+                text_runtime,
                 registry,
                 frame,
                 palette,
@@ -2928,6 +2953,7 @@ fn draw(
                 scratch,
                 width,
                 height,
+                text_runtime,
                 registry,
                 frame,
                 palette,
@@ -2953,6 +2979,7 @@ fn rasterize_shell(
     buffer: &mut [u32],
     width: u32,
     height: u32,
+    text_runtime: &mut ShellTextRuntime,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
@@ -2972,6 +2999,7 @@ fn rasterize_shell(
     let focus_ring = style.component_states.focus_ring_style();
 
     let scale = window.scale_factor();
+    let scale_bucket = scale_bucket_for_scale_factor(scale);
     for zone in ShellZoneId::ALL {
         let zone = *zone;
         if zone == ShellZoneId::TransientOverlay {
@@ -3017,6 +3045,8 @@ fn rasterize_shell(
                             buffer,
                             width,
                             height,
+                            text_runtime,
+                            scale_bucket,
                             registry,
                             start_center,
                             enablement_runtime,
@@ -4391,6 +4421,14 @@ fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {
     )
 }
 
+fn scale_bucket_for_scale_factor(scale_factor: f64) -> u8 {
+    if !scale_factor.is_finite() || scale_factor <= 0.0 {
+        return 1;
+    }
+    let bucket = (scale_factor * 16.0).round() as i64;
+    bucket.clamp(1, 255) as u8
+}
+
 fn fill(buffer: &mut [u32], color: ColorRgba) {
     let rgb = color.to_u32_rgb();
     buffer.fill(rgb);
@@ -4426,6 +4464,8 @@ fn draw_start_center_surface(
     buffer: &mut [u32],
     width: u32,
     height: u32,
+    text_runtime: &mut ShellTextRuntime,
+    scale_bucket: u8,
     registry: &CommandRegistry,
     start_center: &StartCenterState,
     enablement_runtime: &CommandEnablementRuntimeState,
@@ -4457,31 +4497,35 @@ fn draw_start_center_surface(
     let header_x = card.x.saturating_add(style.space_3);
     let mut y = card.y.saturating_add(style.space_3);
 
-    draw_text(
+    let header_h = draw_ui_text(
         buffer,
         width,
         height,
         header_x,
         y,
-        2,
         START_CENTER_PRESENTATION_LABEL,
         style.tokens.text_primary,
+        20.0,
+        scale_bucket,
+        text_runtime,
     );
     y = y
-        .saturating_add(8u32.saturating_mul(2))
+        .saturating_add(header_h)
         .saturating_add(style.space_2);
 
-    draw_text(
+    let subtitle_h = draw_ui_text(
         buffer,
         width,
         height,
         header_x,
         y,
-        1,
         START_CENTER_PRESENTATION_SUBTITLE,
         style.tokens.text_secondary,
+        14.0,
+        scale_bucket,
+        text_runtime,
     );
-    y = y.saturating_add(18);
+    y = y.saturating_add(subtitle_h).saturating_add(style.space_3);
 
     let runtime = StartCenterRuntimeInputs {
         client_scope: "desktop_product",
@@ -4538,15 +4582,18 @@ fn draw_start_center_surface(
         } else {
             style.tokens.text_secondary
         };
-        draw_text(
+        let label_y = row_rect.y.saturating_add(style.space_2);
+        let label_h = draw_ui_text(
             buffer,
             width,
             height,
             row_rect.x.saturating_add(style.space_2),
-            row_rect.y.saturating_add(style.space_2),
-            1,
+            label_y,
             &label,
             label_color,
+            14.0,
+            scale_bucket,
+            text_runtime,
         );
 
         let mut detail = row.summary.to_string();
@@ -4556,22 +4603,25 @@ fn draw_start_center_surface(
                 detail.push_str(reason.as_str());
             }
         }
-        draw_text(
+        let detail_y = label_y.saturating_add(label_h);
+        draw_ui_text(
             buffer,
             width,
             height,
             row_rect.x.saturating_add(style.space_2),
-            row_rect.y.saturating_add(style.space_2).saturating_add(14),
-            1,
+            detail_y,
             &detail,
             style.tokens.text_muted,
+            12.0,
+            scale_bucket,
+            text_runtime,
         );
 
         y = y.saturating_add(row_height).saturating_add(row_gap);
     }
 
     if y.saturating_add(22) < card.bottom() {
-        draw_text(
+        draw_ui_text(
             buffer,
             width,
             height,
@@ -4579,9 +4629,11 @@ fn draw_start_center_surface(
             card.bottom()
                 .saturating_sub(style.space_3)
                 .saturating_sub(12),
-            1,
             "↑/↓ select • Enter run • Cmd/Ctrl+Shift+P palette",
             style.tokens.text_muted,
+            12.0,
+            scale_bucket,
+            text_runtime,
         );
     }
 
@@ -5213,6 +5265,292 @@ fn draw_command_palette_overlay(
             style.tokens.text_secondary,
         );
         footer_y = footer_y.saturating_add(line_h);
+    }
+}
+
+fn draw_ui_text(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    x: u32,
+    y_top: u32,
+    text: &str,
+    color: ColorRgba,
+    font_size_px: f32,
+    scale_bucket: u8,
+    text_runtime: &mut ShellTextRuntime,
+) -> u32 {
+    let (_, line_height) = ui_primary_ascent_and_height(text_runtime, font_size_px);
+    if draw_shaped_text(
+        buffer,
+        width,
+        height,
+        x,
+        y_top,
+        text,
+        color,
+        font_size_px,
+        scale_bucket,
+        text_runtime,
+    ) {
+        return line_height;
+    }
+
+    let fallback_scale = ((font_size_px / 8.0).round() as u32).clamp(1, 4);
+    draw_text(
+        buffer,
+        width,
+        height,
+        x,
+        y_top,
+        fallback_scale,
+        text,
+        color,
+    );
+    8u32.saturating_mul(fallback_scale)
+}
+
+fn ui_primary_ascent_and_height(
+    text_runtime: &mut ShellTextRuntime,
+    font_size_px: f32,
+) -> (f32, u32) {
+    if font_size_px <= 0.0 || !font_size_px.is_finite() {
+        return (0.0, 0);
+    }
+
+    let font_id = text_runtime
+        .font_system
+        .resolve_system_ui_face(text_runtime.ui_fallback.system_ui_family)
+        .or_else(|| text_runtime.font_system.database().faces().next().map(|face| face.id));
+    let Some(font_id) = font_id else {
+        return (font_size_px, font_size_px.ceil().max(1.0) as u32);
+    };
+    let Some(font) = text_runtime.font_system.swash_font(font_id) else {
+        return (font_size_px, font_size_px.ceil().max(1.0) as u32);
+    };
+
+    let metrics = font.metrics(&[]).scale(font_size_px);
+    let ascent = metrics.ascent.max(0.0);
+    let raw_height = (metrics.ascent - metrics.descent + metrics.leading).max(font_size_px);
+    let height_px = raw_height.ceil().max(1.0) as u32;
+    (ascent, height_px)
+}
+
+fn draw_shaped_text(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    x: u32,
+    y_top: u32,
+    text: &str,
+    color: ColorRgba,
+    font_size_px: f32,
+    scale_bucket: u8,
+    text_runtime: &mut ShellTextRuntime,
+) -> bool {
+    if text.is_empty() {
+        return true;
+    }
+    if text_runtime.font_system.face_count() == 0 {
+        return false;
+    }
+
+    let (ascent, _) = ui_primary_ascent_and_height(text_runtime, font_size_px);
+    let baseline_x = x as f32;
+    let baseline_y = y_top as f32 + ascent;
+
+    let shaped = text_runtime.shaper.shape_line(
+        &mut text_runtime.font_system,
+        text,
+        font_size_px,
+        &text_runtime.ui_fallback,
+        text_runtime.ui_features,
+    );
+    if shaped.glyphs.is_empty() {
+        return false;
+    }
+
+    let px_size_q8 = ((font_size_px.max(0.01) * 256.0).round() as u32).max(1);
+    let font_system = &mut text_runtime.font_system;
+    let atlas = &mut text_runtime.atlas;
+
+    for glyph in shaped.glyphs {
+        let entry = atlas.get_or_rasterize(
+            font_system,
+            GlyphKey {
+                glyph_id: glyph.glyph_id,
+                font_id: glyph.font_id,
+                px_size_q8,
+                subpixel_variant: 0,
+                scale_bucket,
+            },
+        );
+        let Some(entry) = entry else {
+            continue;
+        };
+
+        let placement = entry.image.placement;
+        if placement.width == 0 || placement.height == 0 {
+            continue;
+        }
+
+        let glyph_x = baseline_x + glyph.x;
+        let glyph_y = baseline_y + glyph.y;
+        let dst_x = (glyph_x + placement.left as f32).round() as i32;
+        let dst_y = (glyph_y - placement.top as f32).round() as i32;
+
+        let expected_mask = (placement.width as usize).saturating_mul(placement.height as usize);
+        if entry.image.data.len() == expected_mask {
+            blend_alpha_mask(
+                buffer,
+                width,
+                height,
+                dst_x,
+                dst_y,
+                placement.width,
+                placement.height,
+                &entry.image.data,
+                color,
+            );
+        } else if entry.image.data.len() == expected_mask.saturating_mul(4) {
+            blend_rgba_image(
+                buffer,
+                width,
+                height,
+                dst_x,
+                dst_y,
+                placement.width,
+                placement.height,
+                &entry.image.data,
+            );
+        }
+    }
+
+    true
+}
+
+fn blend_alpha_mask(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    dst_x: i32,
+    dst_y: i32,
+    mask_width: u32,
+    mask_height: u32,
+    mask: &[u8],
+    color: ColorRgba,
+) {
+    if width == 0 || height == 0 || mask_width == 0 || mask_height == 0 {
+        return;
+    }
+
+    let src_width = mask_width as usize;
+    let src_height = mask_height as usize;
+    let dst_width = width as usize;
+    let dst_height = height as usize;
+
+    let src_x0 = if dst_x < 0 { (-dst_x) as usize } else { 0 };
+    let src_y0 = if dst_y < 0 { (-dst_y) as usize } else { 0 };
+    if src_x0 >= src_width || src_y0 >= src_height {
+        return;
+    }
+
+    let dst_x0 = if dst_x < 0 { 0 } else { dst_x as usize };
+    let dst_y0 = if dst_y < 0 { 0 } else { dst_y as usize };
+    if dst_x0 >= dst_width || dst_y0 >= dst_height {
+        return;
+    }
+
+    let src_end_x = src_width.min(dst_width.saturating_sub(dst_x0).saturating_add(src_x0));
+    let src_end_y = src_height.min(dst_height.saturating_sub(dst_y0).saturating_add(src_y0));
+
+    let mut dy = dst_y0;
+    for sy in src_y0..src_end_y {
+        let src_row = &mask[sy.saturating_mul(src_width)..];
+        let dst_row = dy.saturating_mul(dst_width);
+        dy = dy.saturating_add(1);
+        let mut dx = dst_x0;
+        for sx in src_x0..src_end_x {
+            let a = src_row.get(sx).copied().unwrap_or(0);
+            if a == 0 {
+                dx = dx.saturating_add(1);
+                continue;
+            }
+            let alpha = (u16::from(a).saturating_mul(u16::from(color.a)) / 255) as u8;
+            let tinted = ColorRgba {
+                r: color.r,
+                g: color.g,
+                b: color.b,
+                a: alpha,
+            };
+            if let Some(px) = buffer.get_mut(dst_row.saturating_add(dx)) {
+                *px = tinted.blend_over_u32(*px);
+            }
+            dx = dx.saturating_add(1);
+        }
+    }
+}
+
+fn blend_rgba_image(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    dst_x: i32,
+    dst_y: i32,
+    image_width: u32,
+    image_height: u32,
+    image: &[u8],
+) {
+    if width == 0 || height == 0 || image_width == 0 || image_height == 0 {
+        return;
+    }
+
+    let src_width = image_width as usize;
+    let src_height = image_height as usize;
+    let dst_width = width as usize;
+    let dst_height = height as usize;
+
+    let src_x0 = if dst_x < 0 { (-dst_x) as usize } else { 0 };
+    let src_y0 = if dst_y < 0 { (-dst_y) as usize } else { 0 };
+    if src_x0 >= src_width || src_y0 >= src_height {
+        return;
+    }
+
+    let dst_x0 = if dst_x < 0 { 0 } else { dst_x as usize };
+    let dst_y0 = if dst_y < 0 { 0 } else { dst_y as usize };
+    if dst_x0 >= dst_width || dst_y0 >= dst_height {
+        return;
+    }
+
+    let src_end_x = src_width.min(dst_width.saturating_sub(dst_x0).saturating_add(src_x0));
+    let src_end_y = src_height.min(dst_height.saturating_sub(dst_y0).saturating_add(src_y0));
+
+    let mut dy = dst_y0;
+    for sy in src_y0..src_end_y {
+        let dst_row = dy.saturating_mul(dst_width);
+        dy = dy.saturating_add(1);
+        let mut dx = dst_x0;
+        for sx in src_x0..src_end_x {
+            let base = (sy.saturating_mul(src_width).saturating_add(sx)).saturating_mul(4);
+            let Some(chunk) = image.get(base..base.saturating_add(4)) else {
+                dx = dx.saturating_add(1);
+                continue;
+            };
+            let color = ColorRgba {
+                r: chunk[0],
+                g: chunk[1],
+                b: chunk[2],
+                a: chunk[3],
+            };
+            if color.a == 0 {
+                dx = dx.saturating_add(1);
+                continue;
+            }
+            if let Some(px) = buffer.get_mut(dst_row.saturating_add(dx)) {
+                *px = color.blend_over_u32(*px);
+            }
+            dx = dx.saturating_add(1);
+        }
     }
 }
 

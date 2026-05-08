@@ -8,7 +8,11 @@
 //! and glyph-cache layout that validate the ADR 0002 contract ahead of the
 //! production text stack. Its API is the contract future shaping and
 //! rasterisation work must honour; the implementation is a stub.
+//!
+//! The [`shaping`] module owns the production shaping pipeline contract used by
+//! the desktop shell and editor surfaces.
 
 #![doc(html_root_url = "https://docs.rs/aureline-text/0.0.0")]
 
 pub mod prototype;
+pub mod shaping;
