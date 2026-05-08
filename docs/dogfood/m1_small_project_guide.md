@@ -23,7 +23,7 @@ Run:
 
 1. Pick one protected fixture repo under `fixtures/repos/m1/`.
 2. Run the dogfood recipe for that row in `artifacts/milestones/m1/dogfood_matrix.yaml`.
-3. File a dogfood issue using `docs/governance/dogfood_issue_taxonomy.md` when outcomes differ.
+3. When outcomes differ, follow `docs/dogfood/m1_internal_dogfood.md` to file structured feedback and route blockers.
 
 ## Failure drill
 
@@ -33,4 +33,3 @@ To confirm the guardrail is live:
    `plain_text_notes` → `plain_text_notes__moved`).
 2. Rerun the validator; it must fail with an actionable missing-ref error.
 3. Undo the rename and rerun; it must pass.
-

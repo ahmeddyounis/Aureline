@@ -1,0 +1,66 @@
+# Internal dogfood guide + feedback taxonomy + blocker routing gate.
+#
+# Validates the canonical intake artifacts and uploads a machine-readable report
+# for review.
+
+name: check_m1_dogfood_loop
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m1_dogfood_loop.yml"
+      - "ci/check_m1_dogfood_loop.py"
+      - "docs/dogfood/m1_internal_dogfood.md"
+      - "docs/support/m1_blocker_routing.md"
+      - "docs/governance/dogfood_issue_taxonomy.md"
+      - "artifacts/dogfood/feedback_taxonomy.yaml"
+      - "artifacts/milestones/m1/artifact_index.yaml"
+      - "artifacts/milestones/m1/blocker_taxonomy.yaml"
+      - "artifacts/milestones/m1/known_gaps_ledger.yaml"
+      - "artifacts/milestones/m1/proof_packets/dogfood_loop.md"
+      - "artifacts/milestones/m1/captures/dogfood_loop_validation_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m1-dogfood-loop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dogfood_loop:
+    name: Internal dogfood loop
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run dogfood-loop validator
+        run: |
+          python3 ci/check_m1_dogfood_loop.py --repo-root . --report target/m1-dogfood-loop/report.json
+
+      - name: Upload dogfood-loop report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-dogfood-loop-${{ github.run_id }}
+          path: target/m1-dogfood-loop
+          if-no-files-found: error
+          retention-days: 30
+
