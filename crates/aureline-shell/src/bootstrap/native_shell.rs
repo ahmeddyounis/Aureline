@@ -58,6 +58,9 @@ use aureline_input::keybindings::{
     Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
 };
 use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapPresetId};
+use aureline_ui::components::{
+    ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
+};
 use aureline_ui::themes::{AppearanceSessionRecord, LiveFollowSystemPolicyRecord};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
@@ -145,6 +148,7 @@ impl ShellRenderTokens {
 #[derive(Debug, Clone)]
 struct ShellRenderStyle {
     tokens: ShellRenderTokens,
+    component_states: ComponentStateRegistry,
     stroke_default: u32,
     stroke_focus: u32,
     space_2: u32,
@@ -163,6 +167,7 @@ impl ShellRenderStyle {
     fn load(registry: &TokenRegistry) -> Result<Self, TokenRegistryError> {
         Ok(Self {
             tokens: ShellRenderTokens::load(registry)?,
+            component_states: ComponentStateRegistry::load(registry)?,
             stroke_default: registry.require_stroke_px("stroke.border.default")?,
             stroke_focus: registry.require_stroke_px("stroke.focus.ring")?,
             space_2: registry.require_space_px("space.2")?,
@@ -256,6 +261,28 @@ enum ShellRenderBackend {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ShellFocusReturnTarget {
+    zone: ShellZoneId,
+    editor_group: PaneId,
+}
+
+impl ShellFocusReturnTarget {
+    fn capture(frame: &DesktopFrame) -> Self {
+        Self {
+            zone: frame.focused_zone(),
+            editor_group: frame.focused_editor_group(),
+        }
+    }
+
+    fn apply(self, frame: &mut DesktopFrame) {
+        frame.focus_zone(self.zone);
+        if self.zone == ShellZoneId::MainWorkspace {
+            frame.focus_editor_group(self.editor_group);
+        }
+    }
+}
+
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_native_shell_args()
         .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
@@ -304,6 +331,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut held_modifiers = HeldModifiers::default();
     let mut palette = CommandPaletteState::new(registry);
+    let mut palette_focus_return: FocusReturnStack<ShellFocusReturnTarget> =
+        FocusReturnStack::new();
     let mut start_center = StartCenterState::new();
     let mut overlay: Option<ShellOverlayState> = None;
     let mut command_runtime = CommandRuntimeState::default();
@@ -390,6 +419,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     registry,
                     &mut frame,
                     &mut palette,
+                    &mut palette_focus_return,
                     &mut start_center,
                     &mut overlay,
                     &mut command_runtime,
@@ -1057,6 +1087,7 @@ fn dispatch_command_id(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     overlay: &mut Option<ShellOverlayState>,
     command_id: &str,
     origin: DispatchOrigin,
@@ -1068,6 +1099,7 @@ fn dispatch_command_id(
         registry,
         frame,
         palette,
+        palette_focus_return,
         overlay,
         command_id,
         origin,
@@ -1082,6 +1114,7 @@ fn dispatch_command_id_with_arguments(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     overlay: &mut Option<ShellOverlayState>,
     command_id: &str,
     origin: DispatchOrigin,
@@ -1097,6 +1130,7 @@ fn dispatch_command_id_with_arguments(
         registry,
         frame,
         palette,
+        palette_focus_return,
         overlay,
         &entry,
         origin,
@@ -1111,6 +1145,7 @@ fn dispatch_registry_entry(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     overlay: &mut Option<ShellOverlayState>,
     entry: &CommandRegistryEntryRecord,
     origin: DispatchOrigin,
@@ -1227,7 +1262,11 @@ fn dispatch_registry_entry(
     match entry.descriptor.command_id.as_str() {
         "cmd:command_palette.open" => {
             let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-            palette.open(registry, cwd);
+            if !palette.is_open() {
+                palette_focus_return.record_if_changed(ShellFocusReturnTarget::capture(frame));
+                palette.open(registry, cwd);
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+            }
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
             command_runtime.record(invocation);
             true
@@ -2242,6 +2281,7 @@ fn handle_key_event(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     start_center: &mut StartCenterState,
     overlay: &mut Option<ShellOverlayState>,
     command_runtime: &mut CommandRuntimeState,
@@ -2343,6 +2383,9 @@ fn handle_key_event(
 
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 palette.close();
+                if let Some(target) = palette_focus_return.pop() {
+                    target.apply(frame);
+                }
 
                 *overlay = Some(ShellOverlayState::command_diagnostics(
                     frame.focused_zone(),
@@ -2362,6 +2405,9 @@ fn handle_key_event(
             KeyCode::Enter => {
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 let commit = palette.commit(registry);
+                if let Some(target) = palette_focus_return.pop() {
+                    target.apply(frame);
+                }
                 match commit {
                     Some(CommandPaletteCommit::CommandId(command_id)) => {
                         let changed = dispatch_command_id(
@@ -2369,6 +2415,7 @@ fn handle_key_event(
                             registry,
                             frame,
                             palette,
+                            palette_focus_return,
                             overlay,
                             &command_id,
                             DispatchOrigin::CommandPalette,
@@ -2406,6 +2453,9 @@ fn handle_key_event(
             KeyCode::Escape => {
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 palette.close();
+                if let Some(target) = palette_focus_return.pop() {
+                    target.apply(frame);
+                }
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
                     None,
@@ -2513,6 +2563,7 @@ fn handle_key_event(
                     registry,
                     frame,
                     palette,
+                    palette_focus_return,
                     overlay,
                     candidate.command.command_id.as_str(),
                     DispatchOrigin::KeybindingChord,
@@ -2574,6 +2625,7 @@ fn handle_key_event(
                     registry,
                     frame,
                     palette,
+                    palette_focus_return,
                     overlay,
                     row.command_id,
                     DispatchOrigin::StartCenter,
@@ -2600,6 +2652,7 @@ fn handle_key_event(
                     registry,
                     frame,
                     palette,
+                    palette_focus_return,
                     overlay,
                     "cmd:docs.open_in_browser",
                     DispatchOrigin::KeybindingChord,
@@ -2916,6 +2969,7 @@ fn rasterize_shell(
 ) {
     // Background.
     fill(buffer, style.tokens.bg_canvas);
+    let focus_ring = style.component_states.focus_ring_style();
 
     let scale = window.scale_factor();
     for zone in ShellZoneId::ALL {
@@ -2951,8 +3005,8 @@ fn rasterize_shell(
                             width,
                             height,
                             group_rect,
-                            style.stroke_focus,
-                            style.tokens.focus_ring,
+                            focus_ring.stroke_px,
+                            focus_ring.color,
                         );
                     }
 
@@ -3041,8 +3095,8 @@ fn rasterize_shell(
                 width,
                 height,
                 rect,
-                style.stroke_focus,
-                style.tokens.focus_ring,
+                focus_ring.stroke_px,
+                focus_ring.color,
             );
         }
 
@@ -3865,6 +3919,10 @@ fn draw_shell_overlay(
         style.stroke_default,
         style.tokens.border_strong,
     );
+    if frame.focused_zone() == ShellZoneId::TransientOverlay {
+        let ring = style.component_states.focus_ring_style();
+        stroke_rect(buffer, width, height, sheet_rect, ring.stroke_px, ring.color);
+    }
 
     match &overlay.kind {
         ShellOverlayKind::InspectorSheet => {
@@ -4564,13 +4622,14 @@ fn draw_docs_help_boundary_card(
         style.tokens.border_default,
     );
     if focused {
+        let ring = style.component_states.focus_ring_style();
         stroke_rect(
             buffer,
             width,
             height,
             panel,
-            style.stroke_focus,
-            style.tokens.focus_ring,
+            ring.stroke_px,
+            ring.color,
         );
     }
 
@@ -4777,6 +4836,48 @@ fn draw_command_palette_overlay(
         .saturating_add(line_h)
         .saturating_add(style.space_2 / 2);
 
+    let query_rect = Rect::new(
+        panel.x.saturating_add(style.space_3),
+        cursor_y,
+        panel.width.saturating_sub(style.space_3.saturating_mul(2)),
+        line_h.saturating_add(style.space_2),
+    );
+    if !query_rect.is_empty() {
+        let chrome = style.component_states.chrome_style(
+            ComponentSurfaceTone::Surface,
+            ComponentStates::FOCUS_VISIBLE,
+        );
+        fill_rect(buffer, width, height, query_rect, chrome.fill);
+        stroke_rect(
+            buffer,
+            width,
+            height,
+            query_rect,
+            chrome.border_stroke_px,
+            chrome.border,
+        );
+        if let Some(ring) = chrome.focus_ring {
+            stroke_rect(buffer, width, height, query_rect, ring.stroke_px, ring.color);
+        }
+
+        let query_label = if palette.query().is_empty() {
+            "> Type a command id or file path…".to_string()
+        } else {
+            format!("> {}", palette.query())
+        };
+        draw_text(
+            buffer,
+            width,
+            height,
+            query_rect.x.saturating_add(style.space_2),
+            query_rect.y.saturating_add(style.space_2 / 2),
+            text_scale,
+            &query_label,
+            style.tokens.text_primary,
+        );
+        cursor_y = query_rect.bottom().saturating_add(style.space_3);
+    }
+
     let preview_runtime = PalettePreviewRuntimeInputs {
         client_scope: "desktop_product",
         workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
@@ -4892,7 +4993,19 @@ fn draw_command_palette_overlay(
                 list_rect.width,
                 line_h,
             );
-            fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
+            let chrome = style.component_states.chrome_style(
+                ComponentSurfaceTone::Surface,
+                ComponentStates::SELECTED,
+            );
+            fill_rect(buffer, width, height, highlight, chrome.fill);
+            stroke_rect(
+                buffer,
+                width,
+                height,
+                highlight,
+                chrome.border_stroke_px,
+                chrome.border,
+            );
         }
 
         let line = if max_list_cols == 0 {

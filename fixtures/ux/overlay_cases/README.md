@@ -11,5 +11,6 @@ The cases cover:
 - stale preview promotion with identity and freshness preserved;
 - boundary-change banners that freeze commit actions;
 - focus return after dismissal when the exact invoker disappears;
+- command palette focus return to the invoker;
 - missing-provider fallback in a secondary window;
 - keyboard-only promotion at high zoom.
