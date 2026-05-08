@@ -4,7 +4,8 @@ use std::sync::Arc;
 use aureline_build_info as build_info;
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
-use aureline_shell::app_frame::desktop_frame::DesktopFrame;
+use aureline_shell::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
+use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
 
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
@@ -36,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut held_modifiers = HeldModifiers::default();
     let mut palette = CommandPaletteState::new(registry);
+    let mut overlay: Option<ShellOverlayState> = None;
 
     window.request_redraw();
 
@@ -51,12 +53,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 WindowEvent::KeyboardInput { event, .. } => {
                     held_modifiers.update_from_key_event(&event);
-                    if handle_key_event(&window, registry, &mut frame, &mut palette, &held_modifiers, event) {
+                    if handle_key_event(
+                        &window,
+                        registry,
+                        &mut frame,
+                        &mut palette,
+                        &mut overlay,
+                        &held_modifiers,
+                        event,
+                    ) {
                         window.request_redraw();
                     }
                 }
                 WindowEvent::RedrawRequested => {
-                    if let Err(err) = draw(&window, &mut surface, registry, &frame, &palette) {
+                    if let Err(err) = draw(&window, &mut surface, registry, &frame, &palette, overlay.as_ref()) {
                         eprintln!("aureline_shell: draw failed: {err}");
                         elwt.exit();
                     }
@@ -88,6 +98,7 @@ fn handle_key_event(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
+    overlay: &mut Option<ShellOverlayState>,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -113,6 +124,17 @@ fn handle_key_event(
         return false;
     }
 
+    if let Some(state) = overlay.as_mut() {
+        if state.handle_key(code, frame) {
+            if state.closed {
+                *overlay = None;
+            }
+            window.set_title(&window_title(Some(frame.focused_zone()), None));
+            return true;
+        }
+        return false;
+    }
+
     match code {
         KeyCode::Tab => {
             frame.focus_next();
@@ -126,6 +148,73 @@ fn handle_key_event(
                     Some(frame.focused_zone()),
                     palette.selected_entry(registry),
                 ));
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyO => {
+            if modifiers.ctrl_or_logo() {
+                frame.open_placeholder_tab();
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::Backslash => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                match frame.request_split_focused_editor_group() {
+                    NewEditorGroupOutcome::Created { .. } => true,
+                    NewEditorGroupOutcome::WouldViolateMinimum(violation) => {
+                        *overlay = Some(ShellOverlayState::split_choice(
+                            frame.focused_zone(),
+                            frame.focused_editor_group(),
+                            violation,
+                        ));
+                        frame.focus_zone(ShellZoneId::TransientOverlay);
+                        true
+                    }
+                }
+            } else if modifiers.ctrl_or_logo() {
+                match frame.request_split_focused_editor_group() {
+                    NewEditorGroupOutcome::Created { .. } => true,
+                    NewEditorGroupOutcome::WouldViolateMinimum(violation) => {
+                        *overlay = Some(ShellOverlayState::split_choice(
+                            frame.focused_zone(),
+                            frame.focused_editor_group(),
+                            violation,
+                        ));
+                        frame.focus_zone(ShellZoneId::TransientOverlay);
+                        true
+                    }
+                }
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyG => {
+            if modifiers.ctrl_or_logo() {
+                frame.focus_next_editor_group();
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyW => {
+            if modifiers.ctrl_or_logo() {
+                frame.close_focused_editor_group()
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyI => {
+            if modifiers.ctrl_or_logo() && frame.layout().right_inspector.is_none() {
+                *overlay = Some(ShellOverlayState::inspector_sheet(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
                 true
             } else {
                 false
@@ -160,6 +249,7 @@ fn draw(
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
+    overlay: Option<&ShellOverlayState>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -193,15 +283,71 @@ fn draw(
         let color = zone_color(zone);
         fill_rect(&mut buffer, physical.width, physical.height, rect, color);
 
-        for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
-            let slot_rect = to_physical_rect(slot_rect, scale);
-            let slot_color = slot_color(slot_id);
-            fill_rect(&mut buffer, physical.width, physical.height, slot_rect, slot_color);
+        match zone {
+            ShellZoneId::MainWorkspace => {
+                for group in frame.editor_group_layouts() {
+                    let group_rect = to_physical_rect(group.rect, scale);
+                    let group_color = editor_group_color(group.group_id);
+                    fill_rect(
+                        &mut buffer,
+                        physical.width,
+                        physical.height,
+                        group_rect,
+                        group_color,
+                    );
+                    if group.group_id == frame.focused_editor_group() && frame.focused_zone() == ShellZoneId::MainWorkspace {
+                        stroke_rect(
+                            &mut buffer,
+                            physical.width,
+                            physical.height,
+                            group_rect,
+                            2,
+                            0x00ffffff,
+                        );
+                    }
+
+                    let label = format!(
+                        "group:{}  tabs:{}{}",
+                        group.group_id.value(),
+                        group.tab_count,
+                        if group.tabbed_compare_active { "  [tabbed compare]" } else { "" }
+                    );
+                    draw_text(
+                        &mut buffer,
+                        physical.width,
+                        physical.height,
+                        group_rect.x.saturating_add(6),
+                        group_rect.y.saturating_add(6),
+                        1,
+                        &label,
+                        0x00e6edf3,
+                    );
+                }
+            }
+            _ => {
+                for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
+                    let slot_rect = to_physical_rect(slot_rect, scale);
+                    let slot_color = slot_color(slot_id);
+                    fill_rect(&mut buffer, physical.width, physical.height, slot_rect, slot_color);
+                }
+            }
         }
 
         if zone == frame.focused_zone() {
             stroke_rect(&mut buffer, physical.width, physical.height, rect, 2, 0x00ffffff);
         }
+
+        let zone_label = format!("zone: {}", zone.name());
+        draw_text(
+            &mut buffer,
+            physical.width,
+            physical.height,
+            rect.x.saturating_add(6),
+            rect.y.saturating_add(2),
+            1,
+            &zone_label,
+            0x00aab7c4,
+        );
     }
 
     if palette.is_open() {
@@ -216,8 +362,243 @@ fn draw(
         );
     }
 
+    if let Some(overlay) = overlay {
+        draw_shell_overlay(&mut buffer, physical.width, physical.height, window.scale_factor(), frame, overlay);
+    }
+
+    let modes = frame
+        .responsive_fallback_modes()
+        .into_iter()
+        .map(|m| m.name())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let status = to_physical_rect(frame.layout().status_bar, scale);
+    if !status.is_empty() {
+        let text = format!("fallback_modes: [{}]   keys: Ctrl+\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)", modes);
+        draw_text(
+            &mut buffer,
+            physical.width,
+            physical.height,
+            status.x.saturating_add(6),
+            status.y.saturating_add(6),
+            1,
+            &text,
+            0x00c9d3de,
+        );
+    }
+
     buffer.present()?;
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+enum ShellOverlayKind {
+    InspectorSheet,
+    SplitChoice { violation: SplitViolation, selection: usize },
+    StagedPeek,
+}
+
+#[derive(Debug, Clone)]
+struct ShellOverlayState {
+    kind: ShellOverlayKind,
+    focus_return_zone: ShellZoneId,
+    focus_return_group: PaneId,
+    closed: bool,
+}
+
+impl ShellOverlayState {
+    fn inspector_sheet(focus_return_zone: ShellZoneId, focus_return_group: PaneId) -> Self {
+        Self {
+            kind: ShellOverlayKind::InspectorSheet,
+            focus_return_zone,
+            focus_return_group,
+            closed: false,
+        }
+    }
+
+    fn split_choice(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        violation: SplitViolation,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::SplitChoice {
+                violation,
+                selection: 0,
+            },
+            focus_return_zone,
+            focus_return_group,
+            closed: false,
+        }
+    }
+
+    fn close(&mut self, frame: &mut DesktopFrame) {
+        self.closed = true;
+        frame.focus_zone(self.focus_return_zone);
+        if self.focus_return_zone == ShellZoneId::MainWorkspace {
+            frame.focus_editor_group(self.focus_return_group);
+        }
+    }
+
+    fn handle_key(&mut self, code: KeyCode, frame: &mut DesktopFrame) -> bool {
+        match (&mut self.kind, code) {
+            (_, KeyCode::Escape) => {
+                self.close(frame);
+                true
+            }
+            (ShellOverlayKind::SplitChoice { selection, .. }, KeyCode::ArrowDown) => {
+                *selection = (*selection + 1) % 3;
+                true
+            }
+            (ShellOverlayKind::SplitChoice { selection, .. }, KeyCode::ArrowUp) => {
+                *selection = (*selection + 3 - 1) % 3;
+                true
+            }
+            (ShellOverlayKind::SplitChoice { selection, .. }, KeyCode::Enter) => {
+                match *selection {
+                    0 => {
+                        frame.engage_tabbed_compare_fallback();
+                        self.close(frame);
+                    }
+                    1 => {
+                        self.kind = ShellOverlayKind::StagedPeek;
+                    }
+                    _ => {
+                        self.close(frame);
+                    }
+                }
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+fn editor_group_color(group_id: PaneId) -> u32 {
+    let hash = group_id.value().wrapping_mul(2654435761) as u32;
+    let r = (hash & 0xff) as u32;
+    let g = ((hash >> 8) & 0xff) as u32;
+    let b = ((hash >> 16) & 0xff) as u32;
+    0x00000000 | (r << 16) | (g << 8) | b
+}
+
+fn draw_shell_overlay(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    scale_factor: f64,
+    frame: &DesktopFrame,
+    overlay: &ShellOverlayState,
+) {
+    let overlay_rect = to_physical_rect(frame.layout().transient_overlay, scale_factor);
+    let sheet_w = (overlay_rect.width / 2).max(260);
+    let sheet_rect = Rect::new(
+        overlay_rect.right().saturating_sub(sheet_w),
+        overlay_rect.y.saturating_add(60),
+        sheet_w,
+        overlay_rect.height.saturating_sub(120),
+    );
+
+    fill_rect(buffer, width, height, overlay_rect, 0x88000000);
+    fill_rect(buffer, width, height, sheet_rect, 0x00202a35);
+    stroke_rect(buffer, width, height, sheet_rect, 2, 0x00ffffff);
+
+    match &overlay.kind {
+        ShellOverlayKind::InspectorSheet => {
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(12),
+                1,
+                "Inspector (sheet) — Esc closes",
+                0x00ffffff,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(28),
+                1,
+                "Truth: inspector is sheeted on narrow widths; focus returns to the invoking pane.",
+                0x00c9d3de,
+            );
+        }
+        ShellOverlayKind::SplitChoice { violation, selection } => {
+            let header = format!(
+                "Split would violate min group width (min {}px, attempted {}px).",
+                violation.main_workspace_minimum_width, violation.attempted_per_group_width
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(12),
+                1,
+                &header,
+                0x00ffffff,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(28),
+                1,
+                "Choose fallback: Up/Down, Enter confirm, Esc cancel",
+                0x00aab7c4,
+            );
+
+            let options = ["Tabbed compare (recommended)", "Staged peek", "Cancel"];
+            for (idx, label) in options.iter().enumerate() {
+                let y = sheet_rect.y.saturating_add(52 + (idx as u32) * 18);
+                if idx == *selection {
+                    let highlight = Rect::new(
+                        sheet_rect.x.saturating_add(8),
+                        y.saturating_sub(2),
+                        sheet_rect.width.saturating_sub(16),
+                        16,
+                    );
+                    fill_rect(buffer, width, height, highlight, 0x002d3b4a);
+                }
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    sheet_rect.x.saturating_add(14),
+                    y,
+                    1,
+                    label,
+                    if idx == *selection { 0x00ffffff } else { 0x00c9d3de },
+                );
+            }
+        }
+        ShellOverlayKind::StagedPeek => {
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(12),
+                1,
+                "Staged peek (sheet) — Esc closes",
+                0x00ffffff,
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                sheet_rect.x.saturating_add(12),
+                sheet_rect.y.saturating_add(28),
+                1,
+                "This placeholder represents a temporary narrow-width compare peek with focus return.",
+                0x00c9d3de,
+            );
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -18,6 +18,8 @@ companion artifacts and fixtures MUST update in the same change.
 - [`/fixtures/ux/responsive_fallback_cases/`](../../fixtures/ux/responsive_fallback_cases/)
   — curated stress cases covering narrow widths, stacked splits, multi-monitor
   moves, density + zoom, restore, and long-title/long-path conditions.
+- [`/docs/ux/responsive_shell_rules.md`](./responsive_shell_rules.md)
+  — runtime wiring entrypoint for the live desktop shell.
 
 This contract also composes with the existing shell zoning corpus:
 
@@ -340,4 +342,3 @@ surface or deny the interaction until the user expands it:
 
 The curated fixture suite lives at:
 [`/fixtures/ux/responsive_fallback_cases/`](../../fixtures/ux/responsive_fallback_cases/).
-

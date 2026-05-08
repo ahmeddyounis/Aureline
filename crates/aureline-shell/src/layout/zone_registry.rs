@@ -129,6 +129,14 @@ impl ZoneDefaults {
 pub struct ZoneRegistryInput {
     pub window_width: u32,
     pub window_height: u32,
+    /// When true, the shell is in a split-heavy posture (≥ 2 editor groups).
+    /// This allows the zone registry to collapse optional chrome earlier,
+    /// preserving minimum useful widths for editor groups.
+    pub split_heavy: bool,
+    /// Optional override for the minimum useful width of the main workspace.
+    /// Used by split-heavy editor-group layouts to ensure the zone registry
+    /// collapses optional chrome before rendering unusable narrow panes.
+    pub main_workspace_min_width_override: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -175,9 +183,16 @@ impl ZoneRegistry {
         Self { defaults }
     }
 
+    pub const fn defaults(&self) -> ZoneDefaults {
+        self.defaults
+    }
+
     pub fn layout(&self, input: ZoneRegistryInput) -> ZoneRegistryLayout {
         let adaptive_class = classify_adaptive_class(input.window_width);
         let window = Rect::new(0, 0, input.window_width, input.window_height);
+        let main_workspace_min_width = input
+            .main_workspace_min_width_override
+            .unwrap_or(self.defaults.main_workspace_min_width);
 
         let title_h = self.defaults.title_context_bar_height.min(input.window_height);
         let status_h = self
@@ -203,6 +218,13 @@ impl ZoneRegistry {
         let mut bottom_panel_visible =
             matches!(adaptive_class, AdaptiveClass::StandardDesktop | AdaptiveClass::ExpandedDesktop);
 
+        // In split-heavy posture, collapse optional side chrome earlier on
+        // constrained widths so editor groups retain minimum useful width.
+        if input.split_heavy && matches!(adaptive_class, AdaptiveClass::StandardDesktop | AdaptiveClass::CompactDesktop) {
+            left_sidebar_visible = false;
+            right_inspector_visible = false;
+        }
+
         let mut bottom_panel_height = if bottom_panel_visible {
             self.defaults
                 .bottom_panel_height
@@ -224,19 +246,19 @@ impl ZoneRegistry {
         };
 
         if workspace_available(activity_rail_width, left_sidebar_visible, right_inspector_visible)
-            < self.defaults.main_workspace_min_width
+            < main_workspace_min_width
         {
             right_inspector_visible = false;
         }
 
         if workspace_available(activity_rail_width, left_sidebar_visible, right_inspector_visible)
-            < self.defaults.main_workspace_min_width
+            < main_workspace_min_width
         {
             left_sidebar_visible = false;
         }
 
         if workspace_available(activity_rail_width, left_sidebar_visible, right_inspector_visible)
-            < self.defaults.main_workspace_min_width
+            < main_workspace_min_width
         {
             activity_rail_width = activity_rail_width.min(self.defaults.activity_rail_min_width);
         }
@@ -334,6 +356,8 @@ mod tests {
         let layout = registry.layout(ZoneRegistryInput {
             window_width: 1920,
             window_height: 1080,
+            split_heavy: false,
+            main_workspace_min_width_override: None,
         });
 
         assert_eq!(layout.adaptive_class.name(), "expanded_desktop");
@@ -359,6 +383,8 @@ mod tests {
         let layout = registry.layout(ZoneRegistryInput {
             window_width: 1920,
             window_height: 1080,
+            split_heavy: false,
+            main_workspace_min_width_override: None,
         });
 
         assert_eq!(layout.title_context_bar, Rect::new(0, 0, 1920, 32));
@@ -386,6 +412,8 @@ mod tests {
         let layout = registry.layout(ZoneRegistryInput {
             window_width: 1920,
             window_height: 1080,
+            split_heavy: false,
+            main_workspace_min_width_override: None,
         });
 
         let title_bottom = layout.title_context_bar.bottom();
@@ -410,6 +438,8 @@ mod tests {
         let layout = registry.layout(ZoneRegistryInput {
             window_width: 1440,
             window_height: 900,
+            split_heavy: false,
+            main_workspace_min_width_override: None,
         });
         assert_eq!(layout.adaptive_class.name(), "standard_desktop");
         assert!(layout.right_inspector.is_none());
