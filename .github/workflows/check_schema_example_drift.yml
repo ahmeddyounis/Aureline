@@ -1,0 +1,60 @@
+# Schema/example drift gate.
+#
+# Validates protected schema changes are reviewed against canonical reference
+# examples and any docs snippets that embed those examples.
+
+name: check_schema_example_drift
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_schema_example_drift.yml"
+      - "ci/check_schema_example_drift.*"
+      - "tools/check_schema_example_drift.py"
+      - "tools/ci/schema_example_drift_validation.py"
+      - "tools/ci/contract_example_drift_rules.md"
+      - "docs/ci/schema_example_drift_gate.md"
+      - "artifacts/ci/contract_example_sources.yaml"
+      - "artifacts/contracts/example_pack_index.yaml"
+      - "schemas/**"
+      - "fixtures/contracts/reference_examples/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-schema-example-drift-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  schema_example_drift:
+    name: Schema/example drift
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run schema/example drift gate
+        run: |
+          ./ci/check_schema_example_drift.sh --out-dir target/schema-example-drift
+
+      - name: Upload schema-example-drift artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-example-drift-${{ github.run_id }}
+          path: target/schema-example-drift
+          if-no-files-found: error
+          retention-days: 30
+
