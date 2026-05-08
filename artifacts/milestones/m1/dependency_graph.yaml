@@ -1,0 +1,196 @@
+# Shell/editor/workspace integration checkpoint dependency graph.
+#
+# Canonical truth source for the core integrated path:
+# Start Center -> open repo -> edit -> save -> restore session.
+#
+# Consumers should cite this file (and its referenced contract docs / schemas)
+# instead of cloning prerequisite lists into local packets.
+
+schema_version: 1
+as_of: "2026-05-07"
+owner: "@ahmeddyounis"
+
+checkpoint:
+  checkpoint_id: shell_editor_workspace_integration
+  title: Shell/editor/workspace integration checkpoint
+  canonical_flow_id: start_center_open_repo_edit_save_restore
+  human_entrypoint_ref: docs/milestones/m1/integration_checkpoint.md
+  artifact_index_ref: artifacts/milestones/m1/artifact_index.yaml
+  validator:
+    script_ref: ci/check_m1_checkpoint.py
+    command: python3 ci/check_m1_checkpoint.py --repo-root .
+
+flow:
+  flow_id: start_center_open_repo_edit_save_restore
+  title: Start Center -> open repo -> edit -> save -> restore session
+  steps:
+    - step_id: start_center
+      title: Start Center and project entry
+      required_subsystems: [shell, workspace]
+      blocking_interfaces:
+        - docs/workspace/entry_restore_object_model.md
+        - docs/recovery/restore_chooser_contract.md
+      required_proof_lanes:
+        - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+    - step_id: open_repo
+      title: Open/clone/import/restore resolves a workspace
+      required_subsystems: [shell, workspace, telemetry]
+      blocking_interfaces:
+        - docs/workspace/source_acquisition_and_bootstrap_seed.md
+        - docs/adr/0006-vfs-save-cache-identity.md
+      required_proof_lanes:
+        - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+    - step_id: edit
+      title: Edit buffer and observe truth state
+      required_subsystems: [shell, editor, telemetry]
+      blocking_interfaces:
+        - docs/adr/0003-buffer-undo-large-file.md
+        - docs/verification/source_fidelity_and_undo_packet.md
+        - docs/observability/observability_signal_contract.md
+      required_proof_lanes:
+        - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+    - step_id: save
+      title: Save pipeline preserves source fidelity
+      required_subsystems: [editor, workspace, telemetry]
+      blocking_interfaces:
+        - schemas/runtime/vfs_save_envelope.schema.json
+        - artifacts/io/save_rewrite_classes.yaml
+      required_proof_lanes:
+        - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+    - step_id: restore_session
+      title: Restore session and reconcile state
+      required_subsystems: [shell, workspace, recovery, telemetry]
+      blocking_interfaces:
+        - docs/recovery/restore_chooser_contract.md
+        - docs/support/project_doctor_packet.md
+      required_proof_lanes:
+        - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+subsystems:
+  - subsystem_id: shell
+    title: Shell + command system + entry surfaces
+    owner_dri: "@ahmeddyounis"
+    ownership_refs:
+      - artifacts/governance/ownership_matrix.yaml#governance_lane:shell_command_system
+    required_contract_refs:
+      - docs/commands/command_descriptor_contract.md
+      - artifacts/governance/interface_freeze_matrix.yaml#command_descriptor_and_invocation_schema
+      - docs/workspace/entry_restore_object_model.md
+
+  - subsystem_id: editor
+    title: Buffer/editor core and source fidelity
+    owner_dri: "@ahmeddyounis"
+    ownership_refs:
+      - artifacts/governance/ownership_matrix.yaml#package:aureline-buffer
+      - artifacts/governance/ownership_matrix.yaml#package:aureline-text
+    required_contract_refs:
+      - docs/adr/0003-buffer-undo-large-file.md
+      - artifacts/governance/interface_freeze_matrix.yaml#buffer_strategy_and_source_fidelity
+      - docs/verification/source_fidelity_and_undo_packet.md
+      - fixtures/io/source_fidelity_corpus_manifest.yaml
+
+  - subsystem_id: workspace
+    title: Workspace + VFS + identity + mutation lineage
+    owner_dri: "@ahmeddyounis"
+    ownership_refs:
+      - artifacts/governance/ownership_matrix.yaml#package:aureline-vfs
+    required_contract_refs:
+      - docs/workspace/entry_restore_object_model.md
+      - docs/workspace/mutation_lineage_model.md
+      - docs/adr/0006-vfs-save-cache-identity.md
+      - artifacts/governance/interface_freeze_matrix.yaml#workspace_identity_save_recovery_lineage
+      - schemas/runtime/vfs_save_envelope.schema.json
+
+  - subsystem_id: telemetry
+    title: Hot-path telemetry and trace hooks
+    owner_dri: "@ahmeddyounis"
+    ownership_refs:
+      - artifacts/governance/ownership_matrix.yaml#package:aureline-telemetry
+      - artifacts/governance/ownership_matrix.yaml#governance_lane:benchmark_lab
+    required_contract_refs:
+      - docs/observability/observability_signal_contract.md
+      - docs/observability/replay_and_trace_bundle_contract.md
+      - artifacts/qe/test_lane_registry.yaml
+
+  - subsystem_id: recovery
+    title: Restore, safe-mode ladder, and supportability hooks
+    owner_dri: "@ahmeddyounis"
+    ownership_refs:
+      - artifacts/governance/ownership_matrix.yaml#governance_lane:support_export
+    required_contract_refs:
+      - docs/recovery/restore_chooser_contract.md
+      - docs/support/project_doctor_packet.md
+      - docs/build/exact_build_identity_model.md
+
+graph:
+  nodes:
+    - node_id: interface_freeze_matrix
+      kind: contract_register
+      required: true
+      artifact_ref: artifacts/governance/interface_freeze_matrix.yaml
+
+    - node_id: ownership_matrix
+      kind: ownership_register
+      required: true
+      artifact_ref: artifacts/governance/ownership_matrix.yaml
+
+    - node_id: fixture_repo_integration_lane
+      kind: qe_lane
+      required: true
+      artifact_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+    - node_id: exact_build_identity_contract
+      kind: contract
+      required: true
+      artifact_ref: docs/build/exact_build_identity_model.md
+
+    - node_id: dependency_graph
+      kind: checkpoint_graph
+      required: true
+      artifact_ref: artifacts/milestones/m1/dependency_graph.yaml
+
+  edges:
+    - from: interface_freeze_matrix
+      to: dependency_graph
+      rationale: >
+        The checkpoint must align with the frozen/provisional gate rows
+        that downstream work cites.
+
+    - from: ownership_matrix
+      to: dependency_graph
+      rationale: >
+        Every subsystem in the checkpoint must have an explicit owner DRI
+        and ownership-lane reference.
+
+    - from: fixture_repo_integration_lane
+      to: dependency_graph
+      rationale: >
+        The checkpoint is only meaningful if the protected fixture lane
+        can execute the integrated flow end-to-end.
+
+    - from: exact_build_identity_contract
+      to: dependency_graph
+      rationale: >
+        Proof packets that claim checkpoint coverage must join against the
+        exact-build identity vocabulary.
+
+proof_assets:
+  required:
+    - asset_id: fixture_lane_registry
+      artifact_ref: artifacts/qe/test_lane_registry.yaml
+    - asset_id: fixture_corpus_manifest
+      artifact_ref: fixtures/benchmarks/corpus_manifest.yaml
+    - asset_id: reference_workspace_fixtures
+      artifact_ref: fixtures/workspaces/reference/
+
+  planned:
+    - asset_id: checkpoint_proof_packet
+      artifact_ref: not_yet_seeded
+    - asset_id: checkpoint_dashboard_row
+      artifact_ref: not_yet_seeded
+    - asset_id: dogfood_runbook
+      artifact_ref: not_yet_seeded
