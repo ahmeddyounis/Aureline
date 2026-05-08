@@ -17,6 +17,10 @@ use aureline_shell::app_frame::desktop_frame::{
 };
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
+use aureline_input::keybindings::{
+    seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, Modifiers, PlatformClass,
+    SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
+};
 
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use softbuffer::{Context, Surface};
@@ -49,6 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut palette = CommandPaletteState::new(registry);
     let mut overlay: Option<ShellOverlayState> = None;
     let mut command_runtime = CommandRuntimeState::default();
+    let mut keybinding_runtime = KeybindingRuntimeState::default();
 
     window.request_redraw();
 
@@ -70,6 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut palette,
                     &mut overlay,
                     &mut command_runtime,
+                    &mut keybinding_runtime,
                     &held_modifiers,
                     event,
                 ) {
@@ -85,6 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &palette,
                     overlay.as_ref(),
                     &command_runtime,
+                    &keybinding_runtime,
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
                     elwt.exit();
@@ -969,6 +976,7 @@ fn handle_key_event(
     palette: &mut CommandPaletteState,
     overlay: &mut Option<ShellOverlayState>,
     command_runtime: &mut CommandRuntimeState,
+    keybinding_runtime: &mut KeybindingRuntimeState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
 ) -> bool {
@@ -1028,21 +1036,23 @@ fn handle_key_event(
         return false;
     }
 
-    match code {
-        KeyCode::Tab => {
-            frame.focus_next();
-            window.set_title(&window_title(Some(frame.focused_zone()), None));
-            true
-        }
-        KeyCode::KeyP => {
-            if modifiers.ctrl_or_logo() && modifiers.shift {
+    if let Some((sequence, inspection_scope)) =
+        keybinding_sequence_and_scope_from_shell(code, modifiers, frame)
+    {
+        let packet = seeded_keybinding_resolver().resolve(&sequence, &inspection_scope);
+        keybinding_runtime.record(packet.clone());
+
+        if packet.sequence_state == SequenceResolutionState::Resolved
+            && packet.winning_resolution.winner_kind == WinningResolutionKind::CommandCandidate
+        {
+            if let Some(candidate) = packet.winning_resolution.command_candidate.as_ref() {
                 let changed = dispatch_command_id(
                     command_runtime,
                     registry,
                     frame,
                     palette,
                     overlay,
-                    "cmd:command_palette.open",
+                    candidate.command.command_id.as_str(),
                     DispatchOrigin::KeybindingChord,
                 );
                 window.set_title(&window_title(
@@ -1052,10 +1062,16 @@ fn handle_key_event(
                         .then(|| palette.selected_entry(registry))
                         .flatten(),
                 ));
-                changed
-            } else {
-                false
+                return changed;
             }
+        }
+    }
+
+    match code {
+        KeyCode::Tab => {
+            frame.focus_next();
+            window.set_title(&window_title(Some(frame.focused_zone()), None));
+            true
         }
         KeyCode::KeyO => {
             if modifiers.ctrl_or_logo() {
@@ -1157,6 +1173,7 @@ fn draw(
     palette: &CommandPaletteState,
     overlay: Option<&ShellOverlayState>,
     command_runtime: &CommandRuntimeState,
+    keybinding_runtime: &KeybindingRuntimeState,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -1311,7 +1328,11 @@ fn draw(
             .last_command_label
             .as_deref()
             .unwrap_or("no recent command");
-        let text = format!("fallback_modes: [{}]   last_cmd: {}   keys: Ctrl+Shift+P palette, Enter run, Ctrl+\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)   packets: .logs/command_packets", modes, last);
+        let last_keybinding = keybinding_runtime
+            .last_summary
+            .as_deref()
+            .unwrap_or("no recent keybinding resolution");
+        let text = format!("fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   keys: Cmd/Ctrl+Shift+P palette (resolver), Enter run, Ctrl+\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)   packets: .logs/command_packets", modes, last, last_keybinding);
         draw_text(
             &mut buffer,
             physical.width,
@@ -1967,7 +1988,7 @@ fn draw_command_palette_overlay(
         cursor_x,
         cursor_y,
         text_scale,
-        "Command Palette (Ctrl+Shift+P)",
+        "Command Palette (Cmd/Ctrl+Shift+P)",
         0x00e6edf3,
     );
     cursor_y = cursor_y.saturating_add(line_h);
@@ -2083,6 +2104,7 @@ fn draw_glyph(
 #[derive(Debug, Default, Clone, Copy)]
 struct HeldModifiers {
     ctrl: bool,
+    alt: bool,
     shift: bool,
     logo: bool,
 }
@@ -2099,10 +2121,122 @@ impl HeldModifiers {
         let pressed = event.state == ElementState::Pressed;
         match code {
             KeyCode::ControlLeft | KeyCode::ControlRight => self.ctrl = pressed,
+            KeyCode::AltLeft | KeyCode::AltRight => self.alt = pressed,
             KeyCode::ShiftLeft | KeyCode::ShiftRight => self.shift = pressed,
             KeyCode::SuperLeft | KeyCode::SuperRight => self.logo = pressed,
             _ => {}
         }
+    }
+}
+
+#[derive(Debug, Default)]
+struct KeybindingRuntimeState {
+    last_summary: Option<String>,
+}
+
+impl KeybindingRuntimeState {
+    fn record(&mut self, packet: aureline_input::keybindings::KeybindingResolutionPacketRecord) {
+        let winner = match packet.winning_resolution.winner_kind {
+            WinningResolutionKind::CommandCandidate => packet
+                .winning_resolution
+                .command_candidate
+                .as_ref()
+                .map(|c| c.command.command_id.as_str())
+                .unwrap_or("<missing-command>"),
+            WinningResolutionKind::PlatformReserved => "platform_reserved",
+            WinningResolutionKind::EmergencySecurityHardBlock => "security_blocked",
+            WinningResolutionKind::AdminPolicyLock => "policy_locked",
+            WinningResolutionKind::WaitingState => "waiting_for_next_stroke",
+            WinningResolutionKind::Unbound => "unbound",
+        };
+        let layer = packet
+            .winning_resolution
+            .resolver_layer
+            .map(|l| format!("{l:?}"))
+            .unwrap_or_else(|| "none".to_string());
+        self.last_summary = Some(format!(
+            "{} => {} (layer: {}, state: {:?})",
+            packet.inspected_sequence.literal_sequence, winner, layer, packet.sequence_state
+        ));
+    }
+}
+
+fn platform_class_for_shell() -> PlatformClass {
+    #[cfg(target_os = "macos")]
+    {
+        PlatformClass::Macos
+    }
+    #[cfg(target_os = "windows")]
+    {
+        PlatformClass::Windows
+    }
+    #[cfg(target_os = "linux")]
+    {
+        PlatformClass::Linux
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        PlatformClass::CrossPlatform
+    }
+}
+
+fn keybinding_sequence_and_scope_from_shell(
+    code: KeyCode,
+    modifiers: &HeldModifiers,
+    frame: &DesktopFrame,
+) -> Option<(KeySequence, InspectionScope)> {
+    let key = key_string_for_keycode(code)?;
+    let stroke = KeyStroke {
+        modifiers: Modifiers {
+            ctrl: modifiers.ctrl,
+            alt: modifiers.alt,
+            shift: modifiers.shift,
+            cmd: modifiers.logo,
+        },
+        key,
+    };
+    let sequence = KeySequence::new(vec![stroke]);
+    let inspection_scope = InspectionScope {
+        platform_class: platform_class_for_shell(),
+        surface_ref: "surface:shell".to_string(),
+        focus_context_ref: format!("focus:{}", frame.focused_zone().name()),
+        active_mode_ref: None,
+        workspace_scope_ref: "workspace:unknown".to_string(),
+        surface_support_class: SurfaceSupportClass::FullySupported,
+    };
+    Some((sequence, inspection_scope))
+}
+
+fn key_string_for_keycode(code: KeyCode) -> Option<String> {
+    match code {
+        KeyCode::KeyA => Some("A".to_string()),
+        KeyCode::KeyB => Some("B".to_string()),
+        KeyCode::KeyC => Some("C".to_string()),
+        KeyCode::KeyD => Some("D".to_string()),
+        KeyCode::KeyE => Some("E".to_string()),
+        KeyCode::KeyF => Some("F".to_string()),
+        KeyCode::KeyG => Some("G".to_string()),
+        KeyCode::KeyH => Some("H".to_string()),
+        KeyCode::KeyI => Some("I".to_string()),
+        KeyCode::KeyJ => Some("J".to_string()),
+        KeyCode::KeyK => Some("K".to_string()),
+        KeyCode::KeyL => Some("L".to_string()),
+        KeyCode::KeyM => Some("M".to_string()),
+        KeyCode::KeyN => Some("N".to_string()),
+        KeyCode::KeyO => Some("O".to_string()),
+        KeyCode::KeyP => Some("P".to_string()),
+        KeyCode::KeyQ => Some("Q".to_string()),
+        KeyCode::KeyR => Some("R".to_string()),
+        KeyCode::KeyS => Some("S".to_string()),
+        KeyCode::KeyT => Some("T".to_string()),
+        KeyCode::KeyU => Some("U".to_string()),
+        KeyCode::KeyV => Some("V".to_string()),
+        KeyCode::KeyW => Some("W".to_string()),
+        KeyCode::KeyX => Some("X".to_string()),
+        KeyCode::KeyY => Some("Y".to_string()),
+        KeyCode::KeyZ => Some("Z".to_string()),
+        KeyCode::Space => Some("Space".to_string()),
+        _ => None,
     }
 }
 
