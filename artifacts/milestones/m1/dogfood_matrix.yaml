@@ -1,0 +1,167 @@
+# Small-project dogfood matrix.
+#
+# Canonical, versioned list of protected small-project fixture repositories and
+# the daily dogfood actions that must work against them. Later proof packets,
+# dashboards, and checklists should cite this file instead of inventing ad hoc
+# fixture sets.
+
+schema_version: 1
+as_of: "2026-05-08"
+owner: "@ahmeddyounis"
+
+matrix:
+  matrix_id: aureline.dogfood.small_project_matrix
+  matrix_revision: 1
+  status: seeded
+
+  overview_page: docs/dogfood/m1_small_project_guide.md
+  issue_taxonomy_ref: docs/governance/dogfood_issue_taxonomy.md
+
+  fixture_root_ref: fixtures/repos/m1/
+
+  required_action_kinds:
+    - open
+    - quick_open
+    - edit_save
+    - terminal
+    - restore_session
+    - missing_target_recovery
+
+  required_fixture_categories:
+    - plain_text
+    - nested_source_tree
+    - path_and_encoding
+    - missing_target_restore
+
+rows:
+  - row_id: dogfood.fixture_repo.plain_text_notes
+    title: Plain text + Markdown notes
+    protected: true
+    categories: [plain_text]
+    repo_root_ref: fixtures/repos/m1/plain_text_notes
+    entry_file_ref: fixtures/repos/m1/plain_text_notes/README.md
+    owner_dri: "@ahmeddyounis"
+    expected_smoke_suites:
+      - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+    expected_proof_packet_refs:
+      - artifacts/milestones/m1/dependency_graph.yaml
+      - artifacts/milestones/m1/artifact_index.yaml
+      - artifacts/milestones/m1/dogfood_matrix_index.yaml
+    actions:
+      open:
+        command: "Start Center → Open → select fixtures/repos/m1/plain_text_notes"
+        expected_outcome: "File tree renders; README opens without degraded-state copy."
+      quick_open:
+        command: "Quick Open → type notes.md → open file"
+        expected_outcome: "Quick Open results include notes.md; file opens without path-truth ambiguity."
+      edit_save:
+        command: "Edit notes.md by appending one line; Save"
+        expected_outcome: "Save updates notes.md only; editor shows clean state after save."
+      terminal:
+        command: "Open integrated terminal; run `ls` (or platform equivalent)"
+        expected_outcome: "Terminal starts in repo root; command output appears; focus returns to editor."
+      restore_session:
+        command: "Close app; relaunch; Restore last session"
+        expected_outcome: "Repo reopens; notes.md restores; cursor position preserved (or reason is surfaced)."
+      missing_target_recovery:
+        command: "With the repo closed, rename notes.md → notes_renamed.md; relaunch; Restore"
+        expected_outcome: "Restore detects missing target; offers recovery path; does not silently drop the file."
+
+  - row_id: dogfood.fixture_repo.nested_source_tree
+    title: Nested source tree with cross-language files
+    protected: true
+    categories: [nested_source_tree]
+    repo_root_ref: fixtures/repos/m1/nested_source_tree
+    entry_file_ref: fixtures/repos/m1/nested_source_tree/README.md
+    owner_dri: "@ahmeddyounis"
+    expected_smoke_suites:
+      - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+    expected_proof_packet_refs:
+      - artifacts/milestones/m1/dependency_graph.yaml
+      - artifacts/milestones/m1/artifact_index.yaml
+      - artifacts/milestones/m1/dogfood_matrix_index.yaml
+    actions:
+      open:
+        command: "Start Center → Open → select fixtures/repos/m1/nested_source_tree"
+        expected_outcome: "Deep folders expand quickly; README renders; no path truncation in explorer."
+      quick_open:
+        command: "Quick Open → type app/routes.ts → open file"
+        expected_outcome: "Results rank the deep path; selection opens the correct file."
+      edit_save:
+        command: "Edit app/routes.ts by adding a new route stub; Save"
+        expected_outcome: "Save affects exactly one file; file watcher reflects the change without duplicate events."
+      terminal:
+        command: "Open integrated terminal; run `cargo --version`"
+        expected_outcome: "Terminal works even if toolchain is missing; degraded-state copy is explicit, not silent."
+      restore_session:
+        command: "Close app; relaunch; Restore last session"
+        expected_outcome: "Repo reopens; the previously open file restores; search/quick-open is usable."
+      missing_target_recovery:
+        command: "With the repo closed, delete app/routes.ts; relaunch; Restore"
+        expected_outcome: "Missing-file restore is handled with an explicit fallback (open README or nearest sibling)."
+
+  - row_id: dogfood.fixture_repo.path_and_encoding
+    title: Path and text encoding edge cases
+    protected: true
+    categories: [path_and_encoding]
+    repo_root_ref: fixtures/repos/m1/path_and_encoding_cases
+    entry_file_ref: fixtures/repos/m1/path_and_encoding_cases/README.md
+    owner_dri: "@ahmeddyounis"
+    expected_smoke_suites:
+      - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+    expected_proof_packet_refs:
+      - artifacts/milestones/m1/dependency_graph.yaml
+      - artifacts/milestones/m1/artifact_index.yaml
+      - artifacts/milestones/m1/dogfood_matrix_index.yaml
+    actions:
+      open:
+        command: "Start Center → Open → select fixtures/repos/m1/path_and_encoding_cases"
+        expected_outcome: "Non-ASCII content renders correctly; no replacement characters in editor."
+      quick_open:
+        command: "Quick Open → type unicode_sample.txt → open file"
+        expected_outcome: "Quick Open handles unicode in content and path display without truncation or mojibake."
+      edit_save:
+        command: "Edit unicode_sample.txt by adding one line containing non-ASCII; Save"
+        expected_outcome: "Save preserves UTF-8; file does not get rewritten as a different encoding silently."
+      terminal:
+        command: "Open integrated terminal; run `python3 --version`"
+        expected_outcome: "Terminal output uses UTF-8; copy/paste preserves characters."
+      restore_session:
+        command: "Close app; relaunch; Restore last session"
+        expected_outcome: "Repo restores; editor renders the same characters after restore."
+      missing_target_recovery:
+        command: "With the repo closed, move unicode_sample.txt into subdir/; relaunch; Restore"
+        expected_outcome: "Restore offers a remap path; does not treat a moved file as a silent drop."
+
+  - row_id: dogfood.fixture_repo.missing_target_restore
+    title: Restore with intentionally missing targets
+    protected: true
+    categories: [missing_target_restore]
+    repo_root_ref: fixtures/repos/m1/missing_target_restore
+    entry_file_ref: fixtures/repos/m1/missing_target_restore/README.md
+    owner_dri: "@ahmeddyounis"
+    expected_smoke_suites:
+      - artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+    expected_proof_packet_refs:
+      - artifacts/milestones/m1/dependency_graph.yaml
+      - artifacts/milestones/m1/artifact_index.yaml
+      - artifacts/milestones/m1/dogfood_matrix_index.yaml
+    actions:
+      open:
+        command: "Start Center → Open → select fixtures/repos/m1/missing_target_restore"
+        expected_outcome: "Restore-stub files are visible; repo opens without warnings."
+      quick_open:
+        command: "Quick Open → type session_stub.json → open file"
+        expected_outcome: "Quick Open can locate session_stub.json and open it."
+      edit_save:
+        command: "Edit src/hello.txt by changing one word; Save"
+        expected_outcome: "Save updates the target file and records a recoverable edit."
+      terminal:
+        command: "Open integrated terminal; run `cat src/hello.txt` (or platform equivalent)"
+        expected_outcome: "Terminal can read the edited file; output matches expected content."
+      restore_session:
+        command: "Close app; relaunch; Restore last session"
+        expected_outcome: "Restore attempts to reopen src/hello.txt (or surfaces missing-target recovery if absent)."
+      missing_target_recovery:
+        command: "With the repo closed, delete src/hello.txt; relaunch; Restore"
+        expected_outcome: "Restore enters an explicit recovery path; does not crash or silently ignore the missing file."

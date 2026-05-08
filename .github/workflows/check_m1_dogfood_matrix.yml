@@ -1,0 +1,61 @@
+# Protected fixture-repo + small-project dogfood matrix gate.
+#
+# Validates the canonical dogfood matrix plus its proof-index consumer and
+# uploads a machine-readable report for review.
+
+name: check_m1_dogfood_matrix
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m1_dogfood_matrix.yml"
+      - "ci/check_m1_dogfood_matrix.py"
+      - "docs/dogfood/**"
+      - "fixtures/repos/m1/**"
+      - "artifacts/milestones/m1/dogfood_matrix*.yaml"
+      - "artifacts/milestones/m1/dogfood_matrix*_capture.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m1-dogfood-matrix-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  dogfood_matrix:
+    name: Small-project dogfood matrix
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run dogfood-matrix validator
+        run: |
+          python3 ci/check_m1_dogfood_matrix.py --repo-root . --report target/m1-dogfood-matrix/report.json
+
+      - name: Upload dogfood-matrix report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-dogfood-matrix-${{ github.run_id }}
+          path: target/m1-dogfood-matrix
+          if-no-files-found: error
+          retention-days: 30
+
