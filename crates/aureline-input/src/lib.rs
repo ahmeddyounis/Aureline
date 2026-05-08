@@ -15,3 +15,10 @@
 #![doc(html_root_url = "https://docs.rs/aureline-input/0.0.0")]
 
 pub mod keybindings;
+
+/// Built-in keymap preset definitions and helpers.
+///
+/// Presets seed the keybinding resolver with incumbent-style shortcut layers so
+/// help, migration, and support surfaces can talk about a stable keymap
+/// vocabulary without duplicating command identity or shortcut semantics.
+pub mod presets;

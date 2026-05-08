@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use aureline_commands::{CommandId, CommandRevisionRef, PolicyContext};
+use aureline_commands::registry::seeded_registry;
 use serde::{Deserialize, Serialize};
 
 /// Canonical platform vocabulary used by the keybinding resolver boundary.
@@ -270,6 +271,27 @@ pub struct KeybindingResolutionPacketRecord {
     pub emitted_at: String,
     pub conflict_review_ref: Option<String>,
     pub disabled_explanation_ref: Option<String>,
+}
+
+/// Canonical keybinding conflict-review packet record.
+///
+/// This record is the portable answer to "which candidate(s) contested this
+/// sequence and what would change the outcome?".
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeybindingConflictReviewPacketRecord {
+    pub record_kind: String,
+    pub keybinding_resolver_schema_version: u32,
+    pub conflict_review_id: String,
+    pub inspected_sequence: SequenceDescriptor,
+    pub inspection_scope: InspectionScope,
+    pub winning_resolution: WinningResolution,
+    pub losing_candidates: Vec<LosingCandidateRecord>,
+    pub review_summary: String,
+    pub next_safe_actions: Vec<NextSafeActionRecord>,
+    pub docs_help_refs: Vec<String>,
+    pub policy_context: PolicyContext,
+    pub redaction_class: String,
+    pub emitted_at: String,
 }
 
 /// Modifier state for one keystroke.
@@ -627,7 +649,10 @@ impl KeybindingResolver {
                         });
                     }
                 }
-                SelectedCandidate::Collision(layer) => {
+                SelectedCandidate::Collision {
+                    layer,
+                    candidates: colliding_candidates,
+                } => {
                     sequence_state = SequenceResolutionState::Unbound;
                     conflict_review_ref = Some(format!(
                         "keybinding-conflict-review:{}:{}",
@@ -647,6 +672,19 @@ impl KeybindingResolver {
                                 .to_string(),
                         ),
                     };
+
+                    for candidate in colliding_candidates {
+                        losing_candidates.push(LosingCandidateRecord {
+                            candidate: candidate.record.clone(),
+                            loss_reason_code: ResolutionReasonCode::SameLayerCollisionRequiresReview,
+                            what_changes_outcome: vec![OutcomeChangeCondition {
+                                condition_class: OutcomeChangeConditionClass::RebindSequence,
+                                explanation: "Rebind or scope one candidate to remove the collision."
+                                    .to_string(),
+                                resulting_layer: Some(layer),
+                            }],
+                        });
+                    }
                 }
             }
         } else {
@@ -812,6 +850,13 @@ impl KeybindingResolver {
             label: "Open command palette".to_string(),
             target_ref: Some("surface:command_palette".to_string()),
         });
+        if let Some(conflict_ref) = conflict_review_ref.as_ref() {
+            next_safe_actions.push(NextSafeActionRecord {
+                action_class: PivotActionClass::OpenConflictReview,
+                label: "Open conflict review".to_string(),
+                target_ref: Some(conflict_ref.clone()),
+            });
+        }
 
         KeybindingResolutionPacketRecord {
             record_kind: "keybinding_resolution_packet_record".to_string(),
@@ -839,6 +884,55 @@ impl KeybindingResolver {
             conflict_review_ref,
             disabled_explanation_ref: None,
         }
+    }
+
+    /// Returns a conflict-review packet for an inspected sequence when the
+    /// resolution produced disputable or shadowed candidates.
+    pub fn conflict_review(
+        &self,
+        inspected: &KeySequence,
+        scope: &InspectionScope,
+    ) -> Option<KeybindingConflictReviewPacketRecord> {
+        let packet = self.resolve(inspected, scope);
+        if packet.losing_candidates.is_empty() {
+            return None;
+        }
+        let conflict_review_id = packet.conflict_review_ref.clone().unwrap_or_else(|| {
+            format!("keybinding-conflict-review:{}", packet.resolution_id)
+        });
+        let review_summary = match packet.winning_resolution.reason_code {
+            ResolutionReasonCode::SameLayerCollisionRequiresReview => {
+                "Multiple equally-specific bindings contest this sequence.".to_string()
+            }
+            ResolutionReasonCode::HigherPrecedenceBindingWon => {
+                "A higher-precedence binding won; review losing candidates for details.".to_string()
+            }
+            ResolutionReasonCode::PlatformReservedBeforeDispatch => {
+                "The host reserved this sequence before dispatch.".to_string()
+            }
+            ResolutionReasonCode::EmergencySecurityBlockedDispatch => {
+                "A security/emergency hard block denied dispatch.".to_string()
+            }
+            ResolutionReasonCode::AdminPolicyLockedBinding => {
+                "An admin/policy lock denied or pinned this binding.".to_string()
+            }
+            _ => "Review available losing candidates for this sequence.".to_string(),
+        };
+        Some(KeybindingConflictReviewPacketRecord {
+            record_kind: "keybinding_conflict_review_packet_record".to_string(),
+            keybinding_resolver_schema_version: packet.keybinding_resolver_schema_version,
+            conflict_review_id,
+            inspected_sequence: packet.inspected_sequence,
+            inspection_scope: packet.inspection_scope,
+            winning_resolution: packet.winning_resolution,
+            losing_candidates: packet.losing_candidates,
+            review_summary,
+            next_safe_actions: packet.next_safe_actions,
+            docs_help_refs: packet.docs_help_refs,
+            policy_context: packet.policy_context,
+            redaction_class: packet.redaction_class,
+            emitted_at: packet.emitted_at,
+        })
     }
 }
 
@@ -894,7 +988,10 @@ fn candidate_applies(candidate: &BindingCandidate, scope: &InspectionScope) -> b
 
 enum SelectedCandidate<'a> {
     Winner(&'a BindingCandidate, Vec<&'a BindingCandidate>),
-    Collision(ResolverLayerClass),
+    Collision {
+        layer: ResolverLayerClass,
+        candidates: Vec<&'a BindingCandidate>,
+    },
 }
 
 fn select_winning_candidate<'a>(
@@ -902,7 +999,10 @@ fn select_winning_candidate<'a>(
     scope: &InspectionScope,
 ) -> SelectedCandidate<'a> {
     if candidates.is_empty() {
-        return SelectedCandidate::Collision(ResolverLayerClass::CoreDefault);
+        return SelectedCandidate::Collision {
+            layer: ResolverLayerClass::CoreDefault,
+            candidates: Vec::new(),
+        };
     }
     candidates.sort_by_key(|candidate| candidate_specificity(candidate, scope));
     let best = candidates[0];
@@ -916,7 +1016,10 @@ fn select_winning_candidate<'a>(
         .filter(|candidate| candidate_specificity(candidate, scope) == best_key)
         .collect();
     if ties.len() > 1 {
-        return SelectedCandidate::Collision(best.record.resolver_layer);
+        return SelectedCandidate::Collision {
+            layer: best.record.resolver_layer,
+            candidates: ties,
+        };
     }
     let losers = candidates.into_iter().skip(1).collect();
     SelectedCandidate::Winner(best, losers)
@@ -977,13 +1080,23 @@ pub fn seeded_keybinding_resolver() -> &'static KeybindingResolver {
             execution_context_id: Some("exec:keybindings:seeded".to_string()),
         });
 
+        resolver.docs_help_refs.push("docs/migration/keymap_presets.md".to_string());
+
+        let registry = seeded_registry();
+        let entry = registry
+            .get("cmd:command_palette.open")
+            .expect("seeded registry should include cmd:command_palette.open");
         let command = CommandSemanticsSnapshot {
-            command_id: "cmd:command_palette.open".to_string(),
-            command_revision_ref: "cmd-rev:command_palette.open:seeded".to_string(),
-            preview_class: "no_preview_required".to_string(),
-            approval_posture_class: "no_approval_required".to_string(),
-            capability_scope_class: "inert_metadata_only".to_string(),
-            required_evidence_ref_classes: Vec::new(),
+            command_id: entry.descriptor.command_id.clone(),
+            command_revision_ref: entry.descriptor.command_revision_ref.clone(),
+            preview_class: entry.descriptor.preview_class.clone(),
+            approval_posture_class: entry.descriptor.approval_posture_class.clone(),
+            capability_scope_class: entry.descriptor.capability_scope_class.clone(),
+            required_evidence_ref_classes: entry
+                .descriptor
+                .result_contract
+                .evidence_ref_class_required
+                .clone(),
         };
 
         let ctrl_shift_p = KeySequence::new(vec![KeyStroke {

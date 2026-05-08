@@ -7,4 +7,6 @@
 #![doc(html_root_url = "https://docs.rs/aureline-shell/0.0.0")]
 
 pub mod app_frame;
+/// Help and inspection projections used by shell surfaces.
+pub mod help;
 pub mod layout;

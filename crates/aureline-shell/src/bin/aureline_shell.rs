@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -16,12 +17,14 @@ use aureline_commands::{
     EnablementDecisionClass,
 };
 use aureline_input::keybindings::{
-    seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, Modifiers, PlatformClass,
-    SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
+    seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, KeybindingResolver,
+    Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
 };
+use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapPresetId};
 use aureline_shell::app_frame::desktop_frame::{
     DesktopFrame, NewEditorGroupOutcome, SplitViolation,
 };
+use aureline_shell::help::keybinding_inspector::build_inspector_lines;
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
 
@@ -56,7 +59,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut palette = CommandPaletteState::new(registry);
     let mut overlay: Option<ShellOverlayState> = None;
     let mut command_runtime = CommandRuntimeState::default();
-    let mut keybinding_runtime = KeybindingRuntimeState::default();
+    let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
 
     window.request_redraw();
@@ -1067,7 +1070,7 @@ fn handle_key_event(
     }
 
     if let Some(state) = overlay.as_mut() {
-        let outcome = state.handle_key(code, frame);
+        let outcome = state.handle_key(code, frame, keybinding_runtime);
         if let Some(decision) = outcome.command_decision {
             finalize_command_overlay_decision(command_runtime, registry, decision);
         }
@@ -1084,7 +1087,9 @@ fn handle_key_event(
     if let Some((sequence, inspection_scope)) =
         keybinding_sequence_and_scope_from_shell(code, modifiers, frame)
     {
-        let packet = seeded_keybinding_resolver().resolve(&sequence, &inspection_scope);
+        let packet = keybinding_runtime
+            .resolver
+            .resolve(&sequence, &inspection_scope);
         keybinding_runtime.record(packet.clone());
 
         if packet.sequence_state == SequenceResolutionState::Resolved
@@ -1373,6 +1378,7 @@ fn draw(
             registry,
             frame,
             palette,
+            keybinding_runtime,
             enablement_runtime,
         );
     }
@@ -1383,8 +1389,10 @@ fn draw(
             physical.width,
             physical.height,
             window.scale_factor(),
+            registry,
             frame,
             overlay,
+            keybinding_runtime,
         );
     }
 
@@ -1414,14 +1422,18 @@ fn draw(
         } else {
             "allow"
         };
+        let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
         let text = format!(
-            "fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keys: Cmd/Ctrl+Shift+P palette (resolver), Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I inspector (sheet)   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy   packets: .logs/command_packets",
+            "fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver), Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy   packets: .logs/command_packets",
             modes,
             last,
             last_keybinding,
             enablement_runtime.workspace_trust_state.as_str(),
             exec_ctx,
-            policy
+            policy,
+            keybinding_runtime.active_preset.display_name(),
+            keybinding_runtime.active_preset.preset_ref(),
+            palette_keys
         );
         draw_text(
             &mut buffer,
@@ -1549,7 +1561,12 @@ impl ShellOverlayState {
         }
     }
 
-    fn handle_key(&mut self, code: KeyCode, frame: &mut DesktopFrame) -> OverlayKeyOutcome {
+    fn handle_key(
+        &mut self,
+        code: KeyCode,
+        frame: &mut DesktopFrame,
+        keybinding_runtime: &mut KeybindingRuntimeState,
+    ) -> OverlayKeyOutcome {
         let mut command_decision = None;
         let handled = match (&mut self.kind, code) {
             (_, KeyCode::Escape) => {
@@ -1561,6 +1578,14 @@ impl ShellOverlayState {
                     });
                 }
                 self.close(frame);
+                true
+            }
+            (ShellOverlayKind::InspectorSheet, KeyCode::ArrowLeft) => {
+                keybinding_runtime.cycle_preset(-1);
+                true
+            }
+            (ShellOverlayKind::InspectorSheet, KeyCode::ArrowRight) => {
+                keybinding_runtime.cycle_preset(1);
                 true
             }
             (ShellOverlayKind::CommandPreview(preview), KeyCode::Enter) => {
@@ -1632,8 +1657,10 @@ fn draw_shell_overlay(
     width: u32,
     height: u32,
     scale_factor: f64,
+    registry: &CommandRegistry,
     frame: &DesktopFrame,
     overlay: &ShellOverlayState,
+    keybinding_runtime: &KeybindingRuntimeState,
 ) {
     let overlay_rect = to_physical_rect(frame.layout().transient_overlay, scale_factor);
     let sheet_w = (overlay_rect.width / 2).max(260);
@@ -1650,26 +1677,30 @@ fn draw_shell_overlay(
 
     match &overlay.kind {
         ShellOverlayKind::InspectorSheet => {
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(12),
-                1,
-                "Inspector (sheet) — Esc closes",
-                0x00ffffff,
+            let lines = build_inspector_lines(
+                registry,
+                keybinding_runtime.active_preset,
+                keybinding_runtime.platform_class,
             );
-            draw_text(
-                buffer,
-                width,
-                height,
-                sheet_rect.x.saturating_add(12),
-                sheet_rect.y.saturating_add(28),
-                1,
-                "Truth: inspector is sheeted on narrow widths; focus returns to the invoking pane.",
-                0x00c9d3de,
-            );
+            let mut cursor_y = sheet_rect.y.saturating_add(12);
+            let cursor_x = sheet_rect.x.saturating_add(12);
+            let line_h = 14u32;
+            for line in lines {
+                if cursor_y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(12) {
+                    break;
+                }
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    &line,
+                    0x00c9d3de,
+                );
+                cursor_y = cursor_y.saturating_add(line_h);
+            }
         }
         ShellOverlayKind::CommandPreview(preview) => {
             let header = format!(
@@ -2035,6 +2066,7 @@ fn draw_command_palette_overlay(
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
+    keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
 ) {
     let Some(overlay_logical) = frame.layout().zone(ShellZoneId::TransientOverlay) else {
@@ -2123,7 +2155,13 @@ fn draw_command_palette_overlay(
         };
         let enablement_snapshot = entry.evaluate_enablement(&enablement_context);
 
-        let mut line = format!("{}  —  {}", entry.title, entry.command_id());
+        let shortcuts = keybinding_runtime.shortcuts_label(entry.command_id());
+        let mut line = format!(
+            "{}  —  {}  [{}]",
+            entry.title,
+            entry.command_id(),
+            shortcuts
+        );
         if enablement_snapshot.decision_class != EnablementDecisionClass::Enabled {
             if let Some(code) = enablement_snapshot.disabled_reason_code {
                 line.push_str("  [");
@@ -2232,12 +2270,68 @@ impl HeldModifiers {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct KeybindingRuntimeState {
+    platform_class: PlatformClass,
+    active_preset: KeymapPresetId,
+    resolver: KeybindingResolver,
+    shortcuts_by_command_id: HashMap<String, Vec<String>>,
     last_summary: Option<String>,
 }
 
 impl KeybindingRuntimeState {
+    fn new(platform_class: PlatformClass) -> Self {
+        let mut state = Self {
+            platform_class,
+            active_preset: KeymapPresetId::VsCode,
+            resolver: seeded_keybinding_resolver().clone(),
+            shortcuts_by_command_id: HashMap::new(),
+            last_summary: None,
+        };
+        state.rebuild();
+        state
+    }
+
+    fn rebuild(&mut self) {
+        self.resolver = resolver_with_preset(self.active_preset, self.platform_class)
+            .unwrap_or_else(|_| seeded_keybinding_resolver().clone());
+
+        self.shortcuts_by_command_id.clear();
+        if let Ok(rows) = preset_binding_rows(self.active_preset, self.platform_class) {
+            for row in rows {
+                self.shortcuts_by_command_id
+                    .entry(row.command_id)
+                    .or_default()
+                    .push(row.literal_sequence);
+            }
+        }
+
+        for sequences in self.shortcuts_by_command_id.values_mut() {
+            sequences.sort();
+            sequences.dedup();
+        }
+    }
+
+    fn cycle_preset(&mut self, direction: i32) {
+        let presets = KeymapPresetId::all();
+        let Some(idx) = presets.iter().position(|preset| *preset == self.active_preset) else {
+            self.active_preset = presets[0];
+            self.rebuild();
+            return;
+        };
+        let len = presets.len() as i32;
+        let next = (idx as i32 + direction).rem_euclid(len) as usize;
+        self.active_preset = presets[next];
+        self.rebuild();
+    }
+
+    fn shortcuts_label(&self, command_id: &str) -> String {
+        self.shortcuts_by_command_id
+            .get(command_id)
+            .map(|seqs| seqs.join(", "))
+            .unwrap_or_else(|| "unbound".to_string())
+    }
+
     fn record(&mut self, packet: aureline_input::keybindings::KeybindingResolutionPacketRecord) {
         let winner = match packet.winning_resolution.winner_kind {
             WinningResolutionKind::CommandCandidate => packet
