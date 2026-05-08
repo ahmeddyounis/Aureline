@@ -77,6 +77,9 @@ export LC_ALL=C
 
 python3 "${REPO_ROOT}/tools/ci/validate_contract_artifacts.py" "${ARGS[@]}" | tee "${SUMMARY_PATH}"
 
+printf '\n[contract-validation] validating checked-in build identity artifact\n' | tee -a "${SUMMARY_PATH}"
+python3 "${REPO_ROOT}/tools/validate_build_identity_artifact.py" | tee -a "${SUMMARY_PATH}"
+
 printf '\n[contract-validation] validating silent deployment case fixtures\n' | tee -a "${SUMMARY_PATH}"
 python3 "${REPO_ROOT}/tools/validate_silent_deployment_case_fixtures.py" | tee -a "${SUMMARY_PATH}"
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
@@ -50,6 +51,24 @@ REQUIRED_FIXTURE_CATEGORIES = [
     "path_and_encoding",
     "missing_target_restore",
 ]
+
+BUILD_IDENTITY_REQUIRED_KEYS = {
+    "schema_version",
+    "commit",
+    "commit_short",
+    "dirty",
+    "toolchain_channel",
+    "rustc_version",
+    "cargo_version",
+    "host_triple",
+    "target_triple",
+    "profile",
+    "workspace_version",
+    "source_date_epoch",
+    "build_timestamp_utc",
+}
+
+COMMIT_FULL_RE = re.compile(r"^(?:[0-9a-f]{40}|unknown)$")
 
 
 @dataclass
@@ -225,6 +244,135 @@ def validate_optional_refs(repo_root: Path, refs: list[Any], check_id: str, labe
                     ref=ref,
                 )
             )
+    return findings
+
+
+def validate_build_identity_record(repo_root: Path, ref: str, check_id: str) -> list[Finding]:
+    findings: list[Finding] = []
+    rel = strip_fragment(ref)
+    path = repo_root / rel
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.parse_failed",
+                message=f"failed to parse build identity JSON at {rel}: {exc}",
+                remediation="Regenerate the build identity record (or fix the referenced path) so consumers can read it mechanically.",
+                ref=rel,
+            )
+        )
+        return findings
+
+    if not isinstance(payload, dict):
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.not_object",
+                message=f"build identity payload must be a JSON object: {rel}",
+                remediation="Replace the payload with a JSON object matching schemas/build/build_identity.schema.json.",
+                ref=rel,
+            )
+        )
+        return findings
+
+    keys = set(payload.keys())
+    missing = sorted(BUILD_IDENTITY_REQUIRED_KEYS - keys)
+    extra = sorted(keys - BUILD_IDENTITY_REQUIRED_KEYS)
+    if missing:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.missing_fields",
+                message=f"build identity payload is missing required fields: {', '.join(missing)}",
+                remediation="Regenerate the build identity record so it matches schemas/build/build_identity.schema.json.",
+                ref=rel,
+            )
+        )
+    if extra:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.extra_fields",
+                message=f"build identity payload has unknown fields: {', '.join(extra)}",
+                remediation="Remove unknown fields (or bump the schema and update validators) so the artifact stays stable.",
+                ref=rel,
+            )
+        )
+
+    schema_version = payload.get("schema_version")
+    if not isinstance(schema_version, int) or schema_version < 1:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.schema_version",
+                message=f"build identity schema_version must be an integer >= 1, got {schema_version!r}",
+                remediation="Regenerate the artifact with tools/build/print_build_identity.sh or update the schema and validators together.",
+                ref=rel,
+            )
+        )
+
+    commit = payload.get("commit")
+    if not isinstance(commit, str) or not COMMIT_FULL_RE.match(commit):
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.commit",
+                message=f"build identity commit must be a 40-hex hash or 'unknown', got {commit!r}",
+                remediation="Regenerate the artifact so commit is a full hash (or 'unknown' outside git).",
+                ref=rel,
+            )
+        )
+
+    dirty = payload.get("dirty")
+    if not isinstance(dirty, bool):
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.dirty",
+                message=f"build identity dirty must be a boolean, got {dirty!r}",
+                remediation="Regenerate the artifact so tree state is explicit.",
+                ref=rel,
+            )
+        )
+
+    profile = payload.get("profile")
+    if profile not in {"dev", "release"}:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.profile",
+                message=f"build identity profile must be 'dev' or 'release', got {profile!r}",
+                remediation="Regenerate the artifact so profile is normalized to the schema vocabulary.",
+                ref=rel,
+            )
+        )
+
+    source_date_epoch = payload.get("source_date_epoch")
+    if not isinstance(source_date_epoch, int) or source_date_epoch < 0:
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.source_date_epoch",
+                message=f"build identity source_date_epoch must be an integer >= 0, got {source_date_epoch!r}",
+                remediation="Regenerate the artifact so SOURCE_DATE_EPOCH is recorded deterministically.",
+                ref=rel,
+            )
+        )
+
+    build_timestamp_utc = payload.get("build_timestamp_utc")
+    if not isinstance(build_timestamp_utc, str) or not build_timestamp_utc.strip():
+        findings.append(
+            Finding(
+                severity="error",
+                check_id=f"{check_id}.build_timestamp_utc",
+                message="build identity build_timestamp_utc must be a non-empty string",
+                remediation="Regenerate the artifact so a deterministic build timestamp is recorded.",
+                ref=rel,
+            )
+        )
+
     return findings
 
 
@@ -582,13 +730,21 @@ def validate_index(repo_root: Path, payload: dict[str, Any], matrix_rel: str, in
     )
     latest_identity_ref = ensure_str(exact_build.get("latest_identity_ref"), "index.exact_build_identity.latest_identity_ref")
     findings.extend(
-        validate_optional_refs(
+        validate_required_refs(
             repo_root,
             [latest_identity_ref],
             check_id="index.exact_build_identity.latest",
             label="index.exact_build_identity.latest_identity_ref",
         )
     )
+    if latest_identity_ref not in SENTINEL_REFS and artifact_ref_exists(repo_root, latest_identity_ref):
+        findings.extend(
+            validate_build_identity_record(
+                repo_root,
+                latest_identity_ref,
+                check_id="index.exact_build_identity.latest_identity_ref",
+            )
+        )
 
     latest_capture = ensure_dict(payload.get("latest_validation_capture"), "index.latest_validation_capture")
     ensure_str(latest_capture.get("captured_at"), "index.latest_validation_capture.captured_at")

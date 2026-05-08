@@ -44,6 +44,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use aureline_build_info as build_info;
 use aureline_shell_spike::capabilities::{Backend, CapabilityManifest};
 use aureline_shell_spike::fixture_scene::{run, FixtureRunResult, FIXTURE_SCENE_ID};
 use aureline_shell_spike::frame_timing::CountingClock;
@@ -61,6 +62,8 @@ enum Mode {
     EmitTimingTraces(PathBuf),
     SceneOnly,
     TextStackSmoke(PathBuf),
+    About,
+    EmitSupportBundle(PathBuf),
 }
 
 fn parse_mode(args: &[String]) -> Result<Mode, String> {
@@ -89,6 +92,13 @@ fn parse_mode(args: &[String]) -> Result<Mode, String> {
                     .unwrap_or_else(|| DEFAULT_TEXT_CORPUS.to_owned());
                 mode = Mode::TextStackSmoke(PathBuf::from(corpus));
             }
+            "--about" => mode = Mode::About,
+            "--emit-support-bundle" => {
+                let dir = iter
+                    .next()
+                    .ok_or_else(|| "--emit-support-bundle requires a directory path".to_owned())?;
+                mode = Mode::EmitSupportBundle(PathBuf::from(dir.as_str()));
+            }
             "--help" | "-h" => return Err(usage()),
             other => return Err(format!("unknown argument: {other}\n\n{}", usage())),
         }
@@ -100,8 +110,10 @@ fn usage() -> String {
     "shell_spike — Aureline shell spike\n\n\
      Usage:\n\
      \tshell_spike [--print]\n\
+     \tshell_spike --about\n\
      \tshell_spike --emit-artifacts <dir>\n\
      \tshell_spike --emit-timing-traces <dir>\n\
+     \tshell_spike --emit-support-bundle <dir>\n\
      \tshell_spike --scene-only\n\
      \tshell_spike --text-stack-smoke [corpus_path]\n"
         .to_owned()
@@ -158,7 +170,59 @@ fn main() -> ExitCode {
                 ExitCode::from(1)
             }
         },
+        Mode::About => {
+            print_about();
+            ExitCode::SUCCESS
+        }
+        Mode::EmitSupportBundle(dir) => match write_support_bundle_stub(&dir) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                let _ = writeln!(io::stderr(), "shell_spike: {err}");
+                ExitCode::from(1)
+            }
+        },
     }
+}
+
+fn print_about() {
+    let identity = build_info::build_identity();
+    let exact_ref = build_info::exact_build_identity_ref();
+    println!(
+        "Aureline {} ({})",
+        identity.workspace_version.as_str(),
+        build_info::release_channel_class()
+    );
+    println!("exact_build_identity_ref: {}", exact_ref);
+    println!();
+    print!("{}", identity.to_json_pretty());
+}
+
+fn write_support_bundle_stub(dir: &Path) -> io::Result<()> {
+    fs::create_dir_all(dir)?;
+    let identity = build_info::build_identity();
+    let exact_ref = build_info::exact_build_identity_ref();
+
+    build_info::write_build_identity_json(&dir.join("build_identity.json"))?;
+    fs::write(
+        dir.join("support_bundle_manifest_stub.json"),
+        render_support_bundle_manifest_stub(&identity, &exact_ref),
+    )?;
+    Ok(())
+}
+
+fn render_support_bundle_manifest_stub(identity: &build_info::BuildIdentityRecord, exact_ref: &str) -> String {
+    // This is a stub manifest: it preserves the build identity and exact-build
+    // ref join so later support-bundle work can replace it with a fully
+    // schema-conforming support_bundle_manifest_record without changing the
+    // identity plumbing.
+    format!(
+        "{{\n  \"schema_ref\": \"schemas/support/support_bundle_manifest.schema.json\",\n  \"record_kind\": \"support_bundle_manifest_stub_record\",\n  \"collection_schema_version\": 1,\n  \"manifest_id\": \"support.bundle.manifest.local_stub\",\n  \"support_bundle_id\": \"support-bundle:local-stub:{commit_short}\",\n  \"title\": \"Local support bundle stub\",\n  \"build_identity\": {{\n    \"build_id\": \"{exact}\",\n    \"producer_build_id\": \"{exact}\",\n    \"product_version\": \"{version}\",\n    \"release_channel_class\": \"{channel}\",\n    \"exact_build_refs\": [\"{exact}\"]\n  }},\n  \"baseline_build_identity_ref\": \"build_identity.json\",\n  \"emitted_at\": \"{emitted_at}\",\n  \"notes\": \"Stub manifest: contains build identity and exact-build ref only.\"\n}}\n",
+        commit_short = identity.commit_short.as_str(),
+        exact = exact_ref,
+        version = identity.workspace_version.as_str(),
+        channel = build_info::release_channel_class(),
+        emitted_at = identity.build_timestamp_utc.as_str(),
+    )
 }
 
 fn run_text_stack_smoke(corpus_path: &Path) -> Result<(), String> {
