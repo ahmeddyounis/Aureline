@@ -6,9 +6,9 @@ use std::time::Instant;
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
-    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock, ArtifactRefEntry,
-    CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock, EnablementDecisionBlock,
-    EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
+    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock, ArgumentProvenanceEntry,
+    ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock,
+    EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
     InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock, InvocationSessionPacketRecord,
     NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
 };
@@ -43,6 +43,10 @@ use aureline_shell::palette::preview::{
 };
 use aureline_shell::palette::results_view::palette_view_rows;
 use aureline_shell::palette::{CommandPaletteCommit, CommandPaletteState};
+use aureline_shell::start_center::{
+    build_action_rows as start_center_action_rows, StartCenterRuntimeInputs, StartCenterState,
+    START_CENTER_PRESENTATION_LABEL, START_CENTER_PRESENTATION_SUBTITLE,
+};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
 };
@@ -211,6 +215,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut held_modifiers = HeldModifiers::default();
     let mut palette = CommandPaletteState::new(registry);
+    let mut start_center = StartCenterState::new();
     let mut overlay: Option<ShellOverlayState> = None;
     let mut command_runtime = CommandRuntimeState::default();
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
@@ -253,6 +258,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     registry,
                     &mut frame,
                     &mut palette,
+                    &mut start_center,
                     &mut overlay,
                     &mut command_runtime,
                     &mut keybinding_runtime,
@@ -273,6 +279,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     registry,
                     &frame,
                     &palette,
+                    &start_center,
                     overlay.as_ref(),
                     &command_runtime,
                     &keybinding_runtime,
@@ -312,6 +319,7 @@ fn window_title(
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DispatchOrigin {
+    StartCenter,
     CommandPalette,
     KeybindingChord,
 }
@@ -319,6 +327,7 @@ enum DispatchOrigin {
 impl DispatchOrigin {
     const fn issuing_surface(self) -> &'static str {
         match self {
+            Self::StartCenter => "start_center",
             Self::CommandPalette => "command_palette",
             Self::KeybindingChord => "keybinding_chord",
         }
@@ -477,7 +486,7 @@ impl CommandEnablementRuntimeState {
 
 fn alias_used_for(entry: &CommandRegistryEntryRecord, origin: DispatchOrigin) -> AliasUsedBlock {
     match origin {
-        DispatchOrigin::CommandPalette => AliasUsedBlock {
+        DispatchOrigin::StartCenter | DispatchOrigin::CommandPalette => AliasUsedBlock {
             alias_kind: "canonical".to_string(),
             alias_id: None,
             alias_state: "not_applicable".to_string(),
@@ -520,6 +529,7 @@ fn make_session(
     origin: DispatchOrigin,
     execution_intent: &str,
     workspace_trust_state: &str,
+    argument_provenance_map: Vec<ArgumentProvenanceEntry>,
     preview_shown: bool,
     preview_record_ref: Option<String>,
     approval_state: &str,
@@ -543,7 +553,7 @@ fn make_session(
         issuing_surface: origin.issuing_surface().to_string(),
         authority_class: "user_initiated_local".to_string(),
         alias_used: alias_used_for(entry, origin),
-        argument_provenance_map: argument_provenance_map_for(entry),
+        argument_provenance_map,
         context_snapshot: InvocationContextSnapshot {
             focused_entity_ref: focused.clone(),
             selection_ref: None,
@@ -592,6 +602,30 @@ fn dispatch_command_id(
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
 ) -> bool {
+    dispatch_command_id_with_arguments(
+        command_runtime,
+        registry,
+        frame,
+        palette,
+        overlay,
+        command_id,
+        origin,
+        enablement_runtime,
+        None,
+    )
+}
+
+fn dispatch_command_id_with_arguments(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    palette: &mut CommandPaletteState,
+    overlay: &mut Option<ShellOverlayState>,
+    command_id: &str,
+    origin: DispatchOrigin,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
+) -> bool {
     let Some(entry) = registry.get(command_id).cloned() else {
         return false;
     };
@@ -604,6 +638,7 @@ fn dispatch_command_id(
         &entry,
         origin,
         enablement_runtime,
+        argument_provenance_map_override,
     )
 }
 
@@ -616,6 +651,7 @@ fn dispatch_registry_entry(
     entry: &CommandRegistryEntryRecord,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
     let preview_record_ref: Option<String> = None;
     let preview_shown = false;
@@ -633,12 +669,16 @@ fn dispatch_registry_entry(
         _ => "query_only_no_mutation",
     };
 
+    let argument_provenance_map =
+        argument_provenance_map_override.unwrap_or_else(|| argument_provenance_map_for(entry));
+
     let mut session = make_session(
         frame,
         entry,
         origin,
         execution_intent,
         enablement_runtime.workspace_trust_state.as_str(),
+        argument_provenance_map,
         preview_shown,
         preview_record_ref.clone(),
         &approval_state,
@@ -742,6 +782,7 @@ fn dispatch_registry_entry(
         "cmd:workspace.open_folder" => {
             let invocation = invocation_and_result_open_folder_succeeded(&session);
             command_runtime.record(invocation);
+            frame.open_placeholder_tab();
             true
         }
         "cmd:workspace.import_profile" => {
@@ -1220,6 +1261,7 @@ fn handle_key_event(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
+    start_center: &mut StartCenterState,
     overlay: &mut Option<ShellOverlayState>,
     command_runtime: &mut CommandRuntimeState,
     keybinding_runtime: &mut KeybindingRuntimeState,
@@ -1467,6 +1509,53 @@ fn handle_key_event(
         }
     }
 
+    if frame.focused_zone() == ShellZoneId::MainWorkspace && focused_editor_group_is_empty(frame) {
+        let runtime = StartCenterRuntimeInputs {
+            client_scope: "desktop_product",
+            workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+            execution_context_available: enablement_runtime.execution_context_available,
+            provider_linked: enablement_runtime.provider_linked,
+            credential_available: enablement_runtime.credential_available,
+            policy_disabled: enablement_runtime.policy_disabled,
+            policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        };
+        let rows = start_center_action_rows(registry, runtime);
+        let row_count = rows.len();
+
+        match code {
+            KeyCode::ArrowDown => {
+                start_center.select_next(row_count);
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                return true;
+            }
+            KeyCode::ArrowUp => {
+                start_center.select_prev(row_count);
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                return true;
+            }
+            KeyCode::Enter => {
+                let idx = start_center.selection().min(row_count.saturating_sub(1));
+                let Some(row) = rows.get(idx) else {
+                    return true;
+                };
+                let changed = dispatch_command_id_with_arguments(
+                    command_runtime,
+                    registry,
+                    frame,
+                    palette,
+                    overlay,
+                    row.command_id,
+                    DispatchOrigin::StartCenter,
+                    enablement_runtime,
+                    Some(row.argument_provenance_map.clone()),
+                );
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                return changed;
+            }
+            _ => {}
+        }
+    }
+
     match code {
         KeyCode::Tab => {
             frame.focus_next();
@@ -1584,6 +1673,16 @@ fn handle_key_event(
     }
 }
 
+fn focused_editor_group_is_empty(frame: &DesktopFrame) -> bool {
+    let focused = frame.focused_editor_group();
+    frame
+        .editor_group_layouts()
+        .into_iter()
+        .find(|group| group.group_id == focused)
+        .map(|group| group.tab_count == 0)
+        .unwrap_or(false)
+}
+
 fn relayout_and_redraw(
     window: &winit::window::Window,
     surface: &mut SoftbufferSurface,
@@ -1611,6 +1710,7 @@ fn draw(
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
+    start_center: &StartCenterState,
     overlay: Option<&ShellOverlayState>,
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
@@ -1686,12 +1786,18 @@ fn draw(
                     }
 
                     if group.tab_count == 0 {
-                        draw_start_center_placeholder(
+                        let focused = group.group_id == frame.focused_editor_group()
+                            && frame.focused_zone() == ShellZoneId::MainWorkspace;
+                        draw_start_center_surface(
                             &mut buffer,
                             physical.width,
                             physical.height,
+                            registry,
+                            start_center,
+                            enablement_runtime,
                             group_rect,
                             &style,
+                            focused,
                         );
                     } else {
                         let label = format!(
@@ -2449,12 +2555,16 @@ fn fill_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: Col
     }
 }
 
-fn draw_start_center_placeholder(
+fn draw_start_center_surface(
     buffer: &mut [u32],
     width: u32,
     height: u32,
+    registry: &CommandRegistry,
+    start_center: &StartCenterState,
+    enablement_runtime: &CommandEnablementRuntimeState,
     rect: Rect,
     style: &ShellRenderStyle,
+    focused: bool,
 ) {
     let padding = style.space_4;
     let card = Rect::new(
@@ -2487,39 +2597,140 @@ fn draw_start_center_placeholder(
         header_x,
         y,
         2,
-        "Start Center",
+        START_CENTER_PRESENTATION_LABEL,
         style.tokens.text_primary,
     );
     y = y
         .saturating_add(8u32.saturating_mul(2))
         .saturating_add(style.space_2);
 
-    let body = [
-        "This editor group has no tabs yet.",
-        "Use Cmd/Ctrl+Shift+P to open the command palette.",
-        "Use Cmd/Ctrl+Shift+L to toggle light/dark theme.",
-        "Use Cmd/Ctrl+Shift+H to toggle high contrast.",
-    ];
-    for line in body {
-        if y.saturating_add(12) > card.bottom().saturating_sub(style.space_3) {
+    draw_text(
+        buffer,
+        width,
+        height,
+        header_x,
+        y,
+        1,
+        START_CENTER_PRESENTATION_SUBTITLE,
+        style.tokens.text_secondary,
+    );
+    y = y.saturating_add(18);
+
+    let runtime = StartCenterRuntimeInputs {
+        client_scope: "desktop_product",
+        workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+        execution_context_available: enablement_runtime.execution_context_available,
+        provider_linked: enablement_runtime.provider_linked,
+        credential_available: enablement_runtime.credential_available,
+        policy_disabled: enablement_runtime.policy_disabled,
+        policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+    };
+    let rows = start_center_action_rows(registry, runtime);
+    let selected = start_center.selection().min(rows.len().saturating_sub(1));
+
+    let row_height = 44;
+    let row_gap = style.space_2;
+    let row_width = card.width.saturating_sub(style.space_3.saturating_mul(2));
+    for (idx, row) in rows.iter().enumerate() {
+        let row_rect = Rect::new(header_x, y, row_width, row_height);
+        if row_rect.bottom().saturating_add(style.space_3) > card.bottom() {
             break;
+        }
+
+        let is_selected = focused && idx == selected;
+        if is_selected {
+            fill_rect(buffer, width, height, row_rect, style.tokens.bg_hover);
+            stroke_rect(
+                buffer,
+                width,
+                height,
+                row_rect,
+                style.stroke_focus,
+                style.tokens.accent_interactive,
+            );
+        } else {
+            fill_rect(buffer, width, height, row_rect, style.tokens.bg_surface);
+            stroke_rect(
+                buffer,
+                width,
+                height,
+                row_rect,
+                style.stroke_default,
+                style.tokens.border_default,
+            );
+        }
+
+        let status = row
+            .preflight
+            .as_ref()
+            .map(|p| preflight_decision_class_label(p.decision_class))
+            .unwrap_or("missing");
+        let label = format!("{}   [{}]", row.title, status);
+        let label_color = if is_selected {
+            style.tokens.text_primary
+        } else {
+            style.tokens.text_secondary
+        };
+        draw_text(
+            buffer,
+            width,
+            height,
+            row_rect.x.saturating_add(style.space_2),
+            row_rect.y.saturating_add(style.space_2),
+            1,
+            &label,
+            label_color,
+        );
+
+        let mut detail = row.summary.to_string();
+        if let Some(preflight) = row.preflight.as_ref() {
+            if let Some(reason) = preflight.enablement_snapshot.disabled_reason_code {
+                detail.push_str("  — ");
+                detail.push_str(reason.as_str());
+            }
         }
         draw_text(
             buffer,
             width,
             height,
-            header_x,
-            y,
+            row_rect.x.saturating_add(style.space_2),
+            row_rect.y.saturating_add(style.space_2).saturating_add(14),
             1,
-            line,
-            style.tokens.text_secondary,
+            &detail,
+            style.tokens.text_muted,
         );
-        y = y.saturating_add(14);
+
+        y = y.saturating_add(row_height).saturating_add(row_gap);
+    }
+
+    if y.saturating_add(22) < card.bottom() {
+        draw_text(
+            buffer,
+            width,
+            height,
+            header_x,
+            card.bottom()
+                .saturating_sub(style.space_3)
+                .saturating_sub(12),
+            1,
+            "↑/↓ select • Enter run • Cmd/Ctrl+Shift+P palette",
+            style.tokens.text_muted,
+        );
     }
 
     if card.height > style.space_6.saturating_mul(4) {
         let accent = Rect::new(card.x, card.y, style.stroke_focus.max(2), card.height);
         fill_rect(buffer, width, height, accent, style.tokens.accent_brand);
+    }
+}
+
+fn preflight_decision_class_label(decision: PreflightDecisionClass) -> &'static str {
+    match decision {
+        PreflightDecisionClass::Allowed => "ready",
+        PreflightDecisionClass::BlockedByPolicy => "blocked",
+        PreflightDecisionClass::DisabledWithReason => "disabled",
+        PreflightDecisionClass::PreviewRequired => "preview",
+        PreflightDecisionClass::ApprovalRequired => "approval",
     }
 }
 

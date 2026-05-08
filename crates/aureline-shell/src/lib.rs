@@ -14,3 +14,5 @@ pub mod help;
 pub mod layout;
 /// Command palette query-session state and grouped result projections.
 pub mod palette;
+/// Start Center quick-action surface and entry projections.
+pub mod start_center;
