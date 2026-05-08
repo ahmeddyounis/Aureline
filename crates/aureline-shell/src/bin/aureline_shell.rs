@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use std::time::Instant;
 
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
@@ -27,12 +28,14 @@ use aureline_shell::app_frame::desktop_frame::{
 use aureline_shell::help::keybinding_inspector::build_inspector_lines;
 use aureline_shell::layout::split_tree::PaneId;
 use aureline_shell::layout::zone_registry::{Rect, ShellZoneId};
+use aureline_shell::palette::results_view::palette_view_rows;
+use aureline_shell::palette::{CommandPaletteCommit, CommandPaletteState};
 
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use softbuffer::{Context, Surface};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::WindowBuilder;
 
@@ -65,6 +68,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.request_redraw();
 
     event_loop.run(move |event, elwt| match event {
+        Event::AboutToWait => {
+            let now = Instant::now();
+            if palette.tick(registry, &keybinding_runtime.shortcuts_by_command_id, now) {
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    palette.selected_entry(registry),
+                ));
+                window.request_redraw();
+            }
+            if let Some(deadline) = palette.next_wake_deadline(now) {
+                elwt.set_control_flow(ControlFlow::WaitUntil(deadline));
+            } else {
+                elwt.set_control_flow(ControlFlow::Wait);
+            }
+        }
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => elwt.exit(),
             WindowEvent::Resized(_) => {
@@ -171,6 +189,10 @@ impl CommandRuntimeState {
         if self.records.len() > 64 {
             self.records.drain(0..(self.records.len() - 64));
         }
+    }
+
+    fn note_non_command_action(&mut self, label: impl Into<String>) {
+        self.last_command_label = Some(label.into());
     }
 
     fn recent_lines(&self, limit: usize) -> Vec<String> {
@@ -449,7 +471,7 @@ fn dispatch_command_id(
 
 fn dispatch_registry_entry(
     command_runtime: &mut CommandRuntimeState,
-    _registry: &CommandRegistry,
+    registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     palette: &mut CommandPaletteState,
     overlay: &mut Option<ShellOverlayState>,
@@ -512,9 +534,12 @@ fn dispatch_registry_entry(
         return true;
     }
 
+    palette.note_command_invoked(entry.command_id());
+
     match entry.descriptor.command_id.as_str() {
         "cmd:command_palette.open" => {
-            palette.open();
+            let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            palette.open(registry, cwd);
             let invocation = invocation_and_result_simple_success(&session, "succeeded");
             command_runtime.record(invocation);
             true
@@ -1036,37 +1061,94 @@ fn handle_key_event(
     };
 
     if palette.is_open() {
-        if code == KeyCode::Enter {
-            let selected = palette.selected_entry(registry).cloned();
-            palette.close();
-            if let Some(entry) = selected {
-                let changed = dispatch_registry_entry(
-                    command_runtime,
-                    registry,
-                    frame,
-                    palette,
-                    overlay,
-                    &entry,
-                    DispatchOrigin::CommandPalette,
-                    enablement_runtime,
-                );
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
-                return changed;
+        return match code {
+            KeyCode::Enter => {
+                palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
+                let commit = palette.commit(registry);
+                match commit {
+                    Some(CommandPaletteCommit::CommandId(command_id)) => {
+                        let changed = dispatch_command_id(
+                            command_runtime,
+                            registry,
+                            frame,
+                            palette,
+                            overlay,
+                            &command_id,
+                            DispatchOrigin::CommandPalette,
+                            enablement_runtime,
+                        );
+                        window.set_title(&window_title(Some(frame.focused_zone()), None));
+                        changed
+                    }
+                    Some(CommandPaletteCommit::FilePath(relative_path)) => {
+                        frame.open_placeholder_tab();
+                        command_runtime.note_non_command_action(format!(
+                            "opened file — {}",
+                            relative_path
+                        ));
+                        window.set_title(&window_title(Some(frame.focused_zone()), None));
+                        true
+                    }
+                    None => {
+                        window.set_title(&window_title(Some(frame.focused_zone()), None));
+                        true
+                    }
+                }
             }
-            window.set_title(&window_title(Some(frame.focused_zone()), None));
-            return true;
-        }
-        if palette.handle_key(code) {
-            window.set_title(&window_title(
-                Some(frame.focused_zone()),
-                palette
-                    .is_open()
-                    .then(|| palette.selected_entry(registry))
-                    .flatten(),
-            ));
-            return true;
-        }
-        return false;
+            KeyCode::Escape => {
+                palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
+                palette.close();
+                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                true
+            }
+            KeyCode::ArrowDown => {
+                let handled = palette.handle_arrow_down();
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    palette.selected_entry(registry),
+                ));
+                handled
+            }
+            KeyCode::ArrowUp => {
+                let handled = palette.handle_arrow_up();
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    palette.selected_entry(registry),
+                ));
+                handled
+            }
+            KeyCode::Backspace => {
+                let handled =
+                    palette.handle_backspace(registry, &keybinding_runtime.shortcuts_by_command_id);
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    palette.selected_entry(registry),
+                ));
+                handled
+            }
+            _ => {
+                if !modifiers.ctrl_or_logo() {
+                    if let Some(text) = event.text.as_deref() {
+                        let mut changed = false;
+                        for ch in text.chars() {
+                            changed |= palette.handle_text_input(
+                                ch,
+                                registry,
+                                &keybinding_runtime.shortcuts_by_command_id,
+                            );
+                        }
+                        if changed {
+                            window.set_title(&window_title(
+                                Some(frame.focused_zone()),
+                                palette.selected_entry(registry),
+                            ));
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
+        };
     }
 
     if let Some(state) = overlay.as_mut() {
@@ -1690,14 +1772,7 @@ fn draw_shell_overlay(
                     break;
                 }
                 draw_text(
-                    buffer,
-                    width,
-                    height,
-                    cursor_x,
-                    cursor_y,
-                    1,
-                    &line,
-                    0x00c9d3de,
+                    buffer, width, height, cursor_x, cursor_y, 1, &line, 0x00c9d3de,
                 );
                 cursor_y = cursor_y.saturating_add(line_h);
             }
@@ -1907,92 +1982,6 @@ fn draw_shell_overlay(
     }
 }
 
-#[derive(Debug, Clone)]
-struct CommandPaletteState {
-    open: bool,
-    selection: usize,
-    visible_entry_indices: Vec<usize>,
-}
-
-impl CommandPaletteState {
-    fn new(registry: &CommandRegistry) -> Self {
-        let mut state = Self {
-            open: false,
-            selection: 0,
-            visible_entry_indices: Vec::new(),
-        };
-        state.rebuild_visible_entries(registry);
-        state
-    }
-
-    fn rebuild_visible_entries(&mut self, registry: &CommandRegistry) {
-        self.visible_entry_indices = registry
-            .entries()
-            .iter()
-            .enumerate()
-            .filter_map(|(idx, entry)| {
-                let desktop_ok = entry
-                    .descriptor
-                    .client_scopes
-                    .iter()
-                    .any(|scope| scope == "desktop_product");
-                let visible_in_palette =
-                    entry.descriptor.palette_visibility != "hidden_palette_callable_only";
-                (desktop_ok && visible_in_palette).then_some(idx)
-            })
-            .collect();
-        self.selection = self
-            .selection
-            .min(self.visible_entry_indices.len().saturating_sub(1));
-    }
-
-    fn is_open(&self) -> bool {
-        self.open
-    }
-
-    fn open(&mut self) {
-        self.open = true;
-        self.selection = self
-            .selection
-            .min(self.visible_entry_indices.len().saturating_sub(1));
-    }
-
-    fn close(&mut self) {
-        self.open = false;
-    }
-
-    fn selected_entry<'a>(
-        &self,
-        registry: &'a CommandRegistry,
-    ) -> Option<&'a CommandRegistryEntryRecord> {
-        let idx = *self.visible_entry_indices.get(self.selection)?;
-        registry.entries().get(idx)
-    }
-
-    fn handle_key(&mut self, code: KeyCode) -> bool {
-        match code {
-            KeyCode::Escape => {
-                self.close();
-                true
-            }
-            KeyCode::ArrowDown => {
-                if !self.visible_entry_indices.is_empty() {
-                    self.selection = (self.selection + 1) % self.visible_entry_indices.len();
-                }
-                true
-            }
-            KeyCode::ArrowUp => {
-                if !self.visible_entry_indices.is_empty() {
-                    self.selection = (self.selection + self.visible_entry_indices.len() - 1)
-                        % self.visible_entry_indices.len();
-                }
-                true
-            }
-            _ => false,
-        }
-    }
-}
-
 fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {
     let scale = |v: u32| -> u32 { ((v as f64) * scale_factor).round().max(0.0) as u32 };
     Rect::new(
@@ -2123,17 +2112,43 @@ fn draw_command_palette_overlay(
         cursor_x,
         cursor_y,
         text_scale,
-        "Up/Down: select   Enter: run   Esc: close",
+        "Type to search. Up/Down: select   Enter: run   Esc: close",
         0x00aab7c4,
     );
     cursor_y = cursor_y.saturating_add(line_h + 6);
 
-    for (row, entry) in palette_rows(registry).iter().enumerate() {
+    let selected_key = palette.selected_key().cloned();
+    let view_rows = palette_view_rows(
+        palette,
+        registry,
+        &keybinding_runtime.shortcuts_by_command_id,
+        |entry| {
+            let enablement_context = CommandEnablementContext {
+                client_scope: "desktop_product".to_string(),
+                workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
+                execution_context_available: enablement_runtime.execution_context_available,
+                provider_linked: enablement_runtime.provider_linked,
+                credential_available: enablement_runtime.credential_available,
+                policy_disabled: enablement_runtime.policy_disabled,
+                policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+                argument_provenance_map: argument_provenance_map_for(entry),
+            };
+            let snapshot = entry.evaluate_enablement(&enablement_context);
+            (snapshot.decision_class, snapshot.disabled_reason_code)
+        },
+    );
+
+    for row in view_rows.iter() {
         if cursor_y.saturating_add(line_h) > panel.bottom().saturating_sub(12) {
             break;
         }
-        let selected = row == palette.selection;
-        if selected {
+        let selected = row
+            .key
+            .as_ref()
+            .and_then(|key| selected_key.as_ref().map(|s| (key, s)))
+            .map(|(k, s)| k == s)
+            .unwrap_or(false);
+        if selected && !row.is_group_header {
             let highlight = Rect::new(
                 panel.x.saturating_add(6),
                 cursor_y.saturating_sub(2),
@@ -2143,33 +2158,6 @@ fn draw_command_palette_overlay(
             fill_rect(buffer, width, height, highlight, 0x00202a35);
         }
 
-        let enablement_context = CommandEnablementContext {
-            client_scope: "desktop_product".to_string(),
-            workspace_trust_state: enablement_runtime.workspace_trust_state.clone(),
-            execution_context_available: enablement_runtime.execution_context_available,
-            provider_linked: enablement_runtime.provider_linked,
-            credential_available: enablement_runtime.credential_available,
-            policy_disabled: enablement_runtime.policy_disabled,
-            policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
-            argument_provenance_map: argument_provenance_map_for(entry),
-        };
-        let enablement_snapshot = entry.evaluate_enablement(&enablement_context);
-
-        let shortcuts = keybinding_runtime.shortcuts_label(entry.command_id());
-        let mut line = format!(
-            "{}  —  {}  [{}]",
-            entry.title,
-            entry.command_id(),
-            shortcuts
-        );
-        if enablement_snapshot.decision_class != EnablementDecisionClass::Enabled {
-            if let Some(code) = enablement_snapshot.disabled_reason_code {
-                line.push_str("  [");
-                line.push_str(code.as_str());
-                line.push(']');
-            }
-        }
-
         draw_text(
             buffer,
             width,
@@ -2177,26 +2165,17 @@ fn draw_command_palette_overlay(
             cursor_x,
             cursor_y,
             text_scale,
-            &line,
-            if selected { 0x00ffffff } else { 0x00c9d3de },
+            &row.text,
+            if selected && !row.is_group_header {
+                0x00ffffff
+            } else if row.is_group_header {
+                0x00aab7c4
+            } else {
+                0x00c9d3de
+            },
         );
         cursor_y = cursor_y.saturating_add(line_h);
     }
-}
-
-fn palette_rows<'a>(registry: &'a CommandRegistry) -> Vec<&'a CommandRegistryEntryRecord> {
-    registry
-        .entries()
-        .iter()
-        .filter(|entry| {
-            entry
-                .descriptor
-                .client_scopes
-                .iter()
-                .any(|scope| scope == "desktop_product")
-                && entry.descriptor.palette_visibility != "hidden_palette_callable_only"
-        })
-        .collect()
 }
 
 fn draw_text(
@@ -2314,7 +2293,10 @@ impl KeybindingRuntimeState {
 
     fn cycle_preset(&mut self, direction: i32) {
         let presets = KeymapPresetId::all();
-        let Some(idx) = presets.iter().position(|preset| *preset == self.active_preset) else {
+        let Some(idx) = presets
+            .iter()
+            .position(|preset| *preset == self.active_preset)
+        else {
             self.active_preset = presets[0];
             self.rebuild();
             return;

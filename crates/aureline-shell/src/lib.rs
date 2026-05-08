@@ -10,3 +10,5 @@ pub mod app_frame;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
 pub mod layout;
+/// Command palette query-session state and grouped result projections.
+pub mod palette;
