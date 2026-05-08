@@ -4,6 +4,111 @@
 //! chrome, editor viewport, terminal placeholders) enqueue damage events using
 //! stable vocabulary derived from the composition and damage-class packets.
 
+/// A rectangle in physical pixels in the window client coordinate space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct PixelRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl PixelRect {
+    /// Creates a new rectangle from the given origin and size.
+    pub const fn new(x: u32, y: u32, width: u32, height: u32) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// Returns the x-coordinate of the right edge.
+    pub const fn right(self) -> u32 {
+        self.x.saturating_add(self.width)
+    }
+
+    /// Returns the y-coordinate of the bottom edge.
+    pub const fn bottom(self) -> u32 {
+        self.y.saturating_add(self.height)
+    }
+
+    /// Returns true when the rectangle has zero area.
+    pub const fn is_empty(self) -> bool {
+        self.width == 0 || self.height == 0
+    }
+
+    /// Returns the area in pixels.
+    pub const fn area(self) -> u64 {
+        (self.width as u64).saturating_mul(self.height as u64)
+    }
+
+    /// Returns true when this rectangle intersects `other`.
+    pub const fn intersects(self, other: PixelRect) -> bool {
+        if self.is_empty() || other.is_empty() {
+            return false;
+        }
+        self.x < other.right()
+            && self.right() > other.x
+            && self.y < other.bottom()
+            && self.bottom() > other.y
+    }
+
+    /// Returns the intersection of two rectangles.
+    pub const fn intersection(self, other: PixelRect) -> Option<PixelRect> {
+        if !self.intersects(other) {
+            return None;
+        }
+        let x0 = if self.x > other.x { self.x } else { other.x };
+        let y0 = if self.y > other.y { self.y } else { other.y };
+        let x1 = if self.right() < other.right() {
+            self.right()
+        } else {
+            other.right()
+        };
+        let y1 = if self.bottom() < other.bottom() {
+            self.bottom()
+        } else {
+            other.bottom()
+        };
+        Some(PixelRect::new(
+            x0,
+            y0,
+            x1.saturating_sub(x0),
+            y1.saturating_sub(y0),
+        ))
+    }
+
+    /// Returns the minimal rectangle that covers both inputs.
+    pub const fn union(self, other: PixelRect) -> PixelRect {
+        if self.is_empty() {
+            return other;
+        }
+        if other.is_empty() {
+            return self;
+        }
+        let x0 = if self.x < other.x { self.x } else { other.x };
+        let y0 = if self.y < other.y { self.y } else { other.y };
+        let x1 = if self.right() > other.right() {
+            self.right()
+        } else {
+            other.right()
+        };
+        let y1 = if self.bottom() > other.bottom() {
+            self.bottom()
+        } else {
+            other.bottom()
+        };
+        PixelRect::new(
+            x0,
+            y0,
+            x1.saturating_sub(x0),
+            y1.saturating_sub(y0),
+        )
+    }
+}
+
 /// A stable composition layer id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CompositionLayerId {
@@ -68,17 +173,55 @@ impl DamageClassId {
     }
 }
 
+/// Optional pixel-space damage metadata for a [`DamageEvent`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DamageRegion {
+    /// No concrete region is available, so consumers must assume a full-window repaint.
+    Unspecified,
+    /// One rectangle in window client pixel coordinates.
+    Rect(PixelRect),
+}
+
+impl DamageRegion {
+    /// Returns true when the region is unspecified.
+    pub const fn is_unspecified(self) -> bool {
+        matches!(self, Self::Unspecified)
+    }
+
+    /// Returns the rectangle when present.
+    pub const fn rect(self) -> Option<PixelRect> {
+        match self {
+            Self::Unspecified => None,
+            Self::Rect(rect) => Some(rect),
+        }
+    }
+}
+
 /// A single queued damage event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct DamageEvent {
     pub layer: CompositionLayerId,
     pub class: DamageClassId,
+    pub region: DamageRegion,
 }
 
 impl DamageEvent {
     /// Creates a new damage event.
     pub const fn new(layer: CompositionLayerId, class: DamageClassId) -> Self {
-        Self { layer, class }
+        Self {
+            layer,
+            class,
+            region: DamageRegion::Unspecified,
+        }
+    }
+
+    /// Creates a new damage event scoped to a concrete pixel region.
+    pub const fn with_region(
+        layer: CompositionLayerId,
+        class: DamageClassId,
+        region: DamageRegion,
+    ) -> Self {
+        Self { layer, class, region }
     }
 }
 
@@ -193,4 +336,3 @@ mod tests {
         assert_eq!(frame.events.len(), 2);
     }
 }
-

@@ -14,11 +14,17 @@ pub mod draw_queue;
 pub mod frame_scheduler;
 /// Glyph atlas and raster-cache management.
 pub mod glyph_atlas;
+/// Dirty-region planning and retained-frame support.
+pub mod dirty_regions;
 /// Trace hook vocabulary used by the renderer hot path.
 pub mod hooks;
 
 pub use backend::WgpuBlitRenderer;
-pub use draw_queue::{CompositedFrame, CompositionLayerId, DamageClassId, DamageEvent, DrawQueue};
+pub use draw_queue::{
+    CompositedFrame, CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DrawQueue,
+    PixelRect,
+};
 pub use frame_scheduler::{FrameScheduler, FrameSchedulerDecision, FrameSchedulerStats};
 pub use glyph_atlas::{EvictionReason, GlyphAtlas, GlyphAtlasStats, GlyphEntry, GlyphKey};
+pub use dirty_regions::{DirtyRegionEngine, DirtyRegionPlan, DirtyRegionStrategy};
 pub use hooks::{Clock, Hook, Tick, TimingMark, TimingRecorder, WallClock};

@@ -76,8 +76,8 @@ use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSu
 use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_render::{
-    CompositionLayerId, DamageClassId, DamageEvent, FrameScheduler, FrameSchedulerDecision,
-    GlyphAtlas, GlyphKey, WgpuBlitRenderer, WallClock,
+    CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine, FrameScheduler,
+    FrameSchedulerDecision, GlyphAtlas, GlyphKey, PixelRect, WgpuBlitRenderer, WallClock,
 };
 use aureline_text::shaping::{FontFallbackConfig, FontSystem, FeatureSet, TextShaper};
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
@@ -254,12 +254,56 @@ fn usage() -> String {
 enum ShellRenderBackend {
     Gpu {
         renderer: WgpuBlitRenderer,
-        scratch: Vec<u32>,
+        retained_frame: Vec<u32>,
         last_size: (u32, u32),
     },
     Software {
         surface: SoftbufferSurface,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShellDamageHint {
+    None,
+    FullWindow,
+    Rect {
+        layer: CompositionLayerId,
+        class: DamageClassId,
+        rect: Rect,
+    },
+}
+
+#[derive(Debug, Default, Clone)]
+struct ShellDamageGeometryCache {
+    command_palette_panel: Option<Rect>,
+    focused_editor_group: Option<Rect>,
+}
+
+fn enqueue_damage_hint(scheduler: &mut FrameScheduler, hint: ShellDamageHint) {
+    match hint {
+        ShellDamageHint::None => {}
+        ShellDamageHint::FullWindow => {
+            scheduler.invalidate(DamageEvent::new(
+                CompositionLayerId::WindowChromeBase,
+                DamageClassId::WindowExposedRegionRefresh,
+            ));
+            scheduler.invalidate(DamageEvent::new(
+                CompositionLayerId::TextAndDecoration,
+                DamageClassId::WindowExposedRegionRefresh,
+            ));
+        }
+        ShellDamageHint::Rect { layer, class, rect } => {
+            if rect.is_empty() {
+                return;
+            }
+            let pixel_rect = PixelRect::new(rect.x, rect.y, rect.width, rect.height);
+            scheduler.invalidate(DamageEvent::with_region(
+                layer,
+                class,
+                DamageRegion::Rect(pixel_rect),
+            ));
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -308,7 +352,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 let size = window.inner_size();
                 ShellRenderBackend::Gpu {
                     renderer,
-                    scratch: Vec::new(),
+                    retained_frame: Vec::new(),
                     last_size: (size.width, size.height),
                 }
             }
@@ -331,6 +375,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     startup_trace.mark(StartupMilestone::EditorSurfaceReady);
 
     let mut held_modifiers = HeldModifiers::default();
+    let mut damage_geometry = ShellDamageGeometryCache::default();
     let mut palette = CommandPaletteState::new(registry);
     let mut palette_focus_return: FocusReturnStack<ShellFocusReturnTarget> =
         FocusReturnStack::new();
@@ -377,10 +422,21 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     palette.selected_entry(registry),
                     recent_work.active_workspace_label(),
                 ));
-                scheduler.invalidate(DamageEvent::new(
-                    CompositionLayerId::FloatingSurface,
-                    DamageClassId::FloatingSurfaceToggle,
-                ));
+                if let Some(rect) = damage_geometry.command_palette_panel {
+                    enqueue_damage_hint(
+                        &mut scheduler,
+                        ShellDamageHint::Rect {
+                            layer: CompositionLayerId::FloatingSurface,
+                            class: DamageClassId::FloatingSurfaceToggle,
+                            rect,
+                        },
+                    );
+                } else {
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::FloatingSurface,
+                        DamageClassId::FloatingSurfaceToggle,
+                    ));
+                }
             }
             if scheduler.decision() == FrameSchedulerDecision::RequestRedraw {
                 window.request_redraw();
@@ -416,10 +472,11 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 let before_modifiers = held_modifiers;
                 held_modifiers.update_from_key_event(&event);
                 let modifiers_changed = before_modifiers != held_modifiers;
-                if handle_key_event(
+                let hint = handle_key_event(
                     &window,
                     registry,
                     &mut frame,
+                    &damage_geometry,
                     &mut palette,
                     &mut palette_focus_return,
                     &mut start_center,
@@ -432,16 +489,23 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut appearance,
                     &held_modifiers,
                     event,
-                ) || (palette.is_open() && modifiers_changed)
-                {
-                    scheduler.invalidate(DamageEvent::new(
-                        CompositionLayerId::WindowChromeBase,
-                        DamageClassId::WindowExposedRegionRefresh,
-                    ));
-                    scheduler.invalidate(DamageEvent::new(
-                        CompositionLayerId::TextAndDecoration,
-                        DamageClassId::WindowExposedRegionRefresh,
-                    ));
+                );
+                if hint != ShellDamageHint::None {
+                    enqueue_damage_hint(&mut scheduler, hint);
+                }
+                if palette.is_open() && modifiers_changed {
+                    if let Some(rect) = damage_geometry.command_palette_panel {
+                        enqueue_damage_hint(
+                            &mut scheduler,
+                            ShellDamageHint::Rect {
+                                layer: CompositionLayerId::FloatingSurface,
+                                class: DamageClassId::SelectionOverlayOnly,
+                                rect,
+                            },
+                        );
+                    } else {
+                        enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                    }
                 }
             }
             WindowEvent::RedrawRequested => {
@@ -461,11 +525,13 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 if pending_frame.is_none() {
                     return;
                 }
+                let pending_frame = pending_frame.expect("pending frame must exist");
                 if let Err(err) = draw(
                     &window,
                     &mut render_backend,
                     &mut text_runtime,
                     registry,
+                    &pending_frame.events,
                     &frame,
                     &palette,
                     &start_center,
@@ -477,6 +543,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &recent_work,
                     &appearance,
                     &held_modifiers,
+                    &mut damage_geometry,
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
                     elwt.exit();
@@ -2303,6 +2370,7 @@ fn handle_key_event(
     window: &winit::window::Window,
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
+    damage_geometry: &ShellDamageGeometryCache,
     palette: &mut CommandPaletteState,
     palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     start_center: &mut StartCenterState,
@@ -2315,16 +2383,27 @@ fn handle_key_event(
     appearance: &mut AppearanceRuntimeState,
     modifiers: &HeldModifiers,
     event: KeyEvent,
-) -> bool {
+) -> ShellDamageHint {
     if event.state != ElementState::Pressed || event.repeat {
-        return false;
+        return ShellDamageHint::None;
     }
 
     let PhysicalKey::Code(code) = event.physical_key else {
-        return false;
+        return ShellDamageHint::None;
     };
 
     if palette.is_open() {
+        let panel_hint = |class| {
+            damage_geometry
+                .command_palette_panel
+                .map(|rect| ShellDamageHint::Rect {
+                    layer: CompositionLayerId::FloatingSurface,
+                    class,
+                    rect,
+                })
+                .unwrap_or(ShellDamageHint::FullWindow)
+        };
+
         return match code {
             KeyCode::KeyC if modifiers.ctrl_or_logo() => {
                 let runtime = PalettePreviewRuntimeInputs {
@@ -2344,7 +2423,7 @@ fn handle_key_event(
                 );
                 let PalettePreviewSelection::Command(command) = &preview.selection else {
                     command_runtime.note_non_command_action("copy: no command selected");
-                    return true;
+                    return panel_hint(DamageClassId::TextReflowLocal);
                 };
 
                 let preferred_intent = if modifiers.shift {
@@ -2359,37 +2438,35 @@ fn handle_key_event(
                         "copy: unavailable — {}",
                         command.command_id
                     ));
-                    return true;
+                    return panel_hint(DamageClassId::TextReflowLocal);
                 };
 
                 match clipboard.set_text(payload) {
                     Ok(()) => {
                         write_preview_log(&preview);
                         let label = match preferred_intent {
-                            PaletteCopyIntent::CliSkeleton
-                                if command.copy.cli_skeleton.is_some() =>
-                            {
+                            PaletteCopyIntent::CliSkeleton if command.copy.cli_skeleton.is_some() => {
                                 "copied cli skeleton"
                             }
                             _ => "copied command id",
                         };
                         command_runtime
                             .note_non_command_action(format!("{label} — {}", command.command_id));
-                        true
                     }
                     Err(err) => {
                         command_runtime.note_non_command_action(format!(
                             "copy failed — {} ({})",
                             command.command_id, err
                         ));
-                        true
                     }
                 }
+
+                panel_hint(DamageClassId::TextReflowLocal)
             }
             KeyCode::KeyD if modifiers.ctrl_or_logo() => {
                 let Some(entry) = palette.selected_entry(registry) else {
                     command_runtime.note_non_command_action("diagnostics: no command selected");
-                    return true;
+                    return panel_hint(DamageClassId::TextReflowLocal);
                 };
 
                 let runtime = CommandReviewRuntimeInputs {
@@ -2423,7 +2500,8 @@ fn handle_key_event(
                     None,
                     recent_work.active_workspace_label(),
                 ));
-                true
+
+                ShellDamageHint::FullWindow
             }
             KeyCode::Enter => {
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
@@ -2450,7 +2528,11 @@ fn handle_key_event(
                             None,
                             recent_work.active_workspace_label(),
                         ));
-                        changed
+                        if changed {
+                            ShellDamageHint::FullWindow
+                        } else {
+                            ShellDamageHint::None
+                        }
                     }
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
                         frame.open_placeholder_tab();
@@ -2461,7 +2543,7 @@ fn handle_key_event(
                             None,
                             recent_work.active_workspace_label(),
                         ));
-                        true
+                        ShellDamageHint::FullWindow
                     }
                     None => {
                         window.set_title(&window_title(
@@ -2469,7 +2551,7 @@ fn handle_key_event(
                             None,
                             recent_work.active_workspace_label(),
                         ));
-                        true
+                        panel_hint(DamageClassId::TextReflowLocal)
                     }
                 }
             }
@@ -2484,7 +2566,7 @@ fn handle_key_event(
                     None,
                     recent_work.active_workspace_label(),
                 ));
-                true
+                ShellDamageHint::FullWindow
             }
             KeyCode::ArrowDown => {
                 let handled = palette.handle_arrow_down();
@@ -2493,7 +2575,11 @@ fn handle_key_event(
                     palette.selected_entry(registry),
                     recent_work.active_workspace_label(),
                 ));
-                handled
+                if handled {
+                    panel_hint(DamageClassId::SelectionOverlayOnly)
+                } else {
+                    ShellDamageHint::None
+                }
             }
             KeyCode::ArrowUp => {
                 let handled = palette.handle_arrow_up();
@@ -2502,7 +2588,11 @@ fn handle_key_event(
                     palette.selected_entry(registry),
                     recent_work.active_workspace_label(),
                 ));
-                handled
+                if handled {
+                    panel_hint(DamageClassId::SelectionOverlayOnly)
+                } else {
+                    ShellDamageHint::None
+                }
             }
             KeyCode::Backspace => {
                 let handled =
@@ -2512,7 +2602,11 @@ fn handle_key_event(
                     palette.selected_entry(registry),
                     recent_work.active_workspace_label(),
                 ));
-                handled
+                if handled {
+                    panel_hint(DamageClassId::TextReflowLocal)
+                } else {
+                    ShellDamageHint::None
+                }
             }
             _ => {
                 if !modifiers.ctrl_or_logo() {
@@ -2531,11 +2625,11 @@ fn handle_key_event(
                                 palette.selected_entry(registry),
                                 recent_work.active_workspace_label(),
                             ));
-                            return true;
+                            return panel_hint(DamageClassId::TextReflowLocal);
                         }
                     }
                 }
-                false
+                ShellDamageHint::None
             }
         };
     }
@@ -2564,9 +2658,9 @@ fn handle_key_event(
                 None,
                 recent_work.active_workspace_label(),
             ));
-            return true;
+            return ShellDamageHint::FullWindow;
         }
-        return false;
+        return ShellDamageHint::None;
     }
 
     if let Some((sequence, inspection_scope)) =
@@ -2601,7 +2695,19 @@ fn handle_key_event(
                         .flatten(),
                     recent_work.active_workspace_label(),
                 ));
-                return changed;
+                if !changed {
+                    return ShellDamageHint::None;
+                }
+                if candidate.command.command_id == "cmd:workspace.open_folder" {
+                    if let Some(rect) = damage_geometry.focused_editor_group {
+                        return ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect,
+                        };
+                    }
+                }
+                return ShellDamageHint::FullWindow;
             }
         }
     }
@@ -2627,7 +2733,14 @@ fn handle_key_event(
                     None,
                     recent_work.active_workspace_label(),
                 ));
-                return true;
+                return damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::SelectionOverlayOnly,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow);
             }
             KeyCode::ArrowUp => {
                 start_center.select_prev(row_count);
@@ -2636,12 +2749,19 @@ fn handle_key_event(
                     None,
                     recent_work.active_workspace_label(),
                 ));
-                return true;
+                return damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::SelectionOverlayOnly,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow);
             }
             KeyCode::Enter => {
                 let idx = start_center.selection().min(row_count.saturating_sub(1));
                 let Some(row) = rows.get(idx) else {
-                    return true;
+                    return ShellDamageHint::None;
                 };
                 let changed = dispatch_command_id_with_arguments(
                     command_runtime,
@@ -2661,7 +2781,19 @@ fn handle_key_event(
                     None,
                     recent_work.active_workspace_label(),
                 ));
-                return changed;
+                if !changed {
+                    return ShellDamageHint::None;
+                }
+                if row.command_id == "cmd:workspace.open_folder" {
+                    if let Some(rect) = damage_geometry.focused_editor_group {
+                        return ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect,
+                        };
+                    }
+                }
+                return ShellDamageHint::FullWindow;
             }
             _ => {}
         }
@@ -2670,7 +2802,7 @@ fn handle_key_event(
     match code {
         KeyCode::Enter => {
             if frame.focused_zone() == ShellZoneId::RightInspector {
-                dispatch_command_id(
+                let changed = dispatch_command_id(
                     command_runtime,
                     registry,
                     frame,
@@ -2681,9 +2813,14 @@ fn handle_key_event(
                     DispatchOrigin::KeybindingChord,
                     enablement_runtime,
                     recent_work,
-                )
+                );
+                if changed {
+                    ShellDamageHint::FullWindow
+                } else {
+                    ShellDamageHint::None
+                }
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::Tab => {
@@ -2693,19 +2830,26 @@ fn handle_key_event(
                 None,
                 recent_work.active_workspace_label(),
             ));
-            true
+            ShellDamageHint::FullWindow
         }
         KeyCode::KeyO => {
             if modifiers.ctrl_or_logo() {
                 frame.open_placeholder_tab();
-                true
+                damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::TextReflowLocal,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow)
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::Backslash => {
-            if modifiers.ctrl_or_logo() && modifiers.shift {
-                match frame.request_split_focused_editor_group() {
+            if modifiers.ctrl_or_logo() {
+                let changed = match frame.request_split_focused_editor_group() {
                     NewEditorGroupOutcome::Created { .. } => true,
                     NewEditorGroupOutcome::WouldViolateMinimum(violation) => {
                         *overlay = Some(ShellOverlayState::split_choice(
@@ -2716,22 +2860,14 @@ fn handle_key_event(
                         frame.focus_zone(ShellZoneId::TransientOverlay);
                         true
                     }
-                }
-            } else if modifiers.ctrl_or_logo() {
-                match frame.request_split_focused_editor_group() {
-                    NewEditorGroupOutcome::Created { .. } => true,
-                    NewEditorGroupOutcome::WouldViolateMinimum(violation) => {
-                        *overlay = Some(ShellOverlayState::split_choice(
-                            frame.focused_zone(),
-                            frame.focused_editor_group(),
-                            violation,
-                        ));
-                        frame.focus_zone(ShellZoneId::TransientOverlay);
-                        true
-                    }
+                };
+                if changed {
+                    ShellDamageHint::FullWindow
+                } else {
+                    ShellDamageHint::None
                 }
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyG => {
@@ -2742,16 +2878,21 @@ fn handle_key_event(
                     None,
                     recent_work.active_workspace_label(),
                 ));
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyW => {
             if modifiers.ctrl_or_logo() {
-                frame.close_focused_editor_group()
+                let changed = frame.close_focused_editor_group();
+                if changed {
+                    ShellDamageHint::FullWindow
+                } else {
+                    ShellDamageHint::None
+                }
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyI => {
@@ -2761,9 +2902,9 @@ fn handle_key_event(
                     frame.focused_editor_group(),
                 ));
                 frame.focus_zone(ShellZoneId::TransientOverlay);
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyR => {
@@ -2775,52 +2916,52 @@ fn handle_key_event(
                     enablement_runtime.workspace_trust_state.as_str(),
                 ));
                 frame.focus_zone(ShellZoneId::TransientOverlay);
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyT => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
                 enablement_runtime.toggle_trust_state();
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyE => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
                 enablement_runtime.toggle_execution_context();
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyB => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
                 enablement_runtime.toggle_policy_blocked();
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyL => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
                 appearance.toggle_light_dark();
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
         KeyCode::KeyH => {
             if modifiers.ctrl_or_logo() && modifiers.shift && modifiers.alt {
                 appearance.toggle_high_contrast();
-                true
+                ShellDamageHint::FullWindow
             } else {
-                false
+                ShellDamageHint::None
             }
         }
-        _ => false,
+        _ => ShellDamageHint::None,
     }
 }
 
@@ -2875,11 +3016,46 @@ fn relayout_and_redraw(
     ));
 }
 
+fn focused_editor_group_physical_rect(frame: &DesktopFrame, scale_factor: f64) -> Option<Rect> {
+    let focused = frame.focused_editor_group();
+    frame
+        .editor_group_layouts()
+        .into_iter()
+        .find(|group| group.group_id == focused)
+        .map(|group| to_physical_rect(group.rect, scale_factor))
+}
+
+fn command_palette_panel_rect(
+    frame: &DesktopFrame,
+    scale_factor: f64,
+    style: &ShellRenderStyle,
+) -> Option<Rect> {
+    let overlay_logical = frame.layout().zone(ShellZoneId::TransientOverlay)?;
+    let slots = frame.slot_rects_within_zone(ShellZoneId::TransientOverlay, overlay_logical);
+    let slot = slots
+        .iter()
+        .find(|(id, _)| *id == "slot.overlay.command_palette")
+        .map(|(_, rect)| *rect)
+        .unwrap_or(overlay_logical);
+    let slot_physical = to_physical_rect(slot, scale_factor);
+
+    let panel_padding = style.space_4;
+    let panel = Rect::new(
+        slot_physical.x.saturating_add(panel_padding),
+        slot_physical.y.saturating_add(panel_padding),
+        slot_physical.width.saturating_sub(panel_padding * 2),
+        slot_physical.height.saturating_sub(panel_padding * 2),
+    );
+
+    (!panel.is_empty()).then_some(panel)
+}
+
 fn draw(
     window: &winit::window::Window,
     backend: &mut ShellRenderBackend,
     text_runtime: &mut ShellTextRuntime,
     registry: &CommandRegistry,
+    events: &[DamageEvent],
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
     start_center: &StartCenterState,
@@ -2891,6 +3067,7 @@ fn draw(
     recent_work: &RecentWorkRuntimeState,
     appearance: &AppearanceRuntimeState,
     held_modifiers: &HeldModifiers,
+    damage_geometry: &mut ShellDamageGeometryCache,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -2899,8 +3076,19 @@ fn draw(
     let width = physical.width;
     let height = physical.height;
 
+    let window_bounds = PixelRect::new(0, 0, width, height);
+    let plan = DirtyRegionEngine::plan(window_bounds, events);
+
     let token_registry = seeded_token_registry(appearance.theme_class())?;
     let style = ShellRenderStyle::load(token_registry)?;
+
+    damage_geometry.focused_editor_group =
+        focused_editor_group_physical_rect(frame, window.scale_factor());
+    damage_geometry.command_palette_panel = if palette.is_open() {
+        command_palette_panel_rect(frame, window.scale_factor(), &style)
+    } else {
+        None
+    };
 
     match backend {
         ShellRenderBackend::Software { surface } => {
@@ -2937,7 +3125,7 @@ fn draw(
         }
         ShellRenderBackend::Gpu {
             renderer,
-            scratch,
+            retained_frame,
             last_size,
         } => {
             if *last_size != (width, height) {
@@ -2945,30 +3133,61 @@ fn draw(
                 let _ = renderer.resize();
             }
             let required = (width as usize).saturating_mul(height as usize);
-            if scratch.len() != required {
-                scratch.resize(required, 0);
+            let mut force_full_redraw = false;
+            if retained_frame.len() != required {
+                retained_frame.resize(required, 0);
+                force_full_redraw = true;
             }
-            rasterize_shell(
-                window,
-                scratch,
-                width,
-                height,
-                text_runtime,
-                registry,
-                frame,
-                palette,
-                start_center,
-                docs_help_boundary_card,
-                overlay,
-                command_runtime,
-                keybinding_runtime,
-                enablement_runtime,
-                recent_work,
-                appearance,
-                &style,
-                held_modifiers,
-            );
-            renderer.render_0rgb(scratch)?;
+
+            let (clip_rect, upload_rect, use_dirty_upload) = if force_full_redraw || plan.is_full_window() {
+                (None, window_bounds, false)
+            } else {
+                let mut union: Option<PixelRect> = None;
+                for rect in plan.rects() {
+                    union = Some(match union {
+                        None => rect,
+                        Some(prev) => prev.union(rect),
+                    });
+                }
+                if let Some(rect) = union {
+                    (
+                        Some(Rect::new(rect.x, rect.y, rect.width, rect.height)),
+                        rect,
+                        true,
+                    )
+                } else {
+                    (None, window_bounds, false)
+                }
+            };
+
+            with_raster_clip(clip_rect, || {
+                rasterize_shell(
+                    window,
+                    retained_frame,
+                    width,
+                    height,
+                    text_runtime,
+                    registry,
+                    frame,
+                    palette,
+                    start_center,
+                    docs_help_boundary_card,
+                    overlay,
+                    command_runtime,
+                    keybinding_runtime,
+                    enablement_runtime,
+                    recent_work,
+                    appearance,
+                    &style,
+                    held_modifiers,
+                );
+            });
+
+            if use_dirty_upload {
+                renderer.render_0rgb_dirty(retained_frame, &[upload_rect])?;
+            } else {
+                renderer.render_0rgb(retained_frame)?;
+            }
             Ok(())
         }
     }
@@ -2994,8 +3213,13 @@ fn rasterize_shell(
     style: &ShellRenderStyle,
     held_modifiers: &HeldModifiers,
 ) {
+    let clip = raster_clip();
     // Background.
-    fill(buffer, style.tokens.bg_canvas);
+    if let Some(clip_rect) = clip {
+        fill_rect(buffer, width, height, clip_rect, style.tokens.bg_canvas);
+    } else {
+        fill(buffer, style.tokens.bg_canvas);
+    }
     let focus_ring = style.component_states.focus_ring_style();
 
     let scale = window.scale_factor();
@@ -3009,6 +3233,9 @@ fn rasterize_shell(
             continue;
         };
         let rect = to_physical_rect(logical_rect, scale);
+        if clip.is_some_and(|clip_rect| !rect_intersects(rect, clip_rect)) {
+            continue;
+        }
         let color = style.tokens.zone_background(zone);
         fill_rect(buffer, width, height, rect, color);
 
@@ -3016,6 +3243,9 @@ fn rasterize_shell(
             ShellZoneId::MainWorkspace => {
                 for group in frame.editor_group_layouts() {
                     let group_rect = to_physical_rect(group.rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(group_rect, clip_rect)) {
+                        continue;
+                    }
                     fill_rect(buffer, width, height, group_rect, style.tokens.bg_surface);
                     stroke_rect(
                         buffer,
@@ -3081,6 +3311,9 @@ fn rasterize_shell(
             _ => {
                 for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
                     let slot_rect = to_physical_rect(slot_rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
+                        continue;
+                    }
                     if zone == ShellZoneId::RightInspector
                         && slot_id == "slot.right_inspector.contextual_detail"
                     {
@@ -4429,6 +4662,30 @@ fn scale_bucket_for_scale_factor(scale_factor: f64) -> u8 {
     bucket.clamp(1, 255) as u8
 }
 
+thread_local! {
+    static ACTIVE_RASTER_CLIP: std::cell::Cell<Option<Rect>> = std::cell::Cell::new(None);
+}
+
+fn with_raster_clip<T>(clip: Option<Rect>, f: impl FnOnce() -> T) -> T {
+    ACTIVE_RASTER_CLIP.with(|cell| {
+        let prev = cell.replace(clip);
+        let out = f();
+        cell.set(prev);
+        out
+    })
+}
+
+fn raster_clip() -> Option<Rect> {
+    ACTIVE_RASTER_CLIP.with(|cell| cell.get())
+}
+
+fn rect_intersects(a: Rect, b: Rect) -> bool {
+    if a.is_empty() || b.is_empty() {
+        return false;
+    }
+    a.x < b.right() && a.right() > b.x && a.y < b.bottom() && a.bottom() > b.y
+}
+
 fn fill(buffer: &mut [u32], color: ColorRgba) {
     let rgb = color.to_u32_rgb();
     buffer.fill(rgb);
@@ -4440,10 +4697,24 @@ fn fill_rect(buffer: &mut [u32], width: u32, height: u32, rect: Rect, color: Col
     }
     let max_x = width.saturating_sub(1);
     let max_y = height.saturating_sub(1);
-    let x0 = rect.x.min(max_x);
-    let y0 = rect.y.min(max_y);
-    let x1 = rect.right().min(width);
-    let y1 = rect.bottom().min(height);
+    let mut x0 = rect.x.min(max_x);
+    let mut y0 = rect.y.min(max_y);
+    let mut x1 = rect.right().min(width);
+    let mut y1 = rect.bottom().min(height);
+
+    if let Some(clip) = raster_clip() {
+        let clip_x0 = clip.x.min(width);
+        let clip_y0 = clip.y.min(height);
+        let clip_x1 = clip.right().min(width);
+        let clip_y1 = clip.bottom().min(height);
+        x0 = x0.max(clip_x0);
+        y0 = y0.max(clip_y0);
+        x1 = x1.min(clip_x1);
+        y1 = y1.min(clip_y1);
+        if x0 >= x1 || y0 >= y1 {
+            return;
+        }
+    }
 
     for y in y0..y1 {
         let row = (y as usize).saturating_mul(width as usize);
@@ -5464,13 +5735,38 @@ fn blend_alpha_mask(
     let src_end_x = src_width.min(dst_width.saturating_sub(dst_x0).saturating_add(src_x0));
     let src_end_y = src_height.min(dst_height.saturating_sub(dst_y0).saturating_add(src_y0));
 
+    let (clip_x0, clip_y0, clip_x1, clip_y1) = raster_clip()
+        .map(|clip| {
+            (
+                clip.x.min(width) as usize,
+                clip.y.min(height) as usize,
+                clip.right().min(width) as usize,
+                clip.bottom().min(height) as usize,
+            )
+        })
+        .unwrap_or((0, 0, dst_width, dst_height));
+
     let mut dy = dst_y0;
     for sy in src_y0..src_end_y {
+        if dy < clip_y0 {
+            dy = dy.saturating_add(1);
+            continue;
+        }
+        if dy >= clip_y1 {
+            break;
+        }
         let src_row = &mask[sy.saturating_mul(src_width)..];
         let dst_row = dy.saturating_mul(dst_width);
         dy = dy.saturating_add(1);
         let mut dx = dst_x0;
         for sx in src_x0..src_end_x {
+            if dx < clip_x0 {
+                dx = dx.saturating_add(1);
+                continue;
+            }
+            if dx >= clip_x1 {
+                break;
+            }
             let a = src_row.get(sx).copied().unwrap_or(0);
             if a == 0 {
                 dx = dx.saturating_add(1);
@@ -5525,12 +5821,37 @@ fn blend_rgba_image(
     let src_end_x = src_width.min(dst_width.saturating_sub(dst_x0).saturating_add(src_x0));
     let src_end_y = src_height.min(dst_height.saturating_sub(dst_y0).saturating_add(src_y0));
 
+    let (clip_x0, clip_y0, clip_x1, clip_y1) = raster_clip()
+        .map(|clip| {
+            (
+                clip.x.min(width) as usize,
+                clip.y.min(height) as usize,
+                clip.right().min(width) as usize,
+                clip.bottom().min(height) as usize,
+            )
+        })
+        .unwrap_or((0, 0, dst_width, dst_height));
+
     let mut dy = dst_y0;
     for sy in src_y0..src_end_y {
+        if dy < clip_y0 {
+            dy = dy.saturating_add(1);
+            continue;
+        }
+        if dy >= clip_y1 {
+            break;
+        }
         let dst_row = dy.saturating_mul(dst_width);
         dy = dy.saturating_add(1);
         let mut dx = dst_x0;
         for sx in src_x0..src_end_x {
+            if dx < clip_x0 {
+                dx = dx.saturating_add(1);
+                continue;
+            }
+            if dx >= clip_x1 {
+                break;
+            }
             let base = (sy.saturating_mul(src_width).saturating_add(sx)).saturating_mul(4);
             let Some(chunk) = image.get(base..base.saturating_add(4)) else {
                 dx = dx.saturating_add(1);
@@ -5809,11 +6130,28 @@ fn draw_scaled_pixel(
     }
     let max_x = width.saturating_sub(1);
     let max_y = height.saturating_sub(1);
-    let x1 = x.saturating_add(scale).min(max_x.saturating_add(1));
-    let y1 = y.saturating_add(scale).min(max_y.saturating_add(1));
-    for yy in y..y1 {
+    let mut x0 = x;
+    let mut y0 = y;
+    let mut x1 = x.saturating_add(scale).min(max_x.saturating_add(1));
+    let mut y1 = y.saturating_add(scale).min(max_y.saturating_add(1));
+
+    if let Some(clip) = raster_clip() {
+        let clip_x0 = clip.x.min(width);
+        let clip_y0 = clip.y.min(height);
+        let clip_x1 = clip.right().min(width);
+        let clip_y1 = clip.bottom().min(height);
+        x0 = x0.max(clip_x0);
+        y0 = y0.max(clip_y0);
+        x1 = x1.min(clip_x1);
+        y1 = y1.min(clip_y1);
+        if x0 >= x1 || y0 >= y1 {
+            return;
+        }
+    }
+
+    for yy in y0..y1 {
         let row = (yy as usize).saturating_mul(width as usize);
-        for xx in x..x1 {
+        for xx in x0..x1 {
             let idx = row.saturating_add(xx as usize);
             if let Some(px) = buffer.get_mut(idx) {
                 if color.a == 255 {

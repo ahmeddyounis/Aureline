@@ -9,6 +9,8 @@ use std::sync::Arc;
 
 use winit::window::Window;
 
+use crate::PixelRect;
+
 /// GPU surface backend that presents a CPU-rasterized `0RGB` buffer.
 #[derive(Debug)]
 pub struct WgpuBlitRenderer {
@@ -25,6 +27,7 @@ pub struct WgpuBlitRenderer {
     bind_group: wgpu::BindGroup,
     pipeline: wgpu::RenderPipeline,
     upload_bytes: Vec<u8>,
+    upload_region_bytes: Vec<u8>,
 }
 
 impl WgpuBlitRenderer {
@@ -107,6 +110,7 @@ impl WgpuBlitRenderer {
             bind_group,
             pipeline,
             upload_bytes,
+            upload_region_bytes: Vec::new(),
         })
     }
 
@@ -180,6 +184,66 @@ impl WgpuBlitRenderer {
         Ok(())
     }
 
+    /// Uploads dirty rectangles from a `0RGB` buffer and presents the existing texture.
+    ///
+    /// The pixel format matches the shell's software rasterizer: each `u32` is
+    /// `0x00RRGGBB`.
+    ///
+    /// Passing an empty `dirty_rects` slice keeps the previously uploaded texture
+    /// unchanged and simply re-presents it on the GPU surface.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the swapchain cannot provide a surface texture or if
+    /// the caller supplies an undersized pixel buffer.
+    pub fn render_0rgb_dirty(
+        &mut self,
+        pixels_0rgb: &[u32],
+        dirty_rects: &[PixelRect],
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let width = self.surface_config.width;
+        let height = self.surface_config.height;
+        if width == 0 || height == 0 {
+            return Ok(());
+        }
+
+        let required = width.saturating_mul(height) as usize;
+        if pixels_0rgb.len() < required {
+            return Err("pixel buffer smaller than surface dimensions".into());
+        }
+
+        let surface_texture = match self.surface.get_current_texture() {
+            Ok(texture) => texture,
+            Err(wgpu::SurfaceError::Timeout) => return Ok(()),
+            Err(wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost) => {
+                self.resize()?;
+                match self.surface.get_current_texture() {
+                    Ok(texture) => texture,
+                    Err(wgpu::SurfaceError::Timeout) => return Ok(()),
+                    Err(wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost) => return Ok(()),
+                    Err(wgpu::SurfaceError::OutOfMemory) => {
+                        return Err("wgpu surface out of memory".into())
+                    }
+                    Err(wgpu::SurfaceError::Other) => return Err("wgpu surface error".into()),
+                }
+            }
+            Err(wgpu::SurfaceError::OutOfMemory) => return Err("wgpu surface out of memory".into()),
+            Err(wgpu::SurfaceError::Other) => return Err("wgpu surface error".into()),
+        };
+
+        let full_bounds = PixelRect::new(0, 0, width, height);
+        if dirty_rects.len() == 1 && dirty_rects[0] == full_bounds {
+            self.write_pixels(width, height, &pixels_0rgb[..required]);
+        } else {
+            for rect in dirty_rects {
+                self.write_pixels_region(width, height, &pixels_0rgb[..required], *rect);
+            }
+        }
+
+        self.blit_to_surface(surface_texture)?;
+        Ok(())
+    }
+
     fn write_pixels(&mut self, width: u32, height: u32, pixels_0rgb: &[u32]) {
         let required_bytes = (width as usize)
             .saturating_mul(height as usize)
@@ -216,6 +280,84 @@ impl WgpuBlitRenderer {
             wgpu::Extent3d {
                 width,
                 height,
+                depth_or_array_layers: 1,
+            },
+        );
+    }
+
+    fn write_pixels_region(
+        &mut self,
+        width: u32,
+        height: u32,
+        pixels_0rgb: &[u32],
+        rect: PixelRect,
+    ) {
+        if width == 0 || height == 0 || rect.is_empty() {
+            return;
+        }
+
+        let window_bounds = PixelRect::new(0, 0, width, height);
+        let Some(rect) = rect.intersection(window_bounds) else {
+            return;
+        };
+        if rect.is_empty() {
+            return;
+        }
+
+        let region_width = rect.width as usize;
+        let region_height = rect.height as usize;
+        let required_bytes = region_width
+            .saturating_mul(region_height)
+            .saturating_mul(4);
+        if self.upload_region_bytes.len() != required_bytes {
+            self.upload_region_bytes.resize(required_bytes, 0);
+        }
+
+        let src_width = width as usize;
+        for row in 0..region_height {
+            let src_y = rect.y as usize + row;
+            let src_row_start = src_y
+                .saturating_mul(src_width)
+                .saturating_add(rect.x as usize);
+            let Some(src_row) = pixels_0rgb.get(src_row_start..src_row_start.saturating_add(region_width)) else {
+                continue;
+            };
+
+            let dst_row_start = row.saturating_mul(region_width).saturating_mul(4);
+            for (col, rgb) in src_row.iter().enumerate() {
+                let r = ((rgb >> 16) & 0xff) as u8;
+                let g = ((rgb >> 8) & 0xff) as u8;
+                let b = (rgb & 0xff) as u8;
+                let out = dst_row_start.saturating_add(col.saturating_mul(4));
+                if let Some(px) = self.upload_region_bytes.get_mut(out..out.saturating_add(4)) {
+                    px[0] = r;
+                    px[1] = g;
+                    px[2] = b;
+                    px[3] = 255;
+                }
+            }
+        }
+
+        self.queue.write_texture(
+            wgpu::TexelCopyTextureInfo {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d {
+                    x: rect.x,
+                    y: rect.y,
+                    z: 0,
+                },
+                aspect: wgpu::TextureAspect::All,
+            },
+            &self.upload_region_bytes,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(rect.width.saturating_mul(4)),
+                rows_per_image: Some(rect.height),
+            },
+            wgpu::Extent3d {
+                width: rect.width,
+                height: rect.height,
                 depth_or_array_layers: 1,
             },
         );

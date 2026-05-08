@@ -25,6 +25,8 @@ Companion artifacts:
 - [`/artifacts/render/composition_layer_map.yaml`](../../artifacts/render/composition_layer_map.yaml)
   — machine-readable composition-layer roster, owner split, and design-
   layer bridge.
+- [`/docs/architecture/dirty_region_model.md`](../architecture/dirty_region_model.md)
+  — current dirty-region planning and retained-frame wiring entrypoint.
 - [`/fixtures/render/viewport_cases/`](../../fixtures/render/viewport_cases/)
   — reviewable fixture corpus for viewport invalidation and composition
   conformance.
