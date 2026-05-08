@@ -15,3 +15,7 @@ Evidence storage:
 - Screenshots: `artifacts/milestones/m1/screenshots/`
 - Smoke outputs: `artifacts/milestones/m1/smoke_outputs/`
 
+## Latest validation capture
+
+- Capture: `artifacts/milestones/m1/captures/renderer_validation_capture.json`
+- Command: `cargo test -p aureline-render`

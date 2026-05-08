@@ -4,3 +4,4 @@
 //! helpers that sit below [`crate::bootstrap`] and above the OS bindings.
 
 pub(crate) mod winit_softbuffer;
+pub(crate) mod winit_window;

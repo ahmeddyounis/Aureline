@@ -68,8 +68,13 @@ use aureline_workspace::{
 };
 use serde::Serialize;
 
-use crate::windowing::winit_softbuffer::{SoftbufferSurface, WinitSoftbufferWindow};
+use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
+use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
+use aureline_render::{
+    CompositionLayerId, DamageClassId, DamageEvent, FrameScheduler, FrameSchedulerDecision,
+    WgpuBlitRenderer, WallClock,
+};
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -214,6 +219,19 @@ impl ShellAppearanceState {
 struct NativeShellArgs {
     startup_trace: StartupTraceConfig,
     disable_clipboard: bool,
+    renderer: ShellRendererChoice,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ShellRendererChoice {
+    Gpu,
+    Software,
+}
+
+impl Default for ShellRendererChoice {
+    fn default() -> Self {
+        Self::Gpu
+    }
 }
 
 fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
@@ -231,6 +249,21 @@ fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
                 args.startup_trace.exit_after_first_frame = true;
             }
             "--disable-clipboard" => args.disable_clipboard = true,
+            "--renderer" => {
+                let value = iter.next().ok_or_else(|| {
+                    "--renderer requires a backend name (gpu | software)".to_string()
+                })?;
+                args.renderer = match value.as_str() {
+                    "gpu" => ShellRendererChoice::Gpu,
+                    "software" => ShellRendererChoice::Software,
+                    other => {
+                        return Err(format!(
+                            "unknown renderer backend: {other}\n\n{}",
+                            usage()
+                        ))
+                    }
+                };
+            }
             "--help" | "-h" => return Err(usage()),
             other => return Err(format!("unknown argument: {other}\n\n{}", usage())),
         }
@@ -242,22 +275,62 @@ fn usage() -> String {
     "aureline_shell — Aureline desktop shell\n\n\
      Usage:\n\
      \taureline_shell\n\
-     \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n"
+     \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
+     \taureline_shell --renderer (gpu|software)\n"
         .to_string()
+}
+
+#[derive(Debug)]
+enum ShellRenderBackend {
+    Gpu {
+        renderer: WgpuBlitRenderer,
+        scratch: Vec<u32>,
+        last_size: (u32, u32),
+    },
+    Software {
+        surface: SoftbufferSurface,
+    },
 }
 
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_native_shell_args()
         .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
     let mut startup_trace = StartupTrace::new(args.startup_trace);
+    let clock = WallClock::new();
+    let mut scheduler = FrameScheduler::new();
     let event_loop = EventLoop::new()?;
     let registry = seeded_registry();
-    let (window, mut surface) = WinitSoftbufferWindow::new(
+    let window = WinitWindow::new(
         &event_loop,
         window_title(None, None, None),
         LogicalSize::new(1920.0, 1080.0),
     )?
-    .into_parts();
+    .into_arc();
+
+    let mut render_backend = match args.renderer {
+        ShellRendererChoice::Software => ShellRenderBackend::Software {
+            surface: create_softbuffer_surface(window.clone())?,
+        },
+        ShellRendererChoice::Gpu => match WgpuBlitRenderer::new(window.clone()) {
+            Ok(renderer) => {
+                let size = window.inner_size();
+                ShellRenderBackend::Gpu {
+                    renderer,
+                    scratch: Vec::new(),
+                    last_size: (size.width, size.height),
+                }
+            }
+            Err(err) => {
+                scheduler.note_degraded_renderer(
+                    format!("gpu backend unavailable — {err}"),
+                    &clock,
+                );
+                ShellRenderBackend::Software {
+                    surface: create_softbuffer_surface(window.clone())?,
+                }
+            }
+        },
+    };
 
     let mut frame = {
         let logical = window.inner_size().to_logical::<u32>(window.scale_factor());
@@ -285,7 +358,17 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             .note_non_command_action(format!("recent work registry unavailable — {err}"));
     }
 
-    window.request_redraw();
+    scheduler.invalidate(DamageEvent::new(
+        CompositionLayerId::WindowChromeBase,
+        DamageClassId::StartupFirstPaint,
+    ));
+    scheduler.invalidate(DamageEvent::new(
+        CompositionLayerId::TextAndDecoration,
+        DamageClassId::StartupFirstPaint,
+    ));
+    if scheduler.decision() == FrameSchedulerDecision::RequestRedraw {
+        window.request_redraw();
+    }
 
     event_loop.run(move |event, elwt| match event {
         Event::AboutToWait => {
@@ -296,6 +379,12 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     palette.selected_entry(registry),
                     recent_work.active_workspace_label(),
                 ));
+                scheduler.invalidate(DamageEvent::new(
+                    CompositionLayerId::FloatingSurface,
+                    DamageClassId::FloatingSurfaceToggle,
+                ));
+            }
+            if scheduler.decision() == FrameSchedulerDecision::RequestRedraw {
                 window.request_redraw();
             }
             if let Some(deadline) = palette.next_wake_deadline(now) {
@@ -307,10 +396,23 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => elwt.exit(),
             WindowEvent::Resized(_) => {
-                relayout_and_redraw(&window, &mut surface, &mut frame);
+                relayout_and_redraw(&window, &mut render_backend, &mut frame, &mut scheduler);
             }
             WindowEvent::ScaleFactorChanged { .. } => {
-                relayout_and_redraw(&window, &mut surface, &mut frame);
+                relayout_and_redraw(&window, &mut render_backend, &mut frame, &mut scheduler);
+            }
+            WindowEvent::Occluded(occluded) => {
+                scheduler.set_occluded(occluded, &clock);
+                if !occluded {
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::WindowChromeBase,
+                        DamageClassId::WindowExposedRegionRefresh,
+                    ));
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::TextAndDecoration,
+                        DamageClassId::WindowExposedRegionRefresh,
+                    ));
+                }
             }
             WindowEvent::KeyboardInput { event, .. } => {
                 let before_modifiers = held_modifiers;
@@ -333,13 +435,36 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     event,
                 ) || (palette.is_open() && modifiers_changed)
                 {
-                    window.request_redraw();
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::WindowChromeBase,
+                        DamageClassId::WindowExposedRegionRefresh,
+                    ));
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::TextAndDecoration,
+                        DamageClassId::WindowExposedRegionRefresh,
+                    ));
                 }
             }
             WindowEvent::RedrawRequested => {
+                let pending_frame = scheduler
+                    .begin_frame()
+                    .or_else(|| {
+                        scheduler.invalidate(DamageEvent::new(
+                            CompositionLayerId::WindowChromeBase,
+                            DamageClassId::WindowExposedRegionRefresh,
+                        ));
+                        scheduler.invalidate(DamageEvent::new(
+                            CompositionLayerId::TextAndDecoration,
+                            DamageClassId::WindowExposedRegionRefresh,
+                        ));
+                        scheduler.begin_frame()
+                    });
+                if pending_frame.is_none() {
+                    return;
+                }
                 if let Err(err) = draw(
                     &window,
-                    &mut surface,
+                    &mut render_backend,
                     registry,
                     &frame,
                     &palette,
@@ -355,7 +480,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
                     elwt.exit();
+                    return;
                 }
+                scheduler.note_frame_submitted(&clock);
                 if !startup_trace.first_frame_emitted() {
                     startup_trace.mark(StartupMilestone::FirstShellFrameSubmitted);
                     let _ = startup_trace.write_if_configured();
@@ -2544,8 +2671,9 @@ fn focused_editor_group_is_empty(frame: &DesktopFrame) -> bool {
 
 fn relayout_and_redraw(
     window: &winit::window::Window,
-    surface: &mut SoftbufferSurface,
+    backend: &mut ShellRenderBackend,
     frame: &mut DesktopFrame,
+    scheduler: &mut FrameScheduler,
 ) {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -2554,18 +2682,37 @@ fn relayout_and_redraw(
     let logical = physical.to_logical::<u32>(window.scale_factor());
     frame.relayout(logical.width, logical.height);
 
-    if let (Some(w), Some(h)) = (
-        NonZeroU32::new(physical.width),
-        NonZeroU32::new(physical.height),
-    ) {
-        let _ = surface.resize(w, h);
+    match backend {
+        ShellRenderBackend::Gpu {
+            renderer,
+            last_size,
+            ..
+        } => {
+            *last_size = (physical.width, physical.height);
+            let _ = renderer.resize();
+        }
+        ShellRenderBackend::Software { surface } => {
+            if let (Some(w), Some(h)) = (
+                NonZeroU32::new(physical.width),
+                NonZeroU32::new(physical.height),
+            ) {
+                let _ = surface.resize(w, h);
+            }
+        }
     }
-    window.request_redraw();
+    scheduler.invalidate(DamageEvent::new(
+        CompositionLayerId::WindowChromeBase,
+        DamageClassId::ViewportResizeOrScaleChange,
+    ));
+    scheduler.invalidate(DamageEvent::new(
+        CompositionLayerId::TextAndDecoration,
+        DamageClassId::ViewportResizeOrScaleChange,
+    ));
 }
 
 fn draw(
     window: &winit::window::Window,
-    surface: &mut SoftbufferSurface,
+    backend: &mut ShellRenderBackend,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
@@ -2583,23 +2730,103 @@ fn draw(
     if physical.width == 0 || physical.height == 0 {
         return Ok(());
     }
-    surface.resize(
-        NonZeroU32::new(physical.width).ok_or("window width is zero")?,
-        NonZeroU32::new(physical.height).ok_or("window height is zero")?,
-    )?;
-
-    let mut buffer = surface.buffer_mut()?;
-    let width = physical.width as usize;
-    let height = physical.height as usize;
-    if buffer.len() != width.saturating_mul(height) {
-        return Ok(());
-    }
+    let width = physical.width;
+    let height = physical.height;
 
     let token_registry = seeded_token_registry(appearance.theme())?;
     let style = ShellRenderStyle::load(token_registry)?;
 
+    match backend {
+        ShellRenderBackend::Software { surface } => {
+            surface.resize(
+                NonZeroU32::new(width).ok_or("window width is zero")?,
+                NonZeroU32::new(height).ok_or("window height is zero")?,
+            )?;
+            let mut buffer = surface.buffer_mut()?;
+            if buffer.len() != (width as usize).saturating_mul(height as usize) {
+                return Ok(());
+            }
+            rasterize_shell(
+                window,
+                &mut buffer,
+                width,
+                height,
+                registry,
+                frame,
+                palette,
+                start_center,
+                docs_help_boundary_card,
+                overlay,
+                command_runtime,
+                keybinding_runtime,
+                enablement_runtime,
+                recent_work,
+                appearance,
+                &style,
+                held_modifiers,
+            );
+            buffer.present()?;
+            Ok(())
+        }
+        ShellRenderBackend::Gpu {
+            renderer,
+            scratch,
+            last_size,
+        } => {
+            if *last_size != (width, height) {
+                *last_size = (width, height);
+                let _ = renderer.resize();
+            }
+            let required = (width as usize).saturating_mul(height as usize);
+            if scratch.len() != required {
+                scratch.resize(required, 0);
+            }
+            rasterize_shell(
+                window,
+                scratch,
+                width,
+                height,
+                registry,
+                frame,
+                palette,
+                start_center,
+                docs_help_boundary_card,
+                overlay,
+                command_runtime,
+                keybinding_runtime,
+                enablement_runtime,
+                recent_work,
+                appearance,
+                &style,
+                held_modifiers,
+            );
+            renderer.render_0rgb(scratch)?;
+            Ok(())
+        }
+    }
+}
+
+fn rasterize_shell(
+    window: &winit::window::Window,
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    registry: &CommandRegistry,
+    frame: &DesktopFrame,
+    palette: &CommandPaletteState,
+    start_center: &StartCenterState,
+    docs_help_boundary_card: &EmbeddedBoundaryCardRecord,
+    overlay: Option<&ShellOverlayState>,
+    command_runtime: &CommandRuntimeState,
+    keybinding_runtime: &KeybindingRuntimeState,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    recent_work: &RecentWorkRuntimeState,
+    appearance: &ShellAppearanceState,
+    style: &ShellRenderStyle,
+    held_modifiers: &HeldModifiers,
+) {
     // Background.
-    fill(&mut buffer, style.tokens.bg_canvas);
+    fill(buffer, style.tokens.bg_canvas);
 
     let scale = window.scale_factor();
     for zone in ShellZoneId::ALL {
@@ -2612,23 +2839,17 @@ fn draw(
         };
         let rect = to_physical_rect(logical_rect, scale);
         let color = style.tokens.zone_background(zone);
-        fill_rect(&mut buffer, physical.width, physical.height, rect, color);
+        fill_rect(buffer, width, height, rect, color);
 
         match zone {
             ShellZoneId::MainWorkspace => {
                 for group in frame.editor_group_layouts() {
                     let group_rect = to_physical_rect(group.rect, scale);
-                    fill_rect(
-                        &mut buffer,
-                        physical.width,
-                        physical.height,
-                        group_rect,
-                        style.tokens.bg_surface,
-                    );
+                    fill_rect(buffer, width, height, group_rect, style.tokens.bg_surface);
                     stroke_rect(
-                        &mut buffer,
-                        physical.width,
-                        physical.height,
+                        buffer,
+                        width,
+                        height,
                         group_rect,
                         style.stroke_default,
                         style.tokens.border_default,
@@ -2637,9 +2858,9 @@ fn draw(
                         && frame.focused_zone() == ShellZoneId::MainWorkspace
                     {
                         stroke_rect(
-                            &mut buffer,
-                            physical.width,
-                            physical.height,
+                            buffer,
+                            width,
+                            height,
                             group_rect,
                             style.stroke_focus,
                             style.tokens.focus_ring,
@@ -2650,9 +2871,9 @@ fn draw(
                         let focused = group.group_id == frame.focused_editor_group()
                             && frame.focused_zone() == ShellZoneId::MainWorkspace;
                         draw_start_center_surface(
-                            &mut buffer,
-                            physical.width,
-                            physical.height,
+                            buffer,
+                            width,
+                            height,
                             registry,
                             start_center,
                             enablement_runtime,
@@ -2672,9 +2893,9 @@ fn draw(
                             }
                         );
                         draw_text(
-                            &mut buffer,
-                            physical.width,
-                            physical.height,
+                            buffer,
+                            width,
+                            height,
                             group_rect.x.saturating_add(style.space_2),
                             group_rect.y.saturating_add(style.space_2),
                             1,
@@ -2691,9 +2912,9 @@ fn draw(
                         && slot_id == "slot.right_inspector.contextual_detail"
                     {
                         draw_docs_help_boundary_card(
-                            &mut buffer,
-                            physical.width,
-                            physical.height,
+                            buffer,
+                            width,
+                            height,
                             slot_rect,
                             docs_help_boundary_card,
                             keybinding_runtime,
@@ -2702,25 +2923,19 @@ fn draw(
                         );
                         continue;
                     }
-                    fill_rect(
-                        &mut buffer,
-                        physical.width,
-                        physical.height,
-                        slot_rect,
-                        style.tokens.bg_surface,
-                    );
+                    fill_rect(buffer, width, height, slot_rect, style.tokens.bg_surface);
                     stroke_rect(
-                        &mut buffer,
-                        physical.width,
-                        physical.height,
+                        buffer,
+                        width,
+                        height,
                         slot_rect,
                         style.stroke_default,
                         style.tokens.border_default,
                     );
                     draw_text(
-                        &mut buffer,
-                        physical.width,
-                        physical.height,
+                        buffer,
+                        width,
+                        height,
                         slot_rect.x.saturating_add(style.space_2),
                         slot_rect.y.saturating_add(style.space_2),
                         1,
@@ -2733,9 +2948,9 @@ fn draw(
 
         if zone == frame.focused_zone() {
             stroke_rect(
-                &mut buffer,
-                physical.width,
-                physical.height,
+                buffer,
+                width,
+                height,
                 rect,
                 style.stroke_focus,
                 style.tokens.focus_ring,
@@ -2744,9 +2959,9 @@ fn draw(
 
         let zone_label = format!("zone: {}", zone.name());
         draw_text(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             rect.x.saturating_add(style.space_2),
             rect.y.saturating_add(style.space_2 / 2),
             1,
@@ -2757,9 +2972,9 @@ fn draw(
 
     if palette.is_open() {
         draw_command_palette_overlay(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             scale,
             registry,
             frame,
@@ -2774,9 +2989,9 @@ fn draw(
 
     if let Some(overlay) = overlay {
         draw_shell_overlay(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             window.scale_factor(),
             registry,
             frame,
@@ -2867,24 +3082,24 @@ fn draw(
             badge_h.min(status.height.saturating_sub(1)),
         );
         fill_rect(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             badge_rect,
             badge_fill,
         );
         stroke_rect(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             badge_rect,
             style.stroke_default,
             badge_border,
         );
         draw_text(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             badge_rect.x.saturating_add(badge_padding),
             badge_rect.y.saturating_add(badge_padding),
             badge_scale,
@@ -2893,9 +3108,9 @@ fn draw(
         );
 
         draw_text(
-            &mut buffer,
-            physical.width,
-            physical.height,
+            buffer,
+            width,
+            height,
             status
                 .x
                 .saturating_add(style.space_2)
@@ -2907,9 +3122,6 @@ fn draw(
             style.tokens.text_muted,
         );
     }
-
-    buffer.present()?;
-    Ok(())
 }
 
 #[derive(Debug, Clone)]
