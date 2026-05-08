@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::num::NonZeroU32;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
@@ -47,8 +48,17 @@ use aureline_shell::start_center::{
     build_action_rows as start_center_action_rows, StartCenterRuntimeInputs, StartCenterState,
     START_CENTER_PRESENTATION_LABEL, START_CENTER_PRESENTATION_SUBTITLE,
 };
+use aureline_shell::workspace_switcher::{
+    build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
+    WORKSPACE_SWITCHER_PRESENTATION_LABEL,
+};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
+};
+use aureline_workspace::{
+    PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
+    RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
+    RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
 };
 
 use arboard::Clipboard;
@@ -201,7 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let registry = seeded_registry();
     let window = Arc::new(
         WindowBuilder::new()
-            .with_title(window_title(None, None))
+            .with_title(window_title(None, None, None))
             .with_inner_size(LogicalSize::new(1920.0, 1080.0))
             .build(&event_loop)?,
     );
@@ -220,8 +230,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut command_runtime = CommandRuntimeState::default();
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
+    let mut recent_work = RecentWorkRuntimeState::load();
     let mut clipboard = ClipboardState::new();
     let mut appearance = ShellAppearanceState::default();
+
+    if let Some(err) = recent_work.last_error.as_deref() {
+        command_runtime.note_non_command_action(format!("recent work registry unavailable — {err}"));
+    }
 
     window.request_redraw();
 
@@ -232,6 +247,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
                     palette.selected_entry(registry),
+                    recent_work.active_workspace_label(),
                 ));
                 window.request_redraw();
             }
@@ -263,6 +279,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &mut command_runtime,
                     &mut keybinding_runtime,
                     &mut enablement_runtime,
+                    &mut recent_work,
                     &mut clipboard,
                     &mut appearance,
                     &held_modifiers,
@@ -284,6 +301,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     &command_runtime,
                     &keybinding_runtime,
                     &enablement_runtime,
+                    &recent_work,
                     &appearance,
                     &held_modifiers,
                 ) {
@@ -301,8 +319,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn window_title(
     focused: Option<ShellZoneId>,
     palette_selected: Option<&CommandRegistryEntryRecord>,
+    active_workspace_label: Option<&str>,
 ) -> String {
     let identity = build_info::build_identity();
+    let workspace_suffix = active_workspace_label
+        .map(|label| format!(" — workspace: {label}"))
+        .unwrap_or_default();
     let focus_suffix = focused
         .map(|z| format!(" — focus: {}", z.name()))
         .unwrap_or_default();
@@ -310,7 +332,8 @@ fn window_title(
         .map(|entry| format!(" — cmd: {}", entry.command_id()))
         .unwrap_or_default();
     format!(
-        "Aureline Shell{}{}{}",
+        "Aureline Shell{}{}{}{}",
+        workspace_suffix,
         focus_suffix,
         palette_suffix,
         format!(" ({})", identity.commit_short)
@@ -484,6 +507,154 @@ impl CommandEnablementRuntimeState {
     }
 }
 
+#[derive(Debug, Clone)]
+struct RecentWorkRuntimeState {
+    store_path: PathBuf,
+    registry: RecentWorkRegistry,
+    active_recent_work_id: Option<String>,
+    active_workspace_label: Option<String>,
+    suspended_frames: HashMap<String, DesktopFrame>,
+    last_error: Option<String>,
+}
+
+impl RecentWorkRuntimeState {
+    fn load() -> Self {
+        let store_path = RecentWorkRegistry::default_store_path();
+        match RecentWorkRegistry::load_or_default(&store_path) {
+            Ok(registry) => Self {
+                store_path,
+                registry,
+                active_recent_work_id: None,
+                active_workspace_label: None,
+                suspended_frames: HashMap::new(),
+                last_error: None,
+            },
+            Err(err) => Self {
+                store_path,
+                registry: RecentWorkRegistry {
+                    record_kind: RecentWorkRegistryRecordKind::RecentWorkRegistryRecord,
+                    recent_work_registry_schema_version: 1,
+                    updated_at: "mono:0000:00:00:00.0000".to_string(),
+                    entries: Vec::new(),
+                },
+                active_recent_work_id: None,
+                active_workspace_label: None,
+                suspended_frames: HashMap::new(),
+                last_error: Some(err.to_string()),
+            },
+        }
+    }
+
+    fn active_workspace_label(&self) -> Option<&str> {
+        self.active_workspace_label.as_deref()
+    }
+
+    fn find_entry(&self, recent_work_id: &str) -> Option<&RecentWorkEntryRecord> {
+        self.registry
+            .entries
+            .iter()
+            .find(|row| row.recent_work_id == recent_work_id)
+    }
+
+    fn save(&self) -> Result<(), RecentWorkRegistryError> {
+        self.registry.save(&self.store_path)
+    }
+
+    fn note_local_folder_opened(&mut self, opened_path: &Path, trust_state: TrustState) {
+        let label = opened_path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| opened_path.display().to_string());
+        let subtitle = opened_path.display().to_string();
+        let identity_key = opened_path.to_string_lossy();
+        let recent_work_id = recent_work_id_for(TargetKind::LocalFolder, &identity_key);
+        let opened_at = mono_timestamp_now();
+
+        let entry = RecentWorkEntryRecord {
+            record_kind: RecentWorkEntryRecordKind::RecentWorkEntryRecord,
+            entry_and_restore_schema_version: 1,
+            recent_work_id: recent_work_id.clone(),
+            presentation_label: label.clone(),
+            presentation_subtitle: Some(subtitle),
+            target_kind: TargetKind::LocalFolder,
+            target_state: RecentWorkTargetState::Reachable,
+            portability_class: PortabilityClass::LocalOnly,
+            trust_state,
+            restore_availability: RestoreAvailability::None,
+            safe_recovery_actions: vec![
+                SafeRecoveryAction::Open,
+                SafeRecoveryAction::Pin,
+                SafeRecoveryAction::RemoveFromRecents,
+                SafeRecoveryAction::RevealInExplorer,
+            ],
+            pinned: false,
+            last_opened_at: opened_at.clone(),
+            filesystem_identity_ref: None,
+            remote_target_descriptor_ref: None,
+            artifact_descriptor_ref: None,
+            recovery_checkpoint_refs: None,
+        };
+
+        self.registry.updated_at = opened_at;
+        self.registry.upsert(entry);
+        self.active_recent_work_id = Some(recent_work_id);
+        self.active_workspace_label = Some(label);
+    }
+
+    fn suspend_active_frame(&mut self, frame: &DesktopFrame) {
+        let Some(active_id) = self.active_recent_work_id.as_deref() else {
+            return;
+        };
+        self.suspended_frames
+            .insert(active_id.to_string(), frame.clone());
+    }
+
+    fn activate_recent_work(
+        &mut self,
+        frame: &mut DesktopFrame,
+        window_size: (u32, u32),
+        entry: &RecentWorkEntryRecord,
+    ) {
+        if let Some(snapshot) = self.suspended_frames.get(&entry.recent_work_id).cloned() {
+            *frame = snapshot;
+            frame.relayout(window_size.0, window_size.1);
+        } else {
+            *frame = DesktopFrame::new(window_size.0, window_size.1);
+        }
+        self.active_recent_work_id = Some(entry.recent_work_id.clone());
+        self.active_workspace_label = Some(entry.presentation_label.clone());
+    }
+}
+
+fn recent_work_id_for(target_kind: TargetKind, identity_key: &str) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in identity_key.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("recent:{}:{:016x}", target_kind.as_str(), hash)
+}
+
+fn mono_timestamp_now() -> String {
+    let duration = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    format!(
+        "mono:unix:{}.{:09}",
+        duration.as_secs(),
+        duration.subsec_nanos()
+    )
+}
+
+fn trust_state_for_recent_work(value: &str) -> TrustState {
+    match value {
+        "trusted" => TrustState::Trusted,
+        "restricted" => TrustState::Restricted,
+        "pending_evaluation" => TrustState::PendingEvaluation,
+        _ => TrustState::PendingEvaluation,
+    }
+}
+
 fn alias_used_for(entry: &CommandRegistryEntryRecord, origin: DispatchOrigin) -> AliasUsedBlock {
     match origin {
         DispatchOrigin::StartCenter | DispatchOrigin::CommandPalette => AliasUsedBlock {
@@ -601,6 +772,7 @@ fn dispatch_command_id(
     command_id: &str,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
 ) -> bool {
     dispatch_command_id_with_arguments(
         command_runtime,
@@ -611,6 +783,7 @@ fn dispatch_command_id(
         command_id,
         origin,
         enablement_runtime,
+        recent_work,
         None,
     )
 }
@@ -624,6 +797,7 @@ fn dispatch_command_id_with_arguments(
     command_id: &str,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
     let Some(entry) = registry.get(command_id).cloned() else {
@@ -638,6 +812,7 @@ fn dispatch_command_id_with_arguments(
         &entry,
         origin,
         enablement_runtime,
+        recent_work,
         argument_provenance_map_override,
     )
 }
@@ -651,6 +826,7 @@ fn dispatch_registry_entry(
     entry: &CommandRegistryEntryRecord,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
     let preview_record_ref: Option<String> = None;
@@ -783,6 +959,28 @@ fn dispatch_registry_entry(
             let invocation = invocation_and_result_open_folder_succeeded(&session);
             command_runtime.record(invocation);
             frame.open_placeholder_tab();
+            let scope_ref = session
+                .argument_provenance_map
+                .iter()
+                .find(|row| row.argument_name == "workspace_scope_ref")
+                .and_then(|row| row.resolved_value_ref.as_deref());
+            if scope_ref
+                .is_some_and(|scope| scope.contains("workspace_file"))
+            {
+                command_runtime.note_non_command_action(
+                    "open workspace requested (workspace file selection not implemented)",
+                );
+                return true;
+            }
+
+            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            recent_work.note_local_folder_opened(
+                &cwd,
+                trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str()),
+            );
+            if let Err(err) = recent_work.save() {
+                command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
+            }
             true
         }
         "cmd:workspace.import_profile" => {
@@ -1059,6 +1257,330 @@ fn finalize_command_overlay_decision(
     }
 }
 
+fn normalize_entry_pin_actions(entry: &mut RecentWorkEntryRecord) {
+    if entry.pinned {
+        entry.safe_recovery_actions
+            .retain(|action| *action != SafeRecoveryAction::Pin);
+        if !entry
+            .safe_recovery_actions
+            .contains(&SafeRecoveryAction::Unpin)
+        {
+            entry.safe_recovery_actions.push(SafeRecoveryAction::Unpin);
+        }
+    } else {
+        entry.safe_recovery_actions
+            .retain(|action| *action != SafeRecoveryAction::Unpin);
+        if !entry.safe_recovery_actions.contains(&SafeRecoveryAction::Pin) {
+            entry.safe_recovery_actions.push(SafeRecoveryAction::Pin);
+        }
+    }
+}
+
+fn activate_recent_work_entry(
+    window_dims: (u32, u32),
+    workspace_trust_state: &mut String,
+    recent_work: &mut RecentWorkRuntimeState,
+    frame: &mut DesktopFrame,
+    command_runtime: &mut CommandRuntimeState,
+    mut entry: RecentWorkEntryRecord,
+    trust_override: Option<TrustState>,
+) {
+    recent_work.suspend_active_frame(frame);
+    recent_work.activate_recent_work(frame, window_dims, &entry);
+
+    let trust_state = trust_override.unwrap_or(entry.trust_state);
+    *workspace_trust_state = trust_state.as_str().to_string();
+
+    let opened_at = mono_timestamp_now();
+    entry.last_opened_at = opened_at.clone();
+    recent_work.registry.updated_at = opened_at;
+    recent_work.registry.upsert(entry);
+
+    if let Err(err) = recent_work.save() {
+        command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
+    } else {
+        command_runtime.note_non_command_action("workspace switch applied");
+    }
+}
+
+fn apply_workspace_switcher_decision(
+    window_size: &LogicalSize<u32>,
+    workspace_trust_state: &mut String,
+    recent_work: &mut RecentWorkRuntimeState,
+    frame: &mut DesktopFrame,
+    command_runtime: &mut CommandRuntimeState,
+    decision: WorkspaceSwitcherDecision,
+) {
+    let window_dims = (window_size.width, window_size.height);
+
+    match decision {
+        WorkspaceSwitcherDecision::Activate { recent_work_id } => {
+            let Some(entry) = recent_work.find_entry(&recent_work_id).cloned() else {
+                command_runtime.note_non_command_action(format!(
+                    "workspace switch failed: missing recent-work id {recent_work_id}"
+                ));
+                return;
+            };
+
+            let preferred_open = [
+                SafeRecoveryAction::Open,
+                SafeRecoveryAction::OpenWithoutRestore,
+                SafeRecoveryAction::OpenReadOnlyCachedView,
+                SafeRecoveryAction::OpenRestricted,
+                SafeRecoveryAction::OpenInNewWindow,
+            ]
+            .into_iter()
+            .find(|candidate| entry.safe_recovery_actions.contains(candidate));
+
+            match preferred_open {
+                Some(SafeRecoveryAction::OpenRestricted) => {
+                    activate_recent_work_entry(
+                        window_dims,
+                        workspace_trust_state,
+                        recent_work,
+                        frame,
+                        command_runtime,
+                        entry,
+                        Some(TrustState::Restricted),
+                    );
+                }
+                Some(SafeRecoveryAction::OpenInNewWindow) => {
+                    command_runtime.note_non_command_action(
+                        "open in new window not implemented; opening in current window",
+                    );
+                    activate_recent_work_entry(
+                        window_dims,
+                        workspace_trust_state,
+                        recent_work,
+                        frame,
+                        command_runtime,
+                        entry,
+                        None,
+                    );
+                }
+                Some(_) => activate_recent_work_entry(
+                    window_dims,
+                    workspace_trust_state,
+                    recent_work,
+                    frame,
+                    command_runtime,
+                    entry,
+                    None,
+                ),
+                None => command_runtime.note_non_command_action(format!(
+                    "workspace switch blocked: no open action available ({recent_work_id})"
+                )),
+            }
+        }
+        WorkspaceSwitcherDecision::SetPinned {
+            recent_work_id,
+            pinned,
+        } => {
+            let row = recent_work
+                .registry
+                .entries
+                .iter_mut()
+                .find(|row| row.recent_work_id == recent_work_id);
+            let Some(row) = row else {
+                command_runtime.note_non_command_action(format!(
+                    "pin update failed: missing recent-work id {recent_work_id}"
+                ));
+                return;
+            };
+
+            row.pinned = pinned;
+            normalize_entry_pin_actions(row);
+            recent_work.registry.updated_at = mono_timestamp_now();
+            if let Err(err) = recent_work.save() {
+                command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
+            } else {
+                command_runtime.note_non_command_action(if pinned {
+                    "pinned recent work"
+                } else {
+                    "unpinned recent work"
+                });
+            }
+        }
+        WorkspaceSwitcherDecision::Remove { recent_work_id } => {
+            if recent_work.registry.remove(&recent_work_id) {
+                recent_work.registry.updated_at = mono_timestamp_now();
+                if let Err(err) = recent_work.save() {
+                    command_runtime.note_non_command_action(format!(
+                        "recent work remove saved failed — {err}"
+                    ));
+                } else {
+                    command_runtime.note_non_command_action("removed recent work entry");
+                }
+            } else {
+                command_runtime.note_non_command_action(format!(
+                    "remove failed: missing recent-work id {recent_work_id}"
+                ));
+            }
+        }
+        WorkspaceSwitcherDecision::PerformRecoveryAction {
+            recent_work_id,
+            action,
+        } => match action {
+            SafeRecoveryAction::Open | SafeRecoveryAction::OpenWithoutRestore => {
+                let Some(entry) = recent_work.find_entry(&recent_work_id).cloned() else {
+                    command_runtime.note_non_command_action(format!(
+                        "workspace switch failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+                activate_recent_work_entry(
+                    window_dims,
+                    workspace_trust_state,
+                    recent_work,
+                    frame,
+                    command_runtime,
+                    entry,
+                    None,
+                );
+            }
+            SafeRecoveryAction::OpenReadOnlyCachedView => {
+                command_runtime.note_non_command_action(
+                    "read-only cached view not implemented; opening current placeholder workspace",
+                );
+                let Some(entry) = recent_work.find_entry(&recent_work_id).cloned() else {
+                    command_runtime.note_non_command_action(format!(
+                        "workspace switch failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+                activate_recent_work_entry(
+                    window_dims,
+                    workspace_trust_state,
+                    recent_work,
+                    frame,
+                    command_runtime,
+                    entry,
+                    None,
+                );
+            }
+            SafeRecoveryAction::OpenRestricted => {
+                let Some(entry) = recent_work.find_entry(&recent_work_id).cloned() else {
+                    command_runtime.note_non_command_action(format!(
+                        "workspace switch failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+                activate_recent_work_entry(
+                    window_dims,
+                    workspace_trust_state,
+                    recent_work,
+                    frame,
+                    command_runtime,
+                    entry,
+                    Some(TrustState::Restricted),
+                );
+            }
+            SafeRecoveryAction::OpenInNewWindow => {
+                command_runtime.note_non_command_action(
+                    "open in new window not implemented; opening in current window",
+                );
+                let Some(entry) = recent_work.find_entry(&recent_work_id).cloned() else {
+                    command_runtime.note_non_command_action(format!(
+                        "workspace switch failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+                activate_recent_work_entry(
+                    window_dims,
+                    workspace_trust_state,
+                    recent_work,
+                    frame,
+                    command_runtime,
+                    entry,
+                    None,
+                );
+            }
+            SafeRecoveryAction::Pin => {
+                let row = recent_work
+                    .registry
+                    .entries
+                    .iter_mut()
+                    .find(|row| row.recent_work_id == recent_work_id);
+                let Some(row) = row else {
+                    command_runtime.note_non_command_action(format!(
+                        "pin update failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+
+                row.pinned = true;
+                normalize_entry_pin_actions(row);
+                recent_work.registry.updated_at = mono_timestamp_now();
+                if let Err(err) = recent_work.save() {
+                    command_runtime.note_non_command_action(format!(
+                        "recent work save failed — {err}"
+                    ));
+                } else {
+                    command_runtime.note_non_command_action("pinned recent work");
+                }
+            }
+            SafeRecoveryAction::Unpin => {
+                let row = recent_work
+                    .registry
+                    .entries
+                    .iter_mut()
+                    .find(|row| row.recent_work_id == recent_work_id);
+                let Some(row) = row else {
+                    command_runtime.note_non_command_action(format!(
+                        "pin update failed: missing recent-work id {recent_work_id}"
+                    ));
+                    return;
+                };
+
+                row.pinned = false;
+                normalize_entry_pin_actions(row);
+                recent_work.registry.updated_at = mono_timestamp_now();
+                if let Err(err) = recent_work.save() {
+                    command_runtime.note_non_command_action(format!(
+                        "recent work save failed — {err}"
+                    ));
+                } else {
+                    command_runtime.note_non_command_action("unpinned recent work");
+                }
+            }
+            SafeRecoveryAction::RemoveFromRecents => {
+                if recent_work.registry.remove(&recent_work_id) {
+                    recent_work.registry.updated_at = mono_timestamp_now();
+                    if let Err(err) = recent_work.save() {
+                        command_runtime.note_non_command_action(format!(
+                            "recent work remove saved failed — {err}"
+                        ));
+                    } else {
+                        command_runtime.note_non_command_action("removed recent work entry");
+                    }
+                } else {
+                    command_runtime.note_non_command_action(format!(
+                        "remove failed: missing recent-work id {recent_work_id}"
+                    ));
+                }
+            }
+            SafeRecoveryAction::LocateMissingTarget => command_runtime.note_non_command_action(
+                "locate missing target not implemented in shell build",
+            ),
+            SafeRecoveryAction::Reconnect => {
+                command_runtime.note_non_command_action("reconnect not implemented in shell build")
+            }
+            SafeRecoveryAction::Reauth => {
+                command_runtime.note_non_command_action("reauth not implemented in shell build")
+            }
+            SafeRecoveryAction::RetryLater => {
+                command_runtime.note_non_command_action("retry scheduled (placeholder)")
+            }
+            SafeRecoveryAction::CompareBeforeRestore => command_runtime.note_non_command_action(
+                "compare-before-restore not implemented in shell build",
+            ),
+            SafeRecoveryAction::RevealInExplorer => command_runtime.note_non_command_action(
+                "reveal in explorer not implemented in shell build",
+            ),
+        },
+    }
+}
+
 fn invocation_and_result_import_profile_cancelled(
     session: &CommandInvocationSession,
 ) -> RecordedCommandInvocation {
@@ -1266,6 +1788,7 @@ fn handle_key_event(
     command_runtime: &mut CommandRuntimeState,
     keybinding_runtime: &mut KeybindingRuntimeState,
     enablement_runtime: &mut CommandEnablementRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
     clipboard: &mut ClipboardState,
     appearance: &mut ShellAppearanceState,
     modifiers: &HeldModifiers,
@@ -1370,7 +1893,11 @@ fn handle_key_event(
                 frame.focus_zone(ShellZoneId::TransientOverlay);
                 command_runtime
                     .note_non_command_action(format!("diagnostics — {}", entry.command_id()));
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    None,
+                    recent_work.active_workspace_label(),
+                ));
                 true
             }
             KeyCode::Enter => {
@@ -1387,19 +1914,32 @@ fn handle_key_event(
                             &command_id,
                             DispatchOrigin::CommandPalette,
                             enablement_runtime,
+                            recent_work,
                         );
-                        window.set_title(&window_title(Some(frame.focused_zone()), None));
+                        window.set_title(&window_title(
+                            Some(frame.focused_zone()),
+                            None,
+                            recent_work.active_workspace_label(),
+                        ));
                         changed
                     }
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
                         frame.open_placeholder_tab();
                         command_runtime
                             .note_non_command_action(format!("opened file — {}", relative_path));
-                        window.set_title(&window_title(Some(frame.focused_zone()), None));
+                        window.set_title(&window_title(
+                            Some(frame.focused_zone()),
+                            None,
+                            recent_work.active_workspace_label(),
+                        ));
                         true
                     }
                     None => {
-                        window.set_title(&window_title(Some(frame.focused_zone()), None));
+                        window.set_title(&window_title(
+                            Some(frame.focused_zone()),
+                            None,
+                            recent_work.active_workspace_label(),
+                        ));
                         true
                     }
                 }
@@ -1407,7 +1947,11 @@ fn handle_key_event(
             KeyCode::Escape => {
                 palette.write_snapshot_log(registry, &keybinding_runtime.shortcuts_by_command_id);
                 palette.close();
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    None,
+                    recent_work.active_workspace_label(),
+                ));
                 true
             }
             KeyCode::ArrowDown => {
@@ -1415,6 +1959,7 @@ fn handle_key_event(
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
                     palette.selected_entry(registry),
+                    recent_work.active_workspace_label(),
                 ));
                 handled
             }
@@ -1423,6 +1968,7 @@ fn handle_key_event(
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
                     palette.selected_entry(registry),
+                    recent_work.active_workspace_label(),
                 ));
                 handled
             }
@@ -1432,6 +1978,7 @@ fn handle_key_event(
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
                     palette.selected_entry(registry),
+                    recent_work.active_workspace_label(),
                 ));
                 handled
             }
@@ -1450,6 +1997,7 @@ fn handle_key_event(
                             window.set_title(&window_title(
                                 Some(frame.focused_zone()),
                                 palette.selected_entry(registry),
+                                recent_work.active_workspace_label(),
                             ));
                             return true;
                         }
@@ -1461,15 +2009,29 @@ fn handle_key_event(
     }
 
     if let Some(state) = overlay.as_mut() {
-        let outcome = state.handle_key(code, frame, keybinding_runtime);
+        let outcome = state.handle_key(code, event.text.as_deref(), frame, keybinding_runtime);
         if let Some(decision) = outcome.command_decision {
             finalize_command_overlay_decision(command_runtime, registry, decision);
+        }
+        if let Some(decision) = outcome.workspace_switcher_decision {
+            apply_workspace_switcher_decision(
+                &window.inner_size().to_logical::<u32>(window.scale_factor()),
+                &mut enablement_runtime.workspace_trust_state,
+                recent_work,
+                frame,
+                command_runtime,
+                decision,
+            );
         }
         if outcome.handled {
             if state.closed {
                 *overlay = None;
             }
-            window.set_title(&window_title(Some(frame.focused_zone()), None));
+            window.set_title(&window_title(
+                Some(frame.focused_zone()),
+                None,
+                recent_work.active_workspace_label(),
+            ));
             return true;
         }
         return false;
@@ -1496,6 +2058,7 @@ fn handle_key_event(
                     candidate.command.command_id.as_str(),
                     DispatchOrigin::KeybindingChord,
                     enablement_runtime,
+                    recent_work,
                 );
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
@@ -1503,6 +2066,7 @@ fn handle_key_event(
                         .is_open()
                         .then(|| palette.selected_entry(registry))
                         .flatten(),
+                    recent_work.active_workspace_label(),
                 ));
                 return changed;
             }
@@ -1525,12 +2089,20 @@ fn handle_key_event(
         match code {
             KeyCode::ArrowDown => {
                 start_center.select_next(row_count);
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    None,
+                    recent_work.active_workspace_label(),
+                ));
                 return true;
             }
             KeyCode::ArrowUp => {
                 start_center.select_prev(row_count);
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    None,
+                    recent_work.active_workspace_label(),
+                ));
                 return true;
             }
             KeyCode::Enter => {
@@ -1547,9 +2119,14 @@ fn handle_key_event(
                     row.command_id,
                     DispatchOrigin::StartCenter,
                     enablement_runtime,
+                    recent_work,
                     Some(row.argument_provenance_map.clone()),
                 );
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    None,
+                    recent_work.active_workspace_label(),
+                ));
                 return changed;
             }
             _ => {}
@@ -1559,7 +2136,11 @@ fn handle_key_event(
     match code {
         KeyCode::Tab => {
             frame.focus_next();
-            window.set_title(&window_title(Some(frame.focused_zone()), None));
+            window.set_title(&window_title(
+                Some(frame.focused_zone()),
+                None,
+                recent_work.active_workspace_label(),
+            ));
             true
         }
         KeyCode::KeyO => {
@@ -1604,7 +2185,11 @@ fn handle_key_event(
         KeyCode::KeyG => {
             if modifiers.ctrl_or_logo() {
                 frame.focus_next_editor_group();
-                window.set_title(&window_title(Some(frame.focused_zone()), None));
+                window.set_title(&window_title(
+                    Some(frame.focused_zone()),
+                    None,
+                    recent_work.active_workspace_label(),
+                ));
                 true
             } else {
                 false
@@ -1622,6 +2207,20 @@ fn handle_key_event(
                 *overlay = Some(ShellOverlayState::inspector_sheet(
                     frame.focused_zone(),
                     frame.focused_editor_group(),
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
+                true
+            } else {
+                false
+            }
+        }
+        KeyCode::KeyR => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                *overlay = Some(ShellOverlayState::workspace_switcher(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                    &recent_work.registry,
+                    enablement_runtime.workspace_trust_state.as_str(),
                 ));
                 frame.focus_zone(ShellZoneId::TransientOverlay);
                 true
@@ -1715,6 +2314,7 @@ fn draw(
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    recent_work: &RecentWorkRuntimeState,
     appearance: &ShellAppearanceState,
     held_modifiers: &HeldModifiers,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1938,10 +2538,13 @@ fn draw(
         let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
         let trust_state = enablement_runtime.workspace_trust_state.as_str();
         let theme_label = appearance.theme().token();
+        let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
+        let recent_work_store = recent_work.store_path.display();
         let text = format!(
-            "theme: {}   fallback_modes: [{}]   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver), Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Cmd/Ctrl+Shift+H high contrast   packets: .logs/command_packets",
+            "theme: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver), Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Cmd/Ctrl+Shift+H high contrast   packets: .logs/command_packets   recents: {}",
             theme_label,
             modes,
+            active_workspace,
             last,
             last_keybinding,
             trust_state,
@@ -1949,7 +2552,8 @@ fn draw(
             policy,
             keybinding_runtime.active_preset.display_name(),
             keybinding_runtime.active_preset.preset_ref(),
-            palette_keys
+            palette_keys,
+            recent_work_store
         );
 
         let badge_text = match trust_state {
@@ -2046,6 +2650,104 @@ struct CommandTraceOverlay {
 }
 
 #[derive(Debug, Clone)]
+enum WorkspaceSwitcherDecision {
+    Activate { recent_work_id: String },
+    SetPinned { recent_work_id: String, pinned: bool },
+    Remove { recent_work_id: String },
+    PerformRecoveryAction {
+        recent_work_id: String,
+        action: SafeRecoveryAction,
+    },
+}
+
+#[derive(Debug, Clone)]
+enum WorkspaceSwitcherOverlayMode {
+    List,
+    ConfirmSwitch { recent_work_id: String },
+    ConfirmRemove { recent_work_id: String },
+    RecoveryActions { recent_work_id: String, selection: usize },
+}
+
+#[derive(Debug, Clone)]
+struct WorkspaceSwitcherOverlay {
+    state: WorkspaceSwitcherState,
+    snapshot: RecentWorkRegistry,
+    mode: WorkspaceSwitcherOverlayMode,
+    current_trust_state: String,
+}
+
+impl WorkspaceSwitcherOverlay {
+    fn new(snapshot: RecentWorkRegistry, current_trust_state: String) -> Self {
+        Self {
+            state: WorkspaceSwitcherState::new(),
+            snapshot,
+            mode: WorkspaceSwitcherOverlayMode::List,
+            current_trust_state,
+        }
+    }
+
+    fn rows(&self) -> Vec<WorkspaceSwitcherRow> {
+        build_switcher_rows(&self.snapshot, self.state.query())
+    }
+
+    fn selected_row(&self) -> Option<WorkspaceSwitcherRow> {
+        let rows = self.rows();
+        let idx = self.state.selection().min(rows.len().saturating_sub(1));
+        rows.get(idx).cloned()
+    }
+
+    fn toggle_pinned(&mut self, recent_work_id: &str) -> Option<bool> {
+        let row = self
+            .snapshot
+            .entries
+            .iter_mut()
+            .find(|row| row.recent_work_id == recent_work_id)?;
+        if !row
+            .safe_recovery_actions
+            .iter()
+            .any(|action| matches!(action, SafeRecoveryAction::Pin | SafeRecoveryAction::Unpin))
+        {
+            return None;
+        }
+        row.pinned = !row.pinned;
+        if row.pinned {
+            row.safe_recovery_actions
+                .retain(|action| *action != SafeRecoveryAction::Pin);
+            if !row
+                .safe_recovery_actions
+                .contains(&SafeRecoveryAction::Unpin)
+            {
+                row.safe_recovery_actions.push(SafeRecoveryAction::Unpin);
+            }
+        } else {
+            row.safe_recovery_actions
+                .retain(|action| *action != SafeRecoveryAction::Unpin);
+            if !row.safe_recovery_actions.contains(&SafeRecoveryAction::Pin) {
+                row.safe_recovery_actions.push(SafeRecoveryAction::Pin);
+            }
+        }
+        Some(row.pinned)
+    }
+
+    fn remove(&mut self, recent_work_id: &str) -> bool {
+        self.snapshot.remove(recent_work_id)
+    }
+
+    fn requires_switch_preview(&self, entry: &RecentWorkEntryRecord) -> bool {
+        entry.trust_state.as_str() != self.current_trust_state
+            || entry.target_state != RecentWorkTargetState::Reachable
+            || matches!(
+                entry.target_kind,
+                TargetKind::SshWorkspace
+                    | TargetKind::ContainerWorkspace
+                    | TargetKind::DevcontainerWorkspace
+                    | TargetKind::ManagedCloudWorkspace
+                    | TargetKind::RemoteRepository
+            )
+    }
+}
+
+#[derive(Debug, Clone)]
 enum CommandOverlayDecision {
     PreviewApproved {
         entry: CommandRegistryEntryRecord,
@@ -2061,6 +2763,7 @@ enum CommandOverlayDecision {
 struct OverlayKeyOutcome {
     handled: bool,
     command_decision: Option<CommandOverlayDecision>,
+    workspace_switcher_decision: Option<WorkspaceSwitcherDecision>,
 }
 
 #[derive(Debug, Clone)]
@@ -2074,6 +2777,7 @@ enum ShellOverlayKind {
     CommandDiagnostics(CommandDiagnosticsOverlay),
     InvocationPreview(CommandInvocationPreviewOverlay),
     CommandTrace(CommandTraceOverlay),
+    WorkspaceSwitcher(WorkspaceSwitcherOverlay),
 }
 
 #[derive(Debug, Clone)]
@@ -2153,6 +2857,23 @@ impl ShellOverlayState {
         }
     }
 
+    fn workspace_switcher(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        snapshot: &RecentWorkRegistry,
+        current_trust_state: &str,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::WorkspaceSwitcher(WorkspaceSwitcherOverlay::new(
+                snapshot.clone(),
+                current_trust_state.to_string(),
+            )),
+            focus_return_zone,
+            focus_return_group,
+            closed: false,
+        }
+    }
+
     fn close(&mut self, frame: &mut DesktopFrame) {
         self.closed = true;
         frame.focus_zone(self.focus_return_zone);
@@ -2164,11 +2885,21 @@ impl ShellOverlayState {
     fn handle_key(
         &mut self,
         code: KeyCode,
+        text: Option<&str>,
         frame: &mut DesktopFrame,
         keybinding_runtime: &mut KeybindingRuntimeState,
     ) -> OverlayKeyOutcome {
         let mut command_decision = None;
+        let mut workspace_switcher_decision = None;
         let handled = match (&mut self.kind, code) {
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Escape) => {
+                if matches!(switcher.mode, WorkspaceSwitcherOverlayMode::List) {
+                    self.close(frame);
+                } else {
+                    switcher.mode = WorkspaceSwitcherOverlayMode::List;
+                }
+                true
+            }
             (_, KeyCode::Escape) => {
                 if let ShellOverlayKind::InvocationPreview(preview) = &mut self.kind {
                     preview
@@ -2249,12 +2980,258 @@ impl ShellOverlayState {
                 }
                 true
             }
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::ArrowDown) => {
+                match &mut switcher.mode {
+                    WorkspaceSwitcherOverlayMode::List => {
+                        let row_count = switcher.rows().len();
+                        switcher.state.select_next(row_count);
+                    }
+                    WorkspaceSwitcherOverlayMode::RecoveryActions {
+                        recent_work_id,
+                        selection,
+                    } => {
+                        let action_count = switcher
+                            .snapshot
+                            .entries
+                            .iter()
+                            .find(|row| row.recent_work_id == *recent_work_id)
+                            .map(|row| row.safe_recovery_actions.len())
+                            .unwrap_or(0);
+                        if action_count == 0 {
+                            *selection = 0;
+                        } else {
+                            *selection = (*selection + 1) % action_count;
+                        }
+                    }
+                    _ => {}
+                }
+                true
+            }
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::ArrowUp) => {
+                match &mut switcher.mode {
+                    WorkspaceSwitcherOverlayMode::List => {
+                        let row_count = switcher.rows().len();
+                        switcher.state.select_prev(row_count);
+                    }
+                    WorkspaceSwitcherOverlayMode::RecoveryActions {
+                        recent_work_id,
+                        selection,
+                    } => {
+                        let action_count = switcher
+                            .snapshot
+                            .entries
+                            .iter()
+                            .find(|row| row.recent_work_id == *recent_work_id)
+                            .map(|row| row.safe_recovery_actions.len())
+                            .unwrap_or(0);
+                        if action_count == 0 {
+                            *selection = 0;
+                        } else {
+                            *selection = (*selection + action_count - 1) % action_count;
+                        }
+                    }
+                    _ => {}
+                }
+                true
+            }
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Backspace) => {
+                matches!(switcher.mode, WorkspaceSwitcherOverlayMode::List)
+                    && switcher.state.pop_query_char()
+            }
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Delete) => {
+                if let Some(selected) = switcher.selected_row() {
+                    switcher.mode = WorkspaceSwitcherOverlayMode::ConfirmRemove {
+                        recent_work_id: selected.recent_work_id.clone(),
+                    };
+                    true
+                } else {
+                    false
+                }
+            }
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::KeyP) => {
+                if !matches!(switcher.mode, WorkspaceSwitcherOverlayMode::List) {
+                    false
+                } else {
+                    match switcher.selected_row() {
+                    Some(selected) => {
+                        if let Some(pinned) = switcher.toggle_pinned(&selected.recent_work_id) {
+                            workspace_switcher_decision =
+                                Some(WorkspaceSwitcherDecision::SetPinned {
+                                    recent_work_id: selected.recent_work_id,
+                                    pinned,
+                                });
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    None => false,
+                }
+                }
+            }
+            (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Enter) => {
+                let mode = switcher.mode.clone();
+                match mode {
+                    WorkspaceSwitcherOverlayMode::List => {
+                        let Some(selected) = switcher.selected_row() else {
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                workspace_switcher_decision,
+                            };
+                        };
+
+                        let entry = switcher
+                            .snapshot
+                            .entries
+                            .iter()
+                            .find(|row| row.recent_work_id == selected.recent_work_id);
+                        let Some(entry) = entry else {
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                workspace_switcher_decision,
+                            };
+                        };
+
+                        let allows_open = entry.safe_recovery_actions.iter().any(|action| {
+                            matches!(
+                                action,
+                                SafeRecoveryAction::Open
+                                    | SafeRecoveryAction::OpenInNewWindow
+                                    | SafeRecoveryAction::OpenRestricted
+                                    | SafeRecoveryAction::OpenReadOnlyCachedView
+                                    | SafeRecoveryAction::OpenWithoutRestore
+                            )
+                        });
+
+                        if !allows_open {
+                            switcher.mode = WorkspaceSwitcherOverlayMode::RecoveryActions {
+                                recent_work_id: entry.recent_work_id.clone(),
+                                selection: 0,
+                            };
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                workspace_switcher_decision,
+                            };
+                        }
+
+                        if switcher.requires_switch_preview(entry) {
+                            switcher.mode = WorkspaceSwitcherOverlayMode::ConfirmSwitch {
+                                recent_work_id: entry.recent_work_id.clone(),
+                            };
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                workspace_switcher_decision,
+                            };
+                        }
+
+                        workspace_switcher_decision = Some(WorkspaceSwitcherDecision::Activate {
+                            recent_work_id: entry.recent_work_id.clone(),
+                        });
+                        self.close(frame);
+                        true
+                    }
+                    WorkspaceSwitcherOverlayMode::ConfirmSwitch { recent_work_id } => {
+                        workspace_switcher_decision = Some(WorkspaceSwitcherDecision::Activate {
+                            recent_work_id,
+                        });
+                        self.close(frame);
+                        true
+                    }
+                    WorkspaceSwitcherOverlayMode::ConfirmRemove { recent_work_id } => {
+                        if switcher.remove(&recent_work_id) {
+                            workspace_switcher_decision = Some(WorkspaceSwitcherDecision::Remove {
+                                recent_work_id: recent_work_id.clone(),
+                            });
+                            switcher.mode = WorkspaceSwitcherOverlayMode::List;
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    WorkspaceSwitcherOverlayMode::RecoveryActions {
+                        recent_work_id,
+                        selection,
+                    } => {
+                        let entry = switcher
+                            .snapshot
+                            .entries
+                            .iter()
+                            .find(|row| row.recent_work_id == recent_work_id);
+                        let Some(entry) = entry else {
+                            switcher.mode = WorkspaceSwitcherOverlayMode::List;
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                workspace_switcher_decision,
+                            };
+                        };
+
+                        let Some(action) = entry.safe_recovery_actions.get(selection).copied()
+                        else {
+                            switcher.mode = WorkspaceSwitcherOverlayMode::List;
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                workspace_switcher_decision,
+                            };
+                        };
+
+                        match action {
+                            SafeRecoveryAction::RemoveFromRecents => {
+                                switcher.mode = WorkspaceSwitcherOverlayMode::ConfirmRemove {
+                                    recent_work_id: recent_work_id.clone(),
+                                };
+                                true
+                            }
+                            _ => {
+                                workspace_switcher_decision =
+                                    Some(WorkspaceSwitcherDecision::PerformRecoveryAction {
+                                        recent_work_id: recent_work_id.clone(),
+                                        action,
+                                    });
+                                switcher.mode = WorkspaceSwitcherOverlayMode::List;
+                                true
+                            }
+                        }
+                    }
+                }
+            }
             _ => false,
         };
+
+        if !handled {
+            if let ShellOverlayKind::WorkspaceSwitcher(switcher) = &mut self.kind {
+                if !matches!(switcher.mode, WorkspaceSwitcherOverlayMode::List) {
+                    return OverlayKeyOutcome {
+                        handled,
+                        command_decision,
+                        workspace_switcher_decision,
+                    };
+                }
+                if let Some(text) = text {
+                    let mut changed = false;
+                    for ch in text.chars() {
+                        changed |= switcher.state.push_query_char(ch);
+                    }
+                    if changed {
+                        return OverlayKeyOutcome {
+                            handled: true,
+                            command_decision,
+                            workspace_switcher_decision,
+                        };
+                    }
+                }
+            }
+        }
 
         OverlayKeyOutcome {
             handled,
             command_decision,
+            workspace_switcher_decision,
         }
     }
 }
@@ -2510,6 +3487,250 @@ fn draw_shell_overlay(
                 "This placeholder represents a temporary narrow-width compare peek with focus return.",
                 style.tokens.text_muted,
             );
+        }
+        ShellOverlayKind::WorkspaceSwitcher(switcher) => {
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+
+            let header = format!(
+                "{} — type to filter, Up/Down select, Enter open/actions, P pin, Del remove, Esc back/close",
+                WORKSPACE_SWITCHER_PRESENTATION_LABEL
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &header,
+                style.tokens.text_primary,
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            let query = switcher.state.query();
+            let query_line = if query.is_empty() {
+                "filter: (empty)".to_string()
+            } else {
+                format!("filter: {query}")
+            };
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &query_line,
+                style.tokens.text_secondary,
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            let mode_line = match &switcher.mode {
+                WorkspaceSwitcherOverlayMode::List => None,
+                WorkspaceSwitcherOverlayMode::ConfirmSwitch { .. } => Some(
+                    "Preview required: Enter confirm switch, Esc cancel".to_string(),
+                ),
+                WorkspaceSwitcherOverlayMode::ConfirmRemove { .. } => Some(
+                    "Remove from recent: Enter confirm, Esc cancel".to_string(),
+                ),
+                WorkspaceSwitcherOverlayMode::RecoveryActions { .. } => Some(
+                    "Recovery actions: Up/Down select, Enter apply, Esc back".to_string(),
+                ),
+            };
+            if let Some(mode_line) = mode_line {
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    &mode_line,
+                    style.tokens.text_muted,
+                );
+                cursor_y = cursor_y.saturating_add(16);
+            }
+
+            if let WorkspaceSwitcherOverlayMode::RecoveryActions {
+                recent_work_id,
+                selection,
+            } = &switcher.mode
+            {
+                let entry = switcher
+                    .snapshot
+                    .entries
+                    .iter()
+                    .find(|row| row.recent_work_id == *recent_work_id);
+                if let Some(entry) = entry {
+                    let subtitle = entry
+                        .presentation_subtitle
+                        .as_deref()
+                        .unwrap_or("no location metadata");
+                    let summary = format!(
+                        "{} — {}  ({}, {}, {}, {})",
+                        entry.presentation_label,
+                        subtitle,
+                        entry.target_kind.as_str(),
+                        entry.target_state.as_str(),
+                        entry.trust_state.as_str(),
+                        match entry.restore_availability {
+                            RestoreAvailability::Exact => "restore:exact",
+                            RestoreAvailability::Compatible => "restore:compatible",
+                            RestoreAvailability::LayoutOnly => "restore:layout_only",
+                            RestoreAvailability::EvidenceOnly => "restore:evidence_only",
+                            RestoreAvailability::None => "restore:none",
+                        }
+                    );
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        &summary,
+                        style.tokens.text_secondary,
+                    );
+                    cursor_y = cursor_y.saturating_add(16);
+
+                    let last_opened = format!("last_opened_at: {}", entry.last_opened_at);
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        &last_opened,
+                        style.tokens.text_muted,
+                    );
+                    cursor_y = cursor_y.saturating_add(16);
+
+                    let line_h = 18u32;
+                    for (idx, action) in entry.safe_recovery_actions.iter().enumerate() {
+                        let y = cursor_y.saturating_add((idx as u32) * line_h);
+                        if y.saturating_add(line_h)
+                            > sheet_rect.bottom().saturating_sub(style.space_3)
+                        {
+                            break;
+                        }
+
+                        if idx == *selection {
+                            let highlight = Rect::new(
+                                sheet_rect.x.saturating_add(style.space_2),
+                                y.saturating_sub(2),
+                                sheet_rect.width.saturating_sub(style.space_4),
+                                16,
+                            );
+                            fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
+                        }
+
+                        let line = format!("{} — {}", action.as_str(), action.as_str());
+                        draw_text(
+                            buffer,
+                            width,
+                            height,
+                            cursor_x,
+                            y,
+                            1,
+                            &line,
+                            if idx == *selection {
+                                style.tokens.text_primary
+                            } else {
+                                style.tokens.text_muted
+                            },
+                        );
+                    }
+                } else {
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        "Selected entry missing from snapshot.",
+                        style.tokens.text_muted,
+                    );
+                }
+                return;
+            }
+
+            let rows = switcher.rows();
+            let selected = switcher
+                .state
+                .selection()
+                .min(rows.len().saturating_sub(1));
+
+            let line_h = 18u32;
+            for (idx, row) in rows.iter().enumerate() {
+                let y = cursor_y.saturating_add((idx as u32) * line_h);
+                if y.saturating_add(line_h)
+                    > sheet_rect.bottom().saturating_sub(style.space_3)
+                {
+                    break;
+                }
+
+                if idx == selected {
+                    let highlight = Rect::new(
+                        sheet_rect.x.saturating_add(style.space_2),
+                        y.saturating_sub(2),
+                        sheet_rect.width.saturating_sub(style.space_4),
+                        16,
+                    );
+                    fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
+                }
+
+                let pin = if row.pinned { "*" } else { " " };
+                let subtitle = row
+                    .location_or_target_subtitle
+                    .as_deref()
+                    .unwrap_or("no location metadata");
+                let line = format!(
+                    "{pin} {} — {}  last:{}  ({}, {}, {}, {})",
+                    row.primary_label,
+                    subtitle,
+                    row.last_opened_at,
+                    row.target_kind.as_str(),
+                    row.target_state.as_str(),
+                    row.trust_state.as_str(),
+                    match row.restore_availability {
+                        RestoreAvailability::Exact => "restore:exact",
+                        RestoreAvailability::Compatible => "restore:compatible",
+                        RestoreAvailability::LayoutOnly => "restore:layout_only",
+                        RestoreAvailability::EvidenceOnly => "restore:evidence_only",
+                        RestoreAvailability::None => "restore:none",
+                    }
+                );
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    y,
+                    1,
+                    &line,
+                    if idx == selected {
+                        style.tokens.text_primary
+                    } else {
+                        style.tokens.text_muted
+                    },
+                );
+            }
+
+            if rows.is_empty() {
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    "No recent work yet. Use Open Folder to seed a row.",
+                    style.tokens.text_muted,
+                );
+            }
         }
     }
 }

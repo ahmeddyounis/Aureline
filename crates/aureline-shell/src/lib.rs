@@ -16,3 +16,5 @@ pub mod layout;
 pub mod palette;
 /// Start Center quick-action surface and entry projections.
 pub mod start_center;
+/// Workspace switcher projections for recent-work entries and workspace transitions.
+pub mod workspace_switcher;
