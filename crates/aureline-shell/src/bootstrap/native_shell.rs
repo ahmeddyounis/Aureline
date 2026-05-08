@@ -9,6 +9,36 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+use crate::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
+use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
+use crate::commands::diagnostics_sheet::{
+    diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
+    write_diagnostics_sheet_log, CommandDiagnosticsSheetRecord,
+};
+use crate::commands::invocation_preview::{
+    invocation_preview_sheet_lines, materialize_command_invocation_preview_sheet_record,
+    write_invocation_preview_sheet_log, CommandInvocationPreviewSheetRecord,
+};
+use crate::commands::CommandReviewRuntimeInputs;
+use crate::embedded::boundary_card::EmbeddedBoundaryCardRecord;
+use crate::embedded::docs_help::{resolve_docs_help_handoff_url, seeded_docs_help_boundary_card};
+use crate::help::keybinding_inspector::build_inspector_lines;
+use crate::layout::split_tree::PaneId;
+use crate::layout::zone_registry::{Rect, ShellZoneId};
+use crate::palette::preview::{
+    argument_provenance_map_for, copy_payload_for, materialize_palette_preview_record,
+    write_preview_log, PaletteCopyIntent, PalettePreviewRuntimeInputs, PalettePreviewSelection,
+};
+use crate::palette::results_view::palette_view_rows;
+use crate::palette::{CommandPaletteCommit, CommandPaletteState};
+use crate::start_center::{
+    build_action_rows as start_center_action_rows, StartCenterRuntimeInputs, StartCenterState,
+    START_CENTER_PRESENTATION_LABEL, START_CENTER_PRESENTATION_SUBTITLE,
+};
+use crate::workspace_switcher::{
+    build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
+    WORKSPACE_SWITCHER_PRESENTATION_LABEL,
+};
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
@@ -28,34 +58,6 @@ use aureline_input::keybindings::{
     Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
 };
 use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapPresetId};
-use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
-use crate::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
-use crate::commands::diagnostics_sheet::{
-    diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
-    write_diagnostics_sheet_log, CommandDiagnosticsSheetRecord,
-};
-use crate::commands::invocation_preview::{
-    invocation_preview_sheet_lines, materialize_command_invocation_preview_sheet_record,
-    write_invocation_preview_sheet_log, CommandInvocationPreviewSheetRecord,
-};
-use crate::commands::CommandReviewRuntimeInputs;
-use crate::help::keybinding_inspector::build_inspector_lines;
-use crate::layout::split_tree::PaneId;
-use crate::layout::zone_registry::{Rect, ShellZoneId};
-use crate::palette::preview::{
-    argument_provenance_map_for, copy_payload_for, materialize_palette_preview_record,
-    write_preview_log, PaletteCopyIntent, PalettePreviewRuntimeInputs, PalettePreviewSelection,
-};
-use crate::palette::results_view::palette_view_rows;
-use crate::palette::{CommandPaletteCommit, CommandPaletteState};
-use crate::start_center::{
-    build_action_rows as start_center_action_rows, StartCenterRuntimeInputs, StartCenterState,
-    START_CENTER_PRESENTATION_LABEL, START_CENTER_PRESENTATION_SUBTITLE,
-};
-use crate::workspace_switcher::{
-    build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
-    WORKSPACE_SWITCHER_PRESENTATION_LABEL,
-};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
 };
@@ -64,6 +66,7 @@ use aureline_workspace::{
     RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
     RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
 };
+use serde::Serialize;
 
 use crate::windowing::winit_softbuffer::{SoftbufferSurface, WinitSoftbufferWindow};
 use arboard::Clipboard;
@@ -244,9 +247,8 @@ fn usage() -> String {
 }
 
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
-    let args = parse_native_shell_args().map_err(|message| -> Box<dyn std::error::Error> {
-        message.into()
-    })?;
+    let args = parse_native_shell_args()
+        .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
     let mut startup_trace = StartupTrace::new(args.startup_trace);
     let event_loop = EventLoop::new()?;
     let registry = seeded_registry();
@@ -273,11 +275,14 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut recent_work = RecentWorkRuntimeState::load();
     let mut clipboard = ClipboardState::new(!args.disable_clipboard);
     let mut appearance = ShellAppearanceState::default();
+    let docs_help_boundary_card =
+        seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
 
     if let Some(err) = recent_work.last_error.as_deref() {
-        command_runtime.note_non_command_action(format!("recent work registry unavailable — {err}"));
+        command_runtime
+            .note_non_command_action(format!("recent work registry unavailable — {err}"));
     }
 
     window.request_redraw();
@@ -339,6 +344,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &frame,
                     &palette,
                     &start_center,
+                    &docs_help_boundary_card,
                     overlay.as_ref(),
                     &command_runtime,
                     &keybinding_runtime,
@@ -526,7 +532,9 @@ mod clipboard_tests {
     #[test]
     fn disabled_clipboard_refuses_set_text() {
         let mut clipboard = ClipboardState::new(false);
-        let err = clipboard.set_text("hello").expect_err("disabled clipboard should fail");
+        let err = clipboard
+            .set_text("hello")
+            .expect_err("disabled clipboard should fail");
         assert_eq!(err, "clipboard disabled");
     }
 }
@@ -1008,6 +1016,46 @@ fn dispatch_registry_entry(
             command_runtime.record(invocation);
             true
         }
+        "cmd:docs.open_in_browser" => {
+            let destination_anchor_ref = session
+                .argument_provenance_map
+                .iter()
+                .find(|row| row.argument_name == "destination_anchor_ref")
+                .and_then(|row| row.resolved_value_ref.as_deref())
+                .unwrap_or("docs:anchor:docs:open_in_browser_overview");
+
+            let packet_ref = if destination_anchor_ref.starts_with("id:browser-handoff:") {
+                destination_anchor_ref.to_string()
+            } else {
+                "id:browser-handoff:docs-help:project-docs".to_string()
+            };
+
+            let Some(url) = resolve_docs_help_handoff_url(&packet_ref) else {
+                command_runtime.record(invocation_and_result_docs_open_in_browser_failed(
+                    &session,
+                    &packet_ref,
+                    "handoff_url_unresolved".to_string(),
+                ));
+                return true;
+            };
+
+            match webbrowser::open(&url) {
+                Ok(_) => {
+                    command_runtime.record(invocation_and_result_docs_open_in_browser_succeeded(
+                        &session,
+                        &packet_ref,
+                    ));
+                }
+                Err(err) => {
+                    command_runtime.record(invocation_and_result_docs_open_in_browser_failed(
+                        &session,
+                        &packet_ref,
+                        err.to_string(),
+                    ));
+                }
+            }
+            true
+        }
         "cmd:labs.open_command_trace" => {
             let lines = command_runtime.recent_lines(18);
             *overlay = Some(ShellOverlayState::command_trace(
@@ -1029,9 +1077,7 @@ fn dispatch_registry_entry(
                 .iter()
                 .find(|row| row.argument_name == "workspace_scope_ref")
                 .and_then(|row| row.resolved_value_ref.as_deref());
-            if scope_ref
-                .is_some_and(|scope| scope.contains("workspace_file"))
-            {
+            if scope_ref.is_some_and(|scope| scope.contains("workspace_file")) {
                 command_runtime.note_non_command_action(
                     "open workspace requested (workspace file selection not implemented)",
                 );
@@ -1244,6 +1290,138 @@ fn invocation_and_result_open_folder_succeeded(
     }
 }
 
+fn invocation_and_result_docs_open_in_browser_succeeded(
+    session: &CommandInvocationSession,
+    browser_handoff_packet_ref: &str,
+) -> RecordedCommandInvocation {
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "succeeded".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        vec![InvocationCreatedArtifactRefEntry {
+            result_contract_class: "browser_handoff_packet_emitted_ref".to_string(),
+            artifact_ref: browser_handoff_packet_ref.to_string(),
+        }],
+        vec![EvidenceRefEntry {
+            evidence_ref_class: "browser_handoff_packet_ref".to_string(),
+            evidence_id: browser_handoff_packet_ref.to_string(),
+        }],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "succeeded".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: Vec::new(),
+        created_artifact_refs: vec![ArtifactRefEntry {
+            result_contract_class: "browser_handoff_packet_emitted_ref".to_string(),
+            artifact_ref: browser_handoff_packet_ref.to_string(),
+            artifact_role: "browser_handoff_packet".to_string(),
+        }],
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "browser_handoff_packet_ref".to_string(),
+            evidence_id: browser_handoff_packet_ref.to_string(),
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        format!(
+            "parity-expectation:{}:result-contract:01",
+            session.canonical_verb
+        ),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
+fn invocation_and_result_docs_open_in_browser_failed(
+    session: &CommandInvocationSession,
+    browser_handoff_packet_ref: &str,
+    error_detail: String,
+) -> RecordedCommandInvocation {
+    let outcome = InvocationOutcomeBlock {
+        outcome_class: "failed_with_typed_error".to_string(),
+        disabled_reason_code: None,
+        warnings_summary_refs: Vec::new(),
+        partially_applied_artifact_refs: Vec::new(),
+        unapplied_artifact_refs: Vec::new(),
+    };
+    let session_packet = session.invocation_session_packet(
+        outcome,
+        Vec::new(),
+        vec![EvidenceRefEntry {
+            evidence_ref_class: "browser_handoff_packet_ref".to_string(),
+            evidence_id: browser_handoff_packet_ref.to_string(),
+        }],
+    );
+
+    let result = ResultBodyBlock {
+        outcome_code: "failed_with_typed_error".to_string(),
+        warning_codes: Vec::new(),
+        error_codes: vec!["browser_handoff_launch_failed".to_string(), error_detail],
+        created_artifact_refs: Vec::new(),
+        notification_refs: Vec::new(),
+        activity_refs: Vec::new(),
+        rollback_handle_ref: RollbackHandleRefBlock {
+            rollback_handle_posture: "not_applicable_no_mutation".to_string(),
+            rollback_handle_id: None,
+        },
+        checkpoint_refs: Vec::new(),
+        evidence_refs: vec![EvidenceRefEntry {
+            evidence_ref_class: "browser_handoff_packet_ref".to_string(),
+            evidence_id: browser_handoff_packet_ref.to_string(),
+        }],
+        export_posture: ExportPostureBlock {
+            export_posture_class: "exportable_with_redaction".to_string(),
+            redaction_class: session.redaction_class.clone(),
+            export_review_ref: None,
+            portable_profile_allowed: true,
+            support_bundle_allowed: true,
+        },
+    };
+
+    let result_packet = session.command_result_packet(
+        session.mint_attempt_id(),
+        session.mint_result_packet_id(),
+        result,
+        format!(
+            "parity-expectation:{}:result-contract:01",
+            session.canonical_verb
+        ),
+        NoBypassGuards::strict(),
+    );
+
+    RecordedCommandInvocation {
+        session_packet,
+        result_packet,
+    }
+}
+
 fn invocation_and_result_unimplemented(
     session: &CommandInvocationSession,
 ) -> RecordedCommandInvocation {
@@ -1324,7 +1502,8 @@ fn finalize_command_overlay_decision(
 
 fn normalize_entry_pin_actions(entry: &mut RecentWorkEntryRecord) {
     if entry.pinned {
-        entry.safe_recovery_actions
+        entry
+            .safe_recovery_actions
             .retain(|action| *action != SafeRecoveryAction::Pin);
         if !entry
             .safe_recovery_actions
@@ -1333,9 +1512,13 @@ fn normalize_entry_pin_actions(entry: &mut RecentWorkEntryRecord) {
             entry.safe_recovery_actions.push(SafeRecoveryAction::Unpin);
         }
     } else {
-        entry.safe_recovery_actions
+        entry
+            .safe_recovery_actions
             .retain(|action| *action != SafeRecoveryAction::Unpin);
-        if !entry.safe_recovery_actions.contains(&SafeRecoveryAction::Pin) {
+        if !entry
+            .safe_recovery_actions
+            .contains(&SafeRecoveryAction::Pin)
+        {
             entry.safe_recovery_actions.push(SafeRecoveryAction::Pin);
         }
     }
@@ -1577,9 +1760,8 @@ fn apply_workspace_switcher_decision(
                 normalize_entry_pin_actions(row);
                 recent_work.registry.updated_at = mono_timestamp_now();
                 if let Err(err) = recent_work.save() {
-                    command_runtime.note_non_command_action(format!(
-                        "recent work save failed — {err}"
-                    ));
+                    command_runtime
+                        .note_non_command_action(format!("recent work save failed — {err}"));
                 } else {
                     command_runtime.note_non_command_action("pinned recent work");
                 }
@@ -1601,9 +1783,8 @@ fn apply_workspace_switcher_decision(
                 normalize_entry_pin_actions(row);
                 recent_work.registry.updated_at = mono_timestamp_now();
                 if let Err(err) = recent_work.save() {
-                    command_runtime.note_non_command_action(format!(
-                        "recent work save failed — {err}"
-                    ));
+                    command_runtime
+                        .note_non_command_action(format!("recent work save failed — {err}"));
                 } else {
                     command_runtime.note_non_command_action("unpinned recent work");
                 }
@@ -1624,9 +1805,8 @@ fn apply_workspace_switcher_decision(
                     ));
                 }
             }
-            SafeRecoveryAction::LocateMissingTarget => command_runtime.note_non_command_action(
-                "locate missing target not implemented in shell build",
-            ),
+            SafeRecoveryAction::LocateMissingTarget => command_runtime
+                .note_non_command_action("locate missing target not implemented in shell build"),
             SafeRecoveryAction::Reconnect => {
                 command_runtime.note_non_command_action("reconnect not implemented in shell build")
             }
@@ -1636,12 +1816,10 @@ fn apply_workspace_switcher_decision(
             SafeRecoveryAction::RetryLater => {
                 command_runtime.note_non_command_action("retry scheduled (placeholder)")
             }
-            SafeRecoveryAction::CompareBeforeRestore => command_runtime.note_non_command_action(
-                "compare-before-restore not implemented in shell build",
-            ),
-            SafeRecoveryAction::RevealInExplorer => command_runtime.note_non_command_action(
-                "reveal in explorer not implemented in shell build",
-            ),
+            SafeRecoveryAction::CompareBeforeRestore => command_runtime
+                .note_non_command_action("compare-before-restore not implemented in shell build"),
+            SafeRecoveryAction::RevealInExplorer => command_runtime
+                .note_non_command_action("reveal in explorer not implemented in shell build"),
         },
     }
 }
@@ -2199,6 +2377,23 @@ fn handle_key_event(
     }
 
     match code {
+        KeyCode::Enter => {
+            if frame.focused_zone() == ShellZoneId::RightInspector {
+                dispatch_command_id(
+                    command_runtime,
+                    registry,
+                    frame,
+                    palette,
+                    overlay,
+                    "cmd:docs.open_in_browser",
+                    DispatchOrigin::KeybindingChord,
+                    enablement_runtime,
+                    recent_work,
+                )
+            } else {
+                false
+            }
+        }
         KeyCode::Tab => {
             frame.focus_next();
             window.set_title(&window_title(
@@ -2326,7 +2521,7 @@ fn handle_key_event(
             }
         }
         KeyCode::KeyH => {
-            if modifiers.ctrl_or_logo() && modifiers.shift {
+            if modifiers.ctrl_or_logo() && modifiers.shift && modifiers.alt {
                 appearance.toggle_high_contrast();
                 true
             } else {
@@ -2375,6 +2570,7 @@ fn draw(
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
     start_center: &StartCenterState,
+    docs_help_boundary_card: &EmbeddedBoundaryCardRecord,
     overlay: Option<&ShellOverlayState>,
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
@@ -2491,6 +2687,21 @@ fn draw(
             _ => {
                 for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
                     let slot_rect = to_physical_rect(slot_rect, scale);
+                    if zone == ShellZoneId::RightInspector
+                        && slot_id == "slot.right_inspector.contextual_detail"
+                    {
+                        draw_docs_help_boundary_card(
+                            &mut buffer,
+                            physical.width,
+                            physical.height,
+                            slot_rect,
+                            docs_help_boundary_card,
+                            keybinding_runtime,
+                            &style,
+                            zone == frame.focused_zone(),
+                        );
+                        continue;
+                    }
                     fill_rect(
                         &mut buffer,
                         physical.width,
@@ -2555,6 +2766,7 @@ fn draw(
             palette,
             keybinding_runtime,
             enablement_runtime,
+            docs_help_boundary_card,
             &style,
             held_modifiers,
         );
@@ -2601,12 +2813,13 @@ fn draw(
             "allow"
         };
         let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
+        let docs_keys = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
         let trust_state = enablement_runtime.workspace_trust_state.as_str();
         let theme_label = appearance.theme().token();
         let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
         let recent_work_store = recent_work.store_path.display();
         let text = format!(
-            "theme: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver), Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Cmd/Ctrl+Shift+H high contrast   packets: .logs/command_packets   recents: {}",
+            "theme: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast   packets: .logs/command_packets   recents: {}",
             theme_label,
             modes,
             active_workspace,
@@ -2618,6 +2831,7 @@ fn draw(
             keybinding_runtime.active_preset.display_name(),
             keybinding_runtime.active_preset.preset_ref(),
             palette_keys,
+            docs_keys,
             recent_work_store
         );
 
@@ -2716,9 +2930,16 @@ struct CommandTraceOverlay {
 
 #[derive(Debug, Clone)]
 enum WorkspaceSwitcherDecision {
-    Activate { recent_work_id: String },
-    SetPinned { recent_work_id: String, pinned: bool },
-    Remove { recent_work_id: String },
+    Activate {
+        recent_work_id: String,
+    },
+    SetPinned {
+        recent_work_id: String,
+        pinned: bool,
+    },
+    Remove {
+        recent_work_id: String,
+    },
     PerformRecoveryAction {
         recent_work_id: String,
         action: SafeRecoveryAction,
@@ -2728,9 +2949,16 @@ enum WorkspaceSwitcherDecision {
 #[derive(Debug, Clone)]
 enum WorkspaceSwitcherOverlayMode {
     List,
-    ConfirmSwitch { recent_work_id: String },
-    ConfirmRemove { recent_work_id: String },
-    RecoveryActions { recent_work_id: String, selection: usize },
+    ConfirmSwitch {
+        recent_work_id: String,
+    },
+    ConfirmRemove {
+        recent_work_id: String,
+    },
+    RecoveryActions {
+        recent_work_id: String,
+        selection: usize,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -3118,20 +3346,20 @@ impl ShellOverlayState {
                     false
                 } else {
                     match switcher.selected_row() {
-                    Some(selected) => {
-                        if let Some(pinned) = switcher.toggle_pinned(&selected.recent_work_id) {
-                            workspace_switcher_decision =
-                                Some(WorkspaceSwitcherDecision::SetPinned {
-                                    recent_work_id: selected.recent_work_id,
-                                    pinned,
-                                });
-                            true
-                        } else {
-                            false
+                        Some(selected) => {
+                            if let Some(pinned) = switcher.toggle_pinned(&selected.recent_work_id) {
+                                workspace_switcher_decision =
+                                    Some(WorkspaceSwitcherDecision::SetPinned {
+                                        recent_work_id: selected.recent_work_id,
+                                        pinned,
+                                    });
+                                true
+                            } else {
+                                false
+                            }
                         }
+                        None => false,
                     }
-                    None => false,
-                }
                 }
             }
             (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Enter) => {
@@ -3200,9 +3428,8 @@ impl ShellOverlayState {
                         true
                     }
                     WorkspaceSwitcherOverlayMode::ConfirmSwitch { recent_work_id } => {
-                        workspace_switcher_decision = Some(WorkspaceSwitcherDecision::Activate {
-                            recent_work_id,
-                        });
+                        workspace_switcher_decision =
+                            Some(WorkspaceSwitcherDecision::Activate { recent_work_id });
                         self.close(frame);
                         true
                     }
@@ -3593,15 +3820,15 @@ fn draw_shell_overlay(
 
             let mode_line = match &switcher.mode {
                 WorkspaceSwitcherOverlayMode::List => None,
-                WorkspaceSwitcherOverlayMode::ConfirmSwitch { .. } => Some(
-                    "Preview required: Enter confirm switch, Esc cancel".to_string(),
-                ),
-                WorkspaceSwitcherOverlayMode::ConfirmRemove { .. } => Some(
-                    "Remove from recent: Enter confirm, Esc cancel".to_string(),
-                ),
-                WorkspaceSwitcherOverlayMode::RecoveryActions { .. } => Some(
-                    "Recovery actions: Up/Down select, Enter apply, Esc back".to_string(),
-                ),
+                WorkspaceSwitcherOverlayMode::ConfirmSwitch { .. } => {
+                    Some("Preview required: Enter confirm switch, Esc cancel".to_string())
+                }
+                WorkspaceSwitcherOverlayMode::ConfirmRemove { .. } => {
+                    Some("Remove from recent: Enter confirm, Esc cancel".to_string())
+                }
+                WorkspaceSwitcherOverlayMode::RecoveryActions { .. } => {
+                    Some("Recovery actions: Up/Down select, Enter apply, Esc back".to_string())
+                }
             };
             if let Some(mode_line) = mode_line {
                 draw_text(
@@ -3723,17 +3950,12 @@ fn draw_shell_overlay(
             }
 
             let rows = switcher.rows();
-            let selected = switcher
-                .state
-                .selection()
-                .min(rows.len().saturating_sub(1));
+            let selected = switcher.state.selection().min(rows.len().saturating_sub(1));
 
             let line_h = 18u32;
             for (idx, row) in rows.iter().enumerate() {
                 let y = cursor_y.saturating_add((idx as u32) * line_h);
-                if y.saturating_add(line_h)
-                    > sheet_rect.bottom().saturating_sub(style.space_3)
-                {
+                if y.saturating_add(line_h) > sheet_rect.bottom().saturating_sub(style.space_3) {
                     break;
                 }
 
@@ -4010,6 +4232,152 @@ fn draw_start_center_surface(
     }
 }
 
+fn draw_docs_help_boundary_card(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    card: &EmbeddedBoundaryCardRecord,
+    keybinding_runtime: &KeybindingRuntimeState,
+    style: &ShellRenderStyle,
+    focused: bool,
+) {
+    let padding = style.space_3;
+    let panel = Rect::new(
+        rect.x.saturating_add(padding),
+        rect.y.saturating_add(padding),
+        rect.width.saturating_sub(padding.saturating_mul(2)),
+        rect.height.saturating_sub(padding.saturating_mul(2)),
+    );
+    if panel.is_empty() {
+        return;
+    }
+
+    fill_rect(buffer, width, height, panel, style.tokens.bg_raised);
+    stroke_rect(
+        buffer,
+        width,
+        height,
+        panel,
+        style.stroke_default,
+        style.tokens.border_default,
+    );
+    if focused {
+        stroke_rect(
+            buffer,
+            width,
+            height,
+            panel,
+            style.stroke_focus,
+            style.tokens.focus_ring,
+        );
+    }
+
+    let header_x = panel.x.saturating_add(style.space_2);
+    let mut y = panel.y.saturating_add(style.space_2);
+    draw_text(
+        buffer,
+        width,
+        height,
+        header_x,
+        y,
+        2,
+        "Embedded docs/help",
+        style.tokens.text_primary,
+    );
+    y = y
+        .saturating_add(8u32.saturating_mul(2))
+        .saturating_add(style.space_2);
+
+    let shortcuts = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
+    let packet_ref = card
+        .open_in_browser_action()
+        .and_then(|row| row.browser_handoff_packet_ref.as_deref())
+        .unwrap_or("missing");
+    let action_label = card
+        .open_in_browser_action()
+        .map(|row| row.action_label.as_str())
+        .unwrap_or("Open in browser");
+
+    let mut lines = vec![
+        format!("Owner: {}", card.owner_identity.label),
+        format!("Publisher: {}", card.publisher_or_service_identity.label),
+        format!(
+            "Origin: {} ({})",
+            card.origin_identity.origin_label, card.origin_identity.host_or_domain_label
+        ),
+        format!("Boundary: {}", card.data_boundary_label),
+        format!("State: {}", card.boundary_state_label),
+        format!("Permission: {}", card.permission_state.permission_label),
+    ];
+    if let Some(source_truth) = card.source_truth.as_ref() {
+        lines.push(format!(
+            "Source: {}",
+            token_string(&source_truth.source_class)
+        ));
+        lines.push(format!(
+            "Version: {}",
+            token_string(&source_truth.version_match_state)
+        ));
+        lines.push(format!(
+            "Freshness: {}",
+            token_string(&source_truth.freshness_class)
+        ));
+        lines.push(format!(
+            "Build: {}",
+            source_truth.running_build_identity_ref
+        ));
+    }
+    lines.push(format!("Action: {}  [{}]", action_label, shortcuts));
+    lines.push(format!("Handoff packet: {}", packet_ref));
+
+    let line_h = 14u32;
+    for line in lines {
+        if y.saturating_add(line_h) > panel.bottom().saturating_sub(style.space_2) {
+            break;
+        }
+        draw_text(
+            buffer,
+            width,
+            height,
+            header_x,
+            y,
+            1,
+            &line,
+            style.tokens.text_secondary,
+        );
+        y = y.saturating_add(line_h);
+    }
+
+    if y.saturating_add(12) <= panel.bottom() {
+        draw_text(
+            buffer,
+            width,
+            height,
+            header_x,
+            panel
+                .bottom()
+                .saturating_sub(style.space_2)
+                .saturating_sub(10),
+            1,
+            "Chrome is host-owned; high-risk approval stays native.",
+            style.tokens.text_muted,
+        );
+    }
+
+    if panel.height > style.space_6.saturating_mul(4) {
+        let accent = Rect::new(panel.x, panel.y, style.stroke_focus.max(2), panel.height);
+        fill_rect(buffer, width, height, accent, style.tokens.accent_brand);
+    }
+}
+
+fn token_string(value: &(impl Serialize + std::fmt::Debug)) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(ToString::to_string))
+        .unwrap_or_else(|| format!("{value:?}"))
+}
+
 fn preflight_decision_class_label(decision: PreflightDecisionClass) -> &'static str {
     match decision {
         PreflightDecisionClass::Allowed => "ready",
@@ -4030,6 +4398,7 @@ fn draw_command_palette_overlay(
     palette: &CommandPaletteState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    docs_help_boundary_card: &EmbeddedBoundaryCardRecord,
     style: &ShellRenderStyle,
     held_modifiers: &HeldModifiers,
 ) {
@@ -4306,6 +4675,26 @@ fn draw_command_palette_overlay(
                             arg.argument_name, arg.argument_kind, required
                         ));
                     }
+                }
+                if command.command_id == "cmd:docs.open_in_browser" {
+                    let packet_ref = docs_help_boundary_card
+                        .open_in_browser_action()
+                        .and_then(|row| row.browser_handoff_packet_ref.as_deref())
+                        .unwrap_or("missing");
+                    preview_lines.push("Boundary chrome:".to_string());
+                    preview_lines.push(format!(
+                        "Owner: {}",
+                        docs_help_boundary_card.owner_identity.label
+                    ));
+                    preview_lines.push(format!(
+                        "Origin: {}",
+                        docs_help_boundary_card.origin_identity.host_or_domain_label
+                    ));
+                    preview_lines.push(format!(
+                        "State: {}",
+                        docs_help_boundary_card.boundary_state_label
+                    ));
+                    preview_lines.push(format!("Handoff packet: {packet_ref}"));
                 }
             }
         }

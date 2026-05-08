@@ -120,6 +120,18 @@ pub fn argument_provenance_map_for(
                 resolved_value_ref: Some("value:bool:false".to_string()),
             },
         ],
+        "cmd:docs.open_in_browser" => vec![
+            ArgumentProvenanceEntry {
+                argument_name: "destination_anchor_ref".to_string(),
+                provenance: "default_from_shell_context".to_string(),
+                resolved_value_ref: Some("docs:anchor:docs:open_in_browser_overview".to_string()),
+            },
+            ArgumentProvenanceEntry {
+                argument_name: "destination_descriptor_ref".to_string(),
+                provenance: "default_from_descriptor".to_string(),
+                resolved_value_ref: None,
+            },
+        ],
         "cmd:workspace.import_profile" => vec![
             ArgumentProvenanceEntry {
                 argument_name: "import_source_ref".to_string(),
@@ -212,7 +224,11 @@ pub fn materialize_command_review_packet_with_arguments(
         preview_class: entry.descriptor.preview_class.clone(),
         approval_posture_class: entry.descriptor.approval_posture_class.clone(),
         client_scopes: entry.descriptor.client_scopes.clone(),
-        result_contract_class: entry.descriptor.result_contract.result_contract_class.clone(),
+        result_contract_class: entry
+            .descriptor
+            .result_contract
+            .result_contract_class
+            .clone(),
         evidence_ref_class_required: entry
             .descriptor
             .result_contract

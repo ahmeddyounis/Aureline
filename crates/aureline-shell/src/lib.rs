@@ -11,6 +11,8 @@ pub mod app_frame;
 pub mod bootstrap;
 /// Command review-sheet projections for diagnostics and invocation previews.
 pub mod commands;
+/// Embedded surface boundary chrome and browser-handoff wiring.
+pub mod embedded;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
 pub mod layout;
