@@ -1,0 +1,62 @@
+# Known-gaps ledger, blocker taxonomy, and exit-gate checklist gate.
+#
+# Validates the canonical artifacts and uploads a machine-readable report for
+# review.
+
+name: check_m1_known_gaps
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m1_known_gaps.yml"
+      - "ci/check_m1_known_gaps.py"
+      - "docs/milestones/m1/known_gaps.md"
+      - "artifacts/milestones/m1/known_gaps_ledger.yaml"
+      - "artifacts/milestones/m1/blocker_taxonomy.yaml"
+      - "artifacts/milestones/m1/exit_gate_checklist.yaml"
+      - "artifacts/milestones/m1/artifact_index.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m1-known-gaps-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  known_gaps:
+    name: Known-gaps and exit-gate ledger
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run known-gaps validator
+        run: |
+          python3 ci/check_m1_known_gaps.py --repo-root . --report target/m1-known-gaps/report.json
+
+      - name: Upload known-gaps report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-known-gaps-${{ github.run_id }}
+          path: target/m1-known-gaps
+          if-no-files-found: error
+          retention-days: 30
+
