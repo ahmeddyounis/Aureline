@@ -825,18 +825,42 @@ def main() -> int:
         )
 
     human_entry_graph = ensure_str(checkpoint.get("human_entrypoint_ref"), "graph.checkpoint.human_entrypoint_ref")
-    human_entry_index = ensure_str(index_payload.get("human_entrypoint_ref"), "index.human_entrypoint_ref")
-    if strip_fragment(human_entry_graph) != strip_fragment(human_entry_index):
+
+    canonical_artifacts = ensure_list(index_payload.get("canonical_artifacts"), "index.canonical_artifacts")
+    refs_by_id: dict[str, str] = {}
+    for idx, raw_row in enumerate(canonical_artifacts):
+        row = ensure_dict(raw_row, f"index.canonical_artifacts[{idx}]")
+        artifact_id = ensure_str(row.get("artifact_id"), f"index.canonical_artifacts[{idx}].artifact_id")
+        artifact_ref = ensure_str(row.get("artifact_ref"), f"index.canonical_artifacts[{idx}].artifact_ref")
+        refs_by_id[artifact_id] = artifact_ref
+
+    index_entrypoint = refs_by_id.get("integration_checkpoint_entrypoint")
+    if index_entrypoint is None:
         findings.append(
             Finding(
                 severity="error",
-                check_id="cross.human_entrypoint.mismatch",
-                message=(
-                    "dependency graph and proof index disagree on the human entrypoint: "
-                    f"{human_entry_graph} vs {human_entry_index}"
+                check_id="cross.index_missing_checkpoint_entrypoint",
+                message="artifact_index.yaml canonical_artifacts is missing artifact_id: integration_checkpoint_entrypoint",
+                remediation=(
+                    "Add the canonical_artifacts row so consumers can resolve the checkpoint entrypoint "
+                    "without hardcoding paths."
                 ),
-                remediation="Update both files so reviewers have exactly one stable entry page.",
-                details={"graph_human_entrypoint_ref": human_entry_graph, "index_human_entrypoint_ref": human_entry_index},
+            )
+        )
+    elif strip_fragment(index_entrypoint) != strip_fragment(human_entry_graph):
+        findings.append(
+            Finding(
+                severity="error",
+                check_id="cross.checkpoint_entrypoint.mismatch",
+                message=(
+                    "dependency graph and artifact index disagree on the checkpoint entrypoint: "
+                    f"{human_entry_graph} vs {index_entrypoint}"
+                ),
+                remediation="Update both files so the checkpoint entrypoint is stable and indexed.",
+                details={
+                    "graph_human_entrypoint_ref": human_entry_graph,
+                    "index_checkpoint_entrypoint_ref": index_entrypoint,
+                },
             )
         )
 

@@ -12,6 +12,7 @@ instead of restating rows in local notes.
 - Known-gaps ledger (canonical): `artifacts/milestones/m1/known_gaps_ledger.yaml`
 - Blocker taxonomy (canonical): `artifacts/milestones/m1/blocker_taxonomy.yaml`
 - Exit-gate checklist (canonical): `artifacts/milestones/m1/exit_gate_checklist.yaml`
+- Proof artifact index (review entrypoint): `docs/milestones/m1/proof_artifact_index.md`
 - Proof index: `artifacts/milestones/m1/artifact_index.yaml`
 - Validator: `ci/check_m1_known_gaps.py`
 
@@ -52,4 +53,3 @@ To confirm the guardrail is live:
    delete a required field like `next_action`).
 2. Rerun the validator; it must fail with an actionable error.
 3. Undo the change and rerun; it must pass.
-

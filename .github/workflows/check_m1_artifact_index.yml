@@ -1,0 +1,61 @@
+# Proof artifact index gate.
+#
+# Validates the canonical proof artifact index plus its storage conventions and
+# uploads a machine-readable report for review.
+
+name: check_m1_artifact_index
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/check_m1_artifact_index.yml"
+      - "ci/check_m1_artifact_index.py"
+      - "docs/milestones/m1/proof_artifact_index.md"
+      - "artifacts/milestones/m1/artifact_index.yaml"
+      - "artifacts/milestones/m1/proof_packets/**"
+      - "artifacts/milestones/m1/captures/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-m1-artifact-index-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  artifact_index:
+    name: Proof artifact index
+    runs-on: ubuntu-latest
+    env:
+      TZ: UTC
+      LC_ALL: C
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Run proof artifact index validator
+        run: |
+          python3 ci/check_m1_artifact_index.py --repo-root . --report target/m1-artifact-index/report.json
+
+      - name: Upload proof artifact index report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m1-artifact-index-${{ github.run_id }}
+          path: target/m1-artifact-index
+          if-no-files-found: error
+          retention-days: 30
+

@@ -9,6 +9,7 @@ and checklists should reference that file instead of restating prerequisites.
 
 - Human entry (this file): `docs/milestones/m1/integration_checkpoint.md`
 - Dependency graph (canonical): `artifacts/milestones/m1/dependency_graph.yaml`
+- Proof artifact index (review entrypoint): `docs/milestones/m1/proof_artifact_index.md`
 - Proof index (first consumer): `artifacts/milestones/m1/artifact_index.yaml`
 - Validator: `ci/check_m1_checkpoint.py`
 
