@@ -8,7 +8,9 @@ Canonical sources (non-exhaustive):
 - `crates/aureline-shell/src/embedded/boundary_card.rs`
 - `crates/aureline-shell/src/embedded/docs_help.rs`
 - `crates/aureline-shell/src/bootstrap/native_shell.rs`
+- `docs/design/density_contract.md`
 - `docs/ux/embedded_boundary_contract.md`
+- `fixtures/design/density_cases/`
 - `fixtures/ux/embedded_surfaces/docs_help_boundary_contract_card.json`
 - `fixtures/ux/embedded_boundary_cases/docs_help_live_verified_card.yaml`
 - `schemas/ux/embedded_boundary_card.schema.json`
@@ -18,4 +20,3 @@ Evidence storage:
 
 - Validation captures: `artifacts/milestones/m1/captures/`
 - Screenshots: `artifacts/milestones/m1/screenshots/`
-

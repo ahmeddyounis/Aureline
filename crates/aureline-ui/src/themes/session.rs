@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::density::DensityClass;
 use crate::tokens::ThemeClass;
 
 /// Identifies the `appearance_session_record` record kind.
@@ -35,15 +36,6 @@ pub enum AccentSourceClass {
     UserSelectedAccent,
     PolicyLockedAccent,
     NotApplicable,
-}
-
-/// Density class for the in-effect appearance session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DensityClass {
-    Compact,
-    Standard,
-    Comfortable,
 }
 
 /// Accessibility posture class for reduced-motion and hot-path rendering.
@@ -172,6 +164,11 @@ impl AppearanceSessionRecord {
         self.mode_theme_class
     }
 
+    /// Returns the in-effect density class.
+    pub const fn density_class(&self) -> DensityClass {
+        self.density_class
+    }
+
     /// Returns a stable default appearance session record for first-party surfaces.
     pub fn first_party_default(minted_at: String) -> Self {
         let theme = ThemeClass::DarkReference;
@@ -250,6 +247,26 @@ impl AppearanceSessionRecord {
             ThemeClass::HighContrastLight => ThemeClass::LightParity,
         };
         self.apply_theme_class(next, minted_at);
+    }
+
+    /// Applies a density-class change, bumping the session revision.
+    pub fn apply_density_class(&mut self, density: DensityClass, minted_at: String) {
+        if self.density_class == density {
+            self.revision_minted_at = minted_at;
+            return;
+        }
+        self.session_revision = self.session_revision.saturating_add(1);
+        self.density_class = density;
+        self.follow_system_posture = FollowSystemPosture::ManualOverride;
+        self.preview_state = PreviewState::NotPreviewing;
+        self.current_checkpoint_ref = None;
+        self.rollback_ref = None;
+        self.revision_minted_at = minted_at;
+    }
+
+    /// Cycles the density class (`compact` → `standard` → `comfortable`).
+    pub fn cycle_density_class(&mut self, minted_at: String) {
+        self.apply_density_class(self.density_class.next(), minted_at);
     }
 }
 

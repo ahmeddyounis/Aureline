@@ -9,9 +9,10 @@ mod packs;
 mod session;
 
 pub use packs::{load_first_party_theme_pack, ThemePack, ThemePackError};
+pub use crate::density::DensityClass;
 pub use session::{
     AccentSourceClass, AccessibilityPostureClass, AppearanceSessionRecord, AppearanceSessionRecordKind,
-    AppearanceAxis, ContrastMode, DensityClass, FollowSystemPosture, LiveAxisRow,
+    AppearanceAxis, ContrastMode, FollowSystemPosture, LiveAxisRow,
     LiveFollowSystemPolicyRecord, LiveFollowSystemPolicyRecordKind, LiveUpdateClass,
     OsSignalClass, PolicyContext, PolicyLockReasonClass, PreviewState, RedactionClass,
     ReducedMotionSource, SurfaceScopeClass, TextScale, TextScaleSource, TrustState,

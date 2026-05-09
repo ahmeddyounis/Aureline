@@ -61,7 +61,8 @@ use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapP
 use aureline_ui::components::{
     ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
 };
-use aureline_ui::themes::{AppearanceSessionRecord, LiveFollowSystemPolicyRecord};
+use aureline_ui::density::DensityProfile;
+use aureline_ui::themes::{AppearanceSessionRecord, DensityClass, LiveFollowSystemPolicyRecord};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
 };
@@ -150,6 +151,12 @@ impl ShellRenderTokens {
 struct ShellRenderStyle {
     tokens: ShellRenderTokens,
     component_states: ComponentStateRegistry,
+    density_class: DensityClass,
+    density_row_height: u32,
+    density_control_height: u32,
+    density_panel_padding: u32,
+    density_zone_inset: u32,
+    density_gutter: u32,
     stroke_default: u32,
     stroke_focus: u32,
     space_2: u32,
@@ -165,16 +172,34 @@ struct ShellRenderStyle {
 }
 
 impl ShellRenderStyle {
-    fn load(registry: &TokenRegistry) -> Result<Self, TokenRegistryError> {
+    fn load(
+        registry: &TokenRegistry,
+        density_class: DensityClass,
+        scale_factor: f64,
+    ) -> Result<Self, TokenRegistryError> {
+        let scale_px = |value: u32| -> u32 {
+            if !scale_factor.is_finite() || scale_factor <= 0.0 {
+                return value;
+            }
+            ((value as f64) * scale_factor).round().max(1.0) as u32
+        };
+
+        let density = DensityProfile::load(registry, density_class)?;
         Ok(Self {
             tokens: ShellRenderTokens::load(registry)?,
             component_states: ComponentStateRegistry::load(registry)?,
-            stroke_default: registry.require_stroke_px("stroke.border.default")?,
-            stroke_focus: registry.require_stroke_px("stroke.focus.ring")?,
-            space_2: registry.require_space_px("space.2")?,
-            space_3: registry.require_space_px("space.3")?,
-            space_4: registry.require_space_px("space.4")?,
-            space_6: registry.require_space_px("space.6")?,
+            density_class,
+            density_row_height: scale_px(density.row_height_px()),
+            density_control_height: scale_px(density.control_height_px()),
+            density_panel_padding: scale_px(density.panel_padding_px()),
+            density_zone_inset: scale_px(density.zone_inset_px()),
+            density_gutter: scale_px(density.gutter_px()),
+            stroke_default: scale_px(registry.require_stroke_px("stroke.border.default")?),
+            stroke_focus: scale_px(registry.require_stroke_px("stroke.focus.ring")?),
+            space_2: scale_px(registry.require_space_px("space.2")?),
+            space_3: scale_px(registry.require_space_px("space.3")?),
+            space_4: scale_px(registry.require_space_px("space.4")?),
+            space_6: scale_px(registry.require_space_px("space.6")?),
             status_warning: registry.require_color("status.warning")?,
             status_warning_border: registry.require_color("status.warning.border")?,
             status_warning_fill: registry.require_color("status.warning.fill")?,
@@ -991,6 +1016,10 @@ impl AppearanceRuntimeState {
         self.session.theme_class()
     }
 
+    const fn density_class(&self) -> DensityClass {
+        self.session.density_class()
+    }
+
     fn toggle_light_dark(&mut self) {
         let minted_at = now_rfc3339();
         self.session.toggle_light_dark(minted_at);
@@ -1000,6 +1029,12 @@ impl AppearanceRuntimeState {
     fn toggle_high_contrast(&mut self) {
         let minted_at = now_rfc3339();
         self.session.toggle_high_contrast(minted_at);
+        self.persist();
+    }
+
+    fn cycle_density_class(&mut self) {
+        let minted_at = now_rfc3339();
+        self.session.cycle_density_class(minted_at);
         self.persist();
     }
 
@@ -2961,6 +2996,14 @@ fn handle_key_event(
                 ShellDamageHint::None
             }
         }
+        KeyCode::KeyM => {
+            if modifiers.ctrl_or_logo() && modifiers.shift {
+                appearance.cycle_density_class();
+                ShellDamageHint::FullWindow
+            } else {
+                ShellDamageHint::None
+            }
+        }
         _ => ShellDamageHint::None,
     }
 }
@@ -3031,7 +3074,12 @@ fn command_palette_panel_rect(
     style: &ShellRenderStyle,
 ) -> Option<Rect> {
     let overlay_logical = frame.layout().zone(ShellZoneId::TransientOverlay)?;
-    let slots = frame.slot_rects_within_zone(ShellZoneId::TransientOverlay, overlay_logical);
+    let zone_inset_logical = to_logical_px(style.density_zone_inset, scale_factor);
+    let slots = frame.slot_rects_within_zone(
+        ShellZoneId::TransientOverlay,
+        overlay_logical,
+        zone_inset_logical,
+    );
     let slot = slots
         .iter()
         .find(|(id, _)| *id == "slot.overlay.command_palette")
@@ -3039,7 +3087,7 @@ fn command_palette_panel_rect(
         .unwrap_or(overlay_logical);
     let slot_physical = to_physical_rect(slot, scale_factor);
 
-    let panel_padding = style.space_4;
+    let panel_padding = style.density_zone_inset;
     let panel = Rect::new(
         slot_physical.x.saturating_add(panel_padding),
         slot_physical.y.saturating_add(panel_padding),
@@ -3080,7 +3128,11 @@ fn draw(
     let plan = DirtyRegionEngine::plan(window_bounds, events);
 
     let token_registry = seeded_token_registry(appearance.theme_class())?;
-    let style = ShellRenderStyle::load(token_registry)?;
+    let style = ShellRenderStyle::load(
+        token_registry,
+        appearance.density_class(),
+        window.scale_factor(),
+    )?;
 
     damage_geometry.focused_editor_group =
         focused_editor_group_physical_rect(frame, window.scale_factor());
@@ -3309,7 +3361,10 @@ fn rasterize_shell(
                 }
             }
             _ => {
-                for (slot_id, slot_rect) in frame.slot_rects_within_zone(zone, logical_rect) {
+                let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                for (slot_id, slot_rect) in
+                    frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
+                {
                     let slot_rect = to_physical_rect(slot_rect, scale);
                     if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
                         continue;
@@ -4654,6 +4709,13 @@ fn to_physical_rect(rect: Rect, scale_factor: f64) -> Rect {
     )
 }
 
+fn to_logical_px(physical_px: u32, scale_factor: f64) -> u32 {
+    if !scale_factor.is_finite() || scale_factor <= 0.0 {
+        return physical_px;
+    }
+    ((physical_px as f64) / scale_factor).round().max(0.0) as u32
+}
+
 fn scale_bucket_for_scale_factor(scale_factor: f64) -> u8 {
     if !scale_factor.is_finite() || scale_factor <= 0.0 {
         return 1;
@@ -4744,7 +4806,7 @@ fn draw_start_center_surface(
     style: &ShellRenderStyle,
     focused: bool,
 ) {
-    let padding = style.space_4;
+    let padding = style.density_zone_inset;
     let card = Rect::new(
         rect.x.saturating_add(padding),
         rect.y.saturating_add(padding),
@@ -4765,8 +4827,9 @@ fn draw_start_center_surface(
         style.tokens.border_default,
     );
 
-    let header_x = card.x.saturating_add(style.space_3);
-    let mut y = card.y.saturating_add(style.space_3);
+    let content_padding = style.density_panel_padding;
+    let header_x = card.x.saturating_add(content_padding);
+    let mut y = card.y.saturating_add(content_padding);
 
     let header_h = draw_ui_text(
         buffer,
@@ -4796,7 +4859,7 @@ fn draw_start_center_surface(
         scale_bucket,
         text_runtime,
     );
-    y = y.saturating_add(subtitle_h).saturating_add(style.space_3);
+    y = y.saturating_add(subtitle_h).saturating_add(style.density_gutter);
 
     let runtime = StartCenterRuntimeInputs {
         client_scope: "desktop_product",
@@ -4810,12 +4873,18 @@ fn draw_start_center_surface(
     let rows = start_center_action_rows(registry, runtime);
     let selected = start_center.selection().min(rows.len().saturating_sub(1));
 
-    let row_height = 44;
-    let row_gap = style.space_2;
-    let row_width = card.width.saturating_sub(style.space_3.saturating_mul(2));
+    let (_, label_h) = ui_primary_ascent_and_height(text_runtime, 14.0);
+    let (_, detail_h) = ui_primary_ascent_and_height(text_runtime, 12.0);
+    let text_block_h = label_h.saturating_add(detail_h);
+    let row_height = style
+        .density_row_height
+        .saturating_mul(2)
+        .max(text_block_h.saturating_add(style.space_2.saturating_mul(2)));
+    let row_gap = style.density_gutter;
+    let row_width = card.width.saturating_sub(content_padding.saturating_mul(2));
     for (idx, row) in rows.iter().enumerate() {
         let row_rect = Rect::new(header_x, y, row_width, row_height);
-        if row_rect.bottom().saturating_add(style.space_3) > card.bottom() {
+        if row_rect.bottom().saturating_add(content_padding) > card.bottom() {
             break;
         }
 
@@ -4853,7 +4922,9 @@ fn draw_start_center_surface(
         } else {
             style.tokens.text_secondary
         };
-        let label_y = row_rect.y.saturating_add(style.space_2);
+        let label_y = row_rect
+            .y
+            .saturating_add(row_height.saturating_sub(text_block_h) / 2);
         let label_h = draw_ui_text(
             buffer,
             width,
@@ -4900,7 +4971,7 @@ fn draw_start_center_surface(
             card.bottom()
                 .saturating_sub(style.space_3)
                 .saturating_sub(12),
-            "↑/↓ select • Enter run • Cmd/Ctrl+Shift+P palette",
+            "↑/↓ select • Enter run • Cmd/Ctrl+Shift+P palette • Cmd/Ctrl+Shift+M density",
             style.tokens.text_muted,
             12.0,
             scale_bucket,
@@ -4924,7 +4995,7 @@ fn draw_docs_help_boundary_card(
     style: &ShellRenderStyle,
     focused: bool,
 ) {
-    let padding = style.space_3;
+    let padding = style.density_zone_inset;
     let panel = Rect::new(
         rect.x.saturating_add(padding),
         rect.y.saturating_add(padding),
@@ -4956,8 +5027,9 @@ fn draw_docs_help_boundary_card(
         );
     }
 
-    let header_x = panel.x.saturating_add(style.space_2);
-    let mut y = panel.y.saturating_add(style.space_2);
+    let content_padding = style.density_panel_padding;
+    let header_x = panel.x.saturating_add(content_padding);
+    let mut y = panel.y.saturating_add(content_padding);
     draw_text(
         buffer,
         width,
@@ -4970,7 +5042,7 @@ fn draw_docs_help_boundary_card(
     );
     y = y
         .saturating_add(8u32.saturating_mul(2))
-        .saturating_add(style.space_2);
+        .saturating_add(style.density_gutter);
 
     let shortcuts = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
     let packet_ref = card
@@ -5014,18 +5086,21 @@ fn draw_docs_help_boundary_card(
     lines.push(format!("Action: {}  [{}]", action_label, shortcuts));
     lines.push(format!("Handoff packet: {}", packet_ref));
 
-    let line_h = 14u32;
+    let line_h = style.density_row_height;
+    let text_scale = 2u32;
+    let glyph_h = 8u32.saturating_mul(text_scale);
     for line in lines {
-        if y.saturating_add(line_h) > panel.bottom().saturating_sub(style.space_2) {
+        if y.saturating_add(line_h) > panel.bottom().saturating_sub(content_padding) {
             break;
         }
+        let text_y = y.saturating_add(line_h.saturating_sub(glyph_h) / 2);
         draw_text(
             buffer,
             width,
             height,
             header_x,
-            y,
-            1,
+            text_y,
+            text_scale,
             &line,
             style.tokens.text_secondary,
         );
@@ -5038,10 +5113,7 @@ fn draw_docs_help_boundary_card(
             width,
             height,
             header_x,
-            panel
-                .bottom()
-                .saturating_sub(style.space_2)
-                .saturating_sub(10),
+            panel.bottom().saturating_sub(content_padding).saturating_sub(10),
             1,
             "Chrome is host-owned; high-risk approval stays native.",
             style.tokens.text_muted,
@@ -5089,7 +5161,12 @@ fn draw_command_palette_overlay(
         return;
     };
     let overlay_physical = to_physical_rect(overlay_logical, scale_factor);
-    let slots = frame.slot_rects_within_zone(ShellZoneId::TransientOverlay, overlay_logical);
+    let zone_inset_logical = to_logical_px(style.density_zone_inset, scale_factor);
+    let slots = frame.slot_rects_within_zone(
+        ShellZoneId::TransientOverlay,
+        overlay_logical,
+        zone_inset_logical,
+    );
     let slot = slots
         .iter()
         .find(|(id, _)| *id == "slot.overlay.command_palette")
@@ -5107,7 +5184,7 @@ fn draw_command_palette_overlay(
     );
 
     // Panel inside the slot.
-    let panel_padding = style.space_4;
+    let panel_padding = style.density_zone_inset;
     let panel = Rect::new(
         slot_physical.x.saturating_add(panel_padding),
         slot_physical.y.saturating_add(panel_padding),
@@ -5129,9 +5206,11 @@ fn draw_command_palette_overlay(
     );
 
     let text_scale = 2u32;
+    let glyph_h = 8u32.saturating_mul(text_scale);
     let line_h = (8u32.saturating_mul(text_scale)).saturating_add(style.space_2);
-    let mut cursor_y = panel.y.saturating_add(style.space_3);
-    let cursor_x = panel.x.saturating_add(style.space_3);
+    let inner_padding = style.density_panel_padding;
+    let mut cursor_y = panel.y.saturating_add(inner_padding);
+    let cursor_x = panel.x.saturating_add(inner_padding);
 
     draw_text(
         buffer,
@@ -5160,10 +5239,10 @@ fn draw_command_palette_overlay(
         .saturating_add(style.space_2 / 2);
 
     let query_rect = Rect::new(
-        panel.x.saturating_add(style.space_3),
+        panel.x.saturating_add(inner_padding),
         cursor_y,
-        panel.width.saturating_sub(style.space_3.saturating_mul(2)),
-        line_h.saturating_add(style.space_2),
+        panel.width.saturating_sub(inner_padding.saturating_mul(2)),
+        style.density_control_height,
     );
     if !query_rect.is_empty() {
         let chrome = style.component_states.chrome_style(
@@ -5188,17 +5267,20 @@ fn draw_command_palette_overlay(
         } else {
             format!("> {}", palette.query())
         };
+        let query_text_y = query_rect
+            .y
+            .saturating_add(query_rect.height.saturating_sub(glyph_h) / 2);
         draw_text(
             buffer,
             width,
             height,
             query_rect.x.saturating_add(style.space_2),
-            query_rect.y.saturating_add(style.space_2 / 2),
+            query_text_y,
             text_scale,
             &query_label,
             style.tokens.text_primary,
         );
-        cursor_y = query_rect.bottom().saturating_add(style.space_3);
+        cursor_y = query_rect.bottom().saturating_add(style.density_gutter);
     }
 
     let preview_runtime = PalettePreviewRuntimeInputs {
@@ -5238,11 +5320,10 @@ fn draw_command_palette_overlay(
         },
     );
 
-    let inner_padding = style.space_3;
     let footer_lines = 2u32;
     let footer_height = footer_lines
         .saturating_mul(line_h)
-        .saturating_add(style.space_3);
+        .saturating_add(style.density_gutter);
     let footer = Rect::new(
         panel.x.saturating_add(inner_padding),
         panel
@@ -5270,7 +5351,7 @@ fn draw_command_palette_overlay(
         return;
     }
 
-    let gap = style.space_3;
+    let gap = style.density_gutter;
     let char_w = 8u32.saturating_mul(text_scale);
     let min_list_w = char_w.saturating_mul(48);
     let min_preview_w = char_w.saturating_mul(36);
@@ -5299,8 +5380,9 @@ fn draw_command_palette_overlay(
     let max_list_cols = (list_rect.width / char_w).saturating_sub(1) as usize;
     let mut list_y = list_rect.y;
     let list_x = list_rect.x;
+    let row_height = style.density_row_height.max(glyph_h);
     for row in view_rows.iter() {
-        if list_y.saturating_add(line_h) > list_rect.bottom() {
+        if list_y.saturating_add(row_height) > list_rect.bottom() {
             break;
         }
         let selected = row
@@ -5312,9 +5394,9 @@ fn draw_command_palette_overlay(
         if selected && !row.is_group_header {
             let highlight = Rect::new(
                 list_rect.x,
-                list_y.saturating_sub(style.space_2 / 4),
+                list_y,
                 list_rect.width,
-                line_h,
+                row_height,
             );
             let chrome = style.component_states.chrome_style(
                 ComponentSurfaceTone::Surface,
@@ -5341,7 +5423,7 @@ fn draw_command_palette_overlay(
             width,
             height,
             list_x,
-            list_y,
+            list_y.saturating_add(row_height.saturating_sub(glyph_h) / 2),
             text_scale,
             &line,
             if selected && !row.is_group_header {
@@ -5352,7 +5434,7 @@ fn draw_command_palette_overlay(
                 style.tokens.text_muted
             },
         );
-        list_y = list_y.saturating_add(line_h);
+        list_y = list_y.saturating_add(row_height);
     }
 
     if !preview_rect.is_empty() {

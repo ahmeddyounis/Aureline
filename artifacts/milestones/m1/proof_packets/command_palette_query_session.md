@@ -7,10 +7,12 @@ decisions without inventing palette-local command identity.
 
 Canonical sources (non-exhaustive):
 
+- `docs/design/density_contract.md`
 - `docs/commands/palette_query_session_contract.md`
 - `docs/commands/palette_row_contract.md`
 - `schemas/commands/palette_query_session.schema.json`
 - `schemas/commands/palette_result.schema.json`
+- `fixtures/design/density_cases/`
 - `fixtures/commands/palette_query_cases/`
 - `crates/aureline-shell/src/palette/query_session.rs`
 - `crates/aureline-shell/src/palette/results_view.rs`

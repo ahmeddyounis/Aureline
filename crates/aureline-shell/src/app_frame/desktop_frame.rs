@@ -365,13 +365,14 @@ impl DesktopFrame {
         &self,
         zone: ShellZoneId,
         zone_rect: Rect,
+        zone_inset_px: u32,
     ) -> Vec<(&'static str, Rect)> {
         let slots = self.slot_ids_for_zone(zone);
         if slots.is_empty() || zone_rect.is_empty() {
             return Vec::new();
         }
 
-        let padding = 8;
+        let padding = zone_inset_px;
         let inner = Rect::new(
             zone_rect.x.saturating_add(padding),
             zone_rect.y.saturating_add(padding),
