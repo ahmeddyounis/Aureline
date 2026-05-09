@@ -10,8 +10,8 @@
 
 use std::cmp::Ordering;
 
-use aureline_buffer::{Buffer, BufferError, CommittedInfo, RevisionId, Snapshot, TransactionSpec};
 use aureline_buffer::UndoClass;
+use aureline_buffer::{Buffer, BufferError, CommittedInfo, RevisionId, Snapshot, TransactionSpec};
 
 use crate::viewport::TextPoint;
 
@@ -34,7 +34,10 @@ pub struct CaretSelection {
 impl CaretSelection {
     /// Creates a caret selection with no active range.
     pub const fn new(caret: TextPoint) -> Self {
-        Self { caret, anchor: None }
+        Self {
+            caret,
+            anchor: None,
+        }
     }
 
     /// Returns the caret position.
@@ -174,9 +177,11 @@ impl SelectionState {
     }
 
     fn normalize(&mut self) {
-        self.secondary.retain(|row| row.caret() != self.primary.caret());
+        self.secondary
+            .retain(|row| row.caret() != self.primary.caret());
         self.secondary.sort_by_key(|row| row.caret().key());
-        self.secondary.dedup_by(|a, b| a.caret().key() == b.caret().key());
+        self.secondary
+            .dedup_by(|a, b| a.caret().key() == b.caret().key());
     }
 
     /// Applies an insert/replace operation against `scope`.
@@ -251,6 +256,74 @@ impl SelectionState {
         ops = normalize_ops(ops);
 
         let multi_caret = matches!(scope, TextEditScope::AllCarets) && self.caret_count() > 1;
+        let undo_class = if multi_caret {
+            UndoClass::MultiCursorTextEdit
+        } else {
+            UndoClass::TextEdit
+        };
+        let originator = if multi_caret {
+            format!("{originator}:multi_cursor")
+        } else {
+            originator.to_string()
+        };
+
+        let mut tx = buffer.begin(TransactionSpec::new(undo_class, originator))?;
+        for op in ops.iter().rev() {
+            tx.replace(op.start..op.end, "")?;
+        }
+        let committed = tx.commit()?;
+        let revision = buffer.revision_id();
+        let next_snapshot = buffer.snapshot();
+
+        remap_carets_after_ops(self, snapshot, &next_snapshot, &ops);
+        clear_all_anchors(self);
+
+        Ok(Some(TextEditOutcome {
+            committed,
+            snapshot: next_snapshot,
+            revision,
+        }))
+    }
+
+    /// Applies a grouped deletion over explicit byte ranges.
+    ///
+    /// The ranges are interpreted against `snapshot` and normalized (sorted and
+    /// merged) before committing the transaction. Returns `Ok(None)` when the
+    /// normalized range set is empty.
+    pub fn apply_delete_byte_ranges(
+        &mut self,
+        buffer: &mut Buffer,
+        snapshot: &Snapshot,
+        ranges: Vec<std::ops::Range<usize>>,
+        originator: &str,
+    ) -> Result<Option<TextEditOutcome>, BufferError> {
+        if ranges.is_empty() {
+            return Ok(None);
+        }
+
+        self.normalize();
+
+        let mut ops: Vec<EditOp> = Vec::new();
+        for range in ranges {
+            let start = range.start.min(snapshot.len());
+            let end = range.end.min(snapshot.len());
+            if start >= end {
+                continue;
+            }
+            ops.push(EditOp {
+                start,
+                end,
+                inserted_len: 0,
+            });
+        }
+
+        if ops.is_empty() {
+            return Ok(None);
+        }
+
+        ops = normalize_ops(ops);
+
+        let multi_caret = self.caret_count() > 1;
         let undo_class = if multi_caret {
             UndoClass::MultiCursorTextEdit
         } else {
@@ -429,7 +502,8 @@ fn build_backward_delete_ops(
             && bytes.get(span.start - 1) == Some(&b'\n')
         {
             (span.start - 2, span.start)
-        } else if bytes.get(span.start - 1) == Some(&b'\n') || bytes.get(span.start - 1) == Some(&b'\r')
+        } else if bytes.get(span.start - 1) == Some(&b'\n')
+            || bytes.get(span.start - 1) == Some(&b'\r')
         {
             (span.start - 1, span.start)
         } else {
@@ -489,7 +563,9 @@ fn remap_carets_after_ops(
 ) {
     let primary_offset = byte_offset_for_point(prior, state.primary.caret());
     let primary_mapped = map_offset(primary_offset, ops);
-    state.primary.set_caret(point_for_offset(next, primary_mapped));
+    state
+        .primary
+        .set_caret(point_for_offset(next, primary_mapped));
 
     for caret in &mut state.secondary {
         let offset = byte_offset_for_point(prior, caret.caret());
@@ -503,7 +579,10 @@ fn remap_carets_after_ops(
 fn point_for_offset(snapshot: &Snapshot, offset: usize) -> TextPoint {
     match snapshot.line_grapheme_for_byte_offset(offset) {
         Some((line, grapheme)) => TextPoint { line, grapheme },
-        None => TextPoint { line: 0, grapheme: 0 },
+        None => TextPoint {
+            line: 0,
+            grapheme: 0,
+        },
     }
 }
 

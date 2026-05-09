@@ -9,6 +9,7 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-editor/0.0.0")]
 
+pub mod clipboard;
 pub mod paint;
 pub mod selection;
 pub mod viewport;

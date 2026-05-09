@@ -16,7 +16,9 @@ use crate::a11y::shell_bridge::{
     materialize_shell_accessibility_tree, write_shell_accessibility_tree_log,
     ShellA11yEnablementContext,
 };
-use crate::app_frame::desktop_frame::{DesktopFrame, EditorTabId, NewEditorGroupOutcome, SplitViolation};
+use crate::app_frame::desktop_frame::{
+    DesktopFrame, EditorTabId, NewEditorGroupOutcome, SplitViolation,
+};
 use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
 use crate::commands::diagnostics_sheet::{
     diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
@@ -895,7 +897,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                             Ime::Preedit(text, cursor) => {
                                 aureline_input::text_input::ImeEvent::Preedit { text, cursor }
                             }
-                            Ime::Commit(text) => aureline_input::text_input::ImeEvent::Commit { text },
+                            Ime::Commit(text) => {
+                                aureline_input::text_input::ImeEvent::Commit { text }
+                            }
                         },
                         registry,
                         &keybinding_runtime.shortcuts_by_command_id,
@@ -966,10 +970,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 let normalized = session.text_input.handle_ime_event(match ime {
                     Ime::Enabled => aureline_input::text_input::ImeEvent::Enabled,
                     Ime::Disabled => aureline_input::text_input::ImeEvent::Disabled,
-                    Ime::Preedit(text, cursor) => aureline_input::text_input::ImeEvent::Preedit {
-                        text,
-                        cursor,
-                    },
+                    Ime::Preedit(text, cursor) => {
+                        aureline_input::text_input::ImeEvent::Preedit { text, cursor }
+                    }
                     Ime::Commit(text) => aureline_input::text_input::ImeEvent::Commit { text },
                 });
 
@@ -1111,9 +1114,10 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                             let Some(active_tab) = frame.active_tab_id(focused) else {
                                 return;
                             };
-                            let Some(viewport_rect) = damage_geometry
-                                .focused_editor_viewport
-                                .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+                            let Some(viewport_rect) =
+                                damage_geometry.focused_editor_viewport.map(|rect| {
+                                    PixelRect::new(rect.x, rect.y, rect.width, rect.height)
+                                })
                             else {
                                 return;
                             };
@@ -1127,40 +1131,40 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                 return;
                             };
 
-                                let modifiers = aureline_input::text_input::TextInputModifiers {
-                                    ctrl: held_modifiers.ctrl,
-                                    alt: held_modifiers.alt,
-                                    shift: held_modifiers.shift,
-                                    logo: held_modifiers.logo,
-                                };
-                                let is_dead_key =
-                                    matches!(event.logical_key, winit::keyboard::Key::Dead(_));
-                                let key_event = aureline_input::text_input::TextKeyEvent {
-                                    code: text_input_key_code(code),
-                                    text: event.text.as_deref().map(|text| text.to_string()),
-                                    is_repeat: event.repeat,
-                                    is_dead_key,
-                                    modifiers,
-                                };
+                            let modifiers = aureline_input::text_input::TextInputModifiers {
+                                ctrl: held_modifiers.ctrl,
+                                alt: held_modifiers.alt,
+                                shift: held_modifiers.shift,
+                                logo: held_modifiers.logo,
+                            };
+                            let is_dead_key =
+                                matches!(event.logical_key, winit::keyboard::Key::Dead(_));
+                            let key_event = aureline_input::text_input::TextKeyEvent {
+                                code: text_input_key_code(code),
+                                text: event.text.as_deref().map(|text| text.to_string()),
+                                is_repeat: event.repeat,
+                                is_dead_key,
+                                modifiers,
+                            };
 
-                                if let Some(normalized) = session.text_input.handle_key_event(&key_event)
-                                {
-                                    let action = editor_action_from_text_input(normalized);
-                                    if let Some(damage) = session.apply_action(&action, viewport_rect)
-                                    {
-                                        if damage.hook == Hook::ReflowLineRange {
-                                            hot_path_metrics
-                                                .note_keystroke_to_paint_admitted(clock.now().0);
-                                        }
-                                        scheduler.invalidate(damage.event);
-                                        scheduler.mark_hook(damage.hook, &clock);
+                            if let Some(normalized) =
+                                session.text_input.handle_key_event(&key_event)
+                            {
+                                let action = editor_action_from_text_input(normalized);
+                                if let Some(damage) = session.apply_action(&action, viewport_rect) {
+                                    if damage.hook == Hook::ReflowLineRange {
+                                        hot_path_metrics
+                                            .note_keystroke_to_paint_admitted(clock.now().0);
                                     }
-                                    update_ime_cursor_area_for_viewport(
-                                        &window,
-                                        &session.viewport,
-                                        viewport_rect,
-                                    );
+                                    scheduler.invalidate(damage.event);
+                                    scheduler.mark_hook(damage.hook, &clock);
                                 }
+                                update_ime_cursor_area_for_viewport(
+                                    &window,
+                                    &session.viewport,
+                                    viewport_rect,
+                                );
+                            }
                         }
                     }
                 }
@@ -1406,6 +1410,19 @@ impl ClipboardState {
             .set_text(text.to_string())
             .map_err(|err| err.to_string())
     }
+
+    fn get_text(&mut self) -> Result<String, String> {
+        if !self.enabled {
+            return Err("clipboard disabled".to_string());
+        }
+        if self.clipboard.is_none() {
+            self.clipboard = Clipboard::new().ok();
+        }
+        let Some(clipboard) = self.clipboard.as_mut() else {
+            return Err("clipboard unavailable".to_string());
+        };
+        clipboard.get_text().map_err(|err| err.to_string())
+    }
 }
 
 struct ShellTextRuntime {
@@ -1589,7 +1606,11 @@ impl BufferAuthorityStore {
         Ok(authority)
     }
 
-    fn placeholder_authority(&mut self, label: impl Into<String>, text: &str) -> Rc<RefCell<BufferAuthority>> {
+    fn placeholder_authority(
+        &mut self,
+        label: impl Into<String>,
+        text: &str,
+    ) -> Rc<RefCell<BufferAuthority>> {
         let buffer = Buffer::from_str(text);
         let saved_revision = buffer.revision_id();
         Rc::new(RefCell::new(BufferAuthority {
@@ -1725,7 +1746,9 @@ impl EditorTabSession {
 
         match action {
             EditorAction::InsertText { text } => {
-                let scope = if self.viewport.caret_count() > 1 && self.viewport.ime_composition().is_some() {
+                let scope = if self.viewport.caret_count() > 1
+                    && self.viewport.ime_composition().is_some()
+                {
                     aureline_editor::TextEditScope::PrimaryOnly
                 } else {
                     aureline_editor::TextEditScope::AllCarets
@@ -1733,9 +1756,13 @@ impl EditorTabSession {
 
                 let outcome = {
                     let mut authority = self.authority.borrow_mut();
-                    self.viewport
-                        .selections_mut()
-                        .apply_insert_text(&mut authority.buffer, &self.snapshot, text, "user_keystroke", scope)
+                    self.viewport.selections_mut().apply_insert_text(
+                        &mut authority.buffer,
+                        &self.snapshot,
+                        text,
+                        "user_keystroke",
+                        scope,
+                    )
                 };
 
                 let Ok(Some(outcome)) = outcome else {
@@ -1751,9 +1778,12 @@ impl EditorTabSession {
             EditorAction::DeleteBackward => {
                 let outcome = {
                     let mut authority = self.authority.borrow_mut();
-                    self.viewport
-                        .selections_mut()
-                        .apply_delete_backward(&mut authority.buffer, &self.snapshot, "user_keystroke", aureline_editor::TextEditScope::AllCarets)
+                    self.viewport.selections_mut().apply_delete_backward(
+                        &mut authority.buffer,
+                        &self.snapshot,
+                        "user_keystroke",
+                        aureline_editor::TextEditScope::AllCarets,
+                    )
                 };
 
                 let Ok(Some(outcome)) = outcome else {
@@ -1826,7 +1856,9 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn ensure_group(&mut self, group: PaneId) -> &mut EditorGroupSession {
-        self.groups.entry(group).or_insert_with(EditorGroupSession::new)
+        self.groups
+            .entry(group)
+            .or_insert_with(EditorGroupSession::new)
     }
 
     fn ensure_tab_session(
@@ -1884,7 +1916,11 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<(), String> {
-        let Some(session) = self.groups.get_mut(&group).and_then(|g| g.tabs.get_mut(&tab)) else {
+        let Some(session) = self
+            .groups
+            .get_mut(&group)
+            .and_then(|g| g.tabs.get_mut(&tab))
+        else {
             return Err("tab not found".to_string());
         };
         session.ensure_fresh_snapshot();
@@ -1919,7 +1955,11 @@ impl EditorWorkspaceRuntimeState {
             .is_some_and(|session| session.tabs.contains_key(&tab))
     }
 
-    fn tab_session_mut(&mut self, group: PaneId, tab: EditorTabId) -> Option<&mut EditorTabSession> {
+    fn tab_session_mut(
+        &mut self,
+        group: PaneId,
+        tab: EditorTabId,
+    ) -> Option<&mut EditorTabSession> {
         self.groups.get_mut(&group)?.tabs.get_mut(&tab)
     }
 
@@ -2012,6 +2052,15 @@ mod clipboard_tests {
         let mut clipboard = ClipboardState::new(false);
         let err = clipboard
             .set_text("hello")
+            .expect_err("disabled clipboard should fail");
+        assert_eq!(err, "clipboard disabled");
+    }
+
+    #[test]
+    fn disabled_clipboard_refuses_get_text() {
+        let mut clipboard = ClipboardState::new(false);
+        let err = clipboard
+            .get_text()
             .expect_err("disabled clipboard should fail");
         assert_eq!(err, "clipboard disabled");
     }
@@ -4011,6 +4060,165 @@ fn handle_key_event(
         return ShellDamageHint::None;
     }
 
+    if frame.focused_zone() == ShellZoneId::MainWorkspace
+        && modifiers.ctrl_or_logo()
+        && !modifiers.alt
+    {
+        match code {
+            KeyCode::KeyC | KeyCode::KeyX | KeyCode::KeyV => {
+                let focused = frame.focused_editor_group();
+                let has_tabs = frame
+                    .editor_group_layouts()
+                    .into_iter()
+                    .find(|g| g.group_id == focused)
+                    .is_some_and(|g| g.tab_count > 0);
+                if !has_tabs {
+                    return ShellDamageHint::None;
+                }
+
+                let Some(active_tab) = frame.active_tab_id(focused) else {
+                    return ShellDamageHint::None;
+                };
+                let Some(viewport_rect) = damage_geometry
+                    .focused_editor_viewport
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+                else {
+                    return ShellDamageHint::None;
+                };
+
+                if !editor_runtime.has_tab_session(focused, active_tab) {
+                    editor_runtime.open_placeholder(focused, active_tab);
+                }
+                let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
+                    return ShellDamageHint::None;
+                };
+
+                session.ensure_fresh_snapshot();
+
+                match code {
+                    KeyCode::KeyC => match aureline_editor::clipboard::plan_copy_default(
+                        &session.snapshot,
+                        session.viewport.selections(),
+                    ) {
+                        Ok(payload) => match clipboard.set_text(&payload.text) {
+                            Ok(()) => {
+                                let label = match payload.copy_variant_id {
+                                    aureline_editor::clipboard::CopyVariantId::SelectionRaw => {
+                                        "copied selection"
+                                    }
+                                    aureline_editor::clipboard::CopyVariantId::Line => {
+                                        "copied line"
+                                    }
+                                };
+                                command_runtime.note_non_command_action(label);
+                            }
+                            Err(err) => command_runtime
+                                .note_non_command_action(format!("copy failed — {err}")),
+                        },
+                        Err(err) => command_runtime
+                            .note_non_command_action(format!("copy unavailable — {err}")),
+                    },
+                    KeyCode::KeyX => match aureline_editor::clipboard::plan_cut_default(
+                        &session.snapshot,
+                        session.viewport.selections(),
+                    ) {
+                        Ok(plan) => {
+                            let aureline_editor::clipboard::CutPayload {
+                                payload,
+                                delete_ranges,
+                            } = plan;
+                            match clipboard.set_text(&payload.text) {
+                                Ok(()) => {
+                                    let outcome = {
+                                        let mut authority = session.authority.borrow_mut();
+                                        session.viewport.selections_mut().apply_delete_byte_ranges(
+                                            &mut authority.buffer,
+                                            &session.snapshot,
+                                            delete_ranges,
+                                            "user_keystroke",
+                                        )
+                                    };
+
+                                    match outcome {
+                                        Ok(Some(outcome)) => {
+                                            session.snapshot = outcome.snapshot;
+                                            session.last_seen_revision = outcome.revision;
+                                            session.refresh_document_cache();
+                                            session.viewport.set_ime_composition(None);
+                                            session.needs_text_repaint = true;
+                                            update_ime_cursor_area_for_viewport(
+                                                window,
+                                                &session.viewport,
+                                                viewport_rect,
+                                            );
+                                            command_runtime.note_non_command_action("cut");
+                                        }
+                                        Ok(None) => {
+                                            command_runtime.note_non_command_action("cut: no-op")
+                                        }
+                                        Err(err) => command_runtime
+                                            .note_non_command_action(format!("cut failed — {err}")),
+                                    }
+                                }
+                                Err(err) => command_runtime
+                                    .note_non_command_action(format!("cut failed — {err}")),
+                            }
+                        }
+                        Err(err) => command_runtime
+                            .note_non_command_action(format!("cut unavailable — {err}")),
+                    },
+                    KeyCode::KeyV => match clipboard.get_text() {
+                        Ok(text) => {
+                            let scope = if session.viewport.caret_count() > 1
+                                && session.viewport.ime_composition().is_some()
+                            {
+                                aureline_editor::TextEditScope::PrimaryOnly
+                            } else {
+                                aureline_editor::TextEditScope::AllCarets
+                            };
+
+                            let outcome = {
+                                let mut authority = session.authority.borrow_mut();
+                                session.viewport.selections_mut().apply_insert_text(
+                                    &mut authority.buffer,
+                                    &session.snapshot,
+                                    &text,
+                                    "user_keystroke",
+                                    scope,
+                                )
+                            };
+
+                            match outcome {
+                                Ok(Some(outcome)) => {
+                                    session.snapshot = outcome.snapshot;
+                                    session.last_seen_revision = outcome.revision;
+                                    session.refresh_document_cache();
+                                    session.viewport.set_ime_composition(None);
+                                    session.needs_text_repaint = true;
+                                    update_ime_cursor_area_for_viewport(
+                                        window,
+                                        &session.viewport,
+                                        viewport_rect,
+                                    );
+                                    command_runtime.note_non_command_action("pasted");
+                                }
+                                Ok(None) => command_runtime.note_non_command_action("paste: no-op"),
+                                Err(err) => command_runtime
+                                    .note_non_command_action(format!("paste failed — {err}")),
+                            }
+                        }
+                        Err(err) => command_runtime
+                            .note_non_command_action(format!("paste unavailable — {err}")),
+                    },
+                    _ => {}
+                }
+
+                return ShellDamageHint::FullWindow;
+            }
+            _ => {}
+        }
+    }
+
     if let Some((sequence, inspection_scope)) =
         keybinding_sequence_and_scope_from_shell(code, modifiers, frame)
     {
@@ -4585,11 +4793,7 @@ fn update_ime_cursor_area_for_viewport(
         return;
     };
 
-    let x_rel = line
-        .grapheme_x_px
-        .get(caret.grapheme)
-        .copied()
-        .unwrap_or(0);
+    let x_rel = line.grapheme_x_px.get(caret.grapheme).copied().unwrap_or(0);
     let y_rel = line.y_top_px.max(0) as u32;
 
     let x = viewport_rect.x.saturating_add(x_rel);
@@ -8472,8 +8676,14 @@ mod tab_case_tests {
                 assert!(!info1.dirty, "expected tab1 to be clean after save");
                 assert!(!info2.dirty, "expected tab2 to be clean after save");
             } else {
-                assert!(info1.dirty, "expected tab1 to remain Modified after save failure");
-                assert!(info2.dirty, "expected tab2 to remain Modified after save failure");
+                assert!(
+                    info1.dirty,
+                    "expected tab1 to remain Modified after save failure"
+                );
+                assert!(
+                    info2.dirty,
+                    "expected tab2 to remain Modified after save failure"
+                );
             }
 
             if fixture.document.read_only {
