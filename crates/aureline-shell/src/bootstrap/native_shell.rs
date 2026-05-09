@@ -20,6 +20,10 @@ use crate::app_frame::desktop_frame::{
     DesktopFrame, EditorTabId, NewEditorGroupOutcome, SplitViolation,
 };
 use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
+use crate::chrome::title_context_bar::{
+    SurfaceKind, TitleContextBarRuntimeInputs, TitleContextBarRuntimeState,
+    TitleContextBarStateRecord,
+};
 use crate::commands::diagnostics_sheet::{
     diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
     write_diagnostics_sheet_log, CommandDiagnosticsSheetRecord,
@@ -75,10 +79,6 @@ use aureline_telemetry::trace_event::BuildIdentityRecord as TelemetryBuildIdenti
 use aureline_ui::components::{
     ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
 };
-use aureline_vfs::{
-    IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, VirtualDocumentKind,
-    VirtualDocumentRoot, VirtualDocumentSpec, VfsRoot, VfsUri, WatcherHealth,
-};
 use aureline_ui::density::DensityProfile;
 use aureline_ui::motion::{ReducedMotionSubstitutionClass, OVERLAY_DIALOG_ENTER};
 use aureline_ui::themes::{
@@ -87,6 +87,10 @@ use aureline_ui::themes::{
 };
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
+};
+use aureline_vfs::{
+    IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, VfsRoot, VfsUri, VirtualDocumentKind,
+    VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
 };
 use aureline_workspace::{
     PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
@@ -105,10 +109,10 @@ use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSu
 use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_editor::{
-    CaretMove, EditorAction, EditorTextRuntime, EditorViewport, EditorViewportSnapshot,
-    FindReplaceMode, FindReplaceState, SelectionDelta, ViewportCompositor, ViewportPaintStyle,
-    ClassificationPolicy, DocumentOpenDisposition, DocumentOpenOutcome, LargeFileDocument,
-    LargeFileOverrideInfo, LargeFileViewerConfig, open_document,
+    open_document, CaretMove, ClassificationPolicy, DocumentOpenDisposition, DocumentOpenOutcome,
+    EditorAction, EditorTextRuntime, EditorViewport, EditorViewportSnapshot, FindReplaceMode,
+    FindReplaceState, LargeFileDocument, LargeFileOverrideInfo, LargeFileViewerConfig,
+    SelectionDelta, ViewportCompositor, ViewportPaintStyle,
 };
 use aureline_render::hooks::{Clock, Hook};
 use aureline_render::{
@@ -556,9 +560,10 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let registry = seeded_registry();
     let (default_width, default_height) = (1920.0, 1080.0);
     let (window_width, window_height) = args.window_size.unwrap_or((default_width, default_height));
+    let mut title_context_bar = TitleContextBarRuntimeState::new();
     let window = WinitWindow::new(
         &event_loop,
-        window_title(None, None, None),
+        window_title(title_context_bar.record()),
         LogicalSize::new(window_width, window_height),
     )?
     .into_arc();
@@ -750,11 +755,6 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             let palette_changed =
                 palette.tick(registry, &keybinding_runtime.shortcuts_by_command_id, now);
             if palette_changed && palette.is_open() {
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    palette.selected_entry(registry),
-                    recent_work.active_workspace_label(),
-                ));
                 if let Some(rect) = damage_geometry.command_palette_panel {
                     enqueue_damage_hint(
                         &mut scheduler,
@@ -776,6 +776,38 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 file_index_readiness.map(|v| v.watcher_health),
                 file_index_readiness.map(|v| v.hot_index_ready),
             ) {
+                enqueue_damage_hint(
+                    &mut scheduler,
+                    ShellDamageHint::Rect {
+                        layer: CompositionLayerId::WindowChromeBase,
+                        class: DamageClassId::TextReflowLocal,
+                        rect: to_physical_rect(frame.layout().status_bar, window.scale_factor()),
+                    },
+                );
+            }
+
+            let workspace_root = workspace_lifecycle
+                .machine
+                .as_ref()
+                .and_then(|_| palette.workspace_root());
+            if title_context_bar.update(TitleContextBarRuntimeInputs {
+                workspace_label: recent_work.active_workspace_label(),
+                workspace_root,
+                workspace_lifecycle: workspace_lifecycle.machine.as_ref(),
+                workspace_trust_state_token: enablement_runtime.workspace_trust_state.as_str(),
+            }) {
+                window.set_title(&window_title(title_context_bar.record()));
+                enqueue_damage_hint(
+                    &mut scheduler,
+                    ShellDamageHint::Rect {
+                        layer: CompositionLayerId::WindowChromeBase,
+                        class: DamageClassId::TextReflowLocal,
+                        rect: to_physical_rect(
+                            frame.layout().title_context_bar,
+                            window.scale_factor(),
+                        ),
+                    },
+                );
                 enqueue_damage_hint(
                     &mut scheduler,
                     ShellDamageHint::Rect {
@@ -936,12 +968,6 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     );
 
                     if changed {
-                        window.set_title(&window_title(
-                            Some(frame.focused_zone()),
-                            palette.selected_entry(registry),
-                            recent_work.active_workspace_label(),
-                        ));
-
                         if let Some(rect) = damage_geometry.command_palette_panel {
                             enqueue_damage_hint(
                                 &mut scheduler,
@@ -1247,6 +1273,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &enablement_runtime,
                     &workspace_lifecycle,
                     &recent_work,
+                    title_context_bar.record(),
                     &appearance,
                     &held_modifiers,
                     &mut damage_geometry,
@@ -1290,28 +1317,12 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn window_title(
-    focused: Option<ShellZoneId>,
-    palette_selected: Option<&CommandRegistryEntryRecord>,
-    active_workspace_label: Option<&str>,
-) -> String {
+fn window_title(title_context: &TitleContextBarStateRecord) -> String {
     let identity = build_info::build_identity();
-    let workspace_suffix = active_workspace_label
-        .map(|label| format!(" — workspace: {label}"))
-        .unwrap_or_default();
-    let focus_suffix = focused
-        .map(|z| format!(" — focus: {}", z.name()))
-        .unwrap_or_default();
-    let palette_suffix = palette_selected
-        .map(|entry| format!(" — cmd: {}", entry.command_id()))
-        .unwrap_or_default();
-    format!(
-        "Aureline Shell{}{}{}{}",
-        workspace_suffix,
-        focus_suffix,
-        palette_suffix,
-        format!(" ({})", identity.commit_short)
-    )
+    let core = title_context
+        .native_window_title_label()
+        .unwrap_or("Start Center");
+    format!("Aureline — {core} ({})", identity.commit_short)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1683,7 +1694,8 @@ impl BufferAuthorityStore {
                     .viewer
                     .read_prefix_utf8(LARGE_FILE_PREVIEW_MAX_BYTES)
                     .map_err(|err| err.to_string())?;
-                let buffer = Buffer::from_str(&large_file_presentation_buffer(&doc, notice, preview));
+                let buffer =
+                    Buffer::from_str(&large_file_presentation_buffer(&doc, notice, preview));
                 let saved_revision = buffer.revision_id();
                 Rc::new(RefCell::new(BufferAuthority {
                     label,
@@ -2160,7 +2172,10 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn open_anyway(&mut self, group: PaneId, tab: EditorTabId) -> Result<(), String> {
-        let Some(tab_session) = self.groups.get_mut(&group).and_then(|g| g.tabs.get_mut(&tab))
+        let Some(tab_session) = self
+            .groups
+            .get_mut(&group)
+            .and_then(|g| g.tabs.get_mut(&tab))
         else {
             return Err("tab not found".to_string());
         };
@@ -2629,7 +2644,8 @@ impl WorkspaceLifecycleRuntimeState {
         match serde_json::to_string_pretty(&snapshot) {
             Ok(payload) => {
                 if let Err(err) = std::fs::write(&self.snapshot_path, payload) {
-                    self.last_error = Some(format!("workspace lifecycle snapshot write failed: {err}"));
+                    self.last_error =
+                        Some(format!("workspace lifecycle snapshot write failed: {err}"));
                 }
             }
             Err(err) => {
@@ -3430,16 +3446,11 @@ fn dispatch_registry_entry(
             let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             let trust_state =
                 trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
-            recent_work.note_local_folder_opened(
-                &cwd,
-                trust_state,
-            );
+            recent_work.note_local_folder_opened(&cwd, trust_state);
             palette.set_workspace_root(cwd.clone());
             let identity_key = cwd.to_string_lossy();
-            workspace_lifecycle.open_local_folder(
-                workspace_id_for_local_folder(&identity_key),
-                trust_state,
-            );
+            workspace_lifecycle
+                .open_local_folder(workspace_id_for_local_folder(&identity_key), trust_state);
             if let Err(err) = recent_work.save() {
                 command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
             }
@@ -3902,12 +3913,41 @@ fn activate_recent_work_entry(
     }
 }
 
+fn workspace_root_for_recent_work_entry(entry: &RecentWorkEntryRecord) -> Option<PathBuf> {
+    match entry.target_kind {
+        TargetKind::LocalFolder => entry.presentation_subtitle.as_deref().map(PathBuf::from),
+        _ => None,
+    }
+}
+
+fn sync_workspace_activation_runtime(
+    palette: &mut CommandPaletteState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    workspace_trust_state: &str,
+    workspace_root: Option<PathBuf>,
+) {
+    let Some(root) = workspace_root else {
+        workspace_lifecycle.machine = None;
+        workspace_lifecycle.last_logged = None;
+        return;
+    };
+
+    palette.set_workspace_root(root.clone());
+    let identity_key = root.to_string_lossy();
+    workspace_lifecycle.open_local_folder(
+        workspace_id_for_local_folder(&identity_key),
+        trust_state_for_recent_work(workspace_trust_state),
+    );
+}
+
 fn apply_workspace_switcher_decision(
     window_size: &LogicalSize<u32>,
     workspace_trust_state: &mut String,
     recent_work: &mut RecentWorkRuntimeState,
     frame: &mut DesktopFrame,
     command_runtime: &mut CommandRuntimeState,
+    palette: &mut CommandPaletteState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     decision: WorkspaceSwitcherDecision,
 ) {
     let window_dims = (window_size.width, window_size.height);
@@ -3920,6 +3960,7 @@ fn apply_workspace_switcher_decision(
                 ));
                 return;
             };
+            let workspace_root = workspace_root_for_recent_work_entry(&entry);
 
             let preferred_open = [
                 SafeRecoveryAction::Open,
@@ -3942,6 +3983,12 @@ fn apply_workspace_switcher_decision(
                         entry,
                         Some(TrustState::Restricted),
                     );
+                    sync_workspace_activation_runtime(
+                        palette,
+                        workspace_lifecycle,
+                        workspace_trust_state.as_str(),
+                        workspace_root,
+                    );
                 }
                 Some(SafeRecoveryAction::OpenInNewWindow) => {
                     command_runtime.note_non_command_action(
@@ -3956,16 +4003,30 @@ fn apply_workspace_switcher_decision(
                         entry,
                         None,
                     );
+                    sync_workspace_activation_runtime(
+                        palette,
+                        workspace_lifecycle,
+                        workspace_trust_state.as_str(),
+                        workspace_root,
+                    );
                 }
-                Some(_) => activate_recent_work_entry(
-                    window_dims,
-                    workspace_trust_state,
-                    recent_work,
-                    frame,
-                    command_runtime,
-                    entry,
-                    None,
-                ),
+                Some(_) => {
+                    activate_recent_work_entry(
+                        window_dims,
+                        workspace_trust_state,
+                        recent_work,
+                        frame,
+                        command_runtime,
+                        entry,
+                        None,
+                    );
+                    sync_workspace_activation_runtime(
+                        palette,
+                        workspace_lifecycle,
+                        workspace_trust_state.as_str(),
+                        workspace_root,
+                    );
+                }
                 None => command_runtime.note_non_command_action(format!(
                     "workspace switch blocked: no open action available ({recent_work_id})"
                 )),
@@ -4027,6 +4088,7 @@ fn apply_workspace_switcher_decision(
                     ));
                     return;
                 };
+                let workspace_root = workspace_root_for_recent_work_entry(&entry);
                 activate_recent_work_entry(
                     window_dims,
                     workspace_trust_state,
@@ -4035,6 +4097,12 @@ fn apply_workspace_switcher_decision(
                     command_runtime,
                     entry,
                     None,
+                );
+                sync_workspace_activation_runtime(
+                    palette,
+                    workspace_lifecycle,
+                    workspace_trust_state.as_str(),
+                    workspace_root,
                 );
             }
             SafeRecoveryAction::OpenReadOnlyCachedView => {
@@ -4047,6 +4115,7 @@ fn apply_workspace_switcher_decision(
                     ));
                     return;
                 };
+                let workspace_root = workspace_root_for_recent_work_entry(&entry);
                 activate_recent_work_entry(
                     window_dims,
                     workspace_trust_state,
@@ -4056,6 +4125,12 @@ fn apply_workspace_switcher_decision(
                     entry,
                     None,
                 );
+                sync_workspace_activation_runtime(
+                    palette,
+                    workspace_lifecycle,
+                    workspace_trust_state.as_str(),
+                    workspace_root,
+                );
             }
             SafeRecoveryAction::OpenRestricted => {
                 let Some(entry) = recent_work.find_entry(&recent_work_id).cloned() else {
@@ -4064,6 +4139,7 @@ fn apply_workspace_switcher_decision(
                     ));
                     return;
                 };
+                let workspace_root = workspace_root_for_recent_work_entry(&entry);
                 activate_recent_work_entry(
                     window_dims,
                     workspace_trust_state,
@@ -4072,6 +4148,12 @@ fn apply_workspace_switcher_decision(
                     command_runtime,
                     entry,
                     Some(TrustState::Restricted),
+                );
+                sync_workspace_activation_runtime(
+                    palette,
+                    workspace_lifecycle,
+                    workspace_trust_state.as_str(),
+                    workspace_root,
                 );
             }
             SafeRecoveryAction::OpenInNewWindow => {
@@ -4084,6 +4166,7 @@ fn apply_workspace_switcher_decision(
                     ));
                     return;
                 };
+                let workspace_root = workspace_root_for_recent_work_entry(&entry);
                 activate_recent_work_entry(
                     window_dims,
                     workspace_trust_state,
@@ -4092,6 +4175,12 @@ fn apply_workspace_switcher_decision(
                     command_runtime,
                     entry,
                     None,
+                );
+                sync_workspace_activation_runtime(
+                    palette,
+                    workspace_lifecycle,
+                    workspace_trust_state.as_str(),
+                    workspace_root,
                 );
             }
             SafeRecoveryAction::Pin => {
@@ -4507,11 +4596,6 @@ fn handle_key_event(
                 frame.focus_zone(ShellZoneId::TransientOverlay);
                 command_runtime
                     .note_non_command_action(format!("diagnostics — {}", entry.command_id()));
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    None,
-                    recent_work.active_workspace_label(),
-                ));
 
                 ShellDamageHint::FullWindow
             }
@@ -4537,11 +4621,6 @@ fn handle_key_event(
                             workspace_lifecycle,
                             recent_work,
                         );
-                        window.set_title(&window_title(
-                            Some(frame.focused_zone()),
-                            None,
-                            recent_work.active_workspace_label(),
-                        ));
                         if changed {
                             ShellDamageHint::FullWindow
                         } else {
@@ -4575,21 +4654,9 @@ fn handle_key_event(
                         }
                         command_runtime
                             .note_non_command_action(format!("opened file — {}", relative_path));
-                        window.set_title(&window_title(
-                            Some(frame.focused_zone()),
-                            None,
-                            recent_work.active_workspace_label(),
-                        ));
                         ShellDamageHint::FullWindow
                     }
-                    None => {
-                        window.set_title(&window_title(
-                            Some(frame.focused_zone()),
-                            None,
-                            recent_work.active_workspace_label(),
-                        ));
-                        panel_hint(DamageClassId::TextReflowLocal)
-                    }
+                    None => panel_hint(DamageClassId::TextReflowLocal),
                 }
             }
             KeyCode::Escape => {
@@ -4598,20 +4665,10 @@ fn handle_key_event(
                 if let Some(target) = palette_focus_return.pop() {
                     target.apply(frame);
                 }
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    None,
-                    recent_work.active_workspace_label(),
-                ));
                 ShellDamageHint::FullWindow
             }
             KeyCode::ArrowDown => {
                 let handled = palette.handle_arrow_down();
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    palette.selected_entry(registry),
-                    recent_work.active_workspace_label(),
-                ));
                 if handled {
                     panel_hint(DamageClassId::SelectionOverlayOnly)
                 } else {
@@ -4620,11 +4677,6 @@ fn handle_key_event(
             }
             KeyCode::ArrowUp => {
                 let handled = palette.handle_arrow_up();
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    palette.selected_entry(registry),
-                    recent_work.active_workspace_label(),
-                ));
                 if handled {
                     panel_hint(DamageClassId::SelectionOverlayOnly)
                 } else {
@@ -4634,11 +4686,6 @@ fn handle_key_event(
             KeyCode::Backspace => {
                 let handled =
                     palette.handle_backspace(registry, &keybinding_runtime.shortcuts_by_command_id);
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    palette.selected_entry(registry),
-                    recent_work.active_workspace_label(),
-                ));
                 if handled {
                     panel_hint(DamageClassId::TextReflowLocal)
                 } else {
@@ -4657,11 +4704,6 @@ fn handle_key_event(
                             );
                         }
                         if changed {
-                            window.set_title(&window_title(
-                                Some(frame.focused_zone()),
-                                palette.selected_entry(registry),
-                                recent_work.active_workspace_label(),
-                            ));
                             return panel_hint(DamageClassId::TextReflowLocal);
                         }
                     }
@@ -4690,6 +4732,8 @@ fn handle_key_event(
                 recent_work,
                 frame,
                 command_runtime,
+                palette,
+                workspace_lifecycle,
                 decision,
             );
         }
@@ -4697,11 +4741,6 @@ fn handle_key_event(
             if state.closed {
                 *overlay = None;
             }
-            window.set_title(&window_title(
-                Some(frame.focused_zone()),
-                None,
-                recent_work.active_workspace_label(),
-            ));
             return ShellDamageHint::FullWindow;
         }
         return ShellDamageHint::None;
@@ -4892,14 +4931,6 @@ fn handle_key_event(
                     workspace_lifecycle,
                     recent_work,
                 );
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    palette
-                        .is_open()
-                        .then(|| palette.selected_entry(registry))
-                        .flatten(),
-                    recent_work.active_workspace_label(),
-                ));
                 if !changed {
                     return ShellDamageHint::None;
                 }
@@ -4933,11 +4964,6 @@ fn handle_key_event(
         match code {
             KeyCode::ArrowDown => {
                 start_center.select_next(row_count);
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    None,
-                    recent_work.active_workspace_label(),
-                ));
                 return damage_geometry
                     .focused_editor_group
                     .map(|rect| ShellDamageHint::Rect {
@@ -4949,11 +4975,6 @@ fn handle_key_event(
             }
             KeyCode::ArrowUp => {
                 start_center.select_prev(row_count);
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    None,
-                    recent_work.active_workspace_label(),
-                ));
                 return damage_geometry
                     .focused_editor_group
                     .map(|rect| ShellDamageHint::Rect {
@@ -4983,11 +5004,6 @@ fn handle_key_event(
                     recent_work,
                     Some(row.argument_provenance_map.clone()),
                 );
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    None,
-                    recent_work.active_workspace_label(),
-                ));
                 if !changed {
                     return ShellDamageHint::None;
                 }
@@ -5084,11 +5100,6 @@ fn handle_key_event(
             }
 
             frame.focus_next();
-            window.set_title(&window_title(
-                Some(frame.focused_zone()),
-                None,
-                recent_work.active_workspace_label(),
-            ));
             ShellDamageHint::FullWindow
         }
         KeyCode::KeyO => {
@@ -5107,9 +5118,8 @@ fn handle_key_event(
                                 .note_non_command_action("opened anyway (large-file override)");
                         }
                         Err(err) => {
-                            command_runtime.note_non_command_action(format!(
-                                "open anyway failed — {err}"
-                            ));
+                            command_runtime
+                                .note_non_command_action(format!("open anyway failed — {err}"));
                         }
                     }
                 } else {
@@ -5170,11 +5180,6 @@ fn handle_key_event(
         KeyCode::KeyG => {
             if modifiers.ctrl_or_logo() {
                 frame.focus_next_editor_group();
-                window.set_title(&window_title(
-                    Some(frame.focused_zone()),
-                    None,
-                    recent_work.active_workspace_label(),
-                ));
                 ShellDamageHint::FullWindow
             } else {
                 ShellDamageHint::None
@@ -5829,6 +5834,7 @@ fn draw(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
     recent_work: &RecentWorkRuntimeState,
+    title_context_bar: &TitleContextBarStateRecord,
     appearance: &AppearanceRuntimeState,
     held_modifiers: &HeldModifiers,
     damage_geometry: &mut ShellDamageGeometryCache,
@@ -5898,6 +5904,7 @@ fn draw(
                 enablement_runtime,
                 workspace_lifecycle,
                 recent_work,
+                title_context_bar,
                 appearance,
                 &style,
                 held_modifiers,
@@ -5970,6 +5977,7 @@ fn draw(
                     enablement_runtime,
                     workspace_lifecycle,
                     recent_work,
+                    title_context_bar,
                     appearance,
                     &style,
                     held_modifiers,
@@ -6009,6 +6017,7 @@ fn rasterize_shell(
     enablement_runtime: &CommandEnablementRuntimeState,
     workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
     recent_work: &RecentWorkRuntimeState,
+    title_context_bar: &TitleContextBarStateRecord,
     appearance: &AppearanceRuntimeState,
     style: &ShellRenderStyle,
     held_modifiers: &HeldModifiers,
@@ -6226,6 +6235,87 @@ fn rasterize_shell(
                     }
                 }
             }
+            ShellZoneId::TitleContextBar => {
+                let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                for (_slot_id, slot_rect) in
+                    frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
+                {
+                    let slot_rect = to_physical_rect(slot_rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
+                        continue;
+                    }
+                    fill_rect(buffer, width, height, slot_rect, style.tokens.bg_surface);
+                    stroke_rect(
+                        buffer,
+                        width,
+                        height,
+                        slot_rect,
+                        style.stroke_default,
+                        style.tokens.border_default,
+                    );
+                    let label = title_context_bar
+                        .projection_label(SurfaceKind::TitleContextBar)
+                        .unwrap_or("Start Center");
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        slot_rect.x.saturating_add(style.space_2),
+                        slot_rect.y.saturating_add(style.space_2 / 2),
+                        1,
+                        label,
+                        style.tokens.text_primary,
+                    );
+                }
+            }
+            ShellZoneId::StatusBar => {
+                let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
+                for (slot_id, slot_rect) in
+                    frame.slot_rects_within_zone(zone, logical_rect, zone_inset_logical)
+                {
+                    let slot_rect = to_physical_rect(slot_rect, scale);
+                    if clip.is_some_and(|clip_rect| !rect_intersects(slot_rect, clip_rect)) {
+                        continue;
+                    }
+
+                    fill_rect(buffer, width, height, slot_rect, style.tokens.bg_surface);
+                    stroke_rect(
+                        buffer,
+                        width,
+                        height,
+                        slot_rect,
+                        style.stroke_default,
+                        style.tokens.border_default,
+                    );
+
+                    if slot_id == "status.slot.recovery.primary" {
+                        let label = title_context_bar
+                            .projection_label(SurfaceKind::WorkspaceStatusItem)
+                            .unwrap_or("Workspace ready");
+                        draw_text(
+                            buffer,
+                            width,
+                            height,
+                            slot_rect.x.saturating_add(style.space_2),
+                            slot_rect.y.saturating_add(style.space_2 / 2),
+                            1,
+                            label,
+                            style.tokens.text_primary,
+                        );
+                    } else {
+                        draw_text(
+                            buffer,
+                            width,
+                            height,
+                            slot_rect.x.saturating_add(style.space_2),
+                            slot_rect.y.saturating_add(style.space_2 / 2),
+                            1,
+                            slot_id,
+                            style.tokens.text_muted,
+                        );
+                    }
+                }
+            }
             _ => {
                 let zone_inset_logical = to_logical_px(style.density_zone_inset, scale);
                 for (slot_id, slot_rect) in
@@ -6284,17 +6374,19 @@ fn rasterize_shell(
             );
         }
 
-        let zone_label = format!("zone: {}", zone.name());
-        draw_text(
-            buffer,
-            width,
-            height,
-            rect.x.saturating_add(style.space_2),
-            rect.y.saturating_add(style.space_2 / 2),
-            1,
-            &zone_label,
-            style.tokens.text_muted,
-        );
+        if zone != ShellZoneId::TitleContextBar && zone != ShellZoneId::StatusBar {
+            let zone_label = format!("zone: {}", zone.name());
+            draw_text(
+                buffer,
+                width,
+                height,
+                rect.x.saturating_add(style.space_2),
+                rect.y.saturating_add(style.space_2 / 2),
+                1,
+                &zone_label,
+                style.tokens.text_muted,
+            );
+        }
     }
 
     let reduced_motion_posture = appearance.reduced_motion_posture();
@@ -6364,21 +6456,27 @@ fn rasterize_shell(
         };
         let palette_keys = keybinding_runtime.shortcuts_label("cmd:command_palette.open");
         let docs_keys = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
-        let trust_state = enablement_runtime.workspace_trust_state.as_str();
+        let enablement_trust_token = enablement_runtime.workspace_trust_state.as_str();
         let theme_label = appearance.theme_class().token();
         let density_label = appearance.density_class().token();
         let motion_label = appearance.reduced_motion_posture().token();
         let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
         let workspace_lifecycle_token = workspace_lifecycle.status_badge_token().unwrap_or("none");
-        let watcher_health_token = workspace_lifecycle.watcher_health_token().unwrap_or("unknown");
+        let watcher_health_token = workspace_lifecycle
+            .watcher_health_token()
+            .unwrap_or("unknown");
         let hot_index_label = match workspace_lifecycle.hot_index_ready() {
             Some(true) => "ready",
             Some(false) => "warming",
             None => "unknown",
         };
         let recent_work_store = recent_work.store_path.display();
+        let status_item_label = title_context_bar
+            .projection_label(SurfaceKind::WorkspaceStatusItem)
+            .unwrap_or("Workspace ready");
         let text = format!(
-            "theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   readiness: {}   watcher: {}   hot_index: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
+            "{}   theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   runtime_readiness: {}   watcher: {}   hot_index: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
+            status_item_label,
             theme_label,
             density_label,
             motion_label,
@@ -6389,7 +6487,7 @@ fn rasterize_shell(
             hot_index_label,
             last,
             last_keybinding,
-            trust_state,
+            enablement_trust_token,
             exec_ctx,
             policy,
             keybinding_runtime.active_preset.display_name(),
@@ -6403,88 +6501,99 @@ fn rasterize_shell(
         let badge_y = status.y.saturating_add(style.space_2 / 2);
         let badge_max_h = status.height.saturating_sub(1);
 
-        if let Some(token) = workspace_lifecycle.status_badge_token() {
-            let (label, fg, border, fill) = match token {
-                "ready" => (
+        let (lifecycle_label, lifecycle_fg, lifecycle_border, lifecycle_fill) =
+            match title_context_bar.workspace_identity.lifecycle_state {
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceReady => (
                     "Ready",
                     style.status_success,
                     style.status_success_border,
                     style.status_success_fill,
                 ),
-                "partially_ready" => (
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspacePartiallyReady => (
                     "Partially Ready",
                     style.status_warning,
                     style.status_warning_border,
                     style.status_warning_fill,
                 ),
-                "degraded" => (
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceDegraded
+                | crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceReadOnlyDegraded
+                | crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceRecovering => (
                     "Degraded",
                     style.status_danger,
                     style.status_danger_border,
                     style.status_danger_fill,
                 ),
-                "opening" => (
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceOpening => (
                     "Opening",
                     style.status_warning,
                     style.status_warning_border,
                     style.status_warning_fill,
                 ),
-                "trust_evaluating" => (
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceTrustEvaluating => (
                     "Trust Evaluating",
                     style.status_warning,
                     style.status_warning_border,
                     style.status_warning_fill,
                 ),
-                "closing" => (
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceClosing => (
                     "Closing",
                     style.status_warning,
                     style.status_warning_border,
                     style.status_warning_fill,
                 ),
-                "closed" => (
-                    "Closed",
-                    style.tokens.text_muted,
-                    style.tokens.border_default,
-                    style.tokens.bg_surface,
-                ),
-                "discovered" => (
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceDiscovered => (
                     "Discovered",
                     style.tokens.text_muted,
                     style.tokens.border_default,
                     style.tokens.bg_surface,
                 ),
-                _ => (
-                    "Unknown",
+                crate::chrome::title_context_bar::WorkspaceLifecycleState::WorkspaceClosed => (
+                    "Closed",
                     style.tokens.text_muted,
                     style.tokens.border_default,
                     style.tokens.bg_surface,
                 ),
             };
-            let badge_rect = draw_status_badge(
-                buffer, width, height, cursor_x, badge_y, badge_max_h, style, label, fg, border,
-                fill,
-            );
-            cursor_x = cursor_x
-                .saturating_add(badge_rect.width)
-                .saturating_add(style.space_2);
-        }
 
-        let trust_badge_text = match trust_state {
-            "restricted" => "Restricted",
-            _ => "Trusted",
-        };
-        let (trust_fg, trust_border, trust_fill) = match trust_state {
-            "restricted" => (
-                style.status_warning,
-                style.status_warning_border,
-                style.status_warning_fill,
-            ),
-            _ => (
-                style.status_success,
-                style.status_success_border,
-                style.status_success_fill,
-            ),
-        };
+        let badge_rect = draw_status_badge(
+            buffer,
+            width,
+            height,
+            cursor_x,
+            badge_y,
+            badge_max_h,
+            style,
+            lifecycle_label,
+            lifecycle_fg,
+            lifecycle_border,
+            lifecycle_fill,
+        );
+        cursor_x = cursor_x
+            .saturating_add(badge_rect.width)
+            .saturating_add(style.space_2);
+
+        let (trust_badge_text, trust_fg, trust_border, trust_fill) =
+            match title_context_bar.trust_identity.trust_state {
+                crate::chrome::title_context_bar::TrustState::Trusted => (
+                    "Trusted",
+                    style.status_success,
+                    style.status_success_border,
+                    style.status_success_fill,
+                ),
+                crate::chrome::title_context_bar::TrustState::Restricted => (
+                    "Restricted",
+                    style.status_warning,
+                    style.status_warning_border,
+                    style.status_warning_fill,
+                ),
+                _ => (
+                    "Untrusted",
+                    style.status_danger,
+                    style.status_danger_border,
+                    style.status_danger_fill,
+                ),
+            };
+
         let trust_badge_rect = draw_status_badge(
             buffer,
             width,
@@ -6501,6 +6610,54 @@ fn rasterize_shell(
         cursor_x = cursor_x
             .saturating_add(trust_badge_rect.width)
             .saturating_add(style.space_2);
+
+        for token in title_context_bar
+            .degraded_or_recovery_state
+            .degraded_tokens
+            .iter()
+            .copied()
+            .take(2)
+        {
+            let label = match token {
+                crate::chrome::title_context_bar::DegradedStateToken::Warming => "Warming",
+                crate::chrome::title_context_bar::DegradedStateToken::Cached => "Cached",
+                crate::chrome::title_context_bar::DegradedStateToken::Partial => "Partial",
+                crate::chrome::title_context_bar::DegradedStateToken::Stale => "Stale",
+                crate::chrome::title_context_bar::DegradedStateToken::Offline => "Offline",
+                crate::chrome::title_context_bar::DegradedStateToken::PolicyBlocked => {
+                    "PolicyBlocked"
+                }
+                crate::chrome::title_context_bar::DegradedStateToken::Limited => "Limited",
+                crate::chrome::title_context_bar::DegradedStateToken::Unsupported => "Unsupported",
+                crate::chrome::title_context_bar::DegradedStateToken::Experimental => {
+                    "Experimental"
+                }
+                crate::chrome::title_context_bar::DegradedStateToken::RetestPending => {
+                    "RetestPending"
+                }
+            };
+            let (fg, border, fill) = (
+                style.status_warning,
+                style.status_warning_border,
+                style.status_warning_fill,
+            );
+            let token_rect = draw_status_badge(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                badge_y,
+                badge_max_h,
+                style,
+                label,
+                fg,
+                border,
+                fill,
+            );
+            cursor_x = cursor_x
+                .saturating_add(token_rect.width)
+                .saturating_add(style.space_2);
+        }
 
         draw_text(
             buffer,

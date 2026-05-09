@@ -15,6 +15,12 @@ Machine-readable companions:
   contains worked restricted, partial-open, detached-repo, multi-root,
   missing-host, and mixed local-plus-remote examples.
 
+Runtime wiring:
+
+- Canonical record projection: `crates/aureline-shell/src/chrome/title_context_bar.rs`
+- Live shell consumer: `crates/aureline-shell/src/bootstrap/native_shell.rs`
+- Latest runtime snapshot (written opportunistically): `.logs/ux/title_context_bar_state.json`
+
 This contract composes with, and does not replace:
 
 - [`/docs/ux/shell_zone_and_density_contract.md`](./shell_zone_and_density_contract.md)

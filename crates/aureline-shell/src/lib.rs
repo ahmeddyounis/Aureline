@@ -11,6 +11,8 @@ pub(crate) mod a11y;
 pub mod app_frame;
 /// Native desktop shell bootstrap (window creation, event loop, input dispatch).
 pub mod bootstrap;
+/// Title/context bar, status surfaces, and canonical identity tuple wiring.
+pub mod chrome;
 /// Command review-sheet projections for diagnostics and invocation previews.
 pub mod commands;
 /// Embedded surface boundary chrome and browser-handoff wiring.

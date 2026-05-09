@@ -5,7 +5,7 @@
 //! shell command palette surface.
 
 use std::collections::{HashMap, VecDeque};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
@@ -644,6 +644,11 @@ impl CommandPaletteState {
             watcher_health: worker.watcher_health,
             hot_index_ready: worker.complete,
         })
+    }
+
+    /// Returns the current workspace root, when a file index worker is active.
+    pub fn workspace_root(&self) -> Option<&Path> {
+        Some(self.file_index.as_ref()?.root.as_path())
     }
 
     pub fn note_command_invoked(&mut self, command_id: &str) {
