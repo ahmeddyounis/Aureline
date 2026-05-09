@@ -49,6 +49,19 @@ pub enum AccessibilityPostureClass {
     MotionCriticalHotPath,
 }
 
+impl AccessibilityPostureClass {
+    /// Returns the canonical posture token identifier.
+    pub const fn token(self) -> &'static str {
+        match self {
+            Self::MotionStandard => "motion_standard",
+            Self::MotionReduced => "motion_reduced",
+            Self::MotionLowMotion => "motion_low_motion",
+            Self::MotionPowerSaver => "motion_power_saver",
+            Self::MotionCriticalHotPath => "motion_critical_hot_path",
+        }
+    }
+}
+
 /// Source attribution for a text-scale selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -195,8 +208,7 @@ impl AppearanceSessionRecord {
             preview_state: PreviewState::NotPreviewing,
             current_checkpoint_ref: None,
             rollback_ref: None,
-            live_follow_system_policy_ref: "live_follow_system_policy:shell.local:01"
-                .to_string(),
+            live_follow_system_policy_ref: "live_follow_system_policy:shell.local:01".to_string(),
             token_overlay_ref: None,
             active_import_report_refs: Vec::new(),
             confirm_action_ref: None,
@@ -267,6 +279,48 @@ impl AppearanceSessionRecord {
     /// Cycles the density class (`compact` → `standard` → `comfortable`).
     pub fn cycle_density_class(&mut self, minted_at: String) {
         self.apply_density_class(self.density_class.next(), minted_at);
+    }
+
+    /// Applies a reduced-motion posture change, bumping the session revision.
+    pub fn apply_reduced_motion_posture(
+        &mut self,
+        posture: AccessibilityPostureClass,
+        source: ReducedMotionSource,
+        minted_at: String,
+    ) {
+        if self.reduced_motion_posture == posture && self.reduced_motion_source == source {
+            self.revision_minted_at = minted_at;
+            return;
+        }
+        self.session_revision = self.session_revision.saturating_add(1);
+        self.reduced_motion_posture = posture;
+        self.reduced_motion_source = source;
+        self.follow_system_posture = FollowSystemPosture::ManualOverride;
+        self.preview_state = PreviewState::NotPreviewing;
+        self.current_checkpoint_ref = None;
+        self.rollback_ref = None;
+        self.revision_minted_at = minted_at;
+    }
+
+    /// Cycles the reduced-motion posture (`standard` → `reduced` → `low_motion`).
+    pub fn cycle_reduced_motion_posture(&mut self, minted_at: String) {
+        let (next_posture, next_source) = match self.reduced_motion_posture {
+            AccessibilityPostureClass::MotionStandard => (
+                AccessibilityPostureClass::MotionReduced,
+                ReducedMotionSource::UserSetting,
+            ),
+            AccessibilityPostureClass::MotionReduced
+            | AccessibilityPostureClass::MotionPowerSaver => (
+                AccessibilityPostureClass::MotionLowMotion,
+                ReducedMotionSource::UserSetting,
+            ),
+            AccessibilityPostureClass::MotionLowMotion
+            | AccessibilityPostureClass::MotionCriticalHotPath => (
+                AccessibilityPostureClass::MotionStandard,
+                ReducedMotionSource::UserSetting,
+            ),
+        };
+        self.apply_reduced_motion_posture(next_posture, next_source, minted_at);
     }
 }
 

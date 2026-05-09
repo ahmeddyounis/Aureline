@@ -421,6 +421,10 @@ impl CommandPaletteState {
         self.open
     }
 
+    pub fn opened_at(&self) -> Instant {
+        self.opened_at
+    }
+
     pub fn query(&self) -> &str {
         &self.query
     }

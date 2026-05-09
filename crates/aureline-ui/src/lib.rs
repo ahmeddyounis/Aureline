@@ -5,7 +5,8 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-ui/0.0.0")]
 
-pub mod tokens;
-pub mod themes;
 pub mod components;
 pub mod density;
+pub mod motion;
+pub mod themes;
+pub mod tokens;

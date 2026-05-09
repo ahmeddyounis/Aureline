@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::env;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
 use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
@@ -42,11 +42,11 @@ use crate::workspace_switcher::{
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
-    mint_preview_record_ref, AliasUsedBlock, ApprovalPostureBlock, ArgumentProvenanceEntry,
-    ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord, ContextRefsBlock,
-    EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock, InvocationContextSnapshot,
-    InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock, InvocationSessionPacketRecord,
-    NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock, now_rfc3339,
+    mint_preview_record_ref, now_rfc3339, AliasUsedBlock, ApprovalPostureBlock,
+    ArgumentProvenanceEntry, ArtifactRefEntry, CommandInvocationSession, CommandResultPacketRecord,
+    ContextRefsBlock, EnablementDecisionBlock, EvidenceRefEntry, ExportPostureBlock,
+    InvocationContextSnapshot, InvocationCreatedArtifactRefEntry, InvocationOutcomeBlock,
+    InvocationSessionPacketRecord, NoBypassGuards, ResultBodyBlock, RollbackHandleRefBlock,
 };
 use aureline_commands::registry::seeded_registry;
 use aureline_commands::{
@@ -62,7 +62,10 @@ use aureline_ui::components::{
     ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
 };
 use aureline_ui::density::DensityProfile;
-use aureline_ui::themes::{AppearanceSessionRecord, DensityClass, LiveFollowSystemPolicyRecord};
+use aureline_ui::motion::{ReducedMotionSubstitutionClass, OVERLAY_DIALOG_ENTER};
+use aureline_ui::themes::{
+    AccessibilityPostureClass, AppearanceSessionRecord, DensityClass, LiveFollowSystemPolicyRecord,
+};
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
 };
@@ -77,10 +80,11 @@ use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSu
 use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_render::{
-    CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine, FrameScheduler,
-    FrameSchedulerDecision, GlyphAtlas, GlyphKey, PixelRect, WgpuBlitRenderer, WallClock,
+    CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine,
+    FrameScheduler, FrameSchedulerDecision, GlyphAtlas, GlyphKey, PixelRect, WallClock,
+    WgpuBlitRenderer,
 };
-use aureline_text::shaping::{FontFallbackConfig, FontSystem, FeatureSet, TextShaper};
+use aureline_text::shaping::{FeatureSet, FontFallbackConfig, FontSystem, TextShaper};
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
@@ -252,10 +256,7 @@ fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
                     "gpu" => ShellRendererChoice::Gpu,
                     "software" => ShellRendererChoice::Software,
                     other => {
-                        return Err(format!(
-                            "unknown renderer backend: {other}\n\n{}",
-                            usage()
-                        ))
+                        return Err(format!("unknown renderer backend: {other}\n\n{}", usage()))
                     }
                 };
             }
@@ -382,10 +383,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Err(err) => {
-                scheduler.note_degraded_renderer(
-                    format!("gpu backend unavailable — {err}"),
-                    &clock,
-                );
+                scheduler
+                    .note_degraded_renderer(format!("gpu backend unavailable — {err}"), &clock);
                 ShellRenderBackend::Software {
                     surface: create_softbuffer_surface(window.clone())?,
                 }
@@ -463,10 +462,50 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     ));
                 }
             }
+            let mut next_deadline = palette.next_wake_deadline(now);
+            let animation_frame = now + Duration::from_millis(16);
+            if let Ok(token_registry) = seeded_token_registry(appearance.theme_class()) {
+                let posture = appearance.reduced_motion_posture();
+                if palette.is_open() {
+                    let (_, _, duration) = overlay_dialog_enter_progress(
+                        token_registry,
+                        posture,
+                        palette.opened_at(),
+                        now,
+                    );
+                    if !duration.is_zero()
+                        && now.saturating_duration_since(palette.opened_at()) < duration
+                    {
+                        enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                        next_deadline = Some(match next_deadline {
+                            Some(existing) => existing.min(animation_frame),
+                            None => animation_frame,
+                        });
+                    }
+                }
+
+                if let Some(state) = overlay.as_ref() {
+                    let (_, _, duration) = overlay_dialog_enter_progress(
+                        token_registry,
+                        posture,
+                        state.opened_at,
+                        now,
+                    );
+                    if !duration.is_zero()
+                        && now.saturating_duration_since(state.opened_at) < duration
+                    {
+                        enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                        next_deadline = Some(match next_deadline {
+                            Some(existing) => existing.min(animation_frame),
+                            None => animation_frame,
+                        });
+                    }
+                }
+            }
             if scheduler.decision() == FrameSchedulerDecision::RequestRedraw {
                 window.request_redraw();
             }
-            if let Some(deadline) = palette.next_wake_deadline(now) {
+            if let Some(deadline) = next_deadline {
                 elwt.set_control_flow(ControlFlow::WaitUntil(deadline));
             } else {
                 elwt.set_control_flow(ControlFlow::Wait);
@@ -534,19 +573,17 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             WindowEvent::RedrawRequested => {
-                let pending_frame = scheduler
-                    .begin_frame()
-                    .or_else(|| {
-                        scheduler.invalidate(DamageEvent::new(
-                            CompositionLayerId::WindowChromeBase,
-                            DamageClassId::WindowExposedRegionRefresh,
-                        ));
-                        scheduler.invalidate(DamageEvent::new(
-                            CompositionLayerId::TextAndDecoration,
-                            DamageClassId::WindowExposedRegionRefresh,
-                        ));
-                        scheduler.begin_frame()
-                    });
+                let pending_frame = scheduler.begin_frame().or_else(|| {
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::WindowChromeBase,
+                        DamageClassId::WindowExposedRegionRefresh,
+                    ));
+                    scheduler.invalidate(DamageEvent::new(
+                        CompositionLayerId::TextAndDecoration,
+                        DamageClassId::WindowExposedRegionRefresh,
+                    ));
+                    scheduler.begin_frame()
+                });
                 if pending_frame.is_none() {
                     return;
                 }
@@ -1020,6 +1057,10 @@ impl AppearanceRuntimeState {
         self.session.density_class()
     }
 
+    const fn reduced_motion_posture(&self) -> AccessibilityPostureClass {
+        self.session.reduced_motion_posture
+    }
+
     fn toggle_light_dark(&mut self) {
         let minted_at = now_rfc3339();
         self.session.toggle_light_dark(minted_at);
@@ -1035,6 +1076,12 @@ impl AppearanceRuntimeState {
     fn cycle_density_class(&mut self) {
         let minted_at = now_rfc3339();
         self.session.cycle_density_class(minted_at);
+        self.persist();
+    }
+
+    fn cycle_reduced_motion_posture(&mut self) {
+        let minted_at = now_rfc3339();
+        self.session.cycle_reduced_motion_posture(minted_at);
         self.persist();
     }
 
@@ -2480,7 +2527,9 @@ fn handle_key_event(
                     Ok(()) => {
                         write_preview_log(&preview);
                         let label = match preferred_intent {
-                            PaletteCopyIntent::CliSkeleton if command.copy.cli_skeleton.is_some() => {
+                            PaletteCopyIntent::CliSkeleton
+                                if command.copy.cli_skeleton.is_some() =>
+                            {
                                 "copied cli skeleton"
                             }
                             _ => "copied command id",
@@ -2997,7 +3046,10 @@ fn handle_key_event(
             }
         }
         KeyCode::KeyM => {
-            if modifiers.ctrl_or_logo() && modifiers.shift {
+            if modifiers.ctrl_or_logo() && modifiers.shift && modifiers.alt {
+                appearance.cycle_reduced_motion_posture();
+                ShellDamageHint::FullWindow
+            } else if modifiers.ctrl_or_logo() && modifiers.shift {
                 appearance.cycle_density_class();
                 ShellDamageHint::FullWindow
             } else {
@@ -3133,6 +3185,7 @@ fn draw(
         appearance.density_class(),
         window.scale_factor(),
     )?;
+    let now = Instant::now();
 
     damage_geometry.focused_editor_group =
         focused_editor_group_physical_rect(frame, window.scale_factor());
@@ -3157,6 +3210,8 @@ fn draw(
                 &mut buffer,
                 width,
                 height,
+                now,
+                token_registry,
                 text_runtime,
                 registry,
                 frame,
@@ -3191,26 +3246,27 @@ fn draw(
                 force_full_redraw = true;
             }
 
-            let (clip_rect, upload_rect, use_dirty_upload) = if force_full_redraw || plan.is_full_window() {
-                (None, window_bounds, false)
-            } else {
-                let mut union: Option<PixelRect> = None;
-                for rect in plan.rects() {
-                    union = Some(match union {
-                        None => rect,
-                        Some(prev) => prev.union(rect),
-                    });
-                }
-                if let Some(rect) = union {
-                    (
-                        Some(Rect::new(rect.x, rect.y, rect.width, rect.height)),
-                        rect,
-                        true,
-                    )
-                } else {
+            let (clip_rect, upload_rect, use_dirty_upload) =
+                if force_full_redraw || plan.is_full_window() {
                     (None, window_bounds, false)
-                }
-            };
+                } else {
+                    let mut union: Option<PixelRect> = None;
+                    for rect in plan.rects() {
+                        union = Some(match union {
+                            None => rect,
+                            Some(prev) => prev.union(rect),
+                        });
+                    }
+                    if let Some(rect) = union {
+                        (
+                            Some(Rect::new(rect.x, rect.y, rect.width, rect.height)),
+                            rect,
+                            true,
+                        )
+                    } else {
+                        (None, window_bounds, false)
+                    }
+                };
 
             with_raster_clip(clip_rect, || {
                 rasterize_shell(
@@ -3218,6 +3274,8 @@ fn draw(
                     retained_frame,
                     width,
                     height,
+                    now,
+                    token_registry,
                     text_runtime,
                     registry,
                     frame,
@@ -3250,6 +3308,8 @@ fn rasterize_shell(
     buffer: &mut [u32],
     width: u32,
     height: u32,
+    now: Instant,
+    token_registry: &TokenRegistry,
     text_runtime: &mut ShellTextRuntime,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
@@ -3431,12 +3491,17 @@ fn rasterize_shell(
         );
     }
 
+    let reduced_motion_posture = appearance.reduced_motion_posture();
+
     if palette.is_open() {
         draw_command_palette_overlay(
             buffer,
             width,
             height,
             scale,
+            token_registry,
+            reduced_motion_posture,
+            now,
             registry,
             frame,
             palette,
@@ -3454,6 +3519,9 @@ fn rasterize_shell(
             width,
             height,
             window.scale_factor(),
+            token_registry,
+            reduced_motion_posture,
+            now,
             registry,
             frame,
             overlay,
@@ -3492,11 +3560,15 @@ fn rasterize_shell(
         let docs_keys = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
         let trust_state = enablement_runtime.workspace_trust_state.as_str();
         let theme_label = appearance.theme_class().token();
+        let density_label = appearance.density_class().token();
+        let motion_label = appearance.reduced_motion_posture().token();
         let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
         let recent_work_store = recent_work.store_path.display();
         let text = format!(
-            "theme: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast   packets: .logs/command_packets   recents: {}",
+            "theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
             theme_label,
+            density_label,
+            motion_label,
             modes,
             active_workspace,
             last,
@@ -3542,13 +3614,7 @@ fn rasterize_shell(
             badge_w,
             badge_h.min(status.height.saturating_sub(1)),
         );
-        fill_rect(
-            buffer,
-            width,
-            height,
-            badge_rect,
-            badge_fill,
-        );
+        fill_rect(buffer, width, height, badge_rect, badge_fill);
         stroke_rect(
             buffer,
             width,
@@ -3751,6 +3817,7 @@ struct ShellOverlayState {
     kind: ShellOverlayKind,
     focus_return_zone: ShellZoneId,
     focus_return_group: PaneId,
+    opened_at: Instant,
     closed: bool,
 }
 
@@ -3760,6 +3827,7 @@ impl ShellOverlayState {
             kind: ShellOverlayKind::InspectorSheet,
             focus_return_zone,
             focus_return_group,
+            opened_at: Instant::now(),
             closed: false,
         }
     }
@@ -3776,6 +3844,7 @@ impl ShellOverlayState {
             },
             focus_return_zone,
             focus_return_group,
+            opened_at: Instant::now(),
             closed: false,
         }
     }
@@ -3789,6 +3858,7 @@ impl ShellOverlayState {
             kind: ShellOverlayKind::CommandDiagnostics(CommandDiagnosticsOverlay { record }),
             focus_return_zone,
             focus_return_group,
+            opened_at: Instant::now(),
             closed: false,
         }
     }
@@ -3806,6 +3876,7 @@ impl ShellOverlayState {
             }),
             focus_return_zone,
             focus_return_group,
+            opened_at: Instant::now(),
             closed: false,
         }
     }
@@ -3819,6 +3890,7 @@ impl ShellOverlayState {
             kind: ShellOverlayKind::CommandTrace(CommandTraceOverlay { lines }),
             focus_return_zone,
             focus_return_group,
+            opened_at: Instant::now(),
             closed: false,
         }
     }
@@ -3836,6 +3908,7 @@ impl ShellOverlayState {
             )),
             focus_return_zone,
             focus_return_group,
+            opened_at: Instant::now(),
             closed: false,
         }
     }
@@ -4206,6 +4279,9 @@ fn draw_shell_overlay(
     width: u32,
     height: u32,
     scale_factor: f64,
+    token_registry: &TokenRegistry,
+    reduced_motion_posture: AccessibilityPostureClass,
+    now: Instant,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     overlay: &ShellOverlayState,
@@ -4218,7 +4294,15 @@ fn draw_shell_overlay(
         .space_6
         .saturating_mul(2)
         .saturating_add(style.space_3);
-    let sheet_rect = Rect::new(
+    let (enter_progress, substitution, _) = overlay_dialog_enter_progress(
+        token_registry,
+        reduced_motion_posture,
+        overlay.opened_at,
+        now,
+    );
+    let fade = |color: ColorRgba| scale_alpha(color, enter_progress);
+
+    let mut sheet_rect = Rect::new(
         overlay_rect.right().saturating_sub(sheet_w),
         overlay_rect.y.saturating_add(sheet_margin_y),
         sheet_w,
@@ -4226,20 +4310,45 @@ fn draw_shell_overlay(
             .height
             .saturating_sub(sheet_margin_y.saturating_mul(2)),
     );
+    if substitution.is_none() && enter_progress < 1.0 {
+        let offset = (style.space_4 as f32 * (1.0 - enter_progress))
+            .round()
+            .max(0.0) as u32;
+        sheet_rect.x = sheet_rect.x.saturating_add(offset);
+    }
 
-    fill_rect(buffer, width, height, overlay_rect, style.tokens.bg_overlay);
-    fill_rect(buffer, width, height, sheet_rect, style.tokens.bg_raised);
+    fill_rect(
+        buffer,
+        width,
+        height,
+        overlay_rect,
+        fade(style.tokens.bg_overlay),
+    );
+    fill_rect(
+        buffer,
+        width,
+        height,
+        sheet_rect,
+        fade(style.tokens.bg_raised),
+    );
     stroke_rect(
         buffer,
         width,
         height,
         sheet_rect,
         style.stroke_default,
-        style.tokens.border_strong,
+        fade(style.tokens.border_strong),
     );
     if frame.focused_zone() == ShellZoneId::TransientOverlay {
         let ring = style.component_states.focus_ring_style();
-        stroke_rect(buffer, width, height, sheet_rect, ring.stroke_px, ring.color);
+        stroke_rect(
+            buffer,
+            width,
+            height,
+            sheet_rect,
+            ring.stroke_px,
+            fade(ring.color),
+        );
     }
 
     match &overlay.kind {
@@ -4266,7 +4375,7 @@ fn draw_shell_overlay(
                     cursor_y,
                     1,
                     &line,
-                    style.tokens.text_muted,
+                    fade(style.tokens.text_muted),
                 );
                 cursor_y = cursor_y.saturating_add(line_h);
             }
@@ -4283,9 +4392,9 @@ fn draw_shell_overlay(
                     break;
                 }
                 let color = match idx {
-                    0 => style.tokens.text_primary,
-                    1 => style.tokens.text_secondary,
-                    _ => style.tokens.text_muted,
+                    0 => fade(style.tokens.text_primary),
+                    1 => fade(style.tokens.text_secondary),
+                    _ => fade(style.tokens.text_muted),
                 };
                 draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
                 cursor_y = cursor_y.saturating_add(line_h);
@@ -4303,9 +4412,9 @@ fn draw_shell_overlay(
                     break;
                 }
                 let color = match idx {
-                    0 => style.tokens.text_primary,
-                    1 => style.tokens.text_secondary,
-                    _ => style.tokens.text_muted,
+                    0 => fade(style.tokens.text_primary),
+                    1 => fade(style.tokens.text_secondary),
+                    _ => fade(style.tokens.text_muted),
                 };
                 draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
                 cursor_y = cursor_y.saturating_add(line_h);
@@ -4320,7 +4429,7 @@ fn draw_shell_overlay(
                 sheet_rect.y.saturating_add(style.space_3),
                 1,
                 "Command Trace — Esc closes",
-                style.tokens.text_primary,
+                fade(style.tokens.text_primary),
             );
             draw_text(
                 buffer,
@@ -4333,7 +4442,7 @@ fn draw_shell_overlay(
                     .saturating_add(16),
                 1,
                 "Packets: .logs/command_packets",
-                style.tokens.text_muted,
+                fade(style.tokens.text_muted),
             );
 
             let mut y = sheet_rect
@@ -4352,7 +4461,7 @@ fn draw_shell_overlay(
                     y,
                     1,
                     line,
-                    style.tokens.text_muted,
+                    fade(style.tokens.text_muted),
                 );
                 y = y.saturating_add(14);
             }
@@ -4365,7 +4474,7 @@ fn draw_shell_overlay(
                     y,
                     1,
                     "No invocations recorded yet.",
-                    style.tokens.text_muted,
+                    fade(style.tokens.text_muted),
                 );
             }
         }
@@ -4385,7 +4494,7 @@ fn draw_shell_overlay(
                 sheet_rect.y.saturating_add(style.space_3),
                 1,
                 &header,
-                style.tokens.text_primary,
+                fade(style.tokens.text_primary),
             );
             draw_text(
                 buffer,
@@ -4398,7 +4507,7 @@ fn draw_shell_overlay(
                     .saturating_add(16),
                 1,
                 "Choose fallback: Up/Down, Enter confirm, Esc cancel",
-                style.tokens.text_secondary,
+                fade(style.tokens.text_secondary),
             );
 
             let options = ["Tabbed compare (recommended)", "Staged peek", "Cancel"];
@@ -4414,7 +4523,13 @@ fn draw_shell_overlay(
                         sheet_rect.width.saturating_sub(style.space_4),
                         16,
                     );
-                    fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
+                    fill_rect(
+                        buffer,
+                        width,
+                        height,
+                        highlight,
+                        fade(style.tokens.bg_hover),
+                    );
                 }
                 draw_text(
                     buffer,
@@ -4425,9 +4540,9 @@ fn draw_shell_overlay(
                     1,
                     label,
                     if idx == *selection {
-                        style.tokens.text_primary
+                        fade(style.tokens.text_primary)
                     } else {
-                        style.tokens.text_muted
+                        fade(style.tokens.text_muted)
                     },
                 );
             }
@@ -4441,7 +4556,7 @@ fn draw_shell_overlay(
                 sheet_rect.y.saturating_add(style.space_3),
                 1,
                 "Staged peek (sheet) — Esc closes",
-                style.tokens.text_primary,
+                fade(style.tokens.text_primary),
             );
             draw_text(
                 buffer,
@@ -4454,7 +4569,7 @@ fn draw_shell_overlay(
                     .saturating_add(16),
                 1,
                 "This placeholder represents a temporary narrow-width compare peek with focus return.",
-                style.tokens.text_muted,
+                fade(style.tokens.text_muted),
             );
         }
         ShellOverlayKind::WorkspaceSwitcher(switcher) => {
@@ -4473,7 +4588,7 @@ fn draw_shell_overlay(
                 cursor_y,
                 1,
                 &header,
-                style.tokens.text_primary,
+                fade(style.tokens.text_primary),
             );
             cursor_y = cursor_y.saturating_add(16);
 
@@ -4491,7 +4606,7 @@ fn draw_shell_overlay(
                 cursor_y,
                 1,
                 &query_line,
-                style.tokens.text_secondary,
+                fade(style.tokens.text_secondary),
             );
             cursor_y = cursor_y.saturating_add(16);
 
@@ -4516,7 +4631,7 @@ fn draw_shell_overlay(
                     cursor_y,
                     1,
                     &mode_line,
-                    style.tokens.text_muted,
+                    fade(style.tokens.text_muted),
                 );
                 cursor_y = cursor_y.saturating_add(16);
             }
@@ -4559,7 +4674,7 @@ fn draw_shell_overlay(
                         cursor_y,
                         1,
                         &summary,
-                        style.tokens.text_secondary,
+                        fade(style.tokens.text_secondary),
                     );
                     cursor_y = cursor_y.saturating_add(16);
 
@@ -4572,7 +4687,7 @@ fn draw_shell_overlay(
                         cursor_y,
                         1,
                         &last_opened,
-                        style.tokens.text_muted,
+                        fade(style.tokens.text_muted),
                     );
                     cursor_y = cursor_y.saturating_add(16);
 
@@ -4592,7 +4707,13 @@ fn draw_shell_overlay(
                                 sheet_rect.width.saturating_sub(style.space_4),
                                 16,
                             );
-                            fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
+                            fill_rect(
+                                buffer,
+                                width,
+                                height,
+                                highlight,
+                                fade(style.tokens.bg_hover),
+                            );
                         }
 
                         let line = format!("{} — {}", action.as_str(), action.as_str());
@@ -4605,9 +4726,9 @@ fn draw_shell_overlay(
                             1,
                             &line,
                             if idx == *selection {
-                                style.tokens.text_primary
+                                fade(style.tokens.text_primary)
                             } else {
-                                style.tokens.text_muted
+                                fade(style.tokens.text_muted)
                             },
                         );
                     }
@@ -4620,7 +4741,7 @@ fn draw_shell_overlay(
                         cursor_y,
                         1,
                         "Selected entry missing from snapshot.",
-                        style.tokens.text_muted,
+                        fade(style.tokens.text_muted),
                     );
                 }
                 return;
@@ -4643,7 +4764,13 @@ fn draw_shell_overlay(
                         sheet_rect.width.saturating_sub(style.space_4),
                         16,
                     );
-                    fill_rect(buffer, width, height, highlight, style.tokens.bg_hover);
+                    fill_rect(
+                        buffer,
+                        width,
+                        height,
+                        highlight,
+                        fade(style.tokens.bg_hover),
+                    );
                 }
 
                 let pin = if row.pinned { "*" } else { " " };
@@ -4676,9 +4803,9 @@ fn draw_shell_overlay(
                     1,
                     &line,
                     if idx == selected {
-                        style.tokens.text_primary
+                        fade(style.tokens.text_primary)
                     } else {
-                        style.tokens.text_muted
+                        fade(style.tokens.text_muted)
                     },
                 );
             }
@@ -4692,7 +4819,7 @@ fn draw_shell_overlay(
                     cursor_y,
                     1,
                     "No recent work yet. Use Open Folder to seed a row.",
-                    style.tokens.text_muted,
+                    fade(style.tokens.text_muted),
                 );
             }
         }
@@ -4746,6 +4873,50 @@ fn rect_intersects(a: Rect, b: Rect) -> bool {
         return false;
     }
     a.x < b.right() && a.right() > b.x && a.y < b.bottom() && a.bottom() > b.y
+}
+
+fn clamp_unit(value: f32) -> f32 {
+    if value.is_finite() {
+        value.clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
+}
+
+fn ease_progress(easing_token: Option<&str>, t: f32) -> f32 {
+    let t = clamp_unit(t);
+    match easing_token {
+        Some("ease.enter") => 1.0 - (1.0 - t).powi(3),
+        Some("ease.exit") => t.powi(3),
+        Some("ease.standard") | _ => t * t * (3.0 - 2.0 * t),
+    }
+}
+
+fn scale_alpha(color: ColorRgba, factor: f32) -> ColorRgba {
+    let factor = clamp_unit(factor);
+    let alpha = ((color.a as f32) * factor).round().clamp(0.0, 255.0) as u8;
+    ColorRgba { a: alpha, ..color }
+}
+
+fn overlay_dialog_enter_progress(
+    token_registry: &TokenRegistry,
+    posture: AccessibilityPostureClass,
+    opened_at: Instant,
+    now: Instant,
+) -> (f32, Option<ReducedMotionSubstitutionClass>, Duration) {
+    let plan = OVERLAY_DIALOG_ENTER.plan_for(posture);
+    let duration = plan.duration(token_registry).unwrap_or_default();
+    let progress = if duration.is_zero() {
+        1.0
+    } else {
+        let elapsed = now.saturating_duration_since(opened_at);
+        clamp_unit(elapsed.as_secs_f32() / duration.as_secs_f32())
+    };
+    (
+        ease_progress(plan.easing_token, progress),
+        plan.substitution_class,
+        duration,
+    )
 }
 
 fn fill(buffer: &mut [u32], color: ColorRgba) {
@@ -4843,9 +5014,7 @@ fn draw_start_center_surface(
         scale_bucket,
         text_runtime,
     );
-    y = y
-        .saturating_add(header_h)
-        .saturating_add(style.space_2);
+    y = y.saturating_add(header_h).saturating_add(style.space_2);
 
     let subtitle_h = draw_ui_text(
         buffer,
@@ -4859,7 +5028,9 @@ fn draw_start_center_surface(
         scale_bucket,
         text_runtime,
     );
-    y = y.saturating_add(subtitle_h).saturating_add(style.density_gutter);
+    y = y
+        .saturating_add(subtitle_h)
+        .saturating_add(style.density_gutter);
 
     let runtime = StartCenterRuntimeInputs {
         client_scope: "desktop_product",
@@ -4971,7 +5142,7 @@ fn draw_start_center_surface(
             card.bottom()
                 .saturating_sub(style.space_3)
                 .saturating_sub(12),
-            "↑/↓ select • Enter run • Cmd/Ctrl+Shift+P palette • Cmd/Ctrl+Shift+M density",
+            "↑/↓ select • Enter run • Cmd/Ctrl+Shift+P palette • Cmd/Ctrl+Shift+M density • Cmd/Ctrl+Alt+Shift+M motion",
             style.tokens.text_muted,
             12.0,
             scale_bucket,
@@ -5017,14 +5188,7 @@ fn draw_docs_help_boundary_card(
     );
     if focused {
         let ring = style.component_states.focus_ring_style();
-        stroke_rect(
-            buffer,
-            width,
-            height,
-            panel,
-            ring.stroke_px,
-            ring.color,
-        );
+        stroke_rect(buffer, width, height, panel, ring.stroke_px, ring.color);
     }
 
     let content_padding = style.density_panel_padding;
@@ -5113,7 +5277,10 @@ fn draw_docs_help_boundary_card(
             width,
             height,
             header_x,
-            panel.bottom().saturating_sub(content_padding).saturating_sub(10),
+            panel
+                .bottom()
+                .saturating_sub(content_padding)
+                .saturating_sub(10),
             1,
             "Chrome is host-owned; high-risk approval stays native.",
             style.tokens.text_muted,
@@ -5148,6 +5315,9 @@ fn draw_command_palette_overlay(
     width: u32,
     height: u32,
     scale_factor: f64,
+    token_registry: &TokenRegistry,
+    reduced_motion_posture: AccessibilityPostureClass,
+    now: Instant,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
@@ -5174,35 +5344,49 @@ fn draw_command_palette_overlay(
         .unwrap_or(overlay_logical);
     let slot_physical = to_physical_rect(slot, scale_factor);
 
+    let (enter_progress, substitution, _) = overlay_dialog_enter_progress(
+        token_registry,
+        reduced_motion_posture,
+        palette.opened_at(),
+        now,
+    );
+    let fade = |color: ColorRgba| scale_alpha(color, enter_progress);
+
     // Dim the entire window.
     fill_rect(
         buffer,
         width,
         height,
         overlay_physical,
-        style.tokens.bg_overlay,
+        fade(style.tokens.bg_overlay),
     );
 
     // Panel inside the slot.
     let panel_padding = style.density_zone_inset;
-    let panel = Rect::new(
+    let mut panel = Rect::new(
         slot_physical.x.saturating_add(panel_padding),
         slot_physical.y.saturating_add(panel_padding),
         slot_physical.width.saturating_sub(panel_padding * 2),
         slot_physical.height.saturating_sub(panel_padding * 2),
     );
+    if substitution.is_none() && enter_progress < 1.0 {
+        let offset = (style.space_3 as f32 * (1.0 - enter_progress))
+            .round()
+            .max(0.0) as u32;
+        panel.y = panel.y.saturating_add(offset);
+    }
     if panel.is_empty() {
         return;
     }
 
-    fill_rect(buffer, width, height, panel, style.tokens.bg_raised);
+    fill_rect(buffer, width, height, panel, fade(style.tokens.bg_raised));
     stroke_rect(
         buffer,
         width,
         height,
         panel,
         style.stroke_default,
-        style.tokens.border_strong,
+        fade(style.tokens.border_strong),
     );
 
     let text_scale = 2u32;
@@ -5220,7 +5404,7 @@ fn draw_command_palette_overlay(
         cursor_y,
         text_scale,
         "Command Palette (Cmd/Ctrl+Shift+P)",
-        style.tokens.text_primary,
+        fade(style.tokens.text_primary),
     );
     cursor_y = cursor_y.saturating_add(line_h);
 
@@ -5232,7 +5416,7 @@ fn draw_command_palette_overlay(
         cursor_y,
         text_scale,
         "Type to search. Up/Down: select   Enter: run   Esc: close",
-        style.tokens.text_secondary,
+        fade(style.tokens.text_secondary),
     );
     cursor_y = cursor_y
         .saturating_add(line_h)
@@ -5249,17 +5433,24 @@ fn draw_command_palette_overlay(
             ComponentSurfaceTone::Surface,
             ComponentStates::FOCUS_VISIBLE,
         );
-        fill_rect(buffer, width, height, query_rect, chrome.fill);
+        fill_rect(buffer, width, height, query_rect, fade(chrome.fill));
         stroke_rect(
             buffer,
             width,
             height,
             query_rect,
             chrome.border_stroke_px,
-            chrome.border,
+            fade(chrome.border),
         );
         if let Some(ring) = chrome.focus_ring {
-            stroke_rect(buffer, width, height, query_rect, ring.stroke_px, ring.color);
+            stroke_rect(
+                buffer,
+                width,
+                height,
+                query_rect,
+                ring.stroke_px,
+                fade(ring.color),
+            );
         }
 
         let query_label = if palette.query().is_empty() {
@@ -5278,7 +5469,7 @@ fn draw_command_palette_overlay(
             query_text_y,
             text_scale,
             &query_label,
-            style.tokens.text_primary,
+            fade(style.tokens.text_primary),
         );
         cursor_y = query_rect.bottom().saturating_add(style.density_gutter);
     }
@@ -5392,16 +5583,10 @@ fn draw_command_palette_overlay(
             .map(|(k, s)| k == s)
             .unwrap_or(false);
         if selected && !row.is_group_header {
-            let highlight = Rect::new(
-                list_rect.x,
-                list_y,
-                list_rect.width,
-                row_height,
-            );
-            let chrome = style.component_states.chrome_style(
-                ComponentSurfaceTone::Surface,
-                ComponentStates::SELECTED,
-            );
+            let highlight = Rect::new(list_rect.x, list_y, list_rect.width, row_height);
+            let chrome = style
+                .component_states
+                .chrome_style(ComponentSurfaceTone::Surface, ComponentStates::SELECTED);
             fill_rect(buffer, width, height, highlight, chrome.fill);
             stroke_rect(
                 buffer,
@@ -5650,16 +5835,7 @@ fn draw_ui_text(
     }
 
     let fallback_scale = ((font_size_px / 8.0).round() as u32).clamp(1, 4);
-    draw_text(
-        buffer,
-        width,
-        height,
-        x,
-        y_top,
-        fallback_scale,
-        text,
-        color,
-    );
+    draw_text(buffer, width, height, x, y_top, fallback_scale, text, color);
     8u32.saturating_mul(fallback_scale)
 }
 
@@ -5674,7 +5850,14 @@ fn ui_primary_ascent_and_height(
     let font_id = text_runtime
         .font_system
         .resolve_system_ui_face(text_runtime.ui_fallback.system_ui_family)
-        .or_else(|| text_runtime.font_system.database().faces().next().map(|face| face.id));
+        .or_else(|| {
+            text_runtime
+                .font_system
+                .database()
+                .faces()
+                .next()
+                .map(|face| face.id)
+        });
     let Some(font_id) = font_id else {
         return (font_size_px, font_size_px.ceil().max(1.0) as u32);
     };
