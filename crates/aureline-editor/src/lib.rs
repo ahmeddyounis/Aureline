@@ -15,12 +15,14 @@ pub mod highlight;
 pub mod paint;
 pub mod selection;
 pub mod text_nav;
+pub mod undo;
 pub mod viewport;
 
 pub use find_replace::{FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState};
 pub use highlight::{HighlightOverlaySet, HighlightSpan};
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};
 pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
+pub use undo::UndoGroupSummary;
 pub use viewport::{
     CaretMove, EditorAction, EditorViewport, EditorViewportSnapshot, ImeComposition,
     SecondarySelectionSnapshot, SelectionDelta, TextPoint, ViewportDamage,

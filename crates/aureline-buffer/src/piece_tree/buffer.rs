@@ -501,6 +501,18 @@ impl Buffer {
         }
     }
 
+    /// Returns metadata for the most recent committed undo group (the next undo
+    /// step) without mutating the buffer.
+    pub fn peek_undo(&self) -> Option<JournalEntry<'_>> {
+        self.journal.last().map(|g| JournalEntry { inner: g })
+    }
+
+    /// Returns metadata for the most recent redo group (the next redo step)
+    /// without mutating the buffer.
+    pub fn peek_redo(&self) -> Option<JournalEntry<'_>> {
+        self.redo_stack.last().map(|g| JournalEntry { inner: g })
+    }
+
     // -- Transaction API -------------------------------------------------
 
     /// Open a new transaction. The returned handle records subsequent

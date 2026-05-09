@@ -48,7 +48,7 @@ use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
 };
-use aureline_buffer::{Buffer, RevisionId, Snapshot};
+use aureline_buffer::{Buffer, RevisionId, Snapshot, TransactionSpec, UndoClass};
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
@@ -1763,7 +1763,7 @@ impl EditorTabSession {
                         &mut authority.buffer,
                         &self.snapshot,
                         text,
-                        "user_keystroke",
+                        aureline_editor::undo::originator::USER_KEYSTROKE,
                         scope,
                     )
                 };
@@ -1784,7 +1784,7 @@ impl EditorTabSession {
                     self.viewport.selections_mut().apply_delete_backward(
                         &mut authority.buffer,
                         &self.snapshot,
-                        "user_keystroke",
+                        aureline_editor::undo::originator::USER_KEYSTROKE,
                         aureline_editor::TextEditScope::AllCarets,
                     )
                 };
@@ -1805,7 +1805,7 @@ impl EditorTabSession {
                     self.viewport.selections_mut().apply_delete_forward(
                         &mut authority.buffer,
                         &self.snapshot,
-                        "user_keystroke",
+                        aureline_editor::undo::originator::USER_KEYSTROKE,
                         aureline_editor::TextEditScope::AllCarets,
                     )
                 };
@@ -4247,7 +4247,7 @@ fn handle_key_event(
                                             &mut authority.buffer,
                                             &session.snapshot,
                                             delete_ranges,
-                                            "user_keystroke",
+                                            aureline_editor::undo::originator::CUT,
                                         )
                                     };
 
@@ -4295,7 +4295,7 @@ fn handle_key_event(
                                     &mut authority.buffer,
                                     &session.snapshot,
                                     &text,
-                                    "user_keystroke",
+                                    aureline_editor::undo::originator::PASTE,
                                     scope,
                                 )
                             };
@@ -4656,14 +4656,19 @@ fn handle_key_event(
                 };
                 session.ensure_fresh_snapshot();
 
-                let changed = {
+                let (changed, summary) = {
                     let mut authority = session.authority.borrow_mut();
+                    let summary = if modifiers.shift {
+                        aureline_editor::undo::next_redo(&authority.buffer)
+                    } else {
+                        aureline_editor::undo::next_undo(&authority.buffer)
+                    };
                     let outcome = if modifiers.shift {
                         authority.buffer.redo()
                     } else {
                         authority.buffer.undo()
                     };
-                    outcome.is_some()
+                    (outcome.is_some(), summary)
                 };
                 if !changed {
                     return ShellDamageHint::None;
@@ -4673,6 +4678,14 @@ fn handle_key_event(
                 session.text_input.force_clear_composition();
                 session.viewport.set_ime_composition(None);
                 session.needs_text_repaint = true;
+                if let Some(summary) = summary {
+                    let verb = if modifiers.shift { "redo" } else { "undo" };
+                    command_runtime.note_non_command_action(format!(
+                        "{verb}: {} ({})",
+                        summary.label_or_class_id(),
+                        summary.class_id
+                    ));
+                }
 
                 damage_geometry
                     .focused_editor_group
@@ -4700,9 +4713,11 @@ fn handle_key_event(
                 };
                 session.ensure_fresh_snapshot();
 
-                let changed = {
+                let (changed, summary) = {
                     let mut authority = session.authority.borrow_mut();
-                    authority.buffer.redo().is_some()
+                    let summary = aureline_editor::undo::next_redo(&authority.buffer);
+                    let changed = authority.buffer.redo().is_some();
+                    (changed, summary)
                 };
                 if !changed {
                     return ShellDamageHint::None;
@@ -4712,6 +4727,13 @@ fn handle_key_event(
                 session.text_input.force_clear_composition();
                 session.viewport.set_ime_composition(None);
                 session.needs_text_repaint = true;
+                if let Some(summary) = summary {
+                    command_runtime.note_non_command_action(format!(
+                        "redo: {} ({})",
+                        summary.label_or_class_id(),
+                        summary.class_id
+                    ));
+                }
 
                 damage_geometry
                     .focused_editor_group
@@ -4770,7 +4792,114 @@ fn handle_key_event(
             }
         }
         KeyCode::KeyR => {
-            if modifiers.ctrl_or_logo() && modifiers.shift {
+            if modifiers.ctrl_or_logo()
+                && !modifiers.shift
+                && frame.focused_zone() == ShellZoneId::MainWorkspace
+            {
+                let group = frame.focused_editor_group();
+                let Some(tab) = frame.active_tab_id(group) else {
+                    return ShellDamageHint::None;
+                };
+                if !editor_runtime.has_tab_session(group, tab) {
+                    editor_runtime.open_placeholder(group, tab);
+                }
+                let Some(session) = editor_runtime.tab_session_mut(group, tab) else {
+                    return ShellDamageHint::None;
+                };
+                session.ensure_fresh_snapshot();
+
+                let (changed, note) = {
+                    let mut authority = session.authority.borrow_mut();
+                    if authority.is_dirty() {
+                        (
+                            false,
+                            Some("reload blocked — buffer has unsaved edits".to_string()),
+                        )
+                    } else if authority.file_path.is_none() {
+                        (
+                            false,
+                            Some("reload blocked — buffer has no file backing".to_string()),
+                        )
+                    } else {
+                        let path = authority
+                            .file_path
+                            .clone()
+                            .expect("path already checked above");
+
+                        match std::fs::read(&path) {
+                            Ok(bytes) => {
+                                if bytes == authority.buffer.contents() {
+                                    (false, Some("reload: no on-disk changes".to_string()))
+                                } else {
+                                    match std::str::from_utf8(&bytes) {
+                                        Ok(text) => {
+                                            let len = authority.buffer.len();
+                                            let spec = TransactionSpec::new(
+                                                UndoClass::ExternalReload,
+                                                aureline_editor::undo::originator::EXTERNAL_CHANGE_RELOAD,
+                                            )
+                                            .with_label("Reloaded from disk");
+
+                                            let (committed, note) = match authority
+                                                .buffer
+                                                .begin(spec)
+                                            {
+                                                Ok(mut tx) => {
+                                                    if let Err(err) = tx.replace(0..len, text) {
+                                                        (false, format!("reload failed — {err}"))
+                                                    } else if let Err(err) = tx.commit() {
+                                                        (false, format!("reload failed — {err}"))
+                                                    } else {
+                                                        (true, "reloaded from disk".to_string())
+                                                    }
+                                                }
+                                                Err(err) => {
+                                                    (false, format!("reload failed — {err}"))
+                                                }
+                                            };
+
+                                            if committed {
+                                                authority.mark_saved();
+                                            }
+
+                                            (committed, Some(note))
+                                        }
+                                        Err(_) => (
+                                            false,
+                                            Some(
+                                                "reload blocked — on-disk bytes are not UTF-8"
+                                                    .to_string(),
+                                            ),
+                                        ),
+                                    }
+                                }
+                            }
+                            Err(err) => (false, Some(format!("reload failed — read error: {err}"))),
+                        }
+                    }
+                };
+
+                if let Some(note) = note {
+                    command_runtime.note_non_command_action(note);
+                }
+                if !changed {
+                    return ShellDamageHint::None;
+                }
+
+                session.refresh_snapshot_and_cache();
+                session.text_input.force_clear_composition();
+                session.viewport.set_ime_composition(None);
+                session.needs_text_repaint = true;
+
+                damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::TextReflowLocal,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow)
+            } else if modifiers.ctrl_or_logo() && modifiers.shift {
                 *overlay = Some(ShellOverlayState::workspace_switcher(
                     frame.focused_zone(),
                     frame.focused_editor_group(),
@@ -6289,10 +6418,10 @@ impl ShellOverlayState {
                                     Some("Replace blocked: buffer is read-only".to_string());
                             } else if modifiers.ctrl_or_logo() {
                                 let auth = find.authority.borrow_mut();
-                                let (mut find_replace, mut buffer) = std::cell::RefMut::map_split(
-                                    auth,
-                                    |auth| (&mut auth.find_replace, &mut auth.buffer),
-                                );
+                                let (mut find_replace, mut buffer) =
+                                    std::cell::RefMut::map_split(auth, |auth| {
+                                        (&mut auth.find_replace, &mut auth.buffer)
+                                    });
 
                                 match find_replace.replace_all(
                                     &mut buffer,
@@ -6318,7 +6447,8 @@ impl ShellOverlayState {
                                         );
                                     }
                                     Ok(None) => {
-                                        find.status_line = Some("No matches to replace".to_string());
+                                        find.status_line =
+                                            Some("No matches to replace".to_string());
                                     }
                                     Err(err) => {
                                         find.status_line =
@@ -6327,10 +6457,10 @@ impl ShellOverlayState {
                                 }
                             } else {
                                 let auth = find.authority.borrow_mut();
-                                let (mut find_replace, mut buffer) = std::cell::RefMut::map_split(
-                                    auth,
-                                    |auth| (&mut auth.find_replace, &mut auth.buffer),
-                                );
+                                let (mut find_replace, mut buffer) =
+                                    std::cell::RefMut::map_split(auth, |auth| {
+                                        (&mut auth.find_replace, &mut auth.buffer)
+                                    });
 
                                 match find_replace.replace_active(
                                     &mut buffer,
@@ -6350,9 +6480,10 @@ impl ShellOverlayState {
                                             Some("Replaced 1 match (lexical-only)".to_string());
 
                                         let caret = tab_session.viewport.caret();
+                                        let _ = find_replace
+                                            .sync_for_view(&tab_session.snapshot, caret);
                                         let _ =
-                                            find_replace.sync_for_view(&tab_session.snapshot, caret);
-                                        let _ = find_replace.select_next(&tab_session.snapshot, caret);
+                                            find_replace.select_next(&tab_session.snapshot, caret);
                                         if let Some(range) = find_replace.active_match_range() {
                                             if let Some((line, grapheme)) = tab_session
                                                 .snapshot
@@ -6366,10 +6497,8 @@ impl ShellOverlayState {
                                                     point.line,
                                                     tab_session.max_scroll_line(),
                                                 );
-                                                let _ = find_replace.sync_for_view(
-                                                    &tab_session.snapshot,
-                                                    point,
-                                                );
+                                                let _ = find_replace
+                                                    .sync_for_view(&tab_session.snapshot, point);
                                             }
                                         }
                                     }
