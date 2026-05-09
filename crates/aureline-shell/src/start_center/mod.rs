@@ -70,6 +70,17 @@ impl StartCenterPrimaryActionId {
             Self::ImportFrom => "cmd:workspace.import_profile",
         }
     }
+
+    /// Returns a stable token used for message ids and fixture refs.
+    pub const fn token(self) -> &'static str {
+        match self {
+            Self::OpenFolder => "open_folder",
+            Self::OpenWorkspace => "open_workspace",
+            Self::CloneRepository => "clone_repository",
+            Self::RestoreLastSession => "restore_last_session",
+            Self::ImportFrom => "import_from",
+        }
+    }
 }
 
 /// Runtime posture required to evaluate Start Center action enablement.

@@ -25,8 +25,8 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | Layer | Crates                                                  |
 |-------|---------------------------------------------------------|
 | L0    | `aureline-build-info`, `aureline-text`, `aureline-telemetry` |
-| L1    | `aureline-rpc`                                          |
-| L2    | `aureline-render`, `aureline-buffer`, `aureline-vfs`    |
+| L1    | `aureline-commands`, `aureline-rpc`, `aureline-render`, `aureline-buffer`, `aureline-ui`, `aureline-workspace`, `aureline-vfs` |
+| L2    | `aureline-editor`, `aureline-input`                     |
 | L3    | `aureline-shell`, `aureline-shell-spike`                |
 | LX    | `aureline-bench`, `aureline-largefile-proto`, `aureline-reactive-state`, `aureline-graph-proto` (off the cone; explicit allowances listed below) |
 
@@ -37,11 +37,16 @@ in a strictly lower layer, with the explicit exemptions noted below.
 | `aureline-build-info`   | (no internal deps)                                          |
 | `aureline-text`         | (no internal deps)                                          |
 | `aureline-telemetry`    | (no internal deps)                                          |
+| `aureline-commands`     | (no internal deps)                                          |
 | `aureline-rpc`          | `aureline-telemetry`                                        |
 | `aureline-render`       | `aureline-text`, `aureline-telemetry`                       |
 | `aureline-buffer`       | `aureline-text`, `aureline-telemetry`                       |
+| `aureline-ui`           | (no internal deps)                                          |
+| `aureline-workspace`    | (no internal deps)                                          |
 | `aureline-vfs`          | `aureline-text`, `aureline-telemetry`                       |
-| `aureline-shell`        | `aureline-build-info`, `aureline-render`, `aureline-text`, `aureline-buffer`, `aureline-vfs`, `aureline-rpc`, `aureline-telemetry` |
+| `aureline-editor`       | `aureline-buffer`, `aureline-render`, `aureline-text`, `aureline-ui` |
+| `aureline-input`        | `aureline-commands`                                         |
+| `aureline-shell`        | `aureline-build-info`, `aureline-commands`, `aureline-editor`, `aureline-input`, `aureline-render`, `aureline-text`, `aureline-buffer`, `aureline-ui`, `aureline-workspace`, `aureline-vfs`, `aureline-rpc`, `aureline-telemetry` |
 | `aureline-shell-spike`  | any seeded crate                                            |
 | `aureline-bench`        | any seeded crate                                            |
 | `aureline-largefile-proto` | (no internal deps today; experimental/off-cone)         |

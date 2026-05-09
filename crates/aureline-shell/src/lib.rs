@@ -6,6 +6,8 @@
 
 #![doc(html_root_url = "https://docs.rs/aureline-shell/0.0.0")]
 
+/// Accessibility-tree bridge groundwork for shell surfaces.
+pub(crate) mod a11y;
 pub mod app_frame;
 /// Native desktop shell bootstrap (window creation, event loop, input dispatch).
 pub mod bootstrap;

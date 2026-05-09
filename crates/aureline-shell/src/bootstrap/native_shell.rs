@@ -9,6 +9,10 @@ use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use crate::a11y::shell_bridge::{
+    materialize_shell_accessibility_tree, write_shell_accessibility_tree_log,
+    ShellA11yEnablementContext,
+};
 use crate::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
 use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
 use crate::commands::diagnostics_sheet::{
@@ -39,8 +43,8 @@ use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
 };
-use aureline_build_info as build_info;
 use aureline_buffer::Buffer;
+use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
     mint_preview_record_ref, now_rfc3339, AliasUsedBlock, ApprovalPostureBlock,
@@ -77,17 +81,18 @@ use aureline_workspace::{
 };
 use serde::Serialize;
 
-use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
-use crate::windowing::winit_window::WinitWindow;
 use crate::windowing::display_safety::{
     materialize_adjustment_record, materialize_topology_record, write_display_safety_log,
     write_display_safety_topology_log, DisplaySafetyGuard,
 };
+use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
+use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_editor::{
     CaretMove, EditorAction, EditorTextRuntime, EditorViewport, SelectionDelta, ViewportCompositor,
     ViewportPaintStyle,
 };
+use aureline_render::hooks::Hook;
 use aureline_render::{
     CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine,
     FrameScheduler, FrameSchedulerDecision, GlyphAtlas, GlyphKey, PixelRect, WallClock,
@@ -366,6 +371,13 @@ impl ShellFocusReturnTarget {
 pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_native_shell_args()
         .map_err(|message| -> Box<dyn std::error::Error> { message.into() })?;
+    let capture_a11y_tree = env::var("AURELINE_CAPTURE_A11Y_TREE")
+        .ok()
+        .map(|value| {
+            let normalized = value.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        })
+        .unwrap_or(false);
     let mut startup_trace = StartupTrace::new(args.startup_trace);
     let clock = WallClock::new();
     let mut scheduler = FrameScheduler::new();
@@ -426,6 +438,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
     let mut text_runtime = ShellTextRuntime::new();
     let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    let mut last_a11y_fingerprint: Option<Vec<u8>> = None;
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
 
@@ -466,6 +479,62 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     ));
     if scheduler.decision() == FrameSchedulerDecision::RequestRedraw {
         window.request_redraw();
+    }
+
+    fn maybe_capture_shell_accessibility_tree(
+        enabled: bool,
+        last_fingerprint: &mut Option<Vec<u8>>,
+        scheduler: &mut FrameScheduler,
+        clock: &WallClock,
+        registry: &CommandRegistry,
+        shortcuts_by_command_id: &HashMap<String, Vec<String>>,
+        frame: &DesktopFrame,
+        palette: &CommandPaletteState,
+        start_center: &StartCenterState,
+        docs_help_boundary_card: &EmbeddedBoundaryCardRecord,
+        enablement_runtime: &CommandEnablementRuntimeState,
+    ) {
+        if !enabled {
+            return;
+        }
+
+        let enablement = ShellA11yEnablementContext {
+            client_scope: "desktop_product",
+            workspace_trust_state: enablement_runtime.workspace_trust_state.as_str(),
+            execution_context_available: enablement_runtime.execution_context_available,
+            provider_linked: enablement_runtime.provider_linked,
+            credential_available: enablement_runtime.credential_available,
+            policy_disabled: enablement_runtime.policy_disabled,
+            policy_blocked_in_context: enablement_runtime.policy_blocked_in_context,
+        };
+
+        let snapshot = materialize_shell_accessibility_tree(
+            registry,
+            shortcuts_by_command_id,
+            frame,
+            palette,
+            start_center,
+            docs_help_boundary_card,
+            enablement,
+        );
+
+        let pinned_timestamp = "1970-01-01T00:00:00Z".to_string();
+        let mut pinned = snapshot.clone();
+        pinned.minted_at = pinned_timestamp.clone();
+        for node in pinned.nodes.iter_mut() {
+            node.minted_at = pinned_timestamp.clone();
+        }
+
+        let Ok(fingerprint) = serde_json::to_vec(&pinned) else {
+            return;
+        };
+        if last_fingerprint.as_ref() == Some(&fingerprint) {
+            return;
+        }
+
+        *last_fingerprint = Some(fingerprint);
+        scheduler.mark_hook(Hook::AccessibilityTreeUpdate, clock);
+        write_shell_accessibility_tree_log(&snapshot);
     }
 
     event_loop.run(move |event, elwt| match event {
@@ -618,8 +687,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                let viewport_rect = focused_editor_group_physical_rect(&frame, window.scale_factor())
-                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                let viewport_rect =
+                    focused_editor_group_physical_rect(&frame, window.scale_factor())
+                        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
                 let Some(viewport_rect) = viewport_rect else {
                     return;
                 };
@@ -655,8 +725,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                let viewport_rect = focused_editor_group_physical_rect(&frame, window.scale_factor())
-                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                let viewport_rect =
+                    focused_editor_group_physical_rect(&frame, window.scale_factor())
+                        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
                 let Some(viewport_rect) = viewport_rect else {
                     return;
                 };
@@ -668,7 +739,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 let action = match ime {
                     Ime::Disabled => Some(EditorAction::ClearComposition),
                     Ime::Preedit(text, cursor) => {
-                        let caret_byte_offset = cursor.map(|(start, _)| start).unwrap_or(text.len());
+                        let caret_byte_offset =
+                            cursor.map(|(start, _)| start).unwrap_or(text.len());
                         Some(EditorAction::UpdateComposition {
                             composition: aureline_editor::ImeComposition {
                                 text,
@@ -718,8 +790,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                let viewport_rect = focused_editor_group_physical_rect(&frame, window.scale_factor())
-                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                let viewport_rect =
+                    focused_editor_group_physical_rect(&frame, window.scale_factor())
+                        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
                 let Some(viewport_rect) = viewport_rect else {
                     return;
                 };
@@ -736,16 +809,13 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     session.viewport.set_caret(point);
                     session.viewport.clear_selection();
                     session.viewport.set_ime_composition(None);
-                    if let Some(damage) = session
-                        .viewport
-                        .apply_action(
-                            &EditorAction::ChangeSelection {
-                                delta: SelectionDelta::Cleared,
-                            },
-                            viewport_rect,
-                            session.max_scroll_line(),
-                        )
-                    {
+                    if let Some(damage) = session.viewport.apply_action(
+                        &EditorAction::ChangeSelection {
+                            delta: SelectionDelta::Cleared,
+                        },
+                        viewport_rect,
+                        session.max_scroll_line(),
+                    ) {
                         scheduler.invalidate(damage.event);
                         scheduler.mark_hook(damage.hook, &clock);
                     }
@@ -789,11 +859,11 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                             .is_some_and(|g| g.tab_count > 0);
 
                         if has_tabs {
-                            let viewport_rect = focused_editor_group_physical_rect(
-                                &frame,
-                                window.scale_factor(),
-                            )
-                            .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                            let viewport_rect =
+                                focused_editor_group_physical_rect(&frame, window.scale_factor())
+                                    .map(|rect| {
+                                        PixelRect::new(rect.x, rect.y, rect.width, rect.height)
+                                    });
 
                             if let Some(viewport_rect) = viewport_rect {
                                 if !editor_runtime.sessions.contains_key(&focused) {
@@ -868,6 +938,19 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     elwt.exit();
                     return;
                 }
+                maybe_capture_shell_accessibility_tree(
+                    capture_a11y_tree,
+                    &mut last_a11y_fingerprint,
+                    &mut scheduler,
+                    &clock,
+                    registry,
+                    &keybinding_runtime.shortcuts_by_command_id,
+                    &frame,
+                    &palette,
+                    &start_center,
+                    &docs_help_boundary_card,
+                    &enablement_runtime,
+                );
                 scheduler.note_frame_submitted(&clock);
                 if !startup_trace.first_frame_emitted() {
                     startup_trace.mark(StartupMilestone::FirstShellFrameSubmitted);
@@ -1097,7 +1180,9 @@ impl EditorGroupSession {
         self.line_graphemes = self
             .document_lines
             .iter()
-            .map(|line| unicode_segmentation::UnicodeSegmentation::graphemes(line.as_str(), true).count())
+            .map(|line| {
+                unicode_segmentation::UnicodeSegmentation::graphemes(line.as_str(), true).count()
+            })
             .collect();
     }
 
@@ -1118,7 +1203,9 @@ impl EditorGroupSession {
                     let start_offset = caret_byte_offset(&self.document_lines, start);
                     let end_offset = caret_byte_offset(&self.document_lines, end);
                     if start_offset < end_offset {
-                        let _ = self.buffer.delete(start_offset..end_offset, "user_keystroke");
+                        let _ = self
+                            .buffer
+                            .delete(start_offset..end_offset, "user_keystroke");
                         self.viewport.set_caret(start);
                         self.viewport.clear_selection();
                         self.refresh_document_cache();
@@ -1145,16 +1232,16 @@ impl EditorGroupSession {
                 movement,
                 extend_selection,
             } => {
-                if !self.viewport.move_caret(
-                    *movement,
-                    &self.line_graphemes,
-                    *extend_selection,
-                ) {
+                if !self
+                    .viewport
+                    .move_caret(*movement, &self.line_graphemes, *extend_selection)
+                {
                     return None;
                 }
             }
             EditorAction::ChangeSelection { delta } => {
-                self.viewport.apply_selection_delta(*delta, &self.line_graphemes);
+                self.viewport
+                    .apply_selection_delta(*delta, &self.line_graphemes);
             }
             EditorAction::UpdateComposition { composition } => {
                 self.viewport.set_ime_composition(Some(composition.clone()));
@@ -1314,7 +1401,10 @@ fn advance_caret_for_insert(viewport: &mut EditorViewport, inserted: &str) {
         col = unicode_segmentation::UnicodeSegmentation::graphemes(part, true).count();
     }
 
-    viewport.set_caret(aureline_editor::TextPoint { line, grapheme: col });
+    viewport.set_caret(aureline_editor::TextPoint {
+        line,
+        grapheme: col,
+    });
     viewport.clear_selection();
 }
 
@@ -3218,15 +3308,14 @@ fn handle_key_event(
                     }
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
                         frame.open_placeholder_tab();
-                        let cwd =
-                            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                        let cwd = std::env::current_dir()
+                            .unwrap_or_else(|_| std::path::PathBuf::from("."));
                         let path = cwd.join(&relative_path);
-                        if let Err(err) = editor_runtime.open_file(frame.focused_editor_group(), &path)
+                        if let Err(err) =
+                            editor_runtime.open_file(frame.focused_editor_group(), &path)
                         {
-                            command_runtime.note_non_command_action(format!(
-                                "open file failed — {}",
-                                err
-                            ));
+                            command_runtime
+                                .note_non_command_action(format!("open file failed — {}", err));
                         }
                         command_runtime
                             .note_non_command_action(format!("opened file — {}", relative_path));
