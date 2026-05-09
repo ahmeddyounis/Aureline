@@ -100,8 +100,8 @@ use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSu
 use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_editor::{
-    CaretMove, EditorAction, EditorTextRuntime, EditorViewport, FindReplaceMode, FindReplaceState,
-    SelectionDelta, ViewportCompositor, ViewportPaintStyle,
+    CaretMove, EditorAction, EditorTextRuntime, EditorViewport, EditorViewportSnapshot,
+    FindReplaceMode, FindReplaceState, SelectionDelta, ViewportCompositor, ViewportPaintStyle,
 };
 use aureline_render::hooks::{Clock, Hook};
 use aureline_render::{
@@ -1561,6 +1561,7 @@ struct TabRenderInfo {
 struct BufferAuthorityStore {
     next_view_id: u64,
     by_canonical_path: HashMap<PathBuf, Rc<RefCell<BufferAuthority>>>,
+    view_state_by_canonical_path: HashMap<PathBuf, EditorViewportSnapshot>,
 }
 
 impl BufferAuthorityStore {
@@ -1568,6 +1569,7 @@ impl BufferAuthorityStore {
         Self {
             next_view_id: 1,
             by_canonical_path: HashMap::new(),
+            view_state_by_canonical_path: HashMap::new(),
         }
     }
 
@@ -1627,6 +1629,15 @@ impl BufferAuthorityStore {
             saved_revision,
             find_replace: FindReplaceState::new(),
         }))
+    }
+
+    fn record_view_state(&mut self, canonical_path: &Path, snapshot: EditorViewportSnapshot) {
+        self.view_state_by_canonical_path
+            .insert(canonical_path.to_path_buf(), snapshot);
+    }
+
+    fn view_state_for_path(&self, canonical_path: &Path) -> Option<&EditorViewportSnapshot> {
+        self.view_state_by_canonical_path.get(canonical_path)
     }
 }
 
@@ -1704,6 +1715,43 @@ impl EditorTabSession {
         self.last_seen_revision = revision;
         self.refresh_document_cache();
         self.viewport.clamp_to_document(&self.line_graphemes);
+    }
+
+    fn apply_viewport_snapshot(&mut self, snapshot: &EditorViewportSnapshot) {
+        self.viewport.set_caret(snapshot.caret);
+        self.viewport
+            .set_selection_anchor(snapshot.selection_anchor);
+        self.viewport
+            .set_ime_composition(snapshot.ime_composition.clone());
+
+        self.viewport.clear_secondary_carets();
+        for secondary in &snapshot.secondary_selections {
+            self.viewport.add_secondary_caret(secondary.caret);
+        }
+        {
+            let selections = self.viewport.selections_mut();
+            for secondary in &snapshot.secondary_selections {
+                let Some(anchor) = secondary.selection_anchor else {
+                    continue;
+                };
+                if let Some(selection) = selections
+                    .secondary_mut()
+                    .iter_mut()
+                    .find(|row| row.caret() == secondary.caret)
+                {
+                    selection.set_anchor(Some(anchor));
+                }
+            }
+        }
+
+        let max_scroll_line = self.max_scroll_line();
+        let current_scroll = self.viewport.scroll_line();
+        if snapshot.scroll_line != current_scroll {
+            let delta = snapshot.scroll_line as i32 - current_scroll as i32;
+            let _ = self.viewport.scroll_by_lines(delta, max_scroll_line);
+        }
+        self.viewport.clamp_to_document(&self.line_graphemes);
+        self.needs_text_repaint = true;
     }
 
     fn refresh_document_cache(&mut self) {
@@ -1917,6 +1965,20 @@ impl EditorWorkspaceRuntimeState {
         }
     }
 
+    #[cfg(test)]
+    fn with_buffer_store(buffers: BufferAuthorityStore) -> Self {
+        Self {
+            text_runtime: EditorTextRuntime::with_system_fonts(),
+            groups: HashMap::new(),
+            buffers,
+        }
+    }
+
+    #[cfg(test)]
+    fn take_buffer_store(&mut self) -> BufferAuthorityStore {
+        std::mem::replace(&mut self.buffers, BufferAuthorityStore::new())
+    }
+
     fn ensure_group(&mut self, group: PaneId) -> &mut EditorGroupSession {
         self.groups
             .entry(group)
@@ -1954,7 +2016,16 @@ impl EditorWorkspaceRuntimeState {
 
     fn open_file(&mut self, group: PaneId, tab: EditorTabId, path: &Path) -> Result<(), String> {
         let authority = self.buffers.open_file_authority(path)?;
-        self.ensure_tab_session(group, tab, authority);
+        let view_state = authority
+            .borrow()
+            .file_path
+            .as_ref()
+            .and_then(|canonical| self.buffers.view_state_for_path(canonical))
+            .cloned();
+        let session = self.ensure_tab_session(group, tab, authority);
+        if let Some(view_state) = view_state {
+            session.apply_viewport_snapshot(&view_state);
+        }
         Ok(())
     }
 
@@ -1965,15 +2036,16 @@ impl EditorWorkspaceRuntimeState {
         target_group: PaneId,
         target_tab: EditorTabId,
     ) -> bool {
-        let Some(authority) = self
+        let Some((authority, view_state)) = self
             .groups
             .get(&source_group)
             .and_then(|group| group.tabs.get(&source_tab))
-            .map(|tab| tab.authority.clone())
+            .map(|tab| (tab.authority.clone(), tab.viewport.snapshot()))
         else {
             return false;
         };
-        self.ensure_tab_session(target_group, target_tab, authority);
+        let session = self.ensure_tab_session(target_group, target_tab, authority);
+        session.apply_viewport_snapshot(&view_state);
         true
     }
 
@@ -2002,13 +2074,33 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn close_group(&mut self, group: PaneId) {
-        self.groups.remove(&group);
+        let Some(group_session) = self.groups.remove(&group) else {
+            return;
+        };
+        for session in group_session.tabs.into_values() {
+            let file_path = session.authority.borrow().file_path.clone();
+            let Some(canonical) = file_path else {
+                continue;
+            };
+            self.buffers
+                .record_view_state(&canonical, session.viewport.snapshot());
+        }
     }
 
     fn close_tab(&mut self, group: PaneId, tab: EditorTabId) {
-        if let Some(session) = self.groups.get_mut(&group) {
-            session.tabs.remove(&tab);
-        }
+        let session = self
+            .groups
+            .get_mut(&group)
+            .and_then(|session| session.tabs.remove(&tab));
+        let Some(session) = session else {
+            return;
+        };
+        let file_path = session.authority.borrow().file_path.clone();
+        let Some(canonical) = file_path else {
+            return;
+        };
+        self.buffers
+            .record_view_state(&canonical, session.viewport.snapshot());
     }
 
     fn has_tab_session(&self, group: PaneId, tab: EditorTabId) -> bool {
@@ -9547,3 +9639,6 @@ mod tab_case_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod continuity_tests;

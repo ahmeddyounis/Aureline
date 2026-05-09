@@ -1,6 +1,6 @@
-use std::ops::Range;
-
 use aureline_buffer::{Buffer, BufferConfig, BufferError, RevisionId, TransactionSpec, UndoClass};
+
+use crate::rng::{random_range, XorShift64};
 
 #[test]
 fn line_index_splits_lf_crlf_and_cr() {
@@ -117,46 +117,4 @@ fn only_revertible_groups_restore_parent_state_exactly() {
 
     buffer.undo().expect("undo must restore parent snapshot");
     assert_eq!(buffer.contents(), before);
-}
-
-fn random_range(rng: &mut XorShift64, len: usize) -> Range<usize> {
-    if len == 0 {
-        return 0..0;
-    }
-    let a = rng.next_usize(len.saturating_add(1));
-    let b = rng.next_usize(len.saturating_add(1));
-    let (start, end) = if a <= b { (a, b) } else { (b, a) };
-    start..end
-}
-
-#[derive(Debug, Clone)]
-struct XorShift64 {
-    state: u64,
-}
-
-impl XorShift64 {
-    fn new(seed: u64) -> Self {
-        let seed = if seed == 0 {
-            0xBAD5_EED5_EED5_EED5
-        } else {
-            seed
-        };
-        Self { state: seed }
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let mut x = self.state;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.state = x;
-        x
-    }
-
-    fn next_usize(&mut self, upper: usize) -> usize {
-        if upper == 0 {
-            return 0;
-        }
-        (self.next_u64() % (upper as u64)) as usize
-    }
 }

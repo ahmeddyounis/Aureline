@@ -1,0 +1,85 @@
+# Editor buffer continuity and property-suite matrix.
+#
+# Canonical machine-readable seed for proving that the editor buffer core
+# preserves:
+#   - buffer authority sharing across multiple views;
+#   - dirty-state projection across reopen and split-move flows; and
+#   - caret/selection continuity across reopen, split-move, and restore handoff.
+#
+# This matrix is paired with:
+#   - `crates/aureline-buffer/tests/buffer/property_suite.rs` (seeded property-style stress suite)
+#   - `crates/aureline-shell/src/bootstrap/native_shell/continuity_tests.rs` (fixture-driven continuity suite)
+#   - `fixtures/editor/continuity_cases/` (replayable scenarios)
+#
+# Rules:
+#   - Case ids MUST be stable and MUST NOT contain planning or milestone slugs.
+#   - Every case MUST reference exactly one fixture.
+#   - Every case MUST declare at least one invariant class.
+
+schema_version: 1
+status: seeded
+
+related_normative_sources:
+  - path: .t2/docs/Aureline_Technical_Architecture_Document.md
+    anchors:
+      - "11. Editor, Text, and Rendering Architecture"
+      - "12.4.2 Local history, timeline, and reversible checkpoint architecture"
+      - "12.4.3 Unified mutation journal, undo classes, and compensation architecture"
+      - "Appendix AB — State Migration and Recovery Playbooks"
+
+companion_artifact_refs:
+  - docs/editor/piece_tree_contract.md
+  - artifacts/milestones/m1/proof_packets/piece_tree_buffer.md
+  - artifacts/milestones/m1/proof_packets/save_recovery.md
+
+buffer_property_suite_ref: crates/aureline-buffer/tests/buffer/property_suite.rs
+editor_continuity_suite_ref: crates/aureline-shell/src/bootstrap/native_shell/continuity_tests.rs
+fixture_dir_ref: fixtures/editor/continuity_cases/
+
+case_class_vocabulary:
+  - close_reopen
+  - split_move
+  - restore_handoff
+
+invariant_class_vocabulary:
+  - shared_buffer_authority
+  - dirty_state_continuity
+  - caret_and_selection_continuity
+  - contents_continuity
+
+test_commands:
+  - command_id: buffer_property_suite
+    command: cargo test -p aureline-buffer property_suite::edit_sequences_match_naive_model_and_roundtrip_undo_redo
+  - command_id: editor_continuity_suite
+    command: cargo test -p aureline-shell bootstrap::native_shell::continuity_tests::editor_continuity_fixtures_stay_deterministic
+
+continuity_cases:
+  - case_id: close_reopen_shared_buffer_continuity
+    case_class: close_reopen
+    fixture_ref: fixtures/editor/continuity_cases/close_reopen_shared_buffer_continuity.json
+    invariants:
+      - shared_buffer_authority
+      - dirty_state_continuity
+      - caret_and_selection_continuity
+      - contents_continuity
+    test_command_id: editor_continuity_suite
+
+  - case_id: split_move_preserves_view_state
+    case_class: split_move
+    fixture_ref: fixtures/editor/continuity_cases/split_move_preserves_view_state.json
+    invariants:
+      - shared_buffer_authority
+      - dirty_state_continuity
+      - caret_and_selection_continuity
+      - contents_continuity
+    test_command_id: editor_continuity_suite
+
+  - case_id: restore_handoff_preserves_dirty_and_caret
+    case_class: restore_handoff
+    fixture_ref: fixtures/editor/continuity_cases/restore_handoff_preserves_dirty_and_caret.json
+    invariants:
+      - shared_buffer_authority
+      - dirty_state_continuity
+      - caret_and_selection_continuity
+      - contents_continuity
+    test_command_id: editor_continuity_suite
