@@ -577,75 +577,66 @@ fn paint_overlays(
     viewport: &EditorViewport,
     style: &ViewportPaintStyle,
 ) {
-    let Some((sel_start, sel_end)) = viewport.selection_range() else {
-        paint_caret(
-            window_buffer,
-            window_width,
-            window_height,
-            viewport_rect,
-            clip_rect,
-            viewport,
-            style,
-        );
-        return;
-    };
-
+    let ranges = viewport.selections().ordered_selection_ranges();
     let layout = viewport.layout();
-    for line in sel_start.line..=sel_end.line {
-        let Some(line_layout) = layout.line(line) else {
-            continue;
-        };
-        let y_top = viewport_rect.y as i32 + line_layout.y_top_px;
-        if y_top >= viewport_rect.bottom() as i32 {
-            continue;
+
+    for (sel_start, sel_end) in ranges {
+        for line in sel_start.line..=sel_end.line {
+            let Some(line_layout) = layout.line(line) else {
+                continue;
+            };
+            let y_top = viewport_rect.y as i32 + line_layout.y_top_px;
+            if y_top >= viewport_rect.bottom() as i32 {
+                continue;
+            }
+
+            let line_height = layout.line_height_px.max(1);
+            let y0 = y_top.max(viewport_rect.y as i32);
+            let y1 = (y_top + line_height as i32).min(viewport_rect.bottom() as i32);
+            if y1 <= y0 {
+                continue;
+            }
+
+            let start_col = if line == sel_start.line {
+                sel_start.grapheme
+            } else {
+                0
+            };
+            let end_col = if line == sel_end.line {
+                sel_end.grapheme
+            } else {
+                usize::MAX
+            };
+
+            let x_positions = &line_layout.grapheme_x_px;
+            if x_positions.is_empty() {
+                continue;
+            }
+            let max_col = x_positions.len().saturating_sub(1);
+            let start_col = start_col.min(max_col);
+            let end_col = end_col.min(max_col);
+
+            let x0 = viewport_rect.x as i32 + x_positions[start_col] as i32;
+            let x1 = viewport_rect.x as i32 + x_positions[end_col] as i32;
+            let (x0, x1) = if x0 <= x1 { (x0, x1) } else { (x1, x0) };
+
+            fill_rect_alpha_clipped(
+                window_buffer,
+                window_width,
+                window_height,
+                PixelRect::new(
+                    x0.max(0) as u32,
+                    y0.max(0) as u32,
+                    (x1 - x0).max(0) as u32,
+                    (y1 - y0).max(0) as u32,
+                ),
+                style.selection_fill,
+                clip_rect,
+            );
         }
-
-        let line_height = layout.line_height_px.max(1);
-        let y0 = y_top.max(viewport_rect.y as i32);
-        let y1 = (y_top + line_height as i32).min(viewport_rect.bottom() as i32);
-        if y1 <= y0 {
-            continue;
-        }
-
-        let start_col = if line == sel_start.line {
-            sel_start.grapheme
-        } else {
-            0
-        };
-        let end_col = if line == sel_end.line {
-            sel_end.grapheme
-        } else {
-            usize::MAX
-        };
-
-        let x_positions = &line_layout.grapheme_x_px;
-        if x_positions.is_empty() {
-            continue;
-        }
-        let max_col = x_positions.len().saturating_sub(1);
-        let start_col = start_col.min(max_col);
-        let end_col = end_col.min(max_col);
-
-        let x0 = viewport_rect.x as i32 + x_positions[start_col] as i32;
-        let x1 = viewport_rect.x as i32 + x_positions[end_col] as i32;
-        let (x0, x1) = if x0 <= x1 { (x0, x1) } else { (x1, x0) };
-
-        fill_rect_alpha_clipped(
-            window_buffer,
-            window_width,
-            window_height,
-            PixelRect::new(
-                x0.max(0) as u32,
-                y0.max(0) as u32,
-                (x1 - x0).max(0) as u32,
-                (y1 - y0).max(0) as u32,
-            ),
-            style.selection_fill,
-            clip_rect,
-        );
     }
 
-    paint_caret(
+    paint_carets(
         window_buffer,
         window_width,
         window_height,
@@ -656,7 +647,7 @@ fn paint_overlays(
     );
 }
 
-fn paint_caret(
+fn paint_carets(
     window_buffer: &mut [u32],
     window_width: u32,
     window_height: u32,
@@ -665,7 +656,40 @@ fn paint_caret(
     viewport: &EditorViewport,
     style: &ViewportPaintStyle,
 ) {
-    let caret = viewport.caret();
+    paint_caret_at(
+        window_buffer,
+        window_width,
+        window_height,
+        viewport_rect,
+        clip_rect,
+        viewport,
+        viewport.caret(),
+        style,
+    );
+    for caret in viewport.selections().secondary() {
+        paint_caret_at(
+            window_buffer,
+            window_width,
+            window_height,
+            viewport_rect,
+            clip_rect,
+            viewport,
+            caret.caret(),
+            style,
+        );
+    }
+}
+
+fn paint_caret_at(
+    window_buffer: &mut [u32],
+    window_width: u32,
+    window_height: u32,
+    viewport_rect: PixelRect,
+    clip_rect: PixelRect,
+    viewport: &EditorViewport,
+    caret: crate::TextPoint,
+    style: &ViewportPaintStyle,
+) {
     let layout = viewport.layout();
     let Some(line_layout) = layout.line(caret.line) else {
         return;

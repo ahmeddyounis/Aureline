@@ -1036,8 +1036,16 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
 
                 if let Some(point) = hit_test_viewport_point(&session.viewport, viewport_rect, x, y)
                 {
-                    session.viewport.set_caret(point);
-                    session.viewport.clear_selection();
+                    if held_modifiers.alt {
+                        let previous_primary = session.viewport.caret();
+                        session.viewport.add_secondary_caret(previous_primary);
+                        session.viewport.set_caret(point);
+                        session.viewport.clear_selection();
+                    } else {
+                        session.viewport.set_caret(point);
+                        session.viewport.clear_selection();
+                        session.viewport.clear_secondary_carets();
+                    }
 
                     session.text_input.force_clear_composition();
                     if let Some(damage) =
@@ -1657,6 +1665,7 @@ impl EditorTabSession {
         self.snapshot = snapshot;
         self.last_seen_revision = revision;
         self.refresh_document_cache();
+        self.viewport.clamp_to_document(&self.line_graphemes);
         self.needs_text_repaint = true;
     }
 
@@ -1670,6 +1679,7 @@ impl EditorTabSession {
         self.snapshot = snapshot;
         self.last_seen_revision = revision;
         self.refresh_document_cache();
+        self.viewport.clamp_to_document(&self.line_graphemes);
     }
 
     fn refresh_document_cache(&mut self) {
@@ -1715,44 +1725,46 @@ impl EditorTabSession {
 
         match action {
             EditorAction::InsertText { text } => {
-                if let Some((start, end)) = self.viewport.selection_range() {
-                    let start_offset = caret_byte_offset(&self.snapshot, start);
-                    let end_offset = caret_byte_offset(&self.snapshot, end);
-                    if start_offset < end_offset {
-                        let _ = self
-                            .authority
-                            .borrow_mut()
-                            .buffer
-                            .delete(start_offset..end_offset, "user_keystroke");
-                        self.viewport.set_caret(start);
-                        self.viewport.clear_selection();
-                        self.refresh_snapshot_and_cache();
-                    }
-                }
+                let scope = if self.viewport.caret_count() > 1 && self.viewport.ime_composition().is_some() {
+                    aureline_editor::TextEditScope::PrimaryOnly
+                } else {
+                    aureline_editor::TextEditScope::AllCarets
+                };
 
-                let offset = caret_byte_offset(&self.snapshot, self.viewport.caret());
-                let _ = self
-                    .authority
-                    .borrow_mut()
-                    .buffer
-                    .insert(offset, text, "user_keystroke");
-                self.refresh_snapshot_and_cache();
+                let outcome = {
+                    let mut authority = self.authority.borrow_mut();
+                    self.viewport
+                        .selections_mut()
+                        .apply_insert_text(&mut authority.buffer, &self.snapshot, text, "user_keystroke", scope)
+                };
+
+                let Ok(Some(outcome)) = outcome else {
+                    return None;
+                };
+
+                self.snapshot = outcome.snapshot;
+                self.last_seen_revision = outcome.revision;
+                self.refresh_document_cache();
                 self.viewport.set_ime_composition(None);
-                advance_caret_for_insert(&mut self.viewport, text);
                 self.needs_text_repaint = true;
             }
             EditorAction::DeleteBackward => {
-                if delete_backward(
-                    &mut self.authority.borrow_mut().buffer,
-                    &self.snapshot,
-                    &mut self.viewport,
-                ) {
-                    self.refresh_snapshot_and_cache();
-                    self.viewport.set_ime_composition(None);
-                    self.needs_text_repaint = true;
-                } else {
+                let outcome = {
+                    let mut authority = self.authority.borrow_mut();
+                    self.viewport
+                        .selections_mut()
+                        .apply_delete_backward(&mut authority.buffer, &self.snapshot, "user_keystroke", aureline_editor::TextEditScope::AllCarets)
+                };
+
+                let Ok(Some(outcome)) = outcome else {
                     return None;
-                }
+                };
+
+                self.snapshot = outcome.snapshot;
+                self.last_seen_revision = outcome.revision;
+                self.refresh_document_cache();
+                self.viewport.set_ime_composition(None);
+                self.needs_text_repaint = true;
             }
             EditorAction::MoveCaret {
                 movement,
@@ -1839,6 +1851,8 @@ impl EditorWorkspaceRuntimeState {
              - Scroll: mouse wheel\n\
              - Move caret: arrow keys\n\
              - Extend selection: Shift+Arrow\n\
+             - Add caret: Alt+Click\n\
+             - Undo/redo: Cmd/Ctrl+Z / Cmd/Ctrl+Shift+Z\n\
              - Type: regular keys\n",
         );
         self.ensure_tab_session(group, tab, authority);
@@ -1987,111 +2001,6 @@ fn read_only_state_for_path(path: &Path) -> ReadOnlyState {
         Ok(_) => ReadOnlyState::Writable,
         Err(_) => ReadOnlyState::Filesystem,
     }
-}
-
-fn caret_byte_offset(snapshot: &Snapshot, point: aureline_editor::TextPoint) -> usize {
-    snapshot
-        .byte_offset_for_line_grapheme(point.line, point.grapheme)
-        .unwrap_or(snapshot.len())
-}
-
-fn advance_caret_for_insert(viewport: &mut EditorViewport, inserted: &str) {
-    if inserted.is_empty() {
-        return;
-    }
-    let before = viewport.caret();
-    let mut line = before.line;
-    let mut col = before.grapheme;
-
-    let mut parts = inserted.split('\n');
-    if let Some(first) = parts.next() {
-        col = col.saturating_add(
-            unicode_segmentation::UnicodeSegmentation::graphemes(first, true).count(),
-        );
-    }
-    for part in parts {
-        line = line.saturating_add(1);
-        col = unicode_segmentation::UnicodeSegmentation::graphemes(part, true).count();
-    }
-
-    viewport.set_caret(aureline_editor::TextPoint {
-        line,
-        grapheme: col,
-    });
-    viewport.clear_selection();
-}
-
-fn delete_backward(
-    buffer: &mut Buffer,
-    snapshot: &Snapshot,
-    viewport: &mut EditorViewport,
-) -> bool {
-    if let Some((start, end)) = viewport.selection_range() {
-        let start_offset = caret_byte_offset(snapshot, start);
-        let end_offset = caret_byte_offset(snapshot, end);
-        if start_offset >= end_offset {
-            viewport.clear_selection();
-            return false;
-        }
-        let _ = buffer.delete(start_offset..end_offset, "user_keystroke");
-        viewport.set_caret(start);
-        viewport.clear_selection();
-        return true;
-    }
-
-    let caret = viewport.caret();
-    if caret.line == 0 && caret.grapheme == 0 {
-        return false;
-    }
-
-    if caret.grapheme > 0 {
-        let start = caret_byte_offset(
-            snapshot,
-            aureline_editor::TextPoint {
-                line: caret.line,
-                grapheme: caret.grapheme.saturating_sub(1),
-            },
-        );
-        let end = caret_byte_offset(snapshot, caret);
-        if start >= end {
-            return false;
-        }
-        let _ = buffer.delete(start..end, "user_keystroke");
-        viewport.set_caret(aureline_editor::TextPoint {
-            line: caret.line,
-            grapheme: caret.grapheme.saturating_sub(1),
-        });
-        viewport.clear_selection();
-        return true;
-    }
-
-    let Some(span) = snapshot.line_span(caret.line) else {
-        return false;
-    };
-    if span.start == 0 {
-        return false;
-    }
-    let bytes = snapshot.as_bytes();
-    let (start, end) = if span.start >= 2
-        && bytes.get(span.start - 2) == Some(&b'\r')
-        && bytes.get(span.start - 1) == Some(&b'\n')
-    {
-        (span.start - 2, span.start)
-    } else if bytes.get(span.start - 1) == Some(&b'\n') || bytes.get(span.start - 1) == Some(&b'\r')
-    {
-        (span.start - 1, span.start)
-    } else {
-        (span.start.saturating_sub(1), span.start)
-    };
-    let _ = buffer.delete(start..end, "user_keystroke");
-    let prev_line = caret.line.saturating_sub(1);
-    let prev_col = snapshot.grapheme_count_in_line(prev_line).unwrap_or(0);
-    viewport.set_caret(aureline_editor::TextPoint {
-        line: prev_line,
-        grapheme: prev_col,
-    });
-    viewport.clear_selection();
-    true
 }
 
 #[cfg(test)]
@@ -4401,6 +4310,89 @@ fn handle_key_event(
                 if let Err(err) = editor_runtime.save_tab(group, tab) {
                     command_runtime.note_non_command_action(format!("save failed — {err}"));
                 }
+                damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::TextReflowLocal,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow)
+            } else {
+                ShellDamageHint::None
+            }
+        }
+        KeyCode::KeyZ => {
+            if modifiers.ctrl_or_logo() && frame.focused_zone() == ShellZoneId::MainWorkspace {
+                let group = frame.focused_editor_group();
+                let Some(tab) = frame.active_tab_id(group) else {
+                    return ShellDamageHint::None;
+                };
+                if !editor_runtime.has_tab_session(group, tab) {
+                    editor_runtime.open_placeholder(group, tab);
+                }
+                let Some(session) = editor_runtime.tab_session_mut(group, tab) else {
+                    return ShellDamageHint::None;
+                };
+                session.ensure_fresh_snapshot();
+
+                let changed = {
+                    let mut authority = session.authority.borrow_mut();
+                    let outcome = if modifiers.shift {
+                        authority.buffer.redo()
+                    } else {
+                        authority.buffer.undo()
+                    };
+                    outcome.is_some()
+                };
+                if !changed {
+                    return ShellDamageHint::None;
+                }
+
+                session.refresh_snapshot_and_cache();
+                session.text_input.force_clear_composition();
+                session.viewport.set_ime_composition(None);
+                session.needs_text_repaint = true;
+
+                damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::TextReflowLocal,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow)
+            } else {
+                ShellDamageHint::None
+            }
+        }
+        KeyCode::KeyY => {
+            if modifiers.ctrl_or_logo() && frame.focused_zone() == ShellZoneId::MainWorkspace {
+                let group = frame.focused_editor_group();
+                let Some(tab) = frame.active_tab_id(group) else {
+                    return ShellDamageHint::None;
+                };
+                if !editor_runtime.has_tab_session(group, tab) {
+                    editor_runtime.open_placeholder(group, tab);
+                }
+                let Some(session) = editor_runtime.tab_session_mut(group, tab) else {
+                    return ShellDamageHint::None;
+                };
+                session.ensure_fresh_snapshot();
+
+                let changed = {
+                    let mut authority = session.authority.borrow_mut();
+                    authority.buffer.redo().is_some()
+                };
+                if !changed {
+                    return ShellDamageHint::None;
+                }
+
+                session.refresh_snapshot_and_cache();
+                session.text_input.force_clear_composition();
+                session.viewport.set_ime_composition(None);
+                session.needs_text_repaint = true;
+
                 damage_geometry
                     .focused_editor_group
                     .map(|rect| ShellDamageHint::Rect {

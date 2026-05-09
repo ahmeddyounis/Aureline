@@ -1,16 +1,17 @@
 //! Editor viewport state and damage classification.
 //!
 //! The editor viewport is the canonical owner of scroll, caret, and selection
-//! state for one visible editor surface. It also caches the line-layout data
-//! needed to paint overlays (caret, selection, IME) without re-shaping or
+//! state for one visible editor surface, including multi-cursor carets and
+//! their active selection anchors. It also caches the line-layout data needed
+//! to paint overlays (carets, selections, IME) without re-shaping or
 //! re-rasterizing glyphs.
-
-use std::cmp::Ordering;
 
 use aureline_render::draw_queue::{CompositionLayerId, DamageClassId, DamageEvent, DamageRegion};
 use aureline_render::hooks::Hook;
 use aureline_render::PixelRect;
 use serde::{Deserialize, Serialize};
+
+use crate::selection::SelectionState;
 
 /// A caret/selection position expressed in line + grapheme coordinates.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -134,16 +135,25 @@ pub struct EditorViewportSnapshot {
     pub caret: TextPoint,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection_anchor: Option<TextPoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secondary_selections: Vec<SecondarySelectionSnapshot>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ime_composition: Option<ImeComposition>,
+}
+
+/// Snapshot of one secondary caret and its optional selection anchor.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecondarySelectionSnapshot {
+    pub caret: TextPoint,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub selection_anchor: Option<TextPoint>,
 }
 
 /// Canonical editor viewport state.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EditorViewport {
     scroll_line: usize,
-    caret: TextPoint,
-    selection_anchor: Option<TextPoint>,
+    selection: SelectionState,
     ime_composition: Option<ImeComposition>,
     layout: ViewportLayout,
     /// Column preference captured when moving vertically.
@@ -153,13 +163,13 @@ pub struct EditorViewport {
 impl EditorViewport {
     /// Creates a new viewport with its caret at the origin.
     pub fn new() -> Self {
+        let caret = TextPoint {
+            line: 0,
+            grapheme: 0,
+        };
         Self {
             scroll_line: 0,
-            caret: TextPoint {
-                line: 0,
-                grapheme: 0,
-            },
-            selection_anchor: None,
+            selection: SelectionState::new(caret),
             ime_composition: None,
             layout: ViewportLayout::default(),
             preferred_grapheme_column: 0,
@@ -172,29 +182,59 @@ impl EditorViewport {
     }
 
     /// Returns the caret position.
-    pub const fn caret(&self) -> TextPoint {
-        self.caret
+    pub fn caret(&self) -> TextPoint {
+        self.selection.primary_caret()
     }
 
     /// Replaces the caret position.
     pub fn set_caret(&mut self, caret: TextPoint) {
-        self.caret = caret;
+        self.selection.set_primary_caret(caret);
         self.preferred_grapheme_column = caret.grapheme;
     }
 
     /// Clears any active selection.
     pub fn clear_selection(&mut self) {
-        self.selection_anchor = None;
+        self.selection.clear_primary_selection();
     }
 
     /// Replaces the selection anchor.
     pub fn set_selection_anchor(&mut self, anchor: Option<TextPoint>) {
-        self.selection_anchor = anchor;
+        self.selection.set_primary_anchor(anchor);
     }
 
     /// Returns the active selection anchor, when present.
-    pub const fn selection_anchor(&self) -> Option<TextPoint> {
-        self.selection_anchor
+    pub fn selection_anchor(&self) -> Option<TextPoint> {
+        self.selection.primary_anchor()
+    }
+
+    /// Returns the selection state for this viewport.
+    pub fn selections(&self) -> &SelectionState {
+        &self.selection
+    }
+
+    /// Returns mutable selection state for this viewport.
+    pub fn selections_mut(&mut self) -> &mut SelectionState {
+        &mut self.selection
+    }
+
+    /// Returns the number of carets in this viewport.
+    pub fn caret_count(&self) -> usize {
+        self.selection.caret_count()
+    }
+
+    /// Removes all secondary carets.
+    pub fn clear_secondary_carets(&mut self) {
+        self.selection.clear_secondary();
+    }
+
+    /// Adds a secondary caret at `caret`.
+    pub fn add_secondary_caret(&mut self, caret: TextPoint) {
+        self.selection.add_secondary_caret(caret);
+    }
+
+    /// Clamps the selection state to `line_graphemes`.
+    pub fn clamp_to_document(&mut self, line_graphemes: &[usize]) {
+        self.selection.clamp_to_document(line_graphemes);
     }
 
     /// Returns the cached viewport layout.
@@ -204,10 +244,20 @@ impl EditorViewport {
 
     /// Returns a structured snapshot suitable for JSON serialization.
     pub fn snapshot(&self) -> EditorViewportSnapshot {
+        let secondary_selections = self
+            .selection
+            .secondary()
+            .iter()
+            .map(|row| SecondarySelectionSnapshot {
+                caret: row.caret(),
+                selection_anchor: row.anchor(),
+            })
+            .collect();
         EditorViewportSnapshot {
             scroll_line: self.scroll_line,
-            caret: self.caret,
-            selection_anchor: self.selection_anchor,
+            caret: self.caret(),
+            selection_anchor: self.selection_anchor(),
+            secondary_selections,
             ime_composition: self.ime_composition.clone(),
         }
     }
@@ -328,17 +378,17 @@ impl EditorViewport {
         line_graphemes: &[usize],
         extend_selection: bool,
     ) -> bool {
-        let before = self.caret;
+        let before = self.caret();
         if !extend_selection {
-            self.selection_anchor = None;
-        } else if self.selection_anchor.is_none() {
-            self.selection_anchor = Some(self.caret);
+            self.selection.clear_primary_selection();
+        } else if self.selection.primary_anchor().is_none() {
+            self.selection.set_primary_anchor(Some(before));
         }
 
         let line_count = line_graphemes.len().max(1);
-        let mut line = self.caret.line.min(line_count.saturating_sub(1));
+        let mut line = before.line.min(line_count.saturating_sub(1));
         let max_col = line_graphemes.get(line).copied().unwrap_or(0);
-        let mut col = self.caret.grapheme.min(max_col);
+        let mut col = before.grapheme.min(max_col);
 
         match movement {
             CaretMove::Left => {
@@ -393,18 +443,18 @@ impl EditorViewport {
             }
         }
 
-        self.caret = TextPoint {
+        self.selection.set_primary_caret(TextPoint {
             line,
             grapheme: col,
-        };
-        before != self.caret
+        });
+        before != self.caret()
     }
 
     /// Applies a selection delta.
     pub fn apply_selection_delta(&mut self, delta: SelectionDelta, line_graphemes: &[usize]) {
         match delta {
             SelectionDelta::Cleared => {
-                self.selection_anchor = None;
+                self.selection.clear_primary_selection();
             }
             SelectionDelta::ExtendedLeft => {
                 let _ = self.move_caret(CaretMove::Left, line_graphemes, true);
@@ -420,17 +470,14 @@ impl EditorViewport {
         self.ime_composition = composition;
     }
 
+    /// Returns the current IME composition, when present.
+    pub fn ime_composition(&self) -> Option<&ImeComposition> {
+        self.ime_composition.as_ref()
+    }
+
     /// Returns an ordered `(start, end)` selection range when one exists.
     pub fn selection_range(&self) -> Option<(TextPoint, TextPoint)> {
-        let anchor = self.selection_anchor?;
-        if anchor == self.caret {
-            return None;
-        }
-        match anchor.key().cmp(&self.caret.key()) {
-            Ordering::Less => Some((anchor, self.caret)),
-            Ordering::Equal => None,
-            Ordering::Greater => Some((self.caret, anchor)),
-        }
+        self.selection.primary_selection_range()
     }
 }
 

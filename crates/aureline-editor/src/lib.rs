@@ -10,10 +10,12 @@
 #![doc(html_root_url = "https://docs.rs/aureline-editor/0.0.0")]
 
 pub mod paint;
+pub mod selection;
 pub mod viewport;
 
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};
+pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use viewport::{
     CaretMove, EditorAction, EditorViewport, EditorViewportSnapshot, ImeComposition,
-    SelectionDelta, TextPoint, ViewportDamage,
+    SecondarySelectionSnapshot, SelectionDelta, TextPoint, ViewportDamage,
 };
