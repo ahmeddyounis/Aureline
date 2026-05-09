@@ -12,6 +12,7 @@
 pub mod clipboard;
 pub mod find_replace;
 pub mod highlight;
+pub mod large_file;
 pub mod paint;
 pub mod selection;
 pub mod text_nav;
@@ -20,6 +21,12 @@ pub mod viewport;
 
 pub use find_replace::{FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState};
 pub use highlight::{HighlightOverlaySet, HighlightSpan};
+pub use large_file::{
+    open_document, BomKind, ClassificationDecision, ClassificationPolicy, DocumentOpenDisposition,
+    DocumentOpenError, DocumentOpenOutcome, FileMode, LargeFileDocument, LargeFileOverrideInfo,
+    LargeFileModeNotice, LargeFileTrigger, LargeFileViewer, LargeFileViewerConfig,
+    LargeFileViewerError, NormalDocument, ReaderMetrics,
+};
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};
 pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use undo::UndoGroupSummary;

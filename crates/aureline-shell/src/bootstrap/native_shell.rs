@@ -106,6 +106,8 @@ use arboard::Clipboard;
 use aureline_editor::{
     CaretMove, EditorAction, EditorTextRuntime, EditorViewport, EditorViewportSnapshot,
     FindReplaceMode, FindReplaceState, SelectionDelta, ViewportCompositor, ViewportPaintStyle,
+    ClassificationPolicy, DocumentOpenDisposition, DocumentOpenOutcome, LargeFileDocument,
+    LargeFileOverrideInfo, LargeFileViewerConfig, open_document,
 };
 use aureline_render::hooks::{Clock, Hook};
 use aureline_render::{
@@ -1453,13 +1455,14 @@ impl ShellTextRuntime {
 enum ReadOnlyState {
     Writable,
     Filesystem,
+    Constrained,
 }
 
 impl ReadOnlyState {
     const fn token(self) -> Option<&'static str> {
         match self {
             Self::Writable => None,
-            Self::Filesystem => Some("Read-only"),
+            Self::Filesystem | Self::Constrained => Some("Read-only"),
         }
     }
 }
@@ -1524,6 +1527,21 @@ impl SnapshotFacingState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LargeFileSurfaceState {
+    Constrained,
+    Override,
+}
+
+impl LargeFileSurfaceState {
+    const fn token(self) -> &'static str {
+        match self {
+            Self::Constrained => "Large-file mode",
+            Self::Override => "Large-file override",
+        }
+    }
+}
+
 struct BufferAuthority {
     label: String,
     file_path: Option<PathBuf>,
@@ -1536,6 +1554,8 @@ struct BufferAuthority {
     buffer: Buffer,
     saved_revision: RevisionId,
     find_replace: FindReplaceState,
+    large_file_doc: Option<LargeFileDocument>,
+    large_file_override: Option<LargeFileOverrideInfo>,
 }
 
 impl BufferAuthority {
@@ -1561,6 +1581,7 @@ struct TabRenderInfo {
     managed: ManagedState,
     projection: ProjectionState,
     snapshot_facing: SnapshotFacingState,
+    large_file_state: Option<LargeFileSurfaceState>,
 }
 
 struct BufferAuthorityStore {
@@ -1593,32 +1614,68 @@ impl BufferAuthorityStore {
         let presentation_uri = VfsUri::file_url_for_path(&canonical)
             .ok_or_else(|| format!("vfs uri build failed for {canonical:?}"))?;
         let local_root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
-        let vfs_identity = local_root
-            .identity_record(&presentation_uri)
-            .map_err(|err| format!("vfs identity resolution failed: {err}"))?;
-
-        let bytes = std::fs::read(&canonical).map_err(|err| err.to_string())?;
-        let buffer = Buffer::from_bytes(&bytes);
+        let policy = shell_large_file_policy();
+        let viewer_config = shell_large_file_viewer_config();
+        let outcome = open_document(
+            &local_root,
+            &presentation_uri,
+            &policy,
+            viewer_config,
+            DocumentOpenDisposition::Auto,
+        )
+        .map_err(|err| err.to_string())?;
         let label = path
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("untitled")
             .to_string();
-        let read_only = read_only_state_for_path(&canonical);
-        let saved_revision = buffer.revision_id();
-        let authority = Rc::new(RefCell::new(BufferAuthority {
-            label,
-            file_path: Some(canonical.clone()),
-            vfs_identity: Some(vfs_identity),
-            read_only,
-            generated: GeneratedState::Authored,
-            managed: ManagedState::Unmanaged,
-            projection: ProjectionState::Direct,
-            snapshot_facing: SnapshotFacingState::Live,
-            buffer,
-            saved_revision,
-            find_replace: FindReplaceState::new(),
-        }));
+
+        let authority = match outcome {
+            DocumentOpenOutcome::Normal(doc) => {
+                let buffer = doc.buffer;
+                let saved_revision = buffer.revision_id();
+                let read_only = read_only_state_for_path(&canonical);
+                Rc::new(RefCell::new(BufferAuthority {
+                    label,
+                    file_path: Some(canonical.clone()),
+                    vfs_identity: Some(doc.identity),
+                    read_only,
+                    generated: GeneratedState::Authored,
+                    managed: ManagedState::Unmanaged,
+                    projection: ProjectionState::Direct,
+                    snapshot_facing: SnapshotFacingState::Live,
+                    buffer,
+                    saved_revision,
+                    find_replace: FindReplaceState::new(),
+                    large_file_doc: None,
+                    large_file_override: doc.large_file_override,
+                }))
+            }
+            DocumentOpenOutcome::LargeFile(mut doc) => {
+                let notice = doc.notice();
+                let preview = doc
+                    .viewer
+                    .read_prefix_utf8(LARGE_FILE_PREVIEW_MAX_BYTES)
+                    .map_err(|err| err.to_string())?;
+                let buffer = Buffer::from_str(&large_file_presentation_buffer(&doc, notice, preview));
+                let saved_revision = buffer.revision_id();
+                Rc::new(RefCell::new(BufferAuthority {
+                    label,
+                    file_path: Some(canonical.clone()),
+                    vfs_identity: Some(doc.identity.clone()),
+                    read_only: ReadOnlyState::Constrained,
+                    generated: GeneratedState::Authored,
+                    managed: ManagedState::Unmanaged,
+                    projection: ProjectionState::Direct,
+                    snapshot_facing: SnapshotFacingState::Live,
+                    buffer,
+                    saved_revision,
+                    find_replace: FindReplaceState::new(),
+                    large_file_doc: Some(doc),
+                    large_file_override: None,
+                }))
+            }
+        };
         self.by_canonical_path.insert(canonical, authority.clone());
         Ok(authority)
     }
@@ -1654,6 +1711,8 @@ impl BufferAuthorityStore {
             buffer,
             saved_revision,
             find_replace: FindReplaceState::new(),
+            large_file_doc: None,
+            large_file_override: None,
         }))
     }
 
@@ -1706,6 +1765,13 @@ impl EditorTabSession {
 
     fn render_info(&self) -> TabRenderInfo {
         let auth = self.authority.borrow();
+        let large_file_state = if auth.large_file_doc.is_some() {
+            Some(LargeFileSurfaceState::Constrained)
+        } else if auth.large_file_override.is_some() {
+            Some(LargeFileSurfaceState::Override)
+        } else {
+            None
+        };
         TabRenderInfo {
             label: auth.label.clone(),
             dirty: auth.is_dirty(),
@@ -1714,6 +1780,7 @@ impl EditorTabSession {
             managed: auth.managed,
             projection: auth.projection,
             snapshot_facing: auth.snapshot_facing,
+            large_file_state,
         }
     }
 
@@ -1820,6 +1887,17 @@ impl EditorTabSession {
     ) -> Option<aureline_editor::ViewportDamage> {
         self.ensure_fresh_snapshot();
         let max_scroll_line = self.max_scroll_line();
+
+        if self.authority.borrow().read_only == ReadOnlyState::Constrained
+            && matches!(
+                action,
+                EditorAction::InsertText { .. }
+                    | EditorAction::DeleteBackward
+                    | EditorAction::DeleteForward
+            )
+        {
+            return None;
+        }
 
         match action {
             EditorAction::InsertText { text } => {
@@ -2055,6 +2133,55 @@ impl EditorWorkspaceRuntimeState {
         Ok(())
     }
 
+    fn open_anyway(&mut self, group: PaneId, tab: EditorTabId) -> Result<(), String> {
+        let Some(tab_session) = self.groups.get_mut(&group).and_then(|g| g.tabs.get_mut(&tab))
+        else {
+            return Err("tab not found".to_string());
+        };
+        let canonical = tab_session
+            .authority
+            .borrow()
+            .file_path
+            .clone()
+            .ok_or_else(|| "tab is not file-backed".to_string())?;
+        if tab_session.authority.borrow().large_file_doc.is_none() {
+            return Err("tab is not in large-file mode".to_string());
+        }
+        let uri = VfsUri::file_url_for_path(&canonical)
+            .ok_or_else(|| format!("vfs uri build failed for {canonical:?}"))?;
+        let local_root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+        let policy = shell_large_file_policy();
+        let viewer_config = shell_large_file_viewer_config();
+        let outcome = open_document(
+            &local_root,
+            &uri,
+            &policy,
+            viewer_config,
+            DocumentOpenDisposition::ForceNormal,
+        )
+        .map_err(|err| err.to_string())?;
+        let DocumentOpenOutcome::Normal(doc) = outcome else {
+            return Err("expected normal document after override".to_string());
+        };
+
+        {
+            let mut auth = tab_session.authority.borrow_mut();
+            let buffer = doc.buffer;
+            let saved_revision = buffer.revision_id();
+            auth.buffer = buffer;
+            auth.saved_revision = saved_revision;
+            auth.vfs_identity = Some(doc.identity);
+            auth.read_only = read_only_state_for_path(&canonical);
+            auth.large_file_doc = None;
+            auth.large_file_override = doc.large_file_override;
+            auth.find_replace = FindReplaceState::new();
+        }
+
+        tab_session.refresh_snapshot_and_cache();
+        tab_session.needs_text_repaint = true;
+        Ok(())
+    }
+
     fn clone_tab_view(
         &mut self,
         source_group: PaneId,
@@ -2224,6 +2351,76 @@ fn read_only_state_for_path(path: &Path) -> ReadOnlyState {
         Ok(_) => ReadOnlyState::Writable,
         Err(_) => ReadOnlyState::Filesystem,
     }
+}
+
+const LARGE_FILE_PREVIEW_MAX_BYTES: u64 = 16 * 1024;
+
+fn shell_large_file_policy() -> ClassificationPolicy {
+    let mut policy = ClassificationPolicy::default();
+    if let Ok(raw) = std::env::var("AURELINE_LARGE_FILE_THRESHOLD_BYTES") {
+        if let Ok(value) = raw.parse::<u64>() {
+            policy.large_file_size_threshold = value;
+        }
+    }
+    policy
+}
+
+fn shell_large_file_viewer_config() -> LargeFileViewerConfig {
+    LargeFileViewerConfig::default()
+}
+
+fn large_file_presentation_buffer(
+    doc: &LargeFileDocument,
+    notice: aureline_editor::LargeFileModeNotice,
+    preview: Option<String>,
+) -> String {
+    let decision = doc.viewer.decision();
+    let mut out = String::new();
+    out.push_str(&notice.title);
+    out.push('\n');
+    out.push('\n');
+
+    if let Some(trigger) = notice.trigger.as_deref() {
+        out.push_str("Trigger: ");
+        out.push_str(trigger);
+        out.push('\n');
+    }
+    out.push_str("Reason: ");
+    out.push_str(&notice.reason);
+    out.push('\n');
+    out.push_str("Bytes on disk: ");
+    out.push_str(&decision.bytes_on_disk.to_string());
+    out.push('\n');
+    out.push('\n');
+
+    out.push_str("Reduced capabilities:\n");
+    for capability in notice.reduced_capabilities {
+        out.push_str("- ");
+        out.push_str(&capability);
+        out.push('\n');
+    }
+    out.push('\n');
+
+    out.push_str("Escalation:\n- ");
+    out.push_str(&notice.escalation_label);
+    out.push_str(": ");
+    out.push_str(&notice.escalation_detail);
+    out.push('\n');
+    out.push_str("- Action: press Ctrl/Cmd+Shift+O to open in the normal buffer path.\n");
+    out.push('\n');
+
+    out.push_str(&format!(
+        "Preview (first {} bytes, UTF-8 only):\n",
+        LARGE_FILE_PREVIEW_MAX_BYTES
+    ));
+    match preview {
+        Some(text) => out.push_str(&text),
+        None => out.push_str("<non-UTF8 or binary content: preview unavailable>\n"),
+    }
+    if !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out
 }
 
 #[cfg(test)]
@@ -4673,9 +4870,30 @@ fn handle_key_event(
         }
         KeyCode::KeyO => {
             if modifiers.ctrl_or_logo() {
-                let group = frame.focused_editor_group();
-                if let Some(tab) = frame.open_tab() {
-                    editor_runtime.open_placeholder(group, tab);
+                if modifiers.shift
+                    && frame.focused_zone() == ShellZoneId::MainWorkspace
+                    && overlay.is_none()
+                {
+                    let group = frame.focused_editor_group();
+                    let Some(tab) = frame.active_tab_id(group) else {
+                        return ShellDamageHint::None;
+                    };
+                    match editor_runtime.open_anyway(group, tab) {
+                        Ok(()) => {
+                            command_runtime
+                                .note_non_command_action("opened anyway (large-file override)");
+                        }
+                        Err(err) => {
+                            command_runtime.note_non_command_action(format!(
+                                "open anyway failed — {err}"
+                            ));
+                        }
+                    }
+                } else {
+                    let group = frame.focused_editor_group();
+                    if let Some(tab) = frame.open_tab() {
+                        editor_runtime.open_placeholder(group, tab);
+                    }
                 }
                 damage_geometry
                     .focused_editor_group
@@ -5704,6 +5922,11 @@ fn rasterize_shell(
                                     if let Some(info) = info {
                                         if info.dirty {
                                             segment.push_str(" (Modified)");
+                                        }
+                                        if let Some(state) = info.large_file_state {
+                                            segment.push_str(" (");
+                                            segment.push_str(state.token());
+                                            segment.push(')');
                                         }
                                         if let Some(token) = info.read_only.token() {
                                             segment.push_str(" (");
