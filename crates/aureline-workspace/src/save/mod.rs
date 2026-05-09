@@ -14,12 +14,14 @@
 //! attribution.
 
 pub mod coordinator;
+pub mod drift_detection;
 pub mod source_fidelity;
 pub mod write_strategy;
 
 pub use coordinator::{
     SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
 };
+pub use drift_detection::{detect_external_drift, ExternalDriftConflict};
 pub use source_fidelity::{
     detect_and_decode_for_buffer, encode_for_save, BomStateDetected, DetectedEncoding,
     DetectionSource, ExecutableIntent, FinalNewlineDetected, NewlineModeDetected,

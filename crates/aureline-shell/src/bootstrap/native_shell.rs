@@ -1658,8 +1658,9 @@ impl BufferAuthorityStore {
             return Ok(existing.clone());
         }
 
-        let presentation_uri = VfsUri::file_url_for_path(&canonical)
-            .ok_or_else(|| format!("vfs uri build failed for {canonical:?}"))?;
+        let presentation_uri = VfsUri::file_url_for_path_lossy(path)
+            .or_else(|| VfsUri::file_url_for_path(&canonical))
+            .ok_or_else(|| format!("vfs uri build failed for {path:?}"))?;
         let local_root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
         let policy = shell_large_file_policy();
         let viewer_config = shell_large_file_viewer_config();
@@ -2375,19 +2376,34 @@ impl EditorWorkspaceRuntimeState {
             authority.save_target_token = Some(result.next_token.clone());
             Ok(Some(result))
         } else {
+            let outcome = result.manifest.outcome;
+            let hint = match outcome {
+                aureline_vfs::SaveOutcome::ExternalChangeDetected => Some(
+                    "file changed on disk; compare or reload before overwriting",
+                ),
+                aureline_vfs::SaveOutcome::SaveConflict => {
+                    Some("save target revision changed; revalidate and retry")
+                }
+                aureline_vfs::SaveOutcome::WrongTargetPrevented => {
+                    Some("save target drifted; reopen the file or use Save As")
+                }
+                aureline_vfs::SaveOutcome::WatcherUncertainty => {
+                    Some("watcher state is uncertain; refresh and compare before saving")
+                }
+                _ => None,
+            };
+
             let detail = result.manifest.failure_detail.clone().unwrap_or_default();
-            if detail.is_empty() {
-                Err(format!(
-                    "save refused ({})",
-                    result.manifest.outcome.as_str()
-                ))
-            } else {
-                Err(format!(
-                    "save refused ({}) — {}",
-                    result.manifest.outcome.as_str(),
-                    detail
-                ))
+            let mut message = format!("save refused ({})", outcome.as_str());
+            if let Some(hint) = hint {
+                message.push_str(" — ");
+                message.push_str(hint);
             }
+            if !detail.is_empty() {
+                message.push_str(" — ");
+                message.push_str(&detail);
+            }
+            Err(message)
         }
     }
 

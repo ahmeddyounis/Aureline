@@ -12,9 +12,12 @@ Canonical sources (non-exhaustive):
 - `docs/recovery/restore_chooser_contract.md`
 - `docs/support/recovery_ladder_packet.md`
 - `crates/aureline-workspace/src/save/`
+- `crates/aureline-workspace/src/save/drift_detection.rs`
 - `crates/aureline-workspace/tests/save_pipeline_tests.rs`
+- `crates/aureline-workspace/tests/save/`
 - `crates/aureline-shell/src/bootstrap/native_shell.rs`
 - `fixtures/editor/tab_cases/`
+- `fixtures/save/external_drift_cases/`
 
 Evidence storage:
 
@@ -24,6 +27,7 @@ Evidence storage:
 How to exercise:
 
 - `cargo test -p aureline-workspace save_pipeline_tests`
+- `cargo test -p aureline-workspace --test save`
 - `cargo test -p aureline-shell bootstrap::native_shell::tab_case_tests::tab_case_fixtures_preserve_shared_buffer_authority`
 - `cargo run -p aureline-shell --bin aureline_shell`
   - `Ctrl+O` opens a new tab.
@@ -31,3 +35,10 @@ How to exercise:
   - `Ctrl+\\` splits the editor group and duplicates the active tab as a second view.
   - `Ctrl+S` saves the active tab (clears `Modified` and reports save outcome/strategy).
   - `Ctrl+W` closes the active tab (`Ctrl+Shift+W` closes the focused editor group).
+
+External-drift failure drill (manual):
+
+- Open a file in the shell, make it dirty in the editor, then modify the same file externally
+  (for example from another terminal).
+- Press `Ctrl+S` and confirm the shell refuses the save with an `external_change_detected` or
+  `wrong_target_prevented` outcome and a next-action hint (compare/reload/reopen).

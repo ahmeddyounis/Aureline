@@ -15,6 +15,7 @@ use aureline_vfs::{
     SaveTargetToken, VfsRoot, VfsUri,
 };
 
+use super::drift_detection::detect_external_drift;
 use super::source_fidelity::{encode_for_save, SourceFidelityRecord};
 use super::write_strategy::{select_write_strategy, WriteStrategy};
 
@@ -261,99 +262,15 @@ impl StagedSaveCoordinator {
             };
         }
 
-        // Re-resolve the presentation path so wrong-target prevention can fail
-        // closed when the canonical target changes.
-        match root.identity_record(&token.identity.presentation_path.uri) {
-            Ok(identity) => {
-                if identity.canonical_filesystem_object.canonical_uri != canonical_uri {
-                    let detail = format!(
-                        "canonical target drifted: opened {} now resolves to {}",
-                        canonical_uri, identity.canonical_filesystem_object.canonical_uri
-                    );
-                    let manifest = make_manifest(
-                        root,
-                        &token,
-                        request.save_participant_group_id,
-                        request.checkpoint_ref,
-                        request.committed_at,
-                        SaveOutcome::WrongTargetPrevented,
-                        Some(detail),
-                    );
-                    return SaveResult {
-                        packet_id,
-                        write_strategy,
-                        manifest,
-                        source_fidelity: source_fidelity.clone(),
-                        next_token: token,
-                        participant_error: None,
-                    };
-                }
-            }
-            Err(err) => {
-                let manifest = make_manifest(
-                    root,
-                    &token,
-                    request.save_participant_group_id,
-                    request.checkpoint_ref,
-                    request.committed_at,
-                    SaveOutcome::WrongTargetPrevented,
-                    Some(err.to_string()),
-                );
-                return SaveResult {
-                    packet_id,
-                    write_strategy,
-                    manifest,
-                    source_fidelity: source_fidelity.clone(),
-                    next_token: token,
-                    participant_error: None,
-                };
-            }
-        }
-
-        // Compare-before-write (correctness floor).
-        let current_generation = match root.read_generation_token(&canonical_uri) {
-            Ok(token) => token,
-            Err(err) => {
-                let manifest = make_manifest(
-                    root,
-                    &token,
-                    request.save_participant_group_id,
-                    request.checkpoint_ref,
-                    request.committed_at,
-                    SaveOutcome::WrongTargetPrevented,
-                    Some(err.to_string()),
-                );
-                return SaveResult {
-                    packet_id,
-                    write_strategy,
-                    manifest,
-                    source_fidelity: source_fidelity.clone(),
-                    next_token: token,
-                    participant_error: None,
-                };
-            }
-        };
-
-        let pinned = &token.compare_before_write_generation_token;
-        if pinned.kind != current_generation.kind || pinned.value != current_generation.value {
-            let outcome = if token.atomic_write_mode == AtomicWriteMode::ConditionalRemoteWrite {
-                SaveOutcome::SaveConflict
-            } else {
-                SaveOutcome::ExternalChangeDetected
-            };
-            let detail = format!(
-                "generation_token_mismatch: pinned {pinned_value} observed {observed_value}",
-                pinned_value = pinned.value,
-                observed_value = current_generation.value,
-            );
+        if let Err(conflict) = detect_external_drift(root, &token) {
             let manifest = make_manifest(
                 root,
                 &token,
                 request.save_participant_group_id,
                 request.checkpoint_ref,
                 request.committed_at,
-                outcome,
-                Some(detail),
+                conflict.outcome,
+                Some(conflict.detail),
             );
             return SaveResult {
                 packet_id,
