@@ -40,6 +40,7 @@ use crate::workspace_switcher::{
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
 };
 use aureline_build_info as build_info;
+use aureline_buffer::Buffer;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
     mint_preview_record_ref, now_rfc3339, AliasUsedBlock, ApprovalPostureBlock,
@@ -83,6 +84,10 @@ use crate::windowing::display_safety::{
     write_display_safety_topology_log, DisplaySafetyGuard,
 };
 use arboard::Clipboard;
+use aureline_editor::{
+    CaretMove, EditorAction, EditorTextRuntime, EditorViewport, SelectionDelta, ViewportCompositor,
+    ViewportPaintStyle,
+};
 use aureline_render::{
     CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine,
     FrameScheduler, FrameSchedulerDecision, GlyphAtlas, GlyphKey, PixelRect, WallClock,
@@ -91,7 +96,7 @@ use aureline_render::{
 use aureline_text::shaping::{FeatureSet, FontFallbackConfig, FontSystem, TextShaper};
 use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use winit::dpi::LogicalSize;
-use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
+use winit::event::{ElementState, Event, Ime, KeyEvent, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -405,6 +410,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut held_modifiers = HeldModifiers::default();
     let mut damage_geometry = ShellDamageGeometryCache::default();
+    let mut last_cursor_pos: Option<(u32, u32)> = None;
     let mut palette = CommandPaletteState::new(registry);
     let mut palette_focus_return: FocusReturnStack<ShellFocusReturnTarget> =
         FocusReturnStack::new();
@@ -419,6 +425,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let docs_help_boundary_card =
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
     let mut text_runtime = ShellTextRuntime::new();
+    let mut editor_runtime = EditorWorkspaceRuntimeState::new();
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
 
@@ -580,6 +587,170 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     ));
                 }
             }
+            WindowEvent::CursorMoved { position, .. } => {
+                let x = position.x.round().max(0.0) as u32;
+                let y = position.y.round().max(0.0) as u32;
+                last_cursor_pos = Some((x, y));
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                if frame.focused_zone() != ShellZoneId::MainWorkspace
+                    || palette.is_open()
+                    || overlay.is_some()
+                {
+                    return;
+                }
+
+                let focused = frame.focused_editor_group();
+                let has_tabs = frame
+                    .editor_group_layouts()
+                    .into_iter()
+                    .find(|g| g.group_id == focused)
+                    .is_some_and(|g| g.tab_count > 0);
+                if !has_tabs {
+                    return;
+                }
+
+                let dy_lines = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => (-y).round() as i32,
+                    MouseScrollDelta::PixelDelta(pos) => (-pos.y / 40.0).round() as i32,
+                };
+                if dy_lines == 0 {
+                    return;
+                }
+
+                let viewport_rect = focused_editor_group_physical_rect(&frame, window.scale_factor())
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                let Some(viewport_rect) = viewport_rect else {
+                    return;
+                };
+
+                if !editor_runtime.sessions.contains_key(&focused) {
+                    editor_runtime.open_placeholder(focused);
+                }
+
+                if let Some(damage) = editor_runtime.apply_action(
+                    focused,
+                    &EditorAction::ScrollLines { dy_lines },
+                    viewport_rect,
+                ) {
+                    scheduler.invalidate(damage.event);
+                    scheduler.mark_hook(damage.hook, &clock);
+                }
+            }
+            WindowEvent::Ime(ime) => {
+                if frame.focused_zone() != ShellZoneId::MainWorkspace
+                    || palette.is_open()
+                    || overlay.is_some()
+                {
+                    return;
+                }
+
+                let focused = frame.focused_editor_group();
+                let has_tabs = frame
+                    .editor_group_layouts()
+                    .into_iter()
+                    .find(|g| g.group_id == focused)
+                    .is_some_and(|g| g.tab_count > 0);
+                if !has_tabs {
+                    return;
+                }
+
+                let viewport_rect = focused_editor_group_physical_rect(&frame, window.scale_factor())
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                let Some(viewport_rect) = viewport_rect else {
+                    return;
+                };
+
+                if !editor_runtime.sessions.contains_key(&focused) {
+                    editor_runtime.open_placeholder(focused);
+                }
+
+                let action = match ime {
+                    Ime::Disabled => Some(EditorAction::ClearComposition),
+                    Ime::Preedit(text, cursor) => {
+                        let caret_byte_offset = cursor.map(|(start, _)| start).unwrap_or(text.len());
+                        Some(EditorAction::UpdateComposition {
+                            composition: aureline_editor::ImeComposition {
+                                text,
+                                caret_byte_offset,
+                            },
+                        })
+                    }
+                    Ime::Commit(text) => Some(EditorAction::InsertText { text }),
+                    Ime::Enabled => None,
+                };
+
+                if let Some(action) = action {
+                    if let Some(damage) =
+                        editor_runtime.apply_action(focused, &action, viewport_rect)
+                    {
+                        scheduler.invalidate(damage.event);
+                        scheduler.mark_hook(damage.hook, &clock);
+                    }
+                }
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                if state != ElementState::Pressed {
+                    return;
+                }
+                if button != winit::event::MouseButton::Left {
+                    return;
+                }
+                if frame.focused_zone() != ShellZoneId::MainWorkspace
+                    || palette.is_open()
+                    || overlay.is_some()
+                {
+                    return;
+                }
+
+                let (x, y) = match last_cursor_pos {
+                    Some(pos) => pos,
+                    None => return,
+                };
+
+                let focused = frame.focused_editor_group();
+                let has_tabs = frame
+                    .editor_group_layouts()
+                    .into_iter()
+                    .find(|g| g.group_id == focused)
+                    .is_some_and(|g| g.tab_count > 0);
+                if !has_tabs {
+                    return;
+                }
+
+                let viewport_rect = focused_editor_group_physical_rect(&frame, window.scale_factor())
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+                let Some(viewport_rect) = viewport_rect else {
+                    return;
+                };
+
+                if !editor_runtime.sessions.contains_key(&focused) {
+                    editor_runtime.open_placeholder(focused);
+                }
+                let Some(session) = editor_runtime.sessions.get_mut(&focused) else {
+                    return;
+                };
+
+                if let Some(point) = hit_test_viewport_point(&session.viewport, viewport_rect, x, y)
+                {
+                    session.viewport.set_caret(point);
+                    session.viewport.clear_selection();
+                    session.viewport.set_ime_composition(None);
+                    if let Some(damage) = session
+                        .viewport
+                        .apply_action(
+                            &EditorAction::ChangeSelection {
+                                delta: SelectionDelta::Cleared,
+                            },
+                            viewport_rect,
+                            session.max_scroll_line(),
+                        )
+                    {
+                        scheduler.invalidate(damage.event);
+                        scheduler.mark_hook(damage.hook, &clock);
+                    }
+                }
+            }
             WindowEvent::KeyboardInput { event, .. } => {
                 let before_modifiers = held_modifiers;
                 held_modifiers.update_from_key_event(&event);
@@ -588,6 +759,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &window,
                     registry,
                     &mut frame,
+                    &mut editor_runtime,
                     &damage_geometry,
                     &mut palette,
                     &mut palette_focus_return,
@@ -600,10 +772,46 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut clipboard,
                     &mut appearance,
                     &held_modifiers,
-                    event,
+                    &event,
                 );
                 if hint != ShellDamageHint::None {
                     enqueue_damage_hint(&mut scheduler, hint);
+                } else if frame.focused_zone() == ShellZoneId::MainWorkspace
+                    && !palette.is_open()
+                    && overlay.is_none()
+                {
+                    if let PhysicalKey::Code(code) = event.physical_key {
+                        let focused = frame.focused_editor_group();
+                        let has_tabs = frame
+                            .editor_group_layouts()
+                            .into_iter()
+                            .find(|g| g.group_id == focused)
+                            .is_some_and(|g| g.tab_count > 0);
+
+                        if has_tabs {
+                            let viewport_rect = focused_editor_group_physical_rect(
+                                &frame,
+                                window.scale_factor(),
+                            )
+                            .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+
+                            if let Some(viewport_rect) = viewport_rect {
+                                if !editor_runtime.sessions.contains_key(&focused) {
+                                    editor_runtime.open_placeholder(focused);
+                                }
+                                if let Some(action) =
+                                    editor_action_for_key_event(code, &event, &held_modifiers)
+                                {
+                                    if let Some(damage) =
+                                        editor_runtime.apply_action(focused, &action, viewport_rect)
+                                    {
+                                        scheduler.invalidate(damage.event);
+                                        scheduler.mark_hook(damage.hook, &clock);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 if palette.is_open() && modifiers_changed {
                     if let Some(rect) = damage_geometry.command_palette_panel {
@@ -640,6 +848,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &window,
                     &mut render_backend,
                     &mut text_runtime,
+                    &mut editor_runtime,
                     registry,
                     &pending_frame.events,
                     &frame,
@@ -847,6 +1056,339 @@ impl ShellTextRuntime {
             ui_features: FeatureSet::ui_default(),
         }
     }
+}
+
+struct EditorGroupSession {
+    buffer: Buffer,
+    document_lines: Vec<String>,
+    line_graphemes: Vec<usize>,
+    viewport: EditorViewport,
+    compositor: ViewportCompositor,
+    needs_text_repaint: bool,
+}
+
+impl EditorGroupSession {
+    fn from_buffer(buffer: Buffer) -> Self {
+        let mut session = Self {
+            buffer,
+            document_lines: Vec::new(),
+            line_graphemes: Vec::new(),
+            viewport: EditorViewport::new(),
+            compositor: ViewportCompositor::default(),
+            needs_text_repaint: true,
+        };
+        session.refresh_document_cache();
+        session
+    }
+
+    fn refresh_document_cache(&mut self) {
+        let snapshot = self.buffer.snapshot();
+        match snapshot.as_str() {
+            Some(text) => {
+                self.document_lines = text.split('\n').map(|s| s.to_string()).collect();
+            }
+            None => {
+                self.document_lines = vec!["<non-UTF8 buffer: preview unavailable>".to_string()];
+            }
+        }
+        if self.document_lines.is_empty() {
+            self.document_lines.push(String::new());
+        }
+        self.line_graphemes = self
+            .document_lines
+            .iter()
+            .map(|line| unicode_segmentation::UnicodeSegmentation::graphemes(line.as_str(), true).count())
+            .collect();
+    }
+
+    fn max_scroll_line(&self) -> usize {
+        self.document_lines.len().saturating_sub(1)
+    }
+
+    fn apply_action(
+        &mut self,
+        action: &EditorAction,
+        viewport_rect: PixelRect,
+    ) -> Option<aureline_editor::ViewportDamage> {
+        let max_scroll_line = self.max_scroll_line();
+
+        match action {
+            EditorAction::InsertText { text } => {
+                if let Some((start, end)) = self.viewport.selection_range() {
+                    let start_offset = caret_byte_offset(&self.document_lines, start);
+                    let end_offset = caret_byte_offset(&self.document_lines, end);
+                    if start_offset < end_offset {
+                        let _ = self.buffer.delete(start_offset..end_offset, "user_keystroke");
+                        self.viewport.set_caret(start);
+                        self.viewport.clear_selection();
+                        self.refresh_document_cache();
+                    }
+                }
+
+                let offset = caret_byte_offset(&self.document_lines, self.viewport.caret());
+                let _ = self.buffer.insert(offset, text, "user_keystroke");
+                self.refresh_document_cache();
+                self.viewport.set_ime_composition(None);
+                advance_caret_for_insert(&mut self.viewport, text);
+                self.needs_text_repaint = true;
+            }
+            EditorAction::DeleteBackward => {
+                if delete_backward(&mut self.buffer, &self.document_lines, &mut self.viewport) {
+                    self.refresh_document_cache();
+                    self.viewport.set_ime_composition(None);
+                    self.needs_text_repaint = true;
+                } else {
+                    return None;
+                }
+            }
+            EditorAction::MoveCaret {
+                movement,
+                extend_selection,
+            } => {
+                if !self.viewport.move_caret(
+                    *movement,
+                    &self.line_graphemes,
+                    *extend_selection,
+                ) {
+                    return None;
+                }
+            }
+            EditorAction::ChangeSelection { delta } => {
+                self.viewport.apply_selection_delta(*delta, &self.line_graphemes);
+            }
+            EditorAction::UpdateComposition { composition } => {
+                self.viewport.set_ime_composition(Some(composition.clone()));
+            }
+            EditorAction::ClearComposition => {
+                self.viewport.set_ime_composition(None);
+            }
+            EditorAction::ScrollLines { .. } | EditorAction::ScaleChange => {}
+        }
+
+        let damage = self
+            .viewport
+            .apply_action(action, viewport_rect, max_scroll_line)?;
+
+        Some(damage)
+    }
+}
+
+struct EditorWorkspaceRuntimeState {
+    text_runtime: EditorTextRuntime,
+    sessions: HashMap<PaneId, EditorGroupSession>,
+}
+
+impl EditorWorkspaceRuntimeState {
+    fn new() -> Self {
+        Self {
+            text_runtime: EditorTextRuntime::with_system_fonts(),
+            sessions: HashMap::new(),
+        }
+    }
+
+    fn ensure_session(&mut self, group: PaneId, buffer: Buffer) -> &mut EditorGroupSession {
+        self.sessions
+            .entry(group)
+            .or_insert_with(|| EditorGroupSession::from_buffer(buffer))
+    }
+
+    fn open_placeholder(&mut self, group: PaneId) {
+        let buffer = Buffer::from_str(
+            "Welcome to Aureline.\n\n\
+             This is a prototype editor viewport.\n\
+             - Scroll: mouse wheel\n\
+             - Move caret: arrow keys\n\
+             - Extend selection: Shift+Arrow\n\
+             - Type: regular keys\n",
+        );
+        self.ensure_session(group, buffer);
+    }
+
+    fn open_file(&mut self, group: PaneId, path: &Path) -> Result<(), String> {
+        let bytes = std::fs::read(path).map_err(|err| err.to_string())?;
+        let buffer = Buffer::from_bytes(&bytes);
+        self.ensure_session(group, buffer);
+        Ok(())
+    }
+
+    fn close_group(&mut self, group: PaneId) {
+        self.sessions.remove(&group);
+    }
+
+    fn apply_action(
+        &mut self,
+        group: PaneId,
+        action: &EditorAction,
+        viewport_rect: PixelRect,
+    ) -> Option<aureline_editor::ViewportDamage> {
+        let session = self.sessions.get_mut(&group)?;
+        session.apply_action(action, viewport_rect)
+    }
+
+    fn compose_group(
+        &mut self,
+        group: PaneId,
+        window_buffer: &mut [u32],
+        window_width: u32,
+        window_height: u32,
+        viewport_rect: PixelRect,
+        clip: Option<PixelRect>,
+        paint_style: &ViewportPaintStyle,
+    ) {
+        let Some(session) = self.sessions.get_mut(&group) else {
+            return;
+        };
+        let size_changed = session.viewport.layout().viewport_width_px != viewport_rect.width
+            || session.viewport.layout().viewport_height_px != viewport_rect.height;
+
+        if session.needs_text_repaint || size_changed {
+            session.compositor.repaint_text_layer(
+                &mut session.viewport,
+                &session.document_lines,
+                &mut self.text_runtime,
+                paint_style,
+                (viewport_rect.width, viewport_rect.height),
+            );
+            session.needs_text_repaint = false;
+        } else {
+            session.compositor.scroll_text_layer(
+                &mut session.viewport,
+                &session.document_lines,
+                &mut self.text_runtime,
+                paint_style,
+                (viewport_rect.width, viewport_rect.height),
+            );
+        }
+        session.compositor.compose_into_window(
+            window_buffer,
+            window_width,
+            window_height,
+            viewport_rect,
+            &session.viewport,
+            paint_style,
+            clip,
+        );
+    }
+}
+
+fn caret_byte_offset(lines: &[String], point: aureline_editor::TextPoint) -> usize {
+    let mut offset = 0usize;
+    for line in 0..point.line.min(lines.len()) {
+        offset = offset.saturating_add(lines.get(line).map(|s| s.len()).unwrap_or(0));
+        offset = offset.saturating_add(1);
+    }
+    let line_text = lines.get(point.line).map(|s| s.as_str()).unwrap_or("");
+    offset.saturating_add(grapheme_byte_offset(line_text, point.grapheme))
+}
+
+fn grapheme_byte_offset(line: &str, grapheme_index: usize) -> usize {
+    if grapheme_index == 0 {
+        return 0;
+    }
+    let mut count = 0usize;
+    for (byte, _) in unicode_segmentation::UnicodeSegmentation::grapheme_indices(line, true) {
+        if count == grapheme_index {
+            return byte;
+        }
+        count = count.saturating_add(1);
+    }
+    line.len()
+}
+
+fn advance_caret_for_insert(viewport: &mut EditorViewport, inserted: &str) {
+    if inserted.is_empty() {
+        return;
+    }
+    let before = viewport.caret();
+    let mut line = before.line;
+    let mut col = before.grapheme;
+
+    let mut parts = inserted.split('\n');
+    if let Some(first) = parts.next() {
+        col = col.saturating_add(
+            unicode_segmentation::UnicodeSegmentation::graphemes(first, true).count(),
+        );
+    }
+    for part in parts {
+        line = line.saturating_add(1);
+        col = unicode_segmentation::UnicodeSegmentation::graphemes(part, true).count();
+    }
+
+    viewport.set_caret(aureline_editor::TextPoint { line, grapheme: col });
+    viewport.clear_selection();
+}
+
+fn delete_backward(buffer: &mut Buffer, lines: &[String], viewport: &mut EditorViewport) -> bool {
+    if lines.is_empty() {
+        return false;
+    }
+    if let Some((start, end)) = viewport.selection_range() {
+        let start_offset = caret_byte_offset(lines, start);
+        let end_offset = caret_byte_offset(lines, end);
+        if start_offset >= end_offset {
+            viewport.clear_selection();
+            return false;
+        }
+        let _ = buffer.delete(start_offset..end_offset, "user_keystroke");
+        viewport.set_caret(start);
+        viewport.clear_selection();
+        return true;
+    }
+
+    let caret = viewport.caret();
+    if caret.line == 0 && caret.grapheme == 0 {
+        return false;
+    }
+
+    if caret.grapheme > 0 {
+        let line_text = lines.get(caret.line).map(|s| s.as_str()).unwrap_or("");
+        let start_in_line = grapheme_byte_offset(line_text, caret.grapheme.saturating_sub(1));
+        let end_in_line = grapheme_byte_offset(line_text, caret.grapheme);
+        let line_start = caret_byte_offset(
+            lines,
+            aureline_editor::TextPoint {
+                line: caret.line,
+                grapheme: 0,
+            },
+        );
+        let start = line_start.saturating_add(start_in_line);
+        let end = line_start.saturating_add(end_in_line);
+        if start >= end {
+            return false;
+        }
+        let _ = buffer.delete(start..end, "user_keystroke");
+        viewport.set_caret(aureline_editor::TextPoint {
+            line: caret.line,
+            grapheme: caret.grapheme.saturating_sub(1),
+        });
+        viewport.clear_selection();
+        return true;
+    }
+
+    let line_start = caret_byte_offset(
+        lines,
+        aureline_editor::TextPoint {
+            line: caret.line,
+            grapheme: 0,
+        },
+    );
+    if line_start == 0 {
+        return false;
+    }
+    let start = line_start.saturating_sub(1);
+    let end = line_start;
+    let _ = buffer.delete(start..end, "user_keystroke");
+    let prev_line = caret.line.saturating_sub(1);
+    let prev_col = lines
+        .get(prev_line)
+        .map(|s| unicode_segmentation::UnicodeSegmentation::graphemes(s.as_str(), true).count())
+        .unwrap_or(0);
+    viewport.set_caret(aureline_editor::TextPoint {
+        line: prev_line,
+        grapheme: prev_col,
+    });
+    viewport.clear_selection();
+    true
 }
 
 #[cfg(test)]
@@ -1306,6 +1848,7 @@ fn dispatch_command_id(
     command_runtime: &mut CommandRuntimeState,
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     palette: &mut CommandPaletteState,
     palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     overlay: &mut Option<ShellOverlayState>,
@@ -1318,6 +1861,7 @@ fn dispatch_command_id(
         command_runtime,
         registry,
         frame,
+        editor_runtime,
         palette,
         palette_focus_return,
         overlay,
@@ -1333,6 +1877,7 @@ fn dispatch_command_id_with_arguments(
     command_runtime: &mut CommandRuntimeState,
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     palette: &mut CommandPaletteState,
     palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     overlay: &mut Option<ShellOverlayState>,
@@ -1349,6 +1894,7 @@ fn dispatch_command_id_with_arguments(
         command_runtime,
         registry,
         frame,
+        editor_runtime,
         palette,
         palette_focus_return,
         overlay,
@@ -1364,6 +1910,7 @@ fn dispatch_registry_entry(
     command_runtime: &mut CommandRuntimeState,
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     palette: &mut CommandPaletteState,
     palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
     overlay: &mut Option<ShellOverlayState>,
@@ -1547,6 +2094,7 @@ fn dispatch_registry_entry(
             let invocation = invocation_and_result_open_folder_succeeded(&session);
             command_runtime.record(invocation);
             frame.open_placeholder_tab();
+            editor_runtime.open_placeholder(frame.focused_editor_group());
             let scope_ref = session
                 .argument_provenance_map
                 .iter()
@@ -2500,6 +3048,7 @@ fn handle_key_event(
     window: &winit::window::Window,
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     damage_geometry: &ShellDamageGeometryCache,
     palette: &mut CommandPaletteState,
     palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
@@ -2512,7 +3061,7 @@ fn handle_key_event(
     clipboard: &mut ClipboardState,
     appearance: &mut AppearanceRuntimeState,
     modifiers: &HeldModifiers,
-    event: KeyEvent,
+    event: &KeyEvent,
 ) -> ShellDamageHint {
     if event.state != ElementState::Pressed || event.repeat {
         return ShellDamageHint::None;
@@ -2647,6 +3196,7 @@ fn handle_key_event(
                             command_runtime,
                             registry,
                             frame,
+                            editor_runtime,
                             palette,
                             palette_focus_return,
                             overlay,
@@ -2668,6 +3218,16 @@ fn handle_key_event(
                     }
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
                         frame.open_placeholder_tab();
+                        let cwd =
+                            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+                        let path = cwd.join(&relative_path);
+                        if let Err(err) = editor_runtime.open_file(frame.focused_editor_group(), &path)
+                        {
+                            command_runtime.note_non_command_action(format!(
+                                "open file failed — {}",
+                                err
+                            ));
+                        }
                         command_runtime
                             .note_non_command_action(format!("opened file — {}", relative_path));
                         window.set_title(&window_title(
@@ -2811,6 +3371,7 @@ fn handle_key_event(
                     command_runtime,
                     registry,
                     frame,
+                    editor_runtime,
                     palette,
                     palette_focus_return,
                     overlay,
@@ -2899,6 +3460,7 @@ fn handle_key_event(
                     command_runtime,
                     registry,
                     frame,
+                    editor_runtime,
                     palette,
                     palette_focus_return,
                     overlay,
@@ -2938,6 +3500,7 @@ fn handle_key_event(
                     command_runtime,
                     registry,
                     frame,
+                    editor_runtime,
                     palette,
                     palette_focus_return,
                     overlay,
@@ -2967,6 +3530,7 @@ fn handle_key_event(
         KeyCode::KeyO => {
             if modifiers.ctrl_or_logo() {
                 frame.open_placeholder_tab();
+                editor_runtime.open_placeholder(frame.focused_editor_group());
                 damage_geometry
                     .focused_editor_group
                     .map(|rect| ShellDamageHint::Rect {
@@ -3017,8 +3581,10 @@ fn handle_key_event(
         }
         KeyCode::KeyW => {
             if modifiers.ctrl_or_logo() {
+                let closing = frame.focused_editor_group();
                 let changed = frame.close_focused_editor_group();
                 if changed {
+                    editor_runtime.close_group(closing);
                     ShellDamageHint::FullWindow
                 } else {
                     ShellDamageHint::None
@@ -3106,6 +3672,116 @@ fn handle_key_event(
         }
         _ => ShellDamageHint::None,
     }
+}
+
+fn editor_action_for_key_event(
+    code: KeyCode,
+    event: &KeyEvent,
+    modifiers: &HeldModifiers,
+) -> Option<EditorAction> {
+    if event.state != ElementState::Pressed || event.repeat {
+        return None;
+    }
+
+    if modifiers.ctrl_or_logo() || modifiers.alt {
+        return None;
+    }
+
+    let extend = modifiers.shift;
+    match code {
+        KeyCode::ArrowLeft => Some(EditorAction::MoveCaret {
+            movement: CaretMove::Left,
+            extend_selection: extend,
+        }),
+        KeyCode::ArrowRight => Some(EditorAction::MoveCaret {
+            movement: CaretMove::Right,
+            extend_selection: extend,
+        }),
+        KeyCode::ArrowUp => Some(EditorAction::MoveCaret {
+            movement: CaretMove::Up,
+            extend_selection: extend,
+        }),
+        KeyCode::ArrowDown => Some(EditorAction::MoveCaret {
+            movement: CaretMove::Down,
+            extend_selection: extend,
+        }),
+        KeyCode::Home => Some(EditorAction::MoveCaret {
+            movement: CaretMove::LineStart,
+            extend_selection: extend,
+        }),
+        KeyCode::End => Some(EditorAction::MoveCaret {
+            movement: CaretMove::LineEnd,
+            extend_selection: extend,
+        }),
+        KeyCode::PageUp => Some(EditorAction::MoveCaret {
+            movement: CaretMove::PageUp,
+            extend_selection: extend,
+        }),
+        KeyCode::PageDown => Some(EditorAction::MoveCaret {
+            movement: CaretMove::PageDown,
+            extend_selection: extend,
+        }),
+        KeyCode::Backspace => Some(EditorAction::DeleteBackward),
+        KeyCode::Enter => Some(EditorAction::InsertText {
+            text: "\n".to_string(),
+        }),
+        _ => event.text.as_deref().and_then(|text| {
+            if text.is_empty() {
+                return None;
+            }
+            Some(EditorAction::InsertText {
+                text: text.to_string(),
+            })
+        }),
+    }
+}
+
+fn hit_test_viewport_point(
+    viewport: &EditorViewport,
+    viewport_rect: PixelRect,
+    x: u32,
+    y: u32,
+) -> Option<aureline_editor::TextPoint> {
+    if viewport_rect.is_empty() {
+        return None;
+    }
+    if x < viewport_rect.x
+        || x >= viewport_rect.right()
+        || y < viewport_rect.y
+        || y >= viewport_rect.bottom()
+    {
+        return None;
+    }
+
+    let rel_x = x.saturating_sub(viewport_rect.x);
+    let rel_y = y.saturating_sub(viewport_rect.y) as i32;
+    let layout = viewport.layout();
+    if layout.line_height_px == 0 {
+        return None;
+    }
+
+    for line in &layout.lines {
+        let y0 = line.y_top_px;
+        let y1 = y0.saturating_add(layout.line_height_px as i32);
+        if rel_y < y0 || rel_y >= y1 {
+            continue;
+        }
+
+        let mut col = 0usize;
+        for (idx, x_pos) in line.grapheme_x_px.iter().enumerate() {
+            if *x_pos <= rel_x {
+                col = idx;
+            } else {
+                break;
+            }
+        }
+        return Some(aureline_editor::TextPoint {
+            line: line.line_index,
+            grapheme: col,
+        });
+    }
+
+    None
 }
 
 fn focused_editor_group_is_empty(frame: &DesktopFrame) -> bool {
@@ -3202,6 +3878,7 @@ fn draw(
     window: &winit::window::Window,
     backend: &mut ShellRenderBackend,
     text_runtime: &mut ShellTextRuntime,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     registry: &CommandRegistry,
     events: &[DamageEvent],
     frame: &DesktopFrame,
@@ -3261,6 +3938,7 @@ fn draw(
                 now,
                 token_registry,
                 text_runtime,
+                editor_runtime,
                 registry,
                 frame,
                 palette,
@@ -3325,6 +4003,7 @@ fn draw(
                     now,
                     token_registry,
                     text_runtime,
+                    editor_runtime,
                     registry,
                     frame,
                     palette,
@@ -3359,6 +4038,7 @@ fn rasterize_shell(
     now: Instant,
     token_registry: &TokenRegistry,
     text_runtime: &mut ShellTextRuntime,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     registry: &CommandRegistry,
     frame: &DesktopFrame,
     palette: &CommandPaletteState,
@@ -3384,6 +4064,19 @@ fn rasterize_shell(
 
     let scale = window.scale_factor();
     let scale_bucket = scale_bucket_for_scale_factor(scale);
+    let clip_px = clip.map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
+    let editor_paint_style = ViewportPaintStyle {
+        background: style.tokens.bg_surface,
+        text: style.tokens.text_primary,
+        selection_fill: ColorRgba {
+            a: 96,
+            ..style.tokens.accent_interactive
+        },
+        caret: style.tokens.text_primary,
+        font_size_px: 14.0,
+        padding_x_px: style.space_2,
+        padding_y_px: style.space_2,
+    };
     for zone in ShellZoneId::ALL {
         let zone = *zone;
         if zone == ShellZoneId::TransientOverlay {
@@ -3445,26 +4138,27 @@ fn rasterize_shell(
                             focused,
                         );
                     } else {
-                        let label = format!(
-                            "editor group {}   tabs: {}{}",
-                            group.group_id.value(),
-                            group.tab_count,
-                            if group.tabbed_compare_active {
-                                "   compare: tabbed"
-                            } else {
-                                ""
-                            }
+                        if !editor_runtime.sessions.contains_key(&group.group_id) {
+                            editor_runtime.open_placeholder(group.group_id);
+                        }
+                        let inset = style.stroke_default.max(1);
+                        let inner = Rect::new(
+                            group_rect.x.saturating_add(inset),
+                            group_rect.y.saturating_add(inset),
+                            group_rect.width.saturating_sub(inset.saturating_mul(2)),
+                            group_rect.height.saturating_sub(inset.saturating_mul(2)),
                         );
-                        draw_text(
-                            buffer,
-                            width,
-                            height,
-                            group_rect.x.saturating_add(style.space_2),
-                            group_rect.y.saturating_add(style.space_2),
-                            1,
-                            &label,
-                            style.tokens.text_secondary,
-                        );
+                        if !inner.is_empty() {
+                            editor_runtime.compose_group(
+                                group.group_id,
+                                buffer,
+                                width,
+                                height,
+                                PixelRect::new(inner.x, inner.y, inner.width, inner.height),
+                                clip_px,
+                                &editor_paint_style,
+                            );
+                        }
                     }
                 }
             }

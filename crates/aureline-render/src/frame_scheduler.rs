@@ -97,6 +97,19 @@ impl FrameScheduler {
         self.recorder.mark(Hook::FrameSubmit, clock.now());
     }
 
+    /// Records an input or render hook timing mark.
+    ///
+    /// This is used by higher layers (shell, editor) to emit protected-path
+    /// hook marks without minting parallel recorder implementations.
+    pub fn mark_hook(&mut self, hook: Hook, clock: &impl Clock) {
+        self.recorder.mark(hook, clock.now());
+    }
+
+    /// Records a hook timing mark with an attached note.
+    pub fn mark_hook_with_note(&mut self, hook: Hook, clock: &impl Clock, note: impl Into<String>) {
+        self.recorder.mark_with_note(hook, clock.now(), note);
+    }
+
     /// Records that the renderer entered an explicit degraded mode.
     pub fn note_degraded_renderer(&mut self, reason: impl Into<String>, clock: &impl Clock) {
         self.recorder
