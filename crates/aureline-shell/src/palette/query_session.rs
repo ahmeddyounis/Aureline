@@ -11,6 +11,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
+use aureline_input::text_input::{ImeComposition, ImeEvent, TextInputAction, TextInputSession};
 use serde::Serialize;
 
 static PALETTE_SESSION_SEQ: AtomicUsize = AtomicUsize::new(1);
@@ -363,6 +364,7 @@ pub struct CommandPaletteState {
     updated_at: Instant,
 
     query: String,
+    text_input: TextInputSession,
     selection: usize,
     selected_key: Option<PaletteItemKey>,
 
@@ -387,6 +389,7 @@ impl CommandPaletteState {
             opened_at: now,
             updated_at: now,
             query: String::new(),
+            text_input: TextInputSession::new(),
             selection: 0,
             selected_key: None,
             recent_command_ids: VecDeque::new(),
@@ -429,6 +432,10 @@ impl CommandPaletteState {
         &self.query
     }
 
+    pub fn ime_composition(&self) -> Option<&ImeComposition> {
+        self.text_input.composition()
+    }
+
     pub fn open(&mut self, registry: &CommandRegistry, cwd: PathBuf) {
         if self.open {
             return;
@@ -439,6 +446,7 @@ impl CommandPaletteState {
         self.opened_at = now;
         self.updated_at = now;
         self.query.clear();
+        self.text_input = TextInputSession::new();
         self.semantic_state = PaletteProviderStateClass::NotRequested;
         self.semantic_deadline = None;
         self.file_index = Some(spawn_file_index_worker(cwd));
@@ -454,6 +462,7 @@ impl CommandPaletteState {
         self.semantic_state = PaletteProviderStateClass::NotRequested;
         self.semantic_deadline = None;
         self.file_index = None;
+        self.text_input.force_clear_composition();
     }
 
     pub fn note_command_invoked(&mut self, command_id: &str) {
@@ -675,6 +684,34 @@ impl CommandPaletteState {
         self.query.push(ch);
         self.on_query_changed(registry, shortcuts_by_command_id);
         true
+    }
+
+    pub fn handle_ime_event(
+        &mut self,
+        event: ImeEvent,
+        registry: &CommandRegistry,
+        shortcuts_by_command_id: &HashMap<String, Vec<String>>,
+    ) -> bool {
+        if !self.open {
+            return false;
+        }
+
+        let Some(action) = self.text_input.handle_ime_event(event) else {
+            return false;
+        };
+
+        match action {
+            TextInputAction::InsertText { text } => {
+                let mut changed = false;
+                for ch in text.chars() {
+                    changed |= self.handle_text_input(ch, registry, shortcuts_by_command_id);
+                }
+                changed
+            }
+            TextInputAction::DeleteBackward => self.handle_backspace(registry, shortcuts_by_command_id),
+            TextInputAction::MoveCaret { .. } => false,
+            TextInputAction::UpdateComposition { .. } | TextInputAction::ClearComposition => true,
+        }
     }
 
     pub fn handle_arrow_up(&mut self) -> bool {

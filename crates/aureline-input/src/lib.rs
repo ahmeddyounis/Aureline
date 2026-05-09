@@ -16,6 +16,13 @@
 
 pub mod keybindings;
 
+/// Text-input normalization for shell surfaces.
+///
+/// This module models IME preedit/commit phases, dead-key entry, grapheme-safe
+/// editing intent, and keyboard-layout-safe text insertion decisions so shell
+/// surfaces share one runtime contract.
+pub mod text_input;
+
 /// Built-in keymap preset definitions and helpers.
 ///
 /// Presets seed the keybinding resolver with incumbent-style shortcut layers so

@@ -430,6 +430,7 @@ enum ShellDamageHint {
 #[derive(Debug, Default, Clone)]
 struct ShellDamageGeometryCache {
     command_palette_panel: Option<Rect>,
+    command_palette_query: Option<Rect>,
     focused_editor_group: Option<Rect>,
 }
 
@@ -875,10 +876,53 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             WindowEvent::Ime(ime) => {
-                if frame.focused_zone() != ShellZoneId::MainWorkspace
-                    || palette.is_open()
-                    || overlay.is_some()
-                {
+                let should_update_ime_cursor_area = !matches!(&ime, Ime::Disabled);
+
+                if palette.is_open() {
+                    let changed = palette.handle_ime_event(
+                        match ime {
+                            Ime::Enabled => aureline_input::text_input::ImeEvent::Enabled,
+                            Ime::Disabled => aureline_input::text_input::ImeEvent::Disabled,
+                            Ime::Preedit(text, cursor) => {
+                                aureline_input::text_input::ImeEvent::Preedit { text, cursor }
+                            }
+                            Ime::Commit(text) => aureline_input::text_input::ImeEvent::Commit { text },
+                        },
+                        registry,
+                        &keybinding_runtime.shortcuts_by_command_id,
+                    );
+
+                    if changed {
+                        window.set_title(&window_title(
+                            Some(frame.focused_zone()),
+                            palette.selected_entry(registry),
+                            recent_work.active_workspace_label(),
+                        ));
+
+                        if let Some(rect) = damage_geometry.command_palette_panel {
+                            enqueue_damage_hint(
+                                &mut scheduler,
+                                ShellDamageHint::Rect {
+                                    layer: CompositionLayerId::FloatingSurface,
+                                    class: DamageClassId::TextReflowLocal,
+                                    rect,
+                                },
+                            );
+                        } else {
+                            enqueue_damage_hint(&mut scheduler, ShellDamageHint::FullWindow);
+                        }
+                    }
+
+                    if should_update_ime_cursor_area {
+                        if let Some(rect) = damage_geometry.command_palette_query {
+                            update_ime_cursor_area_for_rect(&window, rect);
+                        }
+                    }
+
+                    return;
+                }
+
+                if frame.focused_zone() != ShellZoneId::MainWorkspace || overlay.is_some() {
                     return;
                 }
 
@@ -903,32 +947,33 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     editor_runtime.open_placeholder(focused);
                 }
 
-                let action = match ime {
-                    Ime::Disabled => Some(EditorAction::ClearComposition),
-                    Ime::Preedit(text, cursor) => {
-                        let caret_byte_offset =
-                            cursor.map(|(start, _)| start).unwrap_or(text.len());
-                        Some(EditorAction::UpdateComposition {
-                            composition: aureline_editor::ImeComposition {
-                                text,
-                                caret_byte_offset,
-                            },
-                        })
-                    }
-                    Ime::Commit(text) => Some(EditorAction::InsertText { text }),
-                    Ime::Enabled => None,
+                let Some(session) = editor_runtime.sessions.get_mut(&focused) else {
+                    return;
                 };
 
-                if let Some(action) = action {
-                    if let Some(damage) =
-                        editor_runtime.apply_action(focused, &action, viewport_rect)
-                    {
+                let normalized = session.text_input.handle_ime_event(match ime {
+                    Ime::Enabled => aureline_input::text_input::ImeEvent::Enabled,
+                    Ime::Disabled => aureline_input::text_input::ImeEvent::Disabled,
+                    Ime::Preedit(text, cursor) => aureline_input::text_input::ImeEvent::Preedit {
+                        text,
+                        cursor,
+                    },
+                    Ime::Commit(text) => aureline_input::text_input::ImeEvent::Commit { text },
+                });
+
+                if let Some(normalized) = normalized {
+                    let action = editor_action_from_text_input(normalized);
+                    if let Some(damage) = session.apply_action(&action, viewport_rect) {
                         if damage.hook == Hook::ReflowLineRange {
                             hot_path_metrics.note_keystroke_to_paint_admitted(clock.now().0);
                         }
                         scheduler.invalidate(damage.event);
                         scheduler.mark_hook(damage.hook, &clock);
                     }
+                }
+
+                if should_update_ime_cursor_area {
+                    update_ime_cursor_area_for_viewport(&window, &session.viewport, viewport_rect);
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -978,17 +1023,26 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 {
                     session.viewport.set_caret(point);
                     session.viewport.clear_selection();
-                    session.viewport.set_ime_composition(None);
-                    if let Some(damage) = session.viewport.apply_action(
+
+                    session.text_input.force_clear_composition();
+                    if let Some(damage) =
+                        session.apply_action(&EditorAction::ClearComposition, viewport_rect)
+                    {
+                        scheduler.invalidate(damage.event);
+                        scheduler.mark_hook(damage.hook, &clock);
+                    }
+
+                    if let Some(damage) = session.apply_action(
                         &EditorAction::ChangeSelection {
                             delta: SelectionDelta::Cleared,
                         },
                         viewport_rect,
-                        session.max_scroll_line(),
                     ) {
                         scheduler.invalidate(damage.event);
                         scheduler.mark_hook(damage.hook, &clock);
                     }
+
+                    update_ime_cursor_area_for_viewport(&window, &session.viewport, viewport_rect);
                 }
             }
             WindowEvent::KeyboardInput { event, .. } => {
@@ -1041,11 +1095,32 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                 if !editor_runtime.sessions.contains_key(&focused) {
                                     editor_runtime.open_placeholder(focused);
                                 }
-                                if let Some(action) =
-                                    editor_action_for_key_event(code, &event, &held_modifiers)
+
+                                let Some(session) = editor_runtime.sessions.get_mut(&focused)
+                                else {
+                                    return;
+                                };
+
+                                let modifiers = aureline_input::text_input::TextInputModifiers {
+                                    ctrl: held_modifiers.ctrl,
+                                    alt: held_modifiers.alt,
+                                    shift: held_modifiers.shift,
+                                    logo: held_modifiers.logo,
+                                };
+                                let is_dead_key =
+                                    matches!(event.logical_key, winit::keyboard::Key::Dead(_));
+                                let key_event = aureline_input::text_input::TextKeyEvent {
+                                    code: text_input_key_code(code),
+                                    text: event.text.as_deref().map(|text| text.to_string()),
+                                    is_repeat: event.repeat,
+                                    is_dead_key,
+                                    modifiers,
+                                };
+
+                                if let Some(normalized) = session.text_input.handle_key_event(&key_event)
                                 {
-                                    if let Some(damage) =
-                                        editor_runtime.apply_action(focused, &action, viewport_rect)
+                                    let action = editor_action_from_text_input(normalized);
+                                    if let Some(damage) = session.apply_action(&action, viewport_rect)
                                     {
                                         if damage.hook == Hook::ReflowLineRange {
                                             hot_path_metrics
@@ -1054,6 +1129,11 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                         scheduler.invalidate(damage.event);
                                         scheduler.mark_hook(damage.hook, &clock);
                                     }
+                                    update_ime_cursor_area_for_viewport(
+                                        &window,
+                                        &session.viewport,
+                                        viewport_rect,
+                                    );
                                 }
                             }
                         }
@@ -1328,6 +1408,7 @@ struct EditorGroupSession {
     snapshot: Snapshot,
     document_lines: Vec<String>,
     line_graphemes: Vec<usize>,
+    text_input: aureline_input::text_input::TextInputSession,
     viewport: EditorViewport,
     compositor: ViewportCompositor,
     needs_text_repaint: bool,
@@ -1341,6 +1422,7 @@ impl EditorGroupSession {
             snapshot,
             document_lines: Vec::new(),
             line_graphemes: Vec::new(),
+            text_input: aureline_input::text_input::TextInputSession::new(),
             viewport: EditorViewport::new(),
             compositor: ViewportCompositor::default(),
             needs_text_repaint: true,
@@ -1353,6 +1435,7 @@ impl EditorGroupSession {
         self.buffer = buffer;
         self.viewport = EditorViewport::new();
         self.compositor = ViewportCompositor::default();
+        self.text_input = aureline_input::text_input::TextInputSession::new();
         self.needs_text_repaint = true;
         self.refresh_snapshot_and_cache();
     }
@@ -3998,66 +4081,99 @@ fn handle_key_event(
     }
 }
 
-fn editor_action_for_key_event(
-    code: KeyCode,
-    event: &KeyEvent,
-    modifiers: &HeldModifiers,
-) -> Option<EditorAction> {
-    if event.state != ElementState::Pressed || event.repeat {
-        return None;
-    }
+fn text_input_key_code(code: KeyCode) -> aureline_input::text_input::TextInputKeyCode {
+    use aureline_input::text_input::TextInputKeyCode as Out;
 
-    if modifiers.ctrl_or_logo() || modifiers.alt {
-        return None;
-    }
-
-    let extend = modifiers.shift;
     match code {
-        KeyCode::ArrowLeft => Some(EditorAction::MoveCaret {
-            movement: CaretMove::Left,
-            extend_selection: extend,
-        }),
-        KeyCode::ArrowRight => Some(EditorAction::MoveCaret {
-            movement: CaretMove::Right,
-            extend_selection: extend,
-        }),
-        KeyCode::ArrowUp => Some(EditorAction::MoveCaret {
-            movement: CaretMove::Up,
-            extend_selection: extend,
-        }),
-        KeyCode::ArrowDown => Some(EditorAction::MoveCaret {
-            movement: CaretMove::Down,
-            extend_selection: extend,
-        }),
-        KeyCode::Home => Some(EditorAction::MoveCaret {
-            movement: CaretMove::LineStart,
-            extend_selection: extend,
-        }),
-        KeyCode::End => Some(EditorAction::MoveCaret {
-            movement: CaretMove::LineEnd,
-            extend_selection: extend,
-        }),
-        KeyCode::PageUp => Some(EditorAction::MoveCaret {
-            movement: CaretMove::PageUp,
-            extend_selection: extend,
-        }),
-        KeyCode::PageDown => Some(EditorAction::MoveCaret {
-            movement: CaretMove::PageDown,
-            extend_selection: extend,
-        }),
-        KeyCode::Backspace => Some(EditorAction::DeleteBackward),
-        KeyCode::Enter => Some(EditorAction::InsertText {
-            text: "\n".to_string(),
-        }),
-        _ => event.text.as_deref().and_then(|text| {
-            if text.is_empty() {
-                return None;
-            }
-            Some(EditorAction::InsertText {
-                text: text.to_string(),
-            })
-        }),
+        KeyCode::ArrowLeft => Out::ArrowLeft,
+        KeyCode::ArrowRight => Out::ArrowRight,
+        KeyCode::ArrowUp => Out::ArrowUp,
+        KeyCode::ArrowDown => Out::ArrowDown,
+        KeyCode::Home => Out::Home,
+        KeyCode::End => Out::End,
+        KeyCode::PageUp => Out::PageUp,
+        KeyCode::PageDown => Out::PageDown,
+        KeyCode::Backspace => Out::Backspace,
+        KeyCode::Enter => Out::Enter,
+        _ => Out::Other,
     }
+}
+
+fn editor_action_from_text_input(
+    action: aureline_input::text_input::TextInputAction,
+) -> EditorAction {
+    use aureline_input::text_input::{CaretMove as InputMove, TextInputAction as InputAction};
+
+    match action {
+        InputAction::InsertText { text } => EditorAction::InsertText { text },
+        InputAction::DeleteBackward => EditorAction::DeleteBackward,
+        InputAction::MoveCaret {
+            movement,
+            extend_selection,
+        } => EditorAction::MoveCaret {
+            movement: match movement {
+                InputMove::Left => CaretMove::Left,
+                InputMove::Right => CaretMove::Right,
+                InputMove::Up => CaretMove::Up,
+                InputMove::Down => CaretMove::Down,
+                InputMove::LineStart => CaretMove::LineStart,
+                InputMove::LineEnd => CaretMove::LineEnd,
+                InputMove::PageUp => CaretMove::PageUp,
+                InputMove::PageDown => CaretMove::PageDown,
+            },
+            extend_selection,
+        },
+        InputAction::UpdateComposition { composition } => EditorAction::UpdateComposition {
+            composition: aureline_editor::ImeComposition {
+                text: composition.text,
+                caret_byte_offset: composition.caret_byte_offset,
+            },
+        },
+        InputAction::ClearComposition => EditorAction::ClearComposition,
+    }
+}
+
+fn update_ime_cursor_area_for_viewport(
+    window: &winit::window::Window,
+    viewport: &EditorViewport,
+    viewport_rect: PixelRect,
+) {
+    if viewport_rect.is_empty() {
+        return;
+    }
+
+    let caret = viewport.caret();
+    let layout = viewport.layout();
+    let Some(line) = layout.line(caret.line) else {
+        return;
+    };
+
+    let x_rel = line
+        .grapheme_x_px
+        .get(caret.grapheme)
+        .copied()
+        .unwrap_or(0);
+    let y_rel = line.y_top_px.max(0) as u32;
+
+    let x = viewport_rect.x.saturating_add(x_rel);
+    let y = viewport_rect.y.saturating_add(y_rel);
+    let height = layout.line_height_px.max(1);
+
+    window.set_ime_cursor_area(
+        winit::dpi::PhysicalPosition::new(x, y),
+        winit::dpi::PhysicalSize::new(1u32, height),
+    );
+}
+
+fn update_ime_cursor_area_for_rect(window: &winit::window::Window, rect: Rect) {
+    if rect.is_empty() {
+        return;
+    }
+
+    window.set_ime_cursor_area(
+        winit::dpi::PhysicalPosition::new(rect.x, rect.y),
+        winit::dpi::PhysicalSize::new(rect.width.max(1), rect.height.max(1)),
+    );
 }
 
 fn hit_test_viewport_point(
@@ -4198,6 +4314,36 @@ fn command_palette_panel_rect(
     (!panel.is_empty()).then_some(panel)
 }
 
+fn command_palette_query_rect(
+    frame: &DesktopFrame,
+    scale_factor: f64,
+    style: &ShellRenderStyle,
+) -> Option<Rect> {
+    let panel = command_palette_panel_rect(frame, scale_factor, style)?;
+    if panel.is_empty() {
+        return None;
+    }
+
+    let text_scale = 2u32;
+    let line_h = (8u32.saturating_mul(text_scale)).saturating_add(style.space_2);
+    let inner_padding = style.density_panel_padding;
+
+    let mut cursor_y = panel.y.saturating_add(inner_padding);
+    cursor_y = cursor_y.saturating_add(line_h);
+    cursor_y = cursor_y
+        .saturating_add(line_h)
+        .saturating_add(style.space_2 / 2);
+
+    let query_rect = Rect::new(
+        panel.x.saturating_add(inner_padding),
+        cursor_y,
+        panel.width.saturating_sub(inner_padding.saturating_mul(2)),
+        style.density_control_height,
+    );
+
+    (!query_rect.is_empty()).then_some(query_rect)
+}
+
 fn draw(
     window: &winit::window::Window,
     backend: &mut ShellRenderBackend,
@@ -4241,6 +4387,11 @@ fn draw(
         focused_editor_group_physical_rect(frame, window.scale_factor());
     damage_geometry.command_palette_panel = if palette.is_open() {
         command_palette_panel_rect(frame, window.scale_factor(), &style)
+    } else {
+        None
+    };
+    damage_geometry.command_palette_query = if palette.is_open() {
+        command_palette_query_rect(frame, window.scale_factor(), &style)
     } else {
         None
     };
@@ -6529,10 +6680,16 @@ fn draw_command_palette_overlay(
             );
         }
 
-        let query_label = if palette.query().is_empty() {
+        let mut composed_query = String::new();
+        composed_query.push_str(palette.query());
+        if let Some(composition) = palette.ime_composition() {
+            composed_query.push_str(&composition.text);
+        }
+
+        let query_label = if composed_query.is_empty() {
             "> Type a command id or file path…".to_string()
         } else {
-            format!("> {}", palette.query())
+            format!("> {}", composed_query)
         };
         let query_text_y = query_rect
             .y

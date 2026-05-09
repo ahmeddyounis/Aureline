@@ -27,6 +27,7 @@ impl WinitWindow {
                 .with_inner_size(logical_size)
                 .build(event_loop)?,
         );
+        window.set_ime_allowed(true);
         Ok(Self { window })
     }
 
