@@ -78,6 +78,10 @@ use serde::Serialize;
 
 use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
 use crate::windowing::winit_window::WinitWindow;
+use crate::windowing::display_safety::{
+    materialize_adjustment_record, materialize_topology_record, write_display_safety_log,
+    write_display_safety_topology_log, DisplaySafetyGuard,
+};
 use arboard::Clipboard;
 use aureline_render::{
     CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine,
@@ -368,6 +372,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         LogicalSize::new(1920.0, 1080.0),
     )?
     .into_arc();
+    let mut display_safety = DisplaySafetyGuard::new();
 
     let mut render_backend = match args.renderer {
         ShellRendererChoice::Software => ShellRenderBackend::Software {
@@ -417,6 +422,25 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
 
+    let outcome = display_safety.poll_and_apply(&window);
+    if let Some(adjustment) = outcome.adjustment {
+        command_runtime.note_non_command_action("layout adjusted — moved window into safe bounds");
+        let record = materialize_adjustment_record(&window, &adjustment);
+        write_display_safety_log(&record);
+        scheduler.invalidate(DamageEvent::new(
+            CompositionLayerId::WindowChromeBase,
+            DamageClassId::ViewportResizeOrScaleChange,
+        ));
+        scheduler.invalidate(DamageEvent::new(
+            CompositionLayerId::TextAndDecoration,
+            DamageClassId::ViewportResizeOrScaleChange,
+        ));
+        window.request_redraw();
+    } else if !outcome.topology_change_classes.is_empty() {
+        let record = materialize_topology_record(&window, &outcome.topology_change_classes, None);
+        write_display_safety_topology_log(&record);
+    }
+
     if let Some(err) = recent_work.last_error.as_deref() {
         command_runtime
             .note_non_command_action(format!("recent work registry unavailable — {err}"));
@@ -440,6 +464,30 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     event_loop.run(move |event, elwt| match event {
         Event::AboutToWait => {
             let now = Instant::now();
+            let outcome = display_safety.poll_and_apply(&window);
+            if let Some(adjustment) = outcome.adjustment {
+                command_runtime
+                    .note_non_command_action("layout adjusted — moved window into safe bounds");
+                let record = materialize_adjustment_record(&window, &adjustment);
+                write_display_safety_log(&record);
+                relayout_and_redraw(&window, &mut render_backend, &mut frame, &mut scheduler);
+                window.request_redraw();
+            } else if !outcome.topology_change_classes.is_empty() {
+                let bounds = window.outer_position().ok().map(|position| {
+                    let size = window.outer_size();
+                    crate::windowing::display_safety::PhysicalRect::from_position_size(
+                        position, size,
+                    )
+                });
+                let record =
+                    materialize_topology_record(&window, &outcome.topology_change_classes, bounds);
+                write_display_safety_topology_log(&record);
+
+                if outcome.topology_change_classes.contains(&"scale_changed") {
+                    relayout_and_redraw(&window, &mut render_backend, &mut frame, &mut scheduler);
+                    window.request_redraw();
+                }
+            }
             if palette.tick(registry, &keybinding_runtime.shortcuts_by_command_id, now) {
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),

@@ -5,3 +5,4 @@
 
 pub(crate) mod winit_softbuffer;
 pub(crate) mod winit_window;
+pub(crate) mod display_safety;
