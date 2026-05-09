@@ -265,11 +265,21 @@ pub fn preset_conflicts(
     Ok(packets)
 }
 
-const VS_CODE_SPECS: [PresetBindingSpec; 7] = [
+const VS_CODE_SPECS: [PresetBindingSpec; 9] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+P",
         other_sequence: "Ctrl+Shift+P",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find",
+        macos_sequence: "Cmd+F",
+        other_sequence: "Ctrl+F",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.replace",
+        macos_sequence: "Cmd+Alt+F",
+        other_sequence: "Ctrl+H",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
@@ -303,11 +313,21 @@ const VS_CODE_SPECS: [PresetBindingSpec; 7] = [
     },
 ];
 
-const INTELLIJ_SPECS: [PresetBindingSpec; 7] = [
+const INTELLIJ_SPECS: [PresetBindingSpec; 9] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Cmd+Shift+A",
         other_sequence: "Ctrl+Shift+A",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find",
+        macos_sequence: "Cmd+F",
+        other_sequence: "Ctrl+F",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.replace",
+        macos_sequence: "Cmd+R",
+        other_sequence: "Ctrl+R",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
@@ -341,11 +361,21 @@ const INTELLIJ_SPECS: [PresetBindingSpec; 7] = [
     },
 ];
 
-const VIM_SPECS: [PresetBindingSpec; 8] = [
+const VIM_SPECS: [PresetBindingSpec; 10] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Ctrl+P",
         other_sequence: "Ctrl+P",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find",
+        macos_sequence: "Ctrl+F",
+        other_sequence: "Ctrl+F",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.replace",
+        macos_sequence: "Ctrl+H",
+        other_sequence: "Ctrl+H",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",
@@ -386,11 +416,21 @@ const VIM_SPECS: [PresetBindingSpec; 8] = [
     },
 ];
 
-const EMACS_SPECS: [PresetBindingSpec; 7] = [
+const EMACS_SPECS: [PresetBindingSpec; 9] = [
     PresetBindingSpec {
         command_id: "cmd:command_palette.open",
         macos_sequence: "Alt+X",
         other_sequence: "Alt+X",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.find",
+        macos_sequence: "Ctrl+F",
+        other_sequence: "Ctrl+F",
+    },
+    PresetBindingSpec {
+        command_id: "cmd:editor.replace",
+        macos_sequence: "Ctrl+H",
+        other_sequence: "Ctrl+H",
     },
     PresetBindingSpec {
         command_id: "cmd:workspace.open_folder",

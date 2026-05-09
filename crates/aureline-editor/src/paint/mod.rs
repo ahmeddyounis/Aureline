@@ -10,6 +10,7 @@ use aureline_text::shaping::{FeatureSet, FontFallbackConfig, FontSystem, TextSha
 use aureline_ui::tokens::ColorRgba;
 use unicode_segmentation::UnicodeSegmentation as _;
 
+use crate::highlight::HighlightOverlaySet;
 use crate::viewport::{EditorViewport, LineLayout, ViewportLayout};
 
 /// Paint style inputs for the viewport compositor.
@@ -21,6 +22,10 @@ pub struct ViewportPaintStyle {
     pub text: ColorRgba,
     /// Selection highlight color.
     pub selection_fill: ColorRgba,
+    /// Find-match highlight color.
+    pub match_fill: ColorRgba,
+    /// Active find-match highlight color.
+    pub match_active_fill: ColorRgba,
     /// Caret color.
     pub caret: ColorRgba,
     /// Font size in pixels.
@@ -287,6 +292,7 @@ impl ViewportCompositor {
         window_height: u32,
         viewport_rect: PixelRect,
         viewport: &EditorViewport,
+        highlights: Option<&HighlightOverlaySet>,
         style: &ViewportPaintStyle,
         clip: Option<PixelRect>,
     ) {
@@ -325,6 +331,7 @@ impl ViewportCompositor {
             viewport_rect,
             intersection,
             viewport,
+            highlights,
             style,
         );
     }
@@ -575,8 +582,20 @@ fn paint_overlays(
     viewport_rect: PixelRect,
     clip_rect: PixelRect,
     viewport: &EditorViewport,
+    highlights: Option<&HighlightOverlaySet>,
     style: &ViewportPaintStyle,
 ) {
+    paint_find_matches(
+        window_buffer,
+        window_width,
+        window_height,
+        viewport_rect,
+        clip_rect,
+        viewport,
+        highlights,
+        style,
+    );
+
     let ranges = viewport.selections().ordered_selection_ranges();
     let layout = viewport.layout();
 
@@ -645,6 +664,112 @@ fn paint_overlays(
         viewport,
         style,
     );
+}
+
+fn paint_find_matches(
+    window_buffer: &mut [u32],
+    window_width: u32,
+    window_height: u32,
+    viewport_rect: PixelRect,
+    clip_rect: PixelRect,
+    viewport: &EditorViewport,
+    highlights: Option<&HighlightOverlaySet>,
+    style: &ViewportPaintStyle,
+) {
+    let Some(highlights) = highlights else {
+        return;
+    };
+    let layout = viewport.layout();
+
+    for span in &highlights.matches {
+        paint_highlight_span(
+            window_buffer,
+            window_width,
+            window_height,
+            viewport_rect,
+            clip_rect,
+            layout,
+            span.start,
+            span.end,
+            style.match_fill,
+        );
+    }
+
+    if let Some(active) = highlights.active_match.as_ref() {
+        paint_highlight_span(
+            window_buffer,
+            window_width,
+            window_height,
+            viewport_rect,
+            clip_rect,
+            layout,
+            active.start,
+            active.end,
+            style.match_active_fill,
+        );
+    }
+}
+
+fn paint_highlight_span(
+    window_buffer: &mut [u32],
+    window_width: u32,
+    window_height: u32,
+    viewport_rect: PixelRect,
+    clip_rect: PixelRect,
+    layout: &ViewportLayout,
+    start: crate::TextPoint,
+    end: crate::TextPoint,
+    color: ColorRgba,
+) {
+    for line in start.line..=end.line {
+        let Some(line_layout) = layout.line(line) else {
+            continue;
+        };
+        let y_top = viewport_rect.y as i32 + line_layout.y_top_px;
+        if y_top >= viewport_rect.bottom() as i32 {
+            continue;
+        }
+
+        let line_height = layout.line_height_px.max(1);
+        let y0 = y_top.max(viewport_rect.y as i32);
+        let y1 = (y_top + line_height as i32).min(viewport_rect.bottom() as i32);
+        if y1 <= y0 {
+            continue;
+        }
+
+        let start_col = if line == start.line { start.grapheme } else { 0 };
+        let end_col = if line == end.line {
+            end.grapheme
+        } else {
+            usize::MAX
+        };
+
+        let x_positions = &line_layout.grapheme_x_px;
+        if x_positions.is_empty() {
+            continue;
+        }
+        let max_col = x_positions.len().saturating_sub(1);
+        let start_col = start_col.min(max_col);
+        let end_col = end_col.min(max_col);
+
+        let x0 = viewport_rect.x as i32 + x_positions[start_col] as i32;
+        let x1 = viewport_rect.x as i32 + x_positions[end_col] as i32;
+        let (x0, x1) = if x0 <= x1 { (x0, x1) } else { (x1, x0) };
+
+        fill_rect_alpha_clipped(
+            window_buffer,
+            window_width,
+            window_height,
+            PixelRect::new(
+                x0.max(0) as u32,
+                y0.max(0) as u32,
+                (x1 - x0).max(0) as u32,
+                (y1 - y0).max(0) as u32,
+            ),
+            color,
+            clip_rect,
+        );
+    }
 }
 
 fn paint_carets(

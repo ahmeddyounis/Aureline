@@ -10,11 +10,15 @@
 #![doc(html_root_url = "https://docs.rs/aureline-editor/0.0.0")]
 
 pub mod clipboard;
+pub mod find_replace;
+pub mod highlight;
 pub mod paint;
 pub mod selection;
 pub mod text_nav;
 pub mod viewport;
 
+pub use find_replace::{FindOptions, FindReplaceError, FindReplaceMode, FindReplaceState};
+pub use highlight::{HighlightOverlaySet, HighlightSpan};
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};
 pub use selection::{CaretSelection, SelectionState, TextEditOutcome, TextEditScope};
 pub use viewport::{

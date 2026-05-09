@@ -215,9 +215,11 @@ mod tests {
     #[test]
     fn seeded_registry_loads() {
         let registry = seeded_registry();
-        assert_eq!(registry.entries().len(), 7);
+        assert_eq!(registry.entries().len(), 9);
         assert!(registry.get("cmd:workspace.open_folder").is_some());
         assert!(registry.get("cmd:command_palette.open").is_some());
+        assert!(registry.get("cmd:editor.find").is_some());
+        assert!(registry.get("cmd:editor.replace").is_some());
     }
 
     #[test]

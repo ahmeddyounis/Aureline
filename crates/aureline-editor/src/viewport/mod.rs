@@ -283,6 +283,36 @@ impl EditorViewport {
         self.scroll_line != before
     }
 
+    /// Adjusts scroll position so `line` is visible within the cached layout.
+    ///
+    /// This uses the most recently computed layout metrics. When the viewport
+    /// has not been laid out yet, it falls back to clamping the scroll line.
+    pub fn reveal_line(&mut self, line: usize, max_scroll_line: usize) -> bool {
+        let before = self.scroll_line;
+
+        let line_height = self.layout.line_height_px.max(1);
+        let viewport_height = self.layout.viewport_height_px;
+        let visible_lines = if viewport_height == 0 {
+            0
+        } else {
+            (viewport_height / line_height).max(1) as usize
+        };
+
+        if visible_lines == 0 {
+            self.scroll_line = self.scroll_line.min(max_scroll_line);
+            return self.scroll_line != before;
+        }
+
+        if line < self.scroll_line {
+            self.scroll_line = line;
+        } else if line >= self.scroll_line.saturating_add(visible_lines) {
+            self.scroll_line = line.saturating_add(1).saturating_sub(visible_lines);
+        }
+
+        self.scroll_line = self.scroll_line.min(max_scroll_line);
+        self.scroll_line != before
+    }
+
     /// Applies an editor action and returns its damage classification.
     ///
     /// The returned [`ViewportDamage`] always targets `viewport_rect` or a

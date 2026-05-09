@@ -100,8 +100,8 @@ use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSu
 use crate::windowing::winit_window::WinitWindow;
 use arboard::Clipboard;
 use aureline_editor::{
-    CaretMove, EditorAction, EditorTextRuntime, EditorViewport, SelectionDelta, ViewportCompositor,
-    ViewportPaintStyle,
+    CaretMove, EditorAction, EditorTextRuntime, EditorViewport, FindReplaceMode, FindReplaceState,
+    SelectionDelta, ViewportCompositor, ViewportPaintStyle,
 };
 use aureline_render::hooks::{Clock, Hook};
 use aureline_render::{
@@ -1530,6 +1530,7 @@ struct BufferAuthority {
     snapshot_facing: SnapshotFacingState,
     buffer: Buffer,
     saved_revision: RevisionId,
+    find_replace: FindReplaceState,
 }
 
 impl BufferAuthority {
@@ -1601,6 +1602,7 @@ impl BufferAuthorityStore {
             snapshot_facing: SnapshotFacingState::Live,
             buffer,
             saved_revision,
+            find_replace: FindReplaceState::new(),
         }));
         self.by_canonical_path.insert(canonical, authority.clone());
         Ok(authority)
@@ -1623,6 +1625,7 @@ impl BufferAuthorityStore {
             snapshot_facing: SnapshotFacingState::Live,
             buffer,
             saved_revision,
+            find_replace: FindReplaceState::new(),
         }))
     }
 }
@@ -1872,6 +1875,13 @@ impl EditorTabSession {
             EditorAction::ScrollLines { .. } | EditorAction::ScaleChange => {}
         }
 
+        {
+            let mut auth = self.authority.borrow_mut();
+            let _ = auth
+                .find_replace
+                .sync_for_view(&self.snapshot, self.viewport.caret());
+        }
+
         let damage = self
             .viewport
             .apply_action(action, viewport_rect, max_scroll_line)?;
@@ -2072,12 +2082,15 @@ impl EditorWorkspaceRuntimeState {
                 (viewport_rect.width, viewport_rect.height),
             );
         }
+        let auth = session.authority.borrow();
+        let highlights = auth.find_replace.highlight_overlays();
         session.compositor.compose_into_window(
             window_buffer,
             window_width,
             window_height,
             viewport_rect,
             &session.viewport,
+            highlights,
             paint_style,
             clip,
         );
@@ -2816,6 +2829,46 @@ fn dispatch_registry_entry(
                     ));
                 }
             }
+            true
+        }
+        "cmd:editor.find" | "cmd:editor.replace" => {
+            let mode = if entry.descriptor.command_id == "cmd:editor.replace" {
+                FindReplaceMode::Replace
+            } else {
+                FindReplaceMode::Find
+            };
+
+            let group = frame.focused_editor_group();
+            let Some(tab) = frame.active_tab_id(group) else {
+                command_runtime.note_non_command_action("find/replace: no active editor tab");
+                command_runtime.record(invocation_and_result_simple_success(&session, "no_op"));
+                return true;
+            };
+            let Some(tab_session) = editor_runtime.tab_session_mut(group, tab) else {
+                command_runtime.note_non_command_action("find/replace: missing editor tab session");
+                command_runtime.record(invocation_and_result_simple_success(&session, "no_op"));
+                return true;
+            };
+            tab_session.ensure_fresh_snapshot();
+
+            let caret = tab_session.viewport.caret();
+            let snapshot = tab_session.snapshot.clone();
+            let authority = tab_session.authority.clone();
+            {
+                let mut auth = authority.borrow_mut();
+                auth.find_replace.set_mode(mode);
+                let _ = auth.find_replace.sync_for_view(&snapshot, caret);
+            }
+
+            *overlay = Some(ShellOverlayState::find_replace(
+                frame.focused_zone(),
+                frame.focused_editor_group(),
+                authority,
+                mode,
+            ));
+            frame.focus_zone(ShellZoneId::TransientOverlay);
+            let invocation = invocation_and_result_simple_success(&session, "succeeded");
+            command_runtime.record(invocation);
             true
         }
         "cmd:labs.open_command_trace" => {
@@ -4084,7 +4137,14 @@ fn handle_key_event(
     }
 
     if let Some(state) = overlay.as_mut() {
-        let outcome = state.handle_key(code, event.text.as_deref(), frame, keybinding_runtime);
+        let outcome = state.handle_key(
+            code,
+            event.text.as_deref(),
+            *modifiers,
+            frame,
+            editor_runtime,
+            keybinding_runtime,
+        );
         if let Some(decision) = outcome.command_decision {
             finalize_command_overlay_decision(command_runtime, registry, decision);
         }
@@ -5277,6 +5337,14 @@ fn rasterize_shell(
             a: 96,
             ..style.tokens.accent_interactive
         },
+        match_fill: ColorRgba {
+            a: 72,
+            ..style.status_warning_fill
+        },
+        match_active_fill: ColorRgba {
+            a: 156,
+            ..style.status_warning_fill
+        },
         caret: style.tokens.text_primary,
         font_size_px: 14.0,
         padding_x_px: style.space_2,
@@ -5705,6 +5773,42 @@ struct CommandTraceOverlay {
     lines: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FindReplaceOverlayField {
+    Query,
+    Replacement,
+}
+
+#[derive(Clone)]
+struct FindReplaceOverlay {
+    authority: Rc<RefCell<BufferAuthority>>,
+    field: FindReplaceOverlayField,
+    status_line: Option<String>,
+}
+
+impl std::fmt::Debug for FindReplaceOverlay {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FindReplaceOverlay")
+            .field("field", &self.field)
+            .field("status_line", &self.status_line)
+            .finish_non_exhaustive()
+    }
+}
+
+impl FindReplaceOverlay {
+    fn new(authority: Rc<RefCell<BufferAuthority>>, mode: FindReplaceMode) -> Self {
+        {
+            let mut auth = authority.borrow_mut();
+            auth.find_replace.set_mode(mode);
+        }
+        Self {
+            authority,
+            field: FindReplaceOverlayField::Query,
+            status_line: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 enum WorkspaceSwitcherDecision {
     Activate {
@@ -5839,6 +5943,7 @@ struct OverlayKeyOutcome {
 #[derive(Debug, Clone)]
 enum ShellOverlayKind {
     InspectorSheet,
+    FindReplace(FindReplaceOverlay),
     SplitChoice {
         violation: SplitViolation,
         selection: usize,
@@ -5863,6 +5968,21 @@ impl ShellOverlayState {
     fn inspector_sheet(focus_return_zone: ShellZoneId, focus_return_group: PaneId) -> Self {
         Self {
             kind: ShellOverlayKind::InspectorSheet,
+            focus_return_zone,
+            focus_return_group,
+            opened_at: Instant::now(),
+            closed: false,
+        }
+    }
+
+    fn find_replace(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        authority: Rc<RefCell<BufferAuthority>>,
+        mode: FindReplaceMode,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::FindReplace(FindReplaceOverlay::new(authority, mode)),
             focus_return_zone,
             focus_return_group,
             opened_at: Instant::now(),
@@ -5963,7 +6083,9 @@ impl ShellOverlayState {
         &mut self,
         code: KeyCode,
         text: Option<&str>,
+        modifiers: HeldModifiers,
         frame: &mut DesktopFrame,
+        editor_runtime: &mut EditorWorkspaceRuntimeState,
         keybinding_runtime: &mut KeybindingRuntimeState,
     ) -> OverlayKeyOutcome {
         let mut command_decision = None;
@@ -5975,6 +6097,14 @@ impl ShellOverlayState {
                 } else {
                     switcher.mode = WorkspaceSwitcherOverlayMode::List;
                 }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::Escape) => {
+                {
+                    let mut auth = find.authority.borrow_mut();
+                    auth.find_replace.close();
+                }
+                self.close(frame);
                 true
             }
             (_, KeyCode::Escape) => {
@@ -5991,6 +6121,341 @@ impl ShellOverlayState {
                 }
                 self.close(frame);
                 true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::Tab) => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+                        let mut auth = find.authority.borrow_mut();
+                        match auth.find_replace.mode() {
+                            FindReplaceMode::Replace => {
+                                if modifiers.shift
+                                    && matches!(find.field, FindReplaceOverlayField::Replacement)
+                                {
+                                    find.field = FindReplaceOverlayField::Query;
+                                } else if matches!(find.field, FindReplaceOverlayField::Query) {
+                                    find.field = FindReplaceOverlayField::Replacement;
+                                } else {
+                                    find.field = FindReplaceOverlayField::Query;
+                                }
+                            }
+                            FindReplaceMode::Find => {
+                                auth.find_replace.set_mode(FindReplaceMode::Replace);
+                                find.field = FindReplaceOverlayField::Replacement;
+                            }
+                            FindReplaceMode::Hidden => {
+                                auth.find_replace.set_mode(FindReplaceMode::Find);
+                                find.field = FindReplaceOverlayField::Query;
+                            }
+                        }
+                        let _ = auth.find_replace.sync_for_view(&snapshot, caret);
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::KeyC) if modifiers.alt => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+                        let mut auth = find.authority.borrow_mut();
+                        auth.find_replace.toggle_case_sensitive();
+                        let _ = auth.find_replace.sync_for_view(&snapshot, caret);
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::KeyW) if modifiers.alt => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+                        let mut auth = find.authority.borrow_mut();
+                        auth.find_replace.toggle_whole_word();
+                        let _ = auth.find_replace.sync_for_view(&snapshot, caret);
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::Backspace | KeyCode::Delete) => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+                        let mut auth = find.authority.borrow_mut();
+                        match find.field {
+                            FindReplaceOverlayField::Query => {
+                                let mut query = auth.find_replace.query().to_string();
+                                let _ = query.pop();
+                                auth.find_replace.set_query(query);
+                            }
+                            FindReplaceOverlayField::Replacement => {
+                                let mut replacement = auth.find_replace.replacement().to_string();
+                                let _ = replacement.pop();
+                                auth.find_replace.set_replacement(replacement);
+                            }
+                        }
+                        let _ = auth.find_replace.sync_for_view(&snapshot, caret);
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::ArrowDown) => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+                        let mut auth = find.authority.borrow_mut();
+                        let _ = auth.find_replace.select_next(&snapshot, caret);
+                        if let Some(range) = auth.find_replace.active_match_range() {
+                            if let Some((line, grapheme)) =
+                                snapshot.line_grapheme_for_byte_offset(range.start)
+                            {
+                                let point = aureline_editor::TextPoint { line, grapheme };
+                                tab_session.viewport.set_caret(point);
+                                tab_session.viewport.clear_selection();
+                                tab_session
+                                    .viewport
+                                    .reveal_line(point.line, tab_session.max_scroll_line());
+                                let _ = auth.find_replace.sync_for_view(&snapshot, point);
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::ArrowUp) => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+                        let mut auth = find.authority.borrow_mut();
+                        let _ = auth.find_replace.select_prev(&snapshot, caret);
+                        if let Some(range) = auth.find_replace.active_match_range() {
+                            if let Some((line, grapheme)) =
+                                snapshot.line_grapheme_for_byte_offset(range.start)
+                            {
+                                let point = aureline_editor::TextPoint { line, grapheme };
+                                tab_session.viewport.set_caret(point);
+                                tab_session.viewport.clear_selection();
+                                tab_session
+                                    .viewport
+                                    .reveal_line(point.line, tab_session.max_scroll_line());
+                                let _ = auth.find_replace.sync_for_view(&snapshot, point);
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), KeyCode::Enter) => {
+                if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                    if let Some(tab_session) =
+                        editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                    {
+                        tab_session.ensure_fresh_snapshot();
+                        let caret = tab_session.viewport.caret();
+                        let snapshot = tab_session.snapshot.clone();
+
+                        let apply_replace = modifiers.alt
+                            && matches!(
+                                find.authority.borrow().find_replace.mode(),
+                                FindReplaceMode::Replace
+                            );
+
+                        if apply_replace {
+                            let read_only = find.authority.borrow().read_only;
+                            if read_only != ReadOnlyState::Writable {
+                                find.status_line =
+                                    Some("Replace blocked: buffer is read-only".to_string());
+                            } else if modifiers.ctrl_or_logo() {
+                                let auth = find.authority.borrow_mut();
+                                let (mut find_replace, mut buffer) = std::cell::RefMut::map_split(
+                                    auth,
+                                    |auth| (&mut auth.find_replace, &mut auth.buffer),
+                                );
+
+                                match find_replace.replace_all(
+                                    &mut buffer,
+                                    &snapshot,
+                                    caret,
+                                    "command:editor.replace.allInFile",
+                                ) {
+                                    Ok(Some(outcome)) => {
+                                        tab_session.snapshot = outcome.snapshot;
+                                        tab_session.last_seen_revision = outcome.revision;
+                                        tab_session.refresh_document_cache();
+                                        tab_session
+                                            .viewport
+                                            .clamp_to_document(&tab_session.line_graphemes);
+                                        tab_session.needs_text_repaint = true;
+                                        find.status_line = Some(format!(
+                                            "Replaced {} matches (lexical-only)",
+                                            outcome.replaced_count
+                                        ));
+                                        let _ = find_replace.sync_for_view(
+                                            &tab_session.snapshot,
+                                            tab_session.viewport.caret(),
+                                        );
+                                    }
+                                    Ok(None) => {
+                                        find.status_line = Some("No matches to replace".to_string());
+                                    }
+                                    Err(err) => {
+                                        find.status_line =
+                                            Some(format!("Replace-all failed: {err}"));
+                                    }
+                                }
+                            } else {
+                                let auth = find.authority.borrow_mut();
+                                let (mut find_replace, mut buffer) = std::cell::RefMut::map_split(
+                                    auth,
+                                    |auth| (&mut auth.find_replace, &mut auth.buffer),
+                                );
+
+                                match find_replace.replace_active(
+                                    &mut buffer,
+                                    &snapshot,
+                                    caret,
+                                    "command:editor.replace.activeInFile",
+                                ) {
+                                    Ok(Some(outcome)) => {
+                                        tab_session.snapshot = outcome.snapshot;
+                                        tab_session.last_seen_revision = outcome.revision;
+                                        tab_session.refresh_document_cache();
+                                        tab_session
+                                            .viewport
+                                            .clamp_to_document(&tab_session.line_graphemes);
+                                        tab_session.needs_text_repaint = true;
+                                        find.status_line =
+                                            Some("Replaced 1 match (lexical-only)".to_string());
+
+                                        let caret = tab_session.viewport.caret();
+                                        let _ =
+                                            find_replace.sync_for_view(&tab_session.snapshot, caret);
+                                        let _ = find_replace.select_next(&tab_session.snapshot, caret);
+                                        if let Some(range) = find_replace.active_match_range() {
+                                            if let Some((line, grapheme)) = tab_session
+                                                .snapshot
+                                                .line_grapheme_for_byte_offset(range.start)
+                                            {
+                                                let point =
+                                                    aureline_editor::TextPoint { line, grapheme };
+                                                tab_session.viewport.set_caret(point);
+                                                tab_session.viewport.clear_selection();
+                                                tab_session.viewport.reveal_line(
+                                                    point.line,
+                                                    tab_session.max_scroll_line(),
+                                                );
+                                                let _ = find_replace.sync_for_view(
+                                                    &tab_session.snapshot,
+                                                    point,
+                                                );
+                                            }
+                                        }
+                                    }
+                                    Ok(None) => {
+                                        find.status_line =
+                                            Some("No active match to replace".to_string());
+                                    }
+                                    Err(err) => {
+                                        find.status_line = Some(format!("Replace failed: {err}"));
+                                    }
+                                }
+                            }
+                        } else {
+                            let mut auth = find.authority.borrow_mut();
+                            let _ = if modifiers.shift {
+                                auth.find_replace.select_prev(&snapshot, caret)
+                            } else {
+                                auth.find_replace.select_next(&snapshot, caret)
+                            };
+                            if let Some(range) = auth.find_replace.active_match_range() {
+                                if let Some((line, grapheme)) =
+                                    snapshot.line_grapheme_for_byte_offset(range.start)
+                                {
+                                    let point = aureline_editor::TextPoint { line, grapheme };
+                                    tab_session.viewport.set_caret(point);
+                                    tab_session.viewport.clear_selection();
+                                    tab_session
+                                        .viewport
+                                        .reveal_line(point.line, tab_session.max_scroll_line());
+                                    let _ = auth.find_replace.sync_for_view(&snapshot, point);
+                                }
+                            }
+                        }
+                    }
+                }
+                true
+            }
+            (ShellOverlayKind::FindReplace(find), _) => {
+                if modifiers.ctrl_or_logo() || modifiers.alt {
+                    false
+                } else if let Some(input_text) = text {
+                    if let Some(tab) = frame.active_tab_id(frame.focused_editor_group()) {
+                        if let Some(tab_session) =
+                            editor_runtime.tab_session_mut(frame.focused_editor_group(), tab)
+                        {
+                            tab_session.ensure_fresh_snapshot();
+                            let caret = tab_session.viewport.caret();
+                            let snapshot = tab_session.snapshot.clone();
+
+                            let mut auth = find.authority.borrow_mut();
+                            let mut changed = false;
+                            for ch in input_text.chars() {
+                                if ch.is_control() {
+                                    continue;
+                                }
+                                match find.field {
+                                    FindReplaceOverlayField::Query => {
+                                        let mut query = auth.find_replace.query().to_string();
+                                        query.push(ch);
+                                        auth.find_replace.set_query(query);
+                                    }
+                                    FindReplaceOverlayField::Replacement => {
+                                        let mut replacement =
+                                            auth.find_replace.replacement().to_string();
+                                        replacement.push(ch);
+                                        auth.find_replace.set_replacement(replacement);
+                                    }
+                                }
+                                changed = true;
+                            }
+
+                            if changed {
+                                let _ = auth.find_replace.sync_for_view(&snapshot, caret);
+                                true
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             }
             (ShellOverlayKind::InspectorSheet, KeyCode::ArrowLeft) => {
                 keybinding_runtime.cycle_preset(-1);
@@ -6416,6 +6881,206 @@ fn draw_shell_overlay(
                     fade(style.tokens.text_muted),
                 );
                 cursor_y = cursor_y.saturating_add(line_h);
+            }
+        }
+        ShellOverlayKind::FindReplace(find) => {
+            let auth = find.authority.borrow();
+            let state = &auth.find_replace;
+            let mode = state.mode();
+
+            let find_keys = keybinding_runtime.shortcuts_label("cmd:editor.find");
+            let replace_keys = keybinding_runtime.shortcuts_label("cmd:editor.replace");
+            let header = match mode {
+                FindReplaceMode::Find => format!(
+                    "Find (lexical-only) — Esc closes   {}",
+                    if find_keys == "unbound" {
+                        String::new()
+                    } else {
+                        format!("keys: {find_keys}")
+                    }
+                ),
+                FindReplaceMode::Replace => format!(
+                    "Find/Replace (lexical-only) — Esc closes   {}",
+                    if replace_keys == "unbound" {
+                        String::new()
+                    } else {
+                        format!("keys: {replace_keys}")
+                    }
+                ),
+                FindReplaceMode::Hidden => "Find/Replace (lexical-only) — Esc closes".to_string(),
+            };
+
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+            let line_h = 8u32.saturating_add(style.space_2.saturating_mul(3) / 4);
+
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &header.trim().to_string(),
+                fade(style.tokens.text_primary),
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            let query_prefix = if matches!(find.field, FindReplaceOverlayField::Query) {
+                ">"
+            } else {
+                " "
+            };
+            let replacement_prefix = if matches!(find.field, FindReplaceOverlayField::Replacement) {
+                ">"
+            } else {
+                " "
+            };
+
+            let query = state.query();
+            let query_line = if query.is_empty() {
+                format!("{query_prefix} find: (empty)")
+            } else {
+                format!("{query_prefix} find: {query}")
+            };
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &query_line,
+                fade(style.tokens.text_secondary),
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            if mode == FindReplaceMode::Replace {
+                let replacement = state.replacement();
+                let replacement_line = if replacement.is_empty() {
+                    format!("{replacement_prefix} replace: (empty)")
+                } else {
+                    format!("{replacement_prefix} replace: {replacement}")
+                };
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    &replacement_line,
+                    fade(style.tokens.text_secondary),
+                );
+                cursor_y = cursor_y.saturating_add(16);
+            }
+
+            let options = state.options();
+            let mut option_tokens = Vec::new();
+            option_tokens.push(if options.case_sensitive {
+                "Case: sensitive"
+            } else {
+                "Case: ASCII-insensitive"
+            });
+            option_tokens.push(if options.whole_word {
+                "Word: whole"
+            } else {
+                "Word: any"
+            });
+            option_tokens.push("Pattern: literal");
+            option_tokens.push("Scope: file");
+            let options_line = format!("opts: {}", option_tokens.join("   "));
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &options_line,
+                fade(style.tokens.text_muted),
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            let count = state.match_count();
+            let active = state
+                .active_match_index()
+                .map(|idx| idx.saturating_add(1))
+                .unwrap_or(0);
+            let matches_line = if count == 0 {
+                "matches: 0".to_string()
+            } else {
+                format!("matches: {active}/{count}   (Down/Up steps, Enter steps)")
+            };
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &matches_line,
+                fade(style.tokens.text_muted),
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            if let Some(reason) = state.degraded_reason() {
+                let line = match reason {
+                    aureline_editor::find_replace::FindReplaceDegradedReason::NonUtf8Snapshot => {
+                        "degraded: non-UTF8 snapshot (find/replace blocked)".to_string()
+                    }
+                    aureline_editor::find_replace::FindReplaceDegradedReason::ScanBudgetExceeded {
+                        scanned_bytes,
+                        total_bytes,
+                    } => format!("degraded: scanned {scanned_bytes}/{total_bytes} bytes"),
+                    aureline_editor::find_replace::FindReplaceDegradedReason::MatchBudgetExceeded {
+                        match_cap,
+                    } => format!("degraded: match cap {match_cap} reached"),
+                };
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    &line,
+                    fade(style.status_warning),
+                );
+                cursor_y = cursor_y.saturating_add(16);
+            }
+
+            if let Some(status_line) = find.status_line.as_deref() {
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    status_line,
+                    fade(style.status_warning),
+                );
+                cursor_y = cursor_y.saturating_add(16);
+            }
+
+            let footer = if mode == FindReplaceMode::Replace {
+                "Tab switch field, Alt+C case, Alt+W whole-word, Alt+Enter replace, Ctrl+Alt+Enter replace all"
+            } else {
+                "Tab opens replace, Alt+C case, Alt+W whole-word"
+            };
+            if cursor_y.saturating_add(line_h) <= sheet_rect.bottom().saturating_sub(style.space_3)
+            {
+                draw_text(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    1,
+                    footer,
+                    fade(style.tokens.text_muted),
+                );
             }
         }
         ShellOverlayKind::CommandDiagnostics(sheet) => {
