@@ -75,6 +75,10 @@ use aureline_telemetry::trace_event::BuildIdentityRecord as TelemetryBuildIdenti
 use aureline_ui::components::{
     ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
 };
+use aureline_vfs::{
+    IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, VirtualDocumentKind,
+    VirtualDocumentRoot, VirtualDocumentSpec, VfsRoot, VfsUri,
+};
 use aureline_ui::density::DensityProfile;
 use aureline_ui::motion::{ReducedMotionSubstitutionClass, OVERLAY_DIALOG_ENTER};
 use aureline_ui::themes::{
@@ -1523,6 +1527,7 @@ impl SnapshotFacingState {
 struct BufferAuthority {
     label: String,
     file_path: Option<PathBuf>,
+    vfs_identity: Option<VfsIdentityRecord>,
     read_only: ReadOnlyState,
     generated: GeneratedState,
     managed: ManagedState,
@@ -1585,6 +1590,13 @@ impl BufferAuthorityStore {
             return Ok(existing.clone());
         }
 
+        let presentation_uri = VfsUri::file_url_for_path(&canonical)
+            .ok_or_else(|| format!("vfs uri build failed for {canonical:?}"))?;
+        let local_root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+        let vfs_identity = local_root
+            .identity_record(&presentation_uri)
+            .map_err(|err| format!("vfs identity resolution failed: {err}"))?;
+
         let bytes = std::fs::read(&canonical).map_err(|err| err.to_string())?;
         let buffer = Buffer::from_bytes(&bytes);
         let label = path
@@ -1597,6 +1609,7 @@ impl BufferAuthorityStore {
         let authority = Rc::new(RefCell::new(BufferAuthority {
             label,
             file_path: Some(canonical.clone()),
+            vfs_identity: Some(vfs_identity),
             read_only,
             generated: GeneratedState::Authored,
             managed: ManagedState::Unmanaged,
@@ -1615,11 +1628,24 @@ impl BufferAuthorityStore {
         label: impl Into<String>,
         text: &str,
     ) -> Rc<RefCell<BufferAuthority>> {
+        let label = label.into();
+        let vfs_identity = {
+            let mut root = VirtualDocumentRoot::new("ws-shell_proto", "root-virtual");
+            let document_id = format!("placeholder/{}", self.next_view_id);
+            let uri = root.add_document(VirtualDocumentSpec {
+                document_id,
+                display_label: label.clone(),
+                kind: VirtualDocumentKind::Virtual,
+                content: text.as_bytes().to_vec(),
+            });
+            uri.ok().and_then(|uri| root.identity_record(&uri).ok())
+        };
         let buffer = Buffer::from_str(text);
         let saved_revision = buffer.revision_id();
         Rc::new(RefCell::new(BufferAuthority {
-            label: label.into(),
+            label,
             file_path: None,
+            vfs_identity,
             read_only: ReadOnlyState::Writable,
             generated: GeneratedState::Authored,
             managed: ManagedState::Unmanaged,

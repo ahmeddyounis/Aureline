@@ -23,10 +23,13 @@
 //!   fallback identity token kinds) advertised at root attach.
 //! - [`synthetic`] — an in-memory model of a workspace root that
 //!   owns canonical objects, alias maps, generation tokens, and
-//!   permission snapshots. The prototype never touches the real
-//!   filesystem; every scenario routes through a synthetic root
-//!   so the emitted save-plan records stay byte-stable across
-//!   hosts.
+//!   permission snapshots. The smoke harness routes through a
+//!   synthetic root so emitted save-plan records stay byte-stable
+//!   across hosts.
+//! - [`roots`] — root adapters behind a shared [`roots::VfsRoot`]
+//!   contract, including a local filesystem root and in-memory
+//!   virtual/generated document roots for wiring live consumers
+//!   without re-deriving identity logic per surface.
 //! - [`watcher`] — the watcher-source / watcher-health state
 //!   machine. Health transitions emit the
 //!   [`watcher::WatcherHealthFrame`] the ADR names.
@@ -60,8 +63,10 @@ pub mod capabilities;
 pub mod harness;
 pub mod hooks;
 pub mod identity;
+pub mod roots;
 pub mod save;
 pub mod synthetic;
+pub mod uri_model;
 pub mod watcher;
 
 pub use capabilities::{
@@ -74,9 +79,14 @@ pub use identity::{
     Alias, AliasKind, AliasSet, CanonicalFilesystemObject, FallbackIdentityToken, IdentityRecord,
     IdentityToken, LogicalWorkspaceIdentity, PresentationPath, TrustState,
 };
+pub use roots::{
+    LocalFilesystemRoot, LocalFilesystemRootError, RootIoError, RootResolveError, VfsRoot,
+    VirtualDocumentKind, VirtualDocumentRoot, VirtualDocumentRootError, VirtualDocumentSpec,
+};
 pub use save::{
     CompareBeforeWriteGenerationToken, GenerationToken, GenerationTokenKind, OpenError,
     PermissionSnapshot, SaveManifest, SaveOutcome, SavePlan, SaveRequest, SaveTargetToken,
 };
 pub use synthetic::{SyntheticRoot, SyntheticRootBuilder, Workspace};
+pub use uri_model::{HierarchicalUriRef, UriError, VfsUri};
 pub use watcher::{WatcherHealth, WatcherHealthFrame, WatcherRegistry, WatcherSource};

@@ -33,6 +33,7 @@ use crate::save::{
     SaveRequest, SaveTargetToken,
 };
 use crate::synthetic::{SyntheticRoot, SyntheticRootBuilder};
+use crate::uri_model::VfsUri;
 use crate::watcher::{WatcherHealth, WatcherHealthFrame, WatcherRegistry, WatcherSource};
 
 /// Frozen corpus identifier. Bumped only when the harness's output
@@ -61,7 +62,7 @@ pub struct ScenarioSpec {
 #[derive(Debug, Clone)]
 pub struct ScenarioFixture {
     pub root: SyntheticRoot,
-    pub presentation_uri: String,
+    pub presentation_uri: VfsUri,
     pub watcher_script: Vec<WatcherScriptedStep>,
     pub external_change_before_save: bool,
     pub participant_failure: Option<String>,
@@ -258,7 +259,7 @@ fn run_scenario(spec: &ScenarioSpec) -> ScenarioReport {
             .canonical_filesystem_object
             .canonical_uri
             .clone();
-        if let Some(new_gen) = root.apply_external_change(&canonical_uri) {
+        if let Some(new_gen) = root.apply_external_change(canonical_uri.as_str()) {
             counters.vfs_watcher_event += 1;
             reviewer_notes.push(format!(
                 "external sibling writer bumped generation to {new_gen} on {canonical_uri}"
@@ -314,7 +315,7 @@ fn outcome_note(manifest: &SaveManifest) -> String {
     )
 }
 
-fn degenerate_manifest(presentation_uri: String, detail: String) -> SaveManifest {
+fn degenerate_manifest(presentation_uri: VfsUri, detail: String) -> SaveManifest {
     use crate::identity::{CanonicalFilesystemObject, IdentityToken};
     use crate::save::{GenerationToken, GenerationTokenKind};
     SaveManifest {
@@ -345,25 +346,28 @@ fn degenerate_manifest(presentation_uri: String, detail: String) -> SaveManifest
     }
 }
 
-fn degenerate_identity(presentation_uri: &str) -> IdentityRecord {
+fn degenerate_identity(presentation_uri: &VfsUri) -> IdentityRecord {
     use crate::identity::{
         AliasSet, CanonicalFilesystemObject, IdentityToken, LogicalWorkspaceIdentity,
     };
+    let placeholder_logical =
+        VfsUri::workspace_logical_uri("ws-invalid", "root-invalid", "missing")
+            .expect("degenerate logical uri must be valid");
     IdentityRecord {
         presentation_path: PresentationPath {
-            uri: presentation_uri.to_owned(),
+            uri: presentation_uri.clone(),
             display_label: String::new(),
             root_badge: String::new(),
         },
         logical_workspace_identity: LogicalWorkspaceIdentity {
             workspace_id: String::new(),
             root_id: String::new(),
-            logical_uri: String::new(),
+            logical_uri: placeholder_logical,
             trust_state: TrustState::PendingEvaluation,
             policy_scope: None,
         },
         canonical_filesystem_object: CanonicalFilesystemObject {
-            canonical_uri: String::new(),
+            canonical_uri: presentation_uri.clone(),
             normalization_form: NormalizationForm::None,
             strongest_identity_token: IdentityToken {
                 kind: crate::capabilities::StrongestIdentityTokenKind::ContentHashOnly,
@@ -375,7 +379,7 @@ fn degenerate_identity(presentation_uri: &str) -> IdentityRecord {
     }
 }
 
-fn degenerate_token(presentation_uri: &str) -> SaveTargetToken {
+fn degenerate_token(presentation_uri: &VfsUri) -> SaveTargetToken {
     use crate::save::{CompareBeforeWriteGenerationToken, GenerationTokenKind};
     SaveTargetToken {
         identity: degenerate_identity(presentation_uri),
@@ -544,6 +548,10 @@ pub const SCENARIOS: &[ScenarioSpec] = &[
 mod scenarios {
     use super::*;
 
+    fn uri(raw: &str) -> VfsUri {
+        VfsUri::parse(raw.to_owned()).expect("scenario uri must be valid")
+    }
+
     pub(super) fn posix_flags() -> CapabilityFlags {
         CapabilityFlags {
             supports_atomic_replace: true,
@@ -593,7 +601,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: "file:///ws/README.md".to_owned(),
+            presentation_uri: uri("file:///ws/README.md"),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -617,7 +625,7 @@ mod scenarios {
         let canonical = "file:///ws/src/Lib.rs";
         let presentation = "file:///ws/src/lib.rs";
         let aliases = vec![Alias {
-            alias_uri: presentation.to_owned(),
+            alias_uri: uri(presentation),
             alias_kind: AliasKind::CaseOnlyVariant,
             resolution_chain: vec![
                 format!("opened: {presentation}"),
@@ -654,7 +662,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: presentation.to_owned(),
+            presentation_uri: uri(presentation),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -678,7 +686,7 @@ mod scenarios {
         let canonical = "file:///ws/pkg/core/config.toml";
         let presentation = "file:///ws/config.toml";
         let aliases = vec![Alias {
-            alias_uri: presentation.to_owned(),
+            alias_uri: uri(presentation),
             alias_kind: AliasKind::Symlink,
             resolution_chain: vec![
                 format!("opened: {presentation}"),
@@ -715,7 +723,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: presentation.to_owned(),
+            presentation_uri: uri(presentation),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -739,7 +747,7 @@ mod scenarios {
         let canonical = "file:///ws/bin/tool.sh";
         let sibling = "file:///ws/bin/tool-latest";
         let aliases = vec![Alias {
-            alias_uri: sibling.to_owned(),
+            alias_uri: uri(sibling),
             alias_kind: AliasKind::HardlinkSibling,
             resolution_chain: vec![
                 format!("opened canonical: {canonical}"),
@@ -769,7 +777,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -795,7 +803,7 @@ mod scenarios {
         let canonical = "file:///ws/notes/cafe-nfc.md";
         let presentation = "file:///ws/notes/cafe-nfd.md";
         let aliases = vec![Alias {
-            alias_uri: presentation.to_owned(),
+            alias_uri: uri(presentation),
             alias_kind: AliasKind::UnicodeNormalizationVariant,
             resolution_chain: vec![
                 format!("opened: {presentation} (nfd)"),
@@ -832,7 +840,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: presentation.to_owned(),
+            presentation_uri: uri(presentation),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -876,7 +884,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -926,7 +934,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-infra".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -988,7 +996,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-archive".to_owned(),
                 source: WatcherSource::PollingFallback,
@@ -1052,7 +1060,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-remote".to_owned(),
                 source: WatcherSource::RemoteAgentWatcherStream,
@@ -1097,7 +1105,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![
                 WatcherScriptedStep {
                     root_id: "root-1".to_owned(),
@@ -1159,7 +1167,7 @@ mod scenarios {
             .build();
         ScenarioFixture {
             root,
-            presentation_uri: canonical.to_owned(),
+            presentation_uri: uri(canonical),
             watcher_script: vec![WatcherScriptedStep {
                 root_id: "root-1".to_owned(),
                 source: WatcherSource::OsNativeWatcher,
@@ -1406,7 +1414,7 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
     // presentation_path
     key(out, depth + 1, "presentation_path");
     out.push_str(" {\n");
-    kv_str(out, depth + 2, "uri", &id.presentation_path.uri, false);
+    kv_str(out, depth + 2, "uri", id.presentation_path.uri.as_str(), false);
     kv_str(
         out,
         depth + 2,
@@ -1429,7 +1437,7 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
     out.push_str(" {\n");
     kv_str(out, depth + 2, "workspace_id", &logical.workspace_id, false);
     kv_str(out, depth + 2, "root_id", &logical.root_id, false);
-    kv_str(out, depth + 2, "logical_uri", &logical.logical_uri, false);
+    kv_str(out, depth + 2, "logical_uri", logical.logical_uri.as_str(), false);
     kv_str(
         out,
         depth + 2,
@@ -1454,7 +1462,7 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
         out,
         depth + 2,
         "canonical_uri",
-        &canonical.canonical_uri,
+        canonical.canonical_uri.as_str(),
         false,
     );
     kv_str(
@@ -1510,7 +1518,7 @@ fn write_identity(out: &mut String, depth: usize, id: &IdentityRecord) {
         let last = i + 1 == id.alias_set.aliases.len();
         indent(out, depth + 3);
         out.push_str("{\n");
-        kv_str(out, depth + 4, "alias_uri", &a.alias_uri, false);
+        kv_str(out, depth + 4, "alias_uri", a.alias_uri.as_str(), false);
         kv_str(out, depth + 4, "alias_kind", a.alias_kind.as_str(), false);
         key(out, depth + 4, "resolution_chain");
         out.push_str(" [\n");
@@ -1741,14 +1749,14 @@ fn write_save_manifest(out: &mut String, depth: usize, m: &SaveManifest) {
         out,
         depth + 1,
         "presentation_uri",
-        &m.presentation_path.uri,
+        m.presentation_path.uri.as_str(),
         false,
     );
     kv_str(
         out,
         depth + 1,
         "canonical_uri",
-        &m.canonical_filesystem_object.canonical_uri,
+        m.canonical_filesystem_object.canonical_uri.as_str(),
         false,
     );
     key(out, depth + 1, "generation_token");

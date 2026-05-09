@@ -10,12 +10,13 @@
 use crate::capabilities::{
     FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind,
 };
+use crate::uri_model::VfsUri;
 
 /// Layer 1: the path the user opened, verbatim. Tabs, breadcrumbs,
 /// copy / paste, and CLI output preserve `uri` where safe.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PresentationPath {
-    pub uri: String,
+    pub uri: VfsUri,
     pub display_label: String,
     pub root_badge: String,
 }
@@ -46,7 +47,7 @@ impl TrustState {
 pub struct LogicalWorkspaceIdentity {
     pub workspace_id: String,
     pub root_id: String,
-    pub logical_uri: String,
+    pub logical_uri: VfsUri,
     pub trust_state: TrustState,
     pub policy_scope: Option<String>,
 }
@@ -71,7 +72,7 @@ pub struct FallbackIdentityToken {
 /// external-change decisions target this object first.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalFilesystemObject {
-    pub canonical_uri: String,
+    pub canonical_uri: VfsUri,
     pub normalization_form: NormalizationForm,
     pub strongest_identity_token: IdentityToken,
     pub fallback_identity_tokens: Vec<FallbackIdentityToken>,
@@ -111,7 +112,7 @@ impl AliasKind {
 /// support surface quotes verbatim.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Alias {
-    pub alias_uri: String,
+    pub alias_uri: VfsUri,
     pub alias_kind: AliasKind,
     pub resolution_chain: Vec<String>,
 }

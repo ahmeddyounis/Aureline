@@ -35,6 +35,7 @@ use crate::identity::{
     LogicalWorkspaceIdentity, PresentationPath, TrustState,
 };
 use crate::save::PermissionSnapshot;
+use crate::uri_model::VfsUri;
 
 /// Mutable state for one canonical filesystem object inside a
 /// synthetic root.
@@ -134,13 +135,10 @@ impl SyntheticRoot {
     /// Return the identity-record layers (1-4) for the opened
     /// presentation URI. Layer 5 is the save-target token issued
     /// by [`crate::save`].
-    pub fn identity_record(
-        &self,
-        presentation_uri: &str,
-    ) -> Result<crate::identity::IdentityRecord, String> {
-        let resolved = self.resolve(presentation_uri)?;
+    pub fn identity_record(&self, presentation_uri: &VfsUri) -> Result<crate::identity::IdentityRecord, String> {
+        let resolved = self.resolve(presentation_uri.as_str())?;
         let presentation_path = PresentationPath {
-            uri: presentation_uri.to_owned(),
+            uri: presentation_uri.clone(),
             display_label: resolved.binding.display_label.clone(),
             root_badge: self.root_badge.clone(),
         };
@@ -150,7 +148,8 @@ impl SyntheticRoot {
                 .workspace_id
                 .clone(),
             root_id: self.envelope.root_id.clone(),
-            logical_uri: resolved.object.logical_uri.clone(),
+            logical_uri: VfsUri::parse(resolved.object.logical_uri.clone())
+                .map_err(|err| format!("invalid logical uri: {}", err))?,
             trust_state: self.logical_workspace_identity_template.trust_state,
             policy_scope: self
                 .logical_workspace_identity_template
@@ -158,7 +157,8 @@ impl SyntheticRoot {
                 .clone(),
         };
         let canonical = CanonicalFilesystemObject {
-            canonical_uri: resolved.object.canonical_uri.clone(),
+            canonical_uri: VfsUri::parse(resolved.object.canonical_uri.clone())
+                .map_err(|err| format!("invalid canonical uri: {}", err))?,
             normalization_form: resolved.object.normalization_form,
             strongest_identity_token: render_strongest_token(resolved.object),
             fallback_identity_tokens: resolved.object.fallback_tokens.clone(),
@@ -416,6 +416,8 @@ impl SyntheticRootBuilder {
     }
 
     pub fn build(self) -> SyntheticRoot {
+        let template_logical_uri = VfsUri::workspace_logical_uri(&self.workspace_id, &self.root_id, "")
+            .expect("synthetic root template logical uri must be valid");
         let envelope = RootCapabilityEnvelope {
             root_id: self.root_id.clone(),
             root_class: self.root_class,
@@ -430,7 +432,7 @@ impl SyntheticRootBuilder {
         let logical_template = LogicalWorkspaceIdentity {
             workspace_id: self.workspace_id,
             root_id: self.root_id.clone(),
-            logical_uri: String::new(),
+            logical_uri: template_logical_uri,
             trust_state: self.trust_state,
             policy_scope: None,
         };

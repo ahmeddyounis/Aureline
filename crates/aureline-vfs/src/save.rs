@@ -29,7 +29,8 @@
 use crate::capabilities::{AtomicWriteMode, CapabilityFlags};
 use crate::hooks::HookCounters;
 use crate::identity::{CanonicalFilesystemObject, IdentityRecord, IdentityToken};
-use crate::synthetic::SyntheticRoot;
+use crate::roots::VfsRoot;
+use crate::uri_model::VfsUri;
 
 /// Kinds a generation token can take. Superset of the
 /// strongest-identity-token kinds plus the mtime / remote-revision
@@ -157,8 +158,8 @@ pub struct SaveTargetToken {
 /// Reasons [`open_save_target`] can fail before a token is issued.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OpenError {
-    UnknownPresentation(String),
-    MissingGenerationToken(String),
+    UnknownPresentation(VfsUri),
+    MissingGenerationToken(VfsUri),
 }
 
 impl std::fmt::Display for OpenError {
@@ -179,15 +180,15 @@ impl std::error::Error for OpenError {}
 /// (layers 1-4 resolved) and `vfs_alias_converge` when the
 /// presentation opens as an alias of the canonical object.
 pub fn open_save_target(
-    root: &SyntheticRoot,
-    presentation_uri: &str,
+    root: &dyn VfsRoot,
+    presentation_uri: &VfsUri,
     observed_at: impl Into<String>,
     counters: &mut HookCounters,
 ) -> Result<SaveTargetToken, OpenError> {
     let observed_at = observed_at.into();
     let identity = root
         .identity_record(presentation_uri)
-        .map_err(|_| OpenError::UnknownPresentation(presentation_uri.to_owned()))?;
+        .map_err(|_| OpenError::UnknownPresentation(presentation_uri.clone()))?;
     counters.vfs_canonicalize += 1;
 
     // Alias convergence fires when the opened presentation URI
@@ -200,26 +201,23 @@ pub fn open_save_target(
         counters.vfs_alias_converge += 1;
     }
 
-    let strongest = root
-        .read_strongest_token(&identity.canonical_filesystem_object.canonical_uri)
-        .ok_or_else(|| {
+    let generation_token = root
+        .read_generation_token(&identity.canonical_filesystem_object.canonical_uri)
+        .map_err(|_| {
             OpenError::MissingGenerationToken(
                 identity.canonical_filesystem_object.canonical_uri.clone(),
             )
         })?;
 
-    let compare_before_write = {
-        let gen_token = GenerationToken::from_identity(&strongest);
-        CompareBeforeWriteGenerationToken {
-            kind: gen_token.kind,
-            value: gen_token.value,
-            observed_at,
-        }
+    let compare_before_write = CompareBeforeWriteGenerationToken {
+        kind: generation_token.kind,
+        value: generation_token.value,
+        observed_at,
     };
 
     let permission_snapshot = root
         .permission_snapshot(&identity.canonical_filesystem_object.canonical_uri)
-        .unwrap_or_else(PermissionSnapshot::writable_default);
+        .unwrap_or_else(|_| PermissionSnapshot::writable_default());
 
     let envelope = root.envelope();
     let atomic_write_mode = envelope.select_save_mode();
@@ -329,17 +327,13 @@ pub struct SavePlan {
 /// Increments the matching hook counters. Never panics — every
 /// failure is a typed [`SaveOutcome`].
 pub fn attempt_save(
-    root: &mut SyntheticRoot,
+    root: &mut dyn VfsRoot,
     request: SaveRequest,
     counters: &mut HookCounters,
 ) -> SaveManifest {
     counters.vfs_save_stage += 1;
     let token = &request.token;
-    let canonical_uri = token
-        .identity
-        .canonical_filesystem_object
-        .canonical_uri
-        .clone();
+    let canonical_uri = token.identity.canonical_filesystem_object.canonical_uri.clone();
     let presentation_path = token.identity.presentation_path.clone();
 
     // Policy / read-only / review gates short-circuit before any
@@ -418,9 +412,9 @@ pub fn attempt_save(
     // object. The pinned token is what the editor captured at
     // open; the current token is what is on disk right now.
     counters.vfs_save_compare_before_write += 1;
-    let current_strongest = match root.read_strongest_token(&canonical_uri) {
-        Some(t) => t,
-        None => {
+    let current_generation = match root.read_generation_token(&canonical_uri) {
+        Ok(t) => t,
+        Err(_) => {
             // Canonical object disappeared since open.
             counters.vfs_save_conflict += 1;
             counters.vfs_save_manifest_record += 1;
@@ -438,7 +432,6 @@ pub fn attempt_save(
         }
     };
     let pinned = &token.compare_before_write_generation_token;
-    let current_generation = GenerationToken::from_identity(&current_strongest);
     if pinned.value != current_generation.value || pinned.kind != current_generation.kind {
         counters.vfs_external_change_detected += 1;
         counters.vfs_save_conflict += 1;
@@ -487,7 +480,21 @@ pub fn attempt_save(
         }
         AtomicWriteMode::Blocked => unreachable!("blocked already handled above"),
     }
-    root.apply_commit(&canonical_uri, request.new_content);
+    if let Err(err) = root.write_bytes(&canonical_uri, request.new_content) {
+        counters.vfs_save_conflict += 1;
+        counters.vfs_save_manifest_record += 1;
+        return make_manifest(
+            presentation_path,
+            root,
+            &canonical_uri,
+            token,
+            request.save_participant_group_id,
+            request.checkpoint_ref,
+            request.committed_at,
+            SaveOutcome::ReadOnlyOrPolicyBlocked,
+            Some(err.to_string()),
+        );
+    }
     counters.vfs_save_manifest_record += 1;
 
     make_manifest(
@@ -506,8 +513,8 @@ pub fn attempt_save(
 #[allow(clippy::too_many_arguments)]
 fn make_manifest(
     presentation_path: crate::identity::PresentationPath,
-    root: &SyntheticRoot,
-    canonical_uri: &str,
+    root: &dyn VfsRoot,
+    canonical_uri: &VfsUri,
     token: &SaveTargetToken,
     save_participant_group_id: Option<String>,
     checkpoint_ref: Option<String>,
@@ -516,33 +523,23 @@ fn make_manifest(
     failure_detail: Option<String>,
 ) -> SaveManifest {
     let strongest = root
-        .read_strongest_token(canonical_uri)
-        .unwrap_or_else(|| IdentityToken {
-            kind: token
-                .identity
-                .canonical_filesystem_object
-                .strongest_identity_token
-                .kind,
-            value: token
-                .identity
-                .canonical_filesystem_object
-                .strongest_identity_token
-                .value
-                .clone(),
-        });
+        .read_strongest_identity_token(canonical_uri)
+        .unwrap_or_else(|_| token.identity.canonical_filesystem_object.strongest_identity_token.clone());
     let canonical_object = CanonicalFilesystemObject {
-        canonical_uri: canonical_uri.to_owned(),
-        normalization_form: token
-            .identity
-            .canonical_filesystem_object
-            .normalization_form,
+        canonical_uri: canonical_uri.clone(),
+        normalization_form: token.identity.canonical_filesystem_object.normalization_form,
         strongest_identity_token: strongest.clone(),
-        fallback_identity_tokens: root.fallback_tokens(canonical_uri),
+        fallback_identity_tokens: root
+            .read_fallback_identity_tokens(canonical_uri)
+            .unwrap_or_else(|_| token.identity.canonical_filesystem_object.fallback_identity_tokens.clone()),
     };
     SaveManifest {
         presentation_path,
         canonical_filesystem_object: canonical_object,
-        generation_token: GenerationToken::from_identity(&strongest),
+        generation_token: root.read_generation_token(canonical_uri).unwrap_or(GenerationToken {
+            kind: GenerationTokenKind::ContentHash,
+            value: "missing".to_owned(),
+        }),
         capability_mode: token.atomic_write_mode,
         save_participant_group_id,
         checkpoint_ref,
