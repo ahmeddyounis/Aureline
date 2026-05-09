@@ -5,3 +5,6 @@
 //! support-bundle export.
 
 #![doc(html_root_url = "https://docs.rs/aureline-telemetry/0.0.0")]
+
+pub mod hot_path_metrics;
+pub mod trace_event;

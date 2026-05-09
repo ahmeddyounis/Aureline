@@ -4,6 +4,7 @@
 //! startup-milestone emission for the desktop shell.
 
 use std::collections::HashMap;
+use std::borrow::Cow;
 use std::env;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -79,6 +80,8 @@ use aureline_workspace::{
     RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
     RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
 };
+use aureline_telemetry::hot_path_metrics::{HotPathMetrics, HotPathMetricsConfig, HotPathMetricsContext};
+use aureline_telemetry::trace_event::BuildIdentityRecord as TelemetryBuildIdentityRecord;
 use serde::Serialize;
 
 use crate::windowing::display_safety::{
@@ -92,7 +95,7 @@ use aureline_editor::{
     CaretMove, EditorAction, EditorTextRuntime, EditorViewport, SelectionDelta, ViewportCompositor,
     ViewportPaintStyle,
 };
-use aureline_render::hooks::Hook;
+use aureline_render::hooks::{Clock, Hook};
 use aureline_render::{
     CompositionLayerId, DamageClassId, DamageEvent, DamageRegion, DirtyRegionEngine,
     FrameScheduler, FrameSchedulerDecision, GlyphAtlas, GlyphKey, PixelRect, WallClock,
@@ -231,6 +234,7 @@ impl ShellRenderStyle {
 #[derive(Debug, Default)]
 struct NativeShellArgs {
     startup_trace: StartupTraceConfig,
+    hot_path_metrics: HotPathMetricsConfig,
     disable_clipboard: bool,
     renderer: ShellRendererChoice,
 }
@@ -257,6 +261,12 @@ fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
                     "--emit-startup-trace requires an output file path".to_string()
                 })?;
                 args.startup_trace.output_path = Some(path);
+            }
+            "--emit-hot-path-metrics" => {
+                let path = iter.next().ok_or_else(|| {
+                    "--emit-hot-path-metrics requires an output file path".to_string()
+                })?;
+                args.hot_path_metrics.output_path = Some(path);
             }
             "--exit-after-first-frame" => {
                 args.startup_trace.exit_after_first_frame = true;
@@ -286,6 +296,7 @@ fn usage() -> String {
      Usage:\n\
      \taureline_shell\n\
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
+     \taureline_shell --emit-hot-path-metrics <path>\n\
      \taureline_shell --renderer (gpu|software)\n"
         .to_string()
 }
@@ -379,6 +390,42 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         })
         .unwrap_or(false);
     let mut startup_trace = StartupTrace::new(args.startup_trace);
+    let identity = build_info::build_identity();
+    let hot_path_trace_id = format!(
+        "trace.shell.hot_path:{}:{}",
+        identity.commit_short, identity.build_timestamp_utc
+    );
+    let hot_path_build = TelemetryBuildIdentityRecord {
+        crate_name: env!("CARGO_PKG_NAME").to_string(),
+        crate_version: env!("CARGO_PKG_VERSION").to_string(),
+        rustc_target_triple: identity.target_triple.clone(),
+    };
+    let host_os = if cfg!(target_os = "macos") {
+        Cow::Borrowed("macos")
+    } else if cfg!(target_os = "windows") {
+        Cow::Borrowed("windows")
+    } else if cfg!(target_os = "linux") {
+        Cow::Borrowed("linux")
+    } else {
+        Cow::Borrowed("unknown")
+    };
+    let hot_path_context = HotPathMetricsContext {
+        trace_id: hot_path_trace_id,
+        backend: Cow::Borrowed("native_window"),
+        host_os,
+        build: hot_path_build,
+        exact_build_identity_ref: Some(build_info::exact_build_identity_ref()),
+        hardware_definition_ref: None,
+        environment_ref: None,
+        fixture_ref: None,
+        corpus_manifest: None,
+        sampling_profile: Cow::Borrowed("developer_local"),
+        sampling_profile_ref: "profile.trace_sampling.developer_local".to_string(),
+        retention_class: Cow::Borrowed("hot_path_volatile"),
+        export_posture: Cow::Borrowed("excluded_by_default"),
+        redaction_class: Cow::Borrowed("metadata_safe_default"),
+    };
+    let mut hot_path_metrics = HotPathMetrics::new(args.hot_path_metrics, hot_path_context);
     let clock = WallClock::new();
     let mut scheduler = FrameScheduler::new();
     let event_loop = EventLoop::new()?;
@@ -419,6 +466,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         DesktopFrame::new(logical.width, logical.height)
     };
     startup_trace.mark(StartupMilestone::EditorSurfaceReady);
+    hot_path_metrics.mark_editor_surface_ready(clock.now().0);
 
     let mut held_modifiers = HeldModifiers::default();
     let mut damage_geometry = ShellDamageGeometryCache::default();
@@ -441,6 +489,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut last_a11y_fingerprint: Option<Vec<u8>> = None;
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
+    hot_path_metrics.mark_first_interactive_shell(clock.now().0);
 
     let outcome = display_safety.poll_and_apply(&window);
     if let Some(adjustment) = outcome.adjustment {
@@ -636,7 +685,10 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
-            WindowEvent::CloseRequested => elwt.exit(),
+            WindowEvent::CloseRequested => {
+                let _ = hot_path_metrics.write_if_configured();
+                elwt.exit();
+            }
             WindowEvent::Resized(_) => {
                 relayout_and_redraw(&window, &mut render_backend, &mut frame, &mut scheduler);
             }
@@ -703,6 +755,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &EditorAction::ScrollLines { dy_lines },
                     viewport_rect,
                 ) {
+                    if damage.hook == Hook::ScrollFrame {
+                        hot_path_metrics.note_scroll_to_paint_admitted(clock.now().0);
+                    }
                     scheduler.invalidate(damage.event);
                     scheduler.mark_hook(damage.hook, &clock);
                 }
@@ -756,6 +811,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(damage) =
                         editor_runtime.apply_action(focused, &action, viewport_rect)
                     {
+                        if damage.hook == Hook::ReflowLineRange {
+                            hot_path_metrics.note_keystroke_to_paint_admitted(clock.now().0);
+                        }
                         scheduler.invalidate(damage.event);
                         scheduler.mark_hook(damage.hook, &clock);
                     }
@@ -841,6 +899,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut recent_work,
                     &mut clipboard,
                     &mut appearance,
+                    &mut hot_path_metrics,
+                    &clock,
                     &held_modifiers,
                     &event,
                 );
@@ -875,6 +935,10 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                     if let Some(damage) =
                                         editor_runtime.apply_action(focused, &action, viewport_rect)
                                     {
+                                        if damage.hook == Hook::ReflowLineRange {
+                                            hot_path_metrics
+                                                .note_keystroke_to_paint_admitted(clock.now().0);
+                                        }
                                         scheduler.invalidate(damage.event);
                                         scheduler.mark_hook(damage.hook, &clock);
                                     }
@@ -935,6 +999,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut damage_geometry,
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
+                    let _ = hot_path_metrics.write_if_configured();
                     elwt.exit();
                     return;
                 }
@@ -952,10 +1017,14 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &enablement_runtime,
                 );
                 scheduler.note_frame_submitted(&clock);
+                let submit_tick = clock.now().0;
+                hot_path_metrics.note_frame_submitted(submit_tick);
+                hot_path_metrics.mark_first_shell_frame_submitted(submit_tick);
                 if !startup_trace.first_frame_emitted() {
                     startup_trace.mark(StartupMilestone::FirstShellFrameSubmitted);
                     let _ = startup_trace.write_if_configured();
                     if startup_trace.config().exit_after_first_frame {
+                        let _ = hot_path_metrics.write_if_configured();
                         elwt.exit();
                     }
                 }
@@ -1164,6 +1233,14 @@ impl EditorGroupSession {
         session
     }
 
+    fn replace_buffer(&mut self, buffer: Buffer) {
+        self.buffer = buffer;
+        self.viewport = EditorViewport::new();
+        self.compositor = ViewportCompositor::default();
+        self.needs_text_repaint = true;
+        self.refresh_document_cache();
+    }
+
     fn refresh_document_cache(&mut self) {
         let snapshot = self.buffer.snapshot();
         match snapshot.as_str() {
@@ -1279,6 +1356,15 @@ impl EditorWorkspaceRuntimeState {
             .or_insert_with(|| EditorGroupSession::from_buffer(buffer))
     }
 
+    fn set_session_buffer(&mut self, group: PaneId, buffer: Buffer) {
+        match self.sessions.get_mut(&group) {
+            Some(session) => session.replace_buffer(buffer),
+            None => {
+                self.sessions.insert(group, EditorGroupSession::from_buffer(buffer));
+            }
+        }
+    }
+
     fn open_placeholder(&mut self, group: PaneId) {
         let buffer = Buffer::from_str(
             "Welcome to Aureline.\n\n\
@@ -1294,7 +1380,7 @@ impl EditorWorkspaceRuntimeState {
     fn open_file(&mut self, group: PaneId, path: &Path) -> Result<(), String> {
         let bytes = std::fs::read(path).map_err(|err| err.to_string())?;
         let buffer = Buffer::from_bytes(&bytes);
-        self.ensure_session(group, buffer);
+        self.set_session_buffer(group, buffer);
         Ok(())
     }
 
@@ -3150,6 +3236,8 @@ fn handle_key_event(
     recent_work: &mut RecentWorkRuntimeState,
     clipboard: &mut ClipboardState,
     appearance: &mut AppearanceRuntimeState,
+    hot_path_metrics: &mut HotPathMetrics,
+    clock: &WallClock,
     modifiers: &HeldModifiers,
     event: &KeyEvent,
 ) -> ShellDamageHint {
@@ -3307,13 +3395,24 @@ fn handle_key_event(
                         }
                     }
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
+                        let focused_group = frame.focused_editor_group();
+                        let tick = clock.now().0;
+                        if editor_runtime.sessions.contains_key(&focused_group) {
+                            hot_path_metrics.note_file_switch_to_paint_requested(tick);
+                        } else {
+                            hot_path_metrics.note_file_open_to_paint_requested(tick);
+                        }
                         frame.open_placeholder_tab();
                         let cwd = std::env::current_dir()
                             .unwrap_or_else(|_| std::path::PathBuf::from("."));
                         let path = cwd.join(&relative_path);
                         if let Err(err) =
-                            editor_runtime.open_file(frame.focused_editor_group(), &path)
+                            editor_runtime.open_file(focused_group, &path)
                         {
+                            hot_path_metrics.close_latest_span_as_error(
+                                clock.now().0,
+                                format!("open file failed — {}", err),
+                            );
                             command_runtime
                                 .note_non_command_action(format!("open file failed — {}", err));
                         }
