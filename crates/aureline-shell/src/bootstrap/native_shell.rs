@@ -77,7 +77,7 @@ use aureline_ui::components::{
 };
 use aureline_vfs::{
     IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, VirtualDocumentKind,
-    VirtualDocumentRoot, VirtualDocumentSpec, VfsRoot, VfsUri,
+    VirtualDocumentRoot, VirtualDocumentSpec, VfsRoot, VfsUri, WatcherHealth,
 };
 use aureline_ui::density::DensityProfile;
 use aureline_ui::motion::{ReducedMotionSubstitutionClass, OVERLAY_DIALOG_ENTER};
@@ -91,7 +91,8 @@ use aureline_ui::tokens::{
 use aureline_workspace::{
     PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
     RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
-    RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
+    RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState, WorkspaceLifecycleMachine,
+    WorkspaceLifecycleState,
 };
 use serde::Serialize;
 
@@ -205,6 +206,9 @@ struct ShellRenderStyle {
     status_success: ColorRgba,
     status_success_border: ColorRgba,
     status_success_fill: ColorRgba,
+    status_danger: ColorRgba,
+    status_danger_border: ColorRgba,
+    status_danger_fill: ColorRgba,
 }
 
 impl ShellRenderStyle {
@@ -243,6 +247,9 @@ impl ShellRenderStyle {
             status_success: registry.require_color("status.success")?,
             status_success_border: registry.require_color("status.success.border")?,
             status_success_fill: registry.require_color("status.success.fill")?,
+            status_danger: registry.require_color("status.danger")?,
+            status_danger_border: registry.require_color("status.danger.border")?,
+            status_danger_fill: registry.require_color("status.danger.fill")?,
         })
     }
 }
@@ -599,6 +606,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut keybinding_runtime = KeybindingRuntimeState::new(platform_class_for_shell());
     let mut enablement_runtime = CommandEnablementRuntimeState::default();
     let mut recent_work = RecentWorkRuntimeState::load();
+    let mut workspace_lifecycle = WorkspaceLifecycleRuntimeState::new();
     let mut clipboard = ClipboardState::new(!args.disable_clipboard);
     let mut appearance = AppearanceRuntimeState::load();
     appearance.apply_cli_overrides(
@@ -739,7 +747,9 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     window.request_redraw();
                 }
             }
-            if palette.tick(registry, &keybinding_runtime.shortcuts_by_command_id, now) {
+            let palette_changed =
+                palette.tick(registry, &keybinding_runtime.shortcuts_by_command_id, now);
+            if palette_changed && palette.is_open() {
                 window.set_title(&window_title(
                     Some(frame.focused_zone()),
                     palette.selected_entry(registry),
@@ -760,6 +770,20 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                         DamageClassId::FloatingSurfaceToggle,
                     ));
                 }
+            }
+            let file_index_readiness = palette.workspace_file_index_readiness();
+            if workspace_lifecycle.update_from_file_index(
+                file_index_readiness.map(|v| v.watcher_health),
+                file_index_readiness.map(|v| v.hot_index_ready),
+            ) {
+                enqueue_damage_hint(
+                    &mut scheduler,
+                    ShellDamageHint::Rect {
+                        layer: CompositionLayerId::WindowChromeBase,
+                        class: DamageClassId::TextReflowLocal,
+                        rect: to_physical_rect(frame.layout().status_bar, window.scale_factor()),
+                    },
+                );
             }
             let mut next_deadline = palette.next_wake_deadline(now);
             let animation_frame = now + Duration::from_millis(16);
@@ -1094,6 +1118,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &mut command_runtime,
                     &mut keybinding_runtime,
                     &mut enablement_runtime,
+                    &mut workspace_lifecycle,
                     &mut recent_work,
                     &mut clipboard,
                     &mut appearance,
@@ -1220,6 +1245,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &command_runtime,
                     &keybinding_runtime,
                     &enablement_runtime,
+                    &workspace_lifecycle,
                     &recent_work,
                     &appearance,
                     &held_modifiers,
@@ -2488,6 +2514,175 @@ impl CommandEnablementRuntimeState {
 }
 
 #[derive(Debug, Clone)]
+struct WorkspaceLifecycleRuntimeState {
+    machine: Option<WorkspaceLifecycleMachine>,
+    last_logged: Option<WorkspaceLifecycleLogKey>,
+    snapshot_path: PathBuf,
+    transitions_path: PathBuf,
+    last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct WorkspaceLifecycleLogKey {
+    workspace_id: String,
+    lifecycle_state: WorkspaceLifecycleState,
+    trust_state: TrustState,
+    watcher_health: Option<WatcherHealth>,
+    hot_index_ready: bool,
+    command_graph_ready: bool,
+    last_transition_reason_code: Option<String>,
+}
+
+impl WorkspaceLifecycleRuntimeState {
+    fn new() -> Self {
+        let base = PathBuf::from(".logs").join("workspace");
+        Self {
+            machine: None,
+            last_logged: None,
+            snapshot_path: base.join("workspace_lifecycle_snapshot.json"),
+            transitions_path: base.join("workspace_lifecycle_transitions.jsonl"),
+            last_error: None,
+        }
+    }
+
+    fn open_local_folder(&mut self, workspace_id: String, trust_state: TrustState) {
+        let observed_at = mono_timestamp_now();
+        let mut machine = WorkspaceLifecycleMachine::discovered(workspace_id, observed_at.clone());
+        machine.open_workspace(observed_at.clone());
+        machine.resolve_trust(trust_state, observed_at.clone());
+        machine.mark_shell_interactive(observed_at);
+        machine.update_readiness_gates(
+            None,
+            None,
+            Some(true),
+            mono_timestamp_now(),
+            Some("command_graph_ready".to_string()),
+        );
+        self.machine = Some(machine);
+        self.last_logged = None;
+        self.flush_logs_if_changed();
+    }
+
+    fn resolve_trust(&mut self, trust_state: TrustState) -> bool {
+        let Some(machine) = self.machine.as_mut() else {
+            return false;
+        };
+        let before_state = machine.state();
+        let before_trust = machine.trust_state();
+        machine.resolve_trust(trust_state, mono_timestamp_now());
+        let changed = machine.state() != before_state || machine.trust_state() != before_trust;
+        self.flush_logs_if_changed();
+        changed
+    }
+
+    fn update_from_file_index(
+        &mut self,
+        watcher_health: Option<WatcherHealth>,
+        hot_index_ready: Option<bool>,
+    ) -> bool {
+        let Some(machine) = self.machine.as_mut() else {
+            return false;
+        };
+        let before_state = machine.state();
+        let before_watcher = machine.watcher_health();
+        let before_hot_index_ready = machine.hot_index_ready();
+        machine.update_readiness_gates(
+            watcher_health,
+            hot_index_ready,
+            None,
+            mono_timestamp_now(),
+            None,
+        );
+        let changed = machine.state() != before_state
+            || machine.watcher_health() != before_watcher
+            || machine.hot_index_ready() != before_hot_index_ready;
+        self.flush_logs_if_changed();
+        changed
+    }
+
+    fn flush_logs_if_changed(&mut self) {
+        let Some(machine) = self.machine.as_mut() else {
+            return;
+        };
+        let snapshot = machine.snapshot();
+        let key = WorkspaceLifecycleLogKey {
+            workspace_id: snapshot.workspace_id.clone(),
+            lifecycle_state: snapshot.lifecycle_state,
+            trust_state: snapshot.trust_state,
+            watcher_health: machine.watcher_health(),
+            hot_index_ready: snapshot.hot_index_ready,
+            command_graph_ready: snapshot.command_graph_ready,
+            last_transition_reason_code: snapshot.last_transition_reason_code.clone(),
+        };
+        if self.last_logged.as_ref() == Some(&key) {
+            return;
+        }
+        self.last_logged = Some(key);
+
+        if let Some(parent) = self.snapshot_path.parent() {
+            if let Err(err) = std::fs::create_dir_all(parent) {
+                self.last_error = Some(format!("workspace lifecycle log dir create failed: {err}"));
+                return;
+            }
+        }
+
+        match serde_json::to_string_pretty(&snapshot) {
+            Ok(payload) => {
+                if let Err(err) = std::fs::write(&self.snapshot_path, payload) {
+                    self.last_error = Some(format!("workspace lifecycle snapshot write failed: {err}"));
+                }
+            }
+            Err(err) => {
+                self.last_error = Some(format!(
+                    "workspace lifecycle snapshot serialize failed: {err}"
+                ));
+            }
+        }
+
+        let frames = machine.drain_transition_frames();
+        if !frames.is_empty() {
+            let mut out = String::new();
+            for frame in frames {
+                match serde_json::to_string(&frame) {
+                    Ok(line) => {
+                        out.push_str(&line);
+                        out.push('\n');
+                    }
+                    Err(err) => {
+                        self.last_error = Some(format!(
+                            "workspace lifecycle transition serialize failed: {err}"
+                        ));
+                        return;
+                    }
+                }
+            }
+            if let Err(err) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.transitions_path)
+                .and_then(|mut file| std::io::Write::write_all(&mut file, out.as_bytes()))
+            {
+                self.last_error = Some(format!(
+                    "workspace lifecycle transitions append failed: {err}"
+                ));
+            }
+        }
+    }
+
+    fn status_badge_token(&self) -> Option<&'static str> {
+        Some(self.machine.as_ref()?.state().as_str())
+    }
+
+    fn watcher_health_token(&self) -> Option<&'static str> {
+        Some(self.machine.as_ref()?.watcher_health()?.as_str())
+    }
+
+    fn hot_index_ready(&self) -> Option<bool> {
+        Some(self.machine.as_ref()?.hot_index_ready())
+    }
+}
+
+#[derive(Debug, Clone)]
 struct RecentWorkRuntimeState {
     store_path: PathBuf,
     registry: RecentWorkRegistry,
@@ -2775,13 +2970,23 @@ impl AppearanceRuntimeState {
     }
 }
 
-fn recent_work_id_for(target_kind: TargetKind, identity_key: &str) -> String {
+fn fnv1a_64(value: &str) -> u64 {
     let mut hash: u64 = 0xcbf29ce484222325;
-    for byte in identity_key.as_bytes() {
+    for byte in value.as_bytes() {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x100000001b3);
     }
+    hash
+}
+
+fn recent_work_id_for(target_kind: TargetKind, identity_key: &str) -> String {
+    let hash = fnv1a_64(identity_key);
     format!("recent:{}:{:016x}", target_kind.as_str(), hash)
+}
+
+fn workspace_id_for_local_folder(identity_key: &str) -> String {
+    let hash = fnv1a_64(identity_key);
+    format!("ws-local-{:016x}", hash)
 }
 
 fn mono_timestamp_now() -> String {
@@ -2923,6 +3128,7 @@ fn dispatch_command_id(
     command_id: &str,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
 ) -> bool {
     dispatch_command_id_with_arguments(
@@ -2936,6 +3142,7 @@ fn dispatch_command_id(
         command_id,
         origin,
         enablement_runtime,
+        workspace_lifecycle,
         recent_work,
         None,
     )
@@ -2952,6 +3159,7 @@ fn dispatch_command_id_with_arguments(
     command_id: &str,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
@@ -2969,6 +3177,7 @@ fn dispatch_command_id_with_arguments(
         &entry,
         origin,
         enablement_runtime,
+        workspace_lifecycle,
         recent_work,
         argument_provenance_map_override,
     )
@@ -2985,6 +3194,7 @@ fn dispatch_registry_entry(
     entry: &CommandRegistryEntryRecord,
     origin: DispatchOrigin,
     enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
     argument_provenance_map_override: Option<Vec<ArgumentProvenanceEntry>>,
 ) -> bool {
@@ -3218,9 +3428,17 @@ fn dispatch_registry_entry(
             }
 
             let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let trust_state =
+                trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
             recent_work.note_local_folder_opened(
                 &cwd,
-                trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str()),
+                trust_state,
+            );
+            palette.set_workspace_root(cwd.clone());
+            let identity_key = cwd.to_string_lossy();
+            workspace_lifecycle.open_local_folder(
+                workspace_id_for_local_folder(&identity_key),
+                trust_state,
             );
             if let Err(err) = recent_work.save() {
                 command_runtime.note_non_command_action(format!("recent work save failed — {err}"));
@@ -4167,6 +4385,7 @@ fn handle_key_event(
     command_runtime: &mut CommandRuntimeState,
     keybinding_runtime: &mut KeybindingRuntimeState,
     enablement_runtime: &mut CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
     recent_work: &mut RecentWorkRuntimeState,
     clipboard: &mut ClipboardState,
     appearance: &mut AppearanceRuntimeState,
@@ -4315,6 +4534,7 @@ fn handle_key_event(
                             &command_id,
                             DispatchOrigin::CommandPalette,
                             enablement_runtime,
+                            workspace_lifecycle,
                             recent_work,
                         );
                         window.set_title(&window_title(
@@ -4669,6 +4889,7 @@ fn handle_key_event(
                     candidate.command.command_id.as_str(),
                     DispatchOrigin::KeybindingChord,
                     enablement_runtime,
+                    workspace_lifecycle,
                     recent_work,
                 );
                 window.set_title(&window_title(
@@ -4758,6 +4979,7 @@ fn handle_key_event(
                     row.command_id,
                     DispatchOrigin::StartCenter,
                     enablement_runtime,
+                    workspace_lifecycle,
                     recent_work,
                     Some(row.argument_provenance_map.clone()),
                 );
@@ -4798,6 +5020,7 @@ fn handle_key_event(
                     "cmd:docs.open_in_browser",
                     DispatchOrigin::KeybindingChord,
                     enablement_runtime,
+                    workspace_lifecycle,
                     recent_work,
                 );
                 if changed {
@@ -5251,6 +5474,9 @@ fn handle_key_event(
         KeyCode::KeyT => {
             if modifiers.ctrl_or_logo() && modifiers.shift {
                 enablement_runtime.toggle_trust_state();
+                workspace_lifecycle.resolve_trust(trust_state_for_recent_work(
+                    enablement_runtime.workspace_trust_state.as_str(),
+                ));
                 ShellDamageHint::FullWindow
             } else {
                 ShellDamageHint::None
@@ -5601,6 +5827,7 @@ fn draw(
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
     recent_work: &RecentWorkRuntimeState,
     appearance: &AppearanceRuntimeState,
     held_modifiers: &HeldModifiers,
@@ -5669,6 +5896,7 @@ fn draw(
                 command_runtime,
                 keybinding_runtime,
                 enablement_runtime,
+                workspace_lifecycle,
                 recent_work,
                 appearance,
                 &style,
@@ -5740,6 +5968,7 @@ fn draw(
                     command_runtime,
                     keybinding_runtime,
                     enablement_runtime,
+                    workspace_lifecycle,
                     recent_work,
                     appearance,
                     &style,
@@ -5778,6 +6007,7 @@ fn rasterize_shell(
     command_runtime: &CommandRuntimeState,
     keybinding_runtime: &KeybindingRuntimeState,
     enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &WorkspaceLifecycleRuntimeState,
     recent_work: &RecentWorkRuntimeState,
     appearance: &AppearanceRuntimeState,
     style: &ShellRenderStyle,
@@ -6139,14 +6369,24 @@ fn rasterize_shell(
         let density_label = appearance.density_class().token();
         let motion_label = appearance.reduced_motion_posture().token();
         let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
+        let workspace_lifecycle_token = workspace_lifecycle.status_badge_token().unwrap_or("none");
+        let watcher_health_token = workspace_lifecycle.watcher_health_token().unwrap_or("unknown");
+        let hot_index_label = match workspace_lifecycle.hot_index_ready() {
+            Some(true) => "ready",
+            Some(false) => "warming",
+            None => "unknown",
+        };
         let recent_work_store = recent_work.store_path.display();
         let text = format!(
-            "theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
+            "theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   readiness: {}   watcher: {}   hot_index: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
             theme_label,
             density_label,
             motion_label,
             modes,
             active_workspace,
+            workspace_lifecycle_token,
+            watcher_health_token,
+            hot_index_label,
             last,
             last_keybinding,
             trust_state,
@@ -6159,11 +6399,81 @@ fn rasterize_shell(
             recent_work_store
         );
 
-        let badge_text = match trust_state {
+        let mut cursor_x = status.x.saturating_add(style.space_2);
+        let badge_y = status.y.saturating_add(style.space_2 / 2);
+        let badge_max_h = status.height.saturating_sub(1);
+
+        if let Some(token) = workspace_lifecycle.status_badge_token() {
+            let (label, fg, border, fill) = match token {
+                "ready" => (
+                    "Ready",
+                    style.status_success,
+                    style.status_success_border,
+                    style.status_success_fill,
+                ),
+                "partially_ready" => (
+                    "Partially Ready",
+                    style.status_warning,
+                    style.status_warning_border,
+                    style.status_warning_fill,
+                ),
+                "degraded" => (
+                    "Degraded",
+                    style.status_danger,
+                    style.status_danger_border,
+                    style.status_danger_fill,
+                ),
+                "opening" => (
+                    "Opening",
+                    style.status_warning,
+                    style.status_warning_border,
+                    style.status_warning_fill,
+                ),
+                "trust_evaluating" => (
+                    "Trust Evaluating",
+                    style.status_warning,
+                    style.status_warning_border,
+                    style.status_warning_fill,
+                ),
+                "closing" => (
+                    "Closing",
+                    style.status_warning,
+                    style.status_warning_border,
+                    style.status_warning_fill,
+                ),
+                "closed" => (
+                    "Closed",
+                    style.tokens.text_muted,
+                    style.tokens.border_default,
+                    style.tokens.bg_surface,
+                ),
+                "discovered" => (
+                    "Discovered",
+                    style.tokens.text_muted,
+                    style.tokens.border_default,
+                    style.tokens.bg_surface,
+                ),
+                _ => (
+                    "Unknown",
+                    style.tokens.text_muted,
+                    style.tokens.border_default,
+                    style.tokens.bg_surface,
+                ),
+            };
+            let badge_rect = draw_status_badge(
+                buffer, width, height, cursor_x, badge_y, badge_max_h, style, label, fg, border,
+                fill,
+            );
+            cursor_x = cursor_x
+                .saturating_add(badge_rect.width)
+                .saturating_add(style.space_2);
+        }
+
+        let trust_badge_text = match trust_state {
             "restricted" => "Restricted",
             _ => "Trusted",
         };
-        let (badge_fg, badge_border, badge_fill) = match trust_state {
+        let (trust_fg, trust_border, trust_fill) = match trust_state {
             "restricted" => (
                 style.status_warning,
                 style.status_warning_border,
@@ -6175,56 +6485,72 @@ fn rasterize_shell(
                 style.status_success_fill,
             ),
         };
-        let badge_scale = 1u32;
-        let badge_char_w = 8u32.saturating_mul(badge_scale);
-        let badge_padding = style.space_2 / 2;
-        let badge_w = badge_char_w
-            .saturating_mul(badge_text.len() as u32)
-            .saturating_add(badge_padding.saturating_mul(2));
-        let badge_h = 8u32
-            .saturating_mul(badge_scale)
-            .saturating_add(badge_padding.saturating_mul(2));
-        let badge_rect = Rect::new(
-            status.x.saturating_add(style.space_2),
-            status.y.saturating_add(style.space_2 / 2),
-            badge_w,
-            badge_h.min(status.height.saturating_sub(1)),
-        );
-        fill_rect(buffer, width, height, badge_rect, badge_fill);
-        stroke_rect(
+        let trust_badge_rect = draw_status_badge(
             buffer,
             width,
             height,
-            badge_rect,
-            style.stroke_default,
-            badge_border,
+            cursor_x,
+            badge_y,
+            badge_max_h,
+            style,
+            trust_badge_text,
+            trust_fg,
+            trust_border,
+            trust_fill,
         );
-        draw_text(
-            buffer,
-            width,
-            height,
-            badge_rect.x.saturating_add(badge_padding),
-            badge_rect.y.saturating_add(badge_padding),
-            badge_scale,
-            badge_text,
-            badge_fg,
-        );
+        cursor_x = cursor_x
+            .saturating_add(trust_badge_rect.width)
+            .saturating_add(style.space_2);
 
         draw_text(
             buffer,
             width,
             height,
-            status
-                .x
-                .saturating_add(style.space_2)
-                .saturating_add(badge_rect.width)
-                .saturating_add(style.space_2),
-            status.y.saturating_add(style.space_2 / 2),
+            cursor_x,
+            badge_y,
             1,
             &text,
             style.tokens.text_muted,
         );
     }
+}
+
+fn draw_status_badge(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    x: u32,
+    y: u32,
+    max_height: u32,
+    style: &ShellRenderStyle,
+    text: &str,
+    fg: ColorRgba,
+    border: ColorRgba,
+    fill: ColorRgba,
+) -> Rect {
+    let badge_scale = 1u32;
+    let badge_char_w = 8u32.saturating_mul(badge_scale);
+    let badge_padding = style.space_2 / 2;
+    let badge_w = badge_char_w
+        .saturating_mul(text.len() as u32)
+        .saturating_add(badge_padding.saturating_mul(2));
+    let badge_h = 8u32
+        .saturating_mul(badge_scale)
+        .saturating_add(badge_padding.saturating_mul(2));
+    let rect = Rect::new(x, y, badge_w, badge_h.min(max_height));
+    fill_rect(buffer, width, height, rect, fill);
+    stroke_rect(buffer, width, height, rect, style.stroke_default, border);
+    draw_text(
+        buffer,
+        width,
+        height,
+        rect.x.saturating_add(badge_padding),
+        rect.y.saturating_add(badge_padding),
+        badge_scale,
+        text,
+        fg,
+    );
+    rect
 }
 
 #[derive(Debug, Clone)]

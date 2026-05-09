@@ -273,6 +273,15 @@ struct FileIndexWorker {
     needs_rescan: bool,
 }
 
+/// Readiness signals derived from the workspace file index worker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WorkspaceFileIndexReadiness {
+    /// Latest watcher health observed for the workspace root.
+    pub watcher_health: WatcherHealth,
+    /// Whether the current scan has completed.
+    pub hot_index_ready: bool,
+}
+
 #[derive(Debug)]
 enum FileIndexMessage {
     Chunk(Vec<String>),
@@ -582,7 +591,7 @@ impl CommandPaletteState {
         self.text_input = TextInputSession::new();
         self.semantic_state = PaletteProviderStateClass::NotRequested;
         self.semantic_deadline = None;
-        self.file_index = Some(spawn_file_index_worker(cwd));
+        self.set_workspace_root(cwd);
         self.recompute_groups(registry, &HashMap::new());
     }
 
@@ -594,8 +603,47 @@ impl CommandPaletteState {
         self.flat_item_keys.clear();
         self.semantic_state = PaletteProviderStateClass::NotRequested;
         self.semantic_deadline = None;
-        self.file_index = None;
         self.text_input.force_clear_composition();
+    }
+
+    /// Ensures the file index worker is tracking `root`.
+    pub fn set_workspace_root(&mut self, root: PathBuf) {
+        let now = Instant::now();
+        let root = root.canonicalize().unwrap_or(root);
+        match self.file_index.as_mut() {
+            None => {
+                self.file_index = Some(spawn_file_index_worker(root));
+            }
+            Some(worker) => {
+                if worker.root == root {
+                    return;
+                }
+                worker.root = root.clone();
+                worker.watcher = WatcherService::spawn_local(
+                    "root-local",
+                    root.clone(),
+                    WatcherServiceOptions::default(),
+                )
+                .ok();
+                worker.watcher_health = worker
+                    .watcher
+                    .as_ref()
+                    .map(|w| w.latest_health())
+                    .unwrap_or(WatcherHealth::Unavailable);
+                worker.watcher_source = None;
+                worker.needs_rescan = false;
+                restart_file_index_scan(worker, now);
+            }
+        }
+    }
+
+    /// Returns the latest readiness signals derived from the file index worker.
+    pub fn workspace_file_index_readiness(&self) -> Option<WorkspaceFileIndexReadiness> {
+        let worker = self.file_index.as_ref()?;
+        Some(WorkspaceFileIndexReadiness {
+            watcher_health: worker.watcher_health,
+            hot_index_ready: worker.complete,
+        })
     }
 
     pub fn note_command_invoked(&mut self, command_id: &str) {
@@ -892,10 +940,6 @@ impl CommandPaletteState {
         shortcuts_by_command_id: &HashMap<String, Vec<String>>,
         now: Instant,
     ) -> bool {
-        if !self.open {
-            return false;
-        }
-
         let mut changed = false;
 
         if let Some(file_index) = self.file_index.as_mut() {
@@ -950,6 +994,10 @@ impl CommandPaletteState {
                 restart_file_index_scan(file_index, now);
                 changed = true;
             }
+        }
+
+        if !self.open {
+            return changed;
         }
 
         if let Some(deadline) = self.semantic_deadline {

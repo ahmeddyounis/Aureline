@@ -11,10 +11,16 @@
 #![doc(html_root_url = "https://docs.rs/aureline-workspace/0.0.0")]
 
 pub mod recent_work;
+pub mod lifecycle;
 
 pub use recent_work::{
     EntryAndRestoreSchemaVersion, PortabilityClass, RecentWorkEntryRecord,
     RecentWorkEntryRecordKind, RecentWorkRegistry, RecentWorkRegistryError,
     RecentWorkRegistryRecordKind, RecentWorkTargetState, RestoreAvailability, SafeRecoveryAction,
     TargetKind, TrustState,
+};
+
+pub use lifecycle::{
+    WorkspaceLifecycleMachine, WorkspaceLifecycleSnapshot, WorkspaceLifecycleSnapshotRecordKind,
+    WorkspaceLifecycleState, WorkspaceLifecycleTransitionFrame,
 };
