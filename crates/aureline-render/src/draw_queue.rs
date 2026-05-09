@@ -100,12 +100,7 @@ impl PixelRect {
         } else {
             other.bottom()
         };
-        PixelRect::new(
-            x0,
-            y0,
-            x1.saturating_sub(x0),
-            y1.saturating_sub(y0),
-        )
+        PixelRect::new(x0, y0, x1.saturating_sub(x0), y1.saturating_sub(y0))
     }
 }
 
@@ -221,7 +216,11 @@ impl DamageEvent {
         class: DamageClassId,
         region: DamageRegion,
     ) -> Self {
-        Self { layer, class, region }
+        Self {
+            layer,
+            class,
+            region,
+        }
     }
 }
 
@@ -292,7 +291,10 @@ impl DrawQueue {
         let events = std::mem::take(&mut self.pending);
         let frame_index = self.next_frame_index;
         self.next_frame_index = self.next_frame_index.saturating_add(1);
-        CompositedFrame { frame_index, events }
+        CompositedFrame {
+            frame_index,
+            events,
+        }
     }
 }
 

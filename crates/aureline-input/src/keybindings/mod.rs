@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use aureline_commands::{CommandId, CommandRevisionRef, PolicyContext};
 use aureline_commands::registry::seeded_registry;
+use aureline_commands::{CommandId, CommandRevisionRef, PolicyContext};
 use serde::{Deserialize, Serialize};
 
 /// Canonical platform vocabulary used by the keybinding resolver boundary.
@@ -676,11 +676,13 @@ impl KeybindingResolver {
                     for candidate in colliding_candidates {
                         losing_candidates.push(LosingCandidateRecord {
                             candidate: candidate.record.clone(),
-                            loss_reason_code: ResolutionReasonCode::SameLayerCollisionRequiresReview,
+                            loss_reason_code:
+                                ResolutionReasonCode::SameLayerCollisionRequiresReview,
                             what_changes_outcome: vec![OutcomeChangeCondition {
                                 condition_class: OutcomeChangeConditionClass::RebindSequence,
-                                explanation: "Rebind or scope one candidate to remove the collision."
-                                    .to_string(),
+                                explanation:
+                                    "Rebind or scope one candidate to remove the collision."
+                                        .to_string(),
                                 resulting_layer: Some(layer),
                             }],
                         });
@@ -897,9 +899,10 @@ impl KeybindingResolver {
         if packet.losing_candidates.is_empty() {
             return None;
         }
-        let conflict_review_id = packet.conflict_review_ref.clone().unwrap_or_else(|| {
-            format!("keybinding-conflict-review:{}", packet.resolution_id)
-        });
+        let conflict_review_id = packet
+            .conflict_review_ref
+            .clone()
+            .unwrap_or_else(|| format!("keybinding-conflict-review:{}", packet.resolution_id));
         let review_summary = match packet.winning_resolution.reason_code {
             ResolutionReasonCode::SameLayerCollisionRequiresReview => {
                 "Multiple equally-specific bindings contest this sequence.".to_string()
@@ -1080,7 +1083,9 @@ pub fn seeded_keybinding_resolver() -> &'static KeybindingResolver {
             execution_context_id: Some("exec:keybindings:seeded".to_string()),
         });
 
-        resolver.docs_help_refs.push("docs/migration/keymap_presets.md".to_string());
+        resolver
+            .docs_help_refs
+            .push("docs/migration/keymap_presets.md".to_string());
 
         let registry = seeded_registry();
         let entry = registry

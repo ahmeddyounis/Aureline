@@ -18,4 +18,3 @@ pub use recent_work::{
     RecentWorkRegistryRecordKind, RecentWorkTargetState, RestoreAvailability, SafeRecoveryAction,
     TargetKind, TrustState,
 };
-

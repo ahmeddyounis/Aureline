@@ -1,7 +1,7 @@
-//! Piece-tree buffer prototype with grouped undo/redo.
+//! Piece-tree buffer core with revisions, snapshots, and grouped undo/redo.
 //!
-//! This is a prototype, not the production buffer engine. It validates
-//! the contract frozen in `docs/adr/0003-buffer-undo-large-file.md`:
+//! The current implementation is intentionally minimal, but it follows the
+//! contract frozen in `docs/adr/0003-buffer-undo-large-file.md`:
 //!
 //! - a piece-tree representation (append-only source bytes, append-
 //!   only edit buffer, ordered piece list) so the original bytes are
@@ -17,14 +17,20 @@
 //! - named hook counters that match the protected-hot-path vocabulary
 //!   in the ADR.
 //!
-//! The piece list is a `Vec<Piece>`; the production buffer replaces
-//! this with a balanced index without changing the public API.
+//! The piece list is a `Vec<Piece>`; the production buffer replaces this with
+//! a balanced index without changing the public API.
 
 use std::ops::Range;
 use std::sync::Arc;
 
 use super::class::{CompensationPosture, UndoClass};
 use super::hooks::HookCounters;
+use super::line_index::{LineIndex, LineSpan};
+use unicode_segmentation::UnicodeSegmentation as _;
+
+/// Revision identifier newtype. Monotonic per-buffer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct RevisionId(pub u64);
 
 /// Snapshot-identifier newtype. Monotonic per-buffer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -98,6 +104,7 @@ pub struct Snapshot {
     id: SnapshotId,
     version: u64,
     content: Arc<Vec<u8>>,
+    line_index: Arc<LineIndex>,
 }
 
 impl Snapshot {
@@ -121,6 +128,77 @@ impl Snapshot {
     /// boundary; the prototype surfaces the failure to the caller).
     pub fn as_str(&self) -> Option<&str> {
         std::str::from_utf8(&self.content).ok()
+    }
+
+    /// Returns the snapshot's line index.
+    pub fn line_index(&self) -> &LineIndex {
+        self.line_index.as_ref()
+    }
+
+    /// Returns the number of lines in the snapshot.
+    pub fn line_count(&self) -> usize {
+        self.line_index.line_count()
+    }
+
+    /// Returns the byte span for `line`, excluding the line terminator.
+    pub fn line_span(&self, line: usize) -> Option<LineSpan> {
+        self.line_index.line_span(line)
+    }
+
+    /// Returns the bytes for `line`, excluding the line terminator.
+    pub fn line_bytes(&self, line: usize) -> Option<&[u8]> {
+        let span = self.line_span(line)?;
+        self.content.get(span.start..span.end)
+    }
+
+    /// Returns `line` as UTF-8, excluding the line terminator.
+    pub fn line_str(&self, line: usize) -> Option<&str> {
+        let bytes = self.line_bytes(line)?;
+        std::str::from_utf8(bytes).ok()
+    }
+
+    /// Returns the grapheme count within `line` (extended grapheme clusters).
+    pub fn grapheme_count_in_line(&self, line: usize) -> Option<usize> {
+        Some(self.line_str(line)?.graphemes(true).count())
+    }
+
+    /// Returns the byte offset for `(line, grapheme)` within the snapshot.
+    ///
+    /// When `grapheme` exceeds the line's grapheme count, the returned offset
+    /// clamps to the end of the line.
+    pub fn byte_offset_for_line_grapheme(&self, line: usize, grapheme: usize) -> Option<usize> {
+        let span = self.line_span(line)?;
+        let text = self.line_str(line)?;
+        if grapheme == 0 {
+            return Some(span.start);
+        }
+        let mut count = 0usize;
+        for (byte, _) in text.grapheme_indices(true) {
+            if count == grapheme {
+                return Some(span.start.saturating_add(byte));
+            }
+            count = count.saturating_add(1);
+        }
+        Some(span.end)
+    }
+
+    /// Returns the `(line, grapheme)` coordinates for `offset`.
+    ///
+    /// When `offset` falls on a line terminator, the returned position clamps
+    /// to the end of the preceding line.
+    pub fn line_grapheme_for_byte_offset(&self, offset: usize) -> Option<(usize, usize)> {
+        let line = self.line_index.line_for_byte_offset(offset)?;
+        let span = self.line_span(line)?;
+        let local = offset.saturating_sub(span.start).min(span.len());
+        let text = self.line_str(line)?;
+        let mut count = 0usize;
+        for (byte, _) in text.grapheme_indices(true) {
+            if byte >= local {
+                return Some((line, count));
+            }
+            count = count.saturating_add(1);
+        }
+        Some((line, count))
     }
 }
 
@@ -223,15 +301,6 @@ impl CommittedGroup {
     fn removed_bytes(&self) -> usize {
         self.operations.iter().map(|op| op.removed.len()).sum()
     }
-    fn inverse_storage_bytes(&self) -> usize {
-        let op_bytes = self.inserted_bytes() + self.removed_bytes();
-        let snap_bytes = self
-            .parent_pieces
-            .as_ref()
-            .map(|(_, total)| *total)
-            .unwrap_or(0);
-        op_bytes + snap_bytes
-    }
 }
 
 struct OpenTransaction {
@@ -240,7 +309,6 @@ struct OpenTransaction {
     label: Option<String>,
     undo_group_id: UndoGroupId,
     parent_snapshot_id: SnapshotId,
-    parent_version: u64,
     // Rollback state captured before any mutation.
     rollback_pieces: Vec<Piece>,
     rollback_total_len: usize,
@@ -366,6 +434,11 @@ impl Buffer {
         self.version
     }
 
+    /// Returns the buffer's current revision id.
+    pub fn revision_id(&self) -> RevisionId {
+        RevisionId(self.version)
+    }
+
     /// Materialise the current buffer contents into a new vector.
     pub fn contents(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(self.total_len);
@@ -384,10 +457,13 @@ impl Buffer {
         let id = SnapshotId(self.next_snapshot_id);
         self.next_snapshot_id += 1;
         self.latest_snapshot_id = id;
+        let content = Arc::new(self.contents());
+        let line_index = Arc::new(LineIndex::from_bytes(&content));
         Snapshot {
             id,
             version: self.version,
-            content: Arc::new(self.contents()),
+            content,
+            line_index,
         }
     }
 
@@ -449,7 +525,6 @@ impl Buffer {
             label: spec.label,
             undo_group_id: group_id,
             parent_snapshot_id,
-            parent_version: self.version,
             rollback_pieces: self.pieces.clone(),
             rollback_total_len: self.total_len,
             rollback_append_len: self.append.len(),
@@ -899,6 +974,14 @@ impl Default for Buffer {
 pub struct Transaction<'a> {
     buffer: &'a mut Buffer,
     finished: bool,
+}
+
+impl std::fmt::Debug for Transaction<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Transaction")
+            .field("finished", &self.finished)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Transaction<'_> {

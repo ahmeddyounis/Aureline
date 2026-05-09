@@ -46,38 +46,38 @@ impl WgpuBlitRenderer {
             force_fallback_adapter: false,
         }))?;
 
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("aureline-render.device"),
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::default(),
-            ..Default::default()
-        }))?;
+        let (device, queue) =
+            pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+                label: Some("aureline-render.device"),
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::default(),
+                ..Default::default()
+            }))?;
 
         let (surface_config, texture, texture_view, sampler, upload_bytes) =
             create_surface_resources(&window, &surface, &adapter, &device)?;
 
-        let bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("aureline-render.blit.bind_group_layout"),
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
+        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("aureline-render.blit.bind_group_layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
                     },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-            });
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
 
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("aureline-render.blit.bind_group"),
@@ -306,9 +306,7 @@ impl WgpuBlitRenderer {
 
         let region_width = rect.width as usize;
         let region_height = rect.height as usize;
-        let required_bytes = region_width
-            .saturating_mul(region_height)
-            .saturating_mul(4);
+        let required_bytes = region_width.saturating_mul(region_height).saturating_mul(4);
         if self.upload_region_bytes.len() != required_bytes {
             self.upload_region_bytes.resize(required_bytes, 0);
         }
@@ -319,7 +317,9 @@ impl WgpuBlitRenderer {
             let src_row_start = src_y
                 .saturating_mul(src_width)
                 .saturating_add(rect.x as usize);
-            let Some(src_row) = pixels_0rgb.get(src_row_start..src_row_start.saturating_add(region_width)) else {
+            let Some(src_row) =
+                pixels_0rgb.get(src_row_start..src_row_start.saturating_add(region_width))
+            else {
                 continue;
             };
 
@@ -461,8 +461,7 @@ fn create_surface_resources(
         mipmap_filter: wgpu::FilterMode::Nearest,
         ..Default::default()
     });
-    let upload_bytes =
-        vec![0; width as usize * height as usize * 4];
+    let upload_bytes = vec![0; width as usize * height as usize * 4];
     Ok((config, texture, texture_view, sampler, upload_bytes))
 }
 

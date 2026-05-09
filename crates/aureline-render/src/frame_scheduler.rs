@@ -170,7 +170,10 @@ mod tests {
         let frame = scheduler.begin_frame().expect("frame should start");
         assert_eq!(frame.events.len(), 2);
         scheduler.note_frame_submitted(&clock);
-        assert!(scheduler.marks().iter().any(|m| m.hook == Hook::FrameSubmit));
+        assert!(scheduler
+            .marks()
+            .iter()
+            .any(|m| m.hook == Hook::FrameSubmit));
     }
 
     #[test]

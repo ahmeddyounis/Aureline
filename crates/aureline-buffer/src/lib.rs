@@ -5,21 +5,21 @@
 //! Downstream editor surfaces read from and write to buffers
 //! exclusively through this crate.
 //!
-//! The current landing is a prototype (see [`prototype`]) that
-//! validates the contract frozen in
-//! `docs/adr/0003-buffer-undo-large-file.md`. It exposes a piece-tree
-//! buffer, grouped undo/redo transactions over the frozen undo-class
-//! taxonomy, snapshots, checkpoints, and named hook counters. It is
-//! the API surface later editor layers consume; the production
-//! implementation swaps internals behind the same surface.
+//! The canonical engine is a piece-tree buffer with versioned snapshots and a
+//! grouped undo/redo journal. The public API is stable enough for editor views
+//! and bench harnesses; the internals will evolve (balanced piece index,
+//! structural snapshots, durable journals) without changing the surface.
 
 #![doc(html_root_url = "https://docs.rs/aureline-buffer/0.0.0")]
 
+pub mod piece_tree;
 pub mod prototype;
 
-pub use prototype::buffer::{
+pub use piece_tree::buffer::{
     Buffer, BufferConfig, BufferError, CheckpointHandle, CommittedInfo, JournalEntry, JournalView,
-    Snapshot, SnapshotId, Transaction, TransactionId, TransactionSpec, UndoGroupId, UndoOutcome,
+    RevisionId, Snapshot, SnapshotId, Transaction, TransactionId, TransactionSpec, UndoGroupId,
+    UndoOutcome,
 };
-pub use prototype::class::{CompensationPosture, UndoClass};
-pub use prototype::hooks::HookCounters;
+pub use piece_tree::class::{CompensationPosture, UndoClass};
+pub use piece_tree::hooks::HookCounters;
+pub use piece_tree::line_index::{LineIndex, LineSpan};

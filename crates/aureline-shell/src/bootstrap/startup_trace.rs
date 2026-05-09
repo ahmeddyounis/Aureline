@@ -163,8 +163,7 @@ impl StartupTrace {
         let exact_build_identity_ref = build_info::exact_build_identity_ref();
         let trace_id = format!(
             "trace.shell.bootstrap:{}:{}",
-            identity.commit_short,
-            identity.build_timestamp_utc
+            identity.commit_short, identity.build_timestamp_utc
         );
 
         let build = BuildIdentityRecord {
@@ -299,4 +298,3 @@ mod tests {
         assert_eq!(trace.events.len(), 1);
     }
 }
-

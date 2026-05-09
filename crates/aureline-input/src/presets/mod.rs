@@ -56,7 +56,10 @@ impl KeymapPresetId {
 #[derive(Debug)]
 pub enum PresetSeedError {
     UnknownCommandId(String),
-    InvalidSequence { sequence: String, detail: ParseKeySequenceError },
+    InvalidSequence {
+        sequence: String,
+        detail: ParseKeySequenceError,
+    },
 }
 
 impl fmt::Display for PresetSeedError {
@@ -105,10 +108,7 @@ fn sequence_for_platform(spec: PresetBindingSpec, platform: PlatformClass) -> &'
 }
 
 fn sanitize_sequence_for_candidate_ref(sequence: &str) -> String {
-    sequence
-        .replace(' ', "_")
-        .replace('+', "_")
-        .to_lowercase()
+    sequence.replace(' ', "_").replace('+', "_").to_lowercase()
 }
 
 fn candidate_ref_for(preset: KeymapPresetId, command_id: &str, sequence: &str) -> String {
@@ -181,12 +181,13 @@ pub fn apply_preset_to_resolver(
     platform: PlatformClass,
 ) -> Result<(), PresetSeedError> {
     for row in preset_binding_rows(preset, platform)? {
-        let sequence = KeySequence::parse_literal_sequence(&row.literal_sequence).map_err(
-            |detail| PresetSeedError::InvalidSequence {
-                sequence: row.literal_sequence.clone(),
-                detail,
-            },
-        )?;
+        let sequence =
+            KeySequence::parse_literal_sequence(&row.literal_sequence).map_err(|detail| {
+                PresetSeedError::InvalidSequence {
+                    sequence: row.literal_sequence.clone(),
+                    detail,
+                }
+            })?;
         let command = command_snapshot(&row.command_id)?;
         resolver.push_candidate(
             ResolverLayerClass::UserProfileBinding,
@@ -194,10 +195,7 @@ pub fn apply_preset_to_resolver(
             command,
             sequence,
             Some(row.source_provenance_ref),
-            Some(format!(
-                "Preset binding ({})",
-                preset.display_name()
-            )),
+            Some(format!("Preset binding ({})", preset.display_name())),
             default_candidate_context(),
         );
     }
@@ -244,12 +242,13 @@ pub fn preset_conflicts(
         if command_ids.len() < 2 {
             continue;
         }
-        let inspected = KeySequence::parse_literal_sequence(&literal_sequence).map_err(|detail| {
-            PresetSeedError::InvalidSequence {
-                sequence: literal_sequence.clone(),
-                detail,
-            }
-        })?;
+        let inspected =
+            KeySequence::parse_literal_sequence(&literal_sequence).map_err(|detail| {
+                PresetSeedError::InvalidSequence {
+                    sequence: literal_sequence.clone(),
+                    detail,
+                }
+            })?;
 
         let packet = resolver.resolve(&inspected, &inspection_scope);
         if packet.sequence_state == SequenceResolutionState::Unbound

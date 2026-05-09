@@ -231,10 +231,7 @@ impl FontSystem {
         // Terminal stage: pick a deterministic face even if it lacks coverage
         // so downstream shaping can emit `.notdef` glyphs with stable
         // cluster boundaries for cursoring diagnostics.
-        (
-            self.resolve_terminal_face(config),
-            FallbackStage::Missing,
-        )
+        (self.resolve_terminal_face(config), FallbackStage::Missing)
     }
 
     fn resolve_any_face_for_cluster(&mut self, cluster: &str) -> Option<fontdb::ID> {
@@ -327,7 +324,12 @@ fn script_preference_families(cluster: &str) -> &'static [&'static str] {
                 ];
             }
             unicode_script::Script::Arabic => {
-                return &["Geeza Pro", "Arial", "Noto Sans Arabic", "Noto Naskh Arabic"];
+                return &[
+                    "Geeza Pro",
+                    "Arial",
+                    "Noto Sans Arabic",
+                    "Noto Naskh Arabic",
+                ];
             }
             unicode_script::Script::Hebrew => {
                 return &["Arial Hebrew", "Times New Roman", "Noto Sans Hebrew"];

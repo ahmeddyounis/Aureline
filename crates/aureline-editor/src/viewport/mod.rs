@@ -155,7 +155,10 @@ impl EditorViewport {
     pub fn new() -> Self {
         Self {
             scroll_line: 0,
-            caret: TextPoint { line: 0, grapheme: 0 },
+            caret: TextPoint {
+                line: 0,
+                grapheme: 0,
+            },
             selection_anchor: None,
             ime_composition: None,
             layout: ViewportLayout::default(),
@@ -390,7 +393,10 @@ impl EditorViewport {
             }
         }
 
-        self.caret = TextPoint { line, grapheme: col };
+        self.caret = TextPoint {
+            line,
+            grapheme: col,
+        };
         before != self.caret
     }
 

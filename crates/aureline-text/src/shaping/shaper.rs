@@ -135,7 +135,8 @@ impl TextShaper {
         }
         self.metrics.cache_misses = self.metrics.cache_misses.saturating_add(1);
 
-        let mut line = self.shape_line_uncached(font_system, text, font_size_px, fallback, features);
+        let mut line =
+            self.shape_line_uncached(font_system, text, font_size_px, fallback, features);
 
         if self.cache.len() >= self.max_cache_entries {
             // Simple bounded cache: clear rather than partially evict. The atlas
@@ -156,10 +157,12 @@ impl TextShaper {
                 *slot = slot.saturating_add(1);
             }
         }
-        self.metrics.missing_glyph_count = self
-            .metrics
-            .missing_glyph_count
-            .saturating_add(line.glyphs.iter().filter(|g| g.fallback_stage == FallbackStage::Missing).count() as u64);
+        self.metrics.missing_glyph_count = self.metrics.missing_glyph_count.saturating_add(
+            line.glyphs
+                .iter()
+                .filter(|g| g.fallback_stage == FallbackStage::Missing)
+                .count() as u64,
+        );
 
         // Avoid NaN propagation from scaling edge cases; keep widths positive
         // even when the underlying shaper reports RTL advances with a
@@ -202,7 +205,13 @@ impl TextShaper {
             let direction = bidi
                 .levels
                 .get(run.start)
-                .map(|level| if level.is_rtl() { TextDirection::Rtl } else { TextDirection::Ltr })
+                .map(|level| {
+                    if level.is_rtl() {
+                        TextDirection::Rtl
+                    } else {
+                        TextDirection::Ltr
+                    }
+                })
                 .unwrap_or(TextDirection::Ltr);
 
             let shaped = shape_visual_run(
@@ -440,7 +449,8 @@ mod tests {
                 "fixture should trigger missing fallback: {path:?}"
             );
 
-            let boundaries: HashSet<usize> = text.grapheme_indices(true).map(|(idx, _)| idx).collect();
+            let boundaries: HashSet<usize> =
+                text.grapheme_indices(true).map(|(idx, _)| idx).collect();
             for glyph in &shaped.glyphs {
                 assert!(
                     boundaries.contains(&glyph.cluster),

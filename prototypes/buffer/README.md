@@ -17,9 +17,9 @@ not production-grade performance.
 
 | Piece | Path |
 |---|---|
-| Prototype piece-tree buffer, transactions, journal, undo/redo | [`crates/aureline-buffer/src/prototype/buffer.rs`](../../crates/aureline-buffer/src/prototype/buffer.rs) |
-| Undo-class enum, compensation-posture split, class-id freeze | [`crates/aureline-buffer/src/prototype/class.rs`](../../crates/aureline-buffer/src/prototype/class.rs) |
-| Protected-hot-path hook counters | [`crates/aureline-buffer/src/prototype/hooks.rs`](../../crates/aureline-buffer/src/prototype/hooks.rs) |
+| Prototype piece-tree buffer, transactions, journal, undo/redo | [`crates/aureline-buffer/src/piece_tree/buffer.rs`](../../crates/aureline-buffer/src/piece_tree/buffer.rs) |
+| Undo-class enum, compensation-posture split, class-id freeze | [`crates/aureline-buffer/src/piece_tree/class.rs`](../../crates/aureline-buffer/src/piece_tree/class.rs) |
+| Protected-hot-path hook counters | [`crates/aureline-buffer/src/piece_tree/hooks.rs`](../../crates/aureline-buffer/src/piece_tree/hooks.rs) |
 | Public re-exports (crate surface) | [`crates/aureline-buffer/src/lib.rs`](../../crates/aureline-buffer/src/lib.rs) |
 | Bench harness (named scenarios → structural metrics) | [`crates/aureline-bench/src/buffer.rs`](../../crates/aureline-bench/src/buffer.rs) |
 | Bench binary | [`crates/aureline-bench/src/bin/bench_buffer.rs`](../../crates/aureline-bench/src/bin/bench_buffer.rs) |
@@ -37,7 +37,7 @@ not production-grade performance.
   public API.
 - **Snapshots as values, not locks.** `Buffer::snapshot` materialises
   the current contents into an `Arc<Vec<u8>>` and hands the caller a
-  `Snapshot { id, version, content }`. Taking a snapshot does not
+  `Snapshot` carrying `(id, version, content, line_index)`. Taking a snapshot does not
   mutate observable buffer state beyond firing `snapshot_create`;
   callers can hold a snapshot while edits continue.
 - **Grouped transactions.** `Buffer::begin` opens one undo group with
@@ -139,11 +139,11 @@ capability of the prototype.
    production path that reaches back through the IO boundary are
    modelled only as an undo-class id that the harness can label a
    transaction with.
-6. **No CRLF normalisation or line-ending awareness.** Offsets are
-   byte offsets; the buffer does not split, track, or normalise
-   line terminators. Line/column mapping, the line-index cache,
-   and the ADR's CRLF-preserving save rule land with the save
-   pipeline.
+6. **Line indexing is snapshot-scoped only.** Snapshots carry a
+   newline-aware line index and grapheme-aware coordinate translation, but the
+   buffer does not incrementally maintain a line index across edits, and it does
+   not yet enforce an encoding boundary or preserve dominant newline mode at the
+   save boundary.
 7. **No multi-cursor or grapheme-safe offset validation.** The
    transaction API accepts any in-range byte offset; it does not
    reject an offset that falls inside a multi-byte UTF-8 sequence

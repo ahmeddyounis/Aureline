@@ -17,7 +17,10 @@ pub enum ThemePackError {
     /// The fixture payload failed to parse.
     ParseFailed { theme: ThemeClass, detail: String },
     /// The fixture declared a different theme class than the loader requested.
-    ThemeClassMismatch { requested: ThemeClass, declared: ThemeClass },
+    ThemeClassMismatch {
+        requested: ThemeClass,
+        declared: ThemeClass,
+    },
     /// A token value literal could not be parsed as a color.
     InvalidTokenValue {
         theme: ThemeClass,
@@ -110,10 +113,11 @@ pub fn load_first_party_theme_pack(theme: ThemeClass) -> Result<ThemePack, Theme
         )),
     };
 
-    let doc: ThemePackDoc = serde_json::from_str(payload).map_err(|err| ThemePackError::ParseFailed {
-        theme,
-        detail: err.to_string(),
-    })?;
+    let doc: ThemePackDoc =
+        serde_json::from_str(payload).map_err(|err| ThemePackError::ParseFailed {
+            theme,
+            detail: err.to_string(),
+        })?;
 
     if doc.theme_class != theme {
         return Err(ThemePackError::ThemeClassMismatch {
@@ -197,11 +201,12 @@ mod tests {
             let pack = load_first_party_theme_pack(theme).expect("theme pack should load");
             let registry = TokenRegistry::load(theme).expect("token registry should load");
             for (token_name, expected) in pack.semantic_tokens() {
-                let actual = registry
-                    .require_color(token_name)
-                    .unwrap_or_else(|_| panic!("token registry missing {token_name} for {theme:?}"));
+                let actual = registry.require_color(token_name).unwrap_or_else(|_| {
+                    panic!("token registry missing {token_name} for {theme:?}")
+                });
                 assert_eq!(
-                    actual, *expected,
+                    actual,
+                    *expected,
                     "token registry drift for {token_name} on {}",
                     theme.token()
                 );
@@ -209,4 +214,3 @@ mod tests {
         }
     }
 }
-

@@ -267,14 +267,16 @@ impl RecentWorkRegistry {
 
     /// Inserts or updates a recent-work entry by `recent_work_id`, moving it to the front.
     pub fn upsert(&mut self, entry: RecentWorkEntryRecord) {
-        self.entries.retain(|row| row.recent_work_id != entry.recent_work_id);
+        self.entries
+            .retain(|row| row.recent_work_id != entry.recent_work_id);
         self.entries.insert(0, entry);
     }
 
     /// Removes an entry from the registry by `recent_work_id`.
     pub fn remove(&mut self, recent_work_id: &str) -> bool {
         let before = self.entries.len();
-        self.entries.retain(|row| row.recent_work_id != recent_work_id);
+        self.entries
+            .retain(|row| row.recent_work_id != recent_work_id);
         before != self.entries.len()
     }
 }
@@ -309,8 +311,9 @@ mod tests {
 
     #[test]
     fn loads_entry_restore_example_fixture() {
-        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../fixtures/workspace/entry_restore_examples/recent_work_missing_target.json");
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../fixtures/workspace/entry_restore_examples/recent_work_missing_target.json",
+        );
         let payload = std::fs::read_to_string(&fixture_path).expect("fixture must read");
         let fixture: RecentWorkEntryRecord =
             serde_json::from_str(&payload).expect("fixture must parse");

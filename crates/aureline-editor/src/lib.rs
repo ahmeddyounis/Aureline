@@ -17,4 +17,3 @@ pub use viewport::{
     CaretMove, EditorAction, EditorViewport, EditorViewportSnapshot, ImeComposition,
     SelectionDelta, TextPoint, ViewportDamage,
 };
-

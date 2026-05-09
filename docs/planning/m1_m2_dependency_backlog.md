@@ -104,7 +104,7 @@ Task clusters inside the committed M2 rows:
 Implementation can proceed immediately from these landed M0 artifacts:
 
 - `crates/aureline-shell-spike/` plus `artifacts/render/spike_trace_samples/` and `docs/design/shell_spike_composition_notes.md`
-- `crates/aureline-buffer/src/prototype/`
+- `crates/aureline-buffer/src/piece_tree/`
 - `crates/aureline-vfs/src/` plus `fixtures/fs/save_truth_cases/`
 - `fixtures/benchmarks/corpus_manifest.yaml` and `fixtures/workspaces/reference/`
 - `docs/adr/0001`, `0007`, `0008`, `0009`, `0010`, `0011`, `0013`, and `0014`

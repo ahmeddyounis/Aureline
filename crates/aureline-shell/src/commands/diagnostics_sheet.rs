@@ -124,7 +124,10 @@ pub fn diagnostics_sheet_lines(record: &CommandDiagnosticsSheetRecord) -> Vec<St
 
     lines.push(format!("command_id: {}", record.packet.command_id));
     lines.push(format!("canonical_verb: {}", record.packet.canonical_verb));
-    lines.push(format!("preflight: {}", record.packet.preflight.decision_class));
+    lines.push(format!(
+        "preflight: {}",
+        record.packet.preflight.decision_class
+    ));
     lines.push(format!(
         "enablement: {}",
         record
@@ -135,7 +138,8 @@ pub fn diagnostics_sheet_lines(record: &CommandDiagnosticsSheetRecord) -> Vec<St
             .as_str()
     ));
 
-    if record.packet.preflight.enablement_snapshot.decision_class != EnablementDecisionClass::Enabled
+    if record.packet.preflight.enablement_snapshot.decision_class
+        != EnablementDecisionClass::Enabled
     {
         let code = record
             .packet
@@ -238,7 +242,10 @@ mod tests {
                 serde_json::from_str(&payload).expect("diagnostics fixture must parse");
 
             let Some(command) = registry.get(&fixture.command_id) else {
-                panic!("fixture references unknown command_id: {}", fixture.command_id);
+                panic!(
+                    "fixture references unknown command_id: {}",
+                    fixture.command_id
+                );
             };
 
             let mut record = materialize_command_diagnostics_sheet_record(command, runtime);
@@ -246,7 +253,8 @@ mod tests {
             record.packet.generated_at = fixture.expected.packet.generated_at.clone();
 
             assert_eq!(
-                record, fixture.expected,
+                record,
+                fixture.expected,
                 "diagnostics sheet record mismatch for fixture {}",
                 path.display()
             );

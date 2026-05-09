@@ -122,4 +122,3 @@ impl TextDirection {
         matches!(self, Self::Rtl)
     }
 }
-

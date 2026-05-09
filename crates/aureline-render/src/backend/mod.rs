@@ -6,4 +6,3 @@
 mod wgpu_blit;
 
 pub use wgpu_blit::WgpuBlitRenderer;
-

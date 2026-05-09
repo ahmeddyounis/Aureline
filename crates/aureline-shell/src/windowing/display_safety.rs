@@ -78,7 +78,10 @@ impl PhysicalRect {
 
         let dx = (safe_w.saturating_sub(child_w) / 2).max(0);
         let dy = (safe_h.saturating_sub(child_h) / 2).max(0);
-        PhysicalPosition::new(self.x.saturating_add(dx as i32), self.y.saturating_add(dy as i32))
+        PhysicalPosition::new(
+            self.x.saturating_add(dx as i32),
+            self.y.saturating_add(dy as i32),
+        )
     }
 }
 
@@ -185,10 +188,7 @@ impl DisplaySafetyGuard {
         let mut topology_change_classes: Vec<&'static str> = Vec::new();
         let displays = collect_displays(window);
 
-        let display_fingerprints = displays
-            .iter()
-            .map(|d| d.fingerprint)
-            .collect::<Vec<_>>();
+        let display_fingerprints = displays.iter().map(|d| d.fingerprint).collect::<Vec<_>>();
 
         if let Some(prev) = self.last_display_fingerprints.as_ref() {
             if display_fingerprints.len() > prev.len() {
@@ -255,7 +255,8 @@ impl DisplaySafetyGuard {
         displays: &[DisplayFingerprint],
         topology_change_classes: &[&'static str],
     ) -> Option<AppliedDisplaySafetyAdjustment> {
-        let allow_recenter = self.last_window_bounds.is_none() || !topology_change_classes.is_empty();
+        let allow_recenter =
+            self.last_window_bounds.is_none() || !topology_change_classes.is_empty();
         if bounds.width == 0 || bounds.height == 0 {
             return None;
         }
@@ -277,7 +278,11 @@ impl DisplaySafetyGuard {
         let target_display = window
             .current_monitor()
             .map(|m| DisplayFingerprint::from_monitor(&m))
-            .or_else(|| window.primary_monitor().map(|m| DisplayFingerprint::from_monitor(&m)))
+            .or_else(|| {
+                window
+                    .primary_monitor()
+                    .map(|m| DisplayFingerprint::from_monitor(&m))
+            })
             .or_else(|| displays.first().cloned())?;
 
         let target_bounds = target_display.bounds;
@@ -401,7 +406,15 @@ fn collect_displays(window: &Window) -> Vec<DisplayFingerprint> {
         .available_monitors()
         .map(|monitor| DisplayFingerprint::from_monitor(&monitor))
         .collect::<Vec<_>>();
-    displays.sort_by_key(|d| (d.bounds.x, d.bounds.y, d.bounds.width, d.bounds.height, d.fingerprint));
+    displays.sort_by_key(|d| {
+        (
+            d.bounds.x,
+            d.bounds.y,
+            d.bounds.width,
+            d.bounds.height,
+            d.fingerprint,
+        )
+    });
     displays
 }
 
@@ -476,9 +489,10 @@ mod tests {
 
     #[test]
     fn recenter_logic_is_stable_across_fixture_cases() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/windowing/topology_cases");
-        let entries = std::fs::read_dir(&root)
-            .unwrap_or_else(|err| panic!("fixture root must exist: {err}"));
+        let root =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/windowing/topology_cases");
+        let entries =
+            std::fs::read_dir(&root).unwrap_or_else(|err| panic!("fixture root must exist: {err}"));
 
         for entry in entries {
             let entry = entry.expect("fixture entry must read");
@@ -490,8 +504,8 @@ mod tests {
             }
 
             let json = load_fixture(&entry.path());
-            let fixture: TopologyFixture =
-                serde_json::from_str(&json).unwrap_or_else(|err| panic!("fixture must parse: {err}"));
+            let fixture: TopologyFixture = serde_json::from_str(&json)
+                .unwrap_or_else(|err| panic!("fixture must parse: {err}"));
 
             let displays = fixture
                 .displays
@@ -509,7 +523,8 @@ mod tests {
                 .unwrap_or(0);
             let offscreen = max_intersection == 0;
             assert_eq!(
-                offscreen, fixture.expected.offscreen,
+                offscreen,
+                fixture.expected.offscreen,
                 "fixture offscreen state mismatch for {:?}",
                 entry.path()
             );

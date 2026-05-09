@@ -78,4 +78,3 @@ impl TraceEventRecord {
     /// Record-kind discriminator for this record family.
     pub const RECORD_KIND: &'static str = "trace_event_record";
 }
-

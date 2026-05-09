@@ -219,7 +219,11 @@ impl ComponentStateRegistry {
     }
 
     /// Returns the token-backed chrome treatment for a component surface.
-    pub fn chrome_style(&self, tone: ComponentSurfaceTone, states: ComponentStates) -> ComponentChromeStyle {
+    pub fn chrome_style(
+        &self,
+        tone: ComponentSurfaceTone,
+        states: ComponentStates,
+    ) -> ComponentChromeStyle {
         let fill = match tone {
             ComponentSurfaceTone::Surface => self.tokens.bg_surface,
             ComponentSurfaceTone::Raised => self.tokens.bg_raised,
@@ -281,7 +285,10 @@ mod tests {
     fn focus_visible_adds_focus_ring() {
         let tokens = seeded_token_registry(ThemeClass::DarkReference).expect("seeded tokens");
         let registry = ComponentStateRegistry::load(tokens).expect("load component-state registry");
-        let style = registry.chrome_style(ComponentSurfaceTone::Surface, ComponentStates::FOCUS_VISIBLE);
+        let style = registry.chrome_style(
+            ComponentSurfaceTone::Surface,
+            ComponentStates::FOCUS_VISIBLE,
+        );
         assert!(style.focus_ring.is_some());
     }
 }

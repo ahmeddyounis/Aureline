@@ -164,8 +164,7 @@ mod tests {
 
     #[test]
     fn loads_profiles_for_all_density_classes() {
-        let registry =
-            TokenRegistry::load(ThemeClass::DarkReference).expect("load token registry");
+        let registry = TokenRegistry::load(ThemeClass::DarkReference).expect("load token registry");
         for density in [
             DensityClass::Compact,
             DensityClass::Standard,
@@ -179,4 +178,3 @@ mod tests {
         }
     }
 }
-

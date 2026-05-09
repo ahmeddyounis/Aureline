@@ -193,11 +193,11 @@ pub fn materialize_palette_preview_record(
     let generated_at = aureline_commands::invocation::now_rfc3339();
     let selection = match selection {
         None => PalettePreviewSelection::None,
-        Some(PaletteItemKey::File { relative_path }) => PalettePreviewSelection::File(
-            PaletteFilePreview {
+        Some(PaletteItemKey::File { relative_path }) => {
+            PalettePreviewSelection::File(PaletteFilePreview {
                 relative_path: relative_path.clone(),
-            },
-        ),
+            })
+        }
         Some(PaletteItemKey::Command { command_id }) => {
             let Some(entry) = registry.get(command_id) else {
                 return PalettePreviewRecord {
@@ -356,19 +356,16 @@ mod tests {
             let selection = PaletteItemKey::Command {
                 command_id: fixture.command_id.clone(),
             };
-            let mut record = materialize_palette_preview_record(
-                Some(&selection),
-                registry,
-                &shortcuts,
-                runtime,
-            );
+            let mut record =
+                materialize_palette_preview_record(Some(&selection), registry, &shortcuts, runtime);
 
             // `generated_at` is time-varying; pin it to the fixture's value so
             // equality focuses on the stable contract fields.
             record.generated_at = fixture.expected.generated_at.clone();
 
             assert_eq!(
-                record, fixture.expected,
+                record,
+                fixture.expected,
                 "preview record mismatch for fixture {}",
                 path.display()
             );

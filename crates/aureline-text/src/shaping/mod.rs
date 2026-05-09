@@ -19,4 +19,3 @@ pub mod types;
 pub use fonts::{FontFallbackConfig, FontSystem, GenericFamily};
 pub use shaper::{ShapedGlyph, ShapedLine, ShaperMetrics, TextShaper};
 pub use types::{FallbackStage, FeatureSet, ShaperPolicy, TextDirection};
-

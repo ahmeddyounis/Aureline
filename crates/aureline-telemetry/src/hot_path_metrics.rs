@@ -70,7 +70,11 @@ pub struct HotPathMetricsContext {
 
 impl HotPathMetricsContext {
     /// Default context intended for developer-local captures.
-    pub fn developer_local(trace_id: String, host_os: Cow<'static, str>, build: BuildIdentityRecord) -> Self {
+    pub fn developer_local(
+        trace_id: String,
+        host_os: Cow<'static, str>,
+        build: BuildIdentityRecord,
+    ) -> Self {
         Self {
             trace_id,
             backend: Cow::Borrowed("native_window"),
@@ -143,9 +147,11 @@ impl HotPathMetricsRecord {
         {
             missing.push("seg.startup.ui_dispatch.process_start");
         }
-        if self.events.iter().all(|ev| {
-            ev.journey_segment_id.as_ref() != "seg.startup.ui_dispatch.boot"
-        }) {
+        if self
+            .events
+            .iter()
+            .all(|ev| ev.journey_segment_id.as_ref() != "seg.startup.ui_dispatch.boot")
+        {
             missing.push("seg.startup.ui_dispatch.boot");
         }
         if self.events.iter().all(|ev| {
@@ -153,9 +159,11 @@ impl HotPathMetricsRecord {
         }) {
             missing.push("seg.startup.ui_dispatch.first_useful_chrome_ready");
         }
-        if self.events.iter().all(|ev| {
-            ev.journey_segment_id.as_ref() != "seg.first_paint.renderer_work.submit"
-        }) {
+        if self
+            .events
+            .iter()
+            .all(|ev| ev.journey_segment_id.as_ref() != "seg.first_paint.renderer_work.submit")
+        {
             missing.push("seg.first_paint.renderer_work.submit");
         }
         if self.events.iter().all(|ev| {
@@ -190,7 +198,11 @@ pub struct HotPathMetricsValidationError {
 
 impl std::fmt::Display for HotPathMetricsValidationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "missing required journey_segment_id entries: {:?}", self.missing)
+        write!(
+            f,
+            "missing required journey_segment_id entries: {:?}",
+            self.missing
+        )
     }
 }
 
@@ -420,14 +432,16 @@ impl HotPathMetrics {
 
     fn mark(&mut self, kind: MarkKind, tick: u64) {
         match kind {
-            MarkKind::EditorSurfaceReady => self.counters.editor_surface_ready_marks = self
-                .counters
-                .editor_surface_ready_marks
-                .saturating_add(1),
-            MarkKind::FirstInteractiveShell => self.counters.first_interactive_shell_marks = self
-                .counters
-                .first_interactive_shell_marks
-                .saturating_add(1),
+            MarkKind::EditorSurfaceReady => {
+                self.counters.editor_surface_ready_marks =
+                    self.counters.editor_surface_ready_marks.saturating_add(1)
+            }
+            MarkKind::FirstInteractiveShell => {
+                self.counters.first_interactive_shell_marks = self
+                    .counters
+                    .first_interactive_shell_marks
+                    .saturating_add(1)
+            }
             MarkKind::FirstShellFrameSubmitted => {
                 self.counters.first_shell_frame_submitted_marks = self
                     .counters
@@ -535,41 +549,47 @@ impl HotPathMetrics {
             return;
         }
 
-        let (event_class, protected_journey, dispatch_layer, journey_segment_id, budget_ref, metric) =
-            match kind {
-                SpanKind::FileOpenToPaint => (
-                    "quick_open",
-                    "placeholder_open",
-                    "ui_dispatch",
-                    "seg.quick_open.ui_dispatch.file_open_to_paint",
-                    "path.editor.placeholder_open",
-                    "file_open_to_paint",
-                ),
-                SpanKind::FileSwitchToPaint => (
-                    "quick_open",
-                    "placeholder_open",
-                    "ui_dispatch",
-                    "seg.quick_open.ui_dispatch.file_switch_to_paint",
-                    "path.editor.placeholder_open",
-                    "file_switch_to_paint",
-                ),
-                SpanKind::KeystrokeToPaint => (
-                    "input_to_paint",
-                    "input_to_paint",
-                    "ui_dispatch",
-                    "seg.input_to_paint.ui_dispatch.keystroke_to_paint",
-                    "path.editor.first_useful_edit",
-                    "keystroke_to_paint",
-                ),
-                SpanKind::ScrollToPaint => (
-                    "input_to_paint",
-                    "input_to_paint",
-                    "ui_dispatch",
-                    "seg.input_to_paint.ui_dispatch.scroll_to_paint",
-                    "path.editor.first_useful_edit",
-                    "scroll_to_paint",
-                ),
-            };
+        let (
+            event_class,
+            protected_journey,
+            dispatch_layer,
+            journey_segment_id,
+            budget_ref,
+            metric,
+        ) = match kind {
+            SpanKind::FileOpenToPaint => (
+                "quick_open",
+                "placeholder_open",
+                "ui_dispatch",
+                "seg.quick_open.ui_dispatch.file_open_to_paint",
+                "path.editor.placeholder_open",
+                "file_open_to_paint",
+            ),
+            SpanKind::FileSwitchToPaint => (
+                "quick_open",
+                "placeholder_open",
+                "ui_dispatch",
+                "seg.quick_open.ui_dispatch.file_switch_to_paint",
+                "path.editor.placeholder_open",
+                "file_switch_to_paint",
+            ),
+            SpanKind::KeystrokeToPaint => (
+                "input_to_paint",
+                "input_to_paint",
+                "ui_dispatch",
+                "seg.input_to_paint.ui_dispatch.keystroke_to_paint",
+                "path.editor.first_useful_edit",
+                "keystroke_to_paint",
+            ),
+            SpanKind::ScrollToPaint => (
+                "input_to_paint",
+                "input_to_paint",
+                "ui_dispatch",
+                "seg.input_to_paint.ui_dispatch.scroll_to_paint",
+                "path.editor.first_useful_edit",
+                "scroll_to_paint",
+            ),
+        };
 
         let seq = self.bump_seq();
         let span_id = format!("span.shell.hot_path.{metric}.{seq}");

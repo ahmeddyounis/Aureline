@@ -51,4 +51,3 @@ pub(crate) fn write_png_0rgb(
     png_writer.write_image_data(&rgba)?;
     Ok(())
 }
-

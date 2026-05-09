@@ -47,4 +47,3 @@ fn fixture_validation_fails_when_required_milestone_missing() {
         "expected keystroke_to_paint milestone to be missing"
     );
 }
-

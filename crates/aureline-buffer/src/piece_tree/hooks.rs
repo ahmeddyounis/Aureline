@@ -1,13 +1,12 @@
-//! Hook counters for the buffer prototype.
+//! Hook counters for the buffer core.
 //!
 //! Structural counts only (no wall-clock latencies) so harness output
 //! is byte-stable across hosts. The benchmark lab layers timing on
 //! top of these counters; the prototype never claims a budget.
 //!
-//! Hook names are frozen in
-//! `docs/adr/0003-buffer-undo-large-file.md` § Protected-hot-path
-//! hooks. Lanes MUST NOT invent alternative names for the same
-//! measurement.
+//! Hook names are frozen in `docs/adr/0003-buffer-undo-large-file.md` §
+//! Protected-hot-path hooks. Lanes MUST NOT invent alternative names for the
+//! same measurement.
 
 /// Per-buffer hook-fire counters.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

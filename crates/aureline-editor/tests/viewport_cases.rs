@@ -114,7 +114,8 @@ fn viewport_cases_fixture_set_stays_deterministic() {
             EditorAction::ScrollLines { .. } | EditorAction::ScaleChange => {}
         }
 
-        let viewport_rect = PixelRect::new(0, 0, fixture.viewport.width_px, fixture.viewport.height_px);
+        let viewport_rect =
+            PixelRect::new(0, 0, fixture.viewport.width_px, fixture.viewport.height_px);
         let damage = viewport.apply_action(&fixture.action, viewport_rect, max_scroll_line);
         match (&fixture.expected.damage, damage) {
             (None, None) => {}
@@ -149,14 +150,8 @@ fn viewport_cases_fixture_set_stays_deterministic() {
                     }
                 }
             }
-            (None, Some(_)) => panic!(
-                "expected action to be a no-op (no damage) for {:?}",
-                path
-            ),
-            (Some(_), None) => panic!(
-                "expected fixture action to produce damage for {:?}",
-                path
-            ),
+            (None, Some(_)) => panic!("expected action to be a no-op (no damage) for {:?}", path),
+            (Some(_), None) => panic!("expected fixture action to produce damage for {:?}", path),
         }
 
         assert_eq!(

@@ -4,8 +4,8 @@
 //! canonical command registry, keybinding resolver output, and enablement
 //! decisions instead of inventing a palette-local command truth table.
 
-pub mod query_session;
 pub mod preview;
+pub mod query_session;
 pub mod results_view;
 
 pub use query_session::{

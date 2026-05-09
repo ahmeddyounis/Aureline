@@ -34,4 +34,3 @@ impl WinitWindow {
         self.window
     }
 }
-

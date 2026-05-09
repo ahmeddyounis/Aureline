@@ -1,10 +1,10 @@
-//! Undo-class taxonomy backing the buffer prototype.
+//! Undo-class taxonomy backing the buffer core.
 //!
 //! Class ids and compensation postures are frozen in
 //! `docs/adr/0003-buffer-undo-large-file.md` and
-//! `artifacts/architecture/undo_class_rows.yaml`. The enum here is the
-//! typed mirror; lanes that emit a transaction pick exactly one
-//! variant. Adding a variant is an ADR amendment plus a yaml row.
+//! `artifacts/architecture/undo_class_rows.yaml`. The enum here is the typed
+//! mirror; lanes that emit a transaction pick exactly one variant. Adding a
+//! variant is an ADR amendment plus a yaml row.
 
 /// Frozen undo-class vocabulary. One variant per class id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -53,9 +53,9 @@ the same reproducibility posture as `tools/bench_text_stack.sh`
 
 Regenerate this directory when any of the following change:
 
-- `crates/aureline-buffer/src/prototype/buffer.rs`
-- `crates/aureline-buffer/src/prototype/class.rs`
-- `crates/aureline-buffer/src/prototype/hooks.rs`
+- `crates/aureline-buffer/src/piece_tree/buffer.rs`
+- `crates/aureline-buffer/src/piece_tree/class.rs`
+- `crates/aureline-buffer/src/piece_tree/hooks.rs`
 - `crates/aureline-bench/src/buffer.rs` (scenario table or
   renderers)
 - `crates/aureline-bench/src/bin/bench_buffer.rs` (CLI flags)

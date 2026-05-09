@@ -3,8 +3,8 @@
 //! Owns the canonical native window bootstrap, input dispatch root, and
 //! startup-milestone emission for the desktop shell.
 
-use std::collections::HashMap;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::env;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
@@ -44,7 +44,7 @@ use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
 };
-use aureline_buffer::Buffer;
+use aureline_buffer::{Buffer, Snapshot};
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
@@ -64,6 +64,10 @@ use aureline_input::keybindings::{
     Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
 };
 use aureline_input::presets::{preset_binding_rows, resolver_with_preset, KeymapPresetId};
+use aureline_telemetry::hot_path_metrics::{
+    HotPathMetrics, HotPathMetricsConfig, HotPathMetricsContext,
+};
+use aureline_telemetry::trace_event::BuildIdentityRecord as TelemetryBuildIdentityRecord;
 use aureline_ui::components::{
     ComponentStateRegistry, ComponentStates, ComponentSurfaceTone, FocusReturnStack,
 };
@@ -81,17 +85,15 @@ use aureline_workspace::{
     RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
     RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState,
 };
-use aureline_telemetry::hot_path_metrics::{HotPathMetrics, HotPathMetricsConfig, HotPathMetricsContext};
-use aureline_telemetry::trace_event::BuildIdentityRecord as TelemetryBuildIdentityRecord;
 use serde::Serialize;
 
+use crate::bootstrap::appearance_golden::write_png_0rgb;
 use crate::windowing::display_safety::{
     materialize_adjustment_record, materialize_topology_record, write_display_safety_log,
     write_display_safety_topology_log, DisplaySafetyGuard,
 };
 use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
 use crate::windowing::winit_window::WinitWindow;
-use crate::bootstrap::appearance_golden::write_png_0rgb;
 use arboard::Clipboard;
 use aureline_editor::{
     CaretMove, EditorAction, EditorTextRuntime, EditorViewport, SelectionDelta, ViewportCompositor,
@@ -347,12 +349,14 @@ fn parse_window_size(value: &str) -> Result<(f64, f64), String> {
             "invalid --window-size value: {value:?} (expected <width>x<height>)"
         ));
     };
-    let width: f64 = w.trim().parse().map_err(|_| {
-        format!("invalid --window-size width: {w:?} (expected numeric value)")
-    })?;
-    let height: f64 = h.trim().parse().map_err(|_| {
-        format!("invalid --window-size height: {h:?} (expected numeric value)")
-    })?;
+    let width: f64 = w
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid --window-size width: {w:?} (expected numeric value)"))?;
+    let height: f64 = h
+        .trim()
+        .parse()
+        .map_err(|_| format!("invalid --window-size height: {h:?} (expected numeric value)"))?;
     if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
         return Err(format!(
             "invalid --window-size value: {value:?} (width and height must be positive)"
@@ -1321,6 +1325,7 @@ impl ShellTextRuntime {
 
 struct EditorGroupSession {
     buffer: Buffer,
+    snapshot: Snapshot,
     document_lines: Vec<String>,
     line_graphemes: Vec<usize>,
     viewport: EditorViewport,
@@ -1329,9 +1334,11 @@ struct EditorGroupSession {
 }
 
 impl EditorGroupSession {
-    fn from_buffer(buffer: Buffer) -> Self {
+    fn from_buffer(mut buffer: Buffer) -> Self {
+        let snapshot = buffer.snapshot();
         let mut session = Self {
             buffer,
+            snapshot,
             document_lines: Vec::new(),
             line_graphemes: Vec::new(),
             viewport: EditorViewport::new(),
@@ -1347,14 +1354,20 @@ impl EditorGroupSession {
         self.viewport = EditorViewport::new();
         self.compositor = ViewportCompositor::default();
         self.needs_text_repaint = true;
+        self.refresh_snapshot_and_cache();
+    }
+
+    fn refresh_snapshot_and_cache(&mut self) {
+        self.snapshot = self.buffer.snapshot();
         self.refresh_document_cache();
     }
 
     fn refresh_document_cache(&mut self) {
-        let snapshot = self.buffer.snapshot();
-        match snapshot.as_str() {
-            Some(text) => {
-                self.document_lines = text.split('\n').map(|s| s.to_string()).collect();
+        match self.snapshot.as_str() {
+            Some(_) => {
+                self.document_lines = (0..self.snapshot.line_count())
+                    .map(|line| self.snapshot.line_str(line).unwrap_or("").to_string())
+                    .collect();
             }
             None => {
                 self.document_lines = vec!["<non-UTF8 buffer: preview unavailable>".to_string()];
@@ -1363,13 +1376,19 @@ impl EditorGroupSession {
         if self.document_lines.is_empty() {
             self.document_lines.push(String::new());
         }
-        self.line_graphemes = self
-            .document_lines
-            .iter()
-            .map(|line| {
-                unicode_segmentation::UnicodeSegmentation::graphemes(line.as_str(), true).count()
-            })
-            .collect();
+        self.line_graphemes = match self.snapshot.as_str() {
+            Some(_) => (0..self.snapshot.line_count())
+                .map(|line| self.snapshot.grapheme_count_in_line(line).unwrap_or(0))
+                .collect(),
+            None => self
+                .document_lines
+                .iter()
+                .map(|line| {
+                    unicode_segmentation::UnicodeSegmentation::graphemes(line.as_str(), true)
+                        .count()
+                })
+                .collect(),
+        };
     }
 
     fn max_scroll_line(&self) -> usize {
@@ -1386,28 +1405,28 @@ impl EditorGroupSession {
         match action {
             EditorAction::InsertText { text } => {
                 if let Some((start, end)) = self.viewport.selection_range() {
-                    let start_offset = caret_byte_offset(&self.document_lines, start);
-                    let end_offset = caret_byte_offset(&self.document_lines, end);
+                    let start_offset = caret_byte_offset(&self.snapshot, start);
+                    let end_offset = caret_byte_offset(&self.snapshot, end);
                     if start_offset < end_offset {
                         let _ = self
                             .buffer
                             .delete(start_offset..end_offset, "user_keystroke");
                         self.viewport.set_caret(start);
                         self.viewport.clear_selection();
-                        self.refresh_document_cache();
+                        self.refresh_snapshot_and_cache();
                     }
                 }
 
-                let offset = caret_byte_offset(&self.document_lines, self.viewport.caret());
+                let offset = caret_byte_offset(&self.snapshot, self.viewport.caret());
                 let _ = self.buffer.insert(offset, text, "user_keystroke");
-                self.refresh_document_cache();
+                self.refresh_snapshot_and_cache();
                 self.viewport.set_ime_composition(None);
                 advance_caret_for_insert(&mut self.viewport, text);
                 self.needs_text_repaint = true;
             }
             EditorAction::DeleteBackward => {
-                if delete_backward(&mut self.buffer, &self.document_lines, &mut self.viewport) {
-                    self.refresh_document_cache();
+                if delete_backward(&mut self.buffer, &self.snapshot, &mut self.viewport) {
+                    self.refresh_snapshot_and_cache();
                     self.viewport.set_ime_composition(None);
                     self.needs_text_repaint = true;
                 } else {
@@ -1469,7 +1488,8 @@ impl EditorWorkspaceRuntimeState {
         match self.sessions.get_mut(&group) {
             Some(session) => session.replace_buffer(buffer),
             None => {
-                self.sessions.insert(group, EditorGroupSession::from_buffer(buffer));
+                self.sessions
+                    .insert(group, EditorGroupSession::from_buffer(buffer));
             }
         }
     }
@@ -1553,28 +1573,10 @@ impl EditorWorkspaceRuntimeState {
     }
 }
 
-fn caret_byte_offset(lines: &[String], point: aureline_editor::TextPoint) -> usize {
-    let mut offset = 0usize;
-    for line in 0..point.line.min(lines.len()) {
-        offset = offset.saturating_add(lines.get(line).map(|s| s.len()).unwrap_or(0));
-        offset = offset.saturating_add(1);
-    }
-    let line_text = lines.get(point.line).map(|s| s.as_str()).unwrap_or("");
-    offset.saturating_add(grapheme_byte_offset(line_text, point.grapheme))
-}
-
-fn grapheme_byte_offset(line: &str, grapheme_index: usize) -> usize {
-    if grapheme_index == 0 {
-        return 0;
-    }
-    let mut count = 0usize;
-    for (byte, _) in unicode_segmentation::UnicodeSegmentation::grapheme_indices(line, true) {
-        if count == grapheme_index {
-            return byte;
-        }
-        count = count.saturating_add(1);
-    }
-    line.len()
+fn caret_byte_offset(snapshot: &Snapshot, point: aureline_editor::TextPoint) -> usize {
+    snapshot
+        .byte_offset_for_line_grapheme(point.line, point.grapheme)
+        .unwrap_or(snapshot.len())
 }
 
 fn advance_caret_for_insert(viewport: &mut EditorViewport, inserted: &str) {
@@ -1603,13 +1605,14 @@ fn advance_caret_for_insert(viewport: &mut EditorViewport, inserted: &str) {
     viewport.clear_selection();
 }
 
-fn delete_backward(buffer: &mut Buffer, lines: &[String], viewport: &mut EditorViewport) -> bool {
-    if lines.is_empty() {
-        return false;
-    }
+fn delete_backward(
+    buffer: &mut Buffer,
+    snapshot: &Snapshot,
+    viewport: &mut EditorViewport,
+) -> bool {
     if let Some((start, end)) = viewport.selection_range() {
-        let start_offset = caret_byte_offset(lines, start);
-        let end_offset = caret_byte_offset(lines, end);
+        let start_offset = caret_byte_offset(snapshot, start);
+        let end_offset = caret_byte_offset(snapshot, end);
         if start_offset >= end_offset {
             viewport.clear_selection();
             return false;
@@ -1626,18 +1629,14 @@ fn delete_backward(buffer: &mut Buffer, lines: &[String], viewport: &mut EditorV
     }
 
     if caret.grapheme > 0 {
-        let line_text = lines.get(caret.line).map(|s| s.as_str()).unwrap_or("");
-        let start_in_line = grapheme_byte_offset(line_text, caret.grapheme.saturating_sub(1));
-        let end_in_line = grapheme_byte_offset(line_text, caret.grapheme);
-        let line_start = caret_byte_offset(
-            lines,
+        let start = caret_byte_offset(
+            snapshot,
             aureline_editor::TextPoint {
                 line: caret.line,
-                grapheme: 0,
+                grapheme: caret.grapheme.saturating_sub(1),
             },
         );
-        let start = line_start.saturating_add(start_in_line);
-        let end = line_start.saturating_add(end_in_line);
+        let end = caret_byte_offset(snapshot, caret);
         if start >= end {
             return false;
         }
@@ -1650,24 +1649,27 @@ fn delete_backward(buffer: &mut Buffer, lines: &[String], viewport: &mut EditorV
         return true;
     }
 
-    let line_start = caret_byte_offset(
-        lines,
-        aureline_editor::TextPoint {
-            line: caret.line,
-            grapheme: 0,
-        },
-    );
-    if line_start == 0 {
+    let Some(span) = snapshot.line_span(caret.line) else {
+        return false;
+    };
+    if span.start == 0 {
         return false;
     }
-    let start = line_start.saturating_sub(1);
-    let end = line_start;
+    let bytes = snapshot.as_bytes();
+    let (start, end) = if span.start >= 2
+        && bytes.get(span.start - 2) == Some(&b'\r')
+        && bytes.get(span.start - 1) == Some(&b'\n')
+    {
+        (span.start - 2, span.start)
+    } else if bytes.get(span.start - 1) == Some(&b'\n') || bytes.get(span.start - 1) == Some(&b'\r')
+    {
+        (span.start - 1, span.start)
+    } else {
+        (span.start.saturating_sub(1), span.start)
+    };
     let _ = buffer.delete(start..end, "user_keystroke");
     let prev_line = caret.line.saturating_sub(1);
-    let prev_col = lines
-        .get(prev_line)
-        .map(|s| unicode_segmentation::UnicodeSegmentation::graphemes(s.as_str(), true).count())
-        .unwrap_or(0);
+    let prev_col = snapshot.grapheme_count_in_line(prev_line).unwrap_or(0);
     viewport.set_caret(aureline_editor::TextPoint {
         line: prev_line,
         grapheme: prev_col,
@@ -3542,9 +3544,7 @@ fn handle_key_event(
                         let cwd = std::env::current_dir()
                             .unwrap_or_else(|_| std::path::PathBuf::from("."));
                         let path = cwd.join(&relative_path);
-                        if let Err(err) =
-                            editor_runtime.open_file(focused_group, &path)
-                        {
+                        if let Err(err) = editor_runtime.open_file(focused_group, &path) {
                             hot_path_metrics.close_latest_span_as_error(
                                 clock.now().0,
                                 format!("open file failed — {}", err),

@@ -133,9 +133,7 @@ impl ViewportCompositor {
         };
 
         for i in 0..visible {
-            let line_index = self
-                .retained_first_visible_line
-                .saturating_add(i as usize);
+            let line_index = self.retained_first_visible_line.saturating_add(i as usize);
             if line_index >= document_lines.len() {
                 break;
             }
@@ -213,31 +211,19 @@ impl ViewportCompositor {
         if delta_lines > 0 {
             // Scroll down: content moves up.
             let src_start = shift_rows.saturating_mul(stride);
-            let count = total_rows
-                .saturating_sub(shift_rows)
-                .saturating_mul(stride);
-            self.retained_text_layer.copy_within(src_start..src_start + count, 0);
+            let count = total_rows.saturating_sub(shift_rows).saturating_mul(stride);
+            self.retained_text_layer
+                .copy_within(src_start..src_start + count, 0);
             let len = self.retained_text_layer.len();
-            fill_range(
-                &mut self.retained_text_layer,
-                count..len,
-                style.background,
-            );
+            fill_range(&mut self.retained_text_layer, count..len, style.background);
         } else {
             // Scroll up: content moves down.
             let dst_start = shift_rows.saturating_mul(stride);
-            let count = total_rows
-                .saturating_sub(shift_rows)
-                .saturating_mul(stride);
-            self.retained_text_layer
-                .copy_within(0..count, dst_start);
+            let count = total_rows.saturating_sub(shift_rows).saturating_mul(stride);
+            self.retained_text_layer.copy_within(0..count, dst_start);
             let len = self.retained_text_layer.len();
             let end = dst_start.min(len);
-            fill_range(
-                &mut self.retained_text_layer,
-                0..end,
-                style.background,
-            );
+            fill_range(&mut self.retained_text_layer, 0..end, style.background);
         }
 
         // Update cached layout: keep lines that remain visible and paint the newly exposed strip.
@@ -257,7 +243,8 @@ impl ViewportCompositor {
             }
             let y_top = style
                 .padding_y_px
-                .saturating_add((i as u32).saturating_mul(line_height)) as i32;
+                .saturating_add((i as u32).saturating_mul(line_height))
+                as i32;
             if y_top as u32 >= height {
                 break;
             }
@@ -423,7 +410,11 @@ fn paint_line(
     let grapheme_offsets = grapheme_boundary_offsets(text);
     let mut grapheme_x_px = Vec::with_capacity(grapheme_offsets.len());
     for offset in &grapheme_offsets {
-        grapheme_x_px.push(caret_x_for_byte_offset(&shaped.glyphs, *offset).round().max(0.0) as u32);
+        grapheme_x_px.push(
+            caret_x_for_byte_offset(&shaped.glyphs, *offset)
+                .round()
+                .max(0.0) as u32,
+        );
     }
 
     let px_size_q8 = ((style.font_size_px.max(0.01) * 256.0).round() as u32).max(1);
@@ -498,7 +489,10 @@ fn grapheme_boundary_offsets(text: &str) -> Vec<usize> {
     offsets
 }
 
-fn caret_x_for_byte_offset(glyphs: &[aureline_text::shaping::ShapedGlyph], byte_offset: usize) -> f32 {
+fn caret_x_for_byte_offset(
+    glyphs: &[aureline_text::shaping::ShapedGlyph],
+    byte_offset: usize,
+) -> f32 {
     if byte_offset == 0 {
         return 0.0;
     }
@@ -613,8 +607,16 @@ fn paint_overlays(
             continue;
         }
 
-        let start_col = if line == sel_start.line { sel_start.grapheme } else { 0 };
-        let end_col = if line == sel_end.line { sel_end.grapheme } else { usize::MAX };
+        let start_col = if line == sel_start.line {
+            sel_start.grapheme
+        } else {
+            0
+        };
+        let end_col = if line == sel_end.line {
+            sel_end.grapheme
+        } else {
+            usize::MAX
+        };
 
         let x_positions = &line_layout.grapheme_x_px;
         if x_positions.is_empty() {
@@ -677,12 +679,7 @@ fn paint_caret(
     let caret_y_top = viewport_rect.y as i32 + line_layout.y_top_px;
     let line_height = layout.line_height_px.max(1);
 
-    let rect = PixelRect::new(
-        caret_x,
-        caret_y_top.max(0) as u32,
-        2,
-        line_height,
-    );
+    let rect = PixelRect::new(caret_x, caret_y_top.max(0) as u32, 2, line_height);
     fill_rect_alpha_clipped(
         window_buffer,
         window_width,
