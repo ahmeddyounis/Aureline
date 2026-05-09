@@ -23,6 +23,7 @@ pub enum WatcherSource {
 }
 
 impl WatcherSource {
+    /// Returns the frozen snake-case string for this watcher source.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::OsNativeWatcher => "os_native_watcher",
@@ -46,6 +47,7 @@ pub enum WatcherHealth {
 }
 
 impl WatcherHealth {
+    /// Returns the frozen snake-case string for this watcher health state.
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Healthy => "healthy",
@@ -97,6 +99,7 @@ pub struct WatcherRegistry {
 }
 
 impl WatcherRegistry {
+    /// Creates an empty watcher registry.
     pub fn new() -> Self {
         Self::default()
     }
@@ -154,6 +157,37 @@ impl WatcherRegistry {
         true
     }
 
+    /// Rebind the watcher `source` for `root_id` and update its `health`.
+    ///
+    /// This emits a new [`WatcherHealthFrame`] when either the watcher source or
+    /// watcher health changes. Consumers should treat the latest frame as the
+    /// current watcher truth for the root.
+    pub fn rebind(
+        &mut self,
+        root_id: &str,
+        source: WatcherSource,
+        health: WatcherHealth,
+        observed_at: String,
+        reason_code: Option<String>,
+    ) -> bool {
+        let Some(reg) = self.registrations.get_mut(root_id) else {
+            return false;
+        };
+        if reg.source == source && reg.health == health {
+            return false;
+        }
+        reg.source = source;
+        reg.health = health;
+        self.frames.push(WatcherHealthFrame {
+            root_id: root_id.to_owned(),
+            watcher_source: source,
+            watcher_health: health,
+            reason_code,
+            observed_at,
+        });
+        true
+    }
+
     /// Record a watcher event against `root_id`. Returns the new
     /// cumulative event count, or `None` if the root is not
     /// registered.
@@ -163,14 +197,17 @@ impl WatcherRegistry {
         Some(reg.events_fired)
     }
 
+    /// Returns the current watcher registration for `root_id`, if any.
     pub fn registration(&self, root_id: &str) -> Option<&WatcherRegistration> {
         self.registrations.get(root_id)
     }
 
+    /// Returns all watcher-health frames emitted so far.
     pub fn frames(&self) -> &[WatcherHealthFrame] {
         &self.frames
     }
 
+    /// Iterates over all registered roots.
     pub fn registrations(&self) -> impl Iterator<Item = (&String, &WatcherRegistration)> {
         self.registrations.iter()
     }
@@ -209,5 +246,27 @@ mod tests {
         let mut reg = WatcherRegistry::new();
         assert!(!reg.transition("ghost", WatcherHealth::Degraded, "mono:0".to_owned(), None,));
         assert!(reg.record_event("ghost").is_none());
+    }
+
+    #[test]
+    fn rebind_updates_source_and_health_together() {
+        let mut reg = WatcherRegistry::new();
+        reg.register(
+            "root-1".to_owned(),
+            WatcherSource::OsNativeWatcher,
+            "mono:0".to_owned(),
+            None,
+        );
+
+        assert!(reg.rebind(
+            "root-1",
+            WatcherSource::PollingFallback,
+            WatcherHealth::FallbackPolling,
+            "mono:1".to_owned(),
+            Some("polling_fallback_active".to_owned()),
+        ));
+        let frame = reg.frames().last().expect("frame");
+        assert_eq!(frame.watcher_source, WatcherSource::PollingFallback);
+        assert_eq!(frame.watcher_health, WatcherHealth::FallbackPolling);
     }
 }

@@ -68,6 +68,7 @@ pub mod save;
 pub mod synthetic;
 pub mod uri_model;
 pub mod watcher;
+pub mod watchers;
 
 pub use capabilities::{
     AtomicWriteMode, CapabilityFlags, CaseSensitivity, FallbackIdentityTokenKind,
@@ -90,3 +91,6 @@ pub use save::{
 pub use synthetic::{SyntheticRoot, SyntheticRootBuilder, Workspace};
 pub use uri_model::{HierarchicalUriRef, UriError, VfsUri};
 pub use watcher::{WatcherHealth, WatcherHealthFrame, WatcherRegistry, WatcherSource};
+pub use watchers::{
+    VfsChangeEvent, VfsChangeKind, WatcherEvent, WatcherService, WatcherServiceOptions,
+};

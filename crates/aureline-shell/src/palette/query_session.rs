@@ -12,6 +12,9 @@ use std::time::{Duration, Instant};
 
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
 use aureline_input::text_input::{ImeComposition, ImeEvent, TextInputAction, TextInputSession};
+use aureline_vfs::{
+    VfsChangeKind, WatcherEvent, WatcherHealth, WatcherService, WatcherServiceOptions,
+};
 use serde::Serialize;
 
 static PALETTE_SESSION_SEQ: AtomicUsize = AtomicUsize::new(1);
@@ -263,6 +266,11 @@ struct FileIndexWorker {
     file_paths: Vec<String>,
     last_progress_at: Instant,
     complete: bool,
+    root: PathBuf,
+    watcher: Option<WatcherService>,
+    watcher_health: WatcherHealth,
+    watcher_source: Option<String>,
+    needs_rescan: bool,
 }
 
 #[derive(Debug)]
@@ -282,6 +290,7 @@ fn is_ignored_dir(name: &str) -> bool {
 }
 
 fn spawn_file_index_worker(root: PathBuf) -> FileIndexWorker {
+    let root = root.canonicalize().unwrap_or(root);
     let (tx, rx) = std::sync::mpsc::channel::<FileIndexMessage>();
     let worker_root = root.clone();
     std::thread::Builder::new()
@@ -289,12 +298,45 @@ fn spawn_file_index_worker(root: PathBuf) -> FileIndexWorker {
         .spawn(move || scan_files(worker_root, tx))
         .ok();
 
+    let watcher =
+        WatcherService::spawn_local("root-local", root.clone(), WatcherServiceOptions::default())
+            .ok();
+    let watcher_health = watcher
+        .as_ref()
+        .map(|w| w.latest_health())
+        .unwrap_or(WatcherHealth::Unavailable);
+
     FileIndexWorker {
         rx,
         state: PaletteProviderStateClass::Warming,
         file_paths: Vec::new(),
         last_progress_at: Instant::now(),
         complete: false,
+        root,
+        watcher,
+        watcher_health,
+        watcher_source: None,
+        needs_rescan: false,
+    }
+}
+
+fn restart_file_index_scan(worker: &mut FileIndexWorker, now: Instant) {
+    let (tx, rx) = std::sync::mpsc::channel::<FileIndexMessage>();
+    let worker_root = worker.root.clone();
+    let started = std::thread::Builder::new()
+        .name("aureline_file_index".to_string())
+        .spawn(move || scan_files(worker_root, tx))
+        .is_ok();
+
+    if started {
+        worker.rx = rx;
+        worker.file_paths.clear();
+        worker.last_progress_at = now;
+        worker.complete = false;
+        worker.needs_rescan = false;
+        worker.state = PaletteProviderStateClass::Warming;
+    } else {
+        worker.state = PaletteProviderStateClass::Stale;
     }
 }
 
@@ -352,6 +394,97 @@ fn scan_files(root: PathBuf, tx: std::sync::mpsc::Sender<FileIndexMessage>) {
         let _ = tx.send(FileIndexMessage::Chunk(chunk));
     }
     let _ = tx.send(FileIndexMessage::Complete);
+}
+
+fn apply_watcher_event(worker: &mut FileIndexWorker, event: WatcherEvent) {
+    match event {
+        WatcherEvent::Health(frame) => {
+            worker.watcher_health = frame.watcher_health;
+            worker.watcher_source = Some(frame.watcher_source.as_str().to_owned());
+            worker.state = state_for_watch(
+                worker.state,
+                worker.complete,
+                worker.needs_rescan,
+                frame.watcher_health,
+            );
+        }
+        WatcherEvent::Change(change) => {
+            if change.root_id != "root-local" {
+                return;
+            }
+            match change.kind {
+                VfsChangeKind::Created { uri } => {
+                    if let Some(relative) = relative_path_for_uri(&worker.root, &uri) {
+                        if !worker.file_paths.iter().any(|p| p == &relative) {
+                            worker.file_paths.push(relative);
+                        }
+                    } else {
+                        worker.needs_rescan = true;
+                    }
+                }
+                VfsChangeKind::Deleted { uri } => {
+                    if let Some(relative) = relative_path_for_uri(&worker.root, &uri) {
+                        worker.file_paths.retain(|p| p != &relative);
+                    } else {
+                        worker.needs_rescan = true;
+                    }
+                }
+                VfsChangeKind::Renamed { from, to } => {
+                    let from_rel = relative_path_for_uri(&worker.root, &from);
+                    let to_rel = relative_path_for_uri(&worker.root, &to);
+                    match (from_rel, to_rel) {
+                        (Some(from_rel), Some(to_rel)) => {
+                            worker.file_paths.retain(|p| p != &from_rel);
+                            if !worker.file_paths.iter().any(|p| p == &to_rel) {
+                                worker.file_paths.push(to_rel);
+                            }
+                        }
+                        _ => {
+                            worker.needs_rescan = true;
+                        }
+                    }
+                }
+                VfsChangeKind::Modified { .. } => {}
+                VfsChangeKind::Rescan => {
+                    worker.needs_rescan = true;
+                }
+            }
+            worker.state = state_for_watch(
+                worker.state,
+                worker.complete,
+                worker.needs_rescan,
+                worker.watcher_health,
+            );
+        }
+    }
+}
+
+fn state_for_watch(
+    current: PaletteProviderStateClass,
+    complete: bool,
+    needs_rescan: bool,
+    health: WatcherHealth,
+) -> PaletteProviderStateClass {
+    if needs_rescan {
+        return PaletteProviderStateClass::Stale;
+    }
+    if !complete {
+        return current;
+    }
+    match health {
+        WatcherHealth::Healthy => PaletteProviderStateClass::Complete,
+        WatcherHealth::Warming => PaletteProviderStateClass::Partial,
+        WatcherHealth::Degraded | WatcherHealth::FallbackPolling => {
+            PaletteProviderStateClass::Partial
+        }
+        WatcherHealth::Unavailable => PaletteProviderStateClass::Unavailable,
+    }
+}
+
+fn relative_path_for_uri(root: &PathBuf, uri: &aureline_vfs::VfsUri) -> Option<String> {
+    let path = uri.file_path()?;
+    let relative = path.strip_prefix(root).ok()?;
+    Some(relative.to_string_lossy().replace('\\', "/"))
 }
 
 /// Runtime command-palette state that owns query text, provider readiness, and
@@ -793,11 +926,29 @@ impl CommandPaletteState {
                 }
             }
 
+            if let Some(watcher) = file_index.watcher.as_ref() {
+                let mut pending: Vec<WatcherEvent> = Vec::new();
+                while let Some(event) = watcher.try_recv() {
+                    pending.push(event);
+                }
+                if !pending.is_empty() {
+                    changed = true;
+                    for event in pending {
+                        apply_watcher_event(file_index, event);
+                    }
+                }
+            }
+
             if !file_index.complete && file_index.state == PaletteProviderStateClass::Warming {
                 if now.duration_since(file_index.last_progress_at) > Duration::from_secs(2) {
                     file_index.state = PaletteProviderStateClass::Partial;
                     changed = true;
                 }
+            }
+
+            if file_index.needs_rescan && file_index.complete {
+                restart_file_index_scan(file_index, now);
+                changed = true;
             }
         }
 
@@ -835,8 +986,14 @@ impl CommandPaletteState {
         let mut deadline = self.semantic_deadline;
 
         if let Some(file_index) = self.file_index.as_ref() {
-            if !file_index.complete {
-                let poll = now + Duration::from_millis(50);
+            let poll = if !file_index.complete {
+                now + Duration::from_millis(50)
+            } else if file_index.watcher.is_some() {
+                now + Duration::from_millis(200)
+            } else {
+                now
+            };
+            if poll != now {
                 deadline = match deadline {
                     Some(existing) => Some(existing.min(poll)),
                     None => Some(poll),
@@ -1009,8 +1166,14 @@ impl CommandPaletteState {
             for item in &file_items {
                 next_flat.push(item.key.clone());
             }
+            let file_label = self
+                .file_index
+                .as_ref()
+                .and_then(|idx| idx.watcher.as_ref().map(|_| idx.watcher_health))
+                .map(|health| format!("Files (watcher: {})", health.as_str()))
+                .unwrap_or_else(|| "Files".to_string());
             next_groups.push(PaletteResultGroup {
-                label: "Files".to_string(),
+                label: file_label,
                 provider: PaletteProviderClass::FileIndex,
                 provider_state: file_state,
                 items: file_items,

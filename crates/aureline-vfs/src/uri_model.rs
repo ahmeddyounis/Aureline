@@ -117,6 +117,25 @@ impl VfsUri {
         Self::parse(url).ok()
     }
 
+    /// Builds a `file://` URI for `path` without canonicalizing or touching the
+    /// filesystem.
+    ///
+    /// This is intended for watcher events where the path may no longer exist
+    /// (for example, a `delete` event) but the last observed path string still
+    /// needs to be reported.
+    pub fn file_url_for_path_lossy(path: &Path) -> Option<Self> {
+        if !path.is_absolute() {
+            return None;
+        }
+        let raw = path.to_string_lossy();
+        let url = if cfg!(windows) {
+            format!("file:///{}", raw.replace('\\', "/"))
+        } else {
+            format!("file://{raw}")
+        };
+        Self::parse(url).ok()
+    }
+
     /// Converts a `file://` URI into an OS path, when possible.
     pub fn file_path(&self) -> Option<PathBuf> {
         if self.scheme() != "file" {
@@ -187,9 +206,7 @@ fn is_valid_scheme(scheme: &str) -> bool {
     if !first.is_ascii_alphabetic() {
         return false;
     }
-    chars.all(|c| {
-        c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.')
-    })
+    chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
 }
 
 #[cfg(test)]
@@ -207,11 +224,8 @@ mod tests {
 
     #[test]
     fn split_hierarchical_extracts_authority_and_segments() {
-        let uri =
-            VfsUri::parse("aureline-ws://ws-test/root-1/src/main.rs").expect("valid uri");
-        let parts = uri
-            .split_hierarchical()
-            .expect("expected hierarchical uri");
+        let uri = VfsUri::parse("aureline-ws://ws-test/root-1/src/main.rs").expect("valid uri");
+        let parts = uri.split_hierarchical().expect("expected hierarchical uri");
         assert_eq!(parts.scheme, "aureline-ws");
         assert_eq!(parts.authority, "ws-test");
         let segments: Vec<&str> = parts.path_segments().collect();
