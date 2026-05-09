@@ -45,8 +45,9 @@ use crate::palette::preview::{
 use crate::palette::results_view::palette_view_rows;
 use crate::palette::{CommandPaletteCommit, CommandPaletteState};
 use crate::start_center::{
-    build_action_rows as start_center_action_rows, StartCenterRuntimeInputs, StartCenterState,
-    START_CENTER_PRESENTATION_LABEL, START_CENTER_PRESENTATION_SUBTITLE,
+    build_action_rows as start_center_action_rows, StartCenterPrimaryActionId,
+    StartCenterRuntimeInputs, StartCenterState, START_CENTER_PRESENTATION_LABEL,
+    START_CENTER_PRESENTATION_SUBTITLE,
 };
 use crate::state_cards::{shell_slot_label, DegradedStateToken, ShellPlaceholderCard};
 use crate::workspace_switcher::{
@@ -94,10 +95,11 @@ use aureline_vfs::{
     VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
 };
 use aureline_workspace::{
+    resolve_entry_flow, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
     PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
     RecentWorkRegistryError, RecentWorkRegistryRecordKind, RecentWorkTargetState,
-    RestoreAvailability, SafeRecoveryAction, TargetKind, TrustState, WorkspaceLifecycleMachine,
-    WorkspaceLifecycleState,
+    RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind, TrustState,
+    WorkspaceLifecycleMachine, WorkspaceLifecycleState,
 };
 use serde::Serialize;
 
@@ -3227,6 +3229,8 @@ fn dispatch_registry_entry(
 
     let execution_intent = match entry.descriptor.command_id.as_str() {
         "cmd:workspace.open_folder" => "apply_direct_trusted_path",
+        "cmd:workspace.clone_repository" => "apply_after_preview",
+        "cmd:workspace.restore_from_checkpoint" => "apply_after_preview",
         "cmd:workspace.import_profile" => "apply_after_preview",
         _ => "query_only_no_mutation",
     };
@@ -3457,9 +3461,38 @@ fn dispatch_registry_entry(
             }
             true
         }
+        "cmd:workspace.clone_repository" => {
+            let invocation = invocation_and_result_unimplemented(&session);
+            command_runtime.record(invocation);
+            let group = frame.focused_editor_group();
+            if let Some(tab) = frame.open_tab() {
+                editor_runtime.open_placeholder(group, tab);
+            }
+            command_runtime.note_non_command_action(
+                "clone repository requested (clone materialization not implemented)",
+            );
+            true
+        }
+        "cmd:workspace.restore_from_checkpoint" => {
+            let invocation = invocation_and_result_unimplemented(&session);
+            command_runtime.record(invocation);
+            let group = frame.focused_editor_group();
+            if let Some(tab) = frame.open_tab() {
+                editor_runtime.open_placeholder(group, tab);
+            }
+            command_runtime
+                .note_non_command_action("restore requested (restore execution not implemented)");
+            true
+        }
         "cmd:workspace.import_profile" => {
             let invocation = invocation_and_result_unimplemented(&session);
             command_runtime.record(invocation);
+            let group = frame.focused_editor_group();
+            if let Some(tab) = frame.open_tab() {
+                editor_runtime.open_placeholder(group, tab);
+            }
+            command_runtime
+                .note_non_command_action("import requested (import execution not implemented)");
             true
         }
         _ => {
@@ -4723,6 +4756,7 @@ fn handle_key_event(
             editor_runtime,
             keybinding_runtime,
         );
+        let entry_flow_decision = outcome.entry_flow_decision.clone();
         if let Some(decision) = outcome.command_decision {
             finalize_command_overlay_decision(command_runtime, registry, decision);
         }
@@ -4741,6 +4775,28 @@ fn handle_key_event(
         if outcome.handled {
             if state.closed {
                 *overlay = None;
+            }
+            if let Some(decision) = entry_flow_decision {
+                let changed = dispatch_command_id_with_arguments(
+                    command_runtime,
+                    registry,
+                    frame,
+                    editor_runtime,
+                    palette,
+                    palette_focus_return,
+                    overlay,
+                    &decision.command_id,
+                    decision.origin,
+                    enablement_runtime,
+                    workspace_lifecycle,
+                    recent_work,
+                    Some(decision.argument_provenance_map),
+                );
+                return if changed {
+                    ShellDamageHint::FullWindow
+                } else {
+                    ShellDamageHint::None
+                };
             }
             return ShellDamageHint::FullWindow;
         }
@@ -4990,33 +5046,62 @@ fn handle_key_event(
                 let Some(row) = rows.get(idx) else {
                     return ShellDamageHint::None;
                 };
-                let changed = dispatch_command_id_with_arguments(
-                    command_runtime,
-                    registry,
-                    frame,
-                    editor_runtime,
-                    palette,
-                    palette_focus_return,
-                    overlay,
-                    row.command_id,
+                let (entry_verb, target_kind, preferred_resulting_mode, degraded_token, note) =
+                    match row.action_id {
+                        StartCenterPrimaryActionId::OpenFolder => (
+                            EntryVerb::Open,
+                            TargetKind::LocalFolder,
+                            ResultingMode::Folder,
+                            None,
+                            None,
+                        ),
+                        StartCenterPrimaryActionId::OpenWorkspace => (
+                            EntryVerb::Open,
+                            TargetKind::WorkspaceManifest,
+                            ResultingMode::WorkspaceWithRoots,
+                            Some(DegradedStateToken::Unsupported),
+                            Some("Workspace-file selection is not implemented yet.".to_string()),
+                        ),
+                        StartCenterPrimaryActionId::CloneRepository => (
+                            EntryVerb::Clone,
+                            TargetKind::RemoteRepository,
+                            ResultingMode::CloneThenReview,
+                            Some(DegradedStateToken::Unsupported),
+                            Some("Clone materialization is not implemented yet.".to_string()),
+                        ),
+                        StartCenterPrimaryActionId::RestoreLastSession => (
+                            EntryVerb::Restore,
+                            TargetKind::RecoveryCheckpoint,
+                            ResultingMode::RestoreLastSession,
+                            Some(DegradedStateToken::Unsupported),
+                            Some("Restore execution is not implemented yet.".to_string()),
+                        ),
+                        StartCenterPrimaryActionId::ImportFrom => (
+                            EntryVerb::Import,
+                            TargetKind::CompetitorConfigRoot,
+                            ResultingMode::ExtractThenReview,
+                            Some(DegradedStateToken::Unsupported),
+                            Some("Import execution is not implemented yet.".to_string()),
+                        ),
+                    };
+
+                let outcome = resolve_entry_flow(EntryFlowRequest {
+                    entry_verb,
+                    target: EntryFlowTarget::ExplicitTargetKind(target_kind),
+                    preferred_resulting_mode: Some(preferred_resulting_mode),
+                });
+
+                *overlay = Some(ShellOverlayState::entry_flow_sheet(
+                    frame.focused_zone(),
+                    frame.focused_editor_group(),
+                    outcome,
+                    row.command_id.to_string(),
                     DispatchOrigin::StartCenter,
-                    enablement_runtime,
-                    workspace_lifecycle,
-                    recent_work,
-                    Some(row.argument_provenance_map.clone()),
-                );
-                if !changed {
-                    return ShellDamageHint::None;
-                }
-                if row.command_id == "cmd:workspace.open_folder" {
-                    if let Some(rect) = damage_geometry.focused_editor_group {
-                        return ShellDamageHint::Rect {
-                            layer: CompositionLayerId::TextAndDecoration,
-                            class: DamageClassId::TextReflowLocal,
-                            rect,
-                        };
-                    }
-                }
+                    row.argument_provenance_map.clone(),
+                    degraded_token,
+                    note,
+                ));
+                frame.focus_zone(ShellZoneId::TransientOverlay);
                 return ShellDamageHint::FullWindow;
             }
             _ => {}
@@ -6784,6 +6869,16 @@ struct CommandTraceOverlay {
     lines: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+struct EntryFlowSheetOverlay {
+    outcome: EntryFlowOutcome,
+    command_id: String,
+    origin: DispatchOrigin,
+    argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+    degraded_token: Option<DegradedStateToken>,
+    note: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FindReplaceOverlayField {
     Query,
@@ -6944,10 +7039,18 @@ enum CommandOverlayDecision {
     },
 }
 
+#[derive(Debug, Clone)]
+struct EntryFlowOverlayDecision {
+    command_id: String,
+    origin: DispatchOrigin,
+    argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+}
+
 #[derive(Debug)]
 struct OverlayKeyOutcome {
     handled: bool,
     command_decision: Option<CommandOverlayDecision>,
+    entry_flow_decision: Option<EntryFlowOverlayDecision>,
     workspace_switcher_decision: Option<WorkspaceSwitcherDecision>,
 }
 
@@ -6960,6 +7063,7 @@ enum ShellOverlayKind {
         selection: usize,
     },
     StagedPeek,
+    EntryFlowSheet(EntryFlowSheetOverlay),
     CommandDiagnostics(CommandDiagnosticsOverlay),
     InvocationPreview(CommandInvocationPreviewOverlay),
     CommandTrace(CommandTraceOverlay),
@@ -7011,6 +7115,32 @@ impl ShellOverlayState {
                 violation,
                 selection: 0,
             },
+            focus_return_zone,
+            focus_return_group,
+            opened_at: Instant::now(),
+            closed: false,
+        }
+    }
+
+    fn entry_flow_sheet(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        outcome: EntryFlowOutcome,
+        command_id: String,
+        origin: DispatchOrigin,
+        argument_provenance_map: Vec<ArgumentProvenanceEntry>,
+        degraded_token: Option<DegradedStateToken>,
+        note: Option<String>,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::EntryFlowSheet(EntryFlowSheetOverlay {
+                outcome,
+                command_id,
+                origin,
+                argument_provenance_map,
+                degraded_token,
+                note,
+            }),
             focus_return_zone,
             focus_return_group,
             opened_at: Instant::now(),
@@ -7100,6 +7230,7 @@ impl ShellOverlayState {
         keybinding_runtime: &mut KeybindingRuntimeState,
     ) -> OverlayKeyOutcome {
         let mut command_decision = None;
+        let mut entry_flow_decision = None;
         let mut workspace_switcher_decision = None;
         let handled = match (&mut self.kind, code) {
             (ShellOverlayKind::WorkspaceSwitcher(switcher), KeyCode::Escape) => {
@@ -7114,6 +7245,17 @@ impl ShellOverlayState {
                 {
                     let mut auth = find.authority.borrow_mut();
                     auth.find_replace.close();
+                }
+                self.close(frame);
+                true
+            }
+            (ShellOverlayKind::EntryFlowSheet(sheet), KeyCode::Enter) => {
+                if matches!(sheet.outcome, EntryFlowOutcome::Resolved(_)) {
+                    entry_flow_decision = Some(EntryFlowOverlayDecision {
+                        command_id: sheet.command_id.clone(),
+                        origin: sheet.origin,
+                        argument_provenance_map: sheet.argument_provenance_map.clone(),
+                    });
                 }
                 self.close(frame);
                 true
@@ -7630,6 +7772,7 @@ impl ShellOverlayState {
                             return OverlayKeyOutcome {
                                 handled: true,
                                 command_decision,
+                                entry_flow_decision,
                                 workspace_switcher_decision,
                             };
                         };
@@ -7643,6 +7786,7 @@ impl ShellOverlayState {
                             return OverlayKeyOutcome {
                                 handled: true,
                                 command_decision,
+                                entry_flow_decision,
                                 workspace_switcher_decision,
                             };
                         };
@@ -7666,6 +7810,7 @@ impl ShellOverlayState {
                             return OverlayKeyOutcome {
                                 handled: true,
                                 command_decision,
+                                entry_flow_decision,
                                 workspace_switcher_decision,
                             };
                         }
@@ -7677,6 +7822,7 @@ impl ShellOverlayState {
                             return OverlayKeyOutcome {
                                 handled: true,
                                 command_decision,
+                                entry_flow_decision,
                                 workspace_switcher_decision,
                             };
                         }
@@ -7718,6 +7864,7 @@ impl ShellOverlayState {
                             return OverlayKeyOutcome {
                                 handled: true,
                                 command_decision,
+                                entry_flow_decision,
                                 workspace_switcher_decision,
                             };
                         };
@@ -7728,6 +7875,7 @@ impl ShellOverlayState {
                             return OverlayKeyOutcome {
                                 handled: true,
                                 command_decision,
+                                entry_flow_decision,
                                 workspace_switcher_decision,
                             };
                         };
@@ -7761,6 +7909,7 @@ impl ShellOverlayState {
                     return OverlayKeyOutcome {
                         handled,
                         command_decision,
+                        entry_flow_decision,
                         workspace_switcher_decision,
                     };
                 }
@@ -7773,6 +7922,7 @@ impl ShellOverlayState {
                         return OverlayKeyOutcome {
                             handled: true,
                             command_decision,
+                            entry_flow_decision,
                             workspace_switcher_decision,
                         };
                     }
@@ -7783,6 +7933,7 @@ impl ShellOverlayState {
         OverlayKeyOutcome {
             handled,
             command_decision,
+            entry_flow_decision,
             workspace_switcher_decision,
         }
     }
@@ -8285,6 +8436,189 @@ fn draw_shell_overlay(
                 "This placeholder represents a temporary narrow-width compare peek with focus return.",
                 fade(style.tokens.text_muted),
             );
+        }
+        ShellOverlayKind::EntryFlowSheet(sheet) => {
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+
+            let header = match &sheet.outcome {
+                EntryFlowOutcome::Resolved(resolved) => format!(
+                    "{} flow sheet — Enter commit, Esc cancel",
+                    resolved.sheet_title()
+                ),
+                EntryFlowOutcome::Denied(denied) => format!(
+                    "{} flow denied — Esc closes",
+                    match denied.entry_verb {
+                        EntryVerb::Open => "Open",
+                        EntryVerb::Clone => "Clone",
+                        EntryVerb::Import => "Import",
+                        EntryVerb::Restore => "Restore",
+                        EntryVerb::AddRoot => "Add root",
+                        EntryVerb::Resume => "Resume",
+                        EntryVerb::StartFromSnapshot => "Start from snapshot",
+                    }
+                ),
+            };
+
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &header,
+                fade(style.tokens.text_primary),
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            if let Some(token) = sheet.degraded_token {
+                let _ = draw_status_badge(
+                    buffer,
+                    width,
+                    height,
+                    cursor_x,
+                    cursor_y,
+                    sheet_rect.bottom().saturating_sub(cursor_y),
+                    style,
+                    token.label(),
+                    fade(style.status_warning),
+                    fade(style.status_warning_border),
+                    fade(style.status_warning_fill),
+                );
+                cursor_y = cursor_y.saturating_add(20);
+            }
+
+            let command_line = format!(
+                "command: {}   origin: {}",
+                sheet.command_id,
+                sheet.origin.issuing_surface()
+            );
+            draw_text(
+                buffer,
+                width,
+                height,
+                cursor_x,
+                cursor_y,
+                1,
+                &command_line,
+                fade(style.tokens.text_secondary),
+            );
+            cursor_y = cursor_y.saturating_add(16);
+
+            match &sheet.outcome {
+                EntryFlowOutcome::Resolved(resolved) => {
+                    let sheet_line = format!("sheet_class: {}", resolved.sheet_class.as_str());
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        &sheet_line,
+                        fade(style.tokens.text_muted),
+                    );
+                    cursor_y = cursor_y.saturating_add(16);
+
+                    let target_line = format!("target_kind: {}", resolved.target_kind.as_str());
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        &target_line,
+                        fade(style.tokens.text_muted),
+                    );
+                    cursor_y = cursor_y.saturating_add(16);
+
+                    let result_line =
+                        format!("resulting_mode: {}", resolved.resulting_mode.as_str());
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        &result_line,
+                        fade(style.tokens.text_muted),
+                    );
+                    cursor_y = cursor_y.saturating_add(16);
+
+                    if cursor_y < sheet_rect.bottom().saturating_sub(style.space_6) {
+                        let mut candidates = String::new();
+                        candidates.push_str("candidates: ");
+                        for (idx, mode) in resolved.candidate_resulting_modes.iter().enumerate() {
+                            if idx > 0 {
+                                candidates.push_str(", ");
+                            }
+                            candidates.push_str(mode.as_str());
+                            if candidates.len() > 96 {
+                                candidates.push_str(", …");
+                                break;
+                            }
+                        }
+                        draw_text(
+                            buffer,
+                            width,
+                            height,
+                            cursor_x,
+                            cursor_y,
+                            1,
+                            &candidates,
+                            fade(style.tokens.text_muted),
+                        );
+                        cursor_y = cursor_y.saturating_add(16);
+                    }
+                }
+                EntryFlowOutcome::Denied(denied) => {
+                    let line = format!("denial_code: {}", denied.denial_code.as_str());
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        &line,
+                        fade(style.status_warning),
+                    );
+                    cursor_y = cursor_y.saturating_add(16);
+                    if let Some(reroute) = denied.suggested_reroute {
+                        let line = format!("suggested_reroute: {}", reroute.as_str());
+                        draw_text(
+                            buffer,
+                            width,
+                            height,
+                            cursor_x,
+                            cursor_y,
+                            1,
+                            &line,
+                            fade(style.tokens.text_muted),
+                        );
+                        cursor_y = cursor_y.saturating_add(16);
+                    }
+                }
+            }
+
+            if let Some(note) = sheet.note.as_deref() {
+                if cursor_y.saturating_add(14) <= sheet_rect.bottom().saturating_sub(style.space_3)
+                {
+                    draw_text(
+                        buffer,
+                        width,
+                        height,
+                        cursor_x,
+                        cursor_y,
+                        1,
+                        note,
+                        fade(style.tokens.text_muted),
+                    );
+                }
+            }
         }
         ShellOverlayKind::WorkspaceSwitcher(switcher) => {
             let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
