@@ -16,6 +16,8 @@ use aureline_workspace::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::state_cards::DegradedStateToken;
+
 /// Runtime inputs used to build the current title/context bar identity record.
 #[derive(Debug, Clone, Copy)]
 pub struct TitleContextBarRuntimeInputs<'a> {
@@ -746,7 +748,7 @@ fn title_context_bar_render_label(
         parts.push(
             degraded_tokens
                 .iter()
-                .map(|t| t.as_str())
+                .map(|t| t.label())
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -771,7 +773,7 @@ fn native_window_title_render_label(
         parts.push(
             degraded_tokens
                 .iter()
-                .map(|t| t.as_str())
+                .map(|t| t.label())
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -798,7 +800,7 @@ fn status_item_render_label(
         parts.push(
             degraded_tokens
                 .iter()
-                .map(|t| t.as_str())
+                .map(|t| t.label())
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -1483,48 +1485,6 @@ pub enum RouteFreshnessClass {
     Offline,
     /// Freshness cannot be classified and must be reviewed.
     UnknownRequiresReview,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-/// Degraded-state tokens projected into chrome and exported evidence.
-pub enum DegradedStateToken {
-    /// The relevant subsystem is warming.
-    Warming,
-    /// The identity or state is based on cached evidence.
-    Cached,
-    /// Only partial evidence is available.
-    Partial,
-    /// Evidence is stale relative to live truth.
-    Stale,
-    /// Subsystem is offline.
-    Offline,
-    /// Subsystem is blocked by policy.
-    PolicyBlocked,
-    /// Functionality is limited relative to normal operation.
-    Limited,
-    /// Feature or subsystem is unsupported in the current environment.
-    Unsupported,
-    /// Feature or subsystem is experimental.
-    Experimental,
-    /// A retest is pending before the state can be considered current.
-    RetestPending,
-}
-
-impl DegradedStateToken {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Warming => "Warming",
-            Self::Cached => "Cached",
-            Self::Partial => "Partial",
-            Self::Stale => "Stale",
-            Self::Offline => "Offline",
-            Self::PolicyBlocked => "PolicyBlocked",
-            Self::Limited => "Limited",
-            Self::Unsupported => "Unsupported",
-            Self::Experimental => "Experimental",
-            Self::RetestPending => "RetestPending",
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

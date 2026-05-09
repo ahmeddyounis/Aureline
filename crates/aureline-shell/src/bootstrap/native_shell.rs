@@ -48,6 +48,7 @@ use crate::start_center::{
     build_action_rows as start_center_action_rows, StartCenterRuntimeInputs, StartCenterState,
     START_CENTER_PRESENTATION_LABEL, START_CENTER_PRESENTATION_SUBTITLE,
 };
+use crate::state_cards::{shell_slot_label, DegradedStateToken, ShellPlaceholderCard};
 use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
@@ -6303,6 +6304,7 @@ fn rasterize_shell(
                             style.tokens.text_primary,
                         );
                     } else {
+                        let label = shell_slot_label(slot_id);
                         draw_text(
                             buffer,
                             width,
@@ -6310,7 +6312,7 @@ fn rasterize_shell(
                             slot_rect.x.saturating_add(style.space_2),
                             slot_rect.y.saturating_add(style.space_2 / 2),
                             1,
-                            slot_id,
+                            label,
                             style.tokens.text_muted,
                         );
                     }
@@ -6349,15 +6351,14 @@ fn rasterize_shell(
                         style.stroke_default,
                         style.tokens.border_default,
                     );
-                    draw_text(
+                    draw_shell_slot_placeholder_card(
                         buffer,
                         width,
                         height,
-                        slot_rect.x.saturating_add(style.space_2),
-                        slot_rect.y.saturating_add(style.space_2),
-                        1,
+                        slot_rect,
                         slot_id,
-                        style.tokens.text_muted,
+                        &title_context_bar.degraded_or_recovery_state.degraded_tokens,
+                        &style,
                     );
                 }
             }
@@ -6618,24 +6619,7 @@ fn rasterize_shell(
             .copied()
             .take(2)
         {
-            let label = match token {
-                crate::chrome::title_context_bar::DegradedStateToken::Warming => "Warming",
-                crate::chrome::title_context_bar::DegradedStateToken::Cached => "Cached",
-                crate::chrome::title_context_bar::DegradedStateToken::Partial => "Partial",
-                crate::chrome::title_context_bar::DegradedStateToken::Stale => "Stale",
-                crate::chrome::title_context_bar::DegradedStateToken::Offline => "Offline",
-                crate::chrome::title_context_bar::DegradedStateToken::PolicyBlocked => {
-                    "PolicyBlocked"
-                }
-                crate::chrome::title_context_bar::DegradedStateToken::Limited => "Limited",
-                crate::chrome::title_context_bar::DegradedStateToken::Unsupported => "Unsupported",
-                crate::chrome::title_context_bar::DegradedStateToken::Experimental => {
-                    "Experimental"
-                }
-                crate::chrome::title_context_bar::DegradedStateToken::RetestPending => {
-                    "RetestPending"
-                }
-            };
+            let label = token.label();
             let (fg, border, fill) = (
                 style.status_warning,
                 style.status_warning_border,
@@ -6669,6 +6653,80 @@ fn rasterize_shell(
             &text,
             style.tokens.text_muted,
         );
+    }
+}
+
+fn draw_shell_slot_placeholder_card(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    rect: Rect,
+    slot_id: &str,
+    degraded_tokens: &[DegradedStateToken],
+    style: &ShellRenderStyle,
+) {
+    if rect.is_empty() || rect.width < 8 || rect.height < 8 {
+        return;
+    }
+
+    let card = ShellPlaceholderCard::for_slot(slot_id, degraded_tokens);
+    let inset_x = rect.x.saturating_add(style.space_2);
+    let max_x = rect.right().saturating_sub(style.space_2).max(inset_x);
+    let title_y = rect.y.saturating_add(style.space_2 / 2);
+
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        inset_x,
+        title_y,
+        1,
+        card.title,
+        style.tokens.text_primary,
+        max_x,
+    );
+
+    let summary_y = title_y.saturating_add(8).saturating_add(style.space_2 / 2);
+    draw_text_clamped(
+        buffer,
+        width,
+        height,
+        inset_x,
+        summary_y,
+        1,
+        card.summary,
+        style.tokens.text_muted,
+        max_x,
+    );
+
+    let badge_y = summary_y
+        .saturating_add(8)
+        .saturating_add(style.space_2 / 2);
+    if badge_y >= rect.bottom() {
+        return;
+    }
+    let badge_max_h = rect.bottom().saturating_sub(badge_y);
+    let mut cursor_x = inset_x;
+    for token in card.degraded_tokens() {
+        let badge_rect = draw_status_badge(
+            buffer,
+            width,
+            height,
+            cursor_x,
+            badge_y,
+            badge_max_h,
+            style,
+            token.label(),
+            style.status_warning,
+            style.status_warning_border,
+            style.status_warning_fill,
+        );
+        cursor_x = cursor_x
+            .saturating_add(badge_rect.width)
+            .saturating_add(style.space_2);
+        if cursor_x >= max_x {
+            break;
+        }
     }
 }
 
@@ -9815,6 +9873,30 @@ fn draw_text(
     for ch in text.chars() {
         draw_glyph(buffer, width, height, x, y, scale, ch, color);
         x = x.saturating_add(8 * scale);
+    }
+}
+
+fn draw_text_clamped(
+    buffer: &mut [u32],
+    width: u32,
+    height: u32,
+    mut x: u32,
+    y: u32,
+    scale: u32,
+    text: &str,
+    color: ColorRgba,
+    max_x: u32,
+) {
+    let char_w = 8u32.saturating_mul(scale);
+    if char_w == 0 || max_x <= x {
+        return;
+    }
+    for ch in text.chars() {
+        if x.saturating_add(char_w) > max_x {
+            break;
+        }
+        draw_glyph(buffer, width, height, x, y, scale, ch, color);
+        x = x.saturating_add(char_w);
     }
 }
 

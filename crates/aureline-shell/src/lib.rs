@@ -24,6 +24,8 @@ pub mod layout;
 pub mod palette;
 /// Start Center quick-action surface and entry projections.
 pub mod start_center;
+/// Shared placeholder/state-card vocabulary used across shell surfaces.
+pub mod state_cards;
 /// Platform windowing adapters used by the native desktop shell.
 pub mod windowing;
 /// Workspace switcher projections for recent-work entries and workspace transitions.
