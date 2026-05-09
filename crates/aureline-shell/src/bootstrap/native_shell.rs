@@ -4,17 +4,19 @@
 //! startup-milestone emission for the desktop shell.
 
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::a11y::shell_bridge::{
     materialize_shell_accessibility_tree, write_shell_accessibility_tree_log,
     ShellA11yEnablementContext,
 };
-use crate::app_frame::desktop_frame::{DesktopFrame, NewEditorGroupOutcome, SplitViolation};
+use crate::app_frame::desktop_frame::{DesktopFrame, EditorTabId, NewEditorGroupOutcome, SplitViolation};
 use crate::bootstrap::startup_trace::{StartupMilestone, StartupTrace, StartupTraceConfig};
 use crate::commands::diagnostics_sheet::{
     diagnostics_sheet_lines, materialize_command_diagnostics_sheet_record,
@@ -44,7 +46,7 @@ use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
 };
-use aureline_buffer::{Buffer, Snapshot};
+use aureline_buffer::{Buffer, RevisionId, Snapshot};
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
@@ -179,6 +181,7 @@ struct ShellRenderStyle {
     density_class: DensityClass,
     density_row_height: u32,
     density_control_height: u32,
+    density_tab_height: u32,
     density_panel_padding: u32,
     density_zone_inset: u32,
     density_gutter: u32,
@@ -216,6 +219,7 @@ impl ShellRenderStyle {
             density_class,
             density_row_height: scale_px(density.row_height_px()),
             density_control_height: scale_px(density.control_height_px()),
+            density_tab_height: scale_px(density.tab_height_px()),
             density_panel_padding: scale_px(density.panel_padding_px()),
             density_zone_inset: scale_px(density.zone_inset_px()),
             density_gutter: scale_px(density.gutter_px()),
@@ -432,6 +436,7 @@ struct ShellDamageGeometryCache {
     command_palette_panel: Option<Rect>,
     command_palette_query: Option<Rect>,
     focused_editor_group: Option<Rect>,
+    focused_editor_viewport: Option<Rect>,
 }
 
 fn enqueue_damage_hint(scheduler: &mut FrameScheduler, hint: ShellDamageHint) {
@@ -852,19 +857,23 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                let viewport_rect =
-                    focused_editor_group_physical_rect(&frame, window.scale_factor())
-                        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
-                let Some(viewport_rect) = viewport_rect else {
+                let Some(active_tab) = frame.active_tab_id(focused) else {
+                    return;
+                };
+                let Some(viewport_rect) = damage_geometry
+                    .focused_editor_viewport
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+                else {
                     return;
                 };
 
-                if !editor_runtime.sessions.contains_key(&focused) {
-                    editor_runtime.open_placeholder(focused);
+                if !editor_runtime.has_tab_session(focused, active_tab) {
+                    editor_runtime.open_placeholder(focused, active_tab);
                 }
 
                 if let Some(damage) = editor_runtime.apply_action(
                     focused,
+                    active_tab,
                     &EditorAction::ScrollLines { dy_lines },
                     viewport_rect,
                 ) {
@@ -936,18 +945,21 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                let viewport_rect =
-                    focused_editor_group_physical_rect(&frame, window.scale_factor())
-                        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
-                let Some(viewport_rect) = viewport_rect else {
+                let Some(active_tab) = frame.active_tab_id(focused) else {
+                    return;
+                };
+                let Some(viewport_rect) = damage_geometry
+                    .focused_editor_viewport
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+                else {
                     return;
                 };
 
-                if !editor_runtime.sessions.contains_key(&focused) {
-                    editor_runtime.open_placeholder(focused);
+                if !editor_runtime.has_tab_session(focused, active_tab) {
+                    editor_runtime.open_placeholder(focused, active_tab);
                 }
 
-                let Some(session) = editor_runtime.sessions.get_mut(&focused) else {
+                let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
                     return;
                 };
 
@@ -1005,17 +1017,20 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     return;
                 }
 
-                let viewport_rect =
-                    focused_editor_group_physical_rect(&frame, window.scale_factor())
-                        .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height));
-                let Some(viewport_rect) = viewport_rect else {
+                let Some(active_tab) = frame.active_tab_id(focused) else {
+                    return;
+                };
+                let Some(viewport_rect) = damage_geometry
+                    .focused_editor_viewport
+                    .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+                else {
                     return;
                 };
 
-                if !editor_runtime.sessions.contains_key(&focused) {
-                    editor_runtime.open_placeholder(focused);
+                if !editor_runtime.has_tab_session(focused, active_tab) {
+                    editor_runtime.open_placeholder(focused, active_tab);
                 }
-                let Some(session) = editor_runtime.sessions.get_mut(&focused) else {
+                let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
                     return;
                 };
 
@@ -1085,21 +1100,24 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                             .is_some_and(|g| g.tab_count > 0);
 
                         if has_tabs {
-                            let viewport_rect =
-                                focused_editor_group_physical_rect(&frame, window.scale_factor())
-                                    .map(|rect| {
-                                        PixelRect::new(rect.x, rect.y, rect.width, rect.height)
-                                    });
+                            let Some(active_tab) = frame.active_tab_id(focused) else {
+                                return;
+                            };
+                            let Some(viewport_rect) = damage_geometry
+                                .focused_editor_viewport
+                                .map(|rect| PixelRect::new(rect.x, rect.y, rect.width, rect.height))
+                            else {
+                                return;
+                            };
 
-                            if let Some(viewport_rect) = viewport_rect {
-                                if !editor_runtime.sessions.contains_key(&focused) {
-                                    editor_runtime.open_placeholder(focused);
-                                }
+                            if !editor_runtime.has_tab_session(focused, active_tab) {
+                                editor_runtime.open_placeholder(focused, active_tab);
+                            }
 
-                                let Some(session) = editor_runtime.sessions.get_mut(&focused)
-                                else {
-                                    return;
-                                };
+                            let Some(session) = editor_runtime.tab_session_mut(focused, active_tab)
+                            else {
+                                return;
+                            };
 
                                 let modifiers = aureline_input::text_input::TextInputModifiers {
                                     ctrl: held_modifiers.ctrl,
@@ -1135,7 +1153,6 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                         viewport_rect,
                                     );
                                 }
-                            }
                         }
                     }
                 }
@@ -1403,8 +1420,188 @@ impl ShellTextRuntime {
     }
 }
 
-struct EditorGroupSession {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReadOnlyState {
+    Writable,
+    Filesystem,
+}
+
+impl ReadOnlyState {
+    const fn token(self) -> Option<&'static str> {
+        match self {
+            Self::Writable => None,
+            Self::Filesystem => Some("Read-only"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GeneratedState {
+    Authored,
+    Generated,
+}
+
+impl GeneratedState {
+    const fn token(self) -> Option<&'static str> {
+        match self {
+            Self::Authored => None,
+            Self::Generated => Some("Generated"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ManagedState {
+    Unmanaged,
+    Managed,
+}
+
+impl ManagedState {
+    const fn token(self) -> Option<&'static str> {
+        match self {
+            Self::Unmanaged => None,
+            Self::Managed => Some("Managed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ProjectionState {
+    Direct,
+    Projection,
+}
+
+impl ProjectionState {
+    const fn token(self) -> Option<&'static str> {
+        match self {
+            Self::Direct => None,
+            Self::Projection => Some("Projection"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SnapshotFacingState {
+    Live,
+    Snapshot,
+}
+
+impl SnapshotFacingState {
+    const fn token(self) -> Option<&'static str> {
+        match self {
+            Self::Live => None,
+            Self::Snapshot => Some("Snapshot"),
+        }
+    }
+}
+
+struct BufferAuthority {
+    label: String,
+    file_path: Option<PathBuf>,
+    read_only: ReadOnlyState,
+    generated: GeneratedState,
+    managed: ManagedState,
+    projection: ProjectionState,
+    snapshot_facing: SnapshotFacingState,
     buffer: Buffer,
+    saved_revision: RevisionId,
+}
+
+impl BufferAuthority {
+    fn revision_id(&self) -> RevisionId {
+        self.buffer.revision_id()
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.buffer.revision_id() != self.saved_revision
+    }
+
+    fn mark_saved(&mut self) {
+        self.saved_revision = self.buffer.revision_id();
+    }
+}
+
+#[derive(Debug, Clone)]
+struct TabRenderInfo {
+    label: String,
+    dirty: bool,
+    read_only: ReadOnlyState,
+    generated: GeneratedState,
+    managed: ManagedState,
+    projection: ProjectionState,
+    snapshot_facing: SnapshotFacingState,
+}
+
+struct BufferAuthorityStore {
+    next_view_id: u64,
+    by_canonical_path: HashMap<PathBuf, Rc<RefCell<BufferAuthority>>>,
+}
+
+impl BufferAuthorityStore {
+    fn new() -> Self {
+        Self {
+            next_view_id: 1,
+            by_canonical_path: HashMap::new(),
+        }
+    }
+
+    fn mint_view_id(&mut self) -> u64 {
+        let id = self.next_view_id;
+        self.next_view_id = self.next_view_id.saturating_add(1);
+        id
+    }
+
+    fn open_file_authority(&mut self, path: &Path) -> Result<Rc<RefCell<BufferAuthority>>, String> {
+        let canonical = canonical_path_key(path);
+        if let Some(existing) = self.by_canonical_path.get(&canonical) {
+            return Ok(existing.clone());
+        }
+
+        let bytes = std::fs::read(&canonical).map_err(|err| err.to_string())?;
+        let buffer = Buffer::from_bytes(&bytes);
+        let label = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("untitled")
+            .to_string();
+        let read_only = read_only_state_for_path(&canonical);
+        let saved_revision = buffer.revision_id();
+        let authority = Rc::new(RefCell::new(BufferAuthority {
+            label,
+            file_path: Some(canonical.clone()),
+            read_only,
+            generated: GeneratedState::Authored,
+            managed: ManagedState::Unmanaged,
+            projection: ProjectionState::Direct,
+            snapshot_facing: SnapshotFacingState::Live,
+            buffer,
+            saved_revision,
+        }));
+        self.by_canonical_path.insert(canonical, authority.clone());
+        Ok(authority)
+    }
+
+    fn placeholder_authority(&mut self, label: impl Into<String>, text: &str) -> Rc<RefCell<BufferAuthority>> {
+        let buffer = Buffer::from_str(text);
+        let saved_revision = buffer.revision_id();
+        Rc::new(RefCell::new(BufferAuthority {
+            label: label.into(),
+            file_path: None,
+            read_only: ReadOnlyState::Writable,
+            generated: GeneratedState::Authored,
+            managed: ManagedState::Unmanaged,
+            projection: ProjectionState::Direct,
+            snapshot_facing: SnapshotFacingState::Live,
+            buffer,
+            saved_revision,
+        }))
+    }
+}
+
+struct EditorTabSession {
+    view_id: u64,
+    authority: Rc<RefCell<BufferAuthority>>,
+    last_seen_revision: RevisionId,
     snapshot: Snapshot,
     document_lines: Vec<String>,
     line_graphemes: Vec<usize>,
@@ -1414,11 +1611,18 @@ struct EditorGroupSession {
     needs_text_repaint: bool,
 }
 
-impl EditorGroupSession {
-    fn from_buffer(mut buffer: Buffer) -> Self {
-        let snapshot = buffer.snapshot();
+impl EditorTabSession {
+    fn new(view_id: u64, authority: Rc<RefCell<BufferAuthority>>) -> Self {
+        let (snapshot, revision) = {
+            let mut auth = authority.borrow_mut();
+            let snapshot = auth.buffer.snapshot();
+            let revision = auth.buffer.revision_id();
+            (snapshot, revision)
+        };
         let mut session = Self {
-            buffer,
+            view_id,
+            authority,
+            last_seen_revision: revision,
             snapshot,
             document_lines: Vec::new(),
             line_graphemes: Vec::new(),
@@ -1431,17 +1635,40 @@ impl EditorGroupSession {
         session
     }
 
-    fn replace_buffer(&mut self, buffer: Buffer) {
-        self.buffer = buffer;
-        self.viewport = EditorViewport::new();
-        self.compositor = ViewportCompositor::default();
-        self.text_input = aureline_input::text_input::TextInputSession::new();
+    fn render_info(&self) -> TabRenderInfo {
+        let auth = self.authority.borrow();
+        TabRenderInfo {
+            label: auth.label.clone(),
+            dirty: auth.is_dirty(),
+            read_only: auth.read_only,
+            generated: auth.generated,
+            managed: auth.managed,
+            projection: auth.projection,
+            snapshot_facing: auth.snapshot_facing,
+        }
+    }
+
+    fn ensure_fresh_snapshot(&mut self) {
+        let revision = self.authority.borrow().revision_id();
+        if revision == self.last_seen_revision {
+            return;
+        }
+        let snapshot = self.authority.borrow_mut().buffer.snapshot();
+        self.snapshot = snapshot;
+        self.last_seen_revision = revision;
+        self.refresh_document_cache();
         self.needs_text_repaint = true;
-        self.refresh_snapshot_and_cache();
     }
 
     fn refresh_snapshot_and_cache(&mut self) {
-        self.snapshot = self.buffer.snapshot();
+        let (snapshot, revision) = {
+            let mut auth = self.authority.borrow_mut();
+            let snapshot = auth.buffer.snapshot();
+            let revision = auth.buffer.revision_id();
+            (snapshot, revision)
+        };
+        self.snapshot = snapshot;
+        self.last_seen_revision = revision;
         self.refresh_document_cache();
     }
 
@@ -1483,6 +1710,7 @@ impl EditorGroupSession {
         action: &EditorAction,
         viewport_rect: PixelRect,
     ) -> Option<aureline_editor::ViewportDamage> {
+        self.ensure_fresh_snapshot();
         let max_scroll_line = self.max_scroll_line();
 
         match action {
@@ -1492,6 +1720,8 @@ impl EditorGroupSession {
                     let end_offset = caret_byte_offset(&self.snapshot, end);
                     if start_offset < end_offset {
                         let _ = self
+                            .authority
+                            .borrow_mut()
                             .buffer
                             .delete(start_offset..end_offset, "user_keystroke");
                         self.viewport.set_caret(start);
@@ -1501,14 +1731,22 @@ impl EditorGroupSession {
                 }
 
                 let offset = caret_byte_offset(&self.snapshot, self.viewport.caret());
-                let _ = self.buffer.insert(offset, text, "user_keystroke");
+                let _ = self
+                    .authority
+                    .borrow_mut()
+                    .buffer
+                    .insert(offset, text, "user_keystroke");
                 self.refresh_snapshot_and_cache();
                 self.viewport.set_ime_composition(None);
                 advance_caret_for_insert(&mut self.viewport, text);
                 self.needs_text_repaint = true;
             }
             EditorAction::DeleteBackward => {
-                if delete_backward(&mut self.buffer, &self.snapshot, &mut self.viewport) {
+                if delete_backward(
+                    &mut self.authority.borrow_mut().buffer,
+                    &self.snapshot,
+                    &mut self.viewport,
+                ) {
                     self.refresh_snapshot_and_cache();
                     self.viewport.set_ime_composition(None);
                     self.needs_text_repaint = true;
@@ -1548,37 +1786,54 @@ impl EditorGroupSession {
     }
 }
 
+struct EditorGroupSession {
+    tabs: HashMap<EditorTabId, EditorTabSession>,
+}
+
+impl EditorGroupSession {
+    fn new() -> Self {
+        Self {
+            tabs: HashMap::new(),
+        }
+    }
+}
+
 struct EditorWorkspaceRuntimeState {
     text_runtime: EditorTextRuntime,
-    sessions: HashMap<PaneId, EditorGroupSession>,
+    groups: HashMap<PaneId, EditorGroupSession>,
+    buffers: BufferAuthorityStore,
 }
 
 impl EditorWorkspaceRuntimeState {
     fn new() -> Self {
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
-            sessions: HashMap::new(),
+            groups: HashMap::new(),
+            buffers: BufferAuthorityStore::new(),
         }
     }
 
-    fn ensure_session(&mut self, group: PaneId, buffer: Buffer) -> &mut EditorGroupSession {
-        self.sessions
-            .entry(group)
-            .or_insert_with(|| EditorGroupSession::from_buffer(buffer))
+    fn ensure_group(&mut self, group: PaneId) -> &mut EditorGroupSession {
+        self.groups.entry(group).or_insert_with(EditorGroupSession::new)
     }
 
-    fn set_session_buffer(&mut self, group: PaneId, buffer: Buffer) {
-        match self.sessions.get_mut(&group) {
-            Some(session) => session.replace_buffer(buffer),
-            None => {
-                self.sessions
-                    .insert(group, EditorGroupSession::from_buffer(buffer));
-            }
-        }
+    fn ensure_tab_session(
+        &mut self,
+        group: PaneId,
+        tab: EditorTabId,
+        authority: Rc<RefCell<BufferAuthority>>,
+    ) -> &mut EditorTabSession {
+        let view_id = self.buffers.mint_view_id();
+        let group_session = self.ensure_group(group);
+        group_session
+            .tabs
+            .entry(tab)
+            .or_insert_with(|| EditorTabSession::new(view_id, authority))
     }
 
-    fn open_placeholder(&mut self, group: PaneId) {
-        let buffer = Buffer::from_str(
+    fn open_placeholder(&mut self, group: PaneId, tab: EditorTabId) {
+        let authority = self.buffers.placeholder_authority(
+            "Welcome",
             "Welcome to Aureline.\n\n\
              This is a prototype editor viewport.\n\
              - Scroll: mouse wheel\n\
@@ -1586,33 +1841,96 @@ impl EditorWorkspaceRuntimeState {
              - Extend selection: Shift+Arrow\n\
              - Type: regular keys\n",
         );
-        self.ensure_session(group, buffer);
+        self.ensure_tab_session(group, tab, authority);
     }
 
-    fn open_file(&mut self, group: PaneId, path: &Path) -> Result<(), String> {
-        let bytes = std::fs::read(path).map_err(|err| err.to_string())?;
-        let buffer = Buffer::from_bytes(&bytes);
-        self.set_session_buffer(group, buffer);
+    fn open_file(&mut self, group: PaneId, tab: EditorTabId, path: &Path) -> Result<(), String> {
+        let authority = self.buffers.open_file_authority(path)?;
+        self.ensure_tab_session(group, tab, authority);
+        Ok(())
+    }
+
+    fn clone_tab_view(
+        &mut self,
+        source_group: PaneId,
+        source_tab: EditorTabId,
+        target_group: PaneId,
+        target_tab: EditorTabId,
+    ) -> bool {
+        let Some(authority) = self
+            .groups
+            .get(&source_group)
+            .and_then(|group| group.tabs.get(&source_tab))
+            .map(|tab| tab.authority.clone())
+        else {
+            return false;
+        };
+        self.ensure_tab_session(target_group, target_tab, authority);
+        true
+    }
+
+    fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<(), String> {
+        let Some(session) = self.groups.get_mut(&group).and_then(|g| g.tabs.get_mut(&tab)) else {
+            return Err("tab not found".to_string());
+        };
+        session.ensure_fresh_snapshot();
+
+        let mut authority = session.authority.borrow_mut();
+        if authority.read_only != ReadOnlyState::Writable {
+            return Err("tab is read-only".to_string());
+        }
+        let Some(path) = authority.file_path.clone() else {
+            authority.mark_saved();
+            return Ok(());
+        };
+        let snapshot = authority.buffer.snapshot();
+        std::fs::write(&path, snapshot.as_bytes()).map_err(|err| err.to_string())?;
+        authority.mark_saved();
         Ok(())
     }
 
     fn close_group(&mut self, group: PaneId) {
-        self.sessions.remove(&group);
+        self.groups.remove(&group);
+    }
+
+    fn close_tab(&mut self, group: PaneId, tab: EditorTabId) {
+        if let Some(session) = self.groups.get_mut(&group) {
+            session.tabs.remove(&tab);
+        }
+    }
+
+    fn has_tab_session(&self, group: PaneId, tab: EditorTabId) -> bool {
+        self.groups
+            .get(&group)
+            .is_some_and(|session| session.tabs.contains_key(&tab))
+    }
+
+    fn tab_session_mut(&mut self, group: PaneId, tab: EditorTabId) -> Option<&mut EditorTabSession> {
+        self.groups.get_mut(&group)?.tabs.get_mut(&tab)
+    }
+
+    fn tab_render_info(&self, group: PaneId, tab: EditorTabId) -> Option<TabRenderInfo> {
+        let group = self.groups.get(&group)?;
+        let tab = group.tabs.get(&tab)?;
+        Some(tab.render_info())
     }
 
     fn apply_action(
         &mut self,
         group: PaneId,
+        tab: EditorTabId,
         action: &EditorAction,
         viewport_rect: PixelRect,
     ) -> Option<aureline_editor::ViewportDamage> {
-        let session = self.sessions.get_mut(&group)?;
-        session.apply_action(action, viewport_rect)
+        let group = self.groups.get_mut(&group)?;
+        let tab = group.tabs.get_mut(&tab)?;
+        tab.apply_action(action, viewport_rect)
     }
 
     fn compose_group(
         &mut self,
         group: PaneId,
+        tab: EditorTabId,
         window_buffer: &mut [u32],
         window_width: u32,
         window_height: u32,
@@ -1620,9 +1938,13 @@ impl EditorWorkspaceRuntimeState {
         clip: Option<PixelRect>,
         paint_style: &ViewportPaintStyle,
     ) {
-        let Some(session) = self.sessions.get_mut(&group) else {
+        let Some(group_session) = self.groups.get_mut(&group) else {
             return;
         };
+        let Some(session) = group_session.tabs.get_mut(&tab) else {
+            return;
+        };
+        session.ensure_fresh_snapshot();
         let size_changed = session.viewport.layout().viewport_width_px != viewport_rect.width
             || session.viewport.layout().viewport_height_px != viewport_rect.height;
 
@@ -1653,6 +1975,17 @@ impl EditorWorkspaceRuntimeState {
             paint_style,
             clip,
         );
+    }
+}
+
+fn canonical_path_key(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+fn read_only_state_for_path(path: &Path) -> ReadOnlyState {
+    match std::fs::OpenOptions::new().write(true).open(path) {
+        Ok(_) => ReadOnlyState::Writable,
+        Err(_) => ReadOnlyState::Filesystem,
     }
 }
 
@@ -2490,8 +2823,10 @@ fn dispatch_registry_entry(
         "cmd:workspace.open_folder" => {
             let invocation = invocation_and_result_open_folder_succeeded(&session);
             command_runtime.record(invocation);
-            frame.open_placeholder_tab();
-            editor_runtime.open_placeholder(frame.focused_editor_group());
+            let group = frame.focused_editor_group();
+            if let Some(tab) = frame.open_tab() {
+                editor_runtime.open_placeholder(group, tab);
+            }
             let scope_ref = session
                 .argument_provenance_map
                 .iter()
@@ -3618,22 +3953,27 @@ fn handle_key_event(
                     Some(CommandPaletteCommit::FilePath(relative_path)) => {
                         let focused_group = frame.focused_editor_group();
                         let tick = clock.now().0;
-                        if editor_runtime.sessions.contains_key(&focused_group) {
+                        if frame.active_tab_id(focused_group).is_some() {
                             hot_path_metrics.note_file_switch_to_paint_requested(tick);
                         } else {
                             hot_path_metrics.note_file_open_to_paint_requested(tick);
                         }
-                        frame.open_placeholder_tab();
+                        let Some(tab) = frame.open_tab() else {
+                            return ShellDamageHint::None;
+                        };
                         let cwd = std::env::current_dir()
                             .unwrap_or_else(|_| std::path::PathBuf::from("."));
                         let path = cwd.join(&relative_path);
-                        if let Err(err) = editor_runtime.open_file(focused_group, &path) {
+                        if let Err(err) = editor_runtime.open_file(focused_group, tab, &path) {
                             hot_path_metrics.close_latest_span_as_error(
                                 clock.now().0,
                                 format!("open file failed — {}", err),
                             );
                             command_runtime
                                 .note_non_command_action(format!("open file failed — {}", err));
+                            let _ = frame.close_active_tab(focused_group);
+                            editor_runtime.close_tab(focused_group, tab);
+                            return ShellDamageHint::FullWindow;
                         }
                         command_runtime
                             .note_non_command_action(format!("opened file — {}", relative_path));
@@ -3926,6 +4266,56 @@ fn handle_key_event(
             }
         }
         KeyCode::Tab => {
+            if modifiers.ctrl_or_logo()
+                && frame.focused_zone() == ShellZoneId::MainWorkspace
+                && overlay.is_none()
+            {
+                let group = frame.focused_editor_group();
+                let tabs = frame.tab_ids(group);
+                let Some(active) = frame.active_tab_id(group) else {
+                    return ShellDamageHint::None;
+                };
+                if tabs.len() <= 1 {
+                    return ShellDamageHint::None;
+                }
+                let current_idx = tabs
+                    .iter()
+                    .position(|id| *id == active)
+                    .unwrap_or(0)
+                    .min(tabs.len().saturating_sub(1));
+                let next_idx = if modifiers.shift {
+                    if current_idx == 0 {
+                        tabs.len().saturating_sub(1)
+                    } else {
+                        current_idx.saturating_sub(1)
+                    }
+                } else {
+                    (current_idx + 1) % tabs.len()
+                };
+                let next_tab = tabs[next_idx];
+                if frame.set_active_tab(group, next_tab) {
+                    if let (Some(viewport), Some(session)) = (
+                        damage_geometry.focused_editor_viewport,
+                        editor_runtime.tab_session_mut(group, next_tab),
+                    ) {
+                        update_ime_cursor_area_for_viewport(
+                            window,
+                            &session.viewport,
+                            PixelRect::new(viewport.x, viewport.y, viewport.width, viewport.height),
+                        );
+                    }
+                    return damage_geometry
+                        .focused_editor_group
+                        .map(|rect| ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect,
+                        })
+                        .unwrap_or(ShellDamageHint::FullWindow);
+                }
+                return ShellDamageHint::None;
+            }
+
             frame.focus_next();
             window.set_title(&window_title(
                 Some(frame.focused_zone()),
@@ -3936,8 +4326,10 @@ fn handle_key_event(
         }
         KeyCode::KeyO => {
             if modifiers.ctrl_or_logo() {
-                frame.open_placeholder_tab();
-                editor_runtime.open_placeholder(frame.focused_editor_group());
+                let group = frame.focused_editor_group();
+                if let Some(tab) = frame.open_tab() {
+                    editor_runtime.open_placeholder(group, tab);
+                }
                 damage_geometry
                     .focused_editor_group
                     .map(|rect| ShellDamageHint::Rect {
@@ -3952,8 +4344,22 @@ fn handle_key_event(
         }
         KeyCode::Backslash => {
             if modifiers.ctrl_or_logo() {
+                let source_group = frame.focused_editor_group();
+                let source_tab = frame.active_tab_id(source_group);
                 let changed = match frame.request_split_focused_editor_group() {
-                    NewEditorGroupOutcome::Created { .. } => true,
+                    NewEditorGroupOutcome::Created { new_group } => {
+                        if let Some(source_tab) = source_tab {
+                            if let Some(tab) = frame.open_tab_in_group(new_group) {
+                                let _ = editor_runtime.clone_tab_view(
+                                    source_group,
+                                    source_tab,
+                                    new_group,
+                                    tab,
+                                );
+                            }
+                        }
+                        true
+                    }
                     NewEditorGroupOutcome::WouldViolateMinimum(violation) => {
                         *overlay = Some(ShellOverlayState::split_choice(
                             frame.focused_zone(),
@@ -3986,13 +4392,52 @@ fn handle_key_event(
                 ShellDamageHint::None
             }
         }
+        KeyCode::KeyS => {
+            if modifiers.ctrl_or_logo() && frame.focused_zone() == ShellZoneId::MainWorkspace {
+                let group = frame.focused_editor_group();
+                let Some(tab) = frame.active_tab_id(group) else {
+                    return ShellDamageHint::None;
+                };
+                if let Err(err) = editor_runtime.save_tab(group, tab) {
+                    command_runtime.note_non_command_action(format!("save failed — {err}"));
+                }
+                damage_geometry
+                    .focused_editor_group
+                    .map(|rect| ShellDamageHint::Rect {
+                        layer: CompositionLayerId::TextAndDecoration,
+                        class: DamageClassId::TextReflowLocal,
+                        rect,
+                    })
+                    .unwrap_or(ShellDamageHint::FullWindow)
+            } else {
+                ShellDamageHint::None
+            }
+        }
         KeyCode::KeyW => {
             if modifiers.ctrl_or_logo() {
-                let closing = frame.focused_editor_group();
-                let changed = frame.close_focused_editor_group();
-                if changed {
-                    editor_runtime.close_group(closing);
-                    ShellDamageHint::FullWindow
+                if modifiers.shift {
+                    let closing = frame.focused_editor_group();
+                    let changed = frame.close_focused_editor_group();
+                    if changed {
+                        editor_runtime.close_group(closing);
+                        ShellDamageHint::FullWindow
+                    } else {
+                        ShellDamageHint::None
+                    }
+                } else if frame.focused_zone() == ShellZoneId::MainWorkspace {
+                    let group = frame.focused_editor_group();
+                    let Some(closed) = frame.close_active_tab(group) else {
+                        return ShellDamageHint::None;
+                    };
+                    editor_runtime.close_tab(group, closed);
+                    damage_geometry
+                        .focused_editor_group
+                        .map(|rect| ShellDamageHint::Rect {
+                            layer: CompositionLayerId::TextAndDecoration,
+                            class: DamageClassId::TextReflowLocal,
+                            rect,
+                        })
+                        .unwrap_or(ShellDamageHint::FullWindow)
                 } else {
                     ShellDamageHint::None
                 }
@@ -4284,6 +4729,26 @@ fn focused_editor_group_physical_rect(frame: &DesktopFrame, scale_factor: f64) -
         .map(|group| to_physical_rect(group.rect, scale_factor))
 }
 
+fn editor_viewport_rect_for_group(group_rect: Rect, style: &ShellRenderStyle) -> Rect {
+    let inset = style.stroke_default.max(1);
+    let inner = Rect::new(
+        group_rect.x.saturating_add(inset),
+        group_rect.y.saturating_add(inset),
+        group_rect.width.saturating_sub(inset.saturating_mul(2)),
+        group_rect.height.saturating_sub(inset.saturating_mul(2)),
+    );
+    if inner.is_empty() {
+        return Rect::new(inner.x, inner.y, 0, 0);
+    }
+    let tab_h = style.density_tab_height.min(inner.height);
+    Rect::new(
+        inner.x,
+        inner.y.saturating_add(tab_h),
+        inner.width,
+        inner.height.saturating_sub(tab_h),
+    )
+}
+
 fn command_palette_panel_rect(
     frame: &DesktopFrame,
     scale_factor: f64,
@@ -4385,6 +4850,9 @@ fn draw(
 
     damage_geometry.focused_editor_group =
         focused_editor_group_physical_rect(frame, window.scale_factor());
+    damage_geometry.focused_editor_viewport = damage_geometry
+        .focused_editor_group
+        .map(|rect| editor_viewport_rect_for_group(rect, &style));
     damage_geometry.command_palette_panel = if palette.is_open() {
         command_palette_panel_rect(frame, window.scale_factor(), &style)
     } else {
@@ -4623,9 +5091,6 @@ fn rasterize_shell(
                             focused,
                         );
                     } else {
-                        if !editor_runtime.sessions.contains_key(&group.group_id) {
-                            editor_runtime.open_placeholder(group.group_id);
-                        }
                         let inset = style.stroke_default.max(1);
                         let inner = Rect::new(
                             group_rect.x.saturating_add(inset),
@@ -4634,15 +5099,109 @@ fn rasterize_shell(
                             group_rect.height.saturating_sub(inset.saturating_mul(2)),
                         );
                         if !inner.is_empty() {
-                            editor_runtime.compose_group(
-                                group.group_id,
-                                buffer,
-                                width,
-                                height,
-                                PixelRect::new(inner.x, inner.y, inner.width, inner.height),
-                                clip_px,
-                                &editor_paint_style,
+                            let tab_h = style.density_tab_height.min(inner.height);
+                            let tab_strip = Rect::new(inner.x, inner.y, inner.width, tab_h);
+                            let viewport = Rect::new(
+                                inner.x,
+                                inner.y.saturating_add(tab_h),
+                                inner.width,
+                                inner.height.saturating_sub(tab_h),
                             );
+
+                            if !tab_strip.is_empty() {
+                                fill_rect(buffer, width, height, tab_strip, style.tokens.bg_raised);
+                                stroke_rect(
+                                    buffer,
+                                    width,
+                                    height,
+                                    tab_strip,
+                                    style.stroke_default,
+                                    style.tokens.border_default,
+                                );
+
+                                let tabs = frame.tab_ids(group.group_id);
+                                let active = frame.active_tab_id(group.group_id);
+                                let mut parts = Vec::new();
+                                for (idx, tab_id) in tabs.iter().copied().enumerate() {
+                                    let info =
+                                        editor_runtime.tab_render_info(group.group_id, tab_id);
+                                    let label = info
+                                        .as_ref()
+                                        .map(|row| row.label.as_str())
+                                        .unwrap_or("Untitled");
+                                    let mut segment = if Some(tab_id) == active {
+                                        format!("[{}] {}", idx + 1, label)
+                                    } else {
+                                        format!("{} {}", idx + 1, label)
+                                    };
+                                    if let Some(info) = info {
+                                        if info.dirty {
+                                            segment.push_str(" (Modified)");
+                                        }
+                                        if let Some(token) = info.read_only.token() {
+                                            segment.push_str(" (");
+                                            segment.push_str(token);
+                                            segment.push(')');
+                                        }
+                                        if let Some(token) = info.generated.token() {
+                                            segment.push_str(" (");
+                                            segment.push_str(token);
+                                            segment.push(')');
+                                        }
+                                        if let Some(token) = info.managed.token() {
+                                            segment.push_str(" (");
+                                            segment.push_str(token);
+                                            segment.push(')');
+                                        }
+                                        if let Some(token) = info.projection.token() {
+                                            segment.push_str(" (");
+                                            segment.push_str(token);
+                                            segment.push(')');
+                                        }
+                                        if let Some(token) = info.snapshot_facing.token() {
+                                            segment.push_str(" (");
+                                            segment.push_str(token);
+                                            segment.push(')');
+                                        }
+                                    }
+                                    parts.push(segment);
+                                }
+                                let label = parts.join("  ");
+                                draw_text(
+                                    buffer,
+                                    width,
+                                    height,
+                                    tab_strip.x.saturating_add(style.space_2),
+                                    tab_strip.y.saturating_add(style.space_2 / 2),
+                                    1,
+                                    &label,
+                                    style.tokens.text_muted,
+                                );
+                            }
+
+                            if !viewport.is_empty() {
+                                if let Some(active_tab) = frame.active_tab_id(group.group_id) {
+                                    if !editor_runtime.has_tab_session(group.group_id, active_tab) {
+                                        editor_runtime.open_placeholder(group.group_id, active_tab);
+                                    }
+
+                                    editor_runtime.compose_group(
+                                        group.group_id,
+                                        active_tab,
+                                        buffer,
+                                        width,
+                                        height,
+                                        PixelRect::new(
+                                            viewport.x,
+                                            viewport.y,
+                                            viewport.width,
+                                            viewport.height,
+                                        ),
+                                        clip_px,
+                                        &editor_paint_style,
+                                    );
+                                }
+                            }
                         }
                     }
                 }
@@ -4792,7 +5351,7 @@ fn rasterize_shell(
         let active_workspace = recent_work.active_workspace_label().unwrap_or("none");
         let recent_work_store = recent_work.store_path.display();
         let text = format!(
-            "theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split, Ctrl+G next group, Ctrl+O add tab, Ctrl+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
+            "theme: {}   density: {}   motion: {}   fallback_modes: [{}]   workspace: {}   last_cmd: {}   last_keybinding: {}   enablement: trust={} exec_ctx={} policy={}   keymap: {} ({})   keys: {} palette (resolver)   docs: {} open in browser   Cmd/Ctrl+Shift+R switcher, Enter run, Ctrl+\\\\ split view, Ctrl+Tab next tab, Ctrl+G next group, Ctrl+O new tab, Ctrl+S save, Ctrl+W close tab, Ctrl+Shift+W close group, Ctrl+I keybinding inspector   toggles: Cmd/Ctrl+Shift+T trust, Cmd/Ctrl+Shift+E exec_ctx, Cmd/Ctrl+Shift+B policy, Cmd/Ctrl+Shift+L theme, Ctrl+Alt+Shift+H high contrast, Cmd/Ctrl+Shift+M density, Cmd/Ctrl+Alt+Shift+M motion   packets: .logs/command_packets   recents: {}",
             theme_label,
             density_label,
             motion_label,
@@ -7716,4 +8275,223 @@ fn stroke_rect(
         ),
         color,
     );
+}
+
+#[cfg(test)]
+mod tab_case_tests {
+    use super::*;
+
+    use std::fs;
+    use std::path::PathBuf;
+
+    use serde::Deserialize;
+
+    #[derive(Debug, Deserialize)]
+    struct Meta {
+        name: String,
+        scenario: String,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct DocumentFixture {
+        text: String,
+        #[serde(default)]
+        read_only: bool,
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct EditFixture {
+        offset: usize,
+        insert: String,
+        expected_text: String,
+        #[serde(default = "default_true")]
+        save_should_succeed: bool,
+        #[serde(default)]
+        expected_on_disk: Option<String>,
+    }
+
+    fn default_true() -> bool {
+        true
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct TabCaseFixture {
+        #[serde(rename = "__fixture__")]
+        meta: Meta,
+        document: DocumentFixture,
+        edit: EditFixture,
+    }
+
+    #[test]
+    fn tab_case_fixtures_preserve_shared_buffer_authority() {
+        let repo_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let fixtures_dir = repo_root.join("fixtures/editor/tab_cases");
+
+        let mut fixture_paths: Vec<PathBuf> = fs::read_dir(&fixtures_dir)
+            .expect("fixture directory must exist")
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
+            .collect();
+        fixture_paths.sort();
+
+        assert!(
+            !fixture_paths.is_empty(),
+            "expected at least one fixture under {fixtures_dir:?}"
+        );
+
+        for fixture_path in fixture_paths {
+            let raw = fs::read_to_string(&fixture_path).expect("fixture should be readable");
+            let fixture: TabCaseFixture =
+                serde_json::from_str(&raw).expect("fixture should be valid JSON");
+
+            let tmp_dir = std::env::temp_dir();
+            let suffix = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos();
+            let tmp_path = tmp_dir.join(format!(
+                "aureline_tab_case_{}_{}.txt",
+                fixture.meta.name, suffix
+            ));
+
+            fs::write(&tmp_path, fixture.document.text.as_bytes()).expect("write temp file");
+            if fixture.document.read_only {
+                let mut perms = fs::metadata(&tmp_path)
+                    .expect("read temp metadata")
+                    .permissions();
+                perms.set_readonly(true);
+                fs::set_permissions(&tmp_path, perms).expect("set read-only permissions");
+            }
+
+            let mut frame = DesktopFrame::new(1280, 720);
+            let group = frame.focused_editor_group();
+            let tab1 = frame.open_tab().expect("open first tab");
+            let tab2 = frame.open_tab().expect("open second tab");
+
+            let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+            editor_runtime
+                .open_file(group, tab1, &tmp_path)
+                .expect("open file in tab1");
+            editor_runtime
+                .open_file(group, tab2, &tmp_path)
+                .expect("open file in tab2");
+
+            let auth1 = {
+                editor_runtime
+                    .tab_session_mut(group, tab1)
+                    .expect("tab1 session")
+                    .authority
+                    .clone()
+            };
+            let auth2 = {
+                editor_runtime
+                    .tab_session_mut(group, tab2)
+                    .expect("tab2 session")
+                    .authority
+                    .clone()
+            };
+            assert!(
+                Rc::ptr_eq(&auth1, &auth2),
+                "expected tab sessions to share one buffer authority ({})",
+                fixture.meta.scenario
+            );
+
+            let viewport_rect = PixelRect::new(0, 0, 800, 600);
+            {
+                let session = editor_runtime
+                    .tab_session_mut(group, tab1)
+                    .expect("tab1 session");
+                let (line, grapheme) = session
+                    .snapshot
+                    .line_grapheme_for_byte_offset(fixture.edit.offset)
+                    .expect("offset should map into document");
+                session
+                    .viewport
+                    .set_caret(aureline_editor::TextPoint { line, grapheme });
+                session.viewport.clear_selection();
+                let _ = session.apply_action(
+                    &EditorAction::InsertText {
+                        text: fixture.edit.insert.clone(),
+                    },
+                    viewport_rect,
+                );
+            }
+
+            let info1 = editor_runtime
+                .tab_render_info(group, tab1)
+                .expect("tab1 render info");
+            let info2 = editor_runtime
+                .tab_render_info(group, tab2)
+                .expect("tab2 render info");
+
+            assert!(info1.dirty, "expected tab1 to be Modified");
+            assert!(info2.dirty, "expected tab2 to be Modified");
+            if fixture.document.read_only {
+                assert_eq!(info1.read_only, ReadOnlyState::Filesystem);
+                assert_eq!(info2.read_only, ReadOnlyState::Filesystem);
+            } else {
+                assert_eq!(info1.read_only, ReadOnlyState::Writable);
+                assert_eq!(info2.read_only, ReadOnlyState::Writable);
+            }
+
+            {
+                let session = editor_runtime
+                    .tab_session_mut(group, tab2)
+                    .expect("tab2 session");
+                session.ensure_fresh_snapshot();
+                assert_eq!(
+                    session.snapshot.as_str().unwrap_or_default(),
+                    fixture.edit.expected_text.as_str(),
+                    "expected shared buffer content to be visible in both views"
+                );
+            }
+
+            let save = editor_runtime.save_tab(group, tab1);
+            if fixture.edit.save_should_succeed {
+                save.expect("save should succeed");
+            } else {
+                assert!(
+                    save.is_err(),
+                    "expected save failure ({})",
+                    fixture.meta.scenario
+                );
+            }
+
+            let expected_on_disk = if fixture.edit.save_should_succeed {
+                fixture.edit.expected_text.clone()
+            } else {
+                fixture
+                    .edit
+                    .expected_on_disk
+                    .clone()
+                    .unwrap_or_else(|| fixture.document.text.clone())
+            };
+            let on_disk = fs::read_to_string(&tmp_path).expect("read temp file");
+            assert_eq!(on_disk, expected_on_disk);
+
+            let info1 = editor_runtime
+                .tab_render_info(group, tab1)
+                .expect("tab1 render info");
+            let info2 = editor_runtime
+                .tab_render_info(group, tab2)
+                .expect("tab2 render info");
+            if fixture.edit.save_should_succeed {
+                assert!(!info1.dirty, "expected tab1 to be clean after save");
+                assert!(!info2.dirty, "expected tab2 to be clean after save");
+            } else {
+                assert!(info1.dirty, "expected tab1 to remain Modified after save failure");
+                assert!(info2.dirty, "expected tab2 to remain Modified after save failure");
+            }
+
+            if fixture.document.read_only {
+                let mut perms = fs::metadata(&tmp_path)
+                    .expect("read temp metadata")
+                    .permissions();
+                perms.set_readonly(false);
+                let _ = fs::set_permissions(&tmp_path, perms);
+            }
+            let _ = fs::remove_file(&tmp_path);
+        }
+    }
 }

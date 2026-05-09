@@ -3,6 +3,10 @@ use crate::layout::zone_registry::{
     Rect, ShellZoneId, ZoneDefaults, ZoneRegistry, ZoneRegistryInput, ZoneRegistryLayout,
 };
 
+/// Stable editor-tab identifier scoped to a single [`DesktopFrame`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EditorTabId(pub u64);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResponsiveFallbackMode {
     FullChrome,
@@ -43,13 +47,15 @@ pub struct EditorGroupLayout {
     pub group_id: PaneId,
     pub rect: Rect,
     pub tab_count: u32,
+    pub active_tab: Option<EditorTabId>,
     pub tabbed_compare_active: bool,
 }
 
 #[derive(Debug, Clone)]
 struct EditorGroupState {
     group_id: PaneId,
-    tab_count: u32,
+    tabs: Vec<EditorTabId>,
+    active_tab: Option<EditorTabId>,
     tabbed_compare_active: bool,
 }
 
@@ -62,6 +68,7 @@ pub struct DesktopFrame {
     editor_splits: SplitTree,
     focused_editor_group: PaneId,
     editor_groups: Vec<EditorGroupState>,
+    next_tab_id: u64,
     last_compare_fallback_violation: Option<SplitViolation>,
 }
 
@@ -86,9 +93,11 @@ impl DesktopFrame {
             focused_editor_group,
             editor_groups: vec![EditorGroupState {
                 group_id: focused_editor_group,
-                tab_count: 0,
+                tabs: Vec::new(),
+                active_tab: None,
                 tabbed_compare_active: false,
             }],
+            next_tab_id: 1,
             last_compare_fallback_violation: None,
         }
     }
@@ -149,7 +158,8 @@ impl DesktopFrame {
                 Some(EditorGroupLayout {
                     group_id,
                     rect,
-                    tab_count: state.tab_count,
+                    tab_count: state.tabs.len() as u32,
+                    active_tab: state.active_tab,
                     tabbed_compare_active: state.tabbed_compare_active,
                 })
             })
@@ -181,13 +191,67 @@ impl DesktopFrame {
     }
 
     pub fn open_placeholder_tab(&mut self) {
-        if let Some(group) = self
-            .editor_groups
-            .iter_mut()
-            .find(|g| g.group_id == self.focused_editor_group)
-        {
-            group.tab_count = group.tab_count.saturating_add(1);
+        let _ = self.open_tab();
+    }
+
+    /// Opens a new tab in the focused editor group and returns its stable id.
+    pub fn open_tab(&mut self) -> Option<EditorTabId> {
+        self.open_tab_in_group(self.focused_editor_group)
+    }
+
+    /// Opens a new tab in `group` and returns its stable id.
+    pub fn open_tab_in_group(&mut self, group: PaneId) -> Option<EditorTabId> {
+        let state = self.editor_groups.iter_mut().find(|g| g.group_id == group)?;
+        let id = EditorTabId(self.next_tab_id);
+        self.next_tab_id = self.next_tab_id.saturating_add(1);
+        state.tabs.push(id);
+        state.active_tab = Some(id);
+        Some(id)
+    }
+
+    /// Returns the ordered tab ids for `group`.
+    pub fn tab_ids(&self, group: PaneId) -> Vec<EditorTabId> {
+        self.editor_groups
+            .iter()
+            .find(|g| g.group_id == group)
+            .map(|g| g.tabs.clone())
+            .unwrap_or_default()
+    }
+
+    /// Returns the active tab id for `group`, if any.
+    pub fn active_tab_id(&self, group: PaneId) -> Option<EditorTabId> {
+        self.editor_groups
+            .iter()
+            .find(|g| g.group_id == group)
+            .and_then(|g| g.active_tab)
+    }
+
+    /// Sets the active tab for `group`. Returns `true` when the tab belonged to the group.
+    pub fn set_active_tab(&mut self, group: PaneId, tab: EditorTabId) -> bool {
+        let Some(state) = self.editor_groups.iter_mut().find(|g| g.group_id == group) else {
+            return false;
+        };
+        if !state.tabs.iter().any(|id| *id == tab) {
+            return false;
         }
+        state.active_tab = Some(tab);
+        true
+    }
+
+    /// Closes the active tab for `group` and returns the closed tab id.
+    pub fn close_active_tab(&mut self, group: PaneId) -> Option<EditorTabId> {
+        let state = self.editor_groups.iter_mut().find(|g| g.group_id == group)?;
+        let active = state.active_tab?;
+        let idx = state.tabs.iter().position(|id| *id == active)?;
+        state.tabs.remove(idx);
+        state.active_tab = if state.tabs.is_empty() {
+            None
+        } else if idx == 0 {
+            state.tabs.first().copied()
+        } else {
+            state.tabs.get(idx.saturating_sub(1)).copied()
+        };
+        Some(active)
     }
 
     pub fn focus_next_editor_group(&mut self) {
@@ -269,7 +333,8 @@ impl DesktopFrame {
 
         self.editor_groups.push(EditorGroupState {
             group_id: new_group,
-            tab_count: 0,
+            tabs: Vec::new(),
+            active_tab: None,
             tabbed_compare_active: false,
         });
         self.focused_zone = ShellZoneId::MainWorkspace;
