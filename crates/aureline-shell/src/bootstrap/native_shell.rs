@@ -1796,17 +1796,69 @@ impl EditorTabSession {
                 self.viewport.set_ime_composition(None);
                 self.needs_text_repaint = true;
             }
+            EditorAction::DeleteForward => {
+                let outcome = {
+                    let mut authority = self.authority.borrow_mut();
+                    self.viewport.selections_mut().apply_delete_forward(
+                        &mut authority.buffer,
+                        &self.snapshot,
+                        "user_keystroke",
+                        aureline_editor::TextEditScope::AllCarets,
+                    )
+                };
+
+                let Ok(Some(outcome)) = outcome else {
+                    return None;
+                };
+
+                self.snapshot = outcome.snapshot;
+                self.last_seen_revision = outcome.revision;
+                self.refresh_document_cache();
+                self.viewport.set_ime_composition(None);
+                self.needs_text_repaint = true;
+            }
             EditorAction::MoveCaret {
                 movement,
                 extend_selection,
-            } => {
-                if !self
-                    .viewport
-                    .move_caret(*movement, &self.line_graphemes, *extend_selection)
-                {
-                    return None;
+            } => match movement {
+                CaretMove::WordLeft | CaretMove::WordRight => {
+                    let before = self.viewport.caret();
+
+                    if !*extend_selection {
+                        self.viewport.clear_selection();
+                    } else if self.viewport.selection_anchor().is_none() {
+                        self.viewport.set_selection_anchor(Some(before));
+                    }
+
+                    let direction = match movement {
+                        CaretMove::WordLeft => aureline_editor::text_nav::WordMotion::Left,
+                        CaretMove::WordRight => aureline_editor::text_nav::WordMotion::Right,
+                        _ => unreachable!("movement already narrowed"),
+                    };
+
+                    let Some(next) = aureline_editor::text_nav::move_point_by_word(
+                        &self.snapshot,
+                        before,
+                        direction,
+                    ) else {
+                        return None;
+                    };
+
+                    if next == before {
+                        return None;
+                    }
+
+                    self.viewport.set_caret(next);
                 }
-            }
+                _ => {
+                    if !self
+                        .viewport
+                        .move_caret(*movement, &self.line_graphemes, *extend_selection)
+                    {
+                        return None;
+                    }
+                }
+            },
             EditorAction::ChangeSelection { delta } => {
                 self.viewport
                     .apply_selection_delta(*delta, &self.line_graphemes);
@@ -4739,6 +4791,7 @@ fn text_input_key_code(code: KeyCode) -> aureline_input::text_input::TextInputKe
         KeyCode::PageUp => Out::PageUp,
         KeyCode::PageDown => Out::PageDown,
         KeyCode::Backspace => Out::Backspace,
+        KeyCode::Delete => Out::Delete,
         KeyCode::Enter => Out::Enter,
         _ => Out::Other,
     }
@@ -4752,6 +4805,7 @@ fn editor_action_from_text_input(
     match action {
         InputAction::InsertText { text } => EditorAction::InsertText { text },
         InputAction::DeleteBackward => EditorAction::DeleteBackward,
+        InputAction::DeleteForward => EditorAction::DeleteForward,
         InputAction::MoveCaret {
             movement,
             extend_selection,
@@ -4761,6 +4815,8 @@ fn editor_action_from_text_input(
                 InputMove::Right => CaretMove::Right,
                 InputMove::Up => CaretMove::Up,
                 InputMove::Down => CaretMove::Down,
+                InputMove::WordLeft => CaretMove::WordLeft,
+                InputMove::WordRight => CaretMove::WordRight,
                 InputMove::LineStart => CaretMove::LineStart,
                 InputMove::LineEnd => CaretMove::LineEnd,
                 InputMove::PageUp => CaretMove::PageUp,

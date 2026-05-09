@@ -12,6 +12,7 @@
 pub mod clipboard;
 pub mod paint;
 pub mod selection;
+pub mod text_nav;
 pub mod viewport;
 
 pub use paint::{EditorTextRuntime, ViewportCompositor, ViewportPaintStyle};

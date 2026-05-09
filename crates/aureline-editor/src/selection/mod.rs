@@ -285,6 +285,54 @@ impl SelectionState {
         }))
     }
 
+    /// Applies a forward-delete (delete key) against `scope`.
+    ///
+    /// Returns `Ok(None)` when the edit is a no-op (for example at the end of
+    /// the document).
+    pub fn apply_delete_forward(
+        &mut self,
+        buffer: &mut Buffer,
+        snapshot: &Snapshot,
+        originator: &str,
+        scope: TextEditScope,
+    ) -> Result<Option<TextEditOutcome>, BufferError> {
+        self.normalize();
+        let mut ops = build_forward_delete_ops(snapshot, self, scope);
+        if ops.is_empty() {
+            return Ok(None);
+        }
+        ops = normalize_ops(ops);
+
+        let multi_caret = matches!(scope, TextEditScope::AllCarets) && self.caret_count() > 1;
+        let undo_class = if multi_caret {
+            UndoClass::MultiCursorTextEdit
+        } else {
+            UndoClass::TextEdit
+        };
+        let originator = if multi_caret {
+            format!("{originator}:multi_cursor")
+        } else {
+            originator.to_string()
+        };
+
+        let mut tx = buffer.begin(TransactionSpec::new(undo_class, originator))?;
+        for op in ops.iter().rev() {
+            tx.replace(op.start..op.end, "")?;
+        }
+        let committed = tx.commit()?;
+        let revision = buffer.revision_id();
+        let next_snapshot = buffer.snapshot();
+
+        remap_carets_after_ops(self, snapshot, &next_snapshot, &ops);
+        clear_all_anchors(self);
+
+        Ok(Some(TextEditOutcome {
+            committed,
+            snapshot: next_snapshot,
+            revision,
+        }))
+    }
+
     /// Applies a grouped deletion over explicit byte ranges.
     ///
     /// The ranges are interpreted against `snapshot` and normalized (sorted and
@@ -509,6 +557,85 @@ fn build_backward_delete_ops(
         } else {
             (span.start.saturating_sub(1), span.start)
         };
+        if start < end {
+            out.push(EditOp {
+                start,
+                end,
+                inserted_len: 0,
+            });
+        }
+    };
+
+    match scope {
+        TextEditScope::PrimaryOnly => push_for(&state.primary),
+        TextEditScope::AllCarets => {
+            push_for(&state.primary);
+            for caret in &state.secondary {
+                push_for(caret);
+            }
+        }
+    }
+
+    out
+}
+
+fn build_forward_delete_ops(
+    snapshot: &Snapshot,
+    state: &SelectionState,
+    scope: TextEditScope,
+) -> Vec<EditOp> {
+    let mut out = Vec::new();
+    let mut push_for = |caret: &CaretSelection| {
+        if let Some((start, end)) = caret.ordered_range() {
+            let start = byte_offset_for_point(snapshot, start);
+            let end = byte_offset_for_point(snapshot, end);
+            if start < end {
+                out.push(EditOp {
+                    start,
+                    end,
+                    inserted_len: 0,
+                });
+            }
+            return;
+        }
+
+        let point = caret.caret();
+        let Some(max_graphemes) = snapshot.grapheme_count_in_line(point.line) else {
+            return;
+        };
+
+        if point.grapheme < max_graphemes {
+            let start = byte_offset_for_point(snapshot, point);
+            let end = byte_offset_for_point(
+                snapshot,
+                TextPoint {
+                    line: point.line,
+                    grapheme: point.grapheme.saturating_add(1),
+                },
+            );
+            if start < end {
+                out.push(EditOp {
+                    start,
+                    end,
+                    inserted_len: 0,
+                });
+            }
+            return;
+        }
+
+        if point.line + 1 >= snapshot.line_count() {
+            return;
+        }
+
+        let Some(span) = snapshot.line_span(point.line) else {
+            return;
+        };
+        let Some(next_span) = snapshot.line_span(point.line + 1) else {
+            return;
+        };
+
+        let start = span.end.min(snapshot.len());
+        let end = next_span.start.min(snapshot.len());
         if start < end {
             out.push(EditOp {
                 start,

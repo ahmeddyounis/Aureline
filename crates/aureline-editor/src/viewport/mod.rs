@@ -37,6 +37,8 @@ pub enum CaretMove {
     Right,
     Up,
     Down,
+    WordLeft,
+    WordRight,
     LineStart,
     LineEnd,
     PageUp,
@@ -72,6 +74,8 @@ pub enum EditorAction {
     InsertText { text: String },
     /// Deletes one grapheme to the left of the caret (backspace semantics).
     DeleteBackward,
+    /// Deletes one grapheme to the right of the caret (forward delete semantics).
+    DeleteForward,
     /// Moves the caret.
     MoveCaret {
         movement: CaretMove,
@@ -295,16 +299,16 @@ impl EditorViewport {
         }
 
         match action {
-            EditorAction::InsertText { .. } | EditorAction::DeleteBackward => {
-                Some(ViewportDamage {
-                    event: DamageEvent::with_region(
-                        CompositionLayerId::TextAndDecoration,
-                        DamageClassId::TextReflowLocal,
-                        DamageRegion::Rect(viewport_rect),
-                    ),
-                    hook: Hook::ReflowLineRange,
-                })
-            }
+            EditorAction::InsertText { .. }
+            | EditorAction::DeleteBackward
+            | EditorAction::DeleteForward => Some(ViewportDamage {
+                event: DamageEvent::with_region(
+                    CompositionLayerId::TextAndDecoration,
+                    DamageClassId::TextReflowLocal,
+                    DamageRegion::Rect(viewport_rect),
+                ),
+                hook: Hook::ReflowLineRange,
+            }),
             EditorAction::MoveCaret {
                 extend_selection, ..
             } => {
@@ -408,6 +412,13 @@ impl EditorViewport {
                     col = 0;
                 }
                 self.preferred_grapheme_column = col;
+            }
+            CaretMove::WordLeft | CaretMove::WordRight => {
+                // Word motion depends on buffer contents and is applied by higher-level
+                // navigation helpers. The viewport still owns the selection anchor and
+                // preferred column state, so callers should map word motion to an
+                // explicit caret position update via [`EditorViewport::set_caret`].
+                return false;
             }
             CaretMove::Up => {
                 if line > 0 {

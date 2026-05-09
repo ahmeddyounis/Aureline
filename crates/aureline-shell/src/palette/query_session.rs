@@ -708,7 +708,10 @@ impl CommandPaletteState {
                 }
                 changed
             }
-            TextInputAction::DeleteBackward => self.handle_backspace(registry, shortcuts_by_command_id),
+            TextInputAction::DeleteBackward => {
+                self.handle_backspace(registry, shortcuts_by_command_id)
+            }
+            TextInputAction::DeleteForward => false,
             TextInputAction::MoveCaret { .. } => false,
             TextInputAction::UpdateComposition { .. } | TextInputAction::ClearComposition => true,
         }

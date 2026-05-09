@@ -49,6 +49,7 @@ pub enum TextInputKeyCode {
     PageUp,
     PageDown,
     Backspace,
+    Delete,
     Enter,
     Other,
 }
@@ -61,6 +62,8 @@ pub enum CaretMove {
     Right,
     Up,
     Down,
+    WordLeft,
+    WordRight,
     LineStart,
     LineEnd,
     PageUp,
@@ -87,7 +90,9 @@ pub enum ImeEvent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         cursor: Option<(usize, usize)>,
     },
-    Commit { text: String },
+    Commit {
+        text: String,
+    },
 }
 
 /// Key press event adapted for text entry.
@@ -108,14 +113,19 @@ pub struct TextKeyEvent {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TextInputAction {
-    InsertText { text: String },
+    InsertText {
+        text: String,
+    },
     DeleteBackward,
+    DeleteForward,
     MoveCaret {
         movement: CaretMove,
         #[serde(default)]
         extend_selection: bool,
     },
-    UpdateComposition { composition: ImeComposition },
+    UpdateComposition {
+        composition: ImeComposition,
+    },
     ClearComposition,
 }
 
@@ -211,20 +221,30 @@ impl TextInputSession {
 
         match event.code {
             TextInputKeyCode::ArrowLeft => {
-                if event.modifiers.ctrl_or_logo() || event.modifiers.alt {
-                    return None;
-                }
+                let movement = if event.modifiers.logo {
+                    CaretMove::LineStart
+                } else if event.modifiers.ctrl || event.modifiers.alt {
+                    CaretMove::WordLeft
+                } else {
+                    CaretMove::Left
+                };
+
                 Some(TextInputAction::MoveCaret {
-                    movement: CaretMove::Left,
+                    movement,
                     extend_selection,
                 })
             }
             TextInputKeyCode::ArrowRight => {
-                if event.modifiers.ctrl_or_logo() || event.modifiers.alt {
-                    return None;
-                }
+                let movement = if event.modifiers.logo {
+                    CaretMove::LineEnd
+                } else if event.modifiers.ctrl || event.modifiers.alt {
+                    CaretMove::WordRight
+                } else {
+                    CaretMove::Right
+                };
+
                 Some(TextInputAction::MoveCaret {
-                    movement: CaretMove::Right,
+                    movement,
                     extend_selection,
                 })
             }
@@ -288,6 +308,12 @@ impl TextInputSession {
                 }
                 Some(TextInputAction::DeleteBackward)
             }
+            TextInputKeyCode::Delete => {
+                if event.modifiers.ctrl_or_logo() || event.modifiers.alt {
+                    return None;
+                }
+                Some(TextInputAction::DeleteForward)
+            }
             TextInputKeyCode::Enter => {
                 if event.modifiers.ctrl_or_logo() || event.modifiers.alt {
                     return None;
@@ -313,4 +339,3 @@ impl TextInputSession {
         }
     }
 }
-

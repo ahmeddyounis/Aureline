@@ -110,7 +110,9 @@ fn viewport_cases_fixture_set_stays_deterministic() {
             EditorAction::ClearComposition => {
                 viewport.set_ime_composition(None);
             }
-            EditorAction::InsertText { .. } | EditorAction::DeleteBackward => {}
+            EditorAction::InsertText { .. }
+            | EditorAction::DeleteBackward
+            | EditorAction::DeleteForward => {}
             EditorAction::ScrollLines { .. } | EditorAction::ScaleChange => {}
         }
 
@@ -161,5 +163,7 @@ fn viewport_cases_fixture_set_stays_deterministic() {
             path,
             fixture.meta.scenario
         );
+
+        let _ = fixture.meta.name;
     }
 }
