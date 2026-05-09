@@ -15,6 +15,7 @@ use aureline_vfs::{
     SaveTargetToken, VfsRoot, VfsUri,
 };
 
+use super::source_fidelity::{encode_for_save, SourceFidelityRecord};
 use super::write_strategy::{select_write_strategy, WriteStrategy};
 
 /// A transformation step that can run on staged save content.
@@ -51,6 +52,7 @@ impl std::error::Error for SaveParticipantError {}
 pub struct StagedSaveRequest {
     pub token: SaveTargetToken,
     pub new_content: Vec<u8>,
+    pub source_fidelity: SourceFidelityRecord,
     pub save_participant_group_id: Option<String>,
     pub checkpoint_ref: Option<String>,
     pub committed_at: String,
@@ -62,6 +64,7 @@ pub struct SaveResult {
     pub packet_id: String,
     pub write_strategy: WriteStrategy,
     pub manifest: SaveManifest,
+    pub source_fidelity: SourceFidelityRecord,
     /// The token that should be used for the next save attempt.
     pub next_token: SaveTargetToken,
     /// Participant failure detail when `outcome == save_participant_failed`.
@@ -99,6 +102,7 @@ impl StagedSaveCoordinator {
         participants: &mut [Box<dyn SaveParticipant>],
     ) -> SaveResult {
         let packet_id = self.mint_packet_id();
+        let source_fidelity = request.source_fidelity.clone();
         let mut staged = request.new_content;
         let mut participant_error: Option<SaveParticipantError> = None;
 
@@ -130,6 +134,7 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy: select_write_strategy(&token),
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: Some(err),
             };
@@ -160,6 +165,7 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy,
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: None,
             };
@@ -182,6 +188,7 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy,
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: None,
             };
@@ -201,6 +208,7 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy,
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: None,
             };
@@ -225,6 +233,7 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy,
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: None,
             };
@@ -246,6 +255,7 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy,
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: None,
             };
@@ -273,6 +283,7 @@ impl StagedSaveCoordinator {
                         packet_id,
                         write_strategy,
                         manifest,
+                        source_fidelity: source_fidelity.clone(),
                         next_token: token,
                         participant_error: None,
                     };
@@ -292,6 +303,7 @@ impl StagedSaveCoordinator {
                     packet_id,
                     write_strategy,
                     manifest,
+                    source_fidelity: source_fidelity.clone(),
                     next_token: token,
                     participant_error: None,
                 };
@@ -315,6 +327,7 @@ impl StagedSaveCoordinator {
                     packet_id,
                     write_strategy,
                     manifest,
+                    source_fidelity: source_fidelity.clone(),
                     next_token: token,
                     participant_error: None,
                 };
@@ -346,10 +359,38 @@ impl StagedSaveCoordinator {
                 packet_id,
                 write_strategy,
                 manifest,
+                source_fidelity: source_fidelity.clone(),
                 next_token: token,
                 participant_error: None,
             };
         }
+
+        let staged = match encode_for_save(&source_fidelity, &staged) {
+            Ok(bytes) => bytes,
+            Err(detail) => {
+                let err = SaveParticipantError {
+                    participant_id: "source_fidelity_conversion".to_owned(),
+                    detail,
+                };
+                let manifest = make_manifest(
+                    root,
+                    &token,
+                    request.save_participant_group_id,
+                    request.checkpoint_ref,
+                    request.committed_at,
+                    SaveOutcome::SaveParticipantFailed,
+                    Some(err.to_string()),
+                );
+                return SaveResult {
+                    packet_id,
+                    write_strategy,
+                    manifest,
+                    source_fidelity: source_fidelity.clone(),
+                    next_token: token,
+                    participant_error: Some(err),
+                };
+            }
+        };
 
         // Commit under the selected write strategy.
         let mut failure_detail: Option<String> = None;
@@ -408,6 +449,7 @@ impl StagedSaveCoordinator {
             packet_id,
             write_strategy,
             manifest,
+            source_fidelity,
             next_token,
             participant_error: None,
         }

@@ -6,7 +6,9 @@ use aureline_vfs::save::open_save_target;
 use aureline_vfs::{HookCounters, LocalFilesystemRoot, SaveOutcome, VfsUri};
 
 use aureline_workspace::save::{
-    SaveParticipant, StagedSaveCoordinator, StagedSaveRequest, WriteStrategy,
+    BomStateDetected, DetectionSource, DetectedEncoding, ExecutableIntent, FinalNewlineDetected,
+    NewlineModeDetected, SaveParticipant, SourceFidelityRecord, StagedSaveCoordinator,
+    StagedSaveRequest, WriteStrategy,
 };
 
 struct FailingParticipant;
@@ -29,6 +31,17 @@ fn unique_temp_path(label: &str) -> PathBuf {
     std::env::temp_dir().join(format!("aureline_save_pipeline_{label}_{suffix}.txt"))
 }
 
+fn default_source_fidelity() -> SourceFidelityRecord {
+    SourceFidelityRecord {
+        detected_encoding: DetectedEncoding::Utf8,
+        detection_source: DetectionSource::Utf8Heuristic,
+        bom_state_detected: BomStateDetected::Absent,
+        newline_mode_detected: NewlineModeDetected::Lf,
+        final_newline_detected: FinalNewlineDetected::Absent,
+        executable_intent: ExecutableIntent::NonExecutable,
+    }
+}
+
 #[test]
 fn staged_save_commits_via_atomic_replace_and_refreshes_token() {
     let tmp_path = unique_temp_path("atomic_replace");
@@ -44,6 +57,7 @@ fn staged_save_commits_via_atomic_replace_and_refreshes_token() {
     let request = StagedSaveRequest {
         token: token.clone(),
         new_content: b"beta".to_vec(),
+        source_fidelity: default_source_fidelity(),
         save_participant_group_id: None,
         checkpoint_ref: None,
         committed_at: "mono:commit:1".to_owned(),
@@ -70,6 +84,7 @@ fn staged_save_commits_via_atomic_replace_and_refreshes_token() {
     let request2 = StagedSaveRequest {
         token: result.next_token.clone(),
         new_content: b"gamma".to_vec(),
+        source_fidelity: default_source_fidelity(),
         save_participant_group_id: None,
         checkpoint_ref: None,
         committed_at: "mono:commit:2".to_owned(),
@@ -101,6 +116,7 @@ fn staged_save_detects_external_change_before_write() {
     let request = StagedSaveRequest {
         token,
         new_content: b"beta".to_vec(),
+        source_fidelity: default_source_fidelity(),
         save_participant_group_id: None,
         checkpoint_ref: None,
         committed_at: "mono:commit".to_owned(),
@@ -135,6 +151,7 @@ fn staged_save_fails_closed_when_participant_errors() {
     let request = StagedSaveRequest {
         token,
         new_content: b"beta".to_vec(),
+        source_fidelity: default_source_fidelity(),
         save_participant_group_id: Some("save_participant_group:test".to_owned()),
         checkpoint_ref: None,
         committed_at: "mono:commit".to_owned(),

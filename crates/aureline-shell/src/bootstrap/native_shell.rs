@@ -95,7 +95,10 @@ use aureline_vfs::{
     HookCounters, IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, SaveTargetToken,
     VfsRoot, VfsUri, VirtualDocumentKind, VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
 };
-use aureline_workspace::save::{SaveResult, StagedSaveCoordinator, StagedSaveRequest};
+use aureline_workspace::save::{
+    detect_and_decode_for_buffer, SaveResult, SourceFidelityRecord, StagedSaveCoordinator,
+    StagedSaveRequest,
+};
 use aureline_workspace::{
     resolve_entry_flow, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
     PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
@@ -1589,6 +1592,7 @@ struct BufferAuthority {
     file_path: Option<PathBuf>,
     vfs_identity: Option<VfsIdentityRecord>,
     save_target_token: Option<SaveTargetToken>,
+    source_fidelity: Option<SourceFidelityRecord>,
     read_only: ReadOnlyState,
     generated: GeneratedState,
     managed: ManagedState,
@@ -1684,14 +1688,32 @@ impl BufferAuthorityStore {
 
         let authority = match outcome {
             DocumentOpenOutcome::Normal(doc) => {
-                let buffer = doc.buffer;
-                let saved_revision = buffer.revision_id();
-                let read_only = read_only_state_for_path(&canonical);
+                let raw_bytes = doc.snapshot.as_bytes().to_vec();
+                let open_outcome = detect_and_decode_for_buffer(
+                    &raw_bytes,
+                    &save_target_token.permission_snapshot,
+                );
+
+                let (buffer, saved_revision, read_only) = match open_outcome.buffer_utf8_bytes {
+                    Some(decoded) => {
+                        let buffer = Buffer::from_bytes(&decoded);
+                        let saved_revision = buffer.revision_id();
+                        (buffer, saved_revision, read_only_state_for_path(&canonical))
+                    }
+                    None => {
+                        let buffer = Buffer::from_str(
+                            "<decode recovery: bytes could not be decoded as supported text>",
+                        );
+                        let saved_revision = buffer.revision_id();
+                        (buffer, saved_revision, ReadOnlyState::Constrained)
+                    }
+                };
                 Rc::new(RefCell::new(BufferAuthority {
                     label,
                     file_path: Some(canonical.clone()),
                     vfs_identity: Some(doc.identity),
                     save_target_token: Some(save_target_token.clone()),
+                    source_fidelity: Some(open_outcome.record),
                     read_only,
                     generated: GeneratedState::Authored,
                     managed: ManagedState::Unmanaged,
@@ -1718,6 +1740,7 @@ impl BufferAuthorityStore {
                     file_path: Some(canonical.clone()),
                     vfs_identity: Some(doc.identity.clone()),
                     save_target_token: Some(save_target_token.clone()),
+                    source_fidelity: None,
                     read_only: ReadOnlyState::Constrained,
                     generated: GeneratedState::Authored,
                     managed: ManagedState::Unmanaged,
@@ -1759,6 +1782,7 @@ impl BufferAuthorityStore {
             file_path: None,
             vfs_identity,
             save_target_token: None,
+            source_fidelity: None,
             read_only: ReadOnlyState::Writable,
             generated: GeneratedState::Authored,
             managed: ManagedState::Unmanaged,
@@ -2233,13 +2257,31 @@ impl EditorWorkspaceRuntimeState {
 
         {
             let mut auth = tab_session.authority.borrow_mut();
-            let buffer = doc.buffer;
-            let saved_revision = buffer.revision_id();
+            let raw_bytes = doc.snapshot.as_bytes().to_vec();
+            let open_outcome = detect_and_decode_for_buffer(
+                &raw_bytes,
+                &save_target_token.permission_snapshot,
+            );
+            let (buffer, saved_revision, read_only) = match open_outcome.buffer_utf8_bytes {
+                Some(decoded) => {
+                    let buffer = Buffer::from_bytes(&decoded);
+                    let saved_revision = buffer.revision_id();
+                    (buffer, saved_revision, read_only_state_for_path(&canonical))
+                }
+                None => {
+                    let buffer = Buffer::from_str(
+                        "<decode recovery: bytes could not be decoded as supported text>",
+                    );
+                    let saved_revision = buffer.revision_id();
+                    (buffer, saved_revision, ReadOnlyState::Constrained)
+                }
+            };
             auth.buffer = buffer;
             auth.saved_revision = saved_revision;
             auth.vfs_identity = Some(doc.identity);
             auth.save_target_token = Some(save_target_token);
-            auth.read_only = read_only_state_for_path(&canonical);
+            auth.source_fidelity = Some(open_outcome.record);
+            auth.read_only = read_only;
             auth.large_file_doc = None;
             auth.large_file_override = doc.large_file_override;
             auth.find_replace = FindReplaceState::new();
@@ -2310,9 +2352,14 @@ impl EditorWorkspaceRuntimeState {
         };
 
         let snapshot = authority.buffer.snapshot();
+        let source_fidelity = authority
+            .source_fidelity
+            .clone()
+            .ok_or_else(|| "missing source-fidelity record for save".to_owned())?;
         let request = StagedSaveRequest {
             token,
             new_content: snapshot.as_bytes().to_vec(),
+            source_fidelity,
             save_participant_group_id: None,
             checkpoint_ref: None,
             committed_at: mono_timestamp_now(),
