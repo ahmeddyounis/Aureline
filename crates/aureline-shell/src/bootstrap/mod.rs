@@ -5,6 +5,7 @@
 //! emission.
 
 pub mod native_shell;
+pub(crate) mod appearance_golden;
 pub(crate) mod startup_trace;
 
 pub use native_shell::run_native_shell;

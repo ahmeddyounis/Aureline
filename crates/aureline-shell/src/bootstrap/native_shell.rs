@@ -71,6 +71,7 @@ use aureline_ui::density::DensityProfile;
 use aureline_ui::motion::{ReducedMotionSubstitutionClass, OVERLAY_DIALOG_ENTER};
 use aureline_ui::themes::{
     AccessibilityPostureClass, AppearanceSessionRecord, DensityClass, LiveFollowSystemPolicyRecord,
+    ReducedMotionSource,
 };
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
@@ -90,6 +91,7 @@ use crate::windowing::display_safety::{
 };
 use crate::windowing::winit_softbuffer::{create_softbuffer_surface, SoftbufferSurface};
 use crate::windowing::winit_window::WinitWindow;
+use crate::bootstrap::appearance_golden::write_png_0rgb;
 use arboard::Clipboard;
 use aureline_editor::{
     CaretMove, EditorAction, EditorTextRuntime, EditorViewport, SelectionDelta, ViewportCompositor,
@@ -237,6 +239,11 @@ struct NativeShellArgs {
     hot_path_metrics: HotPathMetricsConfig,
     disable_clipboard: bool,
     renderer: ShellRendererChoice,
+    window_size: Option<(f64, f64)>,
+    screenshot_path: Option<PathBuf>,
+    theme_class: Option<ThemeClass>,
+    density_class: Option<DensityClass>,
+    reduced_motion_posture: Option<AccessibilityPostureClass>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -271,6 +278,37 @@ fn parse_native_shell_args() -> Result<NativeShellArgs, String> {
             "--exit-after-first-frame" => {
                 args.startup_trace.exit_after_first_frame = true;
             }
+            "--emit-screenshot" => {
+                let path = iter
+                    .next()
+                    .ok_or_else(|| "--emit-screenshot requires an output file path".to_string())?;
+                args.screenshot_path = Some(PathBuf::from(path));
+                args.startup_trace.exit_after_first_frame = true;
+            }
+            "--window-size" => {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| "--window-size requires a value like 1280x720".to_string())?;
+                args.window_size = Some(parse_window_size(&value)?);
+            }
+            "--theme-class" => {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| "--theme-class requires a theme class token".to_string())?;
+                args.theme_class = Some(parse_theme_class(&value)?);
+            }
+            "--density-class" => {
+                let value = iter
+                    .next()
+                    .ok_or_else(|| "--density-class requires a density class token".to_string())?;
+                args.density_class = Some(parse_density_class(&value)?);
+            }
+            "--reduced-motion-posture" => {
+                let value = iter.next().ok_or_else(|| {
+                    "--reduced-motion-posture requires a posture token".to_string()
+                })?;
+                args.reduced_motion_posture = Some(parse_accessibility_posture(&value)?);
+            }
             "--disable-clipboard" => args.disable_clipboard = true,
             "--renderer" => {
                 let value = iter.next().ok_or_else(|| {
@@ -297,8 +335,69 @@ fn usage() -> String {
      \taureline_shell\n\
      \taureline_shell --emit-startup-trace <path> [--exit-after-first-frame] [--disable-clipboard]\n\
      \taureline_shell --emit-hot-path-metrics <path>\n\
+     \taureline_shell --emit-screenshot <path> [--theme-class <token>] [--density-class <token>] [--reduced-motion-posture <token>] [--window-size <WxH>] [--renderer (gpu|software)]\n\
      \taureline_shell --renderer (gpu|software)\n"
         .to_string()
+}
+
+fn parse_window_size(value: &str) -> Result<(f64, f64), String> {
+    let value = value.trim();
+    let Some((w, h)) = value.split_once('x') else {
+        return Err(format!(
+            "invalid --window-size value: {value:?} (expected <width>x<height>)"
+        ));
+    };
+    let width: f64 = w.trim().parse().map_err(|_| {
+        format!("invalid --window-size width: {w:?} (expected numeric value)")
+    })?;
+    let height: f64 = h.trim().parse().map_err(|_| {
+        format!("invalid --window-size height: {h:?} (expected numeric value)")
+    })?;
+    if !width.is_finite() || !height.is_finite() || width <= 0.0 || height <= 0.0 {
+        return Err(format!(
+            "invalid --window-size value: {value:?} (width and height must be positive)"
+        ));
+    }
+    Ok((width, height))
+}
+
+fn parse_theme_class(value: &str) -> Result<ThemeClass, String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "dark_reference" => Ok(ThemeClass::DarkReference),
+        "light_parity" => Ok(ThemeClass::LightParity),
+        "high_contrast_dark" => Ok(ThemeClass::HighContrastDark),
+        "high_contrast_light" => Ok(ThemeClass::HighContrastLight),
+        _ => Err(format!(
+            "invalid theme class token: {value:?} (expected dark_reference | light_parity | high_contrast_dark | high_contrast_light)"
+        )),
+    }
+}
+
+fn parse_density_class(value: &str) -> Result<DensityClass, String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "compact" => Ok(DensityClass::Compact),
+        "standard" => Ok(DensityClass::Standard),
+        "comfortable" => Ok(DensityClass::Comfortable),
+        _ => Err(format!(
+            "invalid density class token: {value:?} (expected compact | standard | comfortable)"
+        )),
+    }
+}
+
+fn parse_accessibility_posture(value: &str) -> Result<AccessibilityPostureClass, String> {
+    let normalized = value.trim().to_ascii_lowercase();
+    match normalized.as_str() {
+        "motion_standard" => Ok(AccessibilityPostureClass::MotionStandard),
+        "motion_reduced" => Ok(AccessibilityPostureClass::MotionReduced),
+        "motion_low_motion" => Ok(AccessibilityPostureClass::MotionLowMotion),
+        "motion_power_saver" => Ok(AccessibilityPostureClass::MotionPowerSaver),
+        "motion_critical_hot_path" => Ok(AccessibilityPostureClass::MotionCriticalHotPath),
+        _ => Err(format!(
+            "invalid accessibility posture token: {value:?} (expected motion_standard | motion_reduced | motion_low_motion | motion_power_saver | motion_critical_hot_path)"
+        )),
+    }
 }
 
 #[derive(Debug)]
@@ -430,10 +529,12 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut scheduler = FrameScheduler::new();
     let event_loop = EventLoop::new()?;
     let registry = seeded_registry();
+    let (default_width, default_height) = (1920.0, 1080.0);
+    let (window_width, window_height) = args.window_size.unwrap_or((default_width, default_height));
     let window = WinitWindow::new(
         &event_loop,
         window_title(None, None, None),
-        LogicalSize::new(1920.0, 1080.0),
+        LogicalSize::new(window_width, window_height),
     )?
     .into_arc();
     let mut display_safety = DisplaySafetyGuard::new();
@@ -482,6 +583,11 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
     let mut recent_work = RecentWorkRuntimeState::load();
     let mut clipboard = ClipboardState::new(!args.disable_clipboard);
     let mut appearance = AppearanceRuntimeState::load();
+    appearance.apply_cli_overrides(
+        args.theme_class,
+        args.density_class,
+        args.reduced_motion_posture,
+    );
     let docs_help_boundary_card =
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
     let mut text_runtime = ShellTextRuntime::new();
@@ -585,6 +691,8 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         scheduler.mark_hook(Hook::AccessibilityTreeUpdate, clock);
         write_shell_accessibility_tree_log(&snapshot);
     }
+
+    let screenshot_path = args.screenshot_path.clone();
 
     event_loop.run(move |event, elwt| match event {
         Event::AboutToWait => {
@@ -997,6 +1105,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     &appearance,
                     &held_modifiers,
                     &mut damage_geometry,
+                    screenshot_path.as_deref(),
                 ) {
                     eprintln!("aureline_shell: draw failed: {err}");
                     let _ = hot_path_metrics.write_if_configured();
@@ -1825,6 +1934,33 @@ impl AppearanceRuntimeState {
 
     const fn reduced_motion_posture(&self) -> AccessibilityPostureClass {
         self.session.reduced_motion_posture
+    }
+
+    fn apply_cli_overrides(
+        &mut self,
+        theme_class: Option<ThemeClass>,
+        density_class: Option<DensityClass>,
+        reduced_motion_posture: Option<AccessibilityPostureClass>,
+    ) {
+        if theme_class.is_none() && density_class.is_none() && reduced_motion_posture.is_none() {
+            return;
+        }
+
+        let minted_at = now_rfc3339();
+        if let Some(theme) = theme_class {
+            self.session.apply_theme_class(theme, minted_at.clone());
+        }
+        if let Some(density) = density_class {
+            self.session.apply_density_class(density, minted_at.clone());
+        }
+        if let Some(posture) = reduced_motion_posture {
+            self.session.apply_reduced_motion_posture(
+                posture,
+                ReducedMotionSource::UserSetting,
+                minted_at,
+            );
+        }
+        self.persist();
     }
 
     fn toggle_light_dark(&mut self) {
@@ -4081,6 +4217,7 @@ fn draw(
     appearance: &AppearanceRuntimeState,
     held_modifiers: &HeldModifiers,
     damage_geometry: &mut ShellDamageGeometryCache,
+    screenshot_path: Option<&Path>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let physical = window.inner_size();
     if physical.width == 0 || physical.height == 0 {
@@ -4141,6 +4278,9 @@ fn draw(
                 &style,
                 held_modifiers,
             );
+            if let Some(path) = screenshot_path {
+                write_png_0rgb(path, width, height, &buffer)?;
+            }
             buffer.present()?;
             Ok(())
         }
@@ -4155,6 +4295,9 @@ fn draw(
             }
             let required = (width as usize).saturating_mul(height as usize);
             let mut force_full_redraw = false;
+            if screenshot_path.is_some() {
+                force_full_redraw = true;
+            }
             if retained_frame.len() != required {
                 retained_frame.resize(required, 0);
                 force_full_redraw = true;
@@ -4208,6 +4351,9 @@ fn draw(
                 );
             });
 
+            if let Some(path) = screenshot_path {
+                write_png_0rgb(path, width, height, retained_frame)?;
+            }
             if use_dirty_upload {
                 renderer.render_0rgb_dirty(retained_frame, &[upload_rect])?;
             } else {
