@@ -13,6 +13,7 @@
 pub mod entry_flows;
 pub mod lifecycle;
 pub mod recent_work;
+pub mod save;
 
 pub use recent_work::{
     EntryAndRestoreSchemaVersion, PortabilityClass, RecentWorkEntryRecord,
@@ -29,4 +30,9 @@ pub use lifecycle::{
 pub use entry_flows::{
     resolve_entry_flow, EntryFlowDenialCode, EntryFlowDenied, EntryFlowOutcome, EntryFlowRequest,
     EntryFlowResolved, EntryFlowTarget, EntryVerb, OpenFlowSheetClass, ResultingMode,
+};
+
+pub use save::{
+    SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
+    WriteStrategy,
 };

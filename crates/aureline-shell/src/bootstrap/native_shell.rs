@@ -90,10 +90,12 @@ use aureline_ui::themes::{
 use aureline_ui::tokens::{
     seeded_token_registry, ColorRgba, ThemeClass, TokenRegistry, TokenRegistryError,
 };
+use aureline_vfs::save::open_save_target;
 use aureline_vfs::{
-    IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, VfsRoot, VfsUri, VirtualDocumentKind,
-    VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
+    HookCounters, IdentityRecord as VfsIdentityRecord, LocalFilesystemRoot, SaveTargetToken,
+    VfsRoot, VfsUri, VirtualDocumentKind, VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
 };
+use aureline_workspace::save::{SaveResult, StagedSaveCoordinator, StagedSaveRequest};
 use aureline_workspace::{
     resolve_entry_flow, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
     PortabilityClass, RecentWorkEntryRecord, RecentWorkEntryRecordKind, RecentWorkRegistry,
@@ -1586,6 +1588,7 @@ struct BufferAuthority {
     label: String,
     file_path: Option<PathBuf>,
     vfs_identity: Option<VfsIdentityRecord>,
+    save_target_token: Option<SaveTargetToken>,
     read_only: ReadOnlyState,
     generated: GeneratedState,
     managed: ManagedState,
@@ -1664,6 +1667,15 @@ impl BufferAuthorityStore {
             DocumentOpenDisposition::Auto,
         )
         .map_err(|err| err.to_string())?;
+
+        let mut counters = HookCounters::default();
+        let save_target_token = open_save_target(
+            &local_root,
+            &presentation_uri,
+            mono_timestamp_now(),
+            &mut counters,
+        )
+        .map_err(|err| err.to_string())?;
         let label = path
             .file_name()
             .and_then(|name| name.to_str())
@@ -1679,6 +1691,7 @@ impl BufferAuthorityStore {
                     label,
                     file_path: Some(canonical.clone()),
                     vfs_identity: Some(doc.identity),
+                    save_target_token: Some(save_target_token.clone()),
                     read_only,
                     generated: GeneratedState::Authored,
                     managed: ManagedState::Unmanaged,
@@ -1704,6 +1717,7 @@ impl BufferAuthorityStore {
                     label,
                     file_path: Some(canonical.clone()),
                     vfs_identity: Some(doc.identity.clone()),
+                    save_target_token: Some(save_target_token.clone()),
                     read_only: ReadOnlyState::Constrained,
                     generated: GeneratedState::Authored,
                     managed: ManagedState::Unmanaged,
@@ -1744,6 +1758,7 @@ impl BufferAuthorityStore {
             label,
             file_path: None,
             vfs_identity,
+            save_target_token: None,
             read_only: ReadOnlyState::Writable,
             generated: GeneratedState::Authored,
             managed: ManagedState::Unmanaged,
@@ -2099,6 +2114,7 @@ struct EditorWorkspaceRuntimeState {
     text_runtime: EditorTextRuntime,
     groups: HashMap<PaneId, EditorGroupSession>,
     buffers: BufferAuthorityStore,
+    save_coordinator: StagedSaveCoordinator,
 }
 
 impl EditorWorkspaceRuntimeState {
@@ -2107,6 +2123,7 @@ impl EditorWorkspaceRuntimeState {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             groups: HashMap::new(),
             buffers: BufferAuthorityStore::new(),
+            save_coordinator: StagedSaveCoordinator::new(),
         }
     }
 
@@ -2116,6 +2133,7 @@ impl EditorWorkspaceRuntimeState {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             groups: HashMap::new(),
             buffers,
+            save_coordinator: StagedSaveCoordinator::new(),
         }
     }
 
@@ -2208,6 +2226,11 @@ impl EditorWorkspaceRuntimeState {
             return Err("expected normal document after override".to_string());
         };
 
+        let mut counters = HookCounters::default();
+        let save_target_token =
+            open_save_target(&local_root, &uri, mono_timestamp_now(), &mut counters)
+                .map_err(|err| err.to_string())?;
+
         {
             let mut auth = tab_session.authority.borrow_mut();
             let buffer = doc.buffer;
@@ -2215,6 +2238,7 @@ impl EditorWorkspaceRuntimeState {
             auth.buffer = buffer;
             auth.saved_revision = saved_revision;
             auth.vfs_identity = Some(doc.identity);
+            auth.save_target_token = Some(save_target_token);
             auth.read_only = read_only_state_for_path(&canonical);
             auth.large_file_doc = None;
             auth.large_file_override = doc.large_file_override;
@@ -2246,7 +2270,7 @@ impl EditorWorkspaceRuntimeState {
         true
     }
 
-    fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<(), String> {
+    fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<Option<SaveResult>, String> {
         let Some(session) = self
             .groups
             .get_mut(&group)
@@ -2262,12 +2286,62 @@ impl EditorWorkspaceRuntimeState {
         }
         let Some(path) = authority.file_path.clone() else {
             authority.mark_saved();
-            return Ok(());
+            return Ok(None);
         };
+
+        let presentation_uri = VfsUri::file_url_for_path(&path)
+            .ok_or_else(|| format!("vfs uri build failed for {path:?}"))?;
+        let mut root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+
+        let token = match authority.save_target_token.clone() {
+            Some(token) => token,
+            None => {
+                let mut counters = HookCounters::default();
+                let token = open_save_target(
+                    &root,
+                    &presentation_uri,
+                    mono_timestamp_now(),
+                    &mut counters,
+                )
+                .map_err(|err| err.to_string())?;
+                authority.save_target_token = Some(token.clone());
+                token
+            }
+        };
+
         let snapshot = authority.buffer.snapshot();
-        std::fs::write(&path, snapshot.as_bytes()).map_err(|err| err.to_string())?;
-        authority.mark_saved();
-        Ok(())
+        let request = StagedSaveRequest {
+            token,
+            new_content: snapshot.as_bytes().to_vec(),
+            save_participant_group_id: None,
+            checkpoint_ref: None,
+            committed_at: mono_timestamp_now(),
+        };
+
+        let mut participants: Vec<Box<dyn aureline_workspace::save::SaveParticipant>> = Vec::new();
+        let result = self
+            .save_coordinator
+            .save(&mut root, request, participants.as_mut_slice());
+
+        if result.committed() {
+            authority.mark_saved();
+            authority.save_target_token = Some(result.next_token.clone());
+            Ok(Some(result))
+        } else {
+            let detail = result.manifest.failure_detail.clone().unwrap_or_default();
+            if detail.is_empty() {
+                Err(format!(
+                    "save refused ({})",
+                    result.manifest.outcome.as_str()
+                ))
+            } else {
+                Err(format!(
+                    "save refused ({}) — {}",
+                    result.manifest.outcome.as_str(),
+                    detail
+                ))
+            }
+        }
     }
 
     fn close_group(&mut self, group: PaneId) {
@@ -5277,8 +5351,21 @@ fn handle_key_event(
                 let Some(tab) = frame.active_tab_id(group) else {
                     return ShellDamageHint::None;
                 };
-                if let Err(err) = editor_runtime.save_tab(group, tab) {
-                    command_runtime.note_non_command_action(format!("save failed — {err}"));
+                match editor_runtime.save_tab(group, tab) {
+                    Ok(Some(result)) => {
+                        command_runtime.note_non_command_action(format!(
+                            "saved ({}) — outcome={} strategy={}",
+                            result.packet_id,
+                            result.manifest.outcome.as_str(),
+                            result.write_strategy.as_str()
+                        ));
+                    }
+                    Ok(None) => {
+                        command_runtime.note_non_command_action("saved (no target)");
+                    }
+                    Err(err) => {
+                        command_runtime.note_non_command_action(format!("save failed — {err}"));
+                    }
                 }
                 damage_geometry
                     .focused_editor_group

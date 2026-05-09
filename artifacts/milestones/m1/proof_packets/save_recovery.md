@@ -11,6 +11,8 @@ Canonical sources (non-exhaustive):
 - `artifacts/io/save_rewrite_classes.yaml`
 - `docs/recovery/restore_chooser_contract.md`
 - `docs/support/recovery_ladder_packet.md`
+- `crates/aureline-workspace/src/save/`
+- `crates/aureline-workspace/tests/save_pipeline_tests.rs`
 - `crates/aureline-shell/src/bootstrap/native_shell.rs`
 - `fixtures/editor/tab_cases/`
 
@@ -21,10 +23,11 @@ Evidence storage:
 
 How to exercise:
 
+- `cargo test -p aureline-workspace save_pipeline_tests`
 - `cargo test -p aureline-shell bootstrap::native_shell::tab_case_tests::tab_case_fixtures_preserve_shared_buffer_authority`
 - `cargo run -p aureline-shell --bin aureline_shell`
   - `Ctrl+O` opens a new tab.
   - `Ctrl+Tab` cycles active tabs.
   - `Ctrl+\\` splits the editor group and duplicates the active tab as a second view.
-  - `Ctrl+S` saves the active tab (clears `Modified`).
+  - `Ctrl+S` saves the active tab (clears `Modified` and reports save outcome/strategy).
   - `Ctrl+W` closes the active tab (`Ctrl+Shift+W` closes the focused editor group).
