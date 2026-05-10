@@ -30,7 +30,8 @@ use aureline_auth::{
     ShellAuthChip,
 };
 use aureline_terminal::{
-    HostClass, PtyHost, PtySession, PtySessionId, SessionLifecycleState, TerminalTrustState,
+    HostClass, PtyHost, PtySession, PtySessionId, RestoredTerminalRecord, SessionLifecycleState,
+    TerminalTrustState,
 };
 
 use crate::state_cards::DegradedStateToken;
@@ -135,6 +136,13 @@ pub struct TerminalPaneSnapshot {
     /// wired.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub credential_state_chips: Vec<CredentialStateChip>,
+    /// Restored transcript / ended-session rows projected from the canonical
+    /// terminal restore module. The bottom-panel chrome renders these as
+    /// closed-tab transcript objects with no implicit rerun action; live
+    /// execution requires a fresh session through the command-dispatch
+    /// boundary. Empty when no prior session was restored.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restored_terminals: Vec<RestoredTerminalRecord>,
 }
 
 impl TerminalPaneSnapshot {
@@ -179,6 +187,7 @@ impl TerminalPaneSnapshot {
             active_tab_id,
             shell_auth_chip,
             credential_state_chips: Vec::new(),
+            restored_terminals: Vec::new(),
         }
     }
 
@@ -212,9 +221,40 @@ impl TerminalPaneSnapshot {
         self
     }
 
+    /// Attach restored transcript / ended-session rows projected from the
+    /// canonical terminal restore module. The bottom-panel renders these as
+    /// closed-tab objects scoped to the pane's workspace; rows for other
+    /// workspaces are filtered out so the chrome never displays foreign
+    /// provenance. The seed contract guarantees `auto_rerun_forbidden` is
+    /// preserved verbatim on every attached record.
+    pub fn with_restored_terminals<I>(mut self, restored: I) -> Self
+    where
+        I: IntoIterator<Item = RestoredTerminalRecord>,
+    {
+        self.restored_terminals = restored
+            .into_iter()
+            .filter(|record| record.workspace_id == self.workspace_id)
+            .collect();
+        self
+    }
+
     /// True when the pane has at least one tab to render.
     pub fn has_tabs(&self) -> bool {
         !self.tabs.is_empty()
+    }
+
+    /// True when the pane has at least one restored transcript / ended-session
+    /// row to render.
+    pub fn has_restored_terminals(&self) -> bool {
+        !self.restored_terminals.is_empty()
+    }
+
+    /// True when at least one attached restored terminal carries a retained
+    /// transcript body (i.e. is not an ended-session-only or declined record).
+    pub fn has_restored_transcripts(&self) -> bool {
+        self.restored_terminals
+            .iter()
+            .any(RestoredTerminalRecord::has_transcript)
     }
 
     /// True when at least one attached credential-state chip sits in an
@@ -655,6 +695,144 @@ mod tests {
             "no-account local path stays usable when the keychain is locked",
         );
         assert!(!chip.plaintext_fallback_allowed);
+    }
+
+    #[test]
+    fn snapshot_attaches_restored_transcript_record_after_protected_walk() {
+        // Protected walk: a local zsh session ran commands in a prior run. After
+        // restart the bottom-panel snapshot must surface the prior session as a
+        // restored transcript object — never as a live tab — and must preserve
+        // auto_rerun_forbidden so the chrome routes a rerun through the
+        // fresh-session command id.
+        use aureline_terminal::{
+            restore_session_as_transcript, RestoredTerminalKind, ScrollbackRedactionClass,
+            TerminalRestoreLevel, TerminalScrollback, TERMINAL_OPEN_FRESH_SESSION_COMMAND_ID,
+        };
+
+        let mut host = PtyHost::new();
+        let id = open_local(&mut host);
+        host.mark_starting(&id, "mono:1").unwrap();
+        host.mark_active(&id, "mono:2").unwrap();
+        host.close(&id, "mono:3", Some("user_closed")).unwrap();
+
+        let mut scrollback = TerminalScrollback::new(id.clone());
+        scrollback.record_line(
+            "$ git status",
+            ScrollbackRedactionClass::SupportBundleScoped,
+            "mono:2",
+        );
+
+        let prior = host.session(&id).expect("session must exist");
+        let restored = restore_session_as_transcript(prior, Some(&scrollback), "mono:restart");
+
+        let snapshot = TerminalPaneSnapshot::project("ws-test", &host)
+            .with_restored_terminals(vec![restored.clone()]);
+
+        assert!(snapshot.has_restored_terminals());
+        assert!(snapshot.has_restored_transcripts());
+        let row = snapshot
+            .restored_terminals
+            .iter()
+            .find(|record| record.session_id == id)
+            .expect("restored row preserved");
+        assert_eq!(row.kind, RestoredTerminalKind::Transcript);
+        assert_eq!(
+            row.restore_level,
+            TerminalRestoreLevel::RestoreUiWithTranscript
+        );
+        assert!(row.auto_rerun_forbidden);
+        assert!(row.fresh_session_required);
+        assert_eq!(
+            row.open_fresh_session_command_id,
+            TERMINAL_OPEN_FRESH_SESSION_COMMAND_ID
+        );
+    }
+
+    #[test]
+    fn snapshot_filters_restored_terminals_to_active_workspace() {
+        // The pane must never project a restored row from another workspace.
+        use aureline_terminal::{
+            restore_session_as_transcript, RestoredTerminalRecord, ScrollbackRedactionClass,
+            TerminalScrollback,
+        };
+
+        let mut host = PtyHost::new();
+        let id_local = open_local(&mut host);
+        let id_other = host.open_session(OpenSessionRequest {
+            workspace_id: "ws-other",
+            host_class: HostClass::HostDesktop,
+            display_title: "bash",
+            cwd_hint: None,
+            execution_context_ref: "execution_context.local_desktop.workspace_root",
+            trust_state: TrustState::Trusted,
+            observed_at: "mono:0",
+        });
+        host.close(&id_local, "mono:1", None).unwrap();
+        host.close(&id_other, "mono:2", None).unwrap();
+
+        let mut scrollback = TerminalScrollback::new(id_local.clone());
+        scrollback.record_line(
+            "$ build",
+            ScrollbackRedactionClass::SupportBundleScoped,
+            "mono:1",
+        );
+
+        let prior_local = host.session(&id_local).expect("local session exists");
+        let prior_other = host.session(&id_other).expect("other session exists");
+        let restored_local =
+            restore_session_as_transcript(prior_local, Some(&scrollback), "mono:restart");
+        let restored_other = restore_session_as_transcript(prior_other, None, "mono:restart");
+
+        let restored: Vec<RestoredTerminalRecord> = vec![restored_local, restored_other];
+        let snapshot =
+            TerminalPaneSnapshot::project("ws-test", &host).with_restored_terminals(restored);
+
+        assert_eq!(snapshot.restored_terminals.len(), 1);
+        assert_eq!(
+            snapshot.restored_terminals[0].workspace_id,
+            "ws-test",
+            "restored rows from other workspaces must be filtered"
+        );
+    }
+
+    #[test]
+    fn snapshot_attaches_declined_restore_record_with_typed_reason() {
+        // Failure drill: the prior session was quarantined and the runtime
+        // declines a transcript restore by policy. The pane projects the
+        // declined row so the chrome can disclose the typed reason instead of
+        // silently dropping the prior session.
+        use aureline_terminal::{
+            decline_session_restore, RestoreDeclinedReason, RestoredTerminalKind,
+            TerminalRestoreLevel,
+        };
+
+        let mut host = PtyHost::new();
+        let id = open_local(&mut host);
+        host.mark_starting(&id, "mono:1").unwrap();
+        host.mark_active(&id, "mono:2").unwrap();
+        host.quarantine(&id, "mono:3", "terminal_protocol_violation_budget_exceeded")
+            .unwrap();
+
+        let prior = host.session(&id).expect("session must exist");
+        let declined = decline_session_restore(
+            prior,
+            RestoreDeclinedReason::DeclinedByPolicy,
+            "mono:restart",
+        );
+
+        let snapshot =
+            TerminalPaneSnapshot::project("ws-test", &host).with_restored_terminals(vec![declined]);
+
+        assert!(snapshot.has_restored_terminals());
+        assert!(!snapshot.has_restored_transcripts());
+        let row = &snapshot.restored_terminals[0];
+        assert_eq!(row.kind, RestoredTerminalKind::Declined);
+        assert_eq!(
+            row.restore_level,
+            TerminalRestoreLevel::RestoreDeclinedByPolicy
+        );
+        assert!(row.auto_rerun_forbidden);
+        assert!(row.fresh_session_required);
     }
 
     #[test]

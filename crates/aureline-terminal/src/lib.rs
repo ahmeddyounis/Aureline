@@ -20,8 +20,25 @@
 #![doc(html_root_url = "https://docs.rs/aureline-terminal/0.0.0")]
 
 pub mod pty_host;
+/// Bounded, redaction-aware scrollback ring used by transcript restore and
+/// support / export bundles.
+pub mod scrollback;
+/// Transcript / ended-session restore projection. Restored records never
+/// claim a live shell survived; auto-rerun is always forbidden.
+pub mod restore;
 
 pub use pty_host::{
     HostClass, OpenSessionRequest, PtyHost, PtyHostError, PtySession, PtySessionId, SessionHeader,
     SessionLifecycleState, SessionLifecycleTransition, TerminalTrustState,
+};
+pub use restore::{
+    decline_session_restore, restore_session_as_transcript, RestoreDeclinedReason,
+    RestoredTerminalKind, RestoredTerminalRecord, TerminalRestoreDecision, TerminalRestoreLevel,
+    RESTORED_TERMINAL_RECORD_KIND, RESTORED_TERMINAL_SCHEMA_VERSION,
+    TERMINAL_OPEN_FRESH_SESSION_COMMAND_ID,
+};
+pub use scrollback::{
+    ScrollbackBound, ScrollbackLineRecord, ScrollbackRedactionClass, TerminalScrollback,
+    TerminalScrollbackSnapshot, DEFAULT_SCROLLBACK_LINE_BOUND, SCROLLBACK_LINE_RECORD_KIND,
+    SCROLLBACK_SCHEMA_VERSION, SCROLLBACK_SNAPSHOT_RECORD_KIND,
 };
