@@ -6,6 +6,23 @@
 //! fifth layer (the save-target token) lives in [`crate::save`]
 //! because the token binds a capability-mode + generation token
 //! and is only issuable through the save pipeline.
+//!
+//! The submodules here add three pure projections layered on top
+//! of the [`IdentityRecord`] / [`crate::save::SaveTargetToken`]
+//! data: [`alias_inspection`] explains the alias chain attached to
+//! a single open, [`path_truth`] derives the chip class the shell
+//! renders next to a file label, and [`save_target_review`]
+//! summarizes where bytes will land before a write commits.
+
+pub mod alias_inspection;
+pub mod path_truth;
+pub mod save_target_review;
+
+pub use alias_inspection::{AliasInspectionEntry, AliasInspectionRecord, inspect_aliases};
+pub use path_truth::{PathTruthChip, PathTruthClass, derive_path_truth_chip};
+pub use save_target_review::{
+    PermissionSummary, SaveTargetReviewBlocker, SaveTargetReviewRecord, review_save_target,
+};
 
 use crate::capabilities::{
     FallbackIdentityTokenKind, NormalizationForm, StrongestIdentityTokenKind,

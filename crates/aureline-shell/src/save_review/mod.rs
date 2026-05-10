@@ -10,6 +10,11 @@ use aureline_vfs::{SaveOutcome, SaveTargetToken, VfsRoot};
 use aureline_workspace::save::SourceFidelityRecord;
 use serde::{Deserialize, Serialize};
 
+use crate::path_truth::{
+    alias_inspector_lines, materialize_alias_inspector_record, materialize_path_truth_chip_record,
+    materialize_save_target_review_record, path_truth_chip_lines, save_target_review_lines,
+};
+
 /// Machine-readable record for a save-review sheet instance.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SaveReviewSheetRecord {
@@ -191,6 +196,43 @@ pub fn save_review_sheet_lines(
                 .resulting_authoritative_state_if_selected
                 .as_str()
         ));
+    }
+
+    lines
+}
+
+/// Render the save-review sheet body with the path-truth chip,
+/// alias inspector body, and pre-write save-target review section
+/// appended for the protected walk
+/// `open difficult fixture -> inspect chip -> review save target`.
+///
+/// Surfaces that already render via [`save_review_sheet_lines`]
+/// keep working unchanged; this entry point is the wire to the
+/// path-truth surface so the live shell never falls back to silent
+/// dedupe-by-path-string.
+pub fn save_review_sheet_lines_with_path_truth(
+    record: &SaveReviewSheetRecord,
+    token: &SaveTargetToken,
+    selection: usize,
+) -> Vec<String> {
+    let mut lines = save_review_sheet_lines(record, selection);
+
+    let chip = materialize_path_truth_chip_record(&token.identity);
+    let inspection = materialize_alias_inspector_record(&token.identity);
+    let review = materialize_save_target_review_record(token);
+
+    lines.push("".to_string());
+    lines.push("Path truth:".to_string());
+    lines.extend(path_truth_chip_lines(&chip));
+
+    if !inspection.entries.is_empty() || inspection.presentation_alias_missing {
+        lines.push("".to_string());
+        lines.extend(alias_inspector_lines(&inspection));
+    }
+
+    if review.save_redirects_target || !review.blockers.is_empty() {
+        lines.push("".to_string());
+        lines.extend(save_target_review_lines(&review));
     }
 
     lines
@@ -677,5 +719,135 @@ mod tests {
                 path.display()
             );
         }
+    }
+
+    #[test]
+    fn save_review_lines_with_path_truth_appends_chip_section() {
+        let presentation_uri =
+            VfsUri::parse("file:///ws/save_review.txt".to_owned()).expect("uri must parse");
+        let root = SyntheticRootBuilder::new("root-1", RootClass::LocalPosixLike, fixture_flags())
+            .with_workspace_id("ws-save-review")
+            .add_canonical_object(
+                "file:///ws/save_review.txt".to_owned(),
+                "aureline-ws://ws-save-review/root-1/save_review.txt".to_owned(),
+                NormalizationForm::Nfc,
+                "dev:1/ino:200".to_owned(),
+                5,
+                vec![],
+                PermissionSnapshot::writable_default(),
+                vec![],
+                b"alpha\nbeta\ngamma\n".to_vec(),
+            )
+            .add_presentation(
+                "file:///ws/save_review.txt".to_owned(),
+                "save_review.txt".to_owned(),
+                "file:///ws/save_review.txt".to_owned(),
+                None,
+                vec!["presentation -> canonical".to_owned()],
+            )
+            .build();
+
+        let mut counters = HookCounters::default();
+        let token =
+            open_save_target(&root, &presentation_uri, "mono:fixture:open", &mut counters)
+                .expect("open_save_target must succeed");
+
+        let record = materialize_save_review_sheet_record(
+            &root,
+            &token,
+            &source_fidelity_for_encoding(DetectedEncoding::Utf8),
+            "save_packet:lines:01".to_owned(),
+            SaveOutcome::ExternalChangeDetected,
+            "2026-05-09T00:00:00Z".to_owned(),
+            b"alpha\nbeta\nDELTA\n",
+            false,
+        );
+
+        let lines = save_review_sheet_lines_with_path_truth(&record, &token, 0);
+        assert!(
+            lines.iter().any(|line| line == "Path truth:"),
+            "expected the path-truth section to be appended",
+        );
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("opened at its canonical path")),
+            "expected the chip summary line for a direct open",
+        );
+    }
+
+    #[test]
+    fn save_review_lines_with_path_truth_explains_alias_redirect() {
+        let presentation_uri =
+            VfsUri::parse("file:///ws/docs/current.md".to_owned()).expect("uri must parse");
+        let aliases = vec![
+            aureline_vfs::Alias {
+                alias_uri: VfsUri::parse("file:///ws/docs/current.md".to_owned()).unwrap(),
+                alias_kind: aureline_vfs::AliasKind::Symlink,
+                resolution_chain: vec!["-> README.md".to_owned()],
+            },
+            aureline_vfs::Alias {
+                alias_uri: VfsUri::parse("file:///ws/README.md".to_owned()).unwrap(),
+                alias_kind: aureline_vfs::AliasKind::Symlink,
+                resolution_chain: vec!["-> canonical".to_owned()],
+            },
+        ];
+        let root = SyntheticRootBuilder::new("root-1", RootClass::LocalPosixLike, fixture_flags())
+            .with_workspace_id("ws-save-review")
+            .add_canonical_object(
+                "file:///ws/README.md".to_owned(),
+                "aureline-ws://ws-save-review/root-1/README.md".to_owned(),
+                NormalizationForm::Nfc,
+                "dev:1/ino:300".to_owned(),
+                4,
+                vec![],
+                PermissionSnapshot::writable_default(),
+                aliases,
+                b"alpha\n".to_vec(),
+            )
+            .add_presentation(
+                "file:///ws/docs/current.md".to_owned(),
+                "current.md".to_owned(),
+                "file:///ws/README.md".to_owned(),
+                Some(aureline_vfs::AliasKind::Symlink),
+                vec!["-> README.md".to_owned()],
+            )
+            .add_presentation(
+                "file:///ws/README.md".to_owned(),
+                "README.md".to_owned(),
+                "file:///ws/README.md".to_owned(),
+                None,
+                vec!["-> canonical".to_owned()],
+            )
+            .build();
+
+        let mut counters = HookCounters::default();
+        let token =
+            open_save_target(&root, &presentation_uri, "mono:alias:open", &mut counters)
+                .expect("open_save_target must succeed");
+
+        let record = materialize_save_review_sheet_record(
+            &root,
+            &token,
+            &source_fidelity_for_encoding(DetectedEncoding::Utf8),
+            "save_packet:alias:01".to_owned(),
+            SaveOutcome::WrongTargetPrevented,
+            "2026-05-09T00:00:00Z".to_owned(),
+            b"alpha\nDELTA\n",
+            false,
+        );
+
+        let lines = save_review_sheet_lines_with_path_truth(&record, &token, 0);
+        assert!(lines.iter().any(|line| line.contains("via_symlink")));
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.contains("file:///ws/README.md")),
+            "alias inspector body must surface the canonical URI",
+        );
+        assert!(
+            lines.iter().any(|line| line.contains("Save target review")),
+            "save-target review section must render when the open redirects",
+        );
     }
 }
