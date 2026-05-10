@@ -27,6 +27,7 @@
 
 pub mod lexical;
 pub mod results;
+pub mod scope;
 
 pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,
@@ -37,6 +38,11 @@ pub use lexical::{
 pub use results::{
     build_lexical_identity, derive_lexical_ranking_reasons, derive_partiality_class,
     project_lexical_partiality, RankingReasonClass, ResultIdentity, ResultPartialityClass,
+};
+
+pub use scope::{
+    glob_matches_relative_path, ScopeFilterOutcome, ScopePatternKind, ScopePatternRecord,
+    ScopePresentationState, WorkspaceSearchScope, WorkspaceSearchScopeMetadata,
 };
 
 pub use aureline_workspace::{

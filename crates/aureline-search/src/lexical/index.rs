@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_workspace::{WorkspaceLifecycleState, WorkspaceReadinessInputs};
 
+use crate::scope::WorkspaceSearchScope;
+
 /// Stable readiness vocabulary surfaced to the search shell.
 ///
 /// Tokens are a strict subset of the upstream `ReadinessLabel` set with one
@@ -140,6 +142,13 @@ pub struct LexicalIndexInputs {
     pub readiness_label: ReadinessLabel,
     /// Workspace-relative file paths. Order is preserved in result groups.
     pub files: Vec<String>,
+    /// Optional active workset/slice scope. When `Some`, the constructor
+    /// filters [`Self::files`] through the scope's include/exclude pattern
+    /// set before the index dedups them, and the index keeps the scope
+    /// projection so snapshots can carry the chip label and pattern
+    /// fingerprint that produced the visible row set.
+    #[doc(hidden)]
+    pub scope: Option<WorkspaceSearchScope>,
 }
 
 /// One snapshot of the lexical index, ready to answer queries.
@@ -150,6 +159,9 @@ pub struct LexicalIndexState {
     readiness: ReadinessClass,
     causes: Vec<PartialTruthCause>,
     observed_at: String,
+    scope: Option<WorkspaceSearchScope>,
+    all_workspace_count: u64,
+    out_of_scope_count: u64,
 }
 
 impl LexicalIndexState {
@@ -161,8 +173,18 @@ impl LexicalIndexState {
             readiness_inputs,
             readiness_label,
             files,
+            scope,
         } = inputs;
-        let mut sorted_files = files;
+
+        let all_workspace_count = files.len() as u64;
+        let mut filtered_files = files;
+        let mut out_of_scope_count: u64 = 0;
+        if let Some(scope_ref) = scope.as_ref() {
+            let outcome = scope_ref.filter_files(filtered_files);
+            out_of_scope_count = outcome.all_workspace_count - outcome.in_scope_count;
+            filtered_files = outcome.in_scope;
+        }
+        let mut sorted_files = filtered_files;
         sorted_files.sort();
         sorted_files.dedup();
 
@@ -196,6 +218,9 @@ impl LexicalIndexState {
             readiness,
             causes,
             observed_at: readiness_inputs.observed_at,
+            scope,
+            all_workspace_count,
+            out_of_scope_count,
         }
     }
 
@@ -225,6 +250,7 @@ impl LexicalIndexState {
             readiness_inputs,
             readiness_label,
             files,
+            scope: None,
         })
     }
 
@@ -251,6 +277,26 @@ impl LexicalIndexState {
     /// `observed_at` timestamp surfaced through the search-shell snapshot.
     pub fn observed_at(&self) -> &str {
         &self.observed_at
+    }
+
+    /// Active workset/slice scope, when any. Search-shell consumers project
+    /// the chip label and the snapshot metadata from this single source of
+    /// truth — they MUST NOT mint a parallel workset/slice projection.
+    pub fn scope(&self) -> Option<&WorkspaceSearchScope> {
+        self.scope.as_ref()
+    }
+
+    /// Total file count handed to the index before scope filtering. This is
+    /// the `all_matching_in_workspace` upper bound the chrome can disclose
+    /// alongside the visible / loaded counts.
+    pub const fn all_workspace_count(&self) -> u64 {
+        self.all_workspace_count
+    }
+
+    /// Count of paths the active scope filtered out. Surfaces use this to
+    /// disclose how many files are hidden by the active workset/slice.
+    pub const fn out_of_scope_count(&self) -> u64 {
+        self.out_of_scope_count
     }
 }
 

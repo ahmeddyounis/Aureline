@@ -5,10 +5,12 @@ use serde::{Deserialize, Serialize};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_search::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalShell, LexicalShellSnapshot,
-    LineageHintRecord, ReadinessClass, ResultIdentity, ScopeClass,
+    LineageHintRecord, ReadinessClass, ResultIdentity, ScopeClass, WorkspaceSearchScope,
+    WorkspaceSearchScopeMetadata,
 };
 use aureline_workspace::{
     ScopeClass as WorkspaceScopeClass, WorkspaceLifecycleMachine, WorkspaceReadinessInputs,
+    WorksetArtifactRecord,
 };
 
 use crate::scope_truth::{
@@ -26,6 +28,7 @@ pub struct WorkspaceSearchSurfaceState {
     inner: LexicalShell,
     workset_name: Option<String>,
     observed_at: String,
+    scope: WorkspaceSearchScope,
 }
 
 impl WorkspaceSearchSurfaceState {
@@ -45,12 +48,43 @@ impl WorkspaceSearchSurfaceState {
         let label = project_scope_label(scope, workset_name);
         let inputs = lifecycle.readiness_inputs();
         let observed_at = inputs.observed_at.clone();
-        let index = build_index(inputs, readiness_label, files);
+        let workspace_scope =
+            project_default_scope(&inputs.workspace_id, scope_class, workset_name);
+        let index = build_index(inputs, readiness_label, files, Some(workspace_scope.clone()));
         let shell = LexicalShell::with_empty_query(scope, label, index);
         Self {
             inner: shell,
             workset_name: workset_name.map(|s| s.to_string()),
             observed_at,
+            scope: workspace_scope,
+        }
+    }
+
+    /// Construct a new search-shell surface bound to a workset artifact.
+    /// Identical to [`Self::open`] except the active scope's pattern set
+    /// (include/exclude) is applied to `files` before the lexical index
+    /// builds, and the scope-truth chip is projected through the workset
+    /// artifact's chip family.
+    pub fn open_with_workset(
+        lifecycle: &WorkspaceLifecycleMachine,
+        readiness_label: ReadinessLabel,
+        artifact: &WorksetArtifactRecord,
+        files: Vec<String>,
+    ) -> Self {
+        let inputs = lifecycle.readiness_inputs();
+        let observed_at = inputs.observed_at.clone();
+        let workspace_scope =
+            WorkspaceSearchScope::from_workset_artifact(&inputs.workspace_id, artifact);
+        let scope_class = workspace_scope.scope_class();
+        let label = workspace_scope.chip_label().to_string();
+        let workset_name = workspace_scope.workset_name().map(|s| s.to_string());
+        let index = build_index(inputs, readiness_label, files, Some(workspace_scope.clone()));
+        let shell = LexicalShell::with_empty_query(scope_class, label, index);
+        Self {
+            inner: shell,
+            workset_name,
+            observed_at,
+            scope: workspace_scope,
         }
     }
 
@@ -65,7 +99,7 @@ impl WorkspaceSearchSurfaceState {
     ) {
         let inputs = lifecycle.readiness_inputs();
         self.observed_at = inputs.observed_at.clone();
-        let index = build_index(inputs, readiness_label, files);
+        let index = build_index(inputs, readiness_label, files, Some(self.scope.clone()));
         self.inner.replace_index(index);
     }
 
@@ -76,6 +110,40 @@ impl WorkspaceSearchSurfaceState {
         let label = project_scope_label(scope, workset_name);
         self.inner.set_scope(scope, label);
         self.workset_name = workset_name.map(|s| s.to_string());
+        self.scope = project_default_scope(
+            self.inner.workspace_id(),
+            scope_class,
+            workset_name,
+        );
+    }
+
+    /// Replace the active workset/slice scope with one projected from a
+    /// workset artifact. The chip label, presentation state, and pattern
+    /// fingerprint all flow from the artifact so the search shell never
+    /// re-derives them locally.
+    pub fn set_workset_artifact(
+        &mut self,
+        lifecycle: &WorkspaceLifecycleMachine,
+        readiness_label: ReadinessLabel,
+        artifact: &WorksetArtifactRecord,
+        files: Vec<String>,
+    ) {
+        let inputs = lifecycle.readiness_inputs();
+        self.observed_at = inputs.observed_at.clone();
+        let workspace_scope =
+            WorkspaceSearchScope::from_workset_artifact(&inputs.workspace_id, artifact);
+        let scope_class = workspace_scope.scope_class();
+        let label = workspace_scope.chip_label().to_string();
+        self.workset_name = workspace_scope.workset_name().map(|s| s.to_string());
+        self.scope = workspace_scope.clone();
+        let index = build_index(inputs, readiness_label, files, Some(workspace_scope));
+        self.inner.replace_index(index);
+        self.inner.set_scope(scope_class, label);
+    }
+
+    /// Active workset/slice scope.
+    pub fn workspace_search_scope(&self) -> &WorkspaceSearchScope {
+        &self.scope
     }
 
     /// Set the active query string. Empty queries clear the result set.
@@ -89,8 +157,8 @@ impl WorkspaceSearchSurfaceState {
     }
 
     /// Project the scope-truth chip card the chrome renders alongside
-    /// search results. The card is the canonical M01-062 disclosure for
-    /// scope, partiality, and visible/loaded/all-matching counts.
+    /// search results. The card is the canonical disclosure for scope,
+    /// partiality, and visible/loaded/all-matching counts.
     pub fn scope_truth_chip(&self) -> ScopeTruthChipCard {
         let shell = &self.inner;
         let results = shell.results();
@@ -120,6 +188,13 @@ impl WorkspaceSearchSurfaceState {
             counts,
             self.observed_at.clone(),
         )
+    }
+
+    /// Active scope metadata exported into search-shell snapshots so a
+    /// replayed session can render the same chip label and pattern
+    /// fingerprint that produced the visible result set.
+    pub fn scope_metadata(&self) -> WorkspaceSearchScopeMetadata {
+        self.scope.project_metadata()
     }
 
     /// Materialize a render-ready card projection for the shell chrome.
@@ -152,11 +227,16 @@ impl WorkspaceSearchSurfaceState {
             .collect();
 
         let scope_truth_chip = self.scope_truth_chip();
+        let scope_metadata = self.scope.project_metadata();
+        let index = shell.index();
         WorkspaceSearchSurfaceCard {
             workspace_id: shell.workspace_id().to_string(),
             scope_class_token: shell.scope_class().as_str().to_string(),
             scope_chip_label: shell.scope_label().to_string(),
             scope_truth_chip,
+            scope_metadata,
+            scope_all_workspace_count: index.all_workspace_count(),
+            scope_out_of_scope_count: index.out_of_scope_count(),
             readiness_class_token: results.readiness.as_str().to_string(),
             readiness_banner: results.readiness.banner_label().to_string(),
             partial_truth_causes: results.partial_truth_causes.clone(),
@@ -182,12 +262,36 @@ fn build_index(
     readiness_inputs: WorkspaceReadinessInputs,
     readiness_label: ReadinessLabel,
     files: Vec<String>,
+    scope: Option<WorkspaceSearchScope>,
 ) -> LexicalIndexState {
     LexicalIndexState::from_inputs(LexicalIndexInputs {
         readiness_inputs,
         readiness_label,
         files,
+        scope,
     })
+}
+
+fn project_default_scope(
+    workspace_id: &str,
+    scope_class: WorkspaceScopeClass,
+    workset_name: Option<&str>,
+) -> WorkspaceSearchScope {
+    match scope_class {
+        WorkspaceScopeClass::FullWorkspace => {
+            WorkspaceSearchScope::for_full_workspace(workspace_id)
+        }
+        WorkspaceScopeClass::CurrentRepo => {
+            WorkspaceSearchScope::for_current_repo(workspace_id)
+        }
+        WorkspaceScopeClass::SelectedWorkset
+        | WorkspaceScopeClass::SparseSlice
+        | WorkspaceScopeClass::PolicyLimitedView => WorkspaceSearchScope::for_workset_stub(
+            workspace_id,
+            ScopeClass::from_workspace(scope_class),
+            workset_name,
+        ),
+    }
 }
 
 fn workspace_scope_from(scope: ScopeClass) -> WorkspaceScopeClass {
@@ -234,6 +338,17 @@ pub struct WorkspaceSearchSurfaceCard {
     /// `scope_chip_label` and `scope_class_token` fields are retained for
     /// reviewers that still consume the older single-string vocabulary.
     pub scope_truth_chip: ScopeTruthChipCard,
+    /// Canonical workset/slice scope metadata projected onto the card so a
+    /// replayed support bundle keeps the chip label, presentation state,
+    /// and pattern fingerprint that produced the visible row set.
+    pub scope_metadata: WorkspaceSearchScopeMetadata,
+    /// Count of workspace-relative paths handed to the index *before* the
+    /// active scope filter. This is the upper bound the chrome can
+    /// disclose alongside the visible / loaded counts as
+    /// `all_matching_in_workspace`.
+    pub scope_all_workspace_count: u64,
+    /// Count of paths the active scope filter dropped from the index.
+    pub scope_out_of_scope_count: u64,
     pub readiness_class_token: String,
     pub readiness_banner: String,
     pub partial_truth_causes: Vec<String>,

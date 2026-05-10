@@ -167,6 +167,7 @@ fn workspace_search_cases_match_expected_projection() {
             },
             readiness_label,
             files: fixture.files.clone(),
+            scope: None,
         };
         let index = LexicalIndexState::from_inputs(inputs);
 

@@ -133,6 +133,7 @@ fn result_identity_cases_match_expected_projection() {
             },
             readiness_label,
             files: fixture.files.clone(),
+            scope: None,
         };
         let index = LexicalIndexState::from_inputs(inputs);
         let results = run_query(&index, &LexicalQuery::new(fixture.query.clone()));
@@ -231,6 +232,7 @@ fn result_id_is_stable_across_re_materializations() {
         },
         readiness_label: ReadinessLabel::Exact,
         files: vec!["src/main.rs".to_string()],
+        scope: None,
     };
     let index = LexicalIndexState::from_inputs(inputs);
     let first = run_query(&index, &LexicalQuery::new("main.rs"));

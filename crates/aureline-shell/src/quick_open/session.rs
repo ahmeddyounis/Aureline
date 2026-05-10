@@ -16,8 +16,11 @@ use serde::{Deserialize, Serialize};
 
 use aureline_commands::{CommandRegistry, CommandRegistryEntryRecord};
 use aureline_search::lexical::ResultRow as LexicalResultRow;
-use aureline_search::{LexicalShell, ScopeClass as SearchScopeClass};
-use aureline_workspace::ScopeClass as WorkspaceScopeClass;
+use aureline_search::{
+    LexicalShell, ScopeClass as SearchScopeClass, WorkspaceSearchScope,
+    WorkspaceSearchScopeMetadata,
+};
+use aureline_workspace::{ScopeClass as WorkspaceScopeClass, WorksetArtifactRecord};
 
 /// Maximum recent-target rows surfaced in the recents lane. Keeps the lane
 /// useful as an accelerator without crowding out commands and files.
@@ -315,6 +318,7 @@ pub struct QuickOpenQuerySession {
     scope_class: WorkspaceScopeClass,
     workset_name: Option<String>,
     workspace_id: String,
+    scope: WorkspaceSearchScope,
 
     recents: Vec<QuickOpenRecentTarget>,
     commands: Vec<QuickOpenCommandRow>,
@@ -336,13 +340,46 @@ impl QuickOpenQuerySession {
         scope_class: WorkspaceScopeClass,
         workset_name: Option<String>,
     ) -> Self {
+        let workspace_id = workspace_id.into();
+        let scope = project_default_scope(&workspace_id, scope_class, workset_name.as_deref());
         Self {
             open: false,
             query: String::new(),
             held_modifiers: BTreeSet::new(),
             scope_class,
             workset_name,
-            workspace_id: workspace_id.into(),
+            workspace_id,
+            scope,
+            recents: Vec::new(),
+            commands: Vec::new(),
+            lexical_rows: Vec::new(),
+            recents_state: QuickOpenSourceState::NotRequested,
+            commands_state: QuickOpenSourceState::NotRequested,
+            lexical_state: QuickOpenSourceState::NotRequested,
+            lexical_partial_truth_causes: Vec::new(),
+            rows: Vec::new(),
+        }
+    }
+
+    /// Construct a new closed session bound to a workset artifact. The
+    /// scope's chip label, presentation state, and pattern fingerprint
+    /// flow from the artifact through the canonical
+    /// [`WorkspaceSearchScope`] resolver — quick open never re-derives
+    /// scope vocabulary locally.
+    pub fn new_with_workset_artifact(
+        workspace_id: impl Into<String>,
+        artifact: &WorksetArtifactRecord,
+    ) -> Self {
+        let workspace_id = workspace_id.into();
+        let scope = WorkspaceSearchScope::from_workset_artifact(&workspace_id, artifact);
+        Self {
+            open: false,
+            query: String::new(),
+            held_modifiers: BTreeSet::new(),
+            scope_class: artifact.scope_class,
+            workset_name: scope.workset_name().map(|s| s.to_string()),
+            workspace_id,
+            scope,
             recents: Vec::new(),
             commands: Vec::new(),
             lexical_rows: Vec::new(),
@@ -413,8 +450,36 @@ impl QuickOpenQuerySession {
     /// Replace the scope class and (optional) workset name.
     pub fn set_scope(&mut self, scope_class: WorkspaceScopeClass, workset_name: Option<String>) {
         self.scope_class = scope_class;
-        self.workset_name = workset_name;
+        self.workset_name = workset_name.clone();
+        self.scope = project_default_scope(
+            &self.workspace_id,
+            scope_class,
+            workset_name.as_deref(),
+        );
         self.rebuild();
+    }
+
+    /// Replace the active workset/slice scope with one projected from a
+    /// workset artifact. The chip label, presentation state, and pattern
+    /// fingerprint flow from the artifact so quick open and the search
+    /// shell stay aligned.
+    pub fn set_workset_artifact(&mut self, artifact: &WorksetArtifactRecord) {
+        self.scope_class = artifact.scope_class;
+        let scope = WorkspaceSearchScope::from_workset_artifact(&self.workspace_id, artifact);
+        self.workset_name = scope.workset_name().map(|s| s.to_string());
+        self.scope = scope;
+        self.rebuild();
+    }
+
+    /// Active workset/slice scope.
+    pub fn workspace_search_scope(&self) -> &WorkspaceSearchScope {
+        &self.scope
+    }
+
+    /// Project the active scope's serializable metadata for support
+    /// bundles, dogfood replays, and diagnostic exports.
+    pub fn scope_metadata(&self) -> WorkspaceSearchScopeMetadata {
+        self.scope.project_metadata()
     }
 
     /// Project the canonical scope chip.
@@ -627,6 +692,7 @@ impl QuickOpenQuerySession {
             workspace_id: self.workspace_id.clone(),
             scope_class_token: scope.scope_class_token,
             scope_chip_label: scope.scope_chip_label,
+            scope_metadata: self.scope.project_metadata(),
             query: self.query.clone(),
             held_modifiers: self.held_modifiers.iter().cloned().collect(),
             sources,
@@ -793,6 +859,28 @@ fn contains_ci(haystack: &str, needle: &str) -> bool {
     haystack.to_ascii_lowercase().contains(needle)
 }
 
+fn project_default_scope(
+    workspace_id: &str,
+    scope_class: WorkspaceScopeClass,
+    workset_name: Option<&str>,
+) -> WorkspaceSearchScope {
+    match scope_class {
+        WorkspaceScopeClass::FullWorkspace => {
+            WorkspaceSearchScope::for_full_workspace(workspace_id)
+        }
+        WorkspaceScopeClass::CurrentRepo => {
+            WorkspaceSearchScope::for_current_repo(workspace_id)
+        }
+        WorkspaceScopeClass::SelectedWorkset
+        | WorkspaceScopeClass::SparseSlice
+        | WorkspaceScopeClass::PolicyLimitedView => WorkspaceSearchScope::for_workset_stub(
+            workspace_id,
+            SearchScopeClass::from_workspace(scope_class),
+            workset_name,
+        ),
+    }
+}
+
 /// Per-source summary in the snapshot.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QuickOpenSnapshotSource {
@@ -829,6 +917,10 @@ pub struct QuickOpenSnapshot {
     pub workspace_id: String,
     pub scope_class_token: String,
     pub scope_chip_label: String,
+    /// Canonical workset/slice scope metadata projected onto the snapshot
+    /// so a replayed session keeps the chip label, presentation state, and
+    /// pattern fingerprint that produced the visible row set.
+    pub scope_metadata: WorkspaceSearchScopeMetadata,
     pub query: String,
     pub held_modifiers: Vec<String>,
     pub sources: Vec<QuickOpenSnapshotSource>,
