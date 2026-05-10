@@ -13,7 +13,9 @@
 pub mod entry_flows;
 pub mod lifecycle;
 pub mod recent_work;
+pub mod roots;
 pub mod save;
+pub mod worksets;
 
 pub use recent_work::{
     EntryAndRestoreSchemaVersion, PortabilityClass, RecentWorkEntryRecord,
@@ -35,4 +37,19 @@ pub use entry_flows::{
 pub use save::{
     SaveParticipant, SaveParticipantError, SaveResult, StagedSaveCoordinator, StagedSaveRequest,
     WriteStrategy,
+};
+
+pub use roots::{
+    MultiRootWorkspace, MultiRootWorkspaceError, MultiRootWorkspaceRecordKind,
+    MultiRootWorkspaceSchemaVersion, RootPartialTruth, WorkspaceRootKind, WorkspaceRootRef,
+};
+
+pub use worksets::{
+    ChipAction, ChipPresentationState, ChipSurfaceClass, HiddenResultCountClass,
+    HiddenResultSummary, MemberRef, MemberRefKind, MembershipDecision, MembershipPolicy,
+    NarrowingCause, PartialTruthLabel, PatternEntry, PatternKind, PolicyLimitation,
+    PortabilityClass as WorksetPortabilityClass, PortabilityMetadata, ReadinessMetadata,
+    ReadinessState, ScopeClass, ScopeTruthChipRecord, ScopeTruthChipRecordKind, SourceClass,
+    WorksetArtifactError, WorksetArtifactRecord, WorksetArtifactRecordKind,
+    WorksetArtifactSchemaVersion,
 };
