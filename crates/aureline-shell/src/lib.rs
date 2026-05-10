@@ -15,6 +15,8 @@ pub mod bootstrap;
 pub mod chrome;
 /// Command review-sheet projections for diagnostics and invocation previews.
 pub mod commands;
+/// Deep-link entry validator (origin/target/command-class admission contract).
+pub mod deeplink;
 /// Embedded surface boundary chrome and browser-handoff wiring.
 pub mod embedded;
 /// Help and inspection projections used by shell surfaces.
@@ -22,6 +24,8 @@ pub mod help;
 pub mod layout;
 /// Command palette query-session state and grouped result projections.
 pub mod palette;
+/// Restore-prompt projection for resume / missing-target recovery.
+pub mod restore;
 /// Save-review sheet projections for conflicted save attempts.
 pub mod save_review;
 /// Start Center quick-action surface and entry projections.

@@ -44,6 +44,9 @@ use crate::palette::preview::{
 };
 use crate::palette::results_view::palette_view_rows;
 use crate::palette::{CommandPaletteCommit, CommandPaletteState};
+use crate::restore::{
+    materialize_restore_prompt, restore_prompt_status_line, write_restore_prompt_log,
+};
 use crate::save_review::{
     materialize_save_review_sheet_record, save_review_sheet_lines, write_save_review_sheet_log,
     SaveReviewChoiceKey, SaveReviewSheetRecord,
@@ -673,11 +676,15 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                         "restore proposal log unavailable — {err}"
                     ));
                 }
-                if prior_run_abnormal && !proposal.is_empty() {
+                let prompt = materialize_restore_prompt(&proposal);
+                if let Err(err) = write_restore_prompt_log(&recovery_root, &prompt) {
                     command_runtime.note_non_command_action(format!(
-                        "restore proposal — {}",
-                        proposal.summary_line()
+                        "restore prompt log unavailable — {err}"
                     ));
+                }
+                if prior_run_abnormal && !prompt.is_empty() {
+                    command_runtime
+                        .note_non_command_action(restore_prompt_status_line(&prompt));
                 } else if prior_run_abnormal {
                     command_runtime.note_non_command_action(
                         "prior run terminated abnormally; nothing to restore",
