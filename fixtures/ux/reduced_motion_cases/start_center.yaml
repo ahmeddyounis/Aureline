@@ -1,0 +1,83 @@
+__fixture__:
+  name: start_center_token_state_audit
+  scenario: >
+    Audit the protected Start Center surface across theme classes plus
+    the reduced-motion posture. Confirms its rendered chrome flows through
+    the shared shell renderer (token-backed background, text, accent, and
+    focus tokens), reuses the shared component-state vocabulary for
+    selected/focus rows, and consults the shared motion preset for the
+    overlay-dialog enter/exit transition that frames it.
+  exercised_axes:
+    surface_family: start_center
+    theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    motion_postures:
+      - motion_standard
+      - motion_reduced
+
+record_kind: token_state_audit_case_record
+schema_version: 1
+case_id: ux.token_state_audit.case.start_center
+surface_id: start_center
+surface_family: start_center
+sources:
+  - crates/aureline-shell/src/bootstrap/native_shell.rs
+  - crates/aureline-shell/src/start_center/mod.rs
+required_token_calls:
+  require_color:
+    - al.color.bg.canvas
+    - al.color.bg.surface
+    - al.color.bg.raised
+    - al.color.text.primary
+    - al.color.text.secondary
+    - al.color.accent.interactive
+    - al.color.focus.ring
+  require_space_px:
+    - space.2
+    - space.3
+    - space.4
+    - space.6
+  require_stroke_px:
+    - stroke.focus.ring
+required_state_symbols:
+  - ComponentStates::FOCUS_VISIBLE
+  - ComponentStates::SELECTED
+required_motion_preset_refs:
+  - fixtures/design/motion_cases/overlay_dialog_enter.yaml
+  - fixtures/design/motion_cases/overlay_dialog_exit.yaml
+required_motion_module_ref: crates/aureline-ui/src/motion/mod.rs
+prohibited_patterns:
+  - id: raw_rgba_literal
+    description: >
+      Start Center rows must not construct a raw ColorRgba; row state
+      colors must come from TokenRegistry so theme switching covers them.
+    pattern: 'ColorRgba\s*\{\s*r:'
+  - id: hardcoded_motion_ms
+    description: >
+      Start Center entry/exit must not hand-code a motion-preset
+      duration in milliseconds (>= 100ms); the reduced-motion fallback
+      lives on the shared overlay-dialog preset. Frame-cadence intervals
+      remain allowed because they describe compositor pacing, not
+      motion-preset durations.
+    pattern: 'Duration::from_millis\(\s*[1-9]\d{2,}\s*\)'
+failure_drill:
+  drill_id: start_center_drop_selected_state
+  forced_input:
+    drop_required_state_symbol:
+      symbol: ComponentStates::SELECTED
+  expected_findings:
+    - check_id: token_state_audit.required_state.missing
+      message_contains: ComponentStates::SELECTED
+notes: >
+  Start Center is the first-touch surface for new and returning users.
+  Losing the SELECTED state mapping would drop the visual treatment that
+  separates a focused row from a chosen one — exactly the regression class
+  this audit is meant to catch before late design review.
+policy_context:
+  policy_epoch: pe:2026-05-10:token-state-audit
+  trust_state: trusted
+redaction_class: metadata_safe_default
+minted_at: "2026-05-10T00:00:00Z"

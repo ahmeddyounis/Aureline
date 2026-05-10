@@ -1,0 +1,95 @@
+__fixture__:
+  name: shell_chrome_token_state_audit
+  scenario: >
+    Audit the protected shell chrome under dark, light, and high-contrast
+    theme classes plus the reduced-motion posture. Confirms the renderer
+    keeps loading semantic tokens from the shared registry, keeps mapping
+    visible focus and selection to the shared component-state vocabulary,
+    and keeps consulting the shared motion module before running the
+    overlay-dialog enter/exit transitions.
+  exercised_axes:
+    surface_family: shell_chrome
+    theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    motion_postures:
+      - motion_standard
+      - motion_reduced
+
+record_kind: token_state_audit_case_record
+schema_version: 1
+case_id: ux.token_state_audit.case.shell_chrome
+surface_id: shell_chrome
+surface_family: shell_chrome
+sources:
+  - crates/aureline-shell/src/bootstrap/native_shell.rs
+  - crates/aureline-ui/src/components/state_registry.rs
+required_token_calls:
+  require_color:
+    - al.color.bg.canvas
+    - al.color.bg.surface
+    - al.color.bg.raised
+    - al.color.bg.subtle
+    - al.color.bg.overlay
+    - al.color.bg.hover
+    - al.color.bg.active
+    - al.color.text.primary
+    - al.color.text.secondary
+    - al.color.text.muted
+    - al.color.border.default
+    - al.color.focus.ring
+    - al.color.accent.interactive
+    - status.warning
+    - status.warning.border
+    - status.danger.border
+    - status.success
+  require_space_px:
+    - space.2
+    - space.3
+    - space.4
+    - space.6
+  require_stroke_px:
+    - stroke.border.default
+    - stroke.focus.ring
+required_state_symbols:
+  - ComponentStates::FOCUS_VISIBLE
+  - ComponentStates::SELECTED
+required_motion_preset_refs:
+  - fixtures/design/motion_cases/overlay_dialog_enter.yaml
+  - fixtures/design/motion_cases/overlay_dialog_exit.yaml
+required_motion_module_ref: crates/aureline-ui/src/motion/mod.rs
+prohibited_patterns:
+  - id: raw_rgba_literal
+    description: >
+      Surface code must not construct a raw ColorRgba; theme/contrast
+      switching depends on going through TokenRegistry::require_color.
+    pattern: 'ColorRgba\s*\{\s*r:'
+  - id: hardcoded_motion_ms
+    description: >
+      Surface code must not hand-code a motion-preset duration in
+      milliseconds (>= 100ms); reduced-motion fallbacks live on the
+      shared motion preset. Frame-cadence intervals (e.g. 16ms / 33ms)
+      remain allowed because they describe compositor pacing, not
+      motion-preset durations.
+    pattern: 'Duration::from_millis\(\s*[1-9]\d{2,}\s*\)'
+failure_drill:
+  drill_id: shell_chrome_drop_focus_ring_token
+  forced_input:
+    drop_required_token:
+      kind: require_color
+      token: al.color.focus.ring
+  expected_findings:
+    - check_id: token_state_audit.required_token.missing
+      message_contains: al.color.focus.ring
+notes: >
+  Shell chrome is the canonical surface for token adoption. The shell
+  renderer resolves theme/density/contrast switches by re-reading every
+  token in this list. Removing one means a surface either loses focus
+  visibility or silently swaps to a literal that breaks high contrast.
+policy_context:
+  policy_epoch: pe:2026-05-10:token-state-audit
+  trust_state: trusted
+redaction_class: metadata_safe_default
+minted_at: "2026-05-10T00:00:00Z"

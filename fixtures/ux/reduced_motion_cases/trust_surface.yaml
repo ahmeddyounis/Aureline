@@ -1,0 +1,90 @@
+__fixture__:
+  name: trust_surface_token_state_audit
+  scenario: >
+    Audit the protected trust / scope-truth chip surface across theme
+    classes and reduced-motion posture. Confirms restricted, locked, and
+    warning postures land on token-backed status colors (never hue-only),
+    that the surface re-uses the shared component-state vocabulary so
+    the trust chip stays distinguishable in high contrast and forced
+    colors, and that the overlay frame around any trust prompt routes
+    through the shared motion module instead of a per-surface timer.
+  exercised_axes:
+    surface_family: trust_surface
+    theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    motion_postures:
+      - motion_standard
+      - motion_reduced
+
+record_kind: token_state_audit_case_record
+schema_version: 1
+case_id: ux.token_state_audit.case.trust_surface
+surface_id: trust_surface
+surface_family: trust_surface
+sources:
+  - crates/aureline-shell/src/bootstrap/native_shell.rs
+  - crates/aureline-shell/src/scope_truth/card.rs
+required_token_calls:
+  require_color:
+    - al.color.bg.surface
+    - al.color.bg.raised
+    - al.color.text.primary
+    - al.color.text.secondary
+    - al.color.border.default
+    - al.color.focus.ring
+    - status.warning
+    - status.warning.border
+    - status.warning.fill
+    - status.danger.border
+    - status.success
+    - status.success.border
+  require_space_px:
+    - space.2
+    - space.3
+  require_stroke_px:
+    - stroke.border.default
+    - stroke.focus.ring
+required_state_symbols:
+  - ComponentStates::FOCUS_VISIBLE
+required_motion_preset_refs:
+  - fixtures/design/motion_cases/overlay_dialog_enter.yaml
+  - fixtures/design/motion_cases/overlay_dialog_exit.yaml
+required_motion_module_ref: crates/aureline-ui/src/motion/mod.rs
+prohibited_patterns:
+  - id: raw_rgba_literal
+    description: >
+      Trust surface chrome must not construct a raw ColorRgba; trust
+      narrowing/restricted/locked postures depend on going through
+      TokenRegistry::require_color so they keep working under forced
+      colors and high contrast.
+    pattern: 'ColorRgba\s*\{\s*r:'
+  - id: hardcoded_motion_ms
+    description: >
+      Trust prompts must not hand-code a motion-preset duration in
+      milliseconds (>= 100ms); the reduced-motion fallback lives on the
+      shared motion preset. Frame-cadence intervals remain allowed
+      because they describe compositor pacing, not motion-preset
+      durations.
+    pattern: 'Duration::from_millis\(\s*[1-9]\d{2,}\s*\)'
+failure_drill:
+  drill_id: trust_surface_drop_warning_token
+  forced_input:
+    drop_required_token:
+      kind: require_color
+      token: status.warning.border
+  expected_findings:
+    - check_id: token_state_audit.required_token.missing
+      message_contains: status.warning.border
+notes: >
+  Trust narrowing and policy lock postures must remain perceivable
+  without color alone. Losing the warning border token would collapse
+  the "restricted vs trusted" cue to hue-only — exactly the regression
+  this audit is meant to fail loudly on.
+policy_context:
+  policy_epoch: pe:2026-05-10:token-state-audit
+  trust_state: trusted
+redaction_class: metadata_safe_default
+minted_at: "2026-05-10T00:00:00Z"

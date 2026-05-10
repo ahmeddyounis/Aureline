@@ -1,0 +1,84 @@
+__fixture__:
+  name: search_palette_token_state_audit
+  scenario: >
+    Audit the protected search/command palette surface across theme
+    classes plus the reduced-motion posture. Confirms the palette query
+    field, row chrome, and focus ring are all token-backed and that the
+    palette consults the shared overlay-dialog motion preset (which
+    already declares reduced-motion fallbacks). The query box MUST
+    request FOCUS_VISIBLE through the shared component-state registry
+    so a keyboard-only operator never loses focus visibility under
+    reduced motion.
+  exercised_axes:
+    surface_family: search_palette
+    theme_classes:
+      - dark_reference
+      - light_parity
+      - high_contrast_dark
+      - high_contrast_light
+    motion_postures:
+      - motion_standard
+      - motion_reduced
+
+record_kind: token_state_audit_case_record
+schema_version: 1
+case_id: ux.token_state_audit.case.search_palette
+surface_id: search_palette
+surface_family: search_palette
+sources:
+  - crates/aureline-shell/src/bootstrap/native_shell.rs
+  - crates/aureline-shell/src/search_shell/state.rs
+required_token_calls:
+  require_color:
+    - al.color.bg.overlay
+    - al.color.bg.raised
+    - al.color.bg.surface
+    - al.color.text.primary
+    - al.color.text.secondary
+    - al.color.border.default
+    - al.color.focus.ring
+  require_space_px:
+    - space.2
+    - space.3
+    - space.4
+  require_stroke_px:
+    - stroke.border.default
+    - stroke.focus.ring
+required_state_symbols:
+  - ComponentStates::FOCUS_VISIBLE
+required_motion_preset_refs:
+  - fixtures/design/motion_cases/overlay_dialog_enter.yaml
+  - fixtures/design/motion_cases/overlay_dialog_exit.yaml
+required_motion_module_ref: crates/aureline-ui/src/motion/mod.rs
+prohibited_patterns:
+  - id: raw_rgba_literal
+    description: >
+      Palette query field and row chrome must not construct a raw
+      ColorRgba; the palette must reuse the shared token pipeline so
+      forced-colors and high-contrast switching reach it.
+    pattern: 'ColorRgba\s*\{\s*r:'
+  - id: hardcoded_motion_ms
+    description: >
+      Palette enter/exit must not hand-code a motion-preset duration
+      in milliseconds (>= 100ms); the reduced-motion fallback lives on
+      the shared overlay-dialog motion preset. Frame-cadence intervals
+      remain allowed because they describe compositor pacing, not
+      motion-preset durations.
+    pattern: 'Duration::from_millis\(\s*[1-9]\d{2,}\s*\)'
+failure_drill:
+  drill_id: search_palette_drop_overlay_motion_preset
+  forced_input:
+    drop_required_motion_preset_ref:
+      ref: fixtures/design/motion_cases/overlay_dialog_enter.yaml
+  expected_findings:
+    - check_id: token_state_audit.required_motion_preset.missing
+      message_contains: overlay_dialog_enter.yaml
+notes: >
+  The palette is the keyboard-first surface; if it stops consulting the
+  shared overlay-dialog motion preset it stops honoring the reduced-motion
+  fallback contract that the rest of the shell relies on.
+policy_context:
+  policy_epoch: pe:2026-05-10:token-state-audit
+  trust_state: trusted
+redaction_class: metadata_safe_default
+minted_at: "2026-05-10T00:00:00Z"
