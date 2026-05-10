@@ -1,0 +1,429 @@
+# Crash-recovery and restore-fidelity drill matrix.
+#
+# This file is the canonical, machine-readable seed for the unattended
+# crash/restore proof lane. It joins three already-frozen sources so the
+# runner does not invent parallel vocabulary:
+#
+# - the restore-proposal builder and its closed restore-class /
+#   plan-kind / downgrade-trigger vocabulary at
+#     crates/aureline-recovery/src/session_restore/proposal.rs
+#     crates/aureline-recovery/src/session_restore/records.rs
+# - the safe-mode profile and crash-loop containment projection at
+#     crates/aureline-shell/src/recovery/safe_mode.rs
+#     crates/aureline-shell/src/recovery/crash_loop.rs
+#     crates/aureline-shell/src/recovery/ladder.rs
+# - the recovery-rung matrix at
+#     artifacts/recovery/recovery_rungs.yaml
+#
+# Rules.
+#   - Every row MUST name one stable drill_row_id, the scenario classes
+#     it covers, the canonical fixture (or projection input) the runner
+#     replays against, the expected restore-fidelity record, and at
+#     least one named failure drill the runner can force.
+#   - The matrix MUST seed at least one row each for nominal journal
+#     replay, clean layout-only restore, degraded evidence-only restore,
+#     first-launch no-restore, and a safe-mode-after-crash-loop entry.
+#   - Restore classes, downgrade triggers, plan kinds, frame integrity
+#     states, recovery rungs, safe-mode entry reasons, and crash-loop
+#     offer keys are quoted verbatim from the upstream Rust modules and
+#     the recovery-rungs artifact; the runner refuses unknown tokens.
+#   - Side-effectful surfaces (terminal, debugger, notebook, AI panel)
+#     MUST be classified as blocked_side_effectful in any pane plan a
+#     row pins; the runner enforces this invariant.
+#   - A row's expected outcome MUST match what the upstream restore-
+#     proposal builder would actually emit so the lane is comparing
+#     real runtime truth, not idealised mocks.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-10"
+owner_dri: "@ahmeddyounis"
+
+matrix_id: aureline.recovery.crash_restore_drill_matrix
+overview_page: artifacts/recovery/m1_crash_recovery_report.md
+
+# Vocabulary reuse pointers. The runner verifies these resolve.
+vocabulary_sources:
+  recovery_rungs_ref: artifacts/recovery/recovery_rungs.yaml
+  session_restore_module_ref: crates/aureline-recovery/src/session_restore/proposal.rs
+  session_restore_records_ref: crates/aureline-recovery/src/session_restore/records.rs
+  safe_mode_module_ref: crates/aureline-shell/src/recovery/safe_mode.rs
+  crash_loop_module_ref: crates/aureline-shell/src/recovery/crash_loop.rs
+  recovery_ladder_module_ref: crates/aureline-shell/src/recovery/ladder.rs
+  session_restore_fixtures_ref: fixtures/recovery/session_restore_cases/
+
+# Hard upstream contracts this lane projects against. The lane is not
+# allowed to fork these surfaces; it only reads them and asserts truth.
+hard_dependency_refs:
+  - crates/aureline-recovery/src/crash_journal/mod.rs
+  - crates/aureline-recovery/src/session_restore/proposal.rs
+  - crates/aureline-shell/src/recovery/mod.rs
+  - crates/aureline-shell/src/recovery/safe_mode.rs
+  - crates/aureline-shell/src/recovery/crash_loop.rs
+  - crates/aureline-shell/src/recovery/ladder.rs
+
+# Validation lane bound to this matrix. Lane registration in the proof
+# index points at the same QE lane.
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Frozen vocabulary echoed for the runner. These are slices of the
+# upstream Rust enums and the recovery-rungs artifact; they MUST stay
+# aligned.
+restore_class_vocabulary:
+  - exact_restore
+  - compatible_restore
+  - layout_only
+  - recovered_drafts
+  - evidence_only
+  - no_restore
+
+restore_plan_kind_vocabulary:
+  - live_skeleton
+  - placeholder_only
+  - evidence_only
+  - blocked_side_effectful
+
+side_effectful_surface_role_vocabulary:
+  - terminal
+  - debugger
+  - notebook
+  - ai_panel
+
+downgrade_trigger_vocabulary:
+  - schema_translation_required
+  - schema_meaning_changed
+  - missing_extension_dependency
+  - missing_remote_session
+  - missing_remote_authority
+  - unsupported_display_topology
+  - excluded_secret_material
+  - excluded_live_handle
+  - workspace_manifest_conflict
+  - policy_narrowing
+  - manual_repair_required
+  - producer_schema_downgrade_refused
+
+frame_integrity_state_vocabulary:
+  - verified
+  - checksum_mismatch
+  - schema_unreadable
+  - record_truncated
+
+replay_posture_vocabulary:
+  - replay_with_review
+  - inspect_only
+  - restore_requires_review
+
+guided_choice_vocabulary:
+  - replay
+  - inspect_only
+  - keep_disk
+  - merge_required
+
+recovery_rung_vocabulary:
+  - safe_mode
+  - suspect_extension_quarantine
+  - open_without_restore
+  - cache_or_index_repair
+  - restricted_fallback
+  - export_evidence
+
+safe_mode_entry_reason_vocabulary:
+  - user_requested
+  - crash_loop_detected
+  - suspicious_content_detected
+  - broken_cache_suspected
+  - trust_uncertain
+
+crash_loop_offer_key_vocabulary:
+  - open_safe_mode
+  - disable_suspect_extension_or_runtime
+  - open_without_restore
+  - export_evidence
+  - repair_cache_or_index
+
+# Required first-class crash-loop offers. Containment must always
+# expose these four offers as first-class (un-gated) options, mirroring
+# the spec's blocked-user loop requirement.
+required_first_class_crash_loop_offers:
+  - open_safe_mode
+  - disable_suspect_extension_or_runtime
+  - open_without_restore
+  - export_evidence
+
+# Required scenario coverage. The runner refuses to pass unless every
+# class is exercised by at least one row.
+required_scenario_class_coverage:
+  - nominal_journal_replay
+  - clean_layout_only_restore
+  - degraded_evidence_only
+  - first_launch_no_restore
+  - safe_mode_entry_after_crash_loop
+
+# Drill rows. The first four pin the restore-proposal builder's
+# behavior on the existing session-restore JSON fixtures; the fifth
+# pins the safe-mode + crash-loop containment projection.
+rows:
+  - drill_row_id: aureline.recovery.crash_restore.recovered_drafts_after_crash
+    title: Crash with dirty buffer replays journal as recovered_drafts and blocks terminal auto-rerun
+    scenario_classes:
+      - nominal_journal_replay
+    drill_kind: restore_proposal
+    proposal_fixture_ref: fixtures/recovery/session_restore_cases/recovered_drafts_after_crash.json
+    expected:
+      restore_class: recovered_drafts
+      prior_run_abnormal: true
+      auto_rerun_forbidden: true
+      counts:
+        windows: 1
+        tab_groups: 1
+        tabs: 2
+        dirty_buffer_journals: 1
+        terminals: 1
+      side_effectful_pane_plans_required:
+        - surface_role: terminal
+          plan_kind: blocked_side_effectful
+      live_skeleton_pane_plans_required:
+        - surface_role: editor
+          plan_kind: live_skeleton
+      dirty_buffer_entries_required:
+        - frame_integrity: verified
+          replay_posture: restore_requires_review
+          recommended_choice: inspect_only
+      downgrade_triggers: []
+    named_failure_drills:
+      - drop_blocked_side_effectful_terminal
+      - drop_dirty_buffer_inspect_only_recommendation
+    failure_drill:
+      drill_id: aureline.recovery.crash_restore.failure.drop_blocked_side_effectful_terminal
+      description: >
+        If the terminal pane is reclassified away from
+        blocked_side_effectful, the lane records that the protected-
+        walk invariant (no silent rerun on side-effectful surfaces)
+        was lost.
+      forced_input:
+        rewrite_terminal_plan_kind: live_skeleton
+      expected_report:
+        check_id: row.side_effectful_pane_plan_violation
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Re-run the upstream classifier in
+          aureline-recovery::session_restore::proposal::classify_pane_plan
+          and confirm Terminal/Debugger/Notebook/AiPanel surfaces stay
+          mapped to BlockedSideEffectful.
+
+  - drill_row_id: aureline.recovery.crash_restore.layout_only_clean_relaunch
+    title: Clean prior run reopens layout_only with auto_rerun_forbidden and zero drafts
+    scenario_classes:
+      - clean_layout_only_restore
+    drill_kind: restore_proposal
+    proposal_fixture_ref: fixtures/recovery/session_restore_cases/layout_only_clean_relaunch.json
+    expected:
+      restore_class: layout_only
+      prior_run_abnormal: false
+      auto_rerun_forbidden: true
+      counts:
+        windows: 1
+        tab_groups: 1
+        tabs: 1
+        dirty_buffer_journals: 0
+        terminals: 0
+      live_skeleton_pane_plans_required:
+        - surface_role: editor
+          plan_kind: live_skeleton
+      side_effectful_pane_plans_required: []
+      dirty_buffer_entries_required: []
+      downgrade_triggers: []
+    named_failure_drills:
+      - rewrite_restore_class_to_exact_restore
+    failure_drill:
+      drill_id: aureline.recovery.crash_restore.failure.rewrite_restore_class_to_exact_restore
+      description: >
+        If a layout-only proposal is re-labelled exact_restore, the
+        lane records that fidelity was overstated and that the chooser
+        would imply live authority where only context was restored.
+      forced_input:
+        rewrite_restore_class: exact_restore
+      expected_report:
+        check_id: row.restore_class_mismatch
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Re-run aureline-recovery::session_restore::proposal::classify_restore_class
+          on the same fixture and confirm it maps clean layout snapshots
+          (no dirty drafts, no live authority) to LayoutOnly, never
+          ExactRestore.
+
+  - drill_row_id: aureline.recovery.crash_restore.evidence_only_corrupt_snapshot
+    title: Corrupt journal frame downgrades restore class to evidence_only and pins manual_repair_required
+    scenario_classes:
+      - degraded_evidence_only
+    drill_kind: restore_proposal
+    proposal_fixture_ref: fixtures/recovery/session_restore_cases/evidence_only_corrupt_snapshot.json
+    expected:
+      restore_class: evidence_only
+      prior_run_abnormal: true
+      auto_rerun_forbidden: true
+      counts:
+        windows: 0
+        tab_groups: 0
+        tabs: 0
+        dirty_buffer_journals: 1
+        terminals: 0
+      live_skeleton_pane_plans_required: []
+      side_effectful_pane_plans_required: []
+      dirty_buffer_entries_required:
+        - frame_integrity: checksum_mismatch
+          replay_posture: inspect_only
+          recommended_choice: inspect_only
+      downgrade_triggers:
+        - manual_repair_required
+    named_failure_drills:
+      - drop_manual_repair_required_trigger
+    failure_drill:
+      drill_id: aureline.recovery.crash_restore.failure.drop_manual_repair_required_trigger
+      description: >
+        If a corrupt journal frame is restored without recording
+        manual_repair_required, the lane records that the proposal
+        would silently drop a downgrade trigger that release and
+        support exports depend on.
+      forced_input:
+        drop_downgrade_trigger: manual_repair_required
+      expected_report:
+        check_id: row.downgrade_trigger_missing
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Verify aureline-recovery::session_restore::proposal::classify_restore_class
+          appends ManualRepairRequired whenever any dirty-buffer entry
+          fails frame integrity.
+
+  - drill_row_id: aureline.recovery.crash_restore.no_restore_first_launch
+    title: First launch with no checkpoint or journal classifies no_restore with empty counts
+    scenario_classes:
+      - first_launch_no_restore
+    drill_kind: restore_proposal
+    proposal_fixture_ref: fixtures/recovery/session_restore_cases/no_restore_first_launch.json
+    expected:
+      restore_class: no_restore
+      prior_run_abnormal: false
+      auto_rerun_forbidden: true
+      counts:
+        windows: 0
+        tab_groups: 0
+        tabs: 0
+        dirty_buffer_journals: 0
+        terminals: 0
+      live_skeleton_pane_plans_required: []
+      side_effectful_pane_plans_required: []
+      dirty_buffer_entries_required: []
+      downgrade_triggers: []
+    named_failure_drills:
+      - invent_phantom_window_count
+    failure_drill:
+      drill_id: aureline.recovery.crash_restore.failure.invent_phantom_window_count
+      description: >
+        If the empty proposal is rewritten to invent counts the
+        artifact store does not actually have, the lane records that
+        the proposal lost its honesty invariant ("counts before
+        rehydration"). Empty input must produce empty counts.
+      forced_input:
+        rewrite_window_count: 1
+      expected_report:
+        check_id: row.counts_mismatch
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Verify aureline-recovery::session_restore::proposal::RestoreProposal::build
+          never inflates counts beyond the persisted artifact set
+          (first launch produces zero windows/tab_groups/tabs/drafts).
+
+  - drill_row_id: aureline.recovery.crash_restore.safe_mode_after_crash_loop
+    title: Crash-loop containment forces safe mode and exposes the four required first-class offers
+    scenario_classes:
+      - safe_mode_entry_after_crash_loop
+    drill_kind: safe_mode_crash_loop_projection
+    safe_mode_input:
+      reason_class: crash_loop_detected
+      crash_loop_reason_class: strike_budget_exceeded
+    expected:
+      safe_mode_profile:
+        entry_reason_class: crash_loop_detected
+        trust_state_after_entry: restricted_recovery_fallback
+        auto_restore_forbidden: true
+        entry_visible_and_logged: true
+        entry_confirmation_required: false
+        trust_widening_forbidden_without_review: true
+        required_disabled_capabilities:
+          - extension_auto_activation
+          - extension_host_launch
+          - session_restore_auto_reopen
+          - remote_helper_attach
+          - ai_runtime_access
+          - background_rebuild
+        required_preserved_state_classes:
+          - user_authored_files
+          - open_buffer_selection
+          - durable_workspace_indexes
+          - workspace_trust_store
+          - credential_store
+          - managed_policy_overrides
+          - session_restore_store
+          - support_export_store
+        required_next_options:
+          - widen_to_full_mode_with_review
+          - escalate_to_extension_quarantine
+          - escalate_to_cache_reset_candidate
+          - open_without_restore
+          - export_escalation_packet
+        safe_mode_enter_command_id: cmd:workspace.enter_safe_mode
+        safe_mode_exit_command_id: cmd:workspace.exit_safe_mode_after_review
+      crash_loop_containment:
+        reason_class: strike_budget_exceeded
+        auto_rerun_forbidden: true
+        never_deletes_state: true
+        required_first_class_offers:
+          - open_safe_mode
+          - disable_suspect_extension_or_runtime
+          - open_without_restore
+          - export_evidence
+        required_gated_offers:
+          - repair_cache_or_index
+        offer_command_ids:
+          open_safe_mode: cmd:workspace.enter_safe_mode
+          disable_suspect_extension_or_runtime: cmd:workspace.quarantine_suspect_extension
+          open_without_restore: cmd:workspace.open_without_restore
+          export_evidence: cmd:workspace.export_recovery_evidence
+          repair_cache_or_index: cmd:workspace.repair_cache_or_index_candidate
+    named_failure_drills:
+      - drop_export_evidence_first_class_offer
+      - widen_disabled_session_restore_auto_reopen
+    failure_drill:
+      drill_id: aureline.recovery.crash_restore.failure.drop_export_evidence_first_class_offer
+      description: >
+        If crash-loop containment stops exposing Export evidence as a
+        first-class offer, the lane records that the user can no
+        longer hand off the crash packet without leaving safe mode
+        first. The blocked-user loop reopens.
+      forced_input:
+        drop_first_class_offer: export_evidence
+      expected_report:
+        check_id: row.crash_loop_first_class_offer_missing
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Verify aureline-shell::recovery::crash_loop::materialize_crash_loop_containment
+          keeps Export evidence as a first-class offer alongside Open
+          safe mode, Disable suspect extension/runtime, and Open
+          without restore.
+
+# Cadence guidance for the lane. The runner does not enforce cadence;
+# release and CI configuration do. This is informational so reviewers
+# know how often the artifact is expected to refresh.
+cadence_guidance:
+  per_change: >
+    Re-run when crates/aureline-recovery/src/session_restore/proposal.rs,
+    crates/aureline-recovery/src/session_restore/records.rs,
+    crates/aureline-shell/src/recovery/safe_mode.rs,
+    crates/aureline-shell/src/recovery/crash_loop.rs,
+    crates/aureline-shell/src/recovery/ladder.rs,
+    or fixtures/recovery/session_restore_cases/ change.
+  nightly: >
+    Replay nightly so capture freshness tracks the protected M1 proof
+    set; flag stale captures via ci/check_m1_artifact_index.py.
