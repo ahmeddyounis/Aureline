@@ -9,6 +9,9 @@
 /// Accessibility-tree bridge groundwork for shell surfaces.
 pub(crate) mod a11y;
 pub mod app_frame;
+/// Shared badge projections (target/origin chips, boundary cues) consumed by
+/// terminal, task, debug-prep, and provider/auth entry points.
+pub mod badges;
 /// Native desktop shell bootstrap (window creation, event loop, input dispatch).
 pub mod bootstrap;
 /// Path-ancestry breadcrumbs for editor chrome.
