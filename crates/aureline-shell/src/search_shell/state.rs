@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_search::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalShell, LexicalShellSnapshot,
-    LineageHintRecord, ReadinessClass, ScopeClass,
+    LineageHintRecord, ReadinessClass, ResultIdentity, ScopeClass,
 };
 use aureline_workspace::{
     ScopeClass as WorkspaceScopeClass, WorkspaceLifecycleMachine, WorkspaceReadinessInputs,
@@ -143,6 +143,9 @@ impl WorkspaceSearchSurfaceState {
                             .generated_artifact_hint
                             .as_ref()
                             .map(WorkspaceSearchSurfaceLineageHint::from_record),
+                        result_identity: WorkspaceSearchSurfaceResultIdentity::from_identity(
+                            &row.identity,
+                        ),
                     })
                     .collect(),
             })
@@ -260,6 +263,49 @@ pub struct WorkspaceSearchSurfaceCardItem {
     /// target.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated_artifact_hint: Option<WorkspaceSearchSurfaceLineageHint>,
+    /// Stable result identity, ranking-reason vocabulary, and row-level
+    /// partiality class projected from the canonical
+    /// [`aureline_search::ResultIdentity`]. Surfaces MUST quote `result_id`
+    /// directly when persisting selection or exporting a support bundle, and
+    /// MUST surface `partiality_class_token` (not just the chrome chip) when
+    /// the row caveat is present.
+    pub result_identity: WorkspaceSearchSurfaceResultIdentity,
+}
+
+/// Render-ready projection of [`aureline_search::ResultIdentity`].
+///
+/// Surfaces MUST quote the `result_id`, `ranking_reason_tokens`, and
+/// `partiality_class_token` verbatim. The chrome MUST NOT collapse warming /
+/// partial / stale into a generic loading badge — the contract requires the
+/// closed token vocabulary to remain visible to the user.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSearchSurfaceResultIdentity {
+    pub result_id: String,
+    pub source_class_token: String,
+    pub match_kind_token: String,
+    pub ranking_reason_tokens: Vec<String>,
+    pub partiality_class_token: String,
+    pub partiality_row_badge: String,
+    pub must_show_row_caveat: bool,
+}
+
+impl WorkspaceSearchSurfaceResultIdentity {
+    /// Build a chrome-facing identity projection from a canonical record.
+    pub fn from_identity(identity: &ResultIdentity) -> Self {
+        Self {
+            result_id: identity.result_id.clone(),
+            source_class_token: identity.source_class.as_str().to_string(),
+            match_kind_token: identity.match_kind.as_str().to_string(),
+            ranking_reason_tokens: identity
+                .ranking_reasons
+                .iter()
+                .map(|r| r.as_str().to_string())
+                .collect(),
+            partiality_class_token: identity.partiality_class.as_str().to_string(),
+            partiality_row_badge: identity.partiality_class.row_badge().to_string(),
+            must_show_row_caveat: identity.must_show_row_caveat(),
+        }
+    }
 }
 
 /// Lineage hint projection rendered next to a search-shell row.
@@ -480,6 +526,99 @@ mod tests {
             manifest_item.generated_artifact_hint.is_none(),
             "Cargo.toml is the canonical source and must not carry a generated hint",
         );
+    }
+
+    #[test]
+    fn ready_card_row_carries_stable_result_identity_with_match_kind_reason() {
+        let lifecycle = ready_lifecycle();
+        let mut surface = WorkspaceSearchSurfaceState::open(
+            &lifecycle,
+            ReadinessLabel::Exact,
+            WorkspaceScopeClass::CurrentRepo,
+            None,
+            vec!["src/main.rs".to_string()],
+        );
+        surface.set_query("main.rs");
+        let card = surface.render_card();
+        let row = &card.rows[0].items[0];
+        assert_eq!(
+            row.result_identity.result_id,
+            "wsearch:ws-test:lexical_filename:src/main.rs"
+        );
+        assert_eq!(
+            row.result_identity.ranking_reason_tokens,
+            vec!["exact_basename_match"],
+        );
+        assert_eq!(row.result_identity.partiality_class_token, "authoritative");
+        assert_eq!(row.result_identity.partiality_row_badge, "Authoritative");
+        assert!(!row.result_identity.must_show_row_caveat);
+    }
+
+    #[test]
+    fn partial_card_row_surfaces_partial_caveat_on_row_identity() {
+        let lifecycle = partial_lifecycle();
+        let mut surface = WorkspaceSearchSurfaceState::open(
+            &lifecycle,
+            ReadinessLabel::Partial,
+            WorkspaceScopeClass::CurrentRepo,
+            None,
+            vec!["src/main.rs".to_string()],
+        );
+        surface.set_query("main");
+
+        let card = surface.render_card();
+        assert_eq!(card.readiness_class_token, "partial");
+        let row = &card.rows[0].items[0];
+        assert_eq!(row.result_identity.partiality_class_token, "partial");
+        assert_eq!(row.result_identity.partiality_row_badge, "Partial");
+        assert!(row.result_identity.must_show_row_caveat);
+        assert!(row
+            .result_identity
+            .ranking_reason_tokens
+            .iter()
+            .any(|t| t == "partial_coverage_caveat"));
+    }
+
+    #[test]
+    fn generated_lockfile_card_row_carries_deprioritized_ranking_reason() {
+        let lifecycle = ready_lifecycle();
+        let mut surface = WorkspaceSearchSurfaceState::open(
+            &lifecycle,
+            ReadinessLabel::Exact,
+            WorkspaceScopeClass::CurrentRepo,
+            None,
+            vec!["Cargo.lock".to_string(), "Cargo.toml".to_string()],
+        );
+        surface.set_query("cargo");
+        let card = surface.render_card();
+
+        let lockfile_item = card
+            .rows
+            .iter()
+            .flat_map(|r| r.items.iter())
+            .find(|item| item.relative_path == "Cargo.lock")
+            .expect("Cargo.lock must surface");
+        assert!(lockfile_item
+            .result_identity
+            .ranking_reason_tokens
+            .iter()
+            .any(|t| t == "generated_artifact_deprioritized"));
+        assert_eq!(
+            lockfile_item.result_identity.partiality_class_token,
+            "authoritative"
+        );
+
+        let toml_item = card
+            .rows
+            .iter()
+            .flat_map(|r| r.items.iter())
+            .find(|item| item.relative_path == "Cargo.toml")
+            .expect("Cargo.toml must surface");
+        assert!(!toml_item
+            .result_identity
+            .ranking_reason_tokens
+            .iter()
+            .any(|t| t == "generated_artifact_deprioritized"));
     }
 
     #[test]

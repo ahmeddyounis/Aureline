@@ -26,11 +26,17 @@
 #![doc(html_root_url = "https://docs.rs/aureline-search/0.0.0")]
 
 pub mod lexical;
+pub mod results;
 
 pub use lexical::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalSearchResults, LexicalShell,
     LexicalShellSnapshot, MatchKind, ReadinessClass, ResultGroup, ResultRow, ScopeClass,
     SourceClass, MAX_RESULTS_PER_GROUP,
+};
+
+pub use results::{
+    build_lexical_identity, derive_lexical_ranking_reasons, derive_partiality_class,
+    project_lexical_partiality, RankingReasonClass, ResultIdentity, ResultPartialityClass,
 };
 
 pub use aureline_workspace::{

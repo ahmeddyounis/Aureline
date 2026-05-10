@@ -18,6 +18,7 @@ use aureline_workspace::{detect_lineage, LineageHintRecord};
 
 use super::index::{LexicalIndexState, ReadinessClass};
 use super::source::SourceClass;
+use crate::results::{build_lexical_identity, ResultIdentity};
 
 /// Maximum rows surfaced per group. Keeps the shell render cheap and the
 /// fixture proofs deterministic.
@@ -102,6 +103,12 @@ pub struct ResultRow {
     /// to point users back at the source-canonical artifact when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub generated_artifact_hint: Option<LineageHintRecord>,
+    /// Stable result identity, ranking reasons, and row-level partiality
+    /// class. The identity travels on every row so quick open, the search
+    /// shell, support exports, and CLI replay can quote the same `result_id`,
+    /// the same ranking-reason vocabulary, and the same partiality caveat
+    /// without re-deriving them from the rendered chrome.
+    pub identity: ResultIdentity,
 }
 
 impl ResultRow {
@@ -153,6 +160,8 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
 
     let mut filename_rows: Vec<ResultRow> = Vec::new();
     let mut path_rows: Vec<ResultRow> = Vec::new();
+    let workspace_id = index.workspace_id();
+    let readiness = index.readiness();
 
     for path in index.files() {
         let lower_path = path.to_ascii_lowercase();
@@ -173,21 +182,41 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
         };
 
         if let Some(kind) = basename_match_kind {
+            let lineage = detect_lineage(path);
+            let identity = build_lexical_identity(
+                workspace_id,
+                path,
+                SourceClass::LexicalFilename,
+                kind,
+                lineage.is_some(),
+                readiness,
+            );
             filename_rows.push(ResultRow {
                 relative_path: path.clone(),
                 source_class: SourceClass::LexicalFilename,
                 match_kind: kind,
-                generated_artifact_hint: detect_lineage(path),
+                generated_artifact_hint: lineage,
+                identity,
             });
             continue;
         }
 
         if lower_path.contains(&normalized) {
+            let lineage = detect_lineage(path);
+            let identity = build_lexical_identity(
+                workspace_id,
+                path,
+                SourceClass::LexicalPath,
+                MatchKind::SubstringPath,
+                lineage.is_some(),
+                readiness,
+            );
             path_rows.push(ResultRow {
                 relative_path: path.clone(),
                 source_class: SourceClass::LexicalPath,
                 match_kind: MatchKind::SubstringPath,
-                generated_artifact_hint: detect_lineage(path),
+                generated_artifact_hint: lineage,
+                identity,
             });
         }
     }
@@ -333,6 +362,71 @@ mod tests {
             .find(|row| row.relative_path == "src/main.rs")
             .expect("src/main.rs must surface");
         assert!(row.generated_artifact_hint.is_none());
+    }
+
+    #[test]
+    fn run_query_attaches_stable_identity_with_match_kind_reason() {
+        let index = ready_index_with(vec!["src/main.rs"]);
+        let results = run_query(&index, &LexicalQuery::new("main.rs"));
+        let row = &results.groups[0].items[0];
+        assert_eq!(
+            row.identity.result_id,
+            "wsearch:ws-test:lexical_filename:src/main.rs"
+        );
+        assert_eq!(
+            row.identity.ranking_reasons,
+            vec![crate::results::RankingReasonClass::ExactBasenameMatch]
+        );
+        assert_eq!(
+            row.identity.partiality_class,
+            crate::results::ResultPartialityClass::Authoritative
+        );
+        assert!(!row.identity.must_show_row_caveat());
+    }
+
+    #[test]
+    fn run_query_carries_partial_caveat_on_warming_index() {
+        let index = LexicalIndexState::for_fixture(
+            "ws-test",
+            "mono:1",
+            WorkspaceLifecycleState::PartiallyReady,
+            ReadinessLabel::Partial,
+            vec!["src/main.rs".to_string()],
+        );
+        let results = run_query(&index, &LexicalQuery::new("main"));
+        let row = &results.groups[0].items[0];
+        assert!(row.identity.ranking_reasons.contains(
+            &crate::results::RankingReasonClass::PartialCoverageCaveat
+        ));
+        assert_eq!(
+            row.identity.partiality_class,
+            crate::results::ResultPartialityClass::Partial
+        );
+        assert!(row.identity.must_show_row_caveat());
+    }
+
+    #[test]
+    fn run_query_marks_generated_lockfile_as_deprioritized_in_ranking_reasons() {
+        let index = ready_index_with(vec!["Cargo.lock", "Cargo.toml"]);
+        let results = run_query(&index, &LexicalQuery::new("cargo"));
+        let lockfile_row = results
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter())
+            .find(|r| r.relative_path == "Cargo.lock")
+            .expect("Cargo.lock must surface");
+        assert!(lockfile_row.identity.ranking_reasons.contains(
+            &crate::results::RankingReasonClass::GeneratedArtifactDeprioritized
+        ));
+        let toml_row = results
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter())
+            .find(|r| r.relative_path == "Cargo.toml")
+            .expect("Cargo.toml must surface");
+        assert!(!toml_row.identity.ranking_reasons.contains(
+            &crate::results::RankingReasonClass::GeneratedArtifactDeprioritized
+        ));
     }
 
     #[test]

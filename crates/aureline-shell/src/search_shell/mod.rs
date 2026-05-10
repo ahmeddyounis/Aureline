@@ -19,7 +19,7 @@ pub mod state;
 pub use state::{
     project_scope_label, WorkspaceSearchSurfaceCard, WorkspaceSearchSurfaceCardItem,
     WorkspaceSearchSurfaceCardRow, WorkspaceSearchSurfaceLineageHint,
-    WorkspaceSearchSurfaceState,
+    WorkspaceSearchSurfaceResultIdentity, WorkspaceSearchSurfaceState,
 };
 
 #[doc(inline)]
