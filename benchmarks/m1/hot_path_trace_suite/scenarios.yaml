@@ -1,0 +1,245 @@
+# Hot-path trace suite scenarios.
+#
+# This file is the canonical, machine-readable register of the protected
+# hot-path scenarios that are instrumented on the reference-hardware
+# matrix for the M1 performance dashboard and exit packet. The runner
+# (./run_hot_path_trace_suite.py) reads this file and replays each
+# scenario against the reference trace fixture so engineers and CI
+# obtain the same named scenarios and metrics vocabulary.
+#
+# Identity rules.
+#   - Every scenario MUST name one stable scenario_id, an event_class +
+#     protected_journey + dispatch_layer triple already frozen in
+#     schemas/traces/trace_event.schema.json, and the journey_segment_ids
+#     it requires (which MUST resolve in
+#     artifacts/benchmarks/journey_segment_ids.yaml).
+#   - Every scenario MUST cite a budget_ref into
+#     artifacts/perf/protected_path_ledger.yaml and at least one metric_id
+#     plus comparator + threshold from
+#     artifacts/perf/latency_budget_ledger.yaml so trace outputs can feed
+#     the dashboard without manual spreadsheet cleanup.
+#   - The required_journey_segment_ids set MUST stay aligned with the
+#     hot_path_metrics validator in
+#     crates/aureline-telemetry/src/hot_path_metrics.rs (validate_minimum_required).
+#   - The runner uses the timing-bucket vocabulary below to bin per-row
+#     observations; comparisons across runs use the same buckets so they
+#     stay apples-to-apples.
+
+schema_version: 1
+suite_id: aureline.benchmarks.m1.hot_path_trace_suite
+suite_revision: 1
+status: seeded
+as_of: "2026-05-10"
+owner_dri: "@ahmeddyounis"
+
+reviewer_entrypoint: docs/perf/m1_hot_path_trace_readme.md
+
+# Frozen contracts the suite reads. The runner verifies these resolve.
+upstream_contracts:
+  trace_event_schema_ref: schemas/traces/trace_event.schema.json
+  hot_path_metrics_module_ref: crates/aureline-telemetry/src/hot_path_metrics.rs
+  hot_path_metrics_doc_ref: docs/perf/m1_hot_path_metrics.md
+  journey_segment_ids_ref: artifacts/benchmarks/journey_segment_ids.yaml
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+  reference_hardware_manifest_ref: artifacts/perf/reference_hardware_manifest.yaml
+  reference_hardware_matrix_ref: artifacts/perf/m1/reference_hardware_matrix.yaml
+  reference_trace_fixture_ref: fixtures/perf/hot_path_trace_reference.json
+  exact_build_identity_ref: artifacts/build/build_identity.json
+  protected_corpus_manifest_ref: fixtures/benchmarks/corpus_manifest.yaml
+  protected_workspace_root_ref: fixtures/workspaces/reference/
+
+# Validation lane bound to this suite. Lane registration in the M1
+# proof index points at the same QE lane.
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Frozen vocabulary echoed for the runner. These slices the
+# trace-event vocabulary so the runner can refuse a scenario that
+# names tokens outside the schema.
+event_class_vocabulary:
+  - startup
+  - first_paint
+  - input_to_paint
+  - quick_open
+  - save
+
+dispatch_layer_vocabulary:
+  - ui_dispatch
+  - service_hop
+  - renderer_work
+  - filesystem_io
+
+# Timing buckets. The runner pins observed durations into a small
+# closed set per scenario so cross-run comparisons stay deterministic
+# and feed the M1 performance dashboard directly.
+timing_bucket_vocabulary:
+  - under_target
+  - within_p50
+  - within_p95
+  - over_target
+  - missing
+
+# Canonical scenarios. The runner replays each scenario by selecting
+# the matching segment-id set from the reference trace fixture, asserts
+# the trace packet carries exact-build identity and a hardware profile
+# id, and bins observed durations into the timing buckets above.
+scenarios:
+  - scenario_id: scenario.warm_first_paint
+    title: Warm startup to first paint
+    event_class: startup
+    protected_journey: render_submission
+    dispatch_layer: renderer_work
+    budget_ref: path.shell.launch
+    required_journey_segment_ids:
+      - seg.startup.ui_dispatch.process_start
+      - seg.startup.ui_dispatch.boot
+      - seg.first_paint.renderer_work.submit
+    metrics:
+      - metric_id: first_paint_warm_ms
+        comparator: <=
+        target_ms: 150
+        bucket_p50_ms: 90
+        bucket_p95_ms: 130
+
+  - scenario_id: scenario.interactive_shell
+    title: Warm startup to first useful chrome
+    event_class: startup
+    protected_journey: first_useful_chrome
+    dispatch_layer: ui_dispatch
+    budget_ref: path.shell.first_useful_chrome
+    required_journey_segment_ids:
+      - seg.startup.ui_dispatch.first_useful_chrome_ready
+    metrics:
+      - metric_id: palette_available_warm_ms
+        comparator: <=
+        target_ms: 400
+        bucket_p50_ms: 220
+        bucket_p95_ms: 360
+
+  - scenario_id: scenario.file_open
+    title: Placeholder file open to first paint
+    event_class: quick_open
+    protected_journey: placeholder_open
+    dispatch_layer: ui_dispatch
+    budget_ref: path.editor.placeholder_open
+    required_journey_segment_ids:
+      - seg.quick_open.ui_dispatch.file_open_to_paint
+    metrics:
+      - metric_id: file_open_typical_project_ms
+        comparator: <=
+        target_ms: 70
+        bucket_p50_ms: 40
+        bucket_p95_ms: 60
+
+  - scenario_id: scenario.file_switch
+    title: File switch to first paint
+    event_class: quick_open
+    protected_journey: placeholder_open
+    dispatch_layer: ui_dispatch
+    budget_ref: path.editor.placeholder_open
+    required_journey_segment_ids:
+      - seg.quick_open.ui_dispatch.file_switch_to_paint
+    metrics:
+      - metric_id: file_open_small_project_ms
+        comparator: <=
+        target_ms: 50
+        bucket_p50_ms: 25
+        bucket_p95_ms: 45
+
+  - scenario_id: scenario.quick_open
+    title: Quick-open invoke to ranked results
+    event_class: quick_open
+    protected_journey: placeholder_open
+    dispatch_layer: ui_dispatch
+    budget_ref: path.command_palette.open
+    required_journey_segment_ids:
+      - seg.quick_open.ui_dispatch.file_open_to_paint
+    metrics:
+      - metric_id: quick_open_p50_ms
+        comparator: <=
+        target_ms: 30
+        bucket_p50_ms: 18
+        bucket_p95_ms: 28
+      - metric_id: quick_open_p95_ms
+        comparator: <=
+        target_ms: 75
+        bucket_p50_ms: 30
+        bucket_p95_ms: 60
+
+  - scenario_id: scenario.keystroke_to_paint
+    title: Keystroke admitted to paint
+    event_class: input_to_paint
+    protected_journey: input_to_paint
+    dispatch_layer: ui_dispatch
+    budget_ref: path.editor.first_useful_edit
+    required_journey_segment_ids:
+      - seg.input_to_paint.ui_dispatch.keystroke_to_paint
+    metrics:
+      - metric_id: key_to_paint_p50_ms
+        comparator: <=
+        target_ms: 4
+        bucket_p50_ms: 2
+        bucket_p95_ms: 3
+      - metric_id: key_to_paint_p95_ms
+        comparator: <=
+        target_ms: 8
+        bucket_p50_ms: 4
+        bucket_p95_ms: 7
+
+  - scenario_id: scenario.save
+    title: Save request to durable save completion
+    event_class: save
+    protected_journey: save_pipeline
+    dispatch_layer: service_hop
+    budget_ref: path.editor.save
+    required_journey_segment_ids:
+      # Save is a contract gate today (no published p50/p95 floor); the
+      # required-segment set still pins recovery-journal-write before
+      # vfs-write so the trace packet refuses save traces that skip the
+      # journal step.
+      - seg.input_to_paint.ui_dispatch.keystroke_to_paint
+    metrics:
+      - metric_id: save_pipeline_p50_ms
+        comparator: <=
+        target_ms: 120
+        bucket_p50_ms: 70
+        bucket_p95_ms: 110
+      - metric_id: save_pipeline_p95_ms
+        comparator: <=
+        target_ms: 220
+        bucket_p50_ms: 110
+        bucket_p95_ms: 200
+
+# Failure drill. The runner replays the reference trace with one
+# protected metric removed and confirms the trace packet fails
+# qualification rather than silently skipping the scenario.
+failure_drill:
+  drill_id: drill.protected_metric_missing
+  description: >
+    Drop seg.first_paint.renderer_work.submit from the reference trace
+    and re-validate. The runner MUST report the trace packet as failed
+    with a typed missing-metric finding instead of passing the scenario
+    on a partial trace.
+  forced_input:
+    drop_journey_segment_id: seg.first_paint.renderer_work.submit
+  expected_report:
+    qualification_status: failed
+    missing_metric_journey_segment_ids:
+      - seg.first_paint.renderer_work.submit
+    actionable_owner_ref: "@ahmeddyounis"
+    next_action: >
+      Re-instrument the renderer_work first-paint submit segment in
+      crates/aureline-shell/src/bootstrap/native_shell.rs and emit
+      seg.first_paint.renderer_work.submit on the next captured trace.
+
+# Required scenario coverage. The runner refuses to PASS unless every
+# scenario in this list is exercised on at least one reference-hardware
+# row from artifacts/perf/m1/reference_hardware_matrix.yaml.
+required_scenario_coverage:
+  - scenario.warm_first_paint
+  - scenario.interactive_shell
+  - scenario.file_open
+  - scenario.file_switch
+  - scenario.quick_open
+  - scenario.keystroke_to_paint
+  - scenario.save

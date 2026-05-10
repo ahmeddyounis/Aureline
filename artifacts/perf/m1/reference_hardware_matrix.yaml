@@ -1,0 +1,126 @@
+# Reference-hardware matrix for the M1 hot-path trace suite.
+#
+# This file binds the canonical hot-path scenarios from
+# benchmarks/m1/hot_path_trace_suite/scenarios.yaml to the council-approved
+# reference-hardware rows from artifacts/perf/reference_hardware_manifest.yaml
+# and the reference-laptop power postures from
+# artifacts/perf/reference_laptop_matrix.yaml. The bench lab and CI quote
+# rows from this file when they emit a trace packet so every protected
+# hot path lands on the same hardware vocabulary instead of inventing
+# private machine labels per lane.
+#
+# The matrix is consumed unattended by
+# benchmarks/m1/hot_path_trace_suite/run_hot_path_trace_suite.py, which
+# replays each (hardware_profile_id, scenario_id) pair against the
+# reference trace fixture and emits the durable JSON capture under
+# artifacts/milestones/m1/captures/hot_path_trace_suite_validation_capture.json.
+#
+# Identity rules.
+#   - Every hardware row MUST resolve back to one hardware_definition_id
+#     in the reference-hardware manifest.
+#   - The covered_scenario_ids on every row MUST be a subset of the
+#     scenarios in scenarios.yaml; the runner refuses unknown ids.
+#   - No row may carry self_capture or provisional reference identity.
+#     If a self-capture run is needed, it must be captured separately
+#     and labeled comparable_to_baseline=false; this matrix is for the
+#     reference bench path.
+#   - Milestone names and task ids MUST NOT appear in this file outside
+#     this header note.
+
+schema_version: 1
+matrix_id: aureline.benchmarks.m1.reference_hardware_matrix
+matrix_revision: 1
+status: seeded
+as_of: "2026-05-10"
+owner_dri: "@ahmeddyounis"
+
+reviewer_entrypoint: docs/perf/m1_hot_path_trace_readme.md
+
+upstream_contracts:
+  reference_hardware_manifest_ref: artifacts/perf/reference_hardware_manifest.yaml
+  reference_laptop_matrix_ref: artifacts/perf/reference_laptop_matrix.yaml
+  scenarios_ref: benchmarks/m1/hot_path_trace_suite/scenarios.yaml
+  exact_build_identity_ref: artifacts/build/build_identity.json
+  protected_path_ledger_ref: artifacts/perf/protected_path_ledger.yaml
+  latency_budget_ledger_ref: artifacts/perf/latency_budget_ledger.yaml
+
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+reference_hardware_rows:
+  - row_id: ref_row.macos15.arm64.apple_silicon_14in
+    hardware_definition_id: hardware_definition.ref.macos15.arm64.apple_silicon_14in
+    host_os_class: macos
+    architecture_class: arm64
+    power_profile_id: ref.arm64.macos15.apple_silicon_14in
+    capture_posture_id: nominal_ac_200nits
+    lab_image_ref: lab_image.macos15.arm64.rev1
+    covered_scenario_ids:
+      - scenario.warm_first_paint
+      - scenario.interactive_shell
+      - scenario.file_open
+      - scenario.file_switch
+      - scenario.quick_open
+      - scenario.keystroke_to_paint
+      - scenario.save
+    notes: >
+      Primary Apple Silicon reference row. Default capture posture is AC
+      with the internal Retina panel at 200 nits and 60 Hz capture refresh.
+
+  - row_id: ref_row.windows11.x86_64.thinkpad_t14_gen5
+    hardware_definition_id: hardware_definition.ref.windows11.x86_64.thinkpad_t14_gen5
+    host_os_class: windows
+    architecture_class: x86_64
+    power_profile_id: ref.x86_64.windows11.thinkpad_t14_gen5
+    capture_posture_id: nominal_ac_200nits
+    lab_image_ref: lab_image.windows11.x86_64.rev1
+    covered_scenario_ids:
+      - scenario.warm_first_paint
+      - scenario.interactive_shell
+      - scenario.file_open
+      - scenario.file_switch
+      - scenario.quick_open
+      - scenario.keystroke_to_paint
+      - scenario.save
+    notes: >
+      Mainstream Windows x86_64 row. Use Balanced power mode unless a
+      narrower packet says otherwise. The reference-laptop matrix has
+      not yet seeded a profile id for this row, so the runner accepts
+      the row but flags the missing power-profile binding as a warning.
+
+  - row_id: ref_row.ubuntu24_04.x86_64.framework13
+    hardware_definition_id: hardware_definition.ref.ubuntu24_04.x86_64.framework13
+    host_os_class: linux
+    architecture_class: x86_64
+    power_profile_id: ref.x86_64.ubuntu24_04.framework13
+    capture_posture_id: nominal_ac_200nits
+    lab_image_ref: lab_image.ubuntu24_04.x86_64.rev1
+    covered_scenario_ids:
+      - scenario.warm_first_paint
+      - scenario.interactive_shell
+      - scenario.file_open
+      - scenario.file_switch
+      - scenario.quick_open
+      - scenario.keystroke_to_paint
+      - scenario.save
+    notes: >
+      Mainstream Linux x86_64 row on GNOME Wayland.
+
+# Comparability reset triggers. If any of these change, the captured
+# trace packets are no longer comparable to prior runs and the lane
+# captures must be refreshed.
+comparability_reset_triggers:
+  - hardware_definition_changed
+  - lab_image_revision_changed
+  - power_profile_changed
+  - capture_posture_changed
+  - reference_trace_fixture_changed
+  - scenarios_revision_changed
+
+# Seed-scope notice. Quoted on every emitted trace packet so reviewers
+# can tell at a glance which rows are claimable today.
+seed_scope_notice: >
+  This matrix names the three council-approved reference rows for
+  protected hot-path traces (Apple Silicon macOS 15, Windows 11 ThinkPad
+  T14 Gen5, Ubuntu 24.04 Framework 13). Rows outside this set MUST NOT
+  be quoted as comparable to baseline; self-capture runs are captured
+  in a separate evidence stream.
