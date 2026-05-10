@@ -20,6 +20,9 @@ pub mod breadcrumbs;
 pub mod chrome;
 /// Command review-sheet projections for diagnostics and invocation previews.
 pub mod commands;
+/// Debug-prep seed surface: thin projection over the shared execution-context
+/// object reused by the terminal pane and task seed.
+pub mod debug_seed;
 /// Deep-link entry validator (origin/target/command-class admission contract).
 pub mod deeplink;
 /// Docs/help browser skeleton with source/version/freshness rows.
@@ -58,6 +61,9 @@ pub mod start_center;
 pub mod state_cards;
 /// Status-bar state items for target, profile, trust, encoding, and background work.
 pub mod status_bar;
+/// Task seed surface: thin projection over the shared execution-context
+/// object reused by the terminal pane and debug-prep seed.
+pub mod tasks_seed;
 /// Bottom-panel terminal pane: snapshots and tab projections from the canonical PTY host.
 pub mod terminal_pane;
 /// Platform windowing adapters used by the native desktop shell.
