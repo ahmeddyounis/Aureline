@@ -248,7 +248,9 @@ impl DebugPrepSeedPrerequisite {
             field_path: Some("policy_and_trust.trust_state".to_owned()),
             degraded_reason: Some(DegradedFieldReason::TrustStateUnresolved),
             degraded_reason_token: Some(
-                DegradedFieldReason::TrustStateUnresolved.as_str().to_owned(),
+                DegradedFieldReason::TrustStateUnresolved
+                    .as_str()
+                    .to_owned(),
             ),
         }
     }
@@ -362,9 +364,15 @@ impl DebugPrepSeedSurface {
             boundary_cue_token: badge.boundary_cue_token.clone(),
             boundary_cue_visible: badge.boundary_cue_visible,
             toolchain_class: context.toolchain_identity.toolchain_class,
-            toolchain_class_token: context.toolchain_identity.toolchain_class.as_str().to_owned(),
-            toolchain_class_label: toolchain_class_label(context.toolchain_identity.toolchain_class)
+            toolchain_class_token: context
+                .toolchain_identity
+                .toolchain_class
+                .as_str()
                 .to_owned(),
+            toolchain_class_label: toolchain_class_label(
+                context.toolchain_identity.toolchain_class,
+            )
+            .to_owned(),
             toolchain_id: context.toolchain_identity.toolchain_id.clone(),
             resolved_version: context.toolchain_identity.resolved_version.clone(),
             working_directory: context.target_identity.working_directory.clone(),
@@ -569,9 +577,7 @@ const fn degraded_field_prerequisite_label(record: &DegradedFieldRecord) -> &'st
         DegradedFieldReason::ToolchainFallback => {
             "Toolchain resolved to a less-preferred lane; review before launch"
         }
-        DegradedFieldReason::ActivatorBlockedByTrust => {
-            "Activator gate is blocked by trust policy"
-        }
+        DegradedFieldReason::ActivatorBlockedByTrust => "Activator gate is blocked by trust policy",
         DegradedFieldReason::ActivatorBlockedByPolicy => "Activator gate is blocked by org policy",
         DegradedFieldReason::ActivatorUnsupportedOnTarget => {
             "Activator is unsupported on this target"
@@ -579,12 +585,8 @@ const fn degraded_field_prerequisite_label(record: &DegradedFieldRecord) -> &'st
         DegradedFieldReason::CapsuleUnresolved => "Environment capsule did not resolve",
         DegradedFieldReason::CapsuleDriftDetected => "Environment capsule drifted from inputs",
         DegradedFieldReason::TargetUnreachable => "Target is unreachable",
-        DegradedFieldReason::PolicyEpochStale => {
-            "Policy epoch is stale; refresh before launching"
-        }
-        DegradedFieldReason::TrustStateUnresolved => {
-            "Workspace trust prompt has not been settled"
-        }
+        DegradedFieldReason::PolicyEpochStale => "Policy epoch is stale; refresh before launching",
+        DegradedFieldReason::TrustStateUnresolved => "Workspace trust prompt has not been settled",
         DegradedFieldReason::WorksetMemberUnavailable => "A workset member is unavailable",
         DegradedFieldReason::ProvenanceGap => "Provenance is incomplete for this lane",
         DegradedFieldReason::ConfidenceLow => "Resolver confidence is low",

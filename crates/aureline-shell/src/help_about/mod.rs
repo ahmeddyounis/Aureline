@@ -75,7 +75,9 @@ use aureline_runtime::{
 use crate::badges::target_origin::{
     BadgeEntryPoint, HostBoundaryCue, OriginBadgeClass, TargetBadgeClass, TargetOriginBadge,
 };
-use crate::embedded::boundary_card::{FreshnessClass, SourceClass, SourceTruthRecord, VersionMatchState};
+use crate::embedded::boundary_card::{
+    FreshnessClass, SourceClass, SourceTruthRecord, VersionMatchState,
+};
 
 /// Stable record-kind tag carried in serialized help/about payloads.
 pub const HELP_ABOUT_SURFACE_RECORD_KIND: &str = "help_about_surface_record";
@@ -774,7 +776,8 @@ impl HelpAboutSurface {
         } = inputs;
 
         let build_identity_section = project_build_identity(build_identity);
-        let install_mode_section = project_install_mode(release_channel_class_token, build_identity);
+        let install_mode_section =
+            project_install_mode(release_channel_class_token, build_identity);
         let client_scope_section = project_client_scope(execution_context);
         let docs_help_truth_section = project_docs_help_truth(docs_source_truth);
         let service_health_section = project_service_health();
@@ -795,8 +798,10 @@ impl HelpAboutSurface {
 
         let actions = build_actions(trust_pending, context_degraded);
 
-        let workspace_id = execution_context.map(|context| context.invocation_subject.workspace_id.clone());
-        let execution_context_ref = execution_context.map(|context| context.execution_context_id.clone());
+        let workspace_id =
+            execution_context.map(|context| context.invocation_subject.workspace_id.clone());
+        let execution_context_ref =
+            execution_context.map(|context| context.execution_context_id.clone());
 
         let honesty_marker_present = install_mode_section.honesty_marker_present
             || client_scope_section.honesty_marker_present
@@ -836,7 +841,11 @@ impl HelpAboutSurface {
         }
         out.push_str(&format!(
             "Honesty marker: {}\n",
-            if self.honesty_marker_present { "present" } else { "none" },
+            if self.honesty_marker_present {
+                "present"
+            } else {
+                "none"
+            },
         ));
         out.push('\n');
 
@@ -885,7 +894,10 @@ impl HelpAboutSurface {
             !self.client_scope.context_missing,
         ));
 
-        out.push_str(&format!("[{}]\n", HelpAboutSectionId::DocsHelpTruth.heading()));
+        out.push_str(&format!(
+            "[{}]\n",
+            HelpAboutSectionId::DocsHelpTruth.heading()
+        ));
         if self.docs_help_truth.source_missing {
             out.push_str("  (no upstream docs-help source wired; seed placeholder)\n");
         } else {
@@ -904,7 +916,10 @@ impl HelpAboutSurface {
         }
         out.push('\n');
 
-        out.push_str(&format!("[{}]\n", HelpAboutSectionId::ServiceHealth.heading()));
+        out.push_str(&format!(
+            "[{}]\n",
+            HelpAboutSectionId::ServiceHealth.heading()
+        ));
         for row in &self.service_health.rows {
             out.push_str(&format!(
                 "  - {}: {} [{}]\n",
@@ -922,7 +937,10 @@ impl HelpAboutSurface {
         }
         out.push('\n');
 
-        out.push_str(&format!("[{}]\n", HelpAboutSectionId::CommunityHandoff.heading()));
+        out.push_str(&format!(
+            "[{}]\n",
+            HelpAboutSectionId::CommunityHandoff.heading()
+        ));
         for row in &self.community_handoff.rows {
             out.push_str(&format!(
                 "  - {}: {}\n      {}\n",
@@ -1203,7 +1221,10 @@ fn adjust_availability(
     context_degraded: bool,
 ) -> HelpAboutActionAvailability {
     let default = class.default_availability();
-    if matches!(default, HelpAboutActionAvailability::ReservedForLaterMilestone) {
+    if matches!(
+        default,
+        HelpAboutActionAvailability::ReservedForLaterMilestone
+    ) {
         return default;
     }
     // Copying the seed surface payload for a support export must remain live

@@ -89,7 +89,7 @@ fn managed_handoff_packet() -> aureline_auth::BrowserCallbackPacket {
             note: "Local work intact while managed sign-in is incomplete.".to_owned(),
             retained_capabilities: vec!["Edit, save, undo, search locally.".to_owned()],
             blocked_capabilities: vec![
-                "Fetch managed settings sync while sign-in is incomplete.".to_owned(),
+                "Fetch managed settings sync while sign-in is incomplete.".to_owned()
             ],
         },
         execution_context_ref: Some("execution_context.auth.managed_sign_in.payments_prod"),
@@ -105,13 +105,19 @@ fn target_class_mirror_covers_every_runtime_variant() {
     let mirrored = [
         (TargetClass::LocalHost, TargetBadgeClass::LocalDesktop),
         (TargetClass::SshRemote, TargetBadgeClass::RemoteHost),
-        (TargetClass::ContainerLocal, TargetBadgeClass::LocalContainer),
+        (
+            TargetClass::ContainerLocal,
+            TargetBadgeClass::LocalContainer,
+        ),
         (TargetClass::Devcontainer, TargetBadgeClass::Devcontainer),
         (
             TargetClass::RemoteWorkspaceVm,
             TargetBadgeClass::RemoteWorkspaceVm,
         ),
-        (TargetClass::PrebuildRuntime, TargetBadgeClass::PrebuildRuntime),
+        (
+            TargetClass::PrebuildRuntime,
+            TargetBadgeClass::PrebuildRuntime,
+        ),
         (
             TargetClass::ManagedWorkspace,
             TargetBadgeClass::ManagedWorkspace,
@@ -199,7 +205,10 @@ fn provider_entry_on_local_only_packet_keeps_boundary_hidden_but_quotes_packet()
         provider.auth_packet_ref.as_deref(),
         Some("browser_callback_packet.account_free_local.test")
     );
-    assert_eq!(provider.canonical_target_id, format!("provider:{}", packet.packet_id));
+    assert_eq!(
+        provider.canonical_target_id,
+        format!("provider:{}", packet.packet_id)
+    );
     assert!(!provider.honesty_marker_present);
 }
 
@@ -334,8 +343,7 @@ fn boundary_cue_helper_is_visible_on_every_non_hidden_variant() {
 
 #[test]
 fn fixture_protected_walk_replays_into_the_badge_projection() {
-    let fixture: BadgeFixture =
-        load_fixture("local_terminal_protected_walk.json");
+    let fixture: BadgeFixture = load_fixture("local_terminal_protected_walk.json");
     let set = build_set_from_fixture(&fixture);
     assert_eq!(
         set.execution_entries_consistent(),

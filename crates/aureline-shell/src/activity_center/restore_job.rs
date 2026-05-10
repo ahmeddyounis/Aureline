@@ -34,8 +34,7 @@ use crate::notifications::envelope::{
 };
 
 use super::{
-    ActivityRowLifecycleClass, ActivityRowProgress, ActivityRowRetryability,
-    DurableJobObservation,
+    ActivityRowLifecycleClass, ActivityRowProgress, ActivityRowRetryability, DurableJobObservation,
 };
 
 /// Stable command id for opening a restore job's details from the
@@ -183,10 +182,7 @@ fn lifecycle_severity(phase: RestoreLifecyclePhase) -> SeverityClass {
     }
 }
 
-fn lifecycle_summary_label(
-    phase: RestoreLifecyclePhase,
-    counts: &RestoreProposalCounts,
-) -> String {
+fn lifecycle_summary_label(phase: RestoreLifecyclePhase, counts: &RestoreProposalCounts) -> String {
     let total = restore_total_units(counts);
     match phase {
         RestoreLifecyclePhase::Preparing => "Restore preparing".into(),
@@ -206,18 +202,16 @@ fn lifecycle_observation(
 ) -> DurableJobObservation {
     let total = restore_total_units(&proposal.counts);
     match phase {
-        RestoreLifecyclePhase::Preparing => DurableJobObservation::in_flight(
-            ActivityRowLifecycleClass::Preparing,
-            None,
-        ),
+        RestoreLifecyclePhase::Preparing => {
+            DurableJobObservation::in_flight(ActivityRowLifecycleClass::Preparing, None)
+        }
         RestoreLifecyclePhase::Running { numerator } => {
             let progress = ActivityRowProgress::new("Hydrating restore surfaces", numerator, total);
             DurableJobObservation::in_flight(ActivityRowLifecycleClass::Running, Some(progress))
         }
-        RestoreLifecyclePhase::Completed => DurableJobObservation::completed(
-            completion_label(proposal),
-            None,
-        ),
+        RestoreLifecyclePhase::Completed => {
+            DurableJobObservation::completed(completion_label(proposal), None)
+        }
         RestoreLifecyclePhase::Failed {
             retryability,
             detail_label,

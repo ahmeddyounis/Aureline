@@ -789,8 +789,7 @@ mod tests {
 
         assert_eq!(snapshot.restored_terminals.len(), 1);
         assert_eq!(
-            snapshot.restored_terminals[0].workspace_id,
-            "ws-test",
+            snapshot.restored_terminals[0].workspace_id, "ws-test",
             "restored rows from other workspaces must be filtered"
         );
     }

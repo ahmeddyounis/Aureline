@@ -9,7 +9,9 @@ use serde::Deserialize;
 
 use super::*;
 use crate::badges::target_origin::{HostBoundaryCue, TargetBadgeClass};
-use crate::embedded::boundary_card::{FreshnessClass, SourceClass, SourceTruthRecord, VersionMatchState};
+use crate::embedded::boundary_card::{
+    FreshnessClass, SourceClass, SourceTruthRecord, VersionMatchState,
+};
 
 fn baseline_resolver() -> ExecutionContextResolver {
     ExecutionContextResolver::new(ExecutionContextResolverConfig {
@@ -119,7 +121,10 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
         Some(SourceClass::ProjectDocs)
     );
     assert_eq!(surface.docs_help_truth.source_class_token, "project_docs");
-    assert_eq!(surface.docs_help_truth.freshness_class_token, "authoritative_live");
+    assert_eq!(
+        surface.docs_help_truth.freshness_class_token,
+        "authoritative_live"
+    );
     assert!(!surface.docs_help_truth.honesty_marker_present);
     assert!(!surface.docs_help_truth.source_missing);
 
@@ -178,7 +183,10 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
         HelpAboutActionClass::OpenAdvisoryHistory,
         HelpAboutActionClass::ReportIssueViaCommunityHandoff,
     ] {
-        assert!(reserved_actions.contains(&class), "reserved should contain {class:?}");
+        assert!(
+            reserved_actions.contains(&class),
+            "reserved should contain {class:?}"
+        );
     }
 
     // Plaintext renders the headings the chrome will quote verbatim.
@@ -237,7 +245,12 @@ fn failure_drill_stale_docs_source_lights_honesty_marker_and_keeps_actions_live(
     let copy = surface
         .actions
         .iter()
-        .find(|a| matches!(a.action_class, HelpAboutActionClass::CopyContextForSupportExport))
+        .find(|a| {
+            matches!(
+                a.action_class,
+                HelpAboutActionClass::CopyContextForSupportExport
+            )
+        })
         .expect("copy action present");
     assert_eq!(copy.availability, HelpAboutActionAvailability::Live);
 }
@@ -268,7 +281,12 @@ fn pending_trust_blocks_inspector_action_and_lights_client_scope_honesty() {
     let inspector = surface
         .actions
         .iter()
-        .find(|a| matches!(a.action_class, HelpAboutActionClass::OpenExecutionContextInspector))
+        .find(|a| {
+            matches!(
+                a.action_class,
+                HelpAboutActionClass::OpenExecutionContextInspector
+            )
+        })
         .expect("inspector action present");
     assert_eq!(
         inspector.availability,
@@ -279,7 +297,12 @@ fn pending_trust_blocks_inspector_action_and_lights_client_scope_honesty() {
     let copy = surface
         .actions
         .iter()
-        .find(|a| matches!(a.action_class, HelpAboutActionClass::CopyContextForSupportExport))
+        .find(|a| {
+            matches!(
+                a.action_class,
+                HelpAboutActionClass::CopyContextForSupportExport
+            )
+        })
         .expect("copy action present");
     assert_eq!(copy.availability, HelpAboutActionAvailability::Live);
 
@@ -302,10 +325,7 @@ fn missing_execution_context_keeps_seed_honest_about_client_scope() {
     assert!(surface.client_scope.context_missing);
     assert!(surface.client_scope.honesty_marker_present);
     assert!(surface.client_scope.badge.is_none());
-    assert_eq!(
-        surface.client_scope.boundary_cue,
-        HostBoundaryCue::Unknown
-    );
+    assert_eq!(surface.client_scope.boundary_cue, HostBoundaryCue::Unknown);
 
     // The dev_local channel resolves to the dev install mode without any
     // honesty marker on the install-mode row itself.
@@ -351,16 +371,18 @@ fn fixture_protected_walk_replays_into_the_help_about_surface() {
         "mono:0",
     ));
     let identity = fixture_build_identity();
-    let docs_truth = fixture.input.docs_source_truth.as_ref().map(|truth| {
-        SourceTruthRecord {
+    let docs_truth = fixture
+        .input
+        .docs_source_truth
+        .as_ref()
+        .map(|truth| SourceTruthRecord {
             source_class: truth.source_class,
             version_match_state: truth.version_match_state,
             freshness_class: truth.freshness_class,
             running_build_identity_ref: truth.running_build_identity_ref.clone(),
             help_status_badge_ref: truth.help_status_badge_ref.clone(),
             snapshot_age_label: truth.snapshot_age_label.clone(),
-        }
-    });
+        });
 
     let surface = HelpAboutSurface::project(HelpAboutInputs {
         build_identity: &identity,
@@ -406,16 +428,18 @@ fn fixture_failure_drill_replays_stale_docs_source() {
         "mono:0",
     ));
     let identity = fixture_build_identity();
-    let docs_truth = fixture.input.docs_source_truth.as_ref().map(|truth| {
-        SourceTruthRecord {
+    let docs_truth = fixture
+        .input
+        .docs_source_truth
+        .as_ref()
+        .map(|truth| SourceTruthRecord {
             source_class: truth.source_class,
             version_match_state: truth.version_match_state,
             freshness_class: truth.freshness_class,
             running_build_identity_ref: truth.running_build_identity_ref.clone(),
             help_status_badge_ref: truth.help_status_badge_ref.clone(),
             snapshot_age_label: truth.snapshot_age_label.clone(),
-        }
-    });
+        });
 
     let surface = HelpAboutSurface::project(HelpAboutInputs {
         build_identity: &identity,
@@ -435,7 +459,12 @@ fn fixture_failure_drill_replays_stale_docs_source() {
     let copy = surface
         .actions
         .iter()
-        .find(|a| matches!(a.action_class, HelpAboutActionClass::CopyContextForSupportExport))
+        .find(|a| {
+            matches!(
+                a.action_class,
+                HelpAboutActionClass::CopyContextForSupportExport
+            )
+        })
         .expect("copy action present");
     assert_eq!(copy.availability, HelpAboutActionAvailability::Live);
 }

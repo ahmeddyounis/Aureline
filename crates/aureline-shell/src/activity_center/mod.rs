@@ -605,10 +605,7 @@ mod tests {
         store
             .record_observation(
                 &routed_prep,
-                &DurableJobObservation::in_flight(
-                    ActivityRowLifecycleClass::Preparing,
-                    None,
-                ),
+                &DurableJobObservation::in_flight(ActivityRowLifecycleClass::Preparing, None),
             )
             .expect("record prep");
 
@@ -798,11 +795,7 @@ mod tests {
         let fixtures_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .and_then(|p| p.parent())
-            .map(|p| {
-                p.join("fixtures")
-                    .join("ux")
-                    .join("activity_center_cases")
-            })
+            .map(|p| p.join("fixtures").join("ux").join("activity_center_cases"))
             .expect("derive fixtures dir");
 
         let cases = [
@@ -823,16 +816,20 @@ mod tests {
                 .unwrap_or_else(|err| panic!("parse fixture {}: {err}", path.display()));
 
             assert_eq!(snapshot.record_kind, ACTIVITY_CENTER_SNAPSHOT_RECORD_KIND);
-            assert_eq!(snapshot.schema_version, ACTIVITY_CENTER_SNAPSHOT_SCHEMA_VERSION);
-            assert_eq!(snapshot.seed_scope_notice, ACTIVITY_CENTER_SEED_SCOPE_NOTICE);
+            assert_eq!(
+                snapshot.schema_version,
+                ACTIVITY_CENTER_SNAPSHOT_SCHEMA_VERSION
+            );
+            assert_eq!(
+                snapshot.seed_scope_notice,
+                ACTIVITY_CENTER_SEED_SCOPE_NOTICE
+            );
 
             for row in &snapshot.rows {
                 assert_eq!(row.record_kind, ACTIVITY_CENTER_ROW_RECORD_KIND);
                 assert_eq!(row.schema_version, ACTIVITY_CENTER_ROW_SCHEMA_VERSION);
                 assert!(
-                    row.reopen_target
-                        .exact_target_identity_ref
-                        .is_some()
+                    row.reopen_target.exact_target_identity_ref.is_some()
                         || matches!(
                             row.reopen_target.reopen_target_kind,
                             ReopenTargetKind::PlaceholderAnnounced
@@ -934,9 +931,7 @@ mod tests {
         assert!(row.is_terminal);
         assert!(row.reopen_target.exact_target_identity_ref.is_some());
         assert_eq!(
-            row.primary_action
-                .as_ref()
-                .map(|a| a.command_id.as_str()),
+            row.primary_action.as_ref().map(|a| a.command_id.as_str()),
             Some("cmd:activity.open_job_details"),
         );
     }

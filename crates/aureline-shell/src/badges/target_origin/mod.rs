@@ -341,13 +341,17 @@ impl TargetOriginBadge {
     /// [`Self::project_provider_entry`] instead so the badge quotes the
     /// account-boundary class on the auth packet.
     pub fn project(entry_point: BadgeEntryPoint, context: &ExecutionContext) -> Self {
-        let target_class = TargetBadgeClass::from_target_class(context.target_identity.target_class);
+        let target_class =
+            TargetBadgeClass::from_target_class(context.target_identity.target_class);
         let origin_class =
             OriginBadgeClass::from_identity_mode(context.policy_and_trust.identity_mode);
         let (boundary_cue, honesty_from_cue) =
             derive_boundary_cue(context, origin_class, entry_point, None);
         let honesty_marker_present = context.has_degraded_field()
-            || matches!(context.policy_and_trust.trust_state, TrustState::PendingEvaluation)
+            || matches!(
+                context.policy_and_trust.trust_state,
+                TrustState::PendingEvaluation
+            )
             || honesty_from_cue;
 
         Self {
@@ -399,7 +403,10 @@ impl TargetOriginBadge {
                 AccountBoundaryClass::UnknownBoundary
             );
         let honesty_marker_present = context.has_degraded_field()
-            || matches!(context.policy_and_trust.trust_state, TrustState::PendingEvaluation)
+            || matches!(
+                context.policy_and_trust.trust_state,
+                TrustState::PendingEvaluation
+            )
             || auth_honesty
             || honesty_from_cue;
 
@@ -475,8 +482,7 @@ impl TargetOriginBadgeSet {
         context: &ExecutionContext,
         packet: &BrowserCallbackPacket,
     ) -> Self {
-        self.provider_auth_badge =
-            Some(TargetOriginBadge::project_provider_entry(context, packet));
+        self.provider_auth_badge = Some(TargetOriginBadge::project_provider_entry(context, packet));
         self
     }
 
@@ -484,9 +490,13 @@ impl TargetOriginBadgeSet {
     /// (terminal, task seed, debug-prep seed, provider/auth entry).
     pub fn badges(&self) -> impl Iterator<Item = &TargetOriginBadge> {
         let provider = self.provider_auth_badge.iter();
-        [&self.terminal_badge, &self.task_seed_badge, &self.debug_prep_badge]
-            .into_iter()
-            .chain(provider)
+        [
+            &self.terminal_badge,
+            &self.task_seed_badge,
+            &self.debug_prep_badge,
+        ]
+        .into_iter()
+        .chain(provider)
     }
 
     /// True when every populated entry-point badge agrees on the
@@ -582,9 +592,9 @@ const fn boundary_for_target(class: TargetClass) -> HostBoundaryCue {
         TargetClass::SshRemote
         | TargetClass::RemoteWorkspaceVm
         | TargetClass::NotebookKernelRemote => HostBoundaryCue::LocalToRemote,
-        TargetClass::ManagedWorkspace
-        | TargetClass::PrebuildRuntime
-        | TargetClass::AiSandbox => HostBoundaryCue::LocalToManaged,
+        TargetClass::ManagedWorkspace | TargetClass::PrebuildRuntime | TargetClass::AiSandbox => {
+            HostBoundaryCue::LocalToManaged
+        }
         TargetClass::NotebookKernelLocal => HostBoundaryCue::Hidden,
     }
 }

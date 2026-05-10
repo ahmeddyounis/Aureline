@@ -52,6 +52,10 @@ pub mod path_truth;
 pub mod quick_open;
 /// Safe-mode entry, recovery-ladder rung stubs, and crash-loop containment offers.
 pub mod recovery;
+/// Release-center / provenance seed surface: thin projection over the
+/// shared build-info and support-bundle truth that links the running
+/// build's exact-build identity to the live support/export preview.
+pub mod release_center;
 /// Restore-prompt projection for resume / missing-target recovery.
 pub mod restore;
 /// Runtime projections shared by terminal, task, and debug-prep seed surfaces.

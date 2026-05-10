@@ -85,10 +85,12 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     let reserved: Vec<_> = surface
         .actions
         .iter()
-        .filter(|a| matches!(
-            a.availability,
-            TaskSeedActionAvailability::ReservedForLaterMilestone
-        ))
+        .filter(|a| {
+            matches!(
+                a.availability,
+                TaskSeedActionAvailability::ReservedForLaterMilestone
+            )
+        })
         .map(|a| a.action_class)
         .collect();
     assert!(reserved.contains(&TaskSeedActionClass::RunTaskFromTemplate));
@@ -172,7 +174,10 @@ fn pending_trust_lights_honesty_row_and_blocks_live_launch_action() {
         .actions
         .iter()
         .find(|action| {
-            matches!(action.action_class, TaskSeedActionClass::OpenInvokingTerminal)
+            matches!(
+                action.action_class,
+                TaskSeedActionClass::OpenInvokingTerminal
+            )
         })
         .expect("terminal hand-off action present");
     assert_eq!(
@@ -203,11 +208,8 @@ fn remote_target_lights_boundary_cue_consistently_with_terminal_badge() {
     // MUST light LocalToRemote and the surface MUST report the same
     // boundary truth as the upstream badge so the chrome cannot drift.
     let mut resolver = baseline_resolver();
-    let mut request = ExecutionContextRequest::task_seed(
-        "task.run.remote_build",
-        TrustState::Trusted,
-        "mono:1",
-    );
+    let mut request =
+        ExecutionContextRequest::task_seed("task.run.remote_build", TrustState::Trusted, "mono:1");
     request.override_target_class = Some(TargetClass::SshRemote);
     request.override_working_directory = Some("/srv/code");
     let context = resolver.resolve(request);
@@ -218,8 +220,7 @@ fn remote_target_lights_boundary_cue_consistently_with_terminal_badge() {
     assert_eq!(surface.boundary_cue, HostBoundaryCue::LocalToRemote);
     assert!(surface.boundary_cue_visible);
     assert_eq!(
-        surface.boundary_cue,
-        surface.badge.boundary_cue,
+        surface.boundary_cue, surface.badge.boundary_cue,
         "badge and surface must agree on the boundary cue"
     );
     assert_eq!(surface.working_directory.as_deref(), Some("/srv/code"));
@@ -253,7 +254,10 @@ fn policy_blocked_activator_renders_blocked_by_policy_actions() {
         .actions
         .iter()
         .find(|action| {
-            matches!(action.action_class, TaskSeedActionClass::OpenInvokingTerminal)
+            matches!(
+                action.action_class,
+                TaskSeedActionClass::OpenInvokingTerminal
+            )
         })
         .unwrap();
     assert_eq!(
@@ -326,13 +330,10 @@ fn fixture_failure_drill_replays_pending_trust_honesty_row() {
     let fixture: TaskSeedFixture = load_fixture("task_seed_pending_trust_failure_drill.json");
     let surface = build_surface_from_fixture(&fixture);
     assert_surface_matches(&surface, &fixture.expect);
-    assert!(surface
-        .blocked_prerequisites
-        .iter()
-        .any(|row| matches!(
-            row.reason_class,
-            TaskSeedPrerequisiteReasonClass::PendingTrust
-        )));
+    assert!(surface.blocked_prerequisites.iter().any(|row| matches!(
+        row.reason_class,
+        TaskSeedPrerequisiteReasonClass::PendingTrust
+    )));
 }
 
 fn load_fixture(name: &str) -> TaskSeedFixture {
@@ -369,9 +370,15 @@ fn assert_surface_matches(surface: &TaskSeedSurface, expect: &TaskSeedExpect) {
     assert_eq!(surface.boundary_cue_visible, expect.boundary_cue_visible);
     assert_eq!(surface.toolchain_class_token, expect.toolchain_class_token);
     assert_eq!(surface.trust_state_token, expect.trust_state_token);
-    assert_eq!(surface.honesty_marker_present, expect.honesty_marker_present);
+    assert_eq!(
+        surface.honesty_marker_present,
+        expect.honesty_marker_present
+    );
     if let Some(expected_cwd) = &expect.working_directory {
-        assert_eq!(surface.working_directory.as_deref(), Some(expected_cwd.as_str()));
+        assert_eq!(
+            surface.working_directory.as_deref(),
+            Some(expected_cwd.as_str())
+        );
     }
     let inspector = surface
         .actions

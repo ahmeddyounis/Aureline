@@ -42,7 +42,10 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
 
     let surface = DebugPrepSeedSurface::project(&context);
     assert_eq!(surface.record_kind, DEBUG_PREP_SEED_SURFACE_RECORD_KIND);
-    assert_eq!(surface.schema_version, DEBUG_PREP_SEED_SURFACE_SCHEMA_VERSION);
+    assert_eq!(
+        surface.schema_version,
+        DEBUG_PREP_SEED_SURFACE_SCHEMA_VERSION
+    );
     assert_eq!(surface.entry_point, BadgeEntryPoint::DebugPrepSeed);
     assert_eq!(surface.workspace_id, "ws-test");
     assert_eq!(surface.execution_context_ref, context.execution_context_id);
@@ -60,10 +63,12 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
     let reserved: Vec<_> = surface
         .actions
         .iter()
-        .filter(|a| matches!(
-            a.availability,
-            DebugPrepSeedActionAvailability::ReservedForLaterMilestone
-        ))
+        .filter(|a| {
+            matches!(
+                a.availability,
+                DebugPrepSeedActionAvailability::ReservedForLaterMilestone
+            )
+        })
         .map(|a| a.action_class)
         .collect();
     for class in [
@@ -72,7 +77,10 @@ fn protected_walk_local_seed_renders_live_actions_without_honesty_marker() {
         DebugPrepSeedActionClass::ConfigureBreakpointMap,
         DebugPrepSeedActionClass::ManageDebugProfile,
     ] {
-        assert!(reserved.contains(&class), "reserved should contain {class:?}");
+        assert!(
+            reserved.contains(&class),
+            "reserved should contain {class:?}"
+        );
     }
 }
 
@@ -116,12 +124,18 @@ fn pending_trust_lights_honesty_row_and_blocks_terminal_handoff() {
             )
         })
         .expect("inspector action");
-    assert_eq!(inspector.availability, DebugPrepSeedActionAvailability::Live);
+    assert_eq!(
+        inspector.availability,
+        DebugPrepSeedActionAvailability::Live
+    );
     let terminal = surface
         .actions
         .iter()
         .find(|a| {
-            matches!(a.action_class, DebugPrepSeedActionClass::OpenInvokingTerminal)
+            matches!(
+                a.action_class,
+                DebugPrepSeedActionClass::OpenInvokingTerminal
+            )
         })
         .expect("terminal action");
     assert_eq!(
@@ -173,7 +187,10 @@ fn policy_blocked_activator_renders_blocked_by_policy_actions() {
         .actions
         .iter()
         .find(|a| {
-            matches!(a.action_class, DebugPrepSeedActionClass::OpenInvokingTerminal)
+            matches!(
+                a.action_class,
+                DebugPrepSeedActionClass::OpenInvokingTerminal
+            )
         })
         .unwrap();
     assert_eq!(
@@ -233,13 +250,10 @@ fn fixture_failure_drill_replays_pending_trust_honesty_row() {
         load_fixture("debug_prep_seed_pending_trust_failure_drill.json");
     let surface = build_surface_from_fixture(&fixture);
     assert_surface_matches(&surface, &fixture.expect);
-    assert!(surface
-        .blocked_prerequisites
-        .iter()
-        .any(|row| matches!(
-            row.reason_class,
-            DebugPrepSeedPrerequisiteReasonClass::PendingTrust
-        )));
+    assert!(surface.blocked_prerequisites.iter().any(|row| matches!(
+        row.reason_class,
+        DebugPrepSeedPrerequisiteReasonClass::PendingTrust
+    )));
 }
 
 fn load_fixture(name: &str) -> DebugPrepSeedFixture {
@@ -276,9 +290,15 @@ fn assert_surface_matches(surface: &DebugPrepSeedSurface, expect: &DebugPrepSeed
     assert_eq!(surface.boundary_cue_visible, expect.boundary_cue_visible);
     assert_eq!(surface.toolchain_class_token, expect.toolchain_class_token);
     assert_eq!(surface.trust_state_token, expect.trust_state_token);
-    assert_eq!(surface.honesty_marker_present, expect.honesty_marker_present);
+    assert_eq!(
+        surface.honesty_marker_present,
+        expect.honesty_marker_present
+    );
     if let Some(expected_cwd) = &expect.working_directory {
-        assert_eq!(surface.working_directory.as_deref(), Some(expected_cwd.as_str()));
+        assert_eq!(
+            surface.working_directory.as_deref(),
+            Some(expected_cwd.as_str())
+        );
     }
     let inspector = surface
         .actions
@@ -297,7 +317,12 @@ fn assert_surface_matches(surface: &DebugPrepSeedSurface, expect: &DebugPrepSeed
     let terminal = surface
         .actions
         .iter()
-        .find(|a| matches!(a.action_class, DebugPrepSeedActionClass::OpenInvokingTerminal))
+        .find(|a| {
+            matches!(
+                a.action_class,
+                DebugPrepSeedActionClass::OpenInvokingTerminal
+            )
+        })
         .expect("terminal action");
     assert_eq!(
         terminal.availability_token,
@@ -313,10 +338,7 @@ fn assert_surface_matches(surface: &DebugPrepSeedSurface, expect: &DebugPrepSeed
             )
         })
         .expect("attach action");
-    assert_eq!(
-        attach.availability_token,
-        expect.attach_action_availability
-    );
+    assert_eq!(attach.availability_token, expect.attach_action_availability);
 }
 
 #[derive(Debug, Deserialize)]
