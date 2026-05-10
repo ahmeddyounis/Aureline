@@ -19,6 +19,8 @@ pub mod commands;
 pub mod deeplink;
 /// Embedded surface boundary chrome and browser-handoff wiring.
 pub mod embedded;
+/// Virtualized file-tree model with stable node ids and explorer actions.
+pub mod explorer;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
 pub mod layout;
