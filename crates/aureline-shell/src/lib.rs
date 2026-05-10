@@ -28,6 +28,9 @@ pub mod explorer;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
 pub mod layout;
+/// Notification routing: toast, banner, status, and durable-activity row
+/// projections derived from the typed notification envelope contract.
+pub mod notifications;
 /// Command palette query-session state and grouped result projections.
 pub mod palette;
 /// Path-truth chip, alias inspector, and pre-write save-target review projections.
