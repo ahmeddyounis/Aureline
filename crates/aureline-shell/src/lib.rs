@@ -68,6 +68,10 @@ pub mod start_center;
 pub mod state_cards;
 /// Status-bar state items for target, profile, trust, encoding, and background work.
 pub mod status_bar;
+/// Support-bundle seed surface: live consumer of the support-bundle manifest,
+/// redaction defaults, local preview, and exact-build capture provided by
+/// `aureline-support`. Drives the protected walk and the failure drill.
+pub mod support_seed;
 /// Task seed surface: thin projection over the shared execution-context
 /// object reused by the terminal pane and debug-prep seed.
 pub mod tasks_seed;
