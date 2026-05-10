@@ -33,6 +33,9 @@ pub mod embedded;
 pub mod explorer;
 /// Help and inspection projections used by shell surfaces.
 pub mod help;
+/// Help / About / provenance / service-health seed surface with client-scope
+/// badges projected from the shared build-info, runtime, and docs/help truth.
+pub mod help_about;
 pub mod layout;
 /// Notification routing: toast, banner, status, and durable-activity row
 /// projections derived from the typed notification envelope contract.
