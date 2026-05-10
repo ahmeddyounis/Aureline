@@ -40,11 +40,15 @@
 //! truth the live runtime saw.
 
 pub mod actions;
+pub mod filter;
 pub mod node;
 pub mod tree;
 
 pub use actions::{
     dispatch, ExplorerAction, ExplorerActionClass, ExplorerActionOutcome, ExplorerActionRecord,
+};
+pub use filter::{
+    ancestry_chain, apply_filter, reveal, ExplorerFilterOutcome, ExplorerRevealOutcome,
 };
 pub use node::{
     ExplorerNode, ExplorerNodeId, ExplorerNodeKind, GeneratedArtifactHint, NodeReadinessClass,
