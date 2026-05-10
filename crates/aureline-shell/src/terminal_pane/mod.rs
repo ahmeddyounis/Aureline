@@ -25,6 +25,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_auth::{BrowserCallbackPacket, ShellAuthChip};
 use aureline_terminal::{
     HostClass, PtyHost, PtySession, PtySessionId, SessionLifecycleState, TerminalTrustState,
 };
@@ -101,6 +102,13 @@ impl TerminalPaneTabRecord {
 /// The snapshot is the truth a tab strip renders, a support packet quotes,
 /// and a restore prompt can replay against. The `tabs` order is the host's
 /// stable insertion order; rows do not reshuffle on lifecycle churn.
+///
+/// The optional `shell_auth_chip` row carries the local-versus-managed
+/// vocabulary projected from an [`aureline_auth::BrowserCallbackPacket`]. The
+/// pane consumes this projection by reference; it never invents a local
+/// `is_signed_in` boolean and never collapses the boundary chip into a
+/// generic `Connected` badge. When no auth packet is wired the pane keeps
+/// rendering the no-account local path truthfully.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TerminalPaneSnapshot {
     pub record_kind: String,
@@ -108,6 +116,10 @@ pub struct TerminalPaneSnapshot {
     pub workspace_id: String,
     pub tabs: Vec<TerminalPaneTabRecord>,
     pub active_tab_id: Option<PtySessionId>,
+    /// Projected auth chip the bottom-panel chrome renders next to the
+    /// terminal tab strip. Absent when no auth packet has been wired.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shell_auth_chip: Option<ShellAuthChip>,
 }
 
 impl TerminalPaneSnapshot {
@@ -115,6 +127,25 @@ impl TerminalPaneSnapshot {
     /// (or the first tab when none is interactive) becomes the active tab so
     /// the chrome always has a focused row to render.
     pub fn project(workspace_id: &str, host: &PtyHost) -> Self {
+        Self::project_with_auth_chip(workspace_id, host, None)
+    }
+
+    /// Project a snapshot and attach the local-versus-managed shell auth
+    /// chip from a seed [`aureline_auth::BrowserCallbackPacket`].
+    pub fn project_with_auth_packet(
+        workspace_id: &str,
+        host: &PtyHost,
+        packet: &BrowserCallbackPacket,
+    ) -> Self {
+        Self::project_with_auth_chip(workspace_id, host, Some(ShellAuthChip::from_packet(packet)))
+    }
+
+    /// Project a snapshot with a pre-built shell auth chip.
+    pub fn project_with_auth_chip(
+        workspace_id: &str,
+        host: &PtyHost,
+        shell_auth_chip: Option<ShellAuthChip>,
+    ) -> Self {
         let tabs: Vec<TerminalPaneTabRecord> = host
             .sessions()
             .filter(|session| session.header().workspace_id == workspace_id)
@@ -131,6 +162,7 @@ impl TerminalPaneSnapshot {
             workspace_id: workspace_id.to_owned(),
             tabs,
             active_tab_id,
+            shell_auth_chip,
         }
     }
 
@@ -255,6 +287,122 @@ mod tests {
         assert_eq!(tab.target_badge, "Remote");
         assert!(tab.boundary_cue_visible);
         assert_eq!(tab.boundary_cue_token, "boundary_cue_remote_session");
+    }
+
+    #[test]
+    fn snapshot_attaches_local_only_auth_chip_for_no_account_path() {
+        // Protected walk: open a terminal session against the no-account local
+        // path and confirm the bottom-panel snapshot quotes the projected
+        // local-versus-managed chip from the seed auth packet without
+        // blocking local work.
+        use aureline_auth::{
+            BrowserCallbackHandoff, ShellAuthVocabulary, StageAccountFreeLocalRequest,
+        };
+
+        let mut host = PtyHost::new();
+        let _id = open_local(&mut host);
+        let handoff =
+            BrowserCallbackHandoff::stage_account_free_local(StageAccountFreeLocalRequest {
+                packet_id: "browser_callback_packet.account_free_local.demo",
+                correlation_id: "callback_correlation.account_free_local.demo",
+                pending_session_id: "pending_session.account_free_local.demo",
+                provider_domain_label: "No sign-in required",
+                destination_class_label: "No browser handoff required",
+                return_anchor_ref: "return_anchor.account_free_local.desktop",
+                return_target_label: "Aureline desktop – local workspace",
+                minted_at: "2026-04-23T10:00:00Z",
+                recovery_copy_label:
+                    "You are using Aureline without a sign-in. Local work stays on this device.",
+                execution_context_ref: Some("execution_context.local_desktop.workspace_root"),
+            });
+
+        let snapshot =
+            TerminalPaneSnapshot::project_with_auth_packet("ws-test", &host, handoff.packet());
+        let chip = snapshot
+            .shell_auth_chip
+            .as_ref()
+            .expect("snapshot quotes the seed auth chip");
+        assert_eq!(chip.vocabulary, ShellAuthVocabulary::AccountFreeLocal);
+        assert_eq!(chip.chip_label, "Local only");
+        assert!(chip.local_path_available);
+        assert!(!chip.visible_recovery_required);
+    }
+
+    #[test]
+    fn snapshot_attaches_reauth_required_chip_when_managed_callback_is_pending() {
+        // Failure-drill posture in the consumer: a managed sign-in is staged
+        // but the browser return has not yet been validated. The snapshot
+        // surfaces the typed reauth chip, the visible-recovery flag, and the
+        // preserved local-path hint so the no-account local flow keeps
+        // working.
+        use aureline_auth::{
+            AccountBoundaryClass, BrowserCallbackHandoff, IdentityModeAlias, PreservedLocalWork,
+            PreservedLocalWorkPostureClass, ReturnModeClass, ReturnOriginValidationClass,
+            ReturnTenantOrWorkspaceMatchRule, RetryPathClass, ShellAuthVocabulary,
+            StageSystemBrowserHandoffRequest, TrustState as AuthTrustState,
+        };
+
+        let mut host = PtyHost::new();
+        let _id = open_local(&mut host);
+        let handoff = BrowserCallbackHandoff::stage_system_browser_handoff(
+            StageSystemBrowserHandoffRequest {
+                packet_id: "browser_callback_packet.managed_sign_in.demo",
+                identity_mode: IdentityModeAlias::ManagedConvenience,
+                account_boundary_class: AccountBoundaryClass::Managed,
+                trust_state: AuthTrustState::Trusted,
+                provider_domain_label: "login.acme.example",
+                destination_class_label: "Customer-managed identity provider (system browser)",
+                return_target_label: "Aureline desktop – payments-prod workspace",
+                return_anchor_ref: "return_anchor.managed_sign_in.payments_prod",
+                return_mode_class: ReturnModeClass::LoopbackHttpReturn,
+                return_origin_validation_class: ReturnOriginValidationClass::LoopbackPortPinned,
+                return_tenant_or_workspace_match_rule:
+                    ReturnTenantOrWorkspaceMatchRule::MustMatchBoundWorkspaceAndTenant,
+                return_policy_check_refs: &[],
+                bound_workspace_ref: Some("workspace.payments_prod"),
+                bound_tenant_or_org_ref: Some("tenant.acme_prod"),
+                bound_actor_subject_ref: Some("actor_subject.sam.acme"),
+                correlation_id: "callback_correlation.managed_sign_in.demo",
+                pending_session_id: "pending_session.managed_sign_in.demo",
+                state_token_alias: "state_alias.managed_sign_in.demo",
+                nonce_alias: "nonce_alias.managed_sign_in.demo",
+                pkce_challenge_alias: Some("pkce_alias.managed_sign_in.demo"),
+                issued_at: "2026-04-23T10:10:00Z",
+                expires_at: "2026-04-23T10:20:00Z",
+                recovery_copy_label:
+                    "Continue sign-in in your browser. Local work keeps saving to this device.",
+                primary_recovery_action: RetryPathClass::RetryInSystemBrowser,
+                fallback_recovery_actions: &[
+                    RetryPathClass::SwitchToDeviceCode,
+                    RetryPathClass::ContinueLocalWithoutSignIn,
+                ],
+                repair_hook_ref: None,
+                preserved_local_work: PreservedLocalWork {
+                    posture_class:
+                        PreservedLocalWorkPostureClass::LocalWorkIntactWithManagedNarrowed,
+                    note: "Local work intact while managed sign-in is incomplete.".to_owned(),
+                    retained_capabilities: vec!["Edit, save, undo, search locally.".to_owned()],
+                    blocked_capabilities: vec![
+                        "Fetch managed settings sync while sign-in is incomplete.".to_owned(),
+                    ],
+                },
+                execution_context_ref: Some("execution_context.auth.managed_sign_in.payments_prod"),
+            },
+        )
+        .expect("managed outbound handoff stages cleanly");
+
+        let snapshot =
+            TerminalPaneSnapshot::project_with_auth_packet("ws-test", &host, handoff.packet());
+        let chip = snapshot
+            .shell_auth_chip
+            .as_ref()
+            .expect("snapshot quotes the seed auth chip");
+        assert_eq!(chip.vocabulary, ShellAuthVocabulary::ReauthRequired);
+        assert!(chip.visible_recovery_required);
+        assert!(
+            chip.local_path_available,
+            "managed sign-in pending must not block the no-account local path"
+        );
     }
 
     #[test]
