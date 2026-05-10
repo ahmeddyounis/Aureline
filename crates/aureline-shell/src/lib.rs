@@ -51,6 +51,8 @@ pub mod search_shell;
 pub mod start_center;
 /// Shared placeholder/state-card vocabulary used across shell surfaces.
 pub mod state_cards;
+/// Status-bar state items for target, profile, trust, encoding, and background work.
+pub mod status_bar;
 /// Bottom-panel terminal pane: snapshots and tab projections from the canonical PTY host.
 pub mod terminal_pane;
 /// Platform windowing adapters used by the native desktop shell.
