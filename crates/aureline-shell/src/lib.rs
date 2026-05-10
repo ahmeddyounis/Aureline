@@ -38,6 +38,8 @@ pub mod recovery;
 pub mod restore;
 /// Save-review sheet projections for conflicted save attempts.
 pub mod save_review;
+/// Scope-truth chip projections shared across open and search foundations.
+pub mod scope_truth;
 /// Workspace search shell: lexical filename/path surface with scope and partiality truth.
 pub mod search_shell;
 /// Start Center quick-action surface and entry projections.

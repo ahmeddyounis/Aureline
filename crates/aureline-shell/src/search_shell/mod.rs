@@ -21,3 +21,8 @@ pub use state::{
     WorkspaceSearchSurfaceCardRow, WorkspaceSearchSurfaceLineageHint,
     WorkspaceSearchSurfaceState,
 };
+
+#[doc(inline)]
+pub use crate::scope_truth::{
+    ScopeCountsClass, ScopeCountsRecord, ScopeTruthChipCard, ScopeTruthSurfaceClass,
+};

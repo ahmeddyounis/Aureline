@@ -5,10 +5,15 @@ use serde::{Deserialize, Serialize};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_search::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalShell, LexicalShellSnapshot,
-    LineageHintRecord, ScopeClass,
+    LineageHintRecord, ReadinessClass, ScopeClass,
 };
 use aureline_workspace::{
     ScopeClass as WorkspaceScopeClass, WorkspaceLifecycleMachine, WorkspaceReadinessInputs,
+};
+
+use crate::scope_truth::{
+    project_scope_truth_chip_card, ScopeCountsInputs, ScopeCountsRecord, ScopeTruthChipCard,
+    ScopeTruthSurfaceClass,
 };
 
 /// Live workspace search-shell surface state.
@@ -19,6 +24,8 @@ use aureline_workspace::{
 #[derive(Debug, Clone)]
 pub struct WorkspaceSearchSurfaceState {
     inner: LexicalShell,
+    workset_name: Option<String>,
+    observed_at: String,
 }
 
 impl WorkspaceSearchSurfaceState {
@@ -36,9 +43,15 @@ impl WorkspaceSearchSurfaceState {
     ) -> Self {
         let scope = ScopeClass::from_workspace(scope_class);
         let label = project_scope_label(scope, workset_name);
-        let index = build_index(lifecycle.readiness_inputs(), readiness_label, files);
+        let inputs = lifecycle.readiness_inputs();
+        let observed_at = inputs.observed_at.clone();
+        let index = build_index(inputs, readiness_label, files);
         let shell = LexicalShell::with_empty_query(scope, label, index);
-        Self { inner: shell }
+        Self {
+            inner: shell,
+            workset_name: workset_name.map(|s| s.to_string()),
+            observed_at,
+        }
     }
 
     /// Project the latest readiness inputs and label into a fresh index.
@@ -50,7 +63,9 @@ impl WorkspaceSearchSurfaceState {
         readiness_label: ReadinessLabel,
         files: Vec<String>,
     ) {
-        let index = build_index(lifecycle.readiness_inputs(), readiness_label, files);
+        let inputs = lifecycle.readiness_inputs();
+        self.observed_at = inputs.observed_at.clone();
+        let index = build_index(inputs, readiness_label, files);
         self.inner.replace_index(index);
     }
 
@@ -60,6 +75,7 @@ impl WorkspaceSearchSurfaceState {
         let scope = ScopeClass::from_workspace(scope_class);
         let label = project_scope_label(scope, workset_name);
         self.inner.set_scope(scope, label);
+        self.workset_name = workset_name.map(|s| s.to_string());
     }
 
     /// Set the active query string. Empty queries clear the result set.
@@ -70,6 +86,40 @@ impl WorkspaceSearchSurfaceState {
     /// Borrow the underlying shell (for tests / advanced consumers).
     pub fn lexical_shell(&self) -> &LexicalShell {
         &self.inner
+    }
+
+    /// Project the scope-truth chip card the chrome renders alongside
+    /// search results. The card is the canonical M01-062 disclosure for
+    /// scope, partiality, and visible/loaded/all-matching counts.
+    pub fn scope_truth_chip(&self) -> ScopeTruthChipCard {
+        let shell = &self.inner;
+        let results = shell.results();
+        let workspace_scope = workspace_scope_from(shell.scope_class());
+        let readiness_is_ready = matches!(results.readiness, ReadinessClass::Ready);
+        let visible_in_view = results.total_rows as u64;
+        let loaded_in_scope = if shell.query().is_empty() {
+            None
+        } else {
+            // Until widened-search ships, the loaded-scope count we can
+            // promise is the post-truncation rendered count. Surfaces MUST
+            // NOT default `all_matching_in_workspace` to this value.
+            Some(visible_in_view)
+        };
+        let counts = ScopeCountsRecord::derive(ScopeCountsInputs {
+            visible_in_view,
+            loaded_in_scope,
+            all_matching_in_workspace: None,
+            scope_covers_workspace: matches!(workspace_scope, WorkspaceScopeClass::FullWorkspace),
+            readiness_is_ready,
+        });
+        project_scope_truth_chip_card(
+            shell.workspace_id(),
+            ScopeTruthSurfaceClass::SearchShell,
+            workspace_scope,
+            self.workset_name.as_deref(),
+            counts,
+            self.observed_at.clone(),
+        )
     }
 
     /// Materialize a render-ready card projection for the shell chrome.
@@ -98,10 +148,12 @@ impl WorkspaceSearchSurfaceState {
             })
             .collect();
 
+        let scope_truth_chip = self.scope_truth_chip();
         WorkspaceSearchSurfaceCard {
             workspace_id: shell.workspace_id().to_string(),
             scope_class_token: shell.scope_class().as_str().to_string(),
             scope_chip_label: shell.scope_label().to_string(),
+            scope_truth_chip,
             readiness_class_token: results.readiness.as_str().to_string(),
             readiness_banner: results.readiness.banner_label().to_string(),
             partial_truth_causes: results.partial_truth_causes.clone(),
@@ -135,6 +187,16 @@ fn build_index(
     })
 }
 
+fn workspace_scope_from(scope: ScopeClass) -> WorkspaceScopeClass {
+    match scope {
+        ScopeClass::CurrentRepo => WorkspaceScopeClass::CurrentRepo,
+        ScopeClass::SelectedWorkset => WorkspaceScopeClass::SelectedWorkset,
+        ScopeClass::SparseSlice => WorkspaceScopeClass::SparseSlice,
+        ScopeClass::FullWorkspace => WorkspaceScopeClass::FullWorkspace,
+        ScopeClass::PolicyLimitedView => WorkspaceScopeClass::PolicyLimitedView,
+    }
+}
+
 /// Project a scope chip label from the active scope and the workset name.
 /// Mirrors `aureline_workspace::WorksetArtifactRecord::project_chip` so the
 /// search shell never mints a parallel chip vocabulary.
@@ -163,6 +225,12 @@ pub struct WorkspaceSearchSurfaceCard {
     pub workspace_id: String,
     pub scope_class_token: String,
     pub scope_chip_label: String,
+    /// Canonical scope-truth chip card disclosing scope class, partiality,
+    /// presentation state, offered actions, and visible/loaded/all-matching
+    /// counts. Surfaces MUST render this directly; the legacy
+    /// `scope_chip_label` and `scope_class_token` fields are retained for
+    /// reviewers that still consume the older single-string vocabulary.
+    pub scope_truth_chip: ScopeTruthChipCard,
     pub readiness_class_token: String,
     pub readiness_banner: String,
     pub partial_truth_causes: Vec<String>,
@@ -296,6 +364,21 @@ mod tests {
             .available_source_classes
             .iter()
             .any(|s| s == "lexical_path"));
+
+        // Even on a ready CurrentRepo scope, the chip flags partial_scope
+        // because the scope is narrower than the workspace.
+        let chip = &card.scope_truth_chip;
+        assert_eq!(chip.scope_class_token, "current_repo");
+        assert_eq!(chip.chip_label, "Current repo");
+        assert_eq!(chip.surface_class_token, "search_shell");
+        assert!(chip.partial_scope);
+        assert!(chip
+            .offered_action_tokens
+            .iter()
+            .any(|t| t == "widen_to_full_workspace"));
+        assert_eq!(chip.counts.visible_in_view, 1);
+        assert_eq!(chip.counts.loaded_in_scope, Some(1));
+        assert!(chip.counts.all_matching_in_workspace.is_none());
     }
 
     #[test]
@@ -317,6 +400,11 @@ mod tests {
             .iter()
             .any(|c| c == "workspace_warming"));
         assert_eq!(card.total_rows, 0);
+
+        let chip = &card.scope_truth_chip;
+        assert!(chip.partial_scope);
+        assert_eq!(chip.presentation_state_token, "active_partial");
+        assert!(!chip.counts.readiness_is_ready);
     }
 
     #[test]
@@ -331,6 +419,20 @@ mod tests {
         );
         let card = surface.render_card();
         assert_eq!(card.scope_chip_label, "Selected workset · Hot path");
+
+        let chip = &card.scope_truth_chip;
+        assert_eq!(chip.scope_class_token, "selected_workset");
+        assert_eq!(chip.chip_label, "Selected workset · Hot path");
+        assert_eq!(chip.workset_name.as_deref(), Some("Hot path"));
+        assert!(chip.partial_scope);
+        assert!(chip
+            .offered_action_tokens
+            .iter()
+            .any(|t| t == "widen_with_review"));
+        assert!(chip
+            .offered_action_tokens
+            .iter()
+            .any(|t| t == "open_scope_diff"));
     }
 
     #[test]
