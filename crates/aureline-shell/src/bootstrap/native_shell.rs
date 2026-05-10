@@ -58,7 +58,7 @@ use crate::workspace_switcher::{
     build_switcher_rows, WorkspaceSwitcherRow, WorkspaceSwitcherState,
     WORKSPACE_SWITCHER_PRESENTATION_LABEL,
 };
-use aureline_buffer::{Buffer, RevisionId, Snapshot, TransactionSpec, UndoClass};
+use aureline_buffer::{Buffer, RevisionId, Snapshot, TransactionId, TransactionSpec, UndoClass};
 use aureline_build_info as build_info;
 use aureline_commands::invocation::{
     mint_approval_ticket_ref, mint_basis_snapshot_ref, mint_invocation_session_id,
@@ -73,6 +73,7 @@ use aureline_commands::{
     CommandEnablementContext, CommandRegistry, CommandRegistryEntryRecord, DisabledReasonCode,
     EnablementDecisionClass, PreflightDecisionClass,
 };
+use aureline_history::{HistoryStorageRoot, LocalHistoryStore, MutationJournalStore};
 use aureline_input::keybindings::{
     seeded_keybinding_resolver, InspectionScope, KeySequence, KeyStroke, KeybindingResolver,
     Modifiers, PlatformClass, SequenceResolutionState, SurfaceSupportClass, WinningResolutionKind,
@@ -100,8 +101,8 @@ use aureline_vfs::{
     VfsRoot, VfsUri, VirtualDocumentKind, VirtualDocumentRoot, VirtualDocumentSpec, WatcherHealth,
 };
 use aureline_workspace::save::{
-    detect_and_decode_for_buffer, SaveResult, SourceFidelityRecord, StagedSaveCoordinator,
-    StagedSaveRequest,
+    detect_and_decode_for_buffer, encode_for_save, SaveResult, SourceFidelityRecord,
+    StagedSaveCoordinator, StagedSaveRequest,
 };
 use aureline_workspace::{
     resolve_entry_flow, EntryFlowOutcome, EntryFlowRequest, EntryFlowTarget, EntryVerb,
@@ -1605,6 +1606,8 @@ struct BufferAuthority {
     buffer: Buffer,
     saved_revision: RevisionId,
     find_replace: FindReplaceState,
+    last_recorded_mutation_transaction_id: Option<TransactionId>,
+    last_recorded_mutation_id: Option<String>,
     large_file_doc: Option<LargeFileDocument>,
     large_file_override: Option<LargeFileOverrideInfo>,
 }
@@ -1727,6 +1730,8 @@ impl BufferAuthorityStore {
                     buffer,
                     saved_revision,
                     find_replace: FindReplaceState::new(),
+                    last_recorded_mutation_transaction_id: None,
+                    last_recorded_mutation_id: None,
                     large_file_doc: None,
                     large_file_override: doc.large_file_override,
                 }))
@@ -1754,6 +1759,8 @@ impl BufferAuthorityStore {
                     buffer,
                     saved_revision,
                     find_replace: FindReplaceState::new(),
+                    last_recorded_mutation_transaction_id: None,
+                    last_recorded_mutation_id: None,
                     large_file_doc: Some(doc),
                     large_file_override: None,
                 }))
@@ -1796,6 +1803,8 @@ impl BufferAuthorityStore {
             buffer,
             saved_revision,
             find_replace: FindReplaceState::new(),
+            last_recorded_mutation_transaction_id: None,
+            last_recorded_mutation_id: None,
             large_file_doc: None,
             large_file_override: None,
         }))
@@ -2154,25 +2163,33 @@ struct EditorWorkspaceRuntimeState {
     groups: HashMap<PaneId, EditorGroupSession>,
     buffers: BufferAuthorityStore,
     save_coordinator: StagedSaveCoordinator,
+    mutation_journal: MutationJournalStore,
+    local_history: LocalHistoryStore,
 }
 
 impl EditorWorkspaceRuntimeState {
     fn new() -> Self {
+        let storage = HistoryStorageRoot::new(PathBuf::from(".logs").join("history"));
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             groups: HashMap::new(),
             buffers: BufferAuthorityStore::new(),
             save_coordinator: StagedSaveCoordinator::new(),
+            mutation_journal: MutationJournalStore::new(storage.clone()),
+            local_history: LocalHistoryStore::new(storage),
         }
     }
 
     #[cfg(test)]
     fn with_buffer_store(buffers: BufferAuthorityStore) -> Self {
+        let storage = HistoryStorageRoot::new(PathBuf::from(".logs").join("history"));
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             groups: HashMap::new(),
             buffers,
             save_coordinator: StagedSaveCoordinator::new(),
+            mutation_journal: MutationJournalStore::new(storage.clone()),
+            local_history: LocalHistoryStore::new(storage),
         }
     }
 
@@ -2273,10 +2290,8 @@ impl EditorWorkspaceRuntimeState {
         {
             let mut auth = tab_session.authority.borrow_mut();
             let raw_bytes = doc.snapshot.as_bytes().to_vec();
-            let open_outcome = detect_and_decode_for_buffer(
-                &raw_bytes,
-                &save_target_token.permission_snapshot,
-            );
+            let open_outcome =
+                detect_and_decode_for_buffer(&raw_bytes, &save_target_token.permission_snapshot);
             let (buffer, saved_revision, read_only) = match open_outcome.buffer_utf8_bytes {
                 Some(decoded) => {
                     let buffer = Buffer::from_bytes(&decoded);
@@ -2328,16 +2343,19 @@ impl EditorWorkspaceRuntimeState {
     }
 
     fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<SaveTabAttempt, String> {
-        let Some(session) = self
-            .groups
-            .get_mut(&group)
-            .and_then(|g| g.tabs.get_mut(&tab))
-        else {
-            return Err("tab not found".to_string());
+        let authority_handle = {
+            let Some(session) = self
+                .groups
+                .get_mut(&group)
+                .and_then(|g| g.tabs.get_mut(&tab))
+            else {
+                return Err("tab not found".to_string());
+            };
+            session.ensure_fresh_snapshot();
+            session.authority.clone()
         };
-        session.ensure_fresh_snapshot();
 
-        let mut authority = session.authority.borrow_mut();
+        let mut authority = authority_handle.borrow_mut();
         if authority.read_only != ReadOnlyState::Writable {
             return Err("tab is read-only".to_string());
         }
@@ -2371,12 +2389,25 @@ impl EditorWorkspaceRuntimeState {
             .source_fidelity
             .clone()
             .ok_or_else(|| "missing source-fidelity record for save".to_owned())?;
+
+        let checkpoint_ref = if authority.is_dirty() {
+            let captured_at = mono_timestamp_now();
+            Some(self.record_save_checkpoint(
+                &mut authority,
+                &token,
+                &source_fidelity,
+                &snapshot,
+                &captured_at,
+            )?)
+        } else {
+            None
+        };
         let request = StagedSaveRequest {
             token: token.clone(),
             new_content: snapshot.as_bytes().to_vec(),
             source_fidelity: source_fidelity.clone(),
             save_participant_group_id: None,
-            checkpoint_ref: None,
+            checkpoint_ref: checkpoint_ref.clone(),
             committed_at: mono_timestamp_now(),
         };
 
@@ -2415,9 +2446,9 @@ impl EditorWorkspaceRuntimeState {
             }
 
             let hint = match outcome {
-                aureline_vfs::SaveOutcome::ExternalChangeDetected => Some(
-                    "file changed on disk; compare or reload before overwriting",
-                ),
+                aureline_vfs::SaveOutcome::ExternalChangeDetected => {
+                    Some("file changed on disk; compare or reload before overwriting")
+                }
                 aureline_vfs::SaveOutcome::SaveConflict => {
                     Some("save target revision changed; revalidate and retry")
                 }
@@ -2557,6 +2588,211 @@ impl EditorWorkspaceRuntimeState {
             paint_style,
             clip,
         );
+    }
+
+    fn record_save_checkpoint(
+        &mut self,
+        authority: &mut BufferAuthority,
+        token: &SaveTargetToken,
+        source_fidelity: &SourceFidelityRecord,
+        snapshot: &Snapshot,
+        captured_at: &str,
+    ) -> Result<String, String> {
+        let Some(journal_entry) = authority.buffer.peek_undo() else {
+            return Err(
+                "dirty buffer missing journal entry for local-history checkpoint".to_owned(),
+            );
+        };
+
+        let entry_id = self.local_history.mint_entry_id();
+        let filesystem_identity =
+            aureline_history::checkpoints::filesystem_identity_record(&token.identity);
+        let logical_document_id =
+            aureline_history::checkpoints::logical_document_id(&token.identity);
+
+        let mutation_id = if authority.last_recorded_mutation_transaction_id
+            == Some(journal_entry.transaction_id())
+        {
+            authority
+                .last_recorded_mutation_id
+                .clone()
+                .ok_or_else(|| "buffer mutation journal state missing mutation id".to_owned())?
+        } else {
+            let mutation_id = self.record_buffer_mutation_with_checkpoint(
+                &filesystem_identity,
+                &logical_document_id,
+                journal_entry,
+                &entry_id,
+                captured_at,
+            )?;
+            authority.last_recorded_mutation_transaction_id = Some(journal_entry.transaction_id());
+            authority.last_recorded_mutation_id = Some(mutation_id.clone());
+            mutation_id
+        };
+
+        let staged_bytes = encode_for_save(source_fidelity, snapshot.as_bytes())
+            .map_err(|detail| format!("local-history capture failed: {detail}"))?;
+        let body_object_ref = self
+            .local_history
+            .write_body_object(&staged_bytes)
+            .map_err(|err| err.to_string())?;
+
+        let capture_descriptor = aureline_history::checkpoints::CaptureDescriptor {
+            capture_mode: aureline_history::checkpoints::CaptureMode::ContentAddressedSnapshot,
+            omission_reason: aureline_history::checkpoints::CaptureOmissionReasonClass::NotOmitted,
+            body_available: true,
+            body_object_refs: vec![body_object_ref],
+            reference_digest: None,
+            bytes_estimated: Some(staged_bytes.len() as u64),
+            omission_note: None,
+        };
+
+        let mutation_journal_link = aureline_history::checkpoints::MutationJournalLink {
+            linked_kind:
+                aureline_history::checkpoints::MutationJournalLinkKind::MutationJournalEntry,
+            linked_id: mutation_id.clone(),
+            actor_class: Some(
+                aureline_history::checkpoints::MutationJournalLinkActorClass::from(
+                    self.actor_class_for_originator(journal_entry.originator()),
+                ),
+            ),
+            source_class: Some(aureline_history::SourceClass::HumanLocal),
+            reversal_class: Some(
+                aureline_history::checkpoints::MutationJournalLinkReversalClass::from(
+                    self.reversal_class_for_posture(journal_entry.compensation_posture()),
+                ),
+            ),
+            redaction_class: Some(aureline_history::RedactionClass::CodeAdjacent),
+        };
+
+        let logical_document_identity = aureline_history::checkpoints::LogicalDocumentIdentity {
+            logical_document_id,
+            current_filesystem_identity: filesystem_identity,
+            canonical_identity_drift: Some(
+                aureline_history::checkpoints::CanonicalIdentityDrift::NoDrift,
+            ),
+            rename_move_history: Vec::new(),
+        };
+
+        let entry = aureline_history::LocalHistoryEntryRecord::new(
+            entry_id.clone(),
+            aureline_history::checkpoints::SnapshotClass::EditSaveCheckpoint,
+            captured_at.to_owned(),
+            logical_document_identity,
+            capture_descriptor,
+            mutation_journal_link,
+            aureline_history::RetentionScopeClass::RetainedByPolicyWindow,
+            Some(format!(
+                "Edit/save checkpoint captured for {}",
+                token.identity.presentation_path.display_label
+            )),
+        );
+
+        self.local_history
+            .write_entry(&entry)
+            .map_err(|err| err.to_string())?;
+
+        Ok(entry_id)
+    }
+
+    fn record_buffer_mutation_with_checkpoint(
+        &mut self,
+        filesystem_identity: &aureline_history::checkpoints::FilesystemIdentityRecord,
+        logical_document_id: &str,
+        journal_entry: aureline_buffer::JournalEntry<'_>,
+        local_history_entry_id: &str,
+        captured_at: &str,
+    ) -> Result<String, String> {
+        let mutation_id = self.mutation_journal.mint_mutation_id();
+        let command_id = self.command_id_for_originator(journal_entry.originator());
+        let actor_class = self.actor_class_for_originator(journal_entry.originator());
+        let actor_ref = aureline_history::ActorRef {
+            display_name: env::var("USER").unwrap_or_else(|_| "local user".to_string()),
+            stable_id: None,
+            role: Some("author".to_string()),
+        };
+        let scope_ref = aureline_history::ScopeRef {
+            class: aureline_history::ScopeClass::Buffer,
+            id: format!("buf:{logical_document_id}"),
+        };
+        let target_refs = vec![aureline_history::TargetRef {
+            target_kind: aureline_history::TargetKind::Buffer,
+            filesystem_identity: Some(filesystem_identity.clone()),
+            logical_ref: Some(logical_document_id.to_owned()),
+            affected_range: None,
+        }];
+        let reversal_class = self.reversal_class_for_posture(journal_entry.compensation_posture());
+        let mut side_effect = aureline_history::SideEffectSummary::new(format!(
+            "Committed {} ({})",
+            journal_entry.class_id(),
+            command_id
+        ));
+        side_effect.bytes_written =
+            Some((journal_entry.inserted_bytes() + journal_entry.removed_bytes()) as u64);
+        side_effect.files_touched = Some(0);
+
+        let checkpoint_refs = vec![aureline_history::CheckpointRef {
+            checkpoint_kind: aureline_history::CheckpointKind::LocalHistorySnapshot,
+            checkpoint_id: local_history_entry_id.to_owned(),
+            durability_class: Some(aureline_history::CheckpointDurabilityClass::Durable),
+        }];
+
+        let entry = aureline_history::MutationJournalEntryRecord::new(
+            mutation_id.clone(),
+            command_id,
+            actor_class,
+            aureline_history::SourceClass::HumanLocal,
+            actor_ref,
+            scope_ref,
+            target_refs,
+            captured_at.to_owned(),
+            captured_at.to_owned(),
+            journal_entry.class_id().to_owned(),
+            reversal_class,
+            aureline_history::RedactionClass::CodeAdjacent,
+            aureline_history::DurableVsDisposable::DurableUserAuthored,
+            side_effect,
+            checkpoint_refs,
+        );
+
+        self.mutation_journal
+            .write_entry(&entry)
+            .map_err(|err| err.to_string())?;
+
+        Ok(mutation_id)
+    }
+
+    fn command_id_for_originator(&self, originator: &str) -> String {
+        match originator {
+            aureline_editor::undo::originator::USER_KEYSTROKE => "editor.type".to_owned(),
+            aureline_editor::undo::originator::PASTE => "editor.paste".to_owned(),
+            other => other.strip_prefix("command:").unwrap_or(other).to_owned(),
+        }
+    }
+
+    fn actor_class_for_originator(&self, originator: &str) -> aureline_history::ActorClass {
+        match originator {
+            aureline_editor::undo::originator::USER_KEYSTROKE => {
+                aureline_history::ActorClass::UserKeystroke
+            }
+            aureline_editor::undo::originator::PASTE => aureline_history::ActorClass::UserCommand,
+            other if other.starts_with("command:") => aureline_history::ActorClass::UserCommand,
+            _ => aureline_history::ActorClass::UserCommand,
+        }
+    }
+
+    fn reversal_class_for_posture(
+        &self,
+        posture: aureline_buffer::CompensationPosture,
+    ) -> aureline_history::ReversalClass {
+        match posture {
+            aureline_buffer::CompensationPosture::Compensatable => {
+                aureline_history::ReversalClass::ExactUndo
+            }
+            aureline_buffer::CompensationPosture::OnlyRevertible => {
+                aureline_history::ReversalClass::CompensatingUndo
+            }
+        }
     }
 }
 
@@ -7572,8 +7808,9 @@ impl ShellOverlayState {
                             let source_fidelity = match auth.source_fidelity.clone() {
                                 Some(record) => record,
                                 None => {
-                                    review.status_line =
-                                        Some("missing source-fidelity record for review".to_string());
+                                    review.status_line = Some(
+                                        "missing source-fidelity record for review".to_string(),
+                                    );
                                     return OverlayKeyOutcome {
                                         handled: true,
                                         command_decision,
@@ -7597,8 +7834,10 @@ impl ShellOverlayState {
                             review.reviewed_external_state,
                         );
                         write_save_review_sheet_log(&review.record);
-                        review.selection = 1.min(review.record.offered_choices.len().saturating_sub(1));
-                        review.status_line = Some("compare admitted; overwrite now enabled".to_string());
+                        review.selection =
+                            1.min(review.record.offered_choices.len().saturating_sub(1));
+                        review.status_line =
+                            Some("compare admitted; overwrite now enabled".to_string());
                         true
                     }
                     "overwrite" => {
@@ -7657,9 +7896,8 @@ impl ShellOverlayState {
                             let token = match auth.save_target_token.clone() {
                                 Some(token) => token,
                                 None => {
-                                    review.status_line = Some(
-                                        "missing save target token for overwrite".to_string(),
-                                    );
+                                    review.status_line =
+                                        Some("missing save target token for overwrite".to_string());
                                     return OverlayKeyOutcome {
                                         handled: true,
                                         command_decision,
@@ -7685,7 +7923,8 @@ impl ShellOverlayState {
                             (presentation_uri, token, source_fidelity, local_bytes)
                         };
 
-                        let mut root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        let mut root =
+                            LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
                         let mut counters = HookCounters::default();
                         let refreshed_token = match open_save_target(
                             &root,
@@ -7695,7 +7934,8 @@ impl ShellOverlayState {
                         ) {
                             Ok(token) => token,
                             Err(err) => {
-                                review.status_line = Some(format!("refresh save target failed — {err}"));
+                                review.status_line =
+                                    Some(format!("refresh save target failed — {err}"));
                                 return OverlayKeyOutcome {
                                     handled: true,
                                     command_decision,
@@ -7713,11 +7953,14 @@ impl ShellOverlayState {
                             checkpoint_ref: None,
                             committed_at: mono_timestamp_now(),
                         };
-                        let mut participants: Vec<Box<dyn aureline_workspace::save::SaveParticipant>> =
-                            Vec::new();
-                        let result = editor_runtime
-                            .save_coordinator
-                            .save(&mut root, request, participants.as_mut_slice());
+                        let mut participants: Vec<
+                            Box<dyn aureline_workspace::save::SaveParticipant>,
+                        > = Vec::new();
+                        let result = editor_runtime.save_coordinator.save(
+                            &mut root,
+                            request,
+                            participants.as_mut_slice(),
+                        );
 
                         if result.committed() {
                             if let Some(tab_session) =
@@ -7745,10 +7988,8 @@ impl ShellOverlayState {
                             );
                             write_save_review_sheet_log(&review.record);
                             review.selection = 0;
-                            review.status_line = Some(format!(
-                                "overwrite refused ({})",
-                                review.outcome.as_str()
-                            ));
+                            review.status_line =
+                                Some(format!("overwrite refused ({})", review.outcome.as_str()));
                             true
                         }
                     }
@@ -7797,8 +8038,9 @@ impl ShellOverlayState {
                             let source_fidelity = match auth.source_fidelity.clone() {
                                 Some(record) => record,
                                 None => {
-                                    review.status_line =
-                                        Some("missing source-fidelity record for retry".to_string());
+                                    review.status_line = Some(
+                                        "missing source-fidelity record for retry".to_string(),
+                                    );
                                     return OverlayKeyOutcome {
                                         handled: true,
                                         command_decision,

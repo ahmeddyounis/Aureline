@@ -33,6 +33,7 @@ How to exercise:
 
 - `cargo test -p aureline-workspace save_pipeline_tests`
 - `cargo test -p aureline-workspace --test save`
+- `cargo test -p aureline-history`
 - `cargo test -p aureline-shell bootstrap::native_shell::tab_case_tests::tab_case_fixtures_preserve_shared_buffer_authority`
 - `cargo test -p aureline-shell save_review::tests::materializes_save_review_sheet_cases_from_fixtures`
 - `cargo run -p aureline-shell --bin aureline_shell`
@@ -40,6 +41,10 @@ How to exercise:
   - `Ctrl+Tab` cycles active tabs.
   - `Ctrl+\\` splits the editor group and duplicates the active tab as a second view.
   - `Ctrl+S` saves the active tab (clears `Modified` and reports save outcome/strategy).
+    - When the buffer is dirty, the save writes a local-history entry and mutation-journal entry under:
+      - `.logs/history/local_history/entries/`
+      - `.logs/history/mutation_journal/entries/`
+      - `.logs/history/objects/` (content-addressed snapshot bodies)
   - `Ctrl+W` closes the active tab (`Ctrl+Shift+W` closes the focused editor group).
 
 External-drift failure drill (manual):
