@@ -41,6 +41,8 @@ pub mod quick_open;
 pub mod recovery;
 /// Restore-prompt projection for resume / missing-target recovery.
 pub mod restore;
+/// Runtime projections shared by terminal, task, and debug-prep seed surfaces.
+pub mod runtime;
 /// Save-review sheet projections for conflicted save attempts.
 pub mod save_review;
 /// Scope-truth chip projections shared across open and search foundations.
