@@ -34,6 +34,8 @@ pub mod recovery;
 pub mod restore;
 /// Save-review sheet projections for conflicted save attempts.
 pub mod save_review;
+/// Workspace search shell: lexical filename/path surface with scope and partiality truth.
+pub mod search_shell;
 /// Start Center quick-action surface and entry projections.
 pub mod start_center;
 /// Shared placeholder/state-card vocabulary used across shell surfaces.
