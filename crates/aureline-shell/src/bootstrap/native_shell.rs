@@ -44,6 +44,10 @@ use crate::palette::preview::{
 };
 use crate::palette::results_view::palette_view_rows;
 use crate::palette::{CommandPaletteCommit, CommandPaletteState};
+use crate::save_review::{
+    materialize_save_review_sheet_record, save_review_sheet_lines, write_save_review_sheet_log,
+    SaveReviewChoiceKey, SaveReviewSheetRecord,
+};
 use crate::start_center::{
     build_action_rows as start_center_action_rows, StartCenterPrimaryActionId,
     StartCenterRuntimeInputs, StartCenterState, START_CENTER_PRESENTATION_LABEL,
@@ -2135,6 +2139,16 @@ impl EditorGroupSession {
     }
 }
 
+#[derive(Debug, Clone)]
+enum SaveTabAttempt {
+    Saved(SaveResult),
+    NoTarget,
+    ReviewRequired {
+        record: SaveReviewSheetRecord,
+        outcome: aureline_vfs::SaveOutcome,
+    },
+}
+
 struct EditorWorkspaceRuntimeState {
     text_runtime: EditorTextRuntime,
     groups: HashMap<PaneId, EditorGroupSession>,
@@ -2313,7 +2327,7 @@ impl EditorWorkspaceRuntimeState {
         true
     }
 
-    fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<Option<SaveResult>, String> {
+    fn save_tab(&mut self, group: PaneId, tab: EditorTabId) -> Result<SaveTabAttempt, String> {
         let Some(session) = self
             .groups
             .get_mut(&group)
@@ -2329,7 +2343,7 @@ impl EditorWorkspaceRuntimeState {
         }
         let Some(path) = authority.file_path.clone() else {
             authority.mark_saved();
-            return Ok(None);
+            return Ok(SaveTabAttempt::NoTarget);
         };
 
         let presentation_uri = VfsUri::file_url_for_path(&path)
@@ -2358,9 +2372,9 @@ impl EditorWorkspaceRuntimeState {
             .clone()
             .ok_or_else(|| "missing source-fidelity record for save".to_owned())?;
         let request = StagedSaveRequest {
-            token,
+            token: token.clone(),
             new_content: snapshot.as_bytes().to_vec(),
-            source_fidelity,
+            source_fidelity: source_fidelity.clone(),
             save_participant_group_id: None,
             checkpoint_ref: None,
             committed_at: mono_timestamp_now(),
@@ -2374,9 +2388,32 @@ impl EditorWorkspaceRuntimeState {
         if result.committed() {
             authority.mark_saved();
             authority.save_target_token = Some(result.next_token.clone());
-            Ok(Some(result))
+            Ok(SaveTabAttempt::Saved(result))
         } else {
             let outcome = result.manifest.outcome;
+            if matches!(
+                outcome,
+                aureline_vfs::SaveOutcome::ExternalChangeDetected
+                    | aureline_vfs::SaveOutcome::SaveConflict
+                    | aureline_vfs::SaveOutcome::WrongTargetPrevented
+                    | aureline_vfs::SaveOutcome::WatcherUncertainty
+                    | aureline_vfs::SaveOutcome::ReviewRequiredBeforeSave
+                    | aureline_vfs::SaveOutcome::ReviewRequiredBeforeRename
+            ) {
+                let record = materialize_save_review_sheet_record(
+                    &root,
+                    &token,
+                    &source_fidelity,
+                    result.packet_id.clone(),
+                    outcome,
+                    mono_timestamp_now(),
+                    snapshot.as_bytes(),
+                    false,
+                );
+                write_save_review_sheet_log(&record);
+                return Ok(SaveTabAttempt::ReviewRequired { record, outcome });
+            }
+
             let hint = match outcome {
                 aureline_vfs::SaveOutcome::ExternalChangeDetected => Some(
                     "file changed on disk; compare or reload before overwriting",
@@ -5414,8 +5451,9 @@ fn handle_key_event(
                 let Some(tab) = frame.active_tab_id(group) else {
                     return ShellDamageHint::None;
                 };
+                let mut overlay_opened = false;
                 match editor_runtime.save_tab(group, tab) {
-                    Ok(Some(result)) => {
+                    Ok(SaveTabAttempt::Saved(result)) => {
                         command_runtime.note_non_command_action(format!(
                             "saved ({}) — outcome={} strategy={}",
                             result.packet_id,
@@ -5423,12 +5461,27 @@ fn handle_key_event(
                             result.write_strategy.as_str()
                         ));
                     }
-                    Ok(None) => {
+                    Ok(SaveTabAttempt::NoTarget) => {
                         command_runtime.note_non_command_action("saved (no target)");
+                    }
+                    Ok(SaveTabAttempt::ReviewRequired { record, outcome }) => {
+                        *overlay = Some(ShellOverlayState::save_review(
+                            frame.focused_zone(),
+                            frame.focused_editor_group(),
+                            group,
+                            tab,
+                            record,
+                            outcome,
+                        ));
+                        frame.focus_zone(ShellZoneId::TransientOverlay);
+                        overlay_opened = true;
                     }
                     Err(err) => {
                         command_runtime.note_non_command_action(format!("save failed — {err}"));
                     }
+                }
+                if overlay_opened {
+                    return ShellDamageHint::FullWindow;
                 }
                 damage_geometry
                     .focused_editor_group
@@ -7029,6 +7082,17 @@ struct EntryFlowSheetOverlay {
     note: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+struct SaveReviewOverlay {
+    group: PaneId,
+    tab: EditorTabId,
+    outcome: aureline_vfs::SaveOutcome,
+    record: SaveReviewSheetRecord,
+    reviewed_external_state: bool,
+    selection: usize,
+    status_line: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FindReplaceOverlayField {
     Query,
@@ -7213,6 +7277,7 @@ enum ShellOverlayKind {
         selection: usize,
     },
     StagedPeek,
+    SaveReview(SaveReviewOverlay),
     EntryFlowSheet(EntryFlowSheetOverlay),
     CommandDiagnostics(CommandDiagnosticsOverlay),
     InvocationPreview(CommandInvocationPreviewOverlay),
@@ -7265,6 +7330,31 @@ impl ShellOverlayState {
                 violation,
                 selection: 0,
             },
+            focus_return_zone,
+            focus_return_group,
+            opened_at: Instant::now(),
+            closed: false,
+        }
+    }
+
+    fn save_review(
+        focus_return_zone: ShellZoneId,
+        focus_return_group: PaneId,
+        group: PaneId,
+        tab: EditorTabId,
+        record: SaveReviewSheetRecord,
+        outcome: aureline_vfs::SaveOutcome,
+    ) -> Self {
+        Self {
+            kind: ShellOverlayKind::SaveReview(SaveReviewOverlay {
+                group,
+                tab,
+                outcome,
+                record,
+                reviewed_external_state: false,
+                selection: 0,
+                status_line: None,
+            }),
             focus_return_zone,
             focus_return_group,
             opened_at: Instant::now(),
@@ -7408,6 +7498,370 @@ impl ShellOverlayState {
                     });
                 }
                 self.close(frame);
+                true
+            }
+            (ShellOverlayKind::SaveReview(review), KeyCode::Escape) => {
+                review.record.selected_choice =
+                    Some(SaveReviewChoiceKey::Cancel.as_str().to_string());
+                review.record.selected_at = Some(now_rfc3339());
+                write_save_review_sheet_log(&review.record);
+                self.close(frame);
+                true
+            }
+            (ShellOverlayKind::SaveReview(review), KeyCode::Enter) => {
+                let Some(choice) = review.record.offered_choices.get(review.selection).cloned()
+                else {
+                    self.close(frame);
+                    return OverlayKeyOutcome {
+                        handled: true,
+                        command_decision,
+                        entry_flow_decision,
+                        workspace_switcher_decision,
+                    };
+                };
+
+                if !choice.enabled {
+                    review.status_line = Some(format!(
+                        "choice disabled: {} ({})",
+                        choice.choice, choice.forbidden_reason
+                    ));
+                    return OverlayKeyOutcome {
+                        handled: true,
+                        command_decision,
+                        entry_flow_decision,
+                        workspace_switcher_decision,
+                    };
+                }
+
+                match choice.choice.as_str() {
+                    "compare" => {
+                        review.record.selected_choice =
+                            Some(SaveReviewChoiceKey::Compare.as_str().to_string());
+                        review.record.selected_at = Some(now_rfc3339());
+                        write_save_review_sheet_log(&review.record);
+                        review.reviewed_external_state = true;
+
+                        let Some(tab_session) =
+                            editor_runtime.tab_session_mut(review.group, review.tab)
+                        else {
+                            review.status_line = Some("tab missing for save review".to_string());
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                entry_flow_decision,
+                                workspace_switcher_decision,
+                            };
+                        };
+                        tab_session.ensure_fresh_snapshot();
+                        let local_bytes = tab_session.snapshot.as_bytes().to_vec();
+                        let (token, source_fidelity) = {
+                            let auth = tab_session.authority.borrow();
+                            let token = match auth.save_target_token.clone() {
+                                Some(token) => token,
+                                None => {
+                                    review.status_line =
+                                        Some("missing save target token for review".to_string());
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            let source_fidelity = match auth.source_fidelity.clone() {
+                                Some(record) => record,
+                                None => {
+                                    review.status_line =
+                                        Some("missing source-fidelity record for review".to_string());
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            (token, source_fidelity)
+                        };
+
+                        let root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        review.record = materialize_save_review_sheet_record(
+                            &root,
+                            &token,
+                            &source_fidelity,
+                            review.record.packet_id.clone(),
+                            review.outcome,
+                            mono_timestamp_now(),
+                            &local_bytes,
+                            review.reviewed_external_state,
+                        );
+                        write_save_review_sheet_log(&review.record);
+                        review.selection = 1.min(review.record.offered_choices.len().saturating_sub(1));
+                        review.status_line = Some("compare admitted; overwrite now enabled".to_string());
+                        true
+                    }
+                    "overwrite" => {
+                        review.record.selected_choice =
+                            Some(SaveReviewChoiceKey::Overwrite.as_str().to_string());
+                        review.record.selected_at = Some(now_rfc3339());
+                        write_save_review_sheet_log(&review.record);
+
+                        let (presentation_uri, token, source_fidelity, local_bytes) = {
+                            let Some(tab_session) =
+                                editor_runtime.tab_session_mut(review.group, review.tab)
+                            else {
+                                review.status_line = Some("tab missing for overwrite".to_string());
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                };
+                            };
+                            tab_session.ensure_fresh_snapshot();
+                            let local_bytes = tab_session.snapshot.as_bytes().to_vec();
+
+                            let auth = tab_session.authority.borrow();
+                            if auth.read_only != ReadOnlyState::Writable {
+                                review.status_line = Some("tab is read-only".to_string());
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                };
+                            }
+                            let Some(path) = auth.file_path.clone() else {
+                                review.status_line = Some("tab is not file-backed".to_string());
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                };
+                            };
+                            let presentation_uri = match VfsUri::file_url_for_path(&path) {
+                                Some(uri) => uri,
+                                None => {
+                                    review.status_line =
+                                        Some(format!("vfs uri build failed for {path:?}"));
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            let token = match auth.save_target_token.clone() {
+                                Some(token) => token,
+                                None => {
+                                    review.status_line = Some(
+                                        "missing save target token for overwrite".to_string(),
+                                    );
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            let source_fidelity = match auth.source_fidelity.clone() {
+                                Some(record) => record,
+                                None => {
+                                    review.status_line = Some(
+                                        "missing source-fidelity record for overwrite".to_string(),
+                                    );
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            (presentation_uri, token, source_fidelity, local_bytes)
+                        };
+
+                        let mut root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        let mut counters = HookCounters::default();
+                        let refreshed_token = match open_save_target(
+                            &root,
+                            &presentation_uri,
+                            mono_timestamp_now(),
+                            &mut counters,
+                        ) {
+                            Ok(token) => token,
+                            Err(err) => {
+                                review.status_line = Some(format!("refresh save target failed — {err}"));
+                                return OverlayKeyOutcome {
+                                    handled: true,
+                                    command_decision,
+                                    entry_flow_decision,
+                                    workspace_switcher_decision,
+                                };
+                            }
+                        };
+
+                        let request = StagedSaveRequest {
+                            token: refreshed_token.clone(),
+                            new_content: local_bytes.clone(),
+                            source_fidelity: source_fidelity.clone(),
+                            save_participant_group_id: None,
+                            checkpoint_ref: None,
+                            committed_at: mono_timestamp_now(),
+                        };
+                        let mut participants: Vec<Box<dyn aureline_workspace::save::SaveParticipant>> =
+                            Vec::new();
+                        let result = editor_runtime
+                            .save_coordinator
+                            .save(&mut root, request, participants.as_mut_slice());
+
+                        if result.committed() {
+                            if let Some(tab_session) =
+                                editor_runtime.tab_session_mut(review.group, review.tab)
+                            {
+                                let mut auth = tab_session.authority.borrow_mut();
+                                auth.mark_saved();
+                                auth.save_target_token = Some(result.next_token.clone());
+                            }
+                            review.status_line = Some("overwrite committed".to_string());
+                            self.close(frame);
+                            true
+                        } else {
+                            review.reviewed_external_state = false;
+                            review.outcome = result.manifest.outcome;
+                            review.record = materialize_save_review_sheet_record(
+                                &root,
+                                &token,
+                                &source_fidelity,
+                                result.packet_id.clone(),
+                                review.outcome,
+                                mono_timestamp_now(),
+                                &local_bytes,
+                                review.reviewed_external_state,
+                            );
+                            write_save_review_sheet_log(&review.record);
+                            review.selection = 0;
+                            review.status_line = Some(format!(
+                                "overwrite refused ({})",
+                                review.outcome.as_str()
+                            ));
+                            true
+                        }
+                    }
+                    "merge" => {
+                        review.status_line = Some("merge is not available yet".to_string());
+                        true
+                    }
+                    "reload" => {
+                        review.status_line = Some("reload is not available yet".to_string());
+                        true
+                    }
+                    "retry" => {
+                        review.record.selected_choice =
+                            Some(SaveReviewChoiceKey::Retry.as_str().to_string());
+                        review.record.selected_at = Some(now_rfc3339());
+                        write_save_review_sheet_log(&review.record);
+
+                        let Some(tab_session) =
+                            editor_runtime.tab_session_mut(review.group, review.tab)
+                        else {
+                            review.status_line = Some("tab missing for retry".to_string());
+                            return OverlayKeyOutcome {
+                                handled: true,
+                                command_decision,
+                                entry_flow_decision,
+                                workspace_switcher_decision,
+                            };
+                        };
+                        tab_session.ensure_fresh_snapshot();
+                        let local_bytes = tab_session.snapshot.as_bytes().to_vec();
+                        let (token, source_fidelity) = {
+                            let auth = tab_session.authority.borrow();
+                            let token = match auth.save_target_token.clone() {
+                                Some(token) => token,
+                                None => {
+                                    review.status_line =
+                                        Some("missing save target token for retry".to_string());
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            let source_fidelity = match auth.source_fidelity.clone() {
+                                Some(record) => record,
+                                None => {
+                                    review.status_line =
+                                        Some("missing source-fidelity record for retry".to_string());
+                                    return OverlayKeyOutcome {
+                                        handled: true,
+                                        command_decision,
+                                        entry_flow_decision,
+                                        workspace_switcher_decision,
+                                    };
+                                }
+                            };
+                            (token, source_fidelity)
+                        };
+
+                        let root = LocalFilesystemRoot::host_root("ws-shell_proto", "root-local");
+                        review.record = materialize_save_review_sheet_record(
+                            &root,
+                            &token,
+                            &source_fidelity,
+                            review.record.packet_id.clone(),
+                            review.outcome,
+                            mono_timestamp_now(),
+                            &local_bytes,
+                            review.reviewed_external_state,
+                        );
+                        write_save_review_sheet_log(&review.record);
+                        review.selection = review
+                            .selection
+                            .min(review.record.offered_choices.len().saturating_sub(1));
+                        review.status_line = Some("refreshed external state".to_string());
+                        true
+                    }
+                    "save_as" => {
+                        review.status_line = Some("save-as is not available yet".to_string());
+                        true
+                    }
+                    "cancel" => {
+                        review.record.selected_choice =
+                            Some(SaveReviewChoiceKey::Cancel.as_str().to_string());
+                        review.record.selected_at = Some(now_rfc3339());
+                        write_save_review_sheet_log(&review.record);
+                        self.close(frame);
+                        true
+                    }
+                    _ => {
+                        review.status_line = Some(format!("unknown choice: {}", choice.choice));
+                        true
+                    }
+                }
+            }
+            (ShellOverlayKind::SaveReview(review), KeyCode::ArrowDown) => {
+                let count = review.record.offered_choices.len();
+                if count == 0 {
+                    review.selection = 0;
+                } else {
+                    review.selection = (review.selection + 1) % count;
+                }
+                true
+            }
+            (ShellOverlayKind::SaveReview(review), KeyCode::ArrowUp) => {
+                let count = review.record.offered_choices.len();
+                if count == 0 {
+                    review.selection = 0;
+                } else {
+                    review.selection = (review.selection + count - 1) % count;
+                }
                 true
             }
             (_, KeyCode::Escape) => {
@@ -8192,6 +8646,31 @@ fn draw_shell_overlay(
                     &line,
                     fade(style.tokens.text_muted),
                 );
+                cursor_y = cursor_y.saturating_add(line_h);
+            }
+        }
+        ShellOverlayKind::SaveReview(review) => {
+            let mut lines = save_review_sheet_lines(&review.record, review.selection);
+            if let Some(status) = review.status_line.as_deref() {
+                lines.push("".to_string());
+                lines.push(format!("status: {status}"));
+            }
+
+            let mut cursor_y = sheet_rect.y.saturating_add(style.space_3);
+            let cursor_x = sheet_rect.x.saturating_add(style.space_3);
+            let line_h = 8u32.saturating_add(style.space_2.saturating_mul(3) / 4);
+            for (idx, line) in lines.into_iter().enumerate() {
+                if cursor_y.saturating_add(line_h)
+                    > sheet_rect.bottom().saturating_sub(style.space_3)
+                {
+                    break;
+                }
+                let color = match idx {
+                    0 => fade(style.tokens.text_primary),
+                    1 => fade(style.tokens.text_secondary),
+                    _ => fade(style.tokens.text_muted),
+                };
+                draw_text(buffer, width, height, cursor_x, cursor_y, 1, &line, color);
                 cursor_y = cursor_y.saturating_add(line_h);
             }
         }
