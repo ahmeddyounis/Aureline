@@ -24,6 +24,8 @@ pub mod help;
 pub mod layout;
 /// Command palette query-session state and grouped result projections.
 pub mod palette;
+/// Safe-mode entry, recovery-ladder rung stubs, and crash-loop containment offers.
+pub mod recovery;
 /// Restore-prompt projection for resume / missing-target recovery.
 pub mod restore;
 /// Save-review sheet projections for conflicted save attempts.
