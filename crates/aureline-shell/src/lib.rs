@@ -17,6 +17,8 @@ pub mod chrome;
 pub mod commands;
 /// Deep-link entry validator (origin/target/command-class admission contract).
 pub mod deeplink;
+/// Docs/help browser skeleton with source/version/freshness rows.
+pub mod docs_browser;
 /// Embedded surface boundary chrome and browser-handoff wiring.
 pub mod embedded;
 /// Virtualized file-tree model with stable node ids and explorer actions.

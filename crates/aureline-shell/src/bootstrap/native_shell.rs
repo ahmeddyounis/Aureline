@@ -114,7 +114,6 @@ use aureline_workspace::{
     RestoreAvailability, ResultingMode, SafeRecoveryAction, TargetKind, TrustState,
     WorkspaceLifecycleMachine, WorkspaceLifecycleState,
 };
-use serde::Serialize;
 
 use crate::bootstrap::appearance_golden::write_png_0rgb;
 use crate::windowing::display_safety::{
@@ -10488,44 +10487,43 @@ fn draw_docs_help_boundary_card(
         .saturating_add(style.density_gutter);
 
     let shortcuts = keybinding_runtime.shortcuts_label("cmd:docs.open_in_browser");
-    let packet_ref = card
-        .open_in_browser_action()
-        .and_then(|row| row.browser_handoff_packet_ref.as_deref())
+
+    let docs_browser_surface =
+        crate::docs_browser::DocsBrowserSurfaceState::from_boundary_card(card.clone());
+    let row_card = docs_browser_surface.render_row_card();
+    let packet_ref = row_card
+        .browser_handoff_row
+        .browser_handoff_packet_ref
+        .as_deref()
         .unwrap_or("missing");
-    let action_label = card
-        .open_in_browser_action()
-        .map(|row| row.action_label.as_str())
-        .unwrap_or("Open in browser");
+    let action_label = row_card.browser_handoff_row.action_label.as_str();
 
     let mut lines = vec![
-        format!("Owner: {}", card.owner_identity.label),
-        format!("Publisher: {}", card.publisher_or_service_identity.label),
+        format!("Owner: {}", row_card.owner_label),
+        format!("Publisher: {}", row_card.publisher_or_service_label),
         format!(
             "Origin: {} ({})",
-            card.origin_identity.origin_label, card.origin_identity.host_or_domain_label
+            row_card.origin_label, row_card.host_or_domain_label
         ),
-        format!("Boundary: {}", card.data_boundary_label),
-        format!("State: {}", card.boundary_state_label),
+        format!("Boundary: {}", row_card.client_scope_row.data_boundary_label),
+        format!("State: {}", row_card.client_scope_row.boundary_state_label),
         format!("Permission: {}", card.permission_state.permission_label),
+        format!("Source: {}", row_card.source_row.label),
     ];
-    if let Some(source_truth) = card.source_truth.as_ref() {
-        lines.push(format!(
-            "Source: {}",
-            token_string(&source_truth.source_class)
-        ));
-        lines.push(format!(
-            "Version: {}",
-            token_string(&source_truth.version_match_state)
-        ));
-        lines.push(format!(
-            "Freshness: {}",
-            token_string(&source_truth.freshness_class)
-        ));
-        lines.push(format!(
-            "Build: {}",
-            source_truth.running_build_identity_ref
-        ));
+    if let Some(age) = row_card.source_row.snapshot_age_label.as_deref() {
+        lines.push(format!("Snapshot age: {age}"));
     }
+    lines.push(format!("Version: {}", row_card.version_row.label));
+    lines.push(format!(
+        "Build: {}",
+        row_card.version_row.running_build_identity_ref
+    ));
+    lines.push(format!("Freshness: {}", row_card.freshness_row.label));
+    lines.push(format!(
+        "Client scope: identity {}, trust {}",
+        row_card.client_scope_row.identity_mode_token,
+        row_card.client_scope_row.trust_state_token
+    ));
     lines.push(format!("Action: {}  [{}]", action_label, shortcuts));
     lines.push(format!("Handoff packet: {}", packet_ref));
 
@@ -10570,13 +10568,6 @@ fn draw_docs_help_boundary_card(
         let accent = Rect::new(panel.x, panel.y, style.stroke_focus.max(2), panel.height);
         fill_rect(buffer, width, height, accent, style.tokens.accent_brand);
     }
-}
-
-fn token_string(value: &(impl Serialize + std::fmt::Debug)) -> String {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|value| value.as_str().map(ToString::to_string))
-        .unwrap_or_else(|| format!("{value:?}"))
 }
 
 fn preflight_decision_class_label(decision: PreflightDecisionClass) -> &'static str {
