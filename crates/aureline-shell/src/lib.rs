@@ -48,6 +48,8 @@ pub mod search_shell;
 pub mod start_center;
 /// Shared placeholder/state-card vocabulary used across shell surfaces.
 pub mod state_cards;
+/// Bottom-panel terminal pane: snapshots and tab projections from the canonical PTY host.
+pub mod terminal_pane;
 /// Platform windowing adapters used by the native desktop shell.
 pub mod windowing;
 /// Workspace switcher projections for recent-work entries and workspace transitions.

@@ -1,0 +1,57 @@
+{
+  "record_kind": "terminal_pane_session_case",
+  "schema_version": 1,
+  "case_name": "reconnect_same_identity_preserves_id",
+  "scenario": "A remote agent session loses transport and reconnects against the same target identity. The pane row MUST keep its session id and header rather than minting a new tab; in-flight mutations MUST NOT replay (no auto-rerun on reconnect).",
+  "workspace_id": "ws-test",
+  "active_workspace_id": "ws-test",
+  "steps": [
+    {
+      "action": "open_session",
+      "host_class": "remote_agent_primary",
+      "display_title": "agent shell",
+      "cwd_hint": "/srv/code",
+      "execution_context_ref": "execution_context.remote_agent.workspace_root",
+      "trust_state": "trusted",
+      "observed_at": "mono:0"
+    },
+    { "action": "mark_starting", "session_index": 0, "observed_at": "mono:1" },
+    { "action": "mark_active", "session_index": 0, "observed_at": "mono:2" },
+    {
+      "action": "mark_lost_transport",
+      "session_index": 0,
+      "observed_at": "mono:3",
+      "reason_code": "network_drop"
+    },
+    {
+      "action": "mark_reconnected_same_identity",
+      "session_index": 0,
+      "observed_at": "mono:4"
+    },
+    { "action": "mark_active", "session_index": 0, "observed_at": "mono:5" }
+  ],
+  "expect": {
+    "tabs": [
+      {
+        "session_id": "pty:ws-test|remote_agent_primary|0",
+        "host_class": "remote_agent_primary",
+        "target_badge": "Remote",
+        "boundary_cue_token": "boundary_cue_remote_session",
+        "boundary_cue_visible": true,
+        "display_title": "agent shell",
+        "cwd_hint": "/srv/code",
+        "execution_context_ref": "execution_context.remote_agent.workspace_root",
+        "trust_state_token": "trusted",
+        "lifecycle_state_token": "session_active",
+        "is_interactive": true,
+        "degraded_token": null
+      }
+    ],
+    "active_tab_id": "pty:ws-test|remote_agent_primary|0",
+    "required_transitions": [
+      { "from": "session_active", "to": "session_lost_transport" },
+      { "from": "session_lost_transport", "to": "session_reconnected_same_identity" },
+      { "from": "session_reconnected_same_identity", "to": "session_active" }
+    ]
+  }
+}
