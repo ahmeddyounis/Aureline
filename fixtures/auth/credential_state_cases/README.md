@@ -24,3 +24,21 @@ ambient delegated credentials never appear.
 | [`delegated_credential_remote_attach.yaml`](./delegated_credential_remote_attach.yaml) | `credential_state_record` | Service-issued delegated identity is explicit, scoped, expiring, and revocable. |
 | [`browser_device_code_handoff.yaml`](./browser_device_code_handoff.yaml) | `credential_state_record` | Browser/device-code handoff is represented as an authority acquisition path, not a hidden credential type. |
 | [`secure_store_downgrade_session_only.yaml`](./secure_store_downgrade_session_only.yaml) | `credential_state_record` | Store-unavailable downgrade to session-only auth is visible and non-persistent. |
+
+## M1 credential-state seed fixtures
+
+These `seed_*.json` fixtures back the M1 credential-state seed in
+[`crates/aureline-auth/src/credential_state/`](../../../crates/aureline-auth/src/credential_state/).
+They cover the user / admin-facing vocabulary the M1 protected row needs —
+storage mode, scope, expiry, revoke action, locked / unavailable state — and
+deliberately ride a subset of the broader contract so later browser handoff,
+device-code, and publish-later work can grow on top without forking truth.
+The reviewer-facing landing page is
+[`/docs/auth/credential_state_seed.md`](../../../docs/auth/credential_state_seed.md).
+
+| Fixture | Record kind | What it proves |
+|---|---|---|
+| [`seed_provider_account_registry.json`](./seed_provider_account_registry.json) | `provider_account_registry_seed_record` | One inspectable join object that pairs the no-account local BYOK AI account with its credential-state row and the managed payments-prod workspace with its provider-session row. |
+| [`seed_account_free_local_byok_ai.json`](./seed_account_free_local_byok_ai.json) | `credential_state_row_seed_record` | The no-account local path keeps a saved BYOK AI alias addressable in the OS keychain and stays usable without sign-in. |
+| [`seed_managed_provider_session.json`](./seed_managed_provider_session.json) | `credential_state_row_seed_record` | A managed provider-session alias names storage mode, scope (workspace + tenant + actor refs), revoke action, and local-work continuity verbatim. |
+| [`seed_failure_drill_locked_keychain.json`](./seed_failure_drill_locked_keychain.json) | `credential_state_row_seed_record` | The named failure drill: the OS keychain locks. The row flips to `state_class = locked`, the unavailable reason is `store_locked`, the recovery action is `resume_after_credential_store_unlock`, the saved alias survives, and the seed contract forbids a silent plaintext-file fallback. |

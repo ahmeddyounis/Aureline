@@ -13,14 +13,13 @@ use std::path::{Path, PathBuf};
 use aureline_auth::{
     AccountBoundaryClass, AuthFlowClass, BrowserCallbackHandoff, BrowserCallbackPacket,
     EmbeddedFallbackPosture, IdentityModeAlias, PendingSessionDeniedReason, PendingSessionState,
-    PreservedLocalWork, ReturnedCallbackInputs, RetryPathClass, ReturnModeClass,
-    ReturnOriginValidationClass, ReturnTenantOrWorkspaceMatchRule, ShellAuthChip,
-    ShellAuthVocabulary, StageSystemBrowserHandoffRequest, TrustState,
+    PreservedLocalWork, RetryPathClass, ReturnModeClass, ReturnOriginValidationClass,
+    ReturnTenantOrWorkspaceMatchRule, ReturnedCallbackInputs, ShellAuthChip, ShellAuthVocabulary,
+    StageSystemBrowserHandoffRequest, TrustState,
 };
 
 fn fixture_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/auth/browser_callback_cases")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/auth/browser_callback_cases")
 }
 
 fn load_packet(file_name: &str) -> BrowserCallbackPacket {
@@ -108,8 +107,8 @@ fn failure_drill_fixture_denies_silent_embedded_fallback_and_preserves_local_wor
     // Stage a fresh seed handoff using the fixture's outbound-state inputs so
     // the validator runs end-to-end against the same correlation envelope.
     let preserved_local_work = packet.preserved_local_work.clone();
-    let mut handoff = BrowserCallbackHandoff::stage_system_browser_handoff(
-        StageSystemBrowserHandoffRequest {
+    let mut handoff =
+        BrowserCallbackHandoff::stage_system_browser_handoff(StageSystemBrowserHandoffRequest {
             packet_id: &packet.packet_id,
             identity_mode: packet.identity_mode,
             account_boundary_class: packet.account_boundary_class,
@@ -137,10 +136,7 @@ fn failure_drill_fixture_denies_silent_embedded_fallback_and_preserves_local_wor
             pending_session_id: &packet.callback_correlation.pending_session_id,
             state_token_alias: &packet.callback_correlation.state_token_alias,
             nonce_alias: &packet.callback_correlation.nonce_alias,
-            pkce_challenge_alias: packet
-                .callback_correlation
-                .pkce_challenge_alias
-                .as_deref(),
+            pkce_challenge_alias: packet.callback_correlation.pkce_challenge_alias.as_deref(),
             issued_at: &packet.callback_correlation.issued_at,
             expires_at: &packet.callback_correlation.expires_at,
             recovery_copy_label: &packet.recovery_path.recovery_copy_label,
@@ -149,9 +145,8 @@ fn failure_drill_fixture_denies_silent_embedded_fallback_and_preserves_local_wor
             repair_hook_ref: packet.recovery_path.repair_hook_ref.as_deref(),
             preserved_local_work,
             execution_context_ref: packet.execution_context_ref.as_deref(),
-        },
-    )
-    .expect("staging the failure-drill handoff must succeed");
+        })
+        .expect("staging the failure-drill handoff must succeed");
 
     // The fixture's `__fixture__.redeem_inputs` block names the returning
     // callback envelope. The validator sees `embedded_fallback_attempted` and

@@ -25,7 +25,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use aureline_auth::{BrowserCallbackPacket, ShellAuthChip};
+use aureline_auth::{
+    BrowserCallbackPacket, CredentialStateChip, CredentialStateRow, ProviderAccountRegistry,
+    ShellAuthChip,
+};
 use aureline_terminal::{
     HostClass, PtyHost, PtySession, PtySessionId, SessionLifecycleState, TerminalTrustState,
 };
@@ -109,6 +112,13 @@ impl TerminalPaneTabRecord {
 /// `is_signed_in` boolean and never collapses the boundary chip into a
 /// generic `Connected` badge. When no auth packet is wired the pane keeps
 /// rendering the no-account local path truthfully.
+///
+/// The optional `credential_state_chips` rows carry the per-credential
+/// storage / scope / expiry / revoke-action / locked-or-unavailable posture
+/// projected from a seed [`aureline_auth::ProviderAccountRegistry`]. The pane
+/// quotes each chip verbatim; it never collapses a locked or unavailable
+/// store posture into a generic warning chip and never silently downgrades
+/// to a plaintext-file fallback.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TerminalPaneSnapshot {
     pub record_kind: String,
@@ -120,6 +130,11 @@ pub struct TerminalPaneSnapshot {
     /// terminal tab strip. Absent when no auth packet has been wired.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell_auth_chip: Option<ShellAuthChip>,
+    /// Projected credential-state chips the bottom-panel chrome renders below
+    /// the shell-auth chip. Empty when no provider/account registry has been
+    /// wired.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub credential_state_chips: Vec<CredentialStateChip>,
 }
 
 impl TerminalPaneSnapshot {
@@ -163,12 +178,52 @@ impl TerminalPaneSnapshot {
             tabs,
             active_tab_id,
             shell_auth_chip,
+            credential_state_chips: Vec::new(),
         }
+    }
+
+    /// Attach credential-state chips projected from a seed
+    /// [`aureline_auth::ProviderAccountRegistry`]. The chrome renders the
+    /// chips below the shell-auth chip in registry insertion order; locked
+    /// and unavailable rows stay readable so the user can tell that a saved
+    /// alias exists but cannot be resolved.
+    pub fn with_credential_registry(mut self, registry: &ProviderAccountRegistry) -> Self {
+        self.credential_state_chips = registry
+            .credential_states
+            .iter()
+            .map(CredentialStateChip::from_row)
+            .collect();
+        self
+    }
+
+    /// Attach credential-state chips projected from an explicit list of
+    /// [`aureline_auth::CredentialStateRow`] records. Surfaces that consume a
+    /// filtered subset of the seed registry (for example, the rows bound to
+    /// the active workspace) reach for this entry point so the snapshot
+    /// stays joined to the same row vocabulary.
+    pub fn with_credential_rows<'a, I>(mut self, rows: I) -> Self
+    where
+        I: IntoIterator<Item = &'a CredentialStateRow>,
+    {
+        self.credential_state_chips = rows
+            .into_iter()
+            .map(CredentialStateChip::from_row)
+            .collect();
+        self
     }
 
     /// True when the pane has at least one tab to render.
     pub fn has_tabs(&self) -> bool {
         !self.tabs.is_empty()
+    }
+
+    /// True when at least one attached credential-state chip sits in an
+    /// unavailable state class. The chrome reads this to know whether to
+    /// surface the visible-recovery row.
+    pub fn has_unavailable_credential_state(&self) -> bool {
+        self.credential_state_chips
+            .iter()
+            .any(|chip| chip.state_class.is_unavailable_class())
     }
 }
 
@@ -403,6 +458,203 @@ mod tests {
             chip.local_path_available,
             "managed sign-in pending must not block the no-account local path"
         );
+    }
+
+    #[test]
+    fn snapshot_attaches_credential_state_chips_from_provider_registry() {
+        // Protected walk: open a terminal session and attach the seed
+        // provider/account registry. The bottom-panel snapshot quotes one
+        // chip per credential-state row verbatim — storage mode, scope,
+        // expiry, revoke action, and local-work continuity stay readable.
+        use aureline_auth::{
+            CredentialLifetime, CredentialScope, CredentialStateClass, CredentialStateRow,
+            IdentityModeAlias as AuthIdentityMode, LifetimeClass, ProviderAccountRecord,
+            ProviderAccountRegistry, RetryPathClass, RevokeActionClass, StorageModeClass,
+            StoragePosture, StoreSourceClass, TrustState as AuthTrustState,
+            CREDENTIAL_STATE_ROW_RECORD_KIND, CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
+            PROVIDER_ACCOUNT_RECORD_KIND,
+        };
+
+        let mut host = PtyHost::new();
+        let _id = open_local(&mut host);
+
+        let mut registry = ProviderAccountRegistry::new(
+            "provider_account_registry.terminal_pane.demo",
+            "2026-04-29T09:05:00Z",
+        );
+        registry.upsert_account(ProviderAccountRecord {
+            record_kind: PROVIDER_ACCOUNT_RECORD_KIND.to_owned(),
+            schema_version: CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
+            provider_account_id: "provider_account.local.byok_ai".to_owned(),
+            provider_domain_label: "Local BYOK AI provider".to_owned(),
+            destination_class_label: "BYOK AI key (local)".to_owned(),
+            account_boundary_class: aureline_auth::AccountBoundaryClass::LocalOnly,
+            identity_mode: AuthIdentityMode::AccountFreeLocal,
+            trust_state: AuthTrustState::Trusted,
+            bound_workspace_ref: Some("workspace.local.demo".to_owned()),
+            bound_tenant_or_org_ref: None,
+            bound_actor_subject_ref: None,
+            credential_state_row_refs: vec!["credential_state.local.byok_ai.0001".to_owned()],
+            minted_at: "2026-04-29T09:05:00Z".to_owned(),
+        });
+        registry.upsert_credential_state(CredentialStateRow {
+            record_kind: CREDENTIAL_STATE_ROW_RECORD_KIND.to_owned(),
+            schema_version: CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
+            credential_state_id: "credential_state.local.byok_ai.0001".to_owned(),
+            state_class: CredentialStateClass::HandleOnly,
+            display_label: "Local BYOK AI provider".to_owned(),
+            provider_account_ref: "provider_account.local.byok_ai".to_owned(),
+            source_label: "OS keychain item".to_owned(),
+            authority_alias_ref: Some("credential_alias.byok_ai.default".to_owned()),
+            authority_handle_ref: Some("credential_handle.byok_ai.default".to_owned()),
+            scope: CredentialScope {
+                scope_label: "Current local workspace".to_owned(),
+                audience_label: "Local AI provider requests".to_owned(),
+                bound_workspace_ref: Some("workspace.local.demo".to_owned()),
+                bound_tenant_or_org_ref: None,
+                bound_actor_subject_ref: None,
+            },
+            storage: StoragePosture {
+                storage_mode: StorageModeClass::SystemCredentialStore,
+                store_source: StoreSourceClass::OsKeychain,
+                session_only_downgrade_visible: false,
+                plaintext_fallback_allowed: false,
+                raw_secret_material_present: false,
+                storage_note: "OS keychain holds the BYOK AI alias.".to_owned(),
+            },
+            lifetime: CredentialLifetime {
+                lifetime_class: LifetimeClass::PersistentUntilRevoked,
+                issued_at: Some("2026-04-29T09:00:00Z".to_owned()),
+                expires_at: None,
+                revocation_path_label: "Remove saved BYOK AI key".to_owned(),
+                revoke_action: RevokeActionClass::RemoveSavedProviderSession,
+            },
+            identity_mode: AuthIdentityMode::AccountFreeLocal,
+            trust_state: AuthTrustState::Trusted,
+            local_work_continues: true,
+            unavailable_reason: None,
+            recovery_copy_label: "BYOK AI is ready. Local work stays on this device.".to_owned(),
+            primary_recovery_action: RetryPathClass::ContinueLocalWithoutSignIn,
+            execution_context_ref: Some(
+                "execution_context.local_desktop.workspace_root".to_owned(),
+            ),
+            minted_at: "2026-04-29T09:05:05Z".to_owned(),
+        });
+
+        let snapshot =
+            TerminalPaneSnapshot::project("ws-test", &host).with_credential_registry(&registry);
+        assert_eq!(snapshot.credential_state_chips.len(), 1);
+        let chip = &snapshot.credential_state_chips[0];
+        assert_eq!(chip.state_class, CredentialStateClass::HandleOnly);
+        assert_eq!(chip.storage_mode_token, "system_credential_store");
+        assert_eq!(chip.store_source_token, "os_keychain");
+        assert_eq!(chip.revocation_path_label, "Remove saved BYOK AI key");
+        assert_eq!(
+            chip.revoke_action,
+            RevokeActionClass::RemoveSavedProviderSession
+        );
+        assert!(chip.local_work_continues);
+        assert!(!chip.visible_recovery_required);
+        assert!(!chip.plaintext_fallback_allowed);
+        assert!(!chip.raw_secret_material_present);
+        assert!(!snapshot.has_unavailable_credential_state());
+    }
+
+    #[test]
+    fn snapshot_surfaces_locked_store_chip_after_failure_drill() {
+        // Failure drill: lock the OS keychain after the registry is staged.
+        // The snapshot's credential-state chip flips to `locked`, the
+        // unavailable-reason token is `store_locked`, the recovery action
+        // becomes `resume_after_credential_store_unlock`, and the chrome can
+        // tell that the saved alias still exists. The seed contract forbids
+        // a silent plaintext-file fallback.
+        use aureline_auth::{
+            CredentialLifetime, CredentialScope, CredentialStateClass, CredentialStateRow,
+            CredentialUnavailableReason, IdentityModeAlias as AuthIdentityMode, LifetimeClass,
+            ProviderAccountRegistry, RetryPathClass, RevokeActionClass, StorageModeClass,
+            StoragePosture, StoreSourceClass, TrustState as AuthTrustState,
+            CREDENTIAL_STATE_ROW_RECORD_KIND, CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
+        };
+
+        let mut host = PtyHost::new();
+        let _id = open_local(&mut host);
+        let mut registry = ProviderAccountRegistry::new(
+            "provider_account_registry.terminal_pane.failure_drill",
+            "2026-04-29T09:05:00Z",
+        );
+        registry.upsert_credential_state(CredentialStateRow {
+            record_kind: CREDENTIAL_STATE_ROW_RECORD_KIND.to_owned(),
+            schema_version: CREDENTIAL_STATE_SEED_SCHEMA_VERSION,
+            credential_state_id: "credential_state.managed.payments_prod.0001".to_owned(),
+            state_class: CredentialStateClass::HandleOnly,
+            display_label: "Managed provider session".to_owned(),
+            provider_account_ref: "provider_account.managed.payments_prod".to_owned(),
+            source_label: "OS keychain item".to_owned(),
+            authority_alias_ref: Some("credential_alias.managed.payments_prod".to_owned()),
+            authority_handle_ref: Some("credential_handle.managed.payments_prod".to_owned()),
+            scope: CredentialScope {
+                scope_label: "payments-prod workspace".to_owned(),
+                audience_label: "Managed sign-in refresh".to_owned(),
+                bound_workspace_ref: Some("workspace.payments_prod".to_owned()),
+                bound_tenant_or_org_ref: Some("tenant.acme_prod".to_owned()),
+                bound_actor_subject_ref: Some("actor_subject.sam.acme".to_owned()),
+            },
+            storage: StoragePosture {
+                storage_mode: StorageModeClass::SystemCredentialStore,
+                store_source: StoreSourceClass::OsKeychain,
+                session_only_downgrade_visible: false,
+                plaintext_fallback_allowed: false,
+                raw_secret_material_present: false,
+                storage_note: "OS keychain holds the managed provider-session alias.".to_owned(),
+            },
+            lifetime: CredentialLifetime {
+                lifetime_class: LifetimeClass::PersistentUntilRevoked,
+                issued_at: Some("2026-04-29T09:00:00Z".to_owned()),
+                expires_at: None,
+                revocation_path_label: "Remove saved provider session".to_owned(),
+                revoke_action: RevokeActionClass::RemoveSavedProviderSession,
+            },
+            identity_mode: AuthIdentityMode::ManagedConvenience,
+            trust_state: AuthTrustState::Trusted,
+            local_work_continues: true,
+            unavailable_reason: None,
+            recovery_copy_label: "Managed sign-in is ready. Local work keeps saving to this \
+                                  device."
+                .to_owned(),
+            primary_recovery_action: RetryPathClass::RetryInSystemBrowser,
+            execution_context_ref: Some(
+                "execution_context.auth.managed_sign_in.payments_prod".to_owned(),
+            ),
+            minted_at: "2026-04-29T09:05:05Z".to_owned(),
+        });
+
+        let affected = registry.lock_store(StoreSourceClass::OsKeychain);
+        assert_eq!(affected, 1);
+
+        let snapshot =
+            TerminalPaneSnapshot::project("ws-test", &host).with_credential_registry(&registry);
+        assert!(snapshot.has_unavailable_credential_state());
+        let chip = &snapshot.credential_state_chips[0];
+        assert_eq!(chip.state_class, CredentialStateClass::Locked);
+        assert_eq!(chip.state_class_token, "locked");
+        assert_eq!(
+            chip.unavailable_reason,
+            Some(CredentialUnavailableReason::StoreLocked)
+        );
+        assert_eq!(
+            chip.unavailable_reason_token.as_deref(),
+            Some("store_locked")
+        );
+        assert_eq!(
+            chip.primary_recovery_action,
+            RetryPathClass::ResumeAfterCredentialStoreUnlock
+        );
+        assert!(chip.visible_recovery_required);
+        assert!(
+            chip.local_work_continues,
+            "no-account local path stays usable when the keychain is locked",
+        );
+        assert!(!chip.plaintext_fallback_allowed);
     }
 
     #[test]

@@ -594,9 +594,7 @@ pub struct ReturnedCallbackInputs<'a> {
 pub enum BrowserCallbackValidationError {
     EmbeddedFallbackForbidden,
     BrowserLaunchPolicyBlocked,
-    SystemBrowserRequiredForFlow {
-        attempted_flow: AuthFlowClass,
-    },
+    SystemBrowserRequiredForFlow { attempted_flow: AuthFlowClass },
     AccountFreeLocalCannotStageOutboundHandoff,
 }
 
@@ -785,7 +783,9 @@ impl BrowserCallbackHandoff {
             self.deny(PendingSessionDeniedReason::CallbackPolicyBlocked);
             return &self.packet;
         }
-        if returning.returning_state_token_alias != self.packet.callback_correlation.state_token_alias {
+        if returning.returning_state_token_alias
+            != self.packet.callback_correlation.state_token_alias
+        {
             self.deny(PendingSessionDeniedReason::CallbackReplayOrStateMismatch);
             return &self.packet;
         }
@@ -799,10 +799,18 @@ impl BrowserCallbackHandoff {
             self.deny(PendingSessionDeniedReason::CallbackPendingSessionExpired);
             return &self.packet;
         }
-        match self.packet.return_route.return_tenant_or_workspace_match_rule {
+        match self
+            .packet
+            .return_route
+            .return_tenant_or_workspace_match_rule
+        {
             ReturnTenantOrWorkspaceMatchRule::MustMatchBoundWorkspaceAndTenant => {
                 let workspace_ok = returning.returning_workspace_ref
-                    == self.packet.callback_correlation.bound_workspace_ref.as_deref();
+                    == self
+                        .packet
+                        .callback_correlation
+                        .bound_workspace_ref
+                        .as_deref();
                 let tenant_ok = returning.returning_tenant_or_org_ref
                     == self
                         .packet
@@ -828,7 +836,11 @@ impl BrowserCallbackHandoff {
             }
             ReturnTenantOrWorkspaceMatchRule::MustMatchBoundWorkspace => {
                 if returning.returning_workspace_ref
-                    != self.packet.callback_correlation.bound_workspace_ref.as_deref()
+                    != self
+                        .packet
+                        .callback_correlation
+                        .bound_workspace_ref
+                        .as_deref()
                 {
                     self.deny(PendingSessionDeniedReason::CallbackTenantOrWorkspaceMismatch);
                     return &self.packet;
@@ -1103,12 +1115,18 @@ mod tests {
         let handoff = baseline_local();
         let packet = handoff.packet();
         assert_eq!(packet.record_kind, BROWSER_CALLBACK_PACKET_RECORD_KIND);
-        assert_eq!(packet.schema_version, BROWSER_CALLBACK_PACKET_SCHEMA_VERSION);
+        assert_eq!(
+            packet.schema_version,
+            BROWSER_CALLBACK_PACKET_SCHEMA_VERSION
+        );
         assert!(packet.is_local_only_path());
         assert_eq!(packet.auth_flow_class, AuthFlowClass::NotApplicable);
         assert_eq!(packet.identity_mode, IdentityModeAlias::AccountFreeLocal);
         assert_eq!(packet.pending_session_state, PendingSessionState::Completed);
-        assert_eq!(packet.account_boundary_class, AccountBoundaryClass::LocalOnly);
+        assert_eq!(
+            packet.account_boundary_class,
+            AccountBoundaryClass::LocalOnly
+        );
         assert!(packet.preserves_local_work());
         assert!(!packet.requires_visible_recovery());
         assert_eq!(
@@ -1306,6 +1324,9 @@ mod tests {
         let chip = ShellAuthChip::from_packet(handoff.packet());
         assert_eq!(chip.vocabulary, ShellAuthVocabulary::ReauthRequired);
         assert!(chip.visible_recovery_required);
-        assert!(chip.local_path_available, "no-account local path stays usable");
+        assert!(
+            chip.local_path_available,
+            "no-account local path stays usable"
+        );
     }
 }
