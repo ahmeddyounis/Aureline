@@ -1,0 +1,322 @@
+# Suspend/resume, multi-monitor, and mixed-DPI desktop smoke matrix.
+#
+# This file is the canonical, machine-readable seed for the unattended
+# desktop topology smoke lane. It joins three already-frozen sources so
+# the smoke runner does not invent parallel vocabulary:
+#
+# - claimed dogfood/desktop profiles:
+#     artifacts/platform/claimed_desktop_profiles.yaml
+# - window/display continuity scenario rows and required drills:
+#     artifacts/qa/window_display_matrix.yaml
+# - the runtime windowing safety guard that the rows project against:
+#     crates/aureline-shell/src/windowing/display_safety.rs
+#
+# Rules.
+#   - Every row MUST name one stable smoke_row_id, the matrix scenario_id
+#     it inherits from, the claimed_profile_ids it claims coverage on, a
+#     deterministic geometry block that the runner can replay, and the
+#     expected display-safety adjustment classes plus continuity-level,
+#     focus, authority, and session-execution truth.
+#   - Every row MUST name at least one named_failure_drill from the
+#     window/display matrix's required_drills list. Adding a drill here
+#     is reuse, not forking.
+#   - The matrix MUST seed at least one suspend/resume row, one
+#     monitor attach/detach row, and one mixed-DPI / scale-change row.
+#   - Geometry blocks are in physical pixels with the same shape as
+#     fixtures/windowing/topology_cases/*.json so the runner and the
+#     display_safety.rs unit tests share one geometry contract.
+#   - A row's "expected" outcome MUST match what the display_safety
+#     guard would actually emit (no silently moving windows off-screen;
+#     adjustments emit the named topology and adjustment classes).
+#   - Milestone names and task ids MUST NOT appear in this file outside
+#     this header note.
+
+schema_version: 1
+status: seeded
+as_of: "2026-05-10"
+owner_dri: "@ahmeddyounis"
+
+matrix_id: aureline.desktop.suspend_resume_topology_smoke_matrix
+overview_page: artifacts/desktop/m1_topology_smoke_report.md
+
+# Vocabulary reuse pointers. The runner verifies these resolve.
+vocabulary_sources:
+  claimed_profiles_ref: artifacts/platform/claimed_desktop_profiles.yaml
+  window_display_matrix_ref: artifacts/qa/window_display_matrix.yaml
+  window_display_contract_ref: docs/ux/window_display_contract.md
+  display_safety_module_ref: crates/aureline-shell/src/windowing/display_safety.rs
+  display_safety_geometry_fixture_root_ref: fixtures/windowing/topology_cases/
+  terminal_session_seed_ref: crates/aureline-shell/src/terminal_pane/mod.rs
+  restore_seed_ref: crates/aureline-shell/src/restore/mod.rs
+
+# Hard upstream contracts this lane projects against. The lane is not
+# allowed to fork these surfaces; it only reads them and asserts truth.
+hard_dependency_refs:
+  - crates/aureline-shell/src/bootstrap/native_shell
+  - crates/aureline-shell/src/windowing/display_safety.rs
+  - crates/aureline-shell/src/terminal_pane/mod.rs
+
+# Validation lane bound to this matrix. Lane registration in the proof
+# index points at the same QE lane.
+validation_lane_ref: artifacts/qe/test_lane_registry.yaml#fixture_repo_integration
+
+# Frozen vocabulary echoed for the runner. These are slices of the
+# window/display matrix vocabulary; they MUST stay aligned.
+scenario_class_vocabulary:
+  - suspend_resume
+  - display_topology_change
+  - mixed_dpi
+  - offscreen_recovery
+  - restart_reopen
+
+continuity_level_vocabulary:
+  - exact_restore
+  - compatible_restore
+  - layout_only
+  - evidence_only
+  - no_restore
+
+focus_visibility_rule_vocabulary:
+  - preserve_primary_focus_visible
+  - return_to_dialog_owner_visible
+  - keep_recovery_actions_keyboard_reachable
+
+authority_rebind_posture_vocabulary:
+  - no_live_authority_rebind_needed
+  - live_authority_rebind_required
+  - evidence_only_until_reauthorized
+
+session_execution_posture_vocabulary:
+  - transcript_restored_not_rerun
+  - session_ended
+  - reconnect_available
+  - rerun_required
+  - context_unavailable
+  - live_session_continued
+
+topology_change_class_vocabulary:
+  - display_added
+  - display_removed
+  - scale_changed
+  - safe_bounds_changed
+  - wake_display_reconnect
+  - unsupported_display_topology
+
+adjustment_class_vocabulary:
+  - snapped_to_safe_bounds
+  - native_chrome_reprojected
+  - scale_normalized
+  - moved_to_primary_display
+  - authority_rebind_deferred
+  - stacking_repaired
+
+# Smoke rows. The runner replays each geometry block deterministically
+# and checks that the post-transition window lands inside a safe display
+# rectangle (no off-screen stranding) and that the named truth cues
+# (continuity level, focus rule, authority posture, session postures)
+# are explicitly declared. Each row also seeds a failure drill the
+# runner forces to verify the lane records the precise mismatch.
+rows:
+  - smoke_row_id: aureline.desktop.smoke.suspend_resume_remote_rebind_laptop_wake
+    title: Laptop suspend/resume keeps local context but rebinds live authority
+    inherited_scenario_id: suspend_resume_remote_rebind
+    scenario_classes:
+      - suspend_resume
+      - display_topology_change
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+    transition_summary: >
+      A battery-backed laptop sleeps with the editor, terminal, and
+      remote pane visible on a docked external display; on wake the
+      external display has been disconnected so only the laptop panel
+      is present.
+    geometry_before:
+      displays:
+        - { x: 0, y: 0, width: 1512, height: 982, scale_factor: 2.0, primary: true }
+        - { x: 1512, y: 0, width: 1920, height: 1080, scale_factor: 1.0, primary: false }
+      window: { x: 1700, y: 100, width: 1280, height: 800 }
+    geometry_after:
+      displays:
+        - { x: 0, y: 0, width: 1512, height: 982, scale_factor: 2.0, primary: true }
+      window: { x: 1700, y: 100, width: 1280, height: 800 }
+    expected:
+      offscreen_before_clamp: true
+      anchor_within_safe_bounds_after_clamp: true
+      topology_change_classes:
+        - display_removed
+        - safe_bounds_changed
+        - wake_display_reconnect
+      adjustment_classes:
+        - snapped_to_safe_bounds
+        - native_chrome_reprojected
+        - moved_to_primary_display
+      continuity_level_expectation: compatible_restore
+      restore_provenance_expectation: visible_after_reopen
+      focus_visibility_rule: preserve_primary_focus_visible
+      authority_rebind_posture: live_authority_rebind_required
+      session_execution_postures:
+        - { surface_class: terminal_pane, posture: reconnect_available }
+        - { surface_class: task_runner, posture: rerun_required }
+        - { surface_class: debug_session, posture: reconnect_available }
+        - { surface_class: preview_route, posture: context_unavailable }
+    named_failure_drills:
+      - focus_routing_visible_return
+      - placeholder_hydration_preserves_topology
+      - restore_provenance_visible_after_reopen
+      - no_hidden_rerun_live_surfaces
+    failure_drill:
+      drill_id: aureline.desktop.smoke.failure.suspend_resume_strands_remote_pane
+      description: >
+        If wake leaves the window stranded on the missing external
+        display, the smoke lane records that the safe-bounds clamp did
+        not run and that the laptop panel is the only safe display the
+        window could be projected onto.
+      forced_input:
+        skip_clamp_after_wake: true
+      expected_report:
+        clamped_into_safe_bounds: false
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Re-run aureline-shell::windowing::display_safety against the
+          wake/reconnect frame and verify display_removed plus
+          safe_bounds_changed are emitted before the window is repainted.
+
+  - smoke_row_id: aureline.desktop.smoke.display_attach_detach_recenter
+    title: External display attach/detach recenters off-screen window into safe bounds
+    inherited_scenario_id: display_detach_dock_safe_bounds
+    scenario_classes:
+      - display_topology_change
+      - offscreen_recovery
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_x11_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+    transition_summary: >
+      A windowed shell is positioned on a secondary external display.
+      The dock cable is removed and only the laptop's primary display
+      remains. The window must move into the primary display's safe
+      bounds rather than remaining off-screen.
+    geometry_before:
+      displays:
+        - { x: 0, y: 0, width: 1920, height: 1080, scale_factor: 1.0, primary: true }
+        - { x: 1920, y: 0, width: 2560, height: 1440, scale_factor: 1.0, primary: false }
+      window: { x: 2600, y: 120, width: 1200, height: 800 }
+    geometry_after:
+      displays:
+        - { x: 0, y: 0, width: 1920, height: 1080, scale_factor: 1.0, primary: true }
+      window: { x: 2600, y: 120, width: 1200, height: 800 }
+    expected:
+      offscreen_before_clamp: true
+      anchor_within_safe_bounds_after_clamp: true
+      topology_change_classes:
+        - display_removed
+        - safe_bounds_changed
+      adjustment_classes:
+        - snapped_to_safe_bounds
+        - native_chrome_reprojected
+        - moved_to_primary_display
+      continuity_level_expectation: no_restore
+      restore_provenance_expectation: topology_adjustment_note_required
+      focus_visibility_rule: preserve_primary_focus_visible
+      authority_rebind_posture: no_live_authority_rebind_needed
+      session_execution_postures:
+        - { surface_class: terminal_pane, posture: live_session_continued }
+    named_failure_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+      - restore_provenance_visible_after_reopen
+    failure_drill:
+      drill_id: aureline.desktop.smoke.failure.display_detach_strands_window
+      description: >
+        If the window is not clamped into the laptop's primary display
+        after detach, the smoke lane records the precise window
+        rectangle that remained outside every safe display so the
+        owning lane can reproduce the regression.
+      forced_input:
+        primary_only_after_detach: true
+        skip_clamp_after_detach: true
+      expected_report:
+        clamped_into_safe_bounds: false
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Reproduce against fixtures/windowing/topology_cases/display_detach_recenter.json
+          and verify the recenter path in aureline-shell::windowing::display_safety
+          recovers the window into the primary monitor.
+
+  - smoke_row_id: aureline.desktop.smoke.mixed_dpi_cross_monitor_reflow
+    title: Mixed-DPI cross-monitor move preserves readable scale and on-screen layout
+    inherited_scenario_id: mixed_dpi_cross_monitor_reflow
+    scenario_classes:
+      - mixed_dpi
+      - display_topology_change
+    claimed_profile_ids:
+      - macos_15_plus_universal
+      - windows_11_23h2_plus_x86_64
+      - linux_ubuntu_24_04_gnome_wayland_x86_64
+      - linux_fedora_current_gnome_wayland_x86_64
+    transition_summary: >
+      A window starts on a 2x retina display and moves onto a 1x
+      external display. The OS changes the per-monitor DPI bucket but
+      the layout intent and visible focus must remain reachable.
+    geometry_before:
+      displays:
+        - { x: 0, y: 0, width: 1920, height: 1080, scale_factor: 2.0, primary: true }
+        - { x: 1920, y: 0, width: 2560, height: 1440, scale_factor: 1.0, primary: false }
+      window: { x: 200, y: 100, width: 1200, height: 800 }
+    geometry_after:
+      displays:
+        - { x: 0, y: 0, width: 1920, height: 1080, scale_factor: 2.0, primary: true }
+        - { x: 1920, y: 0, width: 2560, height: 1440, scale_factor: 1.0, primary: false }
+      window: { x: 2400, y: 200, width: 1200, height: 800 }
+    expected:
+      offscreen_before_clamp: false
+      anchor_within_safe_bounds_after_clamp: true
+      topology_change_classes:
+        - scale_changed
+        - safe_bounds_changed
+      adjustment_classes:
+        - scale_normalized
+        - native_chrome_reprojected
+      continuity_level_expectation: no_restore
+      restore_provenance_expectation: topology_adjustment_note_required
+      focus_visibility_rule: keep_recovery_actions_keyboard_reachable
+      authority_rebind_posture: no_live_authority_rebind_needed
+      session_execution_postures:
+        - { surface_class: terminal_pane, posture: live_session_continued }
+    named_failure_drills:
+      - focus_routing_visible_return
+      - dialog_ownership_window_local
+      - restore_provenance_visible_after_reopen
+    failure_drill:
+      drill_id: aureline.desktop.smoke.failure.mixed_dpi_drops_scale_change
+      description: >
+        If the scale-bucket change is not recorded as a topology change
+        when the window crosses scale boundaries, the smoke lane
+        records that the matrix would have silently dropped a
+        topology-adjustment note that release and support exports
+        depend on.
+      forced_input:
+        suppress_scale_change_class: true
+      expected_report:
+        topology_change_classes_recorded: false
+        actionable_owner_ref: "@ahmeddyounis"
+        next_action: >
+          Inspect aureline-shell::windowing::display_safety scale
+          bucket comparison and confirm scale_changed is appended to
+          the topology change classes whenever the per-monitor DPI
+          bucket flips.
+
+# Cadence guidance for the lane. The runner does not enforce cadence;
+# release and CI configuration do. This is informational so reviewers
+# know how often the artifact is expected to refresh.
+cadence_guidance:
+  per_change: >
+    Re-run when crates/aureline-shell/src/windowing/display_safety.rs,
+    fixtures/windowing/topology_cases/, artifacts/qa/window_display_matrix.yaml,
+    or artifacts/platform/claimed_desktop_profiles.yaml change.
+  nightly: >
+    Run on the nightly proof-lane scheduler against this matrix; capture
+    the JSON report under artifacts/milestones/m1/captures/.
