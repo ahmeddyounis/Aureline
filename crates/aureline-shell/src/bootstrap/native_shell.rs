@@ -138,6 +138,17 @@ use font8x8::{UnicodeFonts as _, BASIC_FONTS};
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, Event, Ime, KeyEvent, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
+
+use aureline_recovery::crash_journal::{CrashJournalStore, CrashMarkerGuard};
+use aureline_recovery::session_restore::{
+    RestoreProposal, SessionRestoreCaptureInput, SessionRestoreStore, TabGroupCaptureInput,
+    TabItemCaptureInput,
+};
+use aureline_recovery::session_restore::records::{
+    DirtyBufferJournalIdentity, DowngradeTriggerRecord, ExcludedLiveAuthorityClass,
+    ProducerBuildStamp, RestoreClass, SurfaceClass as RestoreSurfaceClass, SurfaceRole,
+    TrustedRootRecord, WindowRole,
+};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[derive(Debug, Clone)]
@@ -636,6 +647,51 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         seeded_docs_help_boundary_card(build_info::exact_build_identity_ref());
     let mut text_runtime = ShellTextRuntime::new();
     let mut editor_runtime = EditorWorkspaceRuntimeState::new();
+    let recovery_root = PathBuf::from(".logs").join("recovery");
+    let (mut crash_marker_guard, prior_run_abnormal) =
+        match CrashMarkerGuard::begin(&recovery_root, &mono_timestamp_now()) {
+            Ok((guard, outcome)) => (Some(guard), outcome.prior_run_abnormal),
+            Err(err) => {
+                command_runtime.note_non_command_action(format!(
+                    "crash marker unavailable — {err}"
+                ));
+                (None, false)
+            }
+        };
+    let mut session_restore_store = SessionRestoreStore::new(&recovery_root);
+
+    {
+        let crash_journal_reader = CrashJournalStore::new(&recovery_root);
+        match RestoreProposal::build(
+            &session_restore_store,
+            &crash_journal_reader,
+            prior_run_abnormal,
+        ) {
+            Ok(proposal) => {
+                if let Err(err) = write_restore_proposal_log(&recovery_root, &proposal) {
+                    command_runtime.note_non_command_action(format!(
+                        "restore proposal log unavailable — {err}"
+                    ));
+                }
+                if prior_run_abnormal && !proposal.is_empty() {
+                    command_runtime.note_non_command_action(format!(
+                        "restore proposal — {}",
+                        proposal.summary_line()
+                    ));
+                } else if prior_run_abnormal {
+                    command_runtime.note_non_command_action(
+                        "prior run terminated abnormally; nothing to restore",
+                    );
+                }
+            }
+            Err(err) => {
+                command_runtime.note_non_command_action(format!(
+                    "restore proposal unavailable — {err}"
+                ));
+            }
+        }
+    }
+
     let mut last_a11y_fingerprint: Option<Vec<u8>> = None;
 
     startup_trace.mark(StartupMilestone::FirstInteractiveShell);
@@ -882,6 +938,13 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
         Event::WindowEvent { window_id, event } if window_id == window.id() => match event {
             WindowEvent::CloseRequested => {
                 let _ = hot_path_metrics.write_if_configured();
+                if let Some(guard) = crash_marker_guard.as_mut() {
+                    if let Err(err) = guard.mark_clean_shutdown() {
+                        command_runtime.note_non_command_action(format!(
+                            "clean shutdown marker clear failed — {err}"
+                        ));
+                    }
+                }
                 elwt.exit();
             }
             WindowEvent::Resized(_) => {
@@ -1032,22 +1095,28 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     editor_runtime.open_placeholder(focused, active_tab);
                 }
 
-                let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
-                    return;
+                let normalized = {
+                    let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
+                        return;
+                    };
+                    session.text_input.handle_ime_event(match ime {
+                        Ime::Enabled => aureline_input::text_input::ImeEvent::Enabled,
+                        Ime::Disabled => aureline_input::text_input::ImeEvent::Disabled,
+                        Ime::Preedit(text, cursor) => {
+                            aureline_input::text_input::ImeEvent::Preedit { text, cursor }
+                        }
+                        Ime::Commit(text) => aureline_input::text_input::ImeEvent::Commit { text },
+                    })
                 };
-
-                let normalized = session.text_input.handle_ime_event(match ime {
-                    Ime::Enabled => aureline_input::text_input::ImeEvent::Enabled,
-                    Ime::Disabled => aureline_input::text_input::ImeEvent::Disabled,
-                    Ime::Preedit(text, cursor) => {
-                        aureline_input::text_input::ImeEvent::Preedit { text, cursor }
-                    }
-                    Ime::Commit(text) => aureline_input::text_input::ImeEvent::Commit { text },
-                });
 
                 if let Some(normalized) = normalized {
                     let action = editor_action_from_text_input(normalized);
-                    if let Some(damage) = session.apply_action(&action, viewport_rect) {
+                    if let Some(damage) = editor_runtime.apply_action(
+                        focused,
+                        active_tab,
+                        &action,
+                        viewport_rect,
+                    ) {
                         if damage.hook == Hook::ReflowLineRange {
                             hot_path_metrics.note_keystroke_to_paint_admitted(clock.now().0);
                         }
@@ -1057,7 +1126,13 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 if should_update_ime_cursor_area {
-                    update_ime_cursor_area_for_viewport(&window, &session.viewport, viewport_rect);
+                    if let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) {
+                        update_ime_cursor_area_for_viewport(
+                            &window,
+                            &session.viewport,
+                            viewport_rect,
+                        );
+                    }
                 }
             }
             WindowEvent::MouseInput { state, button, .. } => {
@@ -1102,12 +1177,21 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                 if !editor_runtime.has_tab_session(focused, active_tab) {
                     editor_runtime.open_placeholder(focused, active_tab);
                 }
-                let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
+                let point = {
+                    let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
+                        return;
+                    };
+                    hit_test_viewport_point(&session.viewport, viewport_rect, x, y)
+                };
+
+                let Some(point) = point else {
                     return;
                 };
 
-                if let Some(point) = hit_test_viewport_point(&session.viewport, viewport_rect, x, y)
                 {
+                    let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) else {
+                        return;
+                    };
                     if held_modifiers.alt {
                         let previous_primary = session.viewport.caret();
                         session.viewport.add_secondary_caret(previous_primary);
@@ -1118,25 +1202,32 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                         session.viewport.clear_selection();
                         session.viewport.clear_secondary_carets();
                     }
-
                     session.text_input.force_clear_composition();
-                    if let Some(damage) =
-                        session.apply_action(&EditorAction::ClearComposition, viewport_rect)
-                    {
-                        scheduler.invalidate(damage.event);
-                        scheduler.mark_hook(damage.hook, &clock);
-                    }
+                }
 
-                    if let Some(damage) = session.apply_action(
-                        &EditorAction::ChangeSelection {
-                            delta: SelectionDelta::Cleared,
-                        },
-                        viewport_rect,
-                    ) {
-                        scheduler.invalidate(damage.event);
-                        scheduler.mark_hook(damage.hook, &clock);
-                    }
+                if let Some(damage) = editor_runtime.apply_action(
+                    focused,
+                    active_tab,
+                    &EditorAction::ClearComposition,
+                    viewport_rect,
+                ) {
+                    scheduler.invalidate(damage.event);
+                    scheduler.mark_hook(damage.hook, &clock);
+                }
 
+                if let Some(damage) = editor_runtime.apply_action(
+                    focused,
+                    active_tab,
+                    &EditorAction::ChangeSelection {
+                        delta: SelectionDelta::Cleared,
+                    },
+                    viewport_rect,
+                ) {
+                    scheduler.invalidate(damage.event);
+                    scheduler.mark_hook(damage.hook, &clock);
+                }
+
+                if let Some(session) = editor_runtime.tab_session_mut(focused, active_tab) {
                     update_ime_cursor_area_for_viewport(&window, &session.viewport, viewport_rect);
                 }
             }
@@ -1149,6 +1240,7 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                     registry,
                     &mut frame,
                     &mut editor_runtime,
+                    &mut session_restore_store,
                     &damage_geometry,
                     &mut palette,
                     &mut palette_focus_return,
@@ -1196,11 +1288,6 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                 editor_runtime.open_placeholder(focused, active_tab);
                             }
 
-                            let Some(session) = editor_runtime.tab_session_mut(focused, active_tab)
-                            else {
-                                return;
-                            };
-
                             let modifiers = aureline_input::text_input::TextInputModifiers {
                                 ctrl: held_modifiers.ctrl,
                                 alt: held_modifiers.alt,
@@ -1217,11 +1304,23 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                 modifiers,
                             };
 
-                            if let Some(normalized) =
+                            let normalized = {
+                                let Some(session) =
+                                    editor_runtime.tab_session_mut(focused, active_tab)
+                                else {
+                                    return;
+                                };
                                 session.text_input.handle_key_event(&key_event)
-                            {
+                            };
+
+                            if let Some(normalized) = normalized {
                                 let action = editor_action_from_text_input(normalized);
-                                if let Some(damage) = session.apply_action(&action, viewport_rect) {
+                                if let Some(damage) = editor_runtime.apply_action(
+                                    focused,
+                                    active_tab,
+                                    &action,
+                                    viewport_rect,
+                                ) {
                                     if damage.hook == Hook::ReflowLineRange {
                                         hot_path_metrics
                                             .note_keystroke_to_paint_admitted(clock.now().0);
@@ -1229,11 +1328,15 @@ pub fn run_native_shell() -> Result<(), Box<dyn std::error::Error>> {
                                     scheduler.invalidate(damage.event);
                                     scheduler.mark_hook(damage.hook, &clock);
                                 }
-                                update_ime_cursor_area_for_viewport(
-                                    &window,
-                                    &session.viewport,
-                                    viewport_rect,
-                                );
+                                if let Some(session) =
+                                    editor_runtime.tab_session_mut(focused, active_tab)
+                                {
+                                    update_ime_cursor_area_for_viewport(
+                                        &window,
+                                        &session.viewport,
+                                        viewport_rect,
+                                    );
+                                }
                             }
                         }
                     }
@@ -1608,6 +1711,7 @@ struct BufferAuthority {
     find_replace: FindReplaceState,
     last_recorded_mutation_transaction_id: Option<TransactionId>,
     last_recorded_mutation_id: Option<String>,
+    last_recorded_crash_journal_revision: Option<RevisionId>,
     large_file_doc: Option<LargeFileDocument>,
     large_file_override: Option<LargeFileOverrideInfo>,
 }
@@ -1732,6 +1836,7 @@ impl BufferAuthorityStore {
                     find_replace: FindReplaceState::new(),
                     last_recorded_mutation_transaction_id: None,
                     last_recorded_mutation_id: None,
+                    last_recorded_crash_journal_revision: None,
                     large_file_doc: None,
                     large_file_override: doc.large_file_override,
                 }))
@@ -1761,6 +1866,7 @@ impl BufferAuthorityStore {
                     find_replace: FindReplaceState::new(),
                     last_recorded_mutation_transaction_id: None,
                     last_recorded_mutation_id: None,
+                    last_recorded_crash_journal_revision: None,
                     large_file_doc: Some(doc),
                     large_file_override: None,
                 }))
@@ -1805,6 +1911,7 @@ impl BufferAuthorityStore {
             find_replace: FindReplaceState::new(),
             last_recorded_mutation_transaction_id: None,
             last_recorded_mutation_id: None,
+            last_recorded_crash_journal_revision: None,
             large_file_doc: None,
             large_file_override: None,
         }))
@@ -2165,11 +2272,21 @@ struct EditorWorkspaceRuntimeState {
     save_coordinator: StagedSaveCoordinator,
     mutation_journal: MutationJournalStore,
     local_history: LocalHistoryStore,
+    crash_journal: aureline_recovery::crash_journal::CrashJournalStore,
+    crash_journal_workspace_ref: String,
+}
+
+#[derive(Clone)]
+struct CrashJournalSnapshotCandidate {
+    view_id: u64,
+    snapshot_bytes: Vec<u8>,
+    authority: Rc<RefCell<BufferAuthority>>,
 }
 
 impl EditorWorkspaceRuntimeState {
     fn new() -> Self {
         let storage = HistoryStorageRoot::new(PathBuf::from(".logs").join("history"));
+        let recovery_root = PathBuf::from(".logs").join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             groups: HashMap::new(),
@@ -2177,12 +2294,15 @@ impl EditorWorkspaceRuntimeState {
             save_coordinator: StagedSaveCoordinator::new(),
             mutation_journal: MutationJournalStore::new(storage.clone()),
             local_history: LocalHistoryStore::new(storage),
+            crash_journal: aureline_recovery::crash_journal::CrashJournalStore::new(recovery_root),
+            crash_journal_workspace_ref: "workspace:none".to_string(),
         }
     }
 
     #[cfg(test)]
     fn with_buffer_store(buffers: BufferAuthorityStore) -> Self {
         let storage = HistoryStorageRoot::new(PathBuf::from(".logs").join("history"));
+        let recovery_root = PathBuf::from(".logs").join("recovery");
         Self {
             text_runtime: EditorTextRuntime::with_system_fonts(),
             groups: HashMap::new(),
@@ -2190,12 +2310,18 @@ impl EditorWorkspaceRuntimeState {
             save_coordinator: StagedSaveCoordinator::new(),
             mutation_journal: MutationJournalStore::new(storage.clone()),
             local_history: LocalHistoryStore::new(storage),
+            crash_journal: aureline_recovery::crash_journal::CrashJournalStore::new(recovery_root),
+            crash_journal_workspace_ref: "workspace:none".to_string(),
         }
     }
 
     #[cfg(test)]
     fn take_buffer_store(&mut self) -> BufferAuthorityStore {
         std::mem::replace(&mut self.buffers, BufferAuthorityStore::new())
+    }
+
+    fn set_workspace_recovery_ref(&mut self, workspace_ref: impl Into<String>) {
+        self.crash_journal_workspace_ref = workspace_ref.into();
     }
 
     fn ensure_group(&mut self, group: PaneId) -> &mut EditorGroupSession {
@@ -2532,9 +2658,84 @@ impl EditorWorkspaceRuntimeState {
         action: &EditorAction,
         viewport_rect: PixelRect,
     ) -> Option<aureline_editor::ViewportDamage> {
-        let group = self.groups.get_mut(&group)?;
-        let tab = group.tabs.get_mut(&tab)?;
-        tab.apply_action(action, viewport_rect)
+        let (damage, snapshot_candidate) = {
+            let group_session = self.groups.get_mut(&group)?;
+            let tab_session = group_session.tabs.get_mut(&tab)?;
+
+            let before_revision = tab_session.last_seen_revision;
+            let damage = tab_session.apply_action(action, viewport_rect);
+            let revision_changed = tab_session.last_seen_revision != before_revision;
+
+            let snapshot_candidate = revision_changed.then(|| CrashJournalSnapshotCandidate {
+                view_id: tab_session.view_id,
+                snapshot_bytes: tab_session.snapshot.as_bytes().to_vec(),
+                authority: tab_session.authority.clone(),
+            });
+
+            (damage, snapshot_candidate)
+        };
+
+        if let Some(snapshot_candidate) = snapshot_candidate {
+            self.record_crash_journal_snapshot(snapshot_candidate);
+        }
+
+        damage
+    }
+
+    fn record_crash_journal_snapshot(&mut self, snapshot: CrashJournalSnapshotCandidate) {
+        let emitted_at = mono_timestamp_now();
+        let bytes = snapshot.snapshot_bytes;
+
+        let mut authority = snapshot.authority.borrow_mut();
+        if !authority.is_dirty() {
+            return;
+        }
+
+        let revision = authority.buffer.revision_id();
+        if authority.last_recorded_crash_journal_revision == Some(revision) {
+            return;
+        }
+        authority.last_recorded_crash_journal_revision = Some(revision);
+
+        let (logical_document_id, object_ref, object_class) = if let Some(token) =
+            authority.save_target_token.as_ref()
+        {
+            (
+                aureline_history::checkpoints::logical_document_id(&token.identity),
+                token
+                    .identity
+                    .logical_workspace_identity
+                    .logical_uri
+                    .to_string(),
+                aureline_recovery::crash_journal::ObjectClass::CanonicalFile,
+            )
+        } else if let Some(identity) = authority.vfs_identity.as_ref() {
+            (
+                aureline_history::checkpoints::logical_document_id(identity),
+                identity.logical_workspace_identity.logical_uri.to_string(),
+                aureline_recovery::crash_journal::ObjectClass::VirtualBuffer,
+            )
+        } else {
+            (
+                format!("ld:buffer:{}", snapshot.view_id),
+                format!("buffer:{}", snapshot.view_id),
+                aureline_recovery::crash_journal::ObjectClass::VirtualBuffer,
+            )
+        };
+
+        let journal_id = format!("journal:{}", self.crash_journal_workspace_ref);
+        let input = aureline_recovery::crash_journal::CrashJournalCaptureInput {
+            journal_id,
+            workspace_ref: self.crash_journal_workspace_ref.clone(),
+            logical_document_id,
+            object_ref,
+            object_class,
+            presentation_hint: Some(authority.label.clone()),
+            emitted_at,
+            bytes,
+        };
+
+        let _ = self.crash_journal.capture_minimal_full_snapshot(input);
     }
 
     fn compose_group(
@@ -3429,6 +3630,20 @@ fn mono_timestamp_now() -> String {
     )
 }
 
+fn write_restore_proposal_log(
+    recovery_root: &Path,
+    proposal: &RestoreProposal,
+) -> Result<(), String> {
+    std::fs::create_dir_all(recovery_root)
+        .map_err(|err| format!("create recovery root failed: {err}"))?;
+    let path = recovery_root.join("restore_proposal_latest.json");
+    let json = serde_json::to_string_pretty(proposal)
+        .map_err(|err| format!("serialize restore proposal failed: {err}"))?;
+    std::fs::write(&path, json)
+        .map_err(|err| format!("write {} failed: {err}", path.display()))?;
+    Ok(())
+}
+
 fn trust_state_for_recent_work(value: &str) -> TrustState {
     match value {
         "trusted" => TrustState::Trusted,
@@ -3862,6 +4077,9 @@ fn dispatch_registry_entry(
             let trust_state =
                 trust_state_for_recent_work(enablement_runtime.workspace_trust_state.as_str());
             recent_work.note_local_folder_opened(&cwd, trust_state);
+            if let Some(active_id) = recent_work.active_recent_work_id.clone() {
+                editor_runtime.set_workspace_recovery_ref(active_id);
+            }
             palette.set_workspace_root(cwd.clone());
             let identity_key = cwd.to_string_lossy();
             workspace_lifecycle
@@ -4281,18 +4499,54 @@ fn invocation_and_result_unimplemented(
 
 fn finalize_command_overlay_decision(
     command_runtime: &mut CommandRuntimeState,
-    _registry: &CommandRegistry,
+    registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    session_restore_store: &mut SessionRestoreStore,
+    palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
+    overlay: &mut Option<ShellOverlayState>,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
     decision: CommandOverlayDecision,
 ) {
     match decision {
         CommandOverlayDecision::PreviewApproved { entry, session } => {
-            let invocation = match entry.descriptor.command_id.as_str() {
+            match entry.descriptor.command_id.as_str() {
                 "cmd:workspace.import_profile" => {
-                    invocation_and_result_import_profile_succeeded(&session)
+                    command_runtime.record(invocation_and_result_import_profile_succeeded(&session));
                 }
-                _ => invocation_and_result_unimplemented(&session),
-            };
-            command_runtime.record(invocation);
+                "cmd:workspace.clone_repository" => {
+                    command_runtime.record(invocation_and_result_unimplemented(&session));
+                    command_runtime.note_non_command_action(
+                        "clone repository approved (clone materialization not implemented)",
+                    );
+                }
+                "cmd:workspace.restore_from_checkpoint" => {
+                    let changed = apply_restore_from_checkpoint_preview_approved(
+                        command_runtime,
+                        registry,
+                        frame,
+                        editor_runtime,
+                        session_restore_store,
+                        palette,
+                        palette_focus_return,
+                        overlay,
+                        enablement_runtime,
+                        workspace_lifecycle,
+                        recent_work,
+                        &session,
+                    );
+                    if !changed {
+                        command_runtime
+                            .note_non_command_action("restore approved (no restorable state found)");
+                    }
+                }
+                _ => {
+                    command_runtime.record(invocation_and_result_unimplemented(&session));
+                }
+            }
         }
         CommandOverlayDecision::PreviewCancelled { entry, session } => {
             let invocation = match entry.descriptor.command_id.as_str() {
@@ -4304,6 +4558,73 @@ fn finalize_command_overlay_decision(
             command_runtime.record(invocation);
         }
     }
+}
+
+fn apply_restore_from_checkpoint_preview_approved(
+    command_runtime: &mut CommandRuntimeState,
+    registry: &CommandRegistry,
+    frame: &mut DesktopFrame,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
+    session_restore_store: &mut SessionRestoreStore,
+    palette: &mut CommandPaletteState,
+    palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
+    overlay: &mut Option<ShellOverlayState>,
+    enablement_runtime: &CommandEnablementRuntimeState,
+    workspace_lifecycle: &mut WorkspaceLifecycleRuntimeState,
+    recent_work: &mut RecentWorkRuntimeState,
+    session: &CommandInvocationSession,
+) -> bool {
+    let _ = (
+        registry,
+        frame,
+        editor_runtime,
+        palette,
+        palette_focus_return,
+        overlay,
+        enablement_runtime,
+        workspace_lifecycle,
+        recent_work,
+    );
+    let recovery_root = PathBuf::from(".logs").join("recovery");
+    let crash_journal_reader = CrashJournalStore::new(&recovery_root);
+    let proposal = match RestoreProposal::build(session_restore_store, &crash_journal_reader, false)
+    {
+        Ok(proposal) => proposal,
+        Err(err) => {
+            command_runtime
+                .note_non_command_action(format!("restore proposal unavailable — {err}"));
+            command_runtime.record(invocation_and_result_unimplemented(session));
+            return false;
+        }
+    };
+
+    if proposal.is_empty() {
+        command_runtime.note_non_command_action(
+            "restore approved but proposal is empty (no restorable state)",
+        );
+        command_runtime.record(invocation_and_result_unimplemented(session));
+        return false;
+    }
+
+    if matches!(proposal.restore_class, RestoreClass::EvidenceOnly) {
+        command_runtime.note_non_command_action(format!(
+            "restore approved as evidence-only — {}",
+            proposal.summary_line()
+        ));
+    } else {
+        command_runtime.note_non_command_action(format!(
+            "restore skeleton applied (no auto-rerun) — {}",
+            proposal.summary_line()
+        ));
+    }
+
+    if let Err(err) = write_restore_proposal_log(&recovery_root, &proposal) {
+        command_runtime
+            .note_non_command_action(format!("restore proposal log unavailable — {err}"));
+    }
+
+    command_runtime.record(invocation_and_result_unimplemented(session));
+    true
 }
 
 fn normalize_entry_pin_actions(entry: &mut RecentWorkEntryRecord) {
@@ -4334,6 +4655,7 @@ fn activate_recent_work_entry(
     window_dims: (u32, u32),
     workspace_trust_state: &mut String,
     recent_work: &mut RecentWorkRuntimeState,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     frame: &mut DesktopFrame,
     command_runtime: &mut CommandRuntimeState,
     mut entry: RecentWorkEntryRecord,
@@ -4341,6 +4663,7 @@ fn activate_recent_work_entry(
 ) {
     recent_work.suspend_active_frame(frame);
     recent_work.activate_recent_work(frame, window_dims, &entry);
+    editor_runtime.set_workspace_recovery_ref(entry.recent_work_id.clone());
 
     let trust_state = trust_override.unwrap_or(entry.trust_state);
     *workspace_trust_state = trust_state.as_str().to_string();
@@ -4388,6 +4711,7 @@ fn apply_workspace_switcher_decision(
     window_size: &LogicalSize<u32>,
     workspace_trust_state: &mut String,
     recent_work: &mut RecentWorkRuntimeState,
+    editor_runtime: &mut EditorWorkspaceRuntimeState,
     frame: &mut DesktopFrame,
     command_runtime: &mut CommandRuntimeState,
     palette: &mut CommandPaletteState,
@@ -4422,6 +4746,7 @@ fn apply_workspace_switcher_decision(
                         window_dims,
                         workspace_trust_state,
                         recent_work,
+                        editor_runtime,
                         frame,
                         command_runtime,
                         entry,
@@ -4442,6 +4767,7 @@ fn apply_workspace_switcher_decision(
                         window_dims,
                         workspace_trust_state,
                         recent_work,
+                        editor_runtime,
                         frame,
                         command_runtime,
                         entry,
@@ -4459,6 +4785,7 @@ fn apply_workspace_switcher_decision(
                         window_dims,
                         workspace_trust_state,
                         recent_work,
+                        editor_runtime,
                         frame,
                         command_runtime,
                         entry,
@@ -4537,6 +4864,7 @@ fn apply_workspace_switcher_decision(
                     window_dims,
                     workspace_trust_state,
                     recent_work,
+                    editor_runtime,
                     frame,
                     command_runtime,
                     entry,
@@ -4564,6 +4892,7 @@ fn apply_workspace_switcher_decision(
                     window_dims,
                     workspace_trust_state,
                     recent_work,
+                    editor_runtime,
                     frame,
                     command_runtime,
                     entry,
@@ -4588,6 +4917,7 @@ fn apply_workspace_switcher_decision(
                     window_dims,
                     workspace_trust_state,
                     recent_work,
+                    editor_runtime,
                     frame,
                     command_runtime,
                     entry,
@@ -4615,6 +4945,7 @@ fn apply_workspace_switcher_decision(
                     window_dims,
                     workspace_trust_state,
                     recent_work,
+                    editor_runtime,
                     frame,
                     command_runtime,
                     entry,
@@ -4910,6 +5241,7 @@ fn handle_key_event(
     registry: &CommandRegistry,
     frame: &mut DesktopFrame,
     editor_runtime: &mut EditorWorkspaceRuntimeState,
+    session_restore_store: &mut SessionRestoreStore,
     damage_geometry: &ShellDamageGeometryCache,
     palette: &mut CommandPaletteState,
     palette_focus_return: &mut FocusReturnStack<ShellFocusReturnTarget>,
@@ -5157,24 +5489,44 @@ fn handle_key_event(
         };
     }
 
-    if let Some(state) = overlay.as_mut() {
-        let outcome = state.handle_key(
-            code,
-            event.text.as_deref(),
-            *modifiers,
-            frame,
-            editor_runtime,
-            keybinding_runtime,
-        );
+    if overlay.is_some() {
+        let outcome = {
+            let state = overlay.as_mut().expect("overlay checked to be Some");
+            state.handle_key(
+                code,
+                event.text.as_deref(),
+                *modifiers,
+                frame,
+                editor_runtime,
+                keybinding_runtime,
+            )
+        };
+
         let entry_flow_decision = outcome.entry_flow_decision.clone();
+
         if let Some(decision) = outcome.command_decision {
-            finalize_command_overlay_decision(command_runtime, registry, decision);
+            finalize_command_overlay_decision(
+                command_runtime,
+                registry,
+                frame,
+                editor_runtime,
+                session_restore_store,
+                palette,
+                palette_focus_return,
+                overlay,
+                enablement_runtime,
+                workspace_lifecycle,
+                recent_work,
+                decision,
+            );
         }
+
         if let Some(decision) = outcome.workspace_switcher_decision {
             apply_workspace_switcher_decision(
                 &window.inner_size().to_logical::<u32>(window.scale_factor()),
                 &mut enablement_runtime.workspace_trust_state,
                 recent_work,
+                editor_runtime,
                 frame,
                 command_runtime,
                 palette,
@@ -5182,8 +5534,9 @@ fn handle_key_event(
                 decision,
             );
         }
+
         if outcome.handled {
-            if state.closed {
+            if overlay.as_ref().is_some_and(|state| state.closed) {
                 *overlay = None;
             }
             if let Some(decision) = entry_flow_decision {
