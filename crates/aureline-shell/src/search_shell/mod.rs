@@ -18,5 +18,6 @@ pub mod state;
 
 pub use state::{
     project_scope_label, WorkspaceSearchSurfaceCard, WorkspaceSearchSurfaceCardItem,
-    WorkspaceSearchSurfaceCardRow, WorkspaceSearchSurfaceState,
+    WorkspaceSearchSurfaceCardRow, WorkspaceSearchSurfaceLineageHint,
+    WorkspaceSearchSurfaceState,
 };

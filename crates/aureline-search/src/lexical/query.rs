@@ -14,6 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use aureline_workspace::{detect_lineage, LineageHintRecord};
+
 use super::index::{LexicalIndexState, ReadinessClass};
 use super::source::SourceClass;
 
@@ -94,6 +96,19 @@ pub struct ResultRow {
     pub relative_path: String,
     pub source_class: SourceClass,
     pub match_kind: MatchKind,
+    /// Generated-artifact lineage hint, when the row's relative path matches
+    /// a rule in the workspace's generated-artifact catalog. Surfaces use
+    /// this to label generated rows distinctly from canonical sources and
+    /// to point users back at the source-canonical artifact when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_artifact_hint: Option<LineageHintRecord>,
+}
+
+impl ResultRow {
+    /// True when the row carries a generated-artifact lineage hint.
+    pub fn has_generated_artifact_hint(&self) -> bool {
+        self.generated_artifact_hint.is_some()
+    }
 }
 
 /// One grouped lexical result section, rendered with a clear lane label.
@@ -162,6 +177,7 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
                 relative_path: path.clone(),
                 source_class: SourceClass::LexicalFilename,
                 match_kind: kind,
+                generated_artifact_hint: detect_lineage(path),
             });
             continue;
         }
@@ -171,6 +187,7 @@ pub fn run_query(index: &LexicalIndexState, query: &LexicalQuery) -> LexicalSear
                 relative_path: path.clone(),
                 source_class: SourceClass::LexicalPath,
                 match_kind: MatchKind::SubstringPath,
+                generated_artifact_hint: detect_lineage(path),
             });
         }
     }
@@ -271,6 +288,51 @@ mod tests {
             .items
             .iter()
             .any(|row| row.relative_path == "src/widgets/button.rs"));
+    }
+
+    #[test]
+    fn generated_lockfile_row_carries_lineage_hint() {
+        let index = ready_index_with(vec!["Cargo.lock", "Cargo.toml", "src/main.rs"]);
+        let results = run_query(&index, &LexicalQuery::new("cargo"));
+        let lockfile_row = results
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter())
+            .find(|row| row.relative_path == "Cargo.lock")
+            .expect("Cargo.lock must surface");
+        let hint = lockfile_row
+            .generated_artifact_hint
+            .as_ref()
+            .expect("Cargo.lock must carry a lineage hint");
+        assert_eq!(
+            hint.generated_class,
+            aureline_workspace::GeneratedArtifactClass::Lockfile
+        );
+        assert_eq!(
+            hint.source_canonical_relative_path.as_deref(),
+            Some("Cargo.toml")
+        );
+        // The canonical sibling itself must NOT carry a hint — the detector
+        // never relabels a hand-authored source as generated.
+        let toml_row = results
+            .groups
+            .iter()
+            .flat_map(|g| g.items.iter())
+            .find(|row| row.relative_path == "Cargo.toml")
+            .expect("Cargo.toml must surface");
+        assert!(toml_row.generated_artifact_hint.is_none());
+    }
+
+    #[test]
+    fn ordinary_source_row_has_no_lineage_hint() {
+        let index = ready_index_with(vec!["src/main.rs", "src/lib.rs"]);
+        let results = run_query(&index, &LexicalQuery::new("main"));
+        let row = results.groups[0]
+            .items
+            .iter()
+            .find(|row| row.relative_path == "src/main.rs")
+            .expect("src/main.rs must surface");
+        assert!(row.generated_artifact_hint.is_none());
     }
 
     #[test]

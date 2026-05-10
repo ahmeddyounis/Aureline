@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use aureline_reactive_state::ReadinessLabel;
 use aureline_search::{
     LexicalIndexInputs, LexicalIndexState, LexicalQuery, LexicalShell, LexicalShellSnapshot,
-    ScopeClass,
+    LineageHintRecord, ScopeClass,
 };
 use aureline_workspace::{
     ScopeClass as WorkspaceScopeClass, WorkspaceLifecycleMachine, WorkspaceReadinessInputs,
@@ -89,6 +89,10 @@ impl WorkspaceSearchSurfaceState {
                     .map(|row| WorkspaceSearchSurfaceCardItem {
                         relative_path: row.relative_path.clone(),
                         match_kind_token: row.match_kind.as_str().to_string(),
+                        generated_artifact_hint: row
+                            .generated_artifact_hint
+                            .as_ref()
+                            .map(WorkspaceSearchSurfaceLineageHint::from_record),
                     })
                     .collect(),
             })
@@ -182,6 +186,50 @@ pub struct WorkspaceSearchSurfaceCardRow {
 pub struct WorkspaceSearchSurfaceCardItem {
     pub relative_path: String,
     pub match_kind_token: String,
+    /// Generated-artifact lineage hint when the row's relative path matches a
+    /// rule in the workspace generated-artifact catalog. Surfaces MUST render
+    /// this directly so a generated row never reads as the canonical edit
+    /// target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub generated_artifact_hint: Option<WorkspaceSearchSurfaceLineageHint>,
+}
+
+/// Lineage hint projection rendered next to a search-shell row.
+///
+/// The shell consumes the canonical [`LineageHintRecord`] from the workspace
+/// surface and projects the user-visible labels here so the chrome doesn't
+/// re-derive class / freshness vocabulary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceSearchSurfaceLineageHint {
+    pub generated_class_token: String,
+    pub generated_class_label: String,
+    pub badge: String,
+    pub freshness_class_token: String,
+    pub freshness_label: String,
+    pub producer_id: String,
+    pub producer_label: String,
+    pub explainer: String,
+    pub rule_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_canonical_relative_path: Option<String>,
+}
+
+impl WorkspaceSearchSurfaceLineageHint {
+    /// Build a chrome-facing hint projection from a canonical record.
+    pub fn from_record(record: &LineageHintRecord) -> Self {
+        Self {
+            generated_class_token: record.generated_class.as_str().to_string(),
+            generated_class_label: record.generated_class.label().to_string(),
+            badge: record.generated_class.badge().to_string(),
+            freshness_class_token: record.freshness_class.as_str().to_string(),
+            freshness_label: record.freshness_class.label().to_string(),
+            producer_id: record.producer_id.clone(),
+            producer_label: record.producer_label.clone(),
+            explainer: record.explainer.clone(),
+            rule_id: record.rule_id.clone(),
+            source_canonical_relative_path: record.source_canonical_relative_path.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -283,6 +331,53 @@ mod tests {
         );
         let card = surface.render_card();
         assert_eq!(card.scope_chip_label, "Selected workset · Hot path");
+    }
+
+    #[test]
+    fn lockfile_row_card_carries_lineage_hint() {
+        let lifecycle = ready_lifecycle();
+        let mut surface = WorkspaceSearchSurfaceState::open(
+            &lifecycle,
+            ReadinessLabel::Exact,
+            WorkspaceScopeClass::CurrentRepo,
+            None,
+            vec![
+                "Cargo.lock".to_string(),
+                "Cargo.toml".to_string(),
+                "src/main.rs".to_string(),
+            ],
+        );
+        surface.set_query("cargo");
+
+        let card = surface.render_card();
+        let lockfile_item = card
+            .rows
+            .iter()
+            .flat_map(|row| row.items.iter())
+            .find(|item| item.relative_path == "Cargo.lock")
+            .expect("Cargo.lock row must surface");
+        let hint = lockfile_item
+            .generated_artifact_hint
+            .as_ref()
+            .expect("lockfile row must carry lineage hint");
+        assert_eq!(hint.generated_class_token, "lockfile");
+        assert_eq!(hint.freshness_class_token, "derived_from_canonical");
+        assert_eq!(
+            hint.source_canonical_relative_path.as_deref(),
+            Some("Cargo.toml")
+        );
+        assert_eq!(hint.rule_id, "lockfile.cargo");
+
+        let manifest_item = card
+            .rows
+            .iter()
+            .flat_map(|row| row.items.iter())
+            .find(|item| item.relative_path == "Cargo.toml")
+            .expect("Cargo.toml row must surface");
+        assert!(
+            manifest_item.generated_artifact_hint.is_none(),
+            "Cargo.toml is the canonical source and must not carry a generated hint",
+        );
     }
 
     #[test]

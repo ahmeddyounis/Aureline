@@ -11,6 +11,7 @@
 #![doc(html_root_url = "https://docs.rs/aureline-workspace/0.0.0")]
 
 pub mod entry_flows;
+pub mod generated_artifacts;
 pub mod lifecycle;
 pub mod recent_work;
 pub mod roots;
@@ -42,6 +43,13 @@ pub use save::{
 pub use roots::{
     MultiRootWorkspace, MultiRootWorkspaceError, MultiRootWorkspaceRecordKind,
     MultiRootWorkspaceSchemaVersion, RootPartialTruth, WorkspaceRootKind, WorkspaceRootRef,
+};
+
+pub use generated_artifacts::{
+    default_catalog as default_generated_artifact_catalog, detect_lineage,
+    GeneratedArtifactCatalog, GeneratedArtifactClass, GeneratedArtifactRule,
+    LineageFreshnessClass, LineageHintRecord, LineageHintRecordKind, LineageHintSchemaVersion,
+    RuleMatcher, SourceCanonicalLink,
 };
 
 pub use worksets::{

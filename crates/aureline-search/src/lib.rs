@@ -32,3 +32,7 @@ pub use lexical::{
     LexicalShellSnapshot, MatchKind, ReadinessClass, ResultGroup, ResultRow, ScopeClass,
     SourceClass, MAX_RESULTS_PER_GROUP,
 };
+
+pub use aureline_workspace::{
+    GeneratedArtifactClass, LineageFreshnessClass, LineageHintRecord,
+};
