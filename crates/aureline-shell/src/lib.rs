@@ -30,6 +30,8 @@ pub mod layout;
 pub mod palette;
 /// Path-truth chip, alias inspector, and pre-write save-target review projections.
 pub mod path_truth;
+/// Quick-open query session: recent targets, commands, and lexical results.
+pub mod quick_open;
 /// Safe-mode entry, recovery-ladder rung stubs, and crash-loop containment offers.
 pub mod recovery;
 /// Restore-prompt projection for resume / missing-target recovery.
