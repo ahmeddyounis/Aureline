@@ -24,7 +24,7 @@ pub use recent_work::{
 
 pub use lifecycle::{
     WorkspaceLifecycleMachine, WorkspaceLifecycleSnapshot, WorkspaceLifecycleSnapshotRecordKind,
-    WorkspaceLifecycleState, WorkspaceLifecycleTransitionFrame,
+    WorkspaceLifecycleState, WorkspaceLifecycleTransitionFrame, WorkspaceReadinessInputs,
 };
 
 pub use entry_flows::{

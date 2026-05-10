@@ -7,7 +7,12 @@
 
 pub mod degraded_state;
 pub mod placeholder_state;
+pub mod readiness_chip;
 pub mod shell_placeholders;
 
 pub use degraded_state::DegradedStateToken;
+pub use readiness_chip::{
+    materialize_workspace_readiness_chip, readiness_label_to_degraded_token,
+    readiness_snapshot_from_lifecycle, WorkspaceReadinessChipMount, WorkspaceReadinessChipRecord,
+};
 pub use shell_placeholders::{shell_slot_label, ShellPlaceholderCard};

@@ -56,6 +56,7 @@ pub mod envelope;
 pub mod harness;
 pub mod hooks;
 pub mod producers;
+pub mod runtime;
 pub mod store;
 pub mod trace;
 pub mod verification;
@@ -69,6 +70,12 @@ pub use hooks::HookCounters;
 pub use producers::{
     derived_diagnostics, file_identity, graph_neighborhood, provider_overlay, shell_health, window,
     workspace, workspace_readiness,
+};
+pub use runtime::{
+    open_workspace_readiness, readiness_from_envelope, readiness_label_counts, render_chip_line,
+    republish_workspace_readiness, workspace_readiness_producer, LiveReactiveStore,
+    LiveSubscriptionToken, ReadinessLabel, ReadinessObserver, ReadinessProjection,
+    WatcherHealthPhase, WorkspaceLifecyclePhase, WorkspaceReadinessSnapshot,
 };
 pub use store::{
     freshness_is_downgrade, ConsumerProjection, Emission, Producer, ReactiveStore, SamplePayload,

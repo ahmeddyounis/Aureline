@@ -68,6 +68,21 @@ pub struct WorkspaceLifecycleSnapshot {
     pub observed_at: String,
 }
 
+/// Canonical readiness-input projection emitted by
+/// [`WorkspaceLifecycleMachine::readiness_inputs`]. Exposed as a
+/// stable string vocabulary so consumers (notably the reactive
+/// state runtime adaptor) can build their own typed snapshot
+/// without taking a hard dependency on this crate's enum types.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceReadinessInputs {
+    pub workspace_id: String,
+    pub lifecycle_state_token: &'static str,
+    pub watcher_health_token: Option<&'static str>,
+    pub hot_index_ready: bool,
+    pub command_graph_ready: bool,
+    pub observed_at: String,
+}
+
 /// One transition frame emitted by the lifecycle state machine.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceLifecycleTransitionFrame {
@@ -136,6 +151,23 @@ impl WorkspaceLifecycleMachine {
     /// Returns whether the command-graph gate is satisfied.
     pub const fn command_graph_ready(&self) -> bool {
         self.command_graph_ready
+    }
+
+    /// Returns the canonical readiness inputs the reactive-state
+    /// runtime adaptor consumes. Surfaces wiring the lifecycle to
+    /// the [`aureline_reactive_state::LiveReactiveStore`] should
+    /// convert these inputs into a
+    /// [`aureline_reactive_state::WorkspaceReadinessSnapshot`]
+    /// rather than re-deriving the readiness vocabulary locally.
+    pub fn readiness_inputs(&self) -> WorkspaceReadinessInputs {
+        WorkspaceReadinessInputs {
+            workspace_id: self.workspace_id.clone(),
+            lifecycle_state_token: self.state.as_str(),
+            watcher_health_token: self.watcher_health.map(|h| h.as_str()),
+            hot_index_ready: self.hot_index_ready,
+            command_graph_ready: self.command_graph_ready,
+            observed_at: self.observed_at.clone(),
+        }
     }
 
     /// Returns an exportable snapshot of the current lifecycle state.

@@ -36,9 +36,11 @@
 
 use crate::envelope::{
     AuthorityClass, BackpressureMode, Completeness, DerivationClass, FrameClass, Freshness,
-    InputDigest, Invalidation, JsonValue, ProducerRef, ScopeRef, StaleReason, SubscriptionEnvelope,
+    Invalidation, JsonValue, ProducerRef, ScopeRef, StaleReason, SubscriptionEnvelope,
     TerminalReason, ViewClass, SUBSCRIPTION_SCHEMA_VERSION,
 };
+#[cfg(test)]
+use crate::envelope::InputDigest;
 use crate::hooks::HookCounters;
 use crate::trace::{ConsumerObservation, TraceEvent};
 
@@ -387,16 +389,19 @@ impl ReactiveStore {
     ) -> Result<Emission, StoreError> {
         let idx = self.find_producer_by_subscription(subscription_id)?;
         self.assert_not_terminated(idx)?;
-        let state = &mut self.producers[idx];
-        state.awaiting_snapshot = true;
-        state.last_freshness = Freshness::Stale;
-        state.last_completeness = completeness;
+        let last_delta_seq = {
+            let state = &mut self.producers[idx];
+            state.awaiting_snapshot = true;
+            state.last_freshness = Freshness::Stale;
+            state.last_completeness = completeness;
+            state.last_delta_seq
+        };
 
         let envelope = self.build_envelope(
             idx,
             subscription_id,
             FrameClass::ResyncRequired,
-            state.last_delta_seq,
+            last_delta_seq,
             Freshness::Stale,
             completeness,
             Some(Invalidation {
@@ -434,16 +439,19 @@ impl ReactiveStore {
     ) -> Result<Emission, StoreError> {
         let idx = self.find_producer_by_subscription(subscription_id)?;
         self.assert_not_terminated(idx)?;
-        let state = &mut self.producers[idx];
-        state.terminated = true;
-        state.last_freshness = freshness;
-        state.last_completeness = completeness;
+        let last_delta_seq = {
+            let state = &mut self.producers[idx];
+            state.terminated = true;
+            state.last_freshness = freshness;
+            state.last_completeness = completeness;
+            state.last_delta_seq
+        };
 
         let envelope = self.build_envelope(
             idx,
             subscription_id,
             FrameClass::Terminal,
-            state.last_delta_seq,
+            last_delta_seq,
             freshness,
             completeness,
             invalidation,

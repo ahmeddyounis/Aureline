@@ -48,6 +48,15 @@ pub enum Freshness {
     Imported,
 }
 
+impl Default for Freshness {
+    /// New consumer projections start at `warming`: nothing has
+    /// been observed yet, but the projection is awaiting an
+    /// initial snapshot rather than known-stale.
+    fn default() -> Self {
+        Self::Warming
+    }
+}
+
 impl Freshness {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -84,6 +93,14 @@ pub enum Completeness {
     Unavailable,
 }
 
+impl Default for Completeness {
+    /// New consumer projections start at `unloaded`: nothing has
+    /// been observed yet for the requested scope.
+    fn default() -> Self {
+        Self::Unloaded
+    }
+}
+
 impl Completeness {
     pub fn as_str(self) -> &'static str {
         match self {
@@ -101,6 +118,14 @@ pub enum BackpressureMode {
     Realtime,
     Coalesced,
     SnapshotRequired,
+}
+
+impl Default for BackpressureMode {
+    /// Default to `realtime` so a consumer that does not
+    /// explicitly request coalescing observes every frame.
+    fn default() -> Self {
+        Self::Realtime
+    }
 }
 
 impl BackpressureMode {
@@ -259,9 +284,18 @@ impl ScopeClass {
     }
 }
 
+impl Default for ScopeClass {
+    /// Default to `workspace` to match the most common scope
+    /// surface in the M1 protected rows.
+    fn default() -> Self {
+        Self::Workspace
+    }
+}
+
+
 /// Typed subscription scope. Unscoped ambient subscriptions are
 /// forbidden on protected surfaces.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 pub struct ScopeRef {
     pub class: ScopeClass,
     pub id: String,
